@@ -1,0 +1,322 @@
+Testing WCSLIB's handling of translated distortions (tdis3)
+-----------------------------------------------------------
+Each of the 10 SIPTPV alternates should produce the same results.
+
+
+Using SIPTPV alternate 0:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-0: native SIP representation
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 1:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-1: SIP translated to a 'SIP' distortion
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 2:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-2: SIP translated to a 'TPD' distortion
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 3:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-3: SIP translated to a 'Polynomial' distortion
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 4:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-4: native TPV representation
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 5:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-6: TPV translated to a 'TPD' distortion
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 6:
+-------------------------
+Found 10 coordinate representations.
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 7:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-7: TPV translated to a 'TPD' distortion without axis map
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 8:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-8: TPV translated to a 'Polynomial' distortion
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using SIPTPV alternate 9:
+-------------------------
+Found 10 coordinate representations.
+
+SIPTPV-9: TPV translated to 'Polynomial' without axis mapping
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.109607,       1.219086
+World:     276.028383,     -24.750794
+
+Enter 2 pixel coordinate elements: Pixel:           2048,              1
+Image:       1.683941,       1.218459
+World:     276.660243,     -24.744974
+
+Enter 2 pixel coordinate elements: Pixel:           2048,           4096
+Image:       1.684910,       0.067489
+World:     276.679433,     -25.895134
+
+Enter 2 pixel coordinate elements: Pixel:              1,           4096
+Image:       1.110303,       0.067495
+World:     276.041106,     -25.901929
+
+Enter 2 pixel coordinate elements: 
+
+
+Using DSS alternate 0:
+----------------------
+Found 3 coordinate representations.
+
+DSS PLATEID A2OP
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       1.395107,       2.129368
+World:      81.996683,     -12.820752
+
+Enter 2 pixel coordinate elements: Pixel:            891,              1
+Image:       1.145352,       2.128085
+World:      81.740854,     -12.823290
+
+Enter 2 pixel coordinate elements: Pixel:            891,            893
+Image:       1.144292,       2.378038
+World:      81.738417,     -12.573782
+
+Enter 2 pixel coordinate elements: Pixel:              1,            893
+Image:       1.394075,       2.379333
+World:      81.993980,     -12.571258
+
+Enter 2 pixel coordinate elements: 
+
+
+Using TNX alternate 0:
+----------------------
+Found one coordinate representation.
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       0.008615,       0.011566
+World:     266.713922,     -30.148962
+
+Enter 2 pixel coordinate elements: Pixel:            400,              1
+Image:       0.008603,       0.041489
+World:     266.713906,     -30.119039
+
+Enter 2 pixel coordinate elements: Pixel:            400,            400
+Image:       0.038509,       0.041475
+World:     266.748480,     -30.119046
+
+Enter 2 pixel coordinate elements: Pixel:              1,            400
+Image:       0.038533,       0.011558
+World:     266.748521,     -30.148963
+
+Enter 2 pixel coordinate elements: 
+
+
+Using ZPX alternate 0:
+----------------------
+Found one coordinate representation.
+
+Enter 2 pixel coordinate elements: Pixel:              1,              1
+Image:       0.299913,       0.303299
+World:     321.056617,      37.205397
+
+Enter 2 pixel coordinate elements: Pixel:            512,              1
+Image:       0.299885,       0.266103
+World:     321.057279,      37.169537
+
+Enter 2 pixel coordinate elements: Pixel:            512,            512
+Image:       0.262707,       0.266092
+World:     321.012173,      37.170263
+
+Enter 2 pixel coordinate elements: Pixel:              1,            512
+Image:       0.262735,       0.303287
+World:     321.011602,      37.206209
+
+Enter 2 pixel coordinate elements: 

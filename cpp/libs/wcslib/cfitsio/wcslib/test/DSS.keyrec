@@ -1,0 +1,246 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: DSS.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing the handling of the Digitized Sky
+# Survey (DSS) distortion function by WCSLIB.
+#
+# This header was adapted from an extract obtained from the STScI archive at
+# http://archive.stsci.edu/cgi-bin/dss_form for object 'IC418' (Simbad) with
+# an image size of 15 x 15 arcmin.  Keyrecords unrelated to coordinates have
+# mostly been removed.
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < DSS.keyrec > DSS.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    T / Conforms to FITS standard
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    2 / 2 image axes
+NAXIS1  =                  891 / Length of image axis 1
+NAXIS2  =                  893 / Length of image axis 2
+
+ORIGIN  = 'STScI/MAST'         /GSSS: STScI Digitized Sky Survey
+SURVEY  = 'SERC-ER '           /GSSS: Sky Survey
+REGION  = 'ER623   '           /GSSS: Region Name
+PLATEID = 'A2OP    '           /GSSS: Plate ID
+SCANNUM = '01      '           /GSSS: Scan Number
+DSCNDNUM= '00      '           /GSSS: Descendant Number
+TELESCID=                    4 /GSSS: Telescope ID
+BANDPASS=                   36 /GSSS: Bandpass Code
+COPYRGHT= 'AAO/ROE '           /GSSS: Copyright Holder
+
+DATE-OBS= '1996-10-14T17:42:00' /Observation: Date/Time
+EXPOSURE=                 60.0 /Observation: Exposure Minutes
+PLTGRADE= 'A2      '           /Observation: Plate Grade
+OBSHA   =            -0.116667 /Observation: Hour Angle
+OBSZD   =              16.3556 /Observation: Zenith Distance
+AIRMASS =              1.04208 /Observation: Airmass
+REFBETA =        66.3196420000 /Observation: Refraction Coeff
+REFBETAP=     -0.0820000000000 /Observation: Refraction Coeff
+REFK1   =       -7317.80000000 /Observation: Refraction Coeff
+REFK2   =       -60474.2200000 /Observation: Refraction Coeff
+
+PLTSCALE=                67.20 /Detector: Plate Scale arcsec per mm
+PLTSIZEX=              355.000 /Detector: Plate X Dimension mm
+PLTSIZEY=              355.000 /Detector: Plate Y Dimension mm
+PLATERA =        80.5634690000 /Observation: Field centre RA degrees
+PLATEDEC=       -14.9583230000 /Observation: Field centre Dec degrees
+PLTLABEL= 'OR17313 '           /Observation: Plate Label
+
+CNPIX1  =                 6498 /Scan: X Corner
+CNPIX2  =                19120 /Scan: Y Corner
+XPIXELS =                23040 /Scan: X Dimension
+YPIXELS =                23040 /Scan: Y Dimension
+XPIXELSZ=              15.0295 /Scan: Pixel Size microns
+YPIXELSZ=              15.0000 /Scan: Pixel Size microns
+PPO1    =       -3069417.00000 /Scan: Orientation Coeff
+PPO2    =       0.000000000000 /Scan: Orientation Coeff
+PPO3    =        177500.000000 /Scan: Orientation Coeff
+PPO4    =       0.000000000000 /Scan: Orientation Coeff
+PPO5    =        3069417.00000 /Scan: Orientation Coeff
+PPO6    =        177500.000000 /Scan: Orientation Coeff
+PLTRAH  =                    5 /Astrometry: Plate Centre H
+PLTRAM  =                   22 /Astrometry: Plate Centre M
+PLTRAS  =                16.12 /Astrometry: Plate Centre S
+PLTDECSN= '-       '           /Astrometry: Plate Centre +/-
+PLTDECD =                   14 /Astrometry: Plate Centre D
+PLTDECM =                   57 /Astrometry: Plate Centre M
+PLTDECS =                 10.8 /Astrometry: Plate Centre S
+EQUINOX =               2000.0 /Astrometry: Equinox
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  Guide Star Catalogue 1 coefficients.
+COMMENT  -----------------------------------------------------------------------
+
+AMDX1   =        67.1586924213 /Astrometry: GSC1 Coeff
+AMDX2   =      -0.319046525929 /Astrometry: GSC1 Coeff
+AMDX3   =       -307.222397476 /Astrometry: GSC1 Coeff
+AMDX4   =  -2.94727512097E-005 /Astrometry: GSC1 Coeff
+AMDX5   =   3.57034551060E-005 /Astrometry: GSC1 Coeff
+AMDX6   =  -7.81953205318E-006 /Astrometry: GSC1 Coeff
+AMDX7   =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX8   =   2.01662503008E-006 /Astrometry: GSC1 Coeff
+AMDX9   =  -6.78953469514E-008 /Astrometry: GSC1 Coeff
+AMDX10  =   2.32375502821E-006 /Astrometry: GSC1 Coeff
+AMDX11  =  -5.70870090870E-008 /Astrometry: GSC1 Coeff
+AMDX12  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX13  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX14  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX15  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX16  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX17  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX18  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX19  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDX20  =       0.000000000000 /Astrometry: GSC1 Coeff
+
+AMDY1   =        67.1648535547 /Astrometry: GSC1 Coeff
+AMDY2   =       0.317194761999 /Astrometry: GSC1 Coeff
+AMDY3   =        295.118096783 /Astrometry: GSC1 Coeff
+AMDY4   =   1.99924027359E-006 /Astrometry: GSC1 Coeff
+AMDY5   =  -5.19116622905E-005 /Astrometry: GSC1 Coeff
+AMDY6   =   1.19237255768E-005 /Astrometry: GSC1 Coeff
+AMDY7   =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY8   =   2.02173052273E-006 /Astrometry: GSC1 Coeff
+AMDY9   =  -6.68994178481E-008 /Astrometry: GSC1 Coeff
+AMDY10  =   2.11529862425E-006 /Astrometry: GSC1 Coeff
+AMDY11  =  -6.66974464403E-008 /Astrometry: GSC1 Coeff
+AMDY12  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY13  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY14  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY15  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY16  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY17  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY18  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY19  =       0.000000000000 /Astrometry: GSC1 Coeff
+AMDY20  =       0.000000000000 /Astrometry: GSC1 Coeff
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  Guide Star Catalogue 2 coefficients.
+COMMENT  -----------------------------------------------------------------------
+
+AMDREX1 =        67.1515536626 /Astrometry: GSC2 Coeff
+AMDREX2 =      -0.321604161010 /Astrometry: GSC2 Coeff
+AMDREX3 =       -307.070931304 /Astrometry: GSC2 Coeff
+AMDREX4 =   3.78456630241E-006 /Astrometry: GSC2 Coeff
+AMDREX5 =   9.82753867931E-006 /Astrometry: GSC2 Coeff
+AMDREX6 =   4.81926941509E-006 /Astrometry: GSC2 Coeff
+AMDREX7 =       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX8 =       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX9 =       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX10=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX11=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX12=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX13=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX14=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX15=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX16=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX17=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX18=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX19=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREX20=       0.000000000000 /Astrometry: GSC2 Coeff
+
+AMDREY1 =        67.1523286931 /Astrometry: GSC2 Coeff
+AMDREY2 =       0.314721460695 /Astrometry: GSC2 Coeff
+AMDREY3 =        294.917836411 /Astrometry: GSC2 Coeff
+AMDREY4 =  -9.67594095615E-006 /Astrometry: GSC2 Coeff
+AMDREY5 =  -1.26770977478E-005 /Astrometry: GSC2 Coeff
+AMDREY6 =   8.47198751394E-006 /Astrometry: GSC2 Coeff
+AMDREY7 =       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY8 =       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY9 =       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY10=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY11=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY12=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY13=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY14=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY15=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY16=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY17=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY18=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY19=       0.000000000000 /Astrometry: GSC2 Coeff
+AMDREY20=       0.000000000000 /Astrometry: GSC2 Coeff
+ASTRMASK= 'er.mask '           /Astrometry: GSC2 Mask
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  This representation without distortions, computed by WCSLIB using
+COMMENT  the method derived in Sect. 5.2 of WCS Paper IV, provides the best
+COMMENT  approximation to the DSS plate solution in the vicinity of the plate
+COMMENT  centre, which is the reference point here.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEA= 'DSS approximation without distortions computed by WCSLIB'
+WCSAXESA=                    2 / Number of coordinate axes
+CRPIX1A =        5009.62946648 / Pixel coordinate of reference point
+CRPIX2A =       -7580.52942578 / Pixel coordinate of reference point
+PC1_1A  =      0.0150286420582 / Coordinate transformation matrix element
+PC1_2A  =    7.12554775909E-05 / Coordinate transformation matrix element
+PC2_1A  =   -7.09812292194E-05 / Coordinate transformation matrix element
+PC2_2A  =      0.0150005197625 / Coordinate transformation matrix element
+CDELT1A =     -0.0186562573103 / [deg] Coordinate increment at reference point
+CDELT2A =      0.0186562573103 / [deg] Coordinate increment at reference point
+CUNIT1A = 'deg'                / Units of coordinate increment and value
+CUNIT2A = 'deg'                / Units of coordinate increment and value
+CTYPE1A = 'RA---TAN'           / Right ascension, gnomonic projection
+CTYPE2A = 'DEC--TAN'           / Declination, gnomonic projection
+CRVAL1A =        80.5671666667 / [deg] Coordinate value at reference point
+CRVAL2A =              -14.953 / [deg] Coordinate value at reference point
+LONPOLEA=                180.0 / [deg] Native longitude of celestial pole
+LATPOLEA=              -14.953 / [deg] Native latitude of celestial pole
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  This representation without distortions, added by the DSS archive
+COMMENT  server, provides a solution tailored to the neighbourhood of the
+COMMENT  extracted subimage, which is towards the corner of the plate.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEB= 'DSS approximation without distortions computed by archive server'
+WCSAXESB=                    2 /GetImage: Number WCS axes
+RADESYSB= 'ICRS              ' /GetImage: GSC-II calibration using ICRS system
+CTYPE1B = 'RA---TAN          ' /GetImage: RA-Gnomic projection
+CRPIX1B =           446.000000 /GetImage: X reference pixel
+CRVAL1B =            81.867391 /GetImage: RA of reference pixel
+CUNIT1B = 'deg               ' /GetImage: degrees
+CTYPE2B = 'DEC--TAN          ' /GetImage: Dec-Gnomic projection
+CRPIX2B =           447.000000 /GetImage: Y reference pixel
+CRVAL2B =           -12.697383 /GetImage: Dec of reference pixel
+CUNIT2B = 'deg               ' /Getimage: degrees
+CD1_1B  =        -0.0002802725 /GetImage: rotation matrix coefficient
+CD1_2B  =        -0.0000028752 /GetImage: rotation matrix coefficient
+CD2_1B  =        -0.0000028067 /GetImage: rotation matrix coefficient
+CD2_2B  =         0.0002797643 /GetImage: rotation matrix coefficient
+
+OBJECT  = 'data              ' /GetImage: Requested Object Name
+DATAMIN =                 3813 /GetImage: Minimum returned pixel value
+DATAMAX =                21724 /GetImage: Maximum returned pixel value
+OBJCTRA = '05 27 28.190      ' /GetImage: Requested Right Ascension (J2000)
+OBJCTDEC= '-12 41 50.20      ' /GetImage: Requested Declination (J2000)
+OBJCTX  =              6943.58 /GetImage: Requested X on plate (pixels)
+OBJCTY  =             19566.59 /GetImage: Requested Y on plate (pixels)
+
+END

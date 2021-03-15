@@ -1,0 +1,476 @@
+Testing WCSLIB subimage extraction routine (twcssub.c)
+------------------------------------------------------
+
+Initial contents of wcsprm struct:
+       flag: 137
+      naxis: 4
+      crpix: 0x<address>
+               1025.0       64.000       512.00       513.00    
+         pc: 0x<address>
+    pc[0][]:   1.1000       0.0000       0.0000       0.0000    
+    pc[1][]:   0.0000       1.0000       0.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000       0.10000   
+    pc[3][]:   0.0000       0.0000       0.20000      1.0000    
+      cdelt: 0x<address>
+              -9.2000e-06   10.000       1.0000      -1.0000    
+      crval: 0x<address>
+               0.21498     -2000.0      -30.000       150.00    
+      cunit: 0x<address>
+             "m"
+             "s"
+             "deg"
+             "deg"
+      ctype: 0x<address>
+             "WAVE-F2W"
+             "TIME"
+             "XLAT-SZP"
+             "XLON-SZP"
+    lonpole: 150.000000
+    latpole: -30.000000
+    restfrq: 1420405750.000000
+    restwav: 0.000000
+        npv: 4
+     npvmax: 64
+         pv: 0x<address>
+               1   1  -1.0000    
+               3   1   2.0000    
+               3   2   210.00    
+               3   3   60.000    
+        nps: 1
+     npsmax: 8
+         ps: 0x<address>
+               2   1  UTC
+         cd: 0x<address>
+    cd[0][]:   0.0000       0.0000       0.0000       0.0000    
+    cd[1][]:   0.0000       0.0000       0.0000       0.0000    
+    cd[2][]:   0.0000       0.0000       0.0000       0.0000    
+    cd[3][]:   0.0000       0.0000       0.0000       0.0000    
+      crota: 0x<address>
+               0.0000       0.0000       0.0000       0.0000    
+     altlin: 0
+     velref: 0
+        alt: ' '
+     colnum: 0
+      colax: 0x<address>
+                 0      0      0      0
+      cname: 0x<address>
+             "Wavelength"
+             "Time"
+             "Latitude"
+             "Longitude"
+      crder: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      csyer: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      czphs: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      cperi: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+    wcsname: UNDEFINED
+    timesys: UNDEFINED
+    trefpos: UNDEFINED
+    trefdir: UNDEFINED
+    plephem: UNDEFINED
+   timeunit: UNDEFINED
+    dateref: UNDEFINED
+     mjdref:      0.000000000     0.000000000
+   timeoffs: UNDEFINED
+    dateobs: UNDEFINED
+    datebeg: UNDEFINED
+    dateavg: UNDEFINED
+    dateend: UNDEFINED
+     mjdobs: UNDEFINED
+     mjdbeg: UNDEFINED
+     mjdavg: UNDEFINED
+     mjdend: UNDEFINED
+     jepoch: UNDEFINED
+     bepoch: UNDEFINED
+     tstart: UNDEFINED
+      tstop: UNDEFINED
+    xposure: UNDEFINED
+    telapse: UNDEFINED
+    timsyer: UNDEFINED
+    timrder: UNDEFINED
+    timedel: UNDEFINED
+   timepixr: UNDEFINED
+     obsgeo:        UNDEFINED       UNDEFINED       UNDEFINED
+                    UNDEFINED       UNDEFINED       UNDEFINED
+   obsorbit: UNDEFINED
+    radesys: UNDEFINED
+    equinox: UNDEFINED
+    specsys: UNDEFINED
+    ssysobs: UNDEFINED
+    velosys: UNDEFINED
+    zsource: UNDEFINED
+    ssyssrc: UNDEFINED
+    velangl: UNDEFINED
+        aux: 0x0
+       ntab: 0
+        tab: 0x0
+       nwtb: 0
+        wtb: 0x0
+      types: 0x<address>
+            3300    0 2201 2200
+     lngtyp: "XLON"
+     lattyp: "XLAT"
+        lng: 3
+        lat: 2
+       spec: 0
+   cubeface: -1
+        err: 0x0
+        lin: (see below)
+        cel: (see below)
+        spc: (see below)
+     m_flag: 137
+    m_naxis: 4
+    m_crpix: 0x<address>  (= crpix)
+       m_pc: 0x<address>  (= pc)
+    m_cdelt: 0x<address>  (= cdelt)
+    m_crval: 0x<address>  (= crval)
+    m_cunit: 0x<address>  (= cunit)
+    m_ctype: 0x<address>  (= ctype)
+       m_pv: 0x<address>  (= pv)
+       m_ps: 0x<address>  (= ps)
+       m_cd: 0x<address>  (= cd)
+    m_crota: 0x<address>  (= crota)
+
+    m_colax: 0x<address>  (= colax)
+    m_cname: 0x<address>  (= cname)
+    m_crder: 0x<address>  (= crder)
+    m_csyer: 0x<address>  (= csyer)
+    m_czphs: 0x<address>  (= czphs)
+    m_cperi: 0x<address>  (= cperi)
+      m_aux: 0x0  (= aux)
+      m_tab: 0x0  (= tab)
+      m_wtb: 0x0  (= wtb)
+
+   lin.*
+       flag: 137
+      naxis: 4
+      crpix: 0x<address>
+               1025.0       64.000       512.00       513.00    
+         pc: 0x<address>
+    pc[0][]:   1.1000       0.0000       0.0000       0.0000    
+    pc[1][]:   0.0000       1.0000       0.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000       0.10000   
+    pc[3][]:   0.0000       0.0000       0.20000      1.0000    
+      cdelt: 0x<address>
+              -9.2000e-06   10.000       1.0000      -1.0000    
+     dispre: 0x0
+     disseq: 0x0
+piximg[0][]:  -1.0120e-05  -0.0000      -0.0000      -0.0000    
+piximg[1][]:   0.0000       10.000       0.0000       0.0000    
+piximg[2][]:   0.0000       0.0000       1.0000       0.10000   
+piximg[3][]:  -0.0000      -0.0000      -0.20000     -1.0000    
+imgpix[0][]:  -98814.      -0.0000      -0.0000      -0.0000    
+imgpix[1][]:   0.0000       0.10000      0.0000       0.0000    
+imgpix[2][]:   0.0000       0.0000       1.0204       0.10204   
+imgpix[3][]:  -0.0000      -0.0000      -0.20408     -1.0204    
+    i_naxis: 4
+      unity: 0
+     affine: 1
+     simple: 0
+        err: 0x0
+     tmpcrd: 0x<address>
+     m_flag: 0
+    m_naxis: 0
+    m_crpix: 0x0
+       m_pc: 0x0
+    m_cdelt: 0x0
+   m_dispre: 0x0
+   m_disseq: 0x0
+
+   cel.*
+      flag: 137
+     offset: 0
+       phi0:  0.000000
+     theta0: 90.000000
+        ref:   150.00      -30.000       150.00      -30.000    
+        prj: (see below)
+      euler:   150.00       120.00       150.00      -0.50000      0.86603   
+    latpreq: 0 (not required)
+     isolat: 0
+        err: 0x0
+
+   prj.*
+       flag: 102
+       code: "SZP"
+         r0: 57.295780
+         pv: (0)
+              2.0000       210.00       60.000    
+       phi0:  0.000000
+     theta0: 90.000000
+     bounds: 7
+
+       name: "slant zenithal perspective"
+   category: 1 (zenithal)
+    pvrange: 103
+  simplezen: 0
+  equiareal: 0
+  conformal: 0
+     global: 0
+  divergent: 0
+         x0: 0.000000
+         y0: 0.000000
+        err: 0x0
+        w[]:   0.017453     0.50000     -0.86603      2.7321       28.648    
+              -49.620       156.53       3.7321      -90.000       0.0000    
+          m: 0
+          n: 0
+     prjx2s: 0x<address>
+     prjs2x: 0x<address>
+
+   spc.*
+       flag: 110
+       type: "WAVE"
+       code: "F2W"
+      crval:  0.21498   
+    restfrq: 1420405750.000000
+    restwav: 0.000000
+         pv: (not used)
+          w:   0.0000       1.3945e+09  -6.4866e+09  (remainder unused)
+    isGrism: 0
+        err: 0x0
+     spxX2P: 0x<address>
+     spxP2S: 0x0
+     spxS2P: 0x0
+     spxP2X: 0x<address>
+
+
+Extracted contents of wcsprm struct:
+       flag: 137
+      naxis: 4
+      crpix: 0x<address>
+               513.00       512.00       64.000       0.0000    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.20000      0.0000       0.0000    
+    pc[1][]:   0.10000      1.0000       0.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000       0.0000    
+    pc[3][]:   0.0000       0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+              -1.0000       1.0000       10.000       1.0000    
+      crval: 0x<address>
+               150.00      -30.000      -2000.0       0.0000    
+      cunit: 0x<address>
+             "deg"
+             "deg"
+             "s"
+             ""
+      ctype: 0x<address>
+             "XLON-SZP"
+             "XLAT-SZP"
+             "TIME"
+             ""
+    lonpole: 150.000000
+    latpole: -30.000000
+    restfrq: 1420405750.000000
+    restwav: 0.000000
+        npv: 3
+     npvmax: 3
+         pv: 0x<address>
+               2   1   2.0000    
+               2   2   210.00    
+               2   3   60.000    
+        nps: 1
+     npsmax: 1
+         ps: 0x<address>
+               3   1  UTC
+         cd: 0x<address>
+    cd[0][]:   0.0000       0.0000       0.0000       0.0000    
+    cd[1][]:   0.0000       0.0000       0.0000       0.0000    
+    cd[2][]:   0.0000       0.0000       0.0000       0.0000    
+    cd[3][]:   0.0000       0.0000       0.0000       0.0000    
+      crota: 0x<address>
+               0.0000       0.0000       0.0000       0.0000    
+     altlin: 0
+     velref: 0
+        alt: ' '
+     colnum: 0
+      colax: 0x<address>
+                 0      0      0      0
+      cname: 0x<address>
+             "Longitude"
+             "Latitude"
+             "Time"
+             UNDEFINED
+      crder: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      csyer: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      czphs: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      cperi: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+    wcsname: UNDEFINED
+    timesys: UNDEFINED
+    trefpos: UNDEFINED
+    trefdir: UNDEFINED
+    plephem: UNDEFINED
+   timeunit: UNDEFINED
+    dateref: UNDEFINED
+     mjdref:      0.000000000     0.000000000
+   timeoffs: UNDEFINED
+    dateobs: UNDEFINED
+    datebeg: UNDEFINED
+    dateavg: UNDEFINED
+    dateend: UNDEFINED
+     mjdobs: UNDEFINED
+     mjdbeg: UNDEFINED
+     mjdavg: UNDEFINED
+     mjdend: UNDEFINED
+     jepoch: UNDEFINED
+     bepoch: UNDEFINED
+     tstart: UNDEFINED
+      tstop: UNDEFINED
+    xposure: UNDEFINED
+    telapse: UNDEFINED
+    timsyer: UNDEFINED
+    timrder: UNDEFINED
+    timedel: UNDEFINED
+   timepixr: UNDEFINED
+     obsgeo:        UNDEFINED       UNDEFINED       UNDEFINED
+                    UNDEFINED       UNDEFINED       UNDEFINED
+   obsorbit: UNDEFINED
+    radesys: UNDEFINED
+    equinox: UNDEFINED
+    specsys: UNDEFINED
+    ssysobs: UNDEFINED
+    velosys: UNDEFINED
+    zsource: UNDEFINED
+    ssyssrc: UNDEFINED
+    velangl: UNDEFINED
+        aux: 0x0
+       ntab: 0
+        tab: 0x0
+       nwtb: 0
+        wtb: 0x0
+      types: 0x<address>
+            2200 2201    0    0
+     lngtyp: "XLON"
+     lattyp: "XLAT"
+        lng: 0
+        lat: 1
+       spec: -1
+   cubeface: -1
+        err: 0x0
+        lin: (see below)
+        cel: (see below)
+        spc: (see below)
+     m_flag: 137
+    m_naxis: 4
+    m_crpix: 0x<address>  (= crpix)
+       m_pc: 0x<address>  (= pc)
+    m_cdelt: 0x<address>  (= cdelt)
+    m_crval: 0x<address>  (= crval)
+    m_cunit: 0x<address>  (= cunit)
+    m_ctype: 0x<address>  (= ctype)
+       m_pv: 0x<address>  (= pv)
+       m_ps: 0x<address>  (= ps)
+       m_cd: 0x<address>  (= cd)
+    m_crota: 0x<address>  (= crota)
+
+    m_colax: 0x<address>  (= colax)
+    m_cname: 0x<address>  (= cname)
+    m_crder: 0x<address>  (= crder)
+    m_csyer: 0x<address>  (= csyer)
+    m_czphs: 0x<address>  (= czphs)
+    m_cperi: 0x<address>  (= cperi)
+      m_aux: 0x0  (= aux)
+      m_tab: 0x0  (= tab)
+      m_wtb: 0x0  (= wtb)
+
+   lin.*
+       flag: 137
+      naxis: 4
+      crpix: 0x<address>
+               513.00       512.00       64.000       0.0000    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.20000      0.0000       0.0000    
+    pc[1][]:   0.10000      1.0000       0.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000       0.0000    
+    pc[3][]:   0.0000       0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+              -1.0000       1.0000       10.000       1.0000    
+     dispre: 0x0
+     disseq: 0x0
+piximg[0][]:  -1.0000      -0.20000     -0.0000      -0.0000    
+piximg[1][]:   0.10000      1.0000       0.0000       0.0000    
+piximg[2][]:   0.0000       0.0000       10.000       0.0000    
+piximg[3][]:   0.0000       0.0000       0.0000       1.0000    
+imgpix[0][]:  -1.0204      -0.20408     -0.0000      -0.0000    
+imgpix[1][]:   0.10204      1.0204       0.0000       0.0000    
+imgpix[2][]:   0.0000       0.0000       0.10000      0.0000    
+imgpix[3][]:   0.0000       0.0000       0.0000       1.0000    
+    i_naxis: 4
+      unity: 0
+     affine: 1
+     simple: 0
+        err: 0x0
+     tmpcrd: 0x<address>
+     m_flag: 0
+    m_naxis: 0
+    m_crpix: 0x0
+       m_pc: 0x0
+    m_cdelt: 0x0
+   m_dispre: 0x0
+   m_disseq: 0x0
+
+   cel.*
+      flag: 137
+     offset: 0
+       phi0:  0.000000
+     theta0: 90.000000
+        ref:   150.00      -30.000       150.00      -30.000    
+        prj: (see below)
+      euler:   150.00       120.00       150.00      -0.50000      0.86603   
+    latpreq: 0 (not required)
+     isolat: 0
+        err: 0x0
+
+   prj.*
+       flag: 102
+       code: "SZP"
+         r0: 57.295780
+         pv: (0)
+              2.0000       210.00       60.000    
+       phi0:  0.000000
+     theta0: 90.000000
+     bounds: 7
+
+       name: "slant zenithal perspective"
+   category: 1 (zenithal)
+    pvrange: 103
+  simplezen: 0
+  equiareal: 0
+  conformal: 0
+     global: 0
+  divergent: 0
+         x0: 0.000000
+         y0: 0.000000
+        err: 0x0
+        w[]:   0.017453     0.50000     -0.86603      2.7321       28.648    
+              -49.620       156.53       3.7321      -90.000       0.0000    
+          m: 0
+          n: 0
+     prjx2s: 0x<address>
+     prjs2x: 0x<address>
+
+   spc.*
+       flag: 0
+       type: "    "
+       code: "   "
+      crval: UNDEFINED
+    restfrq: 0.000000
+    restwav: 0.000000
+         pv: (not used)
+          w:   0.0000       0.0000       0.0000      (remainder unused)
+    isGrism: 0
+        err: 0x0
+     spxX2P: 0x0
+     spxP2S: 0x0
+     spxS2P: 0x0
+     spxP2X: 0x0
+
+
+Received wcssub status 13 as expected for a non-separable subimage
+coordinate system.

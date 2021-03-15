@@ -1,0 +1,67 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing the "TNX" projection.
+#
+# This header was adapted from the sample provided at
+# http://fits.gsfc.nasa.gov/registry/tnx/tnx.txt
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < TNX.keyrec > TNX.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    T / Conforms to FITS standard
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    2 / 2 image axes
+NAXIS1  =                  400 / Length of image axis 1
+NAXIS2  =                  400 / Length of image axis 2
+
+CRPIX1  =          -160.252723 / Pixel coordinate of reference point
+CRPIX2  =          -127.798403 / Pixel coordinate of reference point
+CD1_1   =       -2.7078566E-07 / [deg] CD matrix element
+CD2_1   =        7.4507954E-05 / [deg] CD matrix element
+CD1_2   =        7.4138771E-05 / [deg] CD matrix element
+CD2_2   =       -1.7422786E-07 / [deg] CD matrix element
+CTYPE1  = 'RA---TNX'           / RA  in TAN (gnomonic) projection + distortions
+CTYPE2  = 'DEC--TNX'           / Dec in TAN (gnomonic) projection + distortions
+CRVAL1  =           266.703960 / [deg] Right ascension at the reference point
+CRVAL2  =           -30.160528 / [deg] Declination at the reference point
+
+WAT0_001= 'system=image'       / Distortion coefficients
+WAT1_001= 'wtype=tnx axtype=ra lngcor = "1. 4. 4. 2. 0.001557694712335736 0.305'
+WAT1_002= '7102603054315 0.005633525451388214 0.1588647710905971 -2.72411800297'
+WAT1_003= '7662E-4 -5.016761279169355E-5 -6.340301962177909E-4 -1.0797192943864'
+WAT1_004= '45E-4 1.534942429540643E-5 -2.213747676057557E-4 2.327260049467782E-'
+WAT1_005= '5 -4.002114665208721E-5 -4.983803710224544E-5 8.510395910450919E-6 "'
+WAT2_001= 'wtype=tnx axtype=dec latcor = "1. 4. 4. 2. 0.001557694712335736 0.30'
+WAT2_002= '57102603054315 0.005633525451388214 0.1588647710905971 -5.7496618045'
+WAT2_003= '44368E-5 2.798727771824332E-5 -8.197621587790417E-5 -4.7555453405034'
+WAT2_004= '02E-6 -5.527174083684728E-5 -3.848408247593560E-4 -1.042206172116658'
+WAT2_005= 'E-4 -9.938238339522108E-5 1.44544039115055E-5 -1.55190291513441E-5 "'
+
+END

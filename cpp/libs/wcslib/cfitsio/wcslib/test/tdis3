@@ -1,0 +1,58 @@
+#!/bin/sh
+
+  echo "Testing WCSLIB's handling of translated distortions (tdis3)"
+  echo "-----------------------------------------------------------"
+
+  echo "Each of the 10 SIPTPV alternates should produce the same results."
+
+  for i in 0 1 2 3 4 5 6 7 8 9
+  do
+    echo
+    echo
+    echo "Using SIPTPV alternate $i:"
+    echo "-------------------------"
+    ../utils/wcsware -a$i -x SIPTPV.fits << EOT
+   1,   1
+2048,   1
+2048,4096
+   1,4096
+EOT
+  done
+
+
+  echo
+  echo
+  echo "Using DSS alternate 0:"
+  echo "----------------------"
+  ../utils/wcsware -a0 -x DSS.fits << EOT
+  1,   1
+891,   1
+891, 893
+  1, 893
+EOT
+
+
+  echo
+  echo
+  echo "Using TNX alternate 0:"
+  echo "----------------------"
+  ../utils/wcsware -a0 -x TNX.fits << EOT
+  1,   1
+400,   1
+400, 400
+  1, 400
+EOT
+
+
+  echo
+  echo
+  echo "Using ZPX alternate 0:"
+  echo "----------------------"
+  ../utils/wcsware -a0 -x ZPX.fits << EOT
+  1,   1
+512,   1
+512, 512
+  1, 512
+EOT
+
+

@@ -1,0 +1,109 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: SIP.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords based on the "SIP" (Simple Imaging Polynomial)
+# distortion used by tdis2 primarily for testing wcssub().
+#
+# This header was adapted from the sample provided at
+# http://fits.gsfc.nasa.gov/registry/sip/sipsample.txt
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < SIP.keyrec > SIP.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    T / Conforms to FITS standard
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    4 / 4 image axes
+NAXIS1  =                  256 / Length of image axis 1
+NAXIS2  =                  256 / Length of image axis 2
+NAXIS3  =                 2048 / Length of image axis 3
+NAXIS4  =                  128 / Length of image axis 4
+
+CRPIX1  =                124.0 / Pixel coordinate of reference point
+CRPIX2  =                132.0 / Pixel coordinate of reference point
+CRPIX3  =               1024.5 / Pixel coordinate of reference point
+CRPIX4  =                  1.0 / Pixel coordinate of reference point
+CD1_1   =  0.00024975688027236 / [deg] CD matrix element
+CD1_2   =  0.00023017780974366 / [deg] CD matrix element
+CD2_1   =  0.00023042851926542 / [deg] CD matrix element
+CD2_2   = -0.00024996577057659 / [deg] CD matrix element
+CD3_3   =              1.0E-10 / [m]   CD matrix element
+CD4_4   =                  1.0 / [s]   CD matrix element
+CTYPE1  = 'RA---TAN-SIP'       / TAN (gnomonic) projection + SIP distortions
+CTYPE2  = 'DEC--TAN-SIP'       / TAN (gnomonic) projection + SIP distortions
+CTYPE3  = 'AWAV'               / Wavelength in air
+CTYPE4  = 'TIME'               / Time
+CRVAL1  =     202.482322805429 / [deg] Right ascension at the reference point
+CRVAL2  =      47.175118930010 / [deg] Declination at the reference point
+CRVAL3  =          5006.84E-10 / [m] [OIII]5007 Wavelength
+CRVAL4  =                  0.0 / [s] Elapsed time
+
+A_ORDER =                    3 / polynomial order, axis 1, pixel-to-sky
+A_0_2   =           2.9656E-06 / distortion coefficient
+A_0_3   =           3.7746E-09 / distortion coefficient
+A_1_1   =           2.1886E-05 / distortion coefficient
+A_1_2   =          -1.6847E-07 / distortion coefficient
+A_2_0   =          -2.3863E-05 / distortion coefficient
+A_2_1   =          -8.5610E-09 / distortion coefficient
+A_3_0   =          -1.4172E-07 / distortion coefficient
+A_DMAX  =                1.394 / maximum correction to pixel coordinates
+
+B_ORDER =                    3 / polynomial order, axis 2, pixel-to-sky
+B_0_2   =           2.3100E-05 / distortion coefficient
+B_0_3   =          -1.6168E-07 / distortion coefficient
+B_1_1   =          -2.4386E-05 / distortion coefficient
+B_1_2   =          -5.7813E-09 / distortion coefficient
+B_2_0   =           2.1197E-06 / distortion coefficient
+B_2_1   =          -1.6583E-07 / distortion coefficient
+B_3_0   =          -2.0249E-08 / distortion coefficient
+B_DMAX  =                1.501 / maximum correction to pixel coordinates
+
+AP_ORDER=                    3 / polynomial order, axis 1, sky-to-pixel
+AP_0_1  =          -6.4275E-07 / distortion coefficient
+AP_0_2  =          -2.9425E-06 / distortion coefficient
+AP_0_3  =          -3.5820E-09 / distortion coefficient
+AP_1_0  =          -1.4897E-05 / distortion coefficient
+AP_1_1  =          -2.2250E-05 / distortion coefficient
+AP_1_2  =           1.7195E-07 / distortion coefficient
+AP_2_0  =           2.4146E-05 / distortion coefficient
+AP_2_1  =           6.7090E-09 / distortion coefficient
+AP_3_0  =           1.4492E-07 / distortion coefficient
+
+BP_ORDER=                    3 / polynomial order, axis 2, sky-to-pixel
+BP_0_1  =          -1.6588E-05 / distortion coefficient
+BP_0_2  =          -2.3424E-05 / distortion coefficient
+BP_0_3  =           1.6510E-07 / distortion coefficient
+BP_1_0  =          -2.6783E-06 / distortion coefficient
+BP_1_1  =           2.4753E-05 / distortion coefficient
+BP_1_2  =           3.8917E-09 / distortion coefficient
+BP_2_0  =          -2.1510E-06 / distortion coefficient
+BP_2_1  =           1.7000E-07 / distortion coefficient
+BP_3_0  =           2.0482E-08 / distortion coefficient
+
+END

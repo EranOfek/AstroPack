@@ -1,0 +1,100 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: TPV5.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing the handling of the "TPV" projection
+# by wcsset() and the disprm routines.
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < TPV5.keyrec > TPV5.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    T / Conforms to FITS standard
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    2 / 2 image axes
+NAXIS1  =                 4096 / Length of image axis 1
+NAXIS2  =                 4096 / Length of image axis 2
+
+CRPIX1  =        1761.47416875 / Pixel coordinate of reference point
+CRPIX2  =        2118.72183151 / Pixel coordinate of reference point
+CD1_1   =    -0.00283896009841 / [deg] CD matrix element
+CD1_2   =     -0.0095653881236 / [deg] CD matrix element
+CD2_1   =     0.00955414472775 / [deg] CD matrix element
+CD2_2   =    -0.00281415304361 / [deg] CD matrix element
+CUNIT1  = 'deg'                / Degree units are required
+CUNIT2  = 'deg'                / Degree units are required
+CTYPE1  = 'RA---TPV'           / TAN (gnomonic) projection + distortions
+CTYPE2  = 'DEC--TPV'           / TAN (gnomonic) projection + distortions
+CRVAL1  =        113.761770869 / [deg] Right ascension at the reference point
+CRVAL2  =         87.581766681 / [deg] Declination at the reference point
+
+PV1_1   =                  1.0 / TPV distortion coefficient
+PV1_2   = 5.55111512312578E-17 / TPV distortion coefficient
+PV1_4   = -2.7424804567206E-05 / TPV distortion coefficient
+PV1_5   = 0.000790044423408943 / TPV distortion coefficient
+PV1_6   = -6.7702947479290E-05 / TPV distortion coefficient
+PV1_7   = 3.70858612004436E-05 / TPV distortion coefficient
+PV1_8   = 3.09214887882905E-05 / TPV distortion coefficient
+PV1_9   = 2.79163997287238E-05 / TPV distortion coefficient
+PV1_10  = 7.13153931390477E-06 / TPV distortion coefficient
+PV1_12  = 4.06164135849070E-07 / TPV distortion coefficient
+PV1_13  = -3.3709743373233E-07 / TPV distortion coefficient
+PV1_14  = 1.07485184690584E-06 / TPV distortion coefficient
+PV1_15  = 4.22494107427413E-08 / TPV distortion coefficient
+PV1_16  = 1.50534608708045E-07 / TPV distortion coefficient
+PV1_17  = 2.02319801720636E-10 / TPV distortion coefficient
+PV1_18  = -1.1389440637505E-07 / TPV distortion coefficient
+PV1_19  = 6.96659712463485E-08 / TPV distortion coefficient
+PV1_20  = -9.8664513792757E-08 / TPV distortion coefficient
+PV1_21  = 1.41660199031828E-08 / TPV distortion coefficient
+PV1_22  = -1.1191659191519E-08 / TPV distortion coefficient
+PV2_1   =                  1.0 / TPV distortion coefficient
+PV2_4   = 0.000520429625694769 / TPV distortion coefficient
+PV2_5   = 1.70073086962533E-05 / TPV distortion coefficient
+PV2_6   = -0.00013083749436793 / TPV distortion coefficient
+PV2_7   = 4.93125956972113E-05 / TPV distortion coefficient
+PV2_8   = 1.08675659272460E-05 / TPV distortion coefficient
+PV2_9   = 4.01491290764222E-05 / TPV distortion coefficient
+PV2_10  = 7.60116090687535E-06 / TPV distortion coefficient
+PV2_12  = 6.46213456124236E-07 / TPV distortion coefficient
+PV2_13  = 3.12965114936086E-07 / TPV distortion coefficient
+PV2_14  = 4.12720356211971E-07 / TPV distortion coefficient
+PV2_15  = 4.45167381255974E-07 / TPV distortion coefficient
+PV2_16  = -9.9738109842997E-09 / TPV distortion coefficient
+PV2_17  = -3.5789354808750E-08 / TPV distortion coefficient
+PV2_18  = -2.3750471646988E-08 / TPV distortion coefficient
+PV2_19  = -3.5354006023002E-08 / TPV distortion coefficient
+PV2_20  = -6.2508850597208E-08 / TPV distortion coefficient
+PV2_21  = 7.94831478652252E-09 / TPV distortion coefficient
+PV2_22  = -1.7323858285092E-08 / TPV distortion coefficient
+
+LONPOLE =                180.0 / [deg] Native longitude of the NCP
+LATPOLE =                  0.0 / [deg] Native latitude  of the NCP
+EQUINOX =               2000.0 / [yr] Equinox of equatorial coordinates
+
+END

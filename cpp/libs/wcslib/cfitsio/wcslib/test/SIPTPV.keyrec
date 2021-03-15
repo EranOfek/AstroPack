@@ -1,0 +1,903 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: SIPTPV.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing the handling of the "SIP" (Simple
+# Imaging Polynomial) and TPV distortions by WCSLIB.
+#
+# This header was adapted from a pair of FITS files from the Palomar Transient
+# Factory (IPAC) provided by David Shupe.  The same distortion was encoded in
+# two ways, the primary representation uses the SIP convention, and the 'P'
+# alternate the TPV projection.  Translations of both of these into other
+# distortion functions were then added as alternates.
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < SIPTPV.keyrec > SIPTPV.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    T / Conforms to FITS standard
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    2 / 2 image axes
+NAXIS1  =                 2048 / Length of image axis 1
+NAXIS2  =                 4096 / Length of image axis 2
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  Simple Imaging Polynomial (SIP) distortion.
+COMMENT  SIP does not support alternate representations nor axis mapping.
+COMMENT  In the keycomments, x and y refer to axes 1 and 2 respectively.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAME = 'SIPTPV-0: native SIP representation'
+CRPIX1  =             -3925.16 / Pixel coordinate of reference point
+CRPIX2  =              4360.23 / Pixel coordinate of reference point
+CD1_1   =  0.00028610265860158 / [deg] CD matrix element
+CD1_2   = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1   = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2   = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1  = 'RA---TAN-SIP'       / TAN (gnomonic) projection + SIP distortions
+CTYPE2  = 'DEC--TAN-SIP'       / TAN (gnomonic) projection + SIP distortions
+CRVAL1  =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2  =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1  = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2  = 'deg     '           / Image axis-2 celestial-coordinate units
+
+A_ORDER =                    4 / SIP distortion polynomial order for A
+A_2_0   = -4.6101438020313E-06 / SIP coefficient: xx
+A_1_1   =  1.4745130969827E-06 / SIP coefficient: xy
+A_0_2   = -6.8832077243635E-08 / SIP coefficient: yy
+A_3_0   =  5.1080179892854E-10 / SIP coefficient: xxx
+A_2_1   = -3.2570122733976E-10 / SIP coefficient: xxy
+A_1_2   = -5.4789597808432E-11 / SIP coefficient: xyy
+A_0_3   = -3.9165520771852E-11 / SIP coefficient: yyy
+A_4_0   = -2.2410038481669E-14 / SIP coefficient: xxxx
+A_3_1   =  2.4024589153935E-14 / SIP coefficient: xxxy
+A_2_2   =  5.8725301231513E-15 / SIP coefficient: xxyy
+A_1_3   =  4.3257176022080E-15 / SIP coefficient: xyyy
+A_0_4   = -1.3734790334086E-15 / SIP coefficient: yyyy
+A_DMAX  =                96.50 / Maximum absolute value of distortion function
+
+AP_ORDER=                    4 / SIP distortion polynomial order for AP
+AP_1_0  =  5.9649623134206E-06 / SIP coefficient: x
+AP_0_1  = -8.3563633819506E-06 / SIP coefficient: y
+AP_2_0  =  4.6391279824110E-06 / SIP coefficient: xx
+AP_1_1  = -1.4755159708559E-06 / SIP coefficient: xy
+AP_0_2  =  6.4191937073851E-08 / SIP coefficient: yy
+AP_3_0  = -5.0301820040373E-10 / SIP coefficient: xxx
+AP_2_1  =  3.2299095062767E-10 / SIP coefficient: xxy
+AP_1_2  =  5.9682183111397E-11 / SIP coefficient: xyy
+AP_0_3  =  3.8257592980128E-11 / SIP coefficient: yyy
+AP_4_0  =  2.1394444946766E-14 / SIP coefficient: xxxx
+AP_3_1  = -2.3531528160891E-14 / SIP coefficient: xxxy
+AP_2_2  = -6.3049777026371E-15 / SIP coefficient: xxyy
+AP_1_3  = -4.0743135634870E-15 / SIP coefficient: xyyy
+AP_0_4  =  1.3469594159815E-15 / SIP coefficient: yyyy
+
+B_ORDER =                    4 / SIP distortion polynomial order for B
+B_2_0   = -6.2926490499120E-06 / SIP coefficient: xx
+B_1_1   =  5.9146560187892E-08 / SIP coefficient: xy
+B_0_2   =  2.1061956862630E-07 / SIP coefficient: yy
+B_3_0   =  8.6240995389586E-10 / SIP coefficient: xxx
+B_2_1   = -6.7715107588365E-11 / SIP coefficient: xxy
+B_1_2   = -5.1237410950671E-11 / SIP coefficient: xyy
+B_0_3   = -5.0622542139077E-12 / SIP coefficient: yyy
+B_4_0   = -4.3853697321471E-14 / SIP coefficient: xxxx
+B_3_1   =  4.0077335382236E-15 / SIP coefficient: xxxy
+B_2_2   =  3.3307943746343E-15 / SIP coefficient: xxyy
+B_1_3   = -1.8559485838936E-15 / SIP coefficient: xyyy
+B_0_4   =  5.1753961684558E-16 / SIP coefficient: yyyy
+B_DMAX  =                95.54 / Maximum absolute value of distortion function
+
+BP_ORDER=                    4 / SIP distortion polynomial order for BP
+BP_1_0  =  2.2440627219345E-05 / SIP coefficient: x
+BP_0_1  = -5.3534179990933E-06 / SIP coefficient: y
+BP_2_0  =  6.3381348251001E-06 / SIP coefficient: xx
+BP_1_1  = -5.7866326487642E-08 / SIP coefficient: xy
+BP_0_2  = -2.1754801138237E-07 / SIP coefficient: yy
+BP_3_0  = -8.5509468876083E-10 / SIP coefficient: xxx
+BP_2_1  =  5.9962354835928E-11 / SIP coefficient: xxy
+BP_1_2  =  5.4445150144274E-11 / SIP coefficient: xyy
+BP_0_3  =  3.4614188483640E-12 / SIP coefficient: yyy
+BP_4_0  =  4.2670473211337E-14 / SIP coefficient: xxxx
+BP_3_1  = -2.7332730855666E-15 / SIP coefficient: xxxy
+BP_2_2  = -3.3053766170687E-15 / SIP coefficient: xxyy
+BP_1_3  =  2.2994237554827E-15 / SIP coefficient: xyyy
+BP_0_4  = -5.5022506030438E-16 / SIP coefficient: yyyy
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The WCSLIB header parser handles a SIP distortion (as above) by
+COMMENT  translating its keyrecords internally into a 'SIP' distortion type
+COMMENT  for later analysis.  That translation may also be written directly
+COMMENT  in a header as done here.
+COMMENT
+COMMENT  Note the addition of renormalization parameters, explained below:
+COMMENT    DP1A.OFFSET.1 = CRPIX1,
+COMMENT    DP1A.OFFSET.2 = CRPIX2,
+COMMENT    DP2A.OFFSET.1 = CRPIX1,
+COMMENT    DP2A.OFFSET.2 = CRPIX2.
+COMMENT  These are added to the distortion parameters since the WCSLIB
+COMMENT  routines that implement distortions do not have access to CRPIXja.
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEA= 'SIPTPV-1: SIP translated to a ''SIP'' distortion'
+CRPIX1A =             -3925.16 / Pixel coordinate of reference point
+CRPIX2A =              4360.23 / Pixel coordinate of reference point
+CD1_1A  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2A  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1A  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2A  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1A = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2A = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1A =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2A =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1A = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2A = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CPDIS1A = 'SIP'                / P = prior distortion, Simple Imaging Polynomial
+DP1A    = 'NAXES: 2'           / Two independent variables
+DP1A    = 'OFFSET.1: -3925.16'
+DP1A    = 'OFFSET.2:  4360.23'
+DP1A    = 'SIP.FWD.2_0: -4.6101438020313E-06' / SIP coefficient: xx
+DP1A    = 'SIP.FWD.1_1:  1.4745130969827E-06' / SIP coefficient: xy
+DP1A    = 'SIP.FWD.0_2: -6.8832077243635E-08' / SIP coefficient: yy
+DP1A    = 'SIP.FWD.3_0:  5.1080179892854E-10' / SIP coefficient: xxx
+DP1A    = 'SIP.FWD.2_1: -3.2570122733976E-10' / SIP coefficient: xxy
+DP1A    = 'SIP.FWD.1_2: -5.4789597808432E-11' / SIP coefficient: xyy
+DP1A    = 'SIP.FWD.0_3: -3.9165520771852E-11' / SIP coefficient: yyy
+DP1A    = 'SIP.FWD.4_0: -2.2410038481669E-14' / SIP coefficient: xxxx
+DP1A    = 'SIP.FWD.3_1:  2.4024589153935E-14' / SIP coefficient: xxxy
+DP1A    = 'SIP.FWD.2_2:  5.8725301231513E-15' / SIP coefficient: xxyy
+DP1A    = 'SIP.FWD.1_3:  4.3257176022080E-15' / SIP coefficient: xyyy
+DP1A    = 'SIP.FWD.0_4: -1.3734790334086E-15' / SIP coefficient: yyyy
+CPERR1A =                96.50 / Maximum absolute value of distortion function
+
+DP1A    = 'SIP.REV.1_0:  5.9649623134206E-06' / SIP coefficient: x
+DP1A    = 'SIP.REV.0_1: -8.3563633819506E-06' / SIP coefficient: y
+DP1A    = 'SIP.REV.2_0:  4.6391279824110E-06' / SIP coefficient: xx
+DP1A    = 'SIP.REV.1_1: -1.4755159708559E-06' / SIP coefficient: xy
+DP1A    = 'SIP.REV.0_2:  6.4191937073851E-08' / SIP coefficient: yy
+DP1A    = 'SIP.REV.3_0: -5.0301820040373E-10' / SIP coefficient: xxx
+DP1A    = 'SIP.REV.2_1:  3.2299095062767E-10' / SIP coefficient: xxy
+DP1A    = 'SIP.REV.1_2:  5.9682183111397E-11' / SIP coefficient: xyy
+DP1A    = 'SIP.REV.0_3:  3.8257592980128E-11' / SIP coefficient: yyy
+DP1A    = 'SIP.REV.4_0:  2.1394444946766E-14' / SIP coefficient: xxxx
+DP1A    = 'SIP.REV.3_1: -2.3531528160891E-14' / SIP coefficient: xxxy
+DP1A    = 'SIP.REV.2_2: -6.3049777026371E-15' / SIP coefficient: xxyy
+DP1A    = 'SIP.REV.1_3: -4.0743135634870E-15' / SIP coefficient: xyyy
+DP1A    = 'SIP.REV.0_4:  1.3469594159815E-15' / SIP coefficient: yyyy
+
+CPDIS2A = 'SIP'                / P = prior distortion, Simple Imaging Polynomial
+DP2A    = 'NAXES: 2'           / Two independent variables
+DP2A    = 'OFFSET.1: -3925.16'
+DP2A    = 'OFFSET.2:  4360.23'
+DP2A    = 'SIP.FWD.2_0: -6.2926490499120E-06' / SIP coefficient: xx
+DP2A    = 'SIP.FWD.1_1:  5.9146560187892E-08' / SIP coefficient: xy
+DP2A    = 'SIP.FWD.0_2:  2.1061956862630E-07' / SIP coefficient: yy
+DP2A    = 'SIP.FWD.3_0:  8.6240995389586E-10' / SIP coefficient: xxx
+DP2A    = 'SIP.FWD.2_1: -6.7715107588365E-11' / SIP coefficient: xxy
+DP2A    = 'SIP.FWD.1_2: -5.1237410950671E-11' / SIP coefficient: xyy
+DP2A    = 'SIP.FWD.0_3: -5.0622542139077E-12' / SIP coefficient: yyy
+DP2A    = 'SIP.FWD.4_0: -4.3853697321471E-14' / SIP coefficient: xxxx
+DP2A    = 'SIP.FWD.3_1:  4.0077335382236E-15' / SIP coefficient: xxxy
+DP2A    = 'SIP.FWD.2_2:  3.3307943746343E-15' / SIP coefficient: xxyy
+DP2A    = 'SIP.FWD.1_3: -1.8559485838936E-15' / SIP coefficient: xyyy
+DP2A    = 'SIP.FWD.0_4:  5.1753961684558E-16' / SIP coefficient: yyyy
+CPERR2A =                95.54 / Maximum absolute value of distortion function
+
+DP2A    = 'SIP.REV.1_0:  2.2440627219345E-05' / SIP coefficient: x
+DP2A    = 'SIP.REV.0_1: -5.3534179990933E-06' / SIP coefficient: y
+DP2A    = 'SIP.REV.2_0:  6.3381348251001E-06' / SIP coefficient: xx
+DP2A    = 'SIP.REV.1_1: -5.7866326487642E-08' / SIP coefficient: xy
+DP2A    = 'SIP.REV.0_2: -2.1754801138237E-07' / SIP coefficient: yy
+DP2A    = 'SIP.REV.3_0: -8.5509468876083E-10' / SIP coefficient: xxx
+DP2A    = 'SIP.REV.2_1:  5.9962354835928E-11' / SIP coefficient: xxy
+DP2A    = 'SIP.REV.1_2:  5.4445150144274E-11' / SIP coefficient: xyy
+DP2A    = 'SIP.REV.0_3:  3.4614188483640E-12' / SIP coefficient: yyy
+DP2A    = 'SIP.REV.4_0:  4.2670473211337E-14' / SIP coefficient: xxxx
+DP2A    = 'SIP.REV.3_1: -2.7332730855666E-15' / SIP coefficient: xxxy
+DP2A    = 'SIP.REV.2_2: -3.3053766170687E-15' / SIP coefficient: xxyy
+DP2A    = 'SIP.REV.1_3:  2.2994237554827E-15' / SIP coefficient: xyyy
+DP2A    = 'SIP.REV.0_4: -5.5022506030438E-16' / SIP coefficient: yyyy
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  WCSLIB implements the 'SIP' distortion (as above), including its
+COMMENT  polynomial approximation to the inverse, as a special case of the
+COMMENT  more general 'TPD' distortion.
+COMMENT
+COMMENT  TPD supports all of the constructs defined in WCS Paper IV, and
+COMMENT  follows it in computing distortion corrections from pixel coordinates.
+COMMENT  However, the independent variables of the SIP polynomial are offsets
+COMMENT  from the reference pixel.  This is handled here by setting the
+COMMENT  renormalization parameters:
+COMMENT    DP1B.OFFSET.1 = CRPIX1,
+COMMENT    DP1B.OFFSET.2 = CRPIX2,
+COMMENT    DP2B.OFFSET.1 = CRPIX1,
+COMMENT    DP2B.OFFSET.2 = CRPIX2.
+COMMENT
+COMMENT  Keycomments show the mapping between SIP keywords and TPD coefficient
+COMMENT  indices.
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEB= 'SIPTPV-2: SIP translated to a ''TPD'' distortion'
+CRPIX1B =             -3925.16 / Pixel coordinate of reference point
+CRPIX2B =              4360.23 / Pixel coordinate of reference point
+CD1_1B  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2B  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1B  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2B  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1B = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2B = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1B =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2B =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1B = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2B = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CPDIS1B = 'TPD'                / P = prior, Template Polynomial Distortion
+DP1B    = 'NAXES: 2'           / Two independent variables
+DP1B    = 'OFFSET.1: -3925.16'
+DP1B    = 'OFFSET.2:  4360.23'
+DP1B    = 'TPD.FWD.0:                   0.0' / TPD coefficient: 1
+DP1B    = 'TPD.FWD.1:                   0.0' / TPD coefficient: x     A_1_0
+DP1B    = 'TPD.FWD.4:  -4.6101438020313E-06' / TPD coefficient: xx    A_2_0
+DP1B    = 'TPD.FWD.5:   1.4745130969827E-06' / TPD coefficient: xy    A_1_1
+DP1B    = 'TPD.FWD.6:  -6.8832077243635E-08' / TPD coefficient: yy    A_0_2
+DP1B    = 'TPD.FWD.7:   5.1080179892854E-10' / TPD coefficient: xxx   A_3_0
+DP1B    = 'TPD.FWD.8:  -3.2570122733976E-10' / TPD coefficient: xxy   A_2_1
+DP1B    = 'TPD.FWD.9:  -5.4789597808432E-11' / TPD coefficient: xyy   A_1_2
+DP1B    = 'TPD.FWD.10: -3.9165520771852E-11' / TPD coefficient: yyy   A_0_3
+DP1B    = 'TPD.FWD.12: -2.2410038481669E-14' / TPD coefficient: xxxx  A_4_0
+DP1B    = 'TPD.FWD.13:  2.4024589153935E-14' / TPD coefficient: xxxy  A_3_1
+DP1B    = 'TPD.FWD.14:  5.8725301231513E-15' / TPD coefficient: xxyy  A_2_2
+DP1B    = 'TPD.FWD.15:  4.3257176022080E-15' / TPD coefficient: xyyy  A_1_3
+DP1B    = 'TPD.FWD.16: -1.3734790334086E-15' / TPD coefficient: yyyy  A_0_4
+CPERR1B =                96.50 / Maximum absolute value of distortion function
+
+DP1B    = 'TPD.REV.0:                   0.0' / TPD coefficient: 1
+DP1B    = 'TPD.REV.1:   5.9649623134206E-06' / TPD coefficient: x     AP_1_0
+DP1B    = 'TPD.REV.2:  -8.3563633819506E-06' / TPD coefficient: y     AP_0_1
+DP1B    = 'TPD.REV.4:   4.6391279824110E-06' / TPD coefficient: xx    AP_2_0
+DP1B    = 'TPD.REV.5:  -1.4755159708559E-06' / TPD coefficient: xy    AP_1_1
+DP1B    = 'TPD.REV.6:   6.4191937073851E-08' / TPD coefficient: yy    AP_0_2
+DP1B    = 'TPD.REV.7:  -5.0301820040373E-10' / TPD coefficient: xxx   AP_3_0
+DP1B    = 'TPD.REV.8:   3.2299095062767E-10' / TPD coefficient: xxy   AP_2_1
+DP1B    = 'TPD.REV.9:   5.9682183111397E-11' / TPD coefficient: xyy   AP_1_2
+DP1B    = 'TPD.REV.10:  3.8257592980128E-11' / TPD coefficient: yyy   AP_0_3
+DP1B    = 'TPD.REV.12:  2.1394444946766E-14' / TPD coefficient: xxxx  AP_4_0
+DP1B    = 'TPD.REV.13: -2.3531528160891E-14' / TPD coefficient: xxxy  AP_3_1
+DP1B    = 'TPD.REV.14: -6.3049777026371E-15' / TPD coefficient: xxyy  AP_2_2
+DP1B    = 'TPD.REV.15: -4.0743135634870E-15' / TPD coefficient: xyyy  AP_1_3
+DP1B    = 'TPD.REV.16:  1.3469594159815E-15' / TPD coefficient: yyyy  AP_0_4
+
+CPDIS2B = 'TPD'                / P = prior, Template Polynomial Distortion
+DP2B    = 'NAXES: 2'           / Two independent variables
+DP2B    = 'OFFSET.1: -3925.16'
+DP2B    = 'OFFSET.2:  4360.23'
+DP2B    = 'TPD.FWD.0:                   0.0' / TPD coefficient: 1
+DP2B    = 'TPD.FWD.2:                   0.0' / TPD coefficient: y     B_0_1
+DP2B    = 'TPD.FWD.4:  -6.2926490499120E-06' / TPD coefficient: xx    B_2_0
+DP2B    = 'TPD.FWD.5:   5.9146560187892E-08' / TPD coefficient: xy    B_1_1
+DP2B    = 'TPD.FWD.6:   2.1061956862630E-07' / TPD coefficient: yy    B_0_2
+DP2B    = 'TPD.FWD.7:   8.6240995389586E-10' / TPD coefficient: xxx   B_3_0
+DP2B    = 'TPD.FWD.8:  -6.7715107588365E-11' / TPD coefficient: xxy   B_2_1
+DP2B    = 'TPD.FWD.9:  -5.1237410950671E-11' / TPD coefficient: xyy   B_1_2
+DP2B    = 'TPD.FWD.10: -5.0622542139077E-12' / TPD coefficient: yyy   B_0_3
+DP2B    = 'TPD.FWD.12: -4.3853697321471E-14' / TPD coefficient: xxxx  B_4_0
+DP2B    = 'TPD.FWD.13:  4.0077335382236E-15' / TPD coefficient: xxxy  B_3_1
+DP2B    = 'TPD.FWD.14:  3.3307943746343E-15' / TPD coefficient: xxyy  B_2_2
+DP2B    = 'TPD.FWD.15: -1.8559485838936E-15' / TPD coefficient: xyyy  B_1_3
+DP2B    = 'TPD.FWD.16:  5.1753961684558E-16' / TPD coefficient: yyyy  B_0_4
+CPERR2B =                95.54 / Maximum absolute value of distortion function
+
+DP2B    = 'TPD.REV.0:                   0.0' / TPD coefficient: 1
+DP2B    = 'TPD.REV.1:   2.2440627219345E-05' / TPD coefficient: x     BP_1_0
+DP2B    = 'TPD.REV.2:  -5.3534179990933E-06' / TPD coefficient: y     BP_0_1
+DP2B    = 'TPD.REV.4:   6.3381348251001E-06' / TPD coefficient: xx    BP_2_0
+DP2B    = 'TPD.REV.5:  -5.7866326487642E-08' / TPD coefficient: xy    BP_1_1
+DP2B    = 'TPD.REV.6:  -2.1754801138237E-07' / TPD coefficient: yy    BP_0_2
+DP2B    = 'TPD.REV.7:  -8.5509468876083E-10' / TPD coefficient: xxx   BP_3_0
+DP2B    = 'TPD.REV.8:   5.9962354835928E-11' / TPD coefficient: xxy   BP_2_1
+DP2B    = 'TPD.REV.9:   5.4445150144274E-11' / TPD coefficient: xyy   BP_1_2
+DP2B    = 'TPD.REV.10:  3.4614188483640E-12' / TPD coefficient: yyy   BP_0_3
+DP2B    = 'TPD.REV.12:  4.2670473211337E-14' / TPD coefficient: xxxx  BP_4_0
+DP2B    = 'TPD.REV.13: -2.7332730855666E-15' / TPD coefficient: xxxy  BP_3_1
+DP2B    = 'TPD.REV.14: -3.3053766170687E-15' / TPD coefficient: xxyy  BP_2_2
+DP2B    = 'TPD.REV.15:  2.2994237554827E-15' / TPD coefficient: xyyy  BP_1_3
+DP2B    = 'TPD.REV.16: -5.5022506030438E-16' / TPD coefficient: yyyy  BP_0_4
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The SIP representation above translated to Polynomial as a prior
+COMMENT  distortion, including SIP's polynomial approximation to the inverse.
+COMMENT
+COMMENT  The comments above for the translation to TPD apply here as well.
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEC= 'SIPTPV-3: SIP translated to a ''Polynomial'' distortion'
+CRPIX1C =             -3925.16 / Pixel coordinate of reference point
+CRPIX2C =              4360.23 / Pixel coordinate of reference point
+CD1_1C  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2C  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1C  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2C  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1C = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2C = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1C =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2C =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1C = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2C = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CPDIS1C = 'Polynomial'         / P = prior, Polynomial distortion
+DP1C    = 'NAXES:  2'          / Two independent variables
+DP1C    = 'OFFSET.1: -3925.16'
+DP1C    = 'OFFSET.2:  4360.23'
+DP1C    = 'NTERMS: 14'         / Number of terms in the polynomial
+DP1C    = 'TERM.1.COEFF:                   0.0' / Poly coefficient: 1
+DP1C    = 'TERM.2.COEFF:                     0' / Poly coefficient: x     A_1_0
+DP1C    = 'TERM.2.VAR.1:                     1' / Poly power 1 (x): x
+DP1C    = 'TERM.3.COEFF:  -4.6101438020313E-06' / Poly coefficient: xx    A_2_0
+DP1C    = 'TERM.3.VAR.1:                     2' / Poly power 1 (x): xx
+DP1C    = 'TERM.4.COEFF:   1.4745130969827E-06' / Poly coefficient: xy    A_1_1
+DP1C    = 'TERM.4.VAR.1:                     1' / Poly power 1 (x): xy
+DP1C    = 'TERM.4.VAR.2:                     1' / Poly power 2 (y): xy
+DP1C    = 'TERM.5.COEFF:  -6.8832077243635E-08' / Poly coefficient: yy    A_0_2
+DP1C    = 'TERM.5.VAR.2:                     2' / Poly power 2 (y): yy
+DP1C    = 'TERM.6.COEFF:   5.1080179892854E-10' / Poly coefficient: xxx   A_3_0
+DP1C    = 'TERM.6.VAR.1:                     3' / Poly power 1 (x): xxx
+DP1C    = 'TERM.7.COEFF:  -3.2570122733976E-10' / Poly coefficient: xxy   A_2_1
+DP1C    = 'TERM.7.VAR.1:                     2' / Poly power 1 (x): xxy
+DP1C    = 'TERM.7.VAR.2:                     1' / Poly power 2 (y): xxy
+DP1C    = 'TERM.8.COEFF:  -5.4789597808432E-11' / Poly coefficient: xyy   A_1_2
+DP1C    = 'TERM.8.VAR.1:                     1' / Poly power 1 (x): xyy
+DP1C    = 'TERM.8.VAR.2:                     2' / Poly power 2 (y): xyy
+DP1C    = 'TERM.9.COEFF:  -3.9165520771852E-11' / Poly coefficient: yyy   A_0_3
+DP1C    = 'TERM.9.VAR.2:                     3' / Poly power 2 (y): yyy
+DP1C    = 'TERM.10.COEFF: -2.2410038481669E-14' / Poly coefficient: xxxx  A_4_0
+DP1C    = 'TERM.10.VAR.1:                    4' / Poly power 1 (x): xxxx
+DP1C    = 'TERM.11.COEFF:  2.4024589153935E-14' / Poly coefficient: xxxy  A_3_1
+DP1C    = 'TERM.11.VAR.1:                    3' / Poly power 1 (x): xxxy
+DP1C    = 'TERM.11.VAR.2:                    1' / Poly power 2 (y): xxxy
+DP1C    = 'TERM.12.COEFF:  5.8725301231513E-15' / Poly coefficient: xxyy  A_2_2
+DP1C    = 'TERM.12.VAR.1:                    2' / Poly power 1 (x): xxyy
+DP1C    = 'TERM.12.VAR.2:                    2' / Poly power 2 (y): xxyy
+DP1C    = 'TERM.13.COEFF:  4.3257176022080E-15' / Poly coefficient: xyyy  A_1_3
+DP1C    = 'TERM.13.VAR.1:                    1' / Poly power 1 (x): xyyy
+DP1C    = 'TERM.13.VAR.2:                    3' / Poly power 2 (y): xyyy
+DP1C    = 'TERM.14.COEFF: -1.3734790334086E-15' / Poly coefficient: yyyy  A_0_4
+DP1C    = 'TERM.14.VAR.2:                    4' / Poly power 2 (y): yyyy
+CPERR1C =                96.50 / Maximum absolute value of distortion function
+
+CPDIS2C = 'Polynomial'         / P = prior, Polynomial distortion
+DP2C    = 'NAXES:  2'          / Two independent variables
+DP2C    = 'OFFSET.1: -3925.16'
+DP2C    = 'OFFSET.2:  4360.23'
+DP2C    = 'NTERMS: 14'         / Number of terms in the polynomial
+DP2C    = 'TERM.1.COEFF:                   0.0' / Poly coefficient: 1
+DP2C    = 'TERM.2.COEFF:                     0' / Poly coefficient: y     B_0_1
+DP2C    = 'TERM.2.VAR.2:                     1' / Poly power 2 (y): y
+DP2C    = 'TERM.3.COEFF:  -6.2926490499120E-06' / Poly coefficient: xx    B_2_0
+DP2C    = 'TERM.3.VAR.1:                     2' / Poly power 1 (x): xx
+DP2C    = 'TERM.4.COEFF:   5.9146560187892E-08' / Poly coefficient: xy    B_1_1
+DP2C    = 'TERM.4.VAR.1:                     1' / Poly power 1 (x): xy
+DP2C    = 'TERM.4.VAR.2:                     1' / Poly power 2 (y): xy
+DP2C    = 'TERM.5.COEFF:   2.1061956862630E-07' / Poly coefficient: yy    B_0_2
+DP2C    = 'TERM.5.VAR.2:                     2' / Poly power 2 (y): yy
+DP2C    = 'TERM.6.COEFF:   8.6240995389586E-10' / Poly coefficient: xxx   B_3_0
+DP2C    = 'TERM.6.VAR.1:                     3' / Poly power 1 (x): xxx
+DP2C    = 'TERM.7.COEFF:  -6.7715107588365E-11' / Poly coefficient: xxy   B_2_1
+DP2C    = 'TERM.7.VAR.1:                     2' / Poly power 1 (x): xxy
+DP2C    = 'TERM.7.VAR.2:                     1' / Poly power 2 (y): xxy
+DP2C    = 'TERM.8.COEFF:  -5.1237410950671E-11' / Poly coefficient: xyy   B_1_2
+DP2C    = 'TERM.8.VAR.1:                     1' / Poly power 1 (x): xyy
+DP2C    = 'TERM.8.VAR.2:                     2' / Poly power 2 (y): xyy
+DP2C    = 'TERM.9.COEFF:  -5.0622542139077E-12' / Poly coefficient: yyy   B_0_3
+DP2C    = 'TERM.9.VAR.2:                     3' / Poly power 2 (y): yyy
+DP2C    = 'TERM.10.COEFF: -4.3853697321471E-14' / Poly coefficient: xxxx  B_4_0
+DP2C    = 'TERM.10.VAR.1:                    4' / Poly power 1 (x): xxxx
+DP2C    = 'TERM.11.COEFF:  4.0077335382236E-15' / Poly coefficient: xxxy  B_3_1
+DP2C    = 'TERM.11.VAR.1:                    3' / Poly power 1 (x): xxxy
+DP2C    = 'TERM.11.VAR.2:                    1' / Poly power 2 (y): xxxy
+DP2C    = 'TERM.12.COEFF:  3.3307943746343E-15' / Poly coefficient: xxyy  B_2_2
+DP2C    = 'TERM.12.VAR.1:                    2' / Poly power 1 (x): xxyy
+DP2C    = 'TERM.12.VAR.2:                    2' / Poly power 2 (y): xxyy
+DP2C    = 'TERM.13.COEFF: -1.8559485838936E-15' / Poly coefficient: xyyy  B_1_3
+DP2C    = 'TERM.13.VAR.1:                    1' / Poly power 1 (x): xyyy
+DP2C    = 'TERM.13.VAR.2:                    3' / Poly power 2 (y): xyyy
+DP2C    = 'TERM.14.COEFF:  5.1753961684558E-16' / Poly coefficient: yyyy  B_0_4
+DP2C    = 'TERM.14.VAR.2:                    4' / Poly power 2 (y): yyyy
+CPERR2C =                95.54 / Maximum absolute value of distortion function
+
+COMMENT  =======================================================================
+COMMENT  The above SIP distortion translated to TPV differs only in CTYPEia and
+COMMENT  the keyrecords relating to the distortion polynomial.  The polynomial
+COMMENT  coefficients differ from SIP because the TPV distortion follows the
+COMMENT  linear transformation (sequent), rather than preceding it (prior).
+COMMENT
+COMMENT  TPV supports alternate representations, with axis mapping tied to the
+COMMENT  celestial axes.  In the keycomments, x and y for TPV refer to the RA
+COMMENT  and DEC axes respectively, which are axes 1 and 2 here.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEP= 'SIPTPV-4: native TPV representation'
+CRPIX1P =             -3925.16 / Pixel coordinate of reference point
+CRPIX2P =              4360.23 / Pixel coordinate of reference point
+CD1_1P  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2P  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1P  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2P  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1P = 'RA---TPV'           / TAN (gnomonic) projection + distortions
+CTYPE2P = 'DEC--TPV'           / TAN (gnomonic) projection + distortions
+CRVAL1P =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2P =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1P = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2P = 'deg     '           / Image axis-2 celestial-coordinate units
+
+PV1_1P  =                  1.0 / TPV coefficient: x
+PV1_4P  = -0.01616956178892100 / TPV coefficient: xx
+PV1_5P  = -0.00517474938746320 / TPV coefficient: xy
+PV1_6P  = -0.00023850435805678 / TPV coefficient: yy
+PV1_7P  =  0.00629760478963159 / TPV coefficient: xxx
+PV1_8P  =  0.00397207946734115 / TPV coefficient: xxy
+PV1_9P  = -0.00067729620645185 / TPV coefficient: xyy
+PV1_10P =  0.00050354679706662 / TPV coefficient: yyy
+PV1_12P = -0.00097355342974408 / TPV coefficient: xxxx
+PV1_13P = -0.00102312736844768 / TPV coefficient: xxxy
+PV1_14P =  0.00025362356834782 / TPV coefficient: xxyy
+PV1_15P = -0.00020021192475813 / TPV coefficient: xyyy
+PV1_16P = -6.2162660705097E-05 / TPV coefficient: yyyy
+
+PV2_1P  =                  1.0 / TPV coefficient: y
+PV2_4P  = -0.00074364565692291 / TPV coefficient: yy
+PV2_5P  =  0.00018425002539649 / TPV coefficient: yx
+PV2_6P  =  0.02197159197666640 / TPV coefficient: xx
+PV2_7P  = -7.5449775263740E-05 / TPV coefficient: yyy
+PV2_8P  =  0.00064935718511019 / TPV coefficient: yyx
+PV2_9P  = -0.00081219646536117 / TPV coefficient: yxx
+PV2_10P = -0.01050984336151780 / TPV coefficient: xxx
+PV2_12P = -2.1755521894303E-05 / TPV coefficient: yyyy
+PV2_13P = -7.9010371768005E-05 / TPV coefficient: yyyx
+PV2_14P = -0.00015571170306733 / TPV coefficient: yyxx
+PV2_15P =  0.00016933561718011 / TPV coefficient: yxxx
+PV2_16P =  0.00186540574051853 / TPV coefficient: xxxx
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  WCSLIB handles a TPV "projection" (as above) by translating its PVi_ma
+COMMENT  keyrecords internally into a 'TPV' distortion type for later analysis.
+COMMENT  That translation may also be written directly in a header as done
+COMMENT  here.
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.  Here, identification of the variables associated with
+COMMENT  the TPV coefficients swaps between DQ1 and DQ2 due to the axis maps:
+COMMENT    DQ1Q.AXIS.1 = 1,
+COMMENT    DQ1Q.AXIS.2 = 2,
+COMMENT  versus
+COMMENT    DQ2Q.AXIS.1 = 2,
+COMMENT    DQ2Q.AXIS.2 = 1.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEQ= 'SIPTPV-5: TPV translated to a ''TPV'' distortion'
+CRPIX1Q =             -3925.16 / Pixel coordinate of reference point
+CRPIX2Q =              4360.23 / Pixel coordinate of reference point
+CD1_1Q  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2Q  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1Q  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2Q  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1Q = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2Q = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1Q =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2Q =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1Q = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2Q = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CQDIS1Q = 'TPV'                / Q = sequent distortion
+DQ1Q    = 'NAXES:  2'          / Two independent variables
+DQ1Q    = 'AXIS.1: 1'          / 1st independent variable: axis 1 = x
+DQ1Q    = 'AXIS.2: 2'          / 2nd independent variable: axis 2 = y
+DQ1Q    = 'TPV.1:                   1.0' / TPV coefficient: x
+DQ1Q    = 'TPV.4:  -0.01616956178892100' / TPV coefficient: xx
+DQ1Q    = 'TPV.5:  -0.00517474938746320' / TPV coefficient: xy
+DQ1Q    = 'TPV.6:  -0.00023850435805678' / TPV coefficient: yy
+DQ1Q    = 'TPV.7:   0.00629760478963159' / TPV coefficient: xxx
+DQ1Q    = 'TPV.8:   0.00397207946734115' / TPV coefficient: xxy
+DQ1Q    = 'TPV.9:  -0.00067729620645185' / TPV coefficient: xyy
+DQ1Q    = 'TPV.10:  0.00050354679706662' / TPV coefficient: yyy
+DQ1Q    = 'TPV.12: -0.00097355342974408' / TPV coefficient: xxxx
+DQ1Q    = 'TPV.13: -0.00102312736844768' / TPV coefficient: xxxy
+DQ1Q    = 'TPV.14:  0.00025362356834782' / TPV coefficient: xxyy
+DQ1Q    = 'TPV.15: -0.00020021192475813' / TPV coefficient: xyyy
+DQ1Q    = 'TPV.16: -6.2162660705097E-05' / TPV coefficient: yyyy
+CQERR1Q =                96.50 / Maximum absolute value of distortion function
+
+CQDIS2Q = 'TPV'                / Q = sequent distortion
+DQ2Q    = 'NAXES:  2'          / Two independent variables
+DQ2Q    = 'AXIS.1: 2'          / 1st independent variable: axis 2 = y
+DQ2Q    = 'AXIS.2: 1'          / 2nd independent variable: axis 1 = x
+DQ2Q    = 'TPV.1:                   1.0' / TPV coefficient: y
+DQ2Q    = 'TPV.4:  -0.00074364565692291' / TPV coefficient: yy
+DQ2Q    = 'TPV.5:   0.00018425002539649' / TPV coefficient: yx
+DQ2Q    = 'TPV.6:   0.02197159197666640' / TPV coefficient: xx
+DQ2Q    = 'TPV.7:  -7.5449775263740E-05' / TPV coefficient: yyy
+DQ2Q    = 'TPV.8:   0.00064935718511019' / TPV coefficient: yyx
+DQ2Q    = 'TPV.9:  -0.00081219646536117' / TPV coefficient: yxx
+DQ2Q    = 'TPV.10: -0.01050984336151780' / TPV coefficient: xxx
+DQ2Q    = 'TPV.12: -2.1755521894303E-05' / TPV coefficient: yyyy
+DQ2Q    = 'TPV.13: -7.9010371768005E-05' / TPV coefficient: yyyx
+DQ2Q    = 'TPV.14: -0.00015571170306733' / TPV coefficient: yyxx
+DQ2Q    = 'TPV.15:  0.00016933561718011' / TPV coefficient: yxxx
+DQ2Q    = 'TPV.16:  0.00186540574051853' / TPV coefficient: xxxx
+CQERR2Q =                95.54 / Maximum absolute value of distortion function
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  WCSLIB implements the 'TPV' distortion as a special case of the more
+COMMENT  general 'TPD' distortion.
+COMMENT
+COMMENT  Using the same axis mapping as above, the 'TPV' distortion translates
+COMMENT  straightforwardly to 'TPD' which is a super-set.
+COMMENT
+COMMENT  This transformation is done internally by WCSLIB (by tpvset()) in
+COMMENT  implementing TPV as TPD.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEQ= 'SIPTPV-6: TPV translated to a ''TPD'' distortion'
+CRPIX1R =             -3925.16 / Pixel coordinate of reference point
+CRPIX2R =              4360.23 / Pixel coordinate of reference point
+CD1_1R  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2R  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1R  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2R  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1R = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2R = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1R =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2R =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1R = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2R = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CQDIS1R = 'TPD'                / Q = sequent, Template Polynomial Distortion
+DQ1R    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ1R    = 'NAXES:  2'          / Two independent variables
+DQ1R    = 'AXIS.1: 1'          / 1st independent variable: axis 1 = x
+DQ1R    = 'AXIS.2: 2'          / 2nd independent variable: axis 2 = y
+DQ1R    = 'TPD.FWD.1:                   1.0' / TPD coefficient: x
+DQ1R    = 'TPD.FWD.4:  -0.01616956178892100' / TPD coefficient: xx
+DQ1R    = 'TPD.FWD.5:  -0.00517474938746320' / TPD coefficient: xy
+DQ1R    = 'TPD.FWD.6:  -0.00023850435805678' / TPD coefficient: yy
+DQ1R    = 'TPD.FWD.7:   0.00629760478963159' / TPD coefficient: xxx
+DQ1R    = 'TPD.FWD.8:   0.00397207946734115' / TPD coefficient: xxy
+DQ1R    = 'TPD.FWD.9:  -0.00067729620645185' / TPD coefficient: xyy
+DQ1R    = 'TPD.FWD.10:  0.00050354679706662' / TPD coefficient: yyy
+DQ1R    = 'TPD.FWD.12: -0.00097355342974408' / TPD coefficient: xxxx
+DQ1R    = 'TPD.FWD.13: -0.00102312736844768' / TPD coefficient: xxxy
+DQ1R    = 'TPD.FWD.14:  0.00025362356834782' / TPD coefficient: xxyy
+DQ1R    = 'TPD.FWD.15: -0.00020021192475813' / TPD coefficient: xyyy
+DQ1R    = 'TPD.FWD.16: -6.2162660705097E-05' / TPD coefficient: yyyy
+CQERR1R =                96.50 / Maximum absolute value of distortion function
+
+CQDIS2R = 'TPD'                / Q = sequent, Template Polynomial Distortion
+DQ2R    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ2R    = 'NAXES:  2'          / Two independent variables
+DQ2R    = 'AXIS.1: 2'          / 1st independent variable: axis 2 = y
+DQ2R    = 'AXIS.2: 1'          / 2nd independent variable: axis 1 = x
+DQ2R    = 'TPD.FWD.1:                   1.0' / TPD coefficient: y
+DQ2R    = 'TPD.FWD.4:  -0.00074364565692291' / TPD coefficient: yy
+DQ2R    = 'TPD.FWD.5:   0.00018425002539649' / TPD coefficient: yx
+DQ2R    = 'TPD.FWD.6:   0.02197159197666640' / TPD coefficient: xx
+DQ2R    = 'TPD.FWD.7:  -7.5449775263740E-05' / TPD coefficient: yyy
+DQ2R    = 'TPD.FWD.8:   0.00064935718511019' / TPD coefficient: yyx
+DQ2R    = 'TPD.FWD.9:  -0.00081219646536117' / TPD coefficient: yxx
+DQ2R    = 'TPD.FWD.10: -0.01050984336151780' / TPD coefficient: xxx
+DQ2R    = 'TPD.FWD.12: -2.1755521894303E-05' / TPD coefficient: yyyy
+DQ2R    = 'TPD.FWD.13: -7.9010371768005E-05' / TPD coefficient: yyyx
+DQ2R    = 'TPD.FWD.14: -0.00015571170306733' / TPD coefficient: yyxx
+DQ2R    = 'TPD.FWD.15:  0.00016933561718011' / TPD coefficient: yxxx
+DQ2R    = 'TPD.FWD.16:  0.00186540574051853' / TPD coefficient: xxxx
+CQERR2R =                95.54 / Maximum absolute value of distortion function
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The TPV representation above translated to TPD as a sequent
+COMMENT  distortion, but this time without using an axis mapping.  Note how
+COMMENT  the indices of the TPD coefficients for axis 2 now differ from TPV.
+COMMENT
+COMMENT  In the keycomments, as before, x and y refer to axes 1 and 2, which
+COMMENT  are the RA and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMES= 'SIPTPV-7: TPV translated to a ''TPD'' distortion without axis map'
+CRPIX1S =             -3925.16 / Pixel coordinate of reference point
+CRPIX2S =              4360.23 / Pixel coordinate of reference point
+CD1_1S  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2S  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1S  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2S  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1S = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2S = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1S =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2S =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1S = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2S = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CQDIS1S = 'TPD'                / Q = sequent, Template Polynomial Distortion
+DQ1S    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ1S    = 'NAXES:  2'          / Two independent variables
+DQ1S    = 'TPD.FWD.1:                   1.0' / TPD coefficient: x
+DQ1S    = 'TPD.FWD.4:  -0.01616956178892100' / TPD coefficient: xx
+DQ1S    = 'TPD.FWD.5:  -0.00517474938746320' / TPD coefficient: xy
+DQ1S    = 'TPD.FWD.6:  -0.00023850435805678' / TPD coefficient: yy
+DQ1S    = 'TPD.FWD.7:   0.00629760478963159' / TPD coefficient: xxx
+DQ1S    = 'TPD.FWD.8:   0.00397207946734115' / TPD coefficient: xxy
+DQ1S    = 'TPD.FWD.9:  -0.00067729620645185' / TPD coefficient: xyy
+DQ1S    = 'TPD.FWD.10:  0.00050354679706662' / TPD coefficient: yyy
+DQ1S    = 'TPD.FWD.12: -0.00097355342974408' / TPD coefficient: xxxx
+DQ1S    = 'TPD.FWD.13: -0.00102312736844768' / TPD coefficient: xxxy
+DQ1S    = 'TPD.FWD.14:  0.00025362356834782' / TPD coefficient: xxyy
+DQ1S    = 'TPD.FWD.15: -0.00020021192475813' / TPD coefficient: xyyy
+DQ1S    = 'TPD.FWD.16: -6.2162660705097E-05' / TPD coefficient: yyyy
+CQERR1S =                96.50 / Maximum absolute value of distortion function
+
+CQDIS2S = 'TPD'                / Q = sequent, Template Polynomial Distortion
+DQ2S    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ2S    = 'NAXES:  2'          / Two independent variables
+DQ2S    = 'TPD.FWD.2:                   1.0' / TPD coefficient: y
+DQ2S    = 'TPD.FWD.6:  -0.00074364565692291' / TPD coefficient: yy
+DQ2S    = 'TPD.FWD.5:   0.00018425002539649' / TPD coefficient: yx
+DQ2S    = 'TPD.FWD.4:   0.02197159197666640' / TPD coefficient: xx
+DQ2S    = 'TPD.FWD.10: -7.5449775263740E-05' / TPD coefficient: yyy
+DQ2S    = 'TPD.FWD.9:   0.00064935718511019' / TPD coefficient: yyx
+DQ2S    = 'TPD.FWD.8:  -0.00081219646536117' / TPD coefficient: yxx
+DQ2S    = 'TPD.FWD.7:  -0.01050984336151780' / TPD coefficient: xxx
+DQ2S    = 'TPD.FWD.16: -2.1755521894303E-05' / TPD coefficient: yyyy
+DQ2S    = 'TPD.FWD.15: -7.9010371768005E-05' / TPD coefficient: yyyx
+DQ2S    = 'TPD.FWD.14: -0.00015571170306733' / TPD coefficient: yyxx
+DQ2S    = 'TPD.FWD.13:  0.00016933561718011' / TPD coefficient: yxxx
+DQ2S    = 'TPD.FWD.12:  0.00186540574051853' / TPD coefficient: xxxx
+CQERR2S =                95.54 / Maximum absolute value of distortion function
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The TPV representation above translated to Polynomial as a sequent
+COMMENT  distortion using an axis mapping.
+COMMENT
+COMMENT  The comments above for the translation to TPD apply here as well.
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMET= 'SIPTPV-8: TPV translated to a ''Polynomial'' distortion'
+CRPIX1T =             -3925.16 / Pixel coordinate of reference point
+CRPIX2T =              4360.23 / Pixel coordinate of reference point
+CD1_1T  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2T  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1T  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2T  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1T = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2T = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1T =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2T =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1T = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2T = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CQDIS1T = 'Polynomial'         / Q = sequent, Polynomial distortion
+DQ1T    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ1T    = 'NAXES:  2'          / Two independent variables
+DQ1T    = 'AXIS.1: 1'          / 1st independent variable: axis 1 = x
+DQ1T    = 'AXIS.2: 2'          / 2nd independent variable: axis 2 = y
+DQ1T    = 'NTERMS: 13'         / Number of terms in the polynomial
+DQ1T    = 'TERM.1.COEFF:                     1' / Poly coefficient: x
+DQ1T    = 'TERM.1.VAR.1:                     1' / Poly power 1 (x): x
+DQ1T    = 'TERM.2.COEFF:  -0.01616956178892100' / Poly coefficient: xx
+DQ1T    = 'TERM.2.VAR.1:                     2' / Poly power 1 (x): xx
+DQ1T    = 'TERM.3.COEFF:  -0.00517474938746320' / Poly coefficient: xy
+DQ1T    = 'TERM.3.VAR.1:                     1' / Poly power 1 (x): xy
+DQ1T    = 'TERM.3.VAR.2:                     1' / Poly power 2 (y): xy
+DQ1T    = 'TERM.4.COEFF:  -0.00023850435805678' / Poly coefficient: yy
+DQ1T    = 'TERM.4.VAR.2:                     2' / Poly power 2 (y): yy
+DQ1T    = 'TERM.5.COEFF:   0.00629760478963159' / Poly coefficient: xxx
+DQ1T    = 'TERM.5.VAR.1:                     3' / Poly power 1 (x): xxx
+DQ1T    = 'TERM.6.COEFF:   0.00397207946734115' / Poly coefficient: xxy
+DQ1T    = 'TERM.6.VAR.1:                     2' / Poly power 1 (x): xxy
+DQ1T    = 'TERM.6.VAR.2:                     1' / Poly power 2 (y): xxy
+DQ1T    = 'TERM.7.COEFF:  -0.00067729620645185' / Poly coefficient: xyy
+DQ1T    = 'TERM.7.VAR.1:                     1' / Poly power 1 (x): xyy
+DQ1T    = 'TERM.7.VAR.2:                     2' / Poly power 2 (y): xyy
+DQ1T    = 'TERM.8.COEFF:   0.00050354679706662' / Poly coefficient: yyy
+DQ1T    = 'TERM.8.VAR.2:                     3' / Poly power 2 (y): yyy
+DQ1T    = 'TERM.9.COEFF:  -0.00097355342974408' / Poly coefficient: xxxx
+DQ1T    = 'TERM.9.VAR.1:                     4' / Poly power 1 (x): xxxx
+DQ1T    = 'TERM.10.COEFF: -0.00102312736844768' / Poly coefficient: xxxy
+DQ1T    = 'TERM.10.VAR.1:                    3' / Poly power 1 (x): xxxy
+DQ1T    = 'TERM.10.VAR.2:                    1' / Poly power 2 (y): xxxy
+DQ1T    = 'TERM.11.COEFF:  0.00025362356834782' / Poly coefficient: xxyy
+DQ1T    = 'TERM.11.VAR.1:                    2' / Poly power 1 (x): xxyy
+DQ1T    = 'TERM.11.VAR.2:                    2' / Poly power 2 (y): xxyy
+DQ1T    = 'TERM.12.COEFF: -0.00020021192475813' / Poly coefficient: xyyy
+DQ1T    = 'TERM.12.VAR.1:                    1' / Poly power 1 (x): xyyy
+DQ1T    = 'TERM.12.VAR.2:                    3' / Poly power 2 (y): xyyy
+DQ1T    = 'TERM.13.COEFF: -6.2162660705097E-05' / Poly coefficient: yyyy
+DQ1T    = 'TERM.13.VAR.2:                    4' / Poly power 2 (y): yyyy
+CQERR1T =                96.50 / Maximum absolute value of distortion function
+
+CQDIS2T = 'Polynomial'         / Q = sequent, Polynomial distortion
+DQ2T    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ2T    = 'NAXES:  2'          / Two independent variables
+DQ2T    = 'AXIS.1: 2'          / 1st independent variable: axis 2 = y
+DQ2T    = 'AXIS.2: 1'          / 2nd independent variable: axis 1 = x
+DQ2T    = 'NTERMS: 13'         / Number of terms in the polynomial
+DQ2T    = 'TERM.1.COEFF:                     1' / Poly coefficient: y
+DQ2T    = 'TERM.1.VAR.1:                     1' / Poly power 1 (x): y
+DQ2T    = 'TERM.2.COEFF:  -0.00074364565692291' / Poly coefficient: yy
+DQ2T    = 'TERM.2.VAR.1:                     2' / Poly power 1 (x): yy
+DQ2T    = 'TERM.3.COEFF:   0.00018425002539649' / Poly coefficient: yx
+DQ2T    = 'TERM.3.VAR.1:                     1' / Poly power 1 (x): yx
+DQ2T    = 'TERM.3.VAR.2:                     1' / Poly power 2 (y): yx
+DQ2T    = 'TERM.4.COEFF:   0.02197159197666640' / Poly coefficient: xx
+DQ2T    = 'TERM.4.VAR.2:                     2' / Poly power 2 (y): xx
+DQ2T    = 'TERM.5.COEFF:  -7.5449775263740E-05' / Poly coefficient: yyy
+DQ2T    = 'TERM.5.VAR.1:                     3' / Poly power 1 (x): yyy
+DQ2T    = 'TERM.6.COEFF:   0.00064935718511019' / Poly coefficient: yyx
+DQ2T    = 'TERM.6.VAR.1:                     2' / Poly power 1 (x): yyx
+DQ2T    = 'TERM.6.VAR.2:                     1' / Poly power 2 (y): yyx
+DQ2T    = 'TERM.7.COEFF:  -0.00081219646536117' / Poly coefficient: yxx
+DQ2T    = 'TERM.7.VAR.1:                     1' / Poly power 1 (x): yxx
+DQ2T    = 'TERM.7.VAR.2:                     2' / Poly power 2 (y): yxx
+DQ2T    = 'TERM.8.COEFF:  -0.01050984336151780' / Poly coefficient: xxx
+DQ2T    = 'TERM.8.VAR.2:                     3' / Poly power 2 (y): xxx
+DQ2T    = 'TERM.9.COEFF:  -2.1755521894303E-05' / Poly coefficient: yyyy
+DQ2T    = 'TERM.9.VAR.1:                     4' / Poly power 1 (x): yyyy
+DQ2T    = 'TERM.10.COEFF: -7.9010371768005E-05' / Poly coefficient: yyyx
+DQ2T    = 'TERM.10.VAR.1:                    3' / Poly power 1 (x): yyyx
+DQ2T    = 'TERM.10.VAR.2:                    1' / Poly power 2 (y): yyyx
+DQ2T    = 'TERM.11.COEFF: -0.00015571170306733' / Poly coefficient: yyxx
+DQ2T    = 'TERM.11.VAR.1:                    2' / Poly power 1 (x): yyxx
+DQ2T    = 'TERM.11.VAR.2:                    2' / Poly power 2 (y): yyxx
+DQ2T    = 'TERM.12.COEFF:  0.00016933561718011' / Poly coefficient: yxxx
+DQ2T    = 'TERM.12.VAR.1:                    1' / Poly power 1 (x): yxxx
+DQ2T    = 'TERM.12.VAR.2:                    3' / Poly power 2 (y): yxxx
+DQ2T    = 'TERM.13.COEFF:  0.00186540574051853' / Poly coefficient: xxxx
+DQ2T    = 'TERM.13.VAR.2:                    4' / Poly power 2 (y): xxxx
+CQERR2T =                95.54 / Maximum absolute value of distortion function
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The TPV representation above translated to Polynomial as a sequent
+COMMENT  distortion, this time without using an axis mapping.
+COMMENT
+COMMENT  The auxiliary (radial) variable is not used and was added solely for
+COMMENT  testing wcshdo().
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEU= 'SIPTPV-9: TPV translated to ''Polynomial'' without axis mapping'
+CRPIX1U =             -3925.16 / Pixel coordinate of reference point
+CRPIX2U =              4360.23 / Pixel coordinate of reference point
+CD1_1U  =  0.00028610265860158 / [deg] CD matrix element
+CD1_2U  = -6.2881662833181E-07 / [deg] CD matrix element
+CD2_1U  = -5.7720701811452E-06 / [deg] CD matrix element
+CD2_2U  = -0.00028152525617189 / [deg] CD matrix element
+CTYPE1U = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2U = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1U =    274.8069457088980 / [deg] Right ascension at the reference point
+CRVAL2U =    -25.9746476963393 / [deg] Declination at the reference point
+CUNIT1U = 'deg     '           / Image axis-1 celestial-coordinate units
+CUNIT2U = 'deg     '           / Image axis-2 celestial-coordinate units
+
+CQDIS1U = 'Polynomial'         / Q = sequent, Polynomial distortion
+DQ1U    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ1U    = 'NAXES:  2'          / Two independent variables
+DQ1U    = 'NTERMS: 13'         / Number of terms in the polynomial
+DQ1U    = 'NAUX: 1'            / One auxiliary variable (not used)
+DQ1U    = 'AUX.1.COEFF.1: 1'   / Coefficient of first variable
+DQ1U    = 'AUX.1.POWER.1: 2'   / Power of first variable
+DQ1U    = 'AUX.1.COEFF.2: 1'   / Coefficient of second variable
+DQ1U    = 'AUX.1.POWER.2: 2'   / Power of second variable
+DQ1U    = 'AUX.1.POWER.0: 0.5' / Power of the sum of the terms
+DQ1U    = 'TERM.1.COEFF:                     1' / Poly coefficient: x
+DQ1U    = 'TERM.1.VAR.1:                     1' / Poly power 1 (x): x
+DQ1U    = 'TERM.2.COEFF:  -0.01616956178892100' / Poly coefficient: xx
+DQ1U    = 'TERM.2.VAR.1:                     2' / Poly power 1 (x): xx
+DQ1U    = 'TERM.3.COEFF:  -0.00517474938746320' / Poly coefficient: xy
+DQ1U    = 'TERM.3.VAR.1:                     1' / Poly power 1 (x): xy
+DQ1U    = 'TERM.3.VAR.2:                     1' / Poly power 2 (y): xy
+DQ1U    = 'TERM.4.COEFF:  -0.00023850435805678' / Poly coefficient: yy
+DQ1U    = 'TERM.4.VAR.2:                     2' / Poly power 2 (y): yy
+DQ1U    = 'TERM.5.COEFF:   0.00629760478963159' / Poly coefficient: xxx
+DQ1U    = 'TERM.5.VAR.1:                     3' / Poly power 1 (x): xxx
+DQ1U    = 'TERM.6.COEFF:   0.00397207946734115' / Poly coefficient: xxy
+DQ1U    = 'TERM.6.VAR.1:                     2' / Poly power 1 (x): xxy
+DQ1U    = 'TERM.6.VAR.2:                     1' / Poly power 2 (y): xxy
+DQ1U    = 'TERM.7.COEFF:  -0.00067729620645185' / Poly coefficient: xyy
+DQ1U    = 'TERM.7.VAR.1:                     1' / Poly power 1 (x): xyy
+DQ1U    = 'TERM.7.VAR.2:                     2' / Poly power 2 (y): xyy
+DQ1U    = 'TERM.8.COEFF:   0.00050354679706662' / Poly coefficient: yyy
+DQ1U    = 'TERM.8.VAR.2:                     3' / Poly power 2 (y): yyy
+DQ1U    = 'TERM.9.COEFF:  -0.00097355342974408' / Poly coefficient: xxxx
+DQ1U    = 'TERM.9.VAR.1:                     4' / Poly power 1 (x): xxxx
+DQ1U    = 'TERM.10.COEFF: -0.00102312736844768' / Poly coefficient: xxxy
+DQ1U    = 'TERM.10.VAR.1:                    3' / Poly power 1 (x): xxxy
+DQ1U    = 'TERM.10.VAR.2:                    1' / Poly power 2 (y): xxxy
+DQ1U    = 'TERM.11.COEFF:  0.00025362356834782' / Poly coefficient: xxyy
+DQ1U    = 'TERM.11.VAR.1:                    2' / Poly power 1 (x): xxyy
+DQ1U    = 'TERM.11.VAR.2:                    2' / Poly power 2 (y): xxyy
+DQ1U    = 'TERM.12.COEFF: -0.00020021192475813' / Poly coefficient: xyyy
+DQ1U    = 'TERM.12.VAR.1:                    1' / Poly power 1 (x): xyyy
+DQ1U    = 'TERM.12.VAR.2:                    3' / Poly power 2 (y): xyyy
+DQ1U    = 'TERM.13.COEFF: -6.2162660705097E-05' / Poly coefficient: yyyy
+DQ1U    = 'TERM.13.VAR.2:                    4' / Poly power 2 (y): yyyy
+CQERR1U =                96.50 / Maximum absolute value of distortion function
+
+CQDIS2U = 'Polynomial'         / Q = sequent, Polynomial distortion
+DQ2U    = 'DOCORR: 0'          / Polynomial gives corrected coordinate
+DQ2U    = 'NAXES:  2'          / Two independent variables
+DQ2U    = 'NAUX: 1'            / One auxiliary variable (not used)
+DQ2U    = 'AUX.1.COEFF.1: 1'   / Coefficient of first variable
+DQ2U    = 'AUX.1.POWER.1: 2'   / Power of first variable
+DQ2U    = 'AUX.1.COEFF.2: 1'   / Coefficient of second variable
+DQ2U    = 'AUX.1.POWER.2: 2'   / Power of second variable
+DQ2U    = 'AUX.1.POWER.0: 0.5' / Power of the sum of the terms
+DQ2U    = 'NTERMS: 13'         / Number of terms in the polynomial
+DQ2U    = 'TERM.1.COEFF:                     1' / Poly coefficient: y
+DQ2U    = 'TERM.1.VAR.2:                     1' / Poly power 1 (y): y
+DQ2U    = 'TERM.2.COEFF:  -0.00074364565692291' / Poly coefficient: yy
+DQ2U    = 'TERM.2.VAR.2:                     2' / Poly power 1 (y): yy
+DQ2U    = 'TERM.3.COEFF:   0.00018425002539649' / Poly coefficient: xy
+DQ2U    = 'TERM.3.VAR.1:                     1' / Poly power 1 (y): xy
+DQ2U    = 'TERM.3.VAR.2:                     1' / Poly power 2 (x): xy
+DQ2U    = 'TERM.4.COEFF:   0.02197159197666640' / Poly coefficient: xx
+DQ2U    = 'TERM.4.VAR.1:                     2' / Poly power 2 (x): xx
+DQ2U    = 'TERM.5.COEFF:  -7.5449775263740E-05' / Poly coefficient: yyy
+DQ2U    = 'TERM.5.VAR.2:                     3' / Poly power 1 (y): yyy
+DQ2U    = 'TERM.6.COEFF:   0.00064935718511019' / Poly coefficient: xyy
+DQ2U    = 'TERM.6.VAR.1:                     1' / Poly power 2 (x): xyy
+DQ2U    = 'TERM.6.VAR.2:                     2' / Poly power 1 (y): xyy
+DQ2U    = 'TERM.7.COEFF:  -0.00081219646536117' / Poly coefficient: xxy
+DQ2U    = 'TERM.7.VAR.1:                     2' / Poly power 2 (x): xxy
+DQ2U    = 'TERM.7.VAR.2:                     1' / Poly power 1 (y): xxy
+DQ2U    = 'TERM.8.COEFF:  -0.01050984336151780' / Poly coefficient: xxx
+DQ2U    = 'TERM.8.VAR.1:                     3' / Poly power 2 (x): xxx
+DQ2U    = 'TERM.9.COEFF:  -2.1755521894303E-05' / Poly coefficient: yyyy
+DQ2U    = 'TERM.9.VAR.2:                     4' / Poly power 1 (y): yyyy
+DQ2U    = 'TERM.10.COEFF: -7.9010371768005E-05' / Poly coefficient: xyyy
+DQ2U    = 'TERM.10.VAR.1:                    1' / Poly power 2 (x): xyyy
+DQ2U    = 'TERM.10.VAR.2:                    3' / Poly power 1 (y): xyyy
+DQ2U    = 'TERM.11.COEFF: -0.00015571170306733' / Poly coefficient: xxyy
+DQ2U    = 'TERM.11.VAR.1:                    2' / Poly power 2 (x): xxyy
+DQ2U    = 'TERM.11.VAR.2:                    2' / Poly power 1 (y): xxyy
+DQ2U    = 'TERM.12.COEFF:  0.00016933561718011' / Poly coefficient: xxxy
+DQ2U    = 'TERM.12.VAR.1:                    3' / Poly power 2 (x): xxxy
+DQ2U    = 'TERM.12.VAR.2:                    1' / Poly power 1 (y): xxxy
+DQ2U    = 'TERM.13.COEFF:  0.00186540574051853' / Poly coefficient: xxxx
+DQ2U    = 'TERM.13.VAR.1:                    4' / Poly power 2 (x): xxxx
+CQERR2U =                95.54 / Maximum absolute value of distortion function
+
+END
