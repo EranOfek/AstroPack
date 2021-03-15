@@ -1,0 +1,28 @@
+# ULTRASAT Pipeline Configuration File
+Version: '1.0'
+
+#==========================================================================
+# Pipeline - General
+Pipeline:
+    LogPath: c:/iai/log
+
+
+
+#==========================================================================
+# Pipeline - IAI GCS Interface
+GcsInterface:
+    InputImagePath: c:/iai/gcs/    
+    ProcessedImagePath: c:/iai/processed
+
+
+#==========================================================================
+# IAI GCS Interface Simulator        
+GcsSimulator:
+    LogPath: c:/iai/log
+    ImagePath: c:/iai/gcs/
+    ImageSourcePath: c:/iai/images
+    ImageIntervalSeconds: 10
+   
+
+#==========================================================================
+
