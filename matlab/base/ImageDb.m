@@ -18,7 +18,10 @@ classdef ImageDb < handle
         function Obj = ImageDb()
         end
         
-        % 
+        function Result = open(Obj, FileName)
+            Result = false;
+        end
+        
     end
     
     

@@ -16,15 +16,28 @@ classdef FitsDb < ImageDb
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = FitsDb()
-        end
-        
-        % 
-        
-        function data = read(Obj, FileName)
+        function Obj = FitsDb(FileName)
             Obj.FileName = FileName;
-            data = fitsread(Obj.FileName);
         end
+        
+        
+        %
+        function Result = Open(Obj, FileName)
+            Obj.FileName = FileName;
+            Result = true;
+        end
+        
+        
+        % Read         
+        function Data = read(Obj)
+            Data = fitsread(Obj.FileName);       
+        end
+        
+        
+        function Header = readHeader(Obj, Path)
+        end
+        
+            
     end
     
     
@@ -37,7 +50,7 @@ classdef FitsDb < ImageDb
             addpath("D:\Ultrasat\AstroPack.git\matlab\external");
 
             FileName = "D:\\Ultrasat\\AstroPack.git\\data\\test_images\\local\\image1.fits";
-            db = FitsDb;
+            db = FitsDb(FileName);
             data = db.read(FileName);
             
             %
