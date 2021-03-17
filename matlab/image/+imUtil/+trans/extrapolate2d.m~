@@ -1,0 +1,20 @@
+function [Val,F]=extrapolate2d(X,Y,Z,varargin)
+%
+
+
+InPar = inputParser;
+addOptional(InPar,'TranName','Poly1');
+addOptional(InPar,'Tran',[]);
+parse(InPar,varargin{:});
+InPar = InPar.Results;
+
+if isempty(InPar.Tran)
+    Tran = tran2dCl(InPar.TranName);
+else
+    Tran = InPar.Tran;
+end
+
+
+TC = fit_simple(TC,RefXY,CatXY)
+
+

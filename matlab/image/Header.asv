@@ -176,17 +176,6 @@ classdef Header < Component
                 CaseSens(1,1) logical                      = true;
             end
         
-        end
-        
-        % isKeyExist
-        
-        % julday
-        
-        % findGroups
-        
-        % getObsCoo
-        
-        % getCoo
         
     end
     
