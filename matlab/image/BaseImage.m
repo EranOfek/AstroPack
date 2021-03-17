@@ -8,11 +8,15 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef BaseImage < handle % & matlab.mixin.CustomDisplay
+% Component is in folder ../base/
+
+classdef BaseImage < Component
     properties (Hidden, SetAccess = public)
+        Data
         Config
         UserData
         DataProp        = {};   % a cell of properties on which the fun_* methods will be applied
+        Virt VirtImage
     end
     
     
@@ -21,7 +25,7 @@ classdef BaseImage < handle % & matlab.mixin.CustomDisplay
     %-------------------
     methods
        
-        function D=BaseImage
+        function Obj = BaseImage
             % Base class constructor
             % Package: @Base
             
@@ -31,10 +35,47 @@ classdef BaseImage < handle % & matlab.mixin.CustomDisplay
     end
     
  
+    methods
+        function Data = getData(Obj)
+            Data = Obj.Virt.getData();
+        end
+        
+        function setData(Obj, NewData)
+            Obj.Virt.setData(NewData);
+        end
+        
+        % Read from file
+        function read(Obj, FileName)
+            Db = ImageDbManager.getDbByFileExt(FileName);
+            if notempty(Db)
+                Db.
+        end
+        
+        function readDb(Obj, Db, Path)
+        end
+        
+        
+        % Write to file
+        function write(Obj, FileName)
+        end
+        
+        function writeDb(Obj, Db, Path)
+        end
+        
+    end
+    
     
     % setters/getters
     methods
+        function set.Data(Obj, NewData)
+            Obj.setData(NewData);
+        end
         
+
+        function Result = get.Data(Obj)
+            Result = Obj.getData(NewData);
+        end
+
     end
     
     % static methods

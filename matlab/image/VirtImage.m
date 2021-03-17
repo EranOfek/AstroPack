@@ -6,84 +6,56 @@
 %--------------------------------------------------------------------------
 
 
-classdef VirtImage < PipelineComponent
+classdef VirtImage < Component
+    
     % Properties
     properties (SetAccess = public)
-        
-        filename        
-        configPath = "";
-        data
-        lines
-        userData
-        
-        inputImagePath
-        inputImageExt
+        Data
+        Manager
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function obj = VirtImage()
+        function Obj = VirtImage()
+            Obj.Manager.registerImage(Obj);
         end
         
-        % Read file to lines
-        function result = pollInputImage(obj)
-            
-            obj.filename = fullfile(obj.configPath, fname);
-            obj.data = fileread(obj.filename);
-            obj.lines = strsplit(obj.data);
-            result = true;
+        % Destructor
+        function delete(Obj)
+            Obj.Manager.unregisterImage(Obj);
         end
         
-        
-        % Get string
-        function value = getStr(obj, key)
-            value = getValue(obj, key, "");
+        % Get Manager
+        function Result = get.Manager(Obj)
+            Result = VirtImageManager.getManager();
         end
         
-        
-        % Get number
-        function value = getNum(obj, key)
-            str = getStr(obj, key);
-            num = str2double(str);
-            if ~isempty(num)
-                value = num;
-            else
-                value = 0;
-            end
-        end        
-             
-        
-        % Get value from config
-        function value = getValue(obj, key, default)
-            key = lower(key);
-            for i=1:length(obj.lines)
-                items = split(obj.lines{i}, "=");
-                if length(items) > 1
-                    if lower(items{1}) == key
-                        value = items{2};
-                        return
-                    end
-                end
-            end
-            value = default;
+        % Get data as matrix
+        function Result = getData(Obj)            
+            Result = Obj.Data;
         end
+        
+        % Set data from matrix
+        function setData(Obj, NewData)
+            Obj.Data = NewData;
+        end
+        
     end
-
+    
     
     % Unit test
     methods(Static)
-        function result = uTest()
-            fprintf("Started\n");
-            conf = Config("c:/temp/conf.txt")
-            val = conf.getValue("key1");
-            disp(val);           
-            num = conf.getNum("key3");
-            disp(num);
-            result = true;
+        function Result = unitTest()
+            
+            Image1 = VirtImage;
+            Image2 = VirtImage;
+            
+            delete(Image1);
+            delete(Image2);
+            
+            Result = true;
         end
     end    
         
 end
-
-

@@ -1,4 +1,3 @@
-% @Chen
 % Component base class
 % Package: 
 % Description:

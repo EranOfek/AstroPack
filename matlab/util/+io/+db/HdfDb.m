@@ -13,7 +13,9 @@
 classdef HdfDb < ImageDb
     % Properties
     properties (SetAccess = public)
-
+       ImageGroupPrefix = "image"
+       ImageDataSetName = "Image"
+       HeaderDataSetName = "Header"
     end
     
     %-------------------------------------------------------- 
@@ -51,15 +53,27 @@ classdef HdfDb < ImageDb
         
         %
         function Path = getImagePath(Obj, Index)
-            Path = "/image" + string(Index) + "/";
+            Path = "/" + ImageGroupPrefix + string(Index) + "/";
         end
         
+        function Path = getImageDataSetPath(Obj, Index, DataSetName)
+            Path = Obj.getImagePath(Index) + DataSetName;
+        end
         
         %
         function Path = getHeaderPath(Obj, Index)
             Path = getImagePath(Index) + "Header";
         end
         
+
+        function Path = getDefaultPath(Obj)
+            Path = Obj.getImagePath(1);
+            
+        end
+        
+        function DataSetPath = getDefaultDataSetPath(Obj)
+            DataSetPath = Obj.getImageDataSetPath(1, 
+        end
         
         % Convert DataSet to cell array
         function Yaml = headerToYaml(Obj, Header)

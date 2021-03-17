@@ -6,7 +6,7 @@
 %--------------------------------------------------------------------------
 
 
-classdef VirtImageManager < PipelineComponent
+classdef VirtImageManager < Component
     % Properties
     properties (SetAccess = public)
         
@@ -17,70 +17,53 @@ classdef VirtImageManager < PipelineComponent
         userData
         imageList
         virtPath = "";
+        
+        ImageList = []
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function obj = VirtImageManager()
-            obj.imageList = containers.Map();
-        end
-        
-        % Read file to lines
-        function result = pollInputImage(obj)
+        function Obj = VirtImageManager()
+            Obj.log("VirtImageManager created");
+            Obj.ImageList = containers.Map();
             
-            obj.filename = fullfile(obj.configPath, fname);
-            obj.data = fileread(obj.filename);
-            obj.lines = strsplit(obj.data);
-            result = true;
         end
         
         
-        % Get string
-        function value = getStr(obj, key)
-            value = getValue(obj, key, "");
+        function delete(Obj)
+            Obj.log("VirtImageManager deleted");
         end
         
         
-        % Get number
-        function value = getNum(obj, key)
-            str = getStr(obj, key);
-            num = str2double(str);
-            if ~isempty(num)
-                value = num;
-            else
-                value = 0;
-            end
-        end        
-             
-        
-        % Get value from config
-        function value = getValue(obj, key, default)
-            key = lower(key);
-            for i=1:length(obj.lines)
-                items = split(obj.lines{i}, "=");
-                if length(items) > 1
-                    if lower(items{1}) == key
-                        value = items{2};
-                        return
-                    end
-                end
-            end
-            value = default;
+        function registerImage(Obj, Image)
+            Obj.log("registerImage: ");
         end
+        
+        
+        function unregisterImage(Obj, Image)
+            Obj.log("unregisterImage: ");
+        end
+        
     end
 
     
+    methods(Static)
+        
+        function Result = getManager()
+            persistent Manager
+            if isempty(Manager)
+                Manager = VirtImageManager;
+            end
+            Result = Manager;
+        end
+    end
+    
+    
     % Unit test
     methods(Static)
-        function result = uTest()
-            fprintf("Started\n");
-            conf = Config("c:/temp/conf.txt")
-            val = conf.getValue("key1");
-            disp(val);           
-            num = conf.getNum("key3");
-            disp(num);
-            result = true;
+        function Result = unitTest()
+            Result = true;
         end
     end    
         

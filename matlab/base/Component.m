@@ -1,10 +1,9 @@
-% @Chen
 % Component base class
 % Package: 
 % Description:
 %--------------------------------------------------------------------------
 
-classdef TComponent < TBase
+classdef Component < Base
     % Properties
     properties (SetAccess = public)
         %config          % Configuration 
@@ -14,7 +13,11 @@ classdef TComponent < TBase
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = TComponent()
+        function Obj = Component()
+        end
+        
+        function log(Obj, Msg)
+            disp(Msg);
         end
     end
 end

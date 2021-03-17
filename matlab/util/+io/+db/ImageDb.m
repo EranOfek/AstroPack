@@ -5,7 +5,7 @@
 %--------------------------------------------------------------------------
 
 % Parent class for FitsDb, HdfDb
-classdef ImageDb < handle
+classdef ImageDb < Component
     % Properties
     properties (SetAccess = public)
         FileName
