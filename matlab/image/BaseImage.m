@@ -35,7 +35,8 @@ classdef BaseImage < Component
     end
     
  
-    methods
+    
+    methods % DB and read/write
         function Data = getData(Obj)
             Data = Obj.Virt.getData();
         end
@@ -48,7 +49,8 @@ classdef BaseImage < Component
         function read(Obj, FileName)
             Db = ImageDbManager.getDbByFileExt(FileName);
             if notempty(Db)
-                Db.
+                %Db.
+            end
         end
         
         function readDb(Obj, Db, Path)
@@ -63,10 +65,8 @@ classdef BaseImage < Component
         end
         
     end
-    
-    
-    % setters/getters
-    methods
+        
+    methods % setters/getters
         function set.Data(Obj, NewData)
             Obj.setData(NewData);
         end
@@ -78,13 +78,11 @@ classdef BaseImage < Component
 
     end
     
-    % static methods
-    methods (Static)
+    methods (Static) % static methods
        
     end
-    
-    % 
-    methods
+     
+    methods % function on images
         function Result=fun_unary(Obj,Fun,FunArg,DataProp,OutType)
             % Apply a unary function on some fields and store on object
             % Input  : - (Obj) An object
@@ -96,7 +94,7 @@ classdef BaseImage < Component
             %            function will br applied.
             %            If [], then will use the list of properties in the
             %            DataProp property of the Base class.
-            %            Default is [].
+            %            Default is {}.
             %          - (OutType) Indicate the type of the output:
             %            ['object'] - The output is an object of the same
             %                       type.
@@ -107,16 +105,14 @@ classdef BaseImage < Component
             % Author : Eran Ofek (Mar 2021)
             % Example: Result=fun_unary(Obj,@median,{'all'},'Im','matrix')
             
-            if nargin<5
-                OutType = 'object';
-                if nargin<4
-                    DataProp = [];
-                    if nargin<3
-                        FunArg = {};
-                    end
-                end
+            arguments
+                Obj
+                Fun function_handle                                      = [];
+                FunArg cell                                              = {};
+                DataProp       {mustBeA(DataProp,{'char','cell'})}       = {};
+                OutType char   {mustBeMember(OutType,{'object','matrix','cell','struct'})} = 'object';                                     
             end
-            
+                        
             if isempty(DataProp)
                 DataProp = Obj.DataProp;
             end
@@ -225,16 +221,15 @@ classdef BaseImage < Component
             % Author : Eran Ofek (Mar 2021)
             % Example: Result=fun_binary(Obj,@plus,{},{'Im','Back','Var'},'object')
             
-            
-            if nargin<6
-                OutType = 'object';
-                if nargin<5
-                    DataProp = [];
-                    if nargin<4
-                        FunArg = {};
-                    end
-                end
+            arguments
+                Obj1
+                Obj2           {mustbeA(Obj2,{'BaseImage','numeric','cell'})} = [];
+                Fun function_handle                                           = [];
+                FunArg cell                                                   = {};
+                DataProp       {mustBeA(DataProp,{'char','cell'})}            = {};
+                OutType char   {mustBeMember(OutType,{'object','matrix','cell','struct'})} = 'object';                                     
             end
+            
             
             if isempty(DataProp)
                 DataProp = Obj.DataProp;
@@ -350,17 +345,6 @@ classdef BaseImage < Component
         end
     end
     
- 
-    
-    % setters/getters
-    methods
-        
-    end
-    
-    % static methods
-    methods (Static)
-       
-    end
     
     % 
     methods
@@ -369,4 +353,5 @@ classdef BaseImage < Component
     
 end
 
-            
+
+
