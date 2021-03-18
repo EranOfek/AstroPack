@@ -81,7 +81,7 @@ classdef Header < Component
                     end
                 case {'hdf5','h5','hd5'}
                     % read hdf5 file
-                    
+                    error('Read Header from HDF5 file is not available yet');
                 otherwise
                     error('Unknown file Type option');
             end
@@ -92,6 +92,12 @@ classdef Header < Component
         
     end
     
+    methods  % functions for internal use
+        %
+        
+        
+    end
+    
     methods 
         function [Val,Key,Comment]=keyVal(Obj,KeySynonym,Args)
             %
@@ -99,11 +105,18 @@ classdef Header < Component
             arguments
                 KeySynonym char               = '';
                 Args.CaseSens(1,1) logical    = true;
-                Args.NotExist char  {mustBeMember(Args.NotExist,{'NaN','fail'})} = 'NaN';
+                Args.SearchType char {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp';
+                Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical     = true;
                 Args.UseDict(1,1) logical     = true;
             end
             
+            if numel(Obj)>1
+                error('Use mkeyVal for Header object with multiple entries or multiple keys');
+            end
+            
+            % I need the dictionary in order to continue
+            %[SC,FE,II] = imUtil.headerCell.getVal(Obj.Data,KeySynonym)
             
         end
         

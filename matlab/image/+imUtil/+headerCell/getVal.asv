@@ -1,0 +1,87 @@
+function [SubCell,FlagExist,FlagI]=getVal(Cell,Key,Args)
+% get keyword value from an header in a cell format
+% Package: @headCl
+% Description: Given a 3 column cell array [Key, Val, Comment]
+%              search for a keyword name and return its value
+%              and comment.
+% Input  : - A 3 columnn cell array [Key, Val, Comment].
+%          - Keyword name, or a cell array of keyword names to serch.
+%          * ...,key,val,... or ...,key=val',... list
+%            'SearchType' - search using: ['strcmp'] | 'regexp'
+%            'CaseSens' - Default is true.
+%            'Fill' - Fill value if not exist: [] - skip. Default is NaN.
+%            'Col' - Column in cell in which to search. Default is 1.
+%            'ReturnN' - What to do if more than one is found.
+%                   [1] - return first, Inf - return all; 2 - return
+%                   second,...
+%            'Val2Num' - Attempt to convert value to number. Default is
+%                   true.
+% Output : - A 3 column cell array with only the lines that
+%            satisfy the search, or the filled values.
+%          - A vector of logicals (one per Key) that indicat if the key
+%            exist in the Cell header.
+%          - Line indices in the input cell that satisfy the
+%            search criteria. Filled values are not included.
+% Author: Eran O. Ofek
+% Example: [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'ExpTime')
+%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},{'ExpTime','A'})
+%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'a','Col',2)
+%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'Exp*','SearchType','regexp')
+%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'TYPE','Fill',[])
+%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'TYPE','Fill',NaN)
+% Reliable: 2
+
+    arguments
+        Cell(:,3) cell
+        Key                   {mustBeA(Key,{'char','cell'})} 
+        Args.SearchType char  {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp'; 
+        Args.CaseSens(1,1) logical                                      = true;
+        Args.Fill                                                       = NaN;
+        Args.Col(1,1) double  {mustBeInRange(Args.Col,1,3,'inclusive')} = 1;
+        Args.ReturnN(1,1) double                                        = 1;
+        Args.Val2Num(1,1) logical                                       = true;
+    end
+    ColVal = 2;
+    
+    if (ischar(Key))
+        Key = {Key};
+    end
+    Nkey = numel(Key);
+    
+    if ~Args.CaseSens
+        Key = lower(Key);
+        Cell(:,Args.Col) = lower(Cell(:,Args.Col));
+    end
+    
+    % for each keyword name
+    FlagI     = [];
+    FlagExist = false(Nkey,1); 
+    SubCell   = cell(0,3);
+    for Ikey=1:1:Nkey
+        switch lower(Args.SearchType)
+            case 'strcmp'
+                % use exact name search
+                Flag = strcmp(Cell(:,Args.Col),Key{Ikey});
+            case 'strcmpi'
+                % use exact name search
+                Flag = strcmpi(Cell(:,Args.Col),Key{Ikey});
+            case 'regexp'
+                Flag = ~cellfun(@isempty,regexp(Cell(:,Args.Col),Key{Ikey},'match'));
+        end
+        if ~isempty(Args.Fill) && ~any(Flag)
+            SubCell = [SubCell; {Key{Ikey}, Args.Fill, ''}];
+        else
+            SubCell = [SubCell; Cell(Flag,:)];
+        end
+        FlagI = [FlagI; find(Flag,Args.ReturnN,'first')];
+        
+        if any(Flag)
+           FlagExist(Ikey) = true;
+        end
+    end
+    
+    if Args.Val2Num
+        str2double(SubCell(:,ColVal) strcmpi(SubCell(:,ColVal),'nan')
+        
+
+end  % end getVal function
