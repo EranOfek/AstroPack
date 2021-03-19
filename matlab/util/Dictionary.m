@@ -1,15 +1,19 @@
+% A Dictionary class
+% 
+% Author: Eran Ofek (March 2021)
+% Example: D=Dictionary; D.unitTest
 
 classdef Dictionary < handle
     properties
         Name char            = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
         Dic struct           = struct();
         Conversion struct    = struct();
-        
     end
    
     methods % constructor
         function Obj=Dictionary(DictionaryName)
-            % 
+            % Dictionary constructor
+            % Input  : Dictionary file name to load. Default is ''.
             
             arguments
                 DictionaryName char    = '';
@@ -31,7 +35,7 @@ classdef Dictionary < handle
     end
     
     methods % basic functions
-        function Alt=searchKey(Obj,Key,Args)
+        function [Alt,AltConv]=searchKey(Obj,Key,Args)
             % Retun alternate names of a specific key in a single dictionary
             % Input  : - Dictionary object with a single element
             %          - A single key name.
@@ -72,15 +76,24 @@ classdef Dictionary < handle
                 error('More than one Key was found');
             elseif numel(Ind)==0
                 Alt = [];
+                AltConv = [];
             else
                 Alt = Obj.Dic.(FN{Ind});
+                if nargout>1
+                    if isfield(Obj.Conversion,FN{Ind})
+                        AltConv = Obj.Conversion.(FN{Ind});
+                    else
+                        AltConv = {};
+                    end
+                end
+                
             end
         end
             
             
             
             
-        function [Key,FlagKey]=searchAlt(Obj,Alt,Args)
+        function [Key,AltConv,AllAlt,FlagKey]=searchAlt(Obj,Alt,Args)
             % Return the key name from an alternate name in a dictionary
             % Input  : - A single element dictionary object.
             %          - A string of name to search in the alternate names.
@@ -103,6 +116,8 @@ classdef Dictionary < handle
             FN = fieldnames(Obj(Idic).Dic);
             Nfn = numel(FN);
             FlagKey = false(Nfn,1);
+            Key = [];
+            AltConv = [];
             for Ifn=1:1:Nfn
                 switch Args.SearchType
                     case 'strcmp'
@@ -122,11 +137,17 @@ classdef Dictionary < handle
                         error('Unknown SearchType option');
                 end
                 
+                
+                
                 FlagKey(Ifn) = any(Flag);
-                if any(FlagKey)
+                if any(FlagKey(Ifn))
                     Key = FN{FlagKey};
-                else
-                    Key = [];
+                    AllAlt = Obj(Idic).Dic.(Key);
+                    if isfield(Obj.Conversion,FN{Ifn})
+                        AltConv = Obj(Idic).Conversion.(FN{Ifn}){Flag};
+                    else
+                        AltConv = {};
+                    end
                 end
             end
         end
@@ -139,16 +160,16 @@ classdef Dictionary < handle
             
             St.EXPTIME = {'AEXPTIME','EXPTIME','EXPOSURE'};
             St.IMTYPE  = {'IMTYPE','TYPE','IMGTYPE','IMAGETYP'};
+            Conv.EXPTIME = {@(x) x, @(x) x, @(x) x};
             Obj.Dic = St;
+            Obj.Conversion = Conv;
             
             
-            D.searchKey('EXPTIME')
-            D.searchAlt('AEXPTIME')
+            [Alt,AltConv] = Obj.searchKey('EXPTIME')
+            [Key,AltConv,AllAlt,FlagKey] = Obj.searchAlt('AEXPTIME')
             
         end
-    end
-        
-    
+   end
         
 end
     
