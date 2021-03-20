@@ -1,6 +1,7 @@
-% BaseImage handle class 
-% Package: @BaseImage
-% Description: 
+% FunImage handle class - all images inherits from this class
+% Package: @FunImage
+% Description: This class provides the basic functionality for all the
+%              images realted class.
 % Tested : Matlab R2018a
 % Author : Eran O. Ofek (Mar 2021)
 % Dependencies: @convert, @celestial
@@ -10,9 +11,8 @@
 
 % Component is in folder ../base/
 
-classdef BaseImage < Component
+classdef FunImage < Component
     properties (Hidden, SetAccess = public)
-        Data
         Scale double              = 1;
         DataProp cell             = {'Data'}; % a cell of properties on which the fun_* methods will be applied
         
@@ -350,6 +350,8 @@ classdef BaseImage < Component
         
         function Obj=imresize(Obj,NewScale,Args)
             %
+            % problematic...
+                
             
             arguments
                 Obj
