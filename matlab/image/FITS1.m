@@ -795,5 +795,11 @@ classdef FITS1
         
     end
     
+    methods % tests
+        function unitTest(Obj)
+            %
+            
+        end
+    end
     
 end
