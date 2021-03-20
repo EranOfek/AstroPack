@@ -86,7 +86,7 @@ classdef BitDictionary < handle
         end
     end
     
-    methods
+    methods % conversions
         function [BitName,BitDescription,BitInd]=bitind_to_name(Obj,BitVal,Args)
             % Convert an array of bit indices to bit names
             % Input  : - A single element BitDictionary object
@@ -164,7 +164,50 @@ classdef BitDictionary < handle
 
         end
         
-        function [BitInd,BitDec,BitDescription]=name_to_bit(Obj,Name)
+        function [BitInd,BitDec,SumBitDec,BitDescription]=name_to_bit(Obj,BitName)
+            % Convert bit names to bit indices and decimal representation
+            % Input  : - A single element BitDictionary object.
+            %          - A string or a cell array of strings containing but
+            %            names.
+            % Output : - An array of bit indices (the same size as Bit
+            %            names.
+            %          - An array of bit decimal representations.
+            %          - The sum of bits decimal representations.
+            %          - A cell array of bit descriptions.
+            % Author : Eran Ofek (Mar 20201)
+            % Example: [BitInd,BitDec,SumBitDec,BitDescription]=name_to_bit(Obj,{'Spike','DeadPix'})
+            
+            arguments
+                Obj(1,1)
+                BitName     {mustBeA(BitName,{'char','cell'})}
+            end
+            
+            if ~iscell(BitName)
+                BitName = {BitName};
+            end
+            
+            BitInd         = nan(size(BitName));
+            BitDec         = nan(size(BitName));
+            BitDescription = cell(size(BitName));
+            Nbitname = numel(BitName);
+            for Ibit=1:1:Nbitname
+                Flag = strcmp(Obj.Dic.(Obj.ColBitName),BitName{Ibit});
+                switch numel(find(Flag))
+                    case 0
+                        % not found
+                        % default is set to NaN
+                    case 1
+                        % 1 found
+                        BitInd(Ibit)         = Obj.Dic.(Obj.ColBitInd)(Flag);
+                        BitDescription{Ibit} = Obj.Dic.(Obj.ColBitDescription)(Flag);
+                    otherwise
+                        % multiple found
+                        error('Multiple bits with the same name exits');
+                end
+            end
+            BitDec = 2.^BitInd;
+            SumBitDec = nansum(BitDec,'all');
+                
         end
         
         
@@ -184,8 +227,10 @@ classdef BitDictionary < handle
             Obj.Dic = Tbl;
             
             [BitName,BitDescription,BitInd]=bitind_to_name(Obj,[0 1 17])
+            
             [BitName,BitDesc,BitInd]=bitdec_to_name(Obj,[3,1,2^11+7; 1 1 1])
             
+            [BitInd,BitDec,SumBitDec,BitDescription]=name_to_bit(Obj,{'Spike','DeadPix'})
         end
     end
     
