@@ -54,10 +54,10 @@ classdef FITS1
     end
     
     % list of needed functionality
-    % get number of HDUs - ok
-    % read headers - ok
-    % read images
+    % read Table1
     % read tables
+    % write
+    % writeTable
     
     methods (Static)
         function Nhdu=numHDU1(FileName)
@@ -210,12 +210,239 @@ classdef FITS1
 
         end
         
+        function [Cube]=read2cube(List,HDUnum,Args)
+            % Read a list of FITS images into a cube (multiple file names or multiple HDUs)
+            % Static function
+            % Input  : - An image name with wild cards or a cell array of
+            %            image names.
+            %          - A scalar or a vector of HDU numbers.
+            %          * ...,key,val,...
+            %            'CCDSEC' - [xmin xmax ymin ymax] of image to read.
+            %                   If empty read entire image.
+            %                   Default is empty.
+            % Output : - A cube of images. Image index is in 3rd dimension.
+            % Author : Eran Ofek
+            % Example: [Cube]=read2cube(List,HDUnum);
+            
+            arguments
+                List
+                HDUnum         = 1;
+                Args.CCDSEC    = [];
+            end
+            if ~iscell(List)
+                List = io.files.filelist(List);
+            end
+            
+            Nlist = numel(List);
+            Nhdu  = numel(HDUnum);
+            Nmax  = max(Nlist,Nhdu);
+            for Imax=1:1:Nmax
+                Ilist = min(Nlist,Imax);
+                Ihdu  = min(Nhdu,Imax);
+                [Image] = FITS.read1(List{Ilist},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC);
+                if Imax==1
+                    SizeIm = size(Image);
+                    Cube = zeros(SizeIm(1),SizeIm(2), Nmax);
+                end
+                Cube(:,:,Imax) = Image;
+            end
+            
+        end
+        
         function [Table,HeadCell]=readTable1(FileName,Args)
             %
             
             
+            
         end
         
+        function [KeysVal,KeysComment,Struct]=get_keys(Image,Keys,HDUnum,Str)
+            % Get keywords value from a single FITS header
+            % Package: @FITS (Static function)
+            % Description: Get the values of specific keywords from a single
+            %              FITS file header. Use only for existing keywords.
+            % Input  : - FITS image name.
+            %          - Cell array of keys to retrieve from the image header.
+            %          - HDU number. Default is 1.
+            %            If NaN, then set to 1.
+            %          - Check if the keyword value is char and try to convert to
+            %            a number {false|true}. Default is false.
+            % Output : - Cell array of keyword values.
+            %          - Cell array of keyword comments.
+            %          - Structure containing the keyword names (as fields)
+            %            and their values.
+            % Tested : Matlab R2014a
+            %     By : Eran O. Ofek                    Jul 2014
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Example: [KeysVal,KeysComment,Struct]=FITS.get_keys('A.fits',{'NAXIS1','NAXIS2'});
+            % Reliable: 2 
+            %--------------------------------------------------------------------------
+
+            arguments
+                Image char
+                Keys
+                HDUnum        = 1;
+                Str logical   = false;
+            end
+            
+            if (isnan(HDUnum))
+                HDUnum = 1;
+            end
+
+            import matlab.io.*
+            Fptr = matlab.io.fits.openFile(Image);
+            N = matlab.io.fits.getNumHDUs(Fptr);
+            if (HDUnum>N)
+                matlab.io.fits.closeFile(Fptr);
+                error('requested HDUnum does not exist');
+            end
+            matlab.io.fits.movAbsHDU(Fptr,HDUnum);
+
+            if (ischar(Keys))
+                Keys = {Keys};
+            end
+
+            Nkey = numel(Keys);
+
+
+            KeysVal     = cell(size(Keys));
+            KeysComment = cell(size(Keys));
+            for Ikey=1:1:Nkey
+                [KeysVal{Ikey},KeysComment{Ikey}] = matlab.io.fits.readKey(Fptr,Keys{Ikey});
+                if (ischar(KeysVal{Ikey}) && Str)
+                    Tmp = str2double(KeysVal{Ikey});
+                    if (isnan(Tmp))
+                        % do nothing - keep as a string
+                    else
+                        KeysVal{Ikey} = Tmp;
+                    end
+                end
+
+            end
+            matlab.io.fits.closeFile(Fptr);
+
+            if (nargout>2)
+               Struct = cell2struct(KeysVal,Keys,2);
+            end
+        end
+        
+        function [KeysVal,KeysComment,Struct,List]=mget_keys(Images,Keys,HDUnum,Str)
+            % Get header keywords value from multiple FITS
+            % Package: @FITS (Static)
+            % Description: Get the values of specific keywords from a list of
+            %              FITS files header.
+            % Input  : - List of FITS image names. See Util.files.create_list.m for options.
+            %          - Cell array of keys to retrieve from the image header.
+            %          - HDU number. Default is 1.
+            %          - Check if the keyword value is char and try to convert to
+            %            a number {false|true}. Default is false.
+            % Output : - Cell array (per image) of cell array of keyword values.
+            %          - Cell array (per image) of cell array of keyword comments.
+            %          - Structure array (element per image) containing the keyword
+            %            names (as fields) and their values.
+            %          - Cell array containing the list of images.
+            % Tested : Matlab R2014a
+            %     By : Eran O. Ofek                    Jul 2014
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Example:
+            % [KeysVal,KeysComment,Struct,List]=FITS.mget_keys('PTF_201202*.fits',{'NAXIS1','NAXIS2'});
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+
+            arguments
+                Images char
+                Keys
+                HDUnum        = 1;
+                Str logical   = false;
+            end
+            
+            if (isnan(HDUnum))
+                HDUnum = 1;
+            end
+            
+            List = io.files.filelist(Images);
+            Nim = numel(List);
+            KeysVal     = cell(size(List));
+            KeysComment = cell(size(List));
+            for Iim=1:1:Nim
+               [KeysVal{Iim},KeysComment{Iim},Struct(Iim)] = FITS.get_keys(List{Iim},Keys,HDUnum,Str);
+            end
+
+        end
+        
+        function delete_keys(ImageName,Keywords)
+            % Delete a lits of keywords from a list of FITS headers
+            % Package: @FITS (Static)
+            % Description: Delete a list of header keywords from a list of
+            %              FITS images.
+            % Input  : - List of FITS image names to read. See io.files.filelist.m for
+            %            options.
+            %          - Cell array of keyword names to delete.
+            % Output : null
+            % Tested : Matlab R2014a
+            %     By : Eran O. Ofek                    Jun 2014
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Example: FITS.delete_keys('A.fits',{'PTFPID','OBJECT'})
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+            
+            if (~iscell(Keywords))
+                Keywords = {Keywords};
+            end
+            Nkey = numel(Keywords);
+
+            [~,List] = io.files.create_list(ImageName,NaN);
+            Nim = numel(List);
+
+            for Iim=1:1:Nim
+                Fptr = matlab.io.fits.openFile(List{Iim},'readwrite');
+                for Ikey=1:1:Nkey
+                    matlab.io.fits.deleteKey(Fptr,Keywords{Ikey});
+                end
+                matlab.io.fits.closeFile(Fptr);
+            end
+        end
+        
+        function write_keys(ImageName,KeyCell)
+            % Insert or update FITS header keywords
+            % Package: @FITS (Static)
+            % Description: Insert new, or update existing FITS header keywords in
+            %              a list of FITS images.
+            % Input  : - List of FITS image names to edit. See io.files.filelist.m for
+            %            options.
+            %          - A cell array of two or three columns of key/cal/comments to
+            %            add to FITS header.
+            % Output : null
+            % Tested : Matlab R2014a
+            %     By : Eran O. Ofek                    Jun 2014
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Example: FITS.write_keys('A.fits',{'try','A','comm';'try2',6,'what'});
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+
+            Nkey = size(KeyCell,1);
+
+            [~,List] = io.files.filelist(ImageName,NaN);
+            Nim = numel(List);
+
+            for Iim=1:1:Nim
+                Fptr = matlab.io.fits.openFile(List{Iim},'readwrite');
+                for Ikey=1:1:Nkey
+                    %KeyCell{Ikey,:}
+                    if isempty(KeyCell{Ikey,3})
+                        KeyCell{Ikey,3} = ' ';
+                    end
+                    if (strcmp(KeyCell{Ikey,1},'SIMPLE'))
+                        KeyCell{Ikey,2} = true;
+                    end
+                    if (~isempty(KeyCell{Ikey,1}))
+                        matlab.io.fits.writeKey(Fptr,KeyCell{Ikey,:});
+                    end
+                end    
+                matlab.io.fits.closeFile(Fptr);
+            end
+
+        end
     end
     
     methods
