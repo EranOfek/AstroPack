@@ -13,22 +13,23 @@ classdef AstroImage < Component
     properties (Hidden, SetAccess = public)
 
         % Access image data directly
-        Image 
-        Mask 
-        Back 
-        Var 
-        Header 
-        PSF 
-        Cat 
-        WCS WCS
+        Image SimpleImage
+        Mask MaskImage
+        Back SimpleImage
+        Var SimpleImage
+        Header Header
+        PSF PS
+        Cat
+        WCS
         % data
-        ImageData(1,1) SimpleImage
-        MaskData(1,1) MaskImage
-        BackData(1,1) SimpleImage
-        VarData(1,1) SimpleImage
-        HeaderData Header
-        PSFData PSF
-        CatData AstCat
+        ImageData
+        MaskData
+        BackData
+        VarData
+        HeaderData
+        PSFData
+        CatData
+        
         
         % Images
         BImage BaseImage  % but BaseImage is even lower???
