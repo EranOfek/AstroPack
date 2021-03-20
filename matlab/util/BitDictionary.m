@@ -1,5 +1,7 @@
 % A BitDictionary class
-% 
+% Description: A class to support storage/read/write of bit dictionaries
+%              including basic conversions between bit names, indices and
+%              decimal representations.
 % Author: Eran Ofek (March 2021)
 % Example: BD=BitDictionary; D.unitTest
 
@@ -82,6 +84,24 @@ classdef BitDictionary < handle
             
             Obj.Dic = NewTbl;
             Obj.Dic.Properties.VariableNames = {Obj.ColBitName, Obj.ColBitDescription, Obj.ColBitInd};
+            
+        end
+        
+        function set.Name(Obj,DicName)
+            % setter for bit dictionary name - will load new dic if exist
+            % FFU
+        end
+    end
+    
+    methods % load/save
+        function read
+            % read a dictionary from file/memnory
+            % FFU
+        end
+        
+        function write
+            % write a dictionary to file/memory
+            % FFU
             
         end
     end
@@ -210,8 +230,8 @@ classdef BitDictionary < handle
                 
         end
         
-        
     end
+    
     
     
     methods % unit Test
