@@ -4,7 +4,7 @@ classdef FITS1
         Header                                    = cell(0,3);  % free format
         File     {mustBeA(File,{'char','cell'})}  = '';
         HDU(1,1) uint8                            = 1;
-        StoreData(1,1) logical                    = true;
+        CCDSEC double                             = [];
     end
     
    
@@ -59,6 +59,165 @@ classdef FITS1
     % read images
     % read tables
     
+    methods (Static)
+        function Nhdu=numHDU1(FileName)
+            % return the number of HDUs in a single FITS file
+            % A static function of FITS class
+            % Input  : - FITS file name.
+            % Output : - Number of HDUs in FITS file
+            % Author : Eran Ofek
+            % Example: Nhdu=FITS.numHDU1(FileName)
+            
+            Fptr = matlab.io.fits.openFile(FileName);
+            Nhdu = matlab.io.fits.getNumHDUs(Fptr);
+            fits.closeFile(Fptr);
+        end
+        
+        function [HeadCell,Nhdu] = readHead1(FileName,HDUnum)
+            % Read a single header from a FITS file (Static)
+            % A static function of FITS class
+            % Input  : - FITS file name
+            %          - HDU number. Default is 1
+            % Output : - A 3 column cell array of header entries
+            %            [Key, Value, Comment]
+            %          - Number of HDUs in FITS file
+            % Author : Eran Ofek
+            % Example: [HeadCell,Nhdu] = FITS.readHead1(FileName,HDUnum)
+            
+            arguments
+                FileName char
+                HDUnum               = 1;
+            end
+            
+            
+            KeyPos = 9;
+            ComPos = 32;
+            
+            Fptr = matlab.io.fits.openFile(FileName);
+            Nhdu = matlab.io.fits.getNumHDUs(Fptr);
+            if (Nhdu>=HDUnum)
+                Htype = matlab.io.fits.movAbsHDU(Fptr,HDUnum);
+
+                Nkey = matlab.io.fits.getHdrSpace(Fptr);
+                HeadCell = cell(Nkey,3);
+                for Ikey = 1:1:Nkey
+                   Card     = matlab.io.fits.readRecord(Fptr,Ikey);
+                   LenCard = length(Card);
+                   if (LenCard>=9)
+
+                       if (strcmpi(Card(KeyPos),'='))
+                           HeadCell{Ikey,1}  = Util.string.spacedel(Card(1:KeyPos-1));
+                           % update comment position due to over flow
+                           Islash = strfind(Card(ComPos:end),'/');
+                           if (isempty(Islash))
+                               UpdatedComPos = ComPos;
+                           else
+                               UpdatedComPos = ComPos + Islash(1)-1;
+                           end
+                           Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
+                           PosAp = strfind(Value,'''');
+
+                           if (isempty(PosAp))
+                               if contains('TF',upper(strtrim(Value)))
+                                   % a boolean
+                                   Value=upper(strtrim(Value))=='T';
+                               else
+                                   % possible number
+                                   Value = str2double(Value);
+                               end
+                           else
+                               if (length(PosAp)>=2)
+                                   % a string
+                                   Value = strtrim(Value(PosAp(1)+1:PosAp(2)-1));
+                               else
+                                   Value = Card(PosAp(1)+10:end);
+                               end
+                           end
+
+                           HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
+                           if (LenCard>UpdatedComPos)
+                               HeadCell{Ikey,3}  = Card(UpdatedComPos+1:end);    
+                           else
+                               HeadCell{Ikey,3}  = '';
+                           end
+
+                       end
+                   end
+
+                   % look for history and comment keywords
+                   if numel(Card)>6
+                       if (strcmpi(Card(1:7),'HISTORY'))
+                           HeadCell{Ikey,1} = 'HISTORY';
+                           HeadCell{Ikey,2} = Card(KeyPos:end);
+                           HeadCell{Ikey,3} = '';
+                       end
+                       if (strcmpi(Card(1:7),'COMMENT'))
+                           HeadCell{Ikey,1} = 'COMMENT';
+                           HeadCell{Ikey,2} = Card(KeyPos:end);
+                           HeadCell{Ikey,3} = '';
+                       end
+                   end
+                end
+
+            end
+            matlab.io.fits.closeFile(Fptr);
+
+            
+        end
+        
+        function [Image,HeadCell,Nhdu]=read1(FileName,HDUnum,Args)
+            % Read a single image from a FITS file
+            % A static function of FITS class
+            % Input  : - FITS file name.
+            %          - HDU number. default is 1.
+            %          * ...,key,val,...
+            %            'CCDSEC' - [xmin xmax ymin ymax] of image to read.
+            %                   If empty read entire image.
+            %                   Default is empty.
+            % Output : - Image.
+            %          - A 3 column cell array of header entries.
+            % Author : Eran Ofek
+            % Example: [Image,HeadCell,Nhdu]=FITS.read1(FileName,HDUnum)
+            
+            arguments
+                FileName char
+                HDUnum             = 1;
+                Args.CCDSEC        = [];
+            end
+            
+             
+            Fptr = matlab.io.fits.openFile(FileName);
+            matlab.io.fits.movAbsHDU(Fptr, HDUnum);
+
+            if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC)) 
+                % read full image
+                Image = matlab.io.fits.readImg(Fptr);
+            else
+                % read image section
+                % set up start/end pixel positions
+                EndPix   = fliplr(Args.CCDSEC([2,4]));
+                StartPix = fliplr(Args.CCDSEC([1,3]));
+
+                Image = matlab.io.fits.readImg(Fptr,StartPix,EndPix);
+
+                if nargout>1
+                    % read header
+                    [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
+                end
+
+            end
+            matlab.io.fits.closeFile(Fptr);
+
+        end
+        
+        function [Table,HeadCell]=readTable1(FileName,Args)
+            %
+            
+            
+        end
+        
+    end
+    
     methods
         function Nhdu=numHDU(Obj,FileName)
             % return the number of HDUs in a FITS file
@@ -76,19 +235,21 @@ classdef FITS1
                 FileName    = [];
             end
             % if file name is given than Obj must contain single element
-            if ~isempty(FileName) && numel(Obj)>1
-                error('if file name is given than Obj must contain single element');
+            if ~isempty(FileName)
+                if numel(Obj)>1
+                    error('if file name is given than Obj must contain single element');
+                else
+                    Obj.File = FileName;
+                end
             else
-                Obj.File = FileName;
+                % do nothing
             end
             
             Nobj = numel(Obj);
             Nhdu = nan(size(Obj));
             for Iobj=1:1:Nobj
                 if ~isempty(Obj(Iobj).File)
-                    Fptr = matlab.io.fits.openFile(Obj(Iobj).FileName);
-                    Nhdu(Iobj) = matlab.io.fits.getNumHDUs(Fptr);
-                    fits.closeFile(Fptr);
+                    Nhdu(Iobj) = FITS.numHDU1(Obj(Iobj).FileName);
                 end
             end
 
@@ -117,106 +278,76 @@ classdef FITS1
                 HDUnum                = 1;           
             end
             
-            % if file name is given than Obj must contain single element
-            if ~isempty(FileName) && numel(Obj)>1
-                error('if file name is given than Obj must contain single element');
+            if ~isempty(FileName)
+                if numel(Obj)>1
+                    error('if file name is given than Obj must contain single element');
+                else
+                    Obj.File = FileName;
+                    Obj.HDU  = HDUnum;
+                end
             else
-                Obj.File = FileName;
-                Obj.HDU  = HDUnum;
+                % do nothing
             end
-            
-            KeyPos = 9;
-            ComPos = 32;
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-            
-                Fptr = matlab.io.fits.openFile(Obj(Iobj).File);
-                Nhdu = matlab.io.fits.getNumHDUs(Fptr);
-                if (Nhdu>=HDUnum)
-                    Htype = matlab.io.fits.movAbsHDU(Fptr,HDUnum);
-
-                    Nkey = matlab.io.fits.getHdrSpace(Fptr);
-                    HeadCell = cell(Nkey,3);
-                    for Ikey = 1:1:Nkey
-                       Card     = matlab.io.fits.readRecord(Fptr,Ikey);
-                       LenCard = length(Card);
-                       if (LenCard>=9)
-
-                           if (strcmpi(Card(KeyPos),'='))
-                               HeadCell{Ikey,1}  = Util.string.spacedel(Card(1:KeyPos-1));
-                               % update comment position due to over flow
-                               Islash = strfind(Card(ComPos:end),'/');
-                               if (isempty(Islash))
-                                   UpdatedComPos = ComPos;
-                               else
-                                   UpdatedComPos = ComPos + Islash(1)-1;
-                               end
-                               Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
-                               PosAp = strfind(Value,'''');
-
-                               if (isempty(PosAp))
-                                   if contains('TF',upper(strtrim(Value)))
-                                       % a boolean
-                                       Value=upper(strtrim(Value))=='T';
-                                   else
-                                       % possible number
-                                       Value = str2double(Value);
-                                   end
-                               else
-                                   if (length(PosAp)>=2)
-                                       % a string
-                                       Value = strtrim(Value(PosAp(1)+1:PosAp(2)-1));
-                                   else
-                                       Value = Card(PosAp(1)+10:end);
-                                   end
-                               end
-
-                               HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
-                               if (LenCard>UpdatedComPos)
-                                   HeadCell{Ikey,3}  = Card(UpdatedComPos+1:end);    
-                               else
-                                   HeadCell{Ikey,3}  = '';
-                               end
-
-                           end
-                       end
-
-                       % look for history and comment keywords
-                       if numel(Card)>6
-                           if (strcmpi(Card(1:7),'HISTORY'))
-                               HeadCell{Ikey,1} = 'HISTORY';
-                               HeadCell{Ikey,2} = Card(KeyPos:end);
-                               HeadCell{Ikey,3} = '';
-                           end
-                           if (strcmpi(Card(1:7),'COMMENT'))
-                               HeadCell{Ikey,1} = 'COMMENT';
-                               HeadCell{Ikey,2} = Card(KeyPos:end);
-                               HeadCell{Ikey,3} = '';
-                           end
-                       end
-                    end
-                    
-                end
-                matlab.io.fits.closeFile(Fptr);
-                
-                if Obj(Iobj).StoreData
+                if ~isempty(Obj(Iobj).File)
+                    [HeadCell,Nhdu] = FITS.readHead1(Obj(Iobj).File,HDUnum);
                     Obj(Iobj).Header = HeadCell;
                 end
             end
         
         end
         
-        function [Obj,Data]=read(Obj,FileName,HDUnum)
-            %
+        function Obj=read(Obj,FileName,HDUnum,Args)
+            % Read all FITS file to a FITS object
+            % Input  : - A FITS object
+            %          - An optional file name (to read a single file)
+            %          - An optional HDU (to read a single file)
+            %          * ...,key,val,...
+            %            'ReadHead' - Read the header. Default is true.
+            %            'CCDSEC' - [xmin xmax ymin ymax] to read.
+            %                   If empty read all. Default is empty.
+            % Output : - A FITS object with the Data andHeader fields
+            %            populated.
+            % Author : Eran Ofek (Mar 2021)
+            % Example: Obj=read(Obj)
             
             arguments
                 Obj
                 FileName
                 HDUnum
+                Args.ReadHead logical    = true;
+                Args.CCDSEC double       = [];  % Inf for the entire image [Xmin xmax ymin ymax]
             end
             
+            if ~isempty(FileName)
+                if numel(Obj)>1
+                    error('if file name is given than Obj must contain single element');
+                else
+                    Obj.File   = FileName;
+                    Obj.HDU    = HDUnum;
+                    Obj.CCDSEC = Args.CCDSEC;
+                end
+            else
+                % do nothing
+            end
             
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % read each FITS file
+                if ~isempty(Obj(Iobj).File)
+                    
+                    if Args.ReadHead
+                        [Obj(Iobj).Data, Obj(Iobj).Header] = FITS.read1(Obj(Iobj).File,Obj(Iobj).HDU,Args.ReadHead,'CCDSEC',Obj(Iobj).CCDSEC);
+                    else
+                        [Obj(Iobj).Data] = FITS.read1(Obj(Iobj).File,Obj(Iobj).HDU,Args.ReadHead,'CCDSEC',Obj(Iobj).CCDSEC);
+                    end
+                    
+                    %Data = fitsread(Obj(Iobj).File,PixelRegion);
+            
+                end
+            end
         end
         
     end
