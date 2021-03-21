@@ -15,10 +15,11 @@ function Image=fill_sparse(GridVal,SizeXY,Method)
 % Example: GridVal = [10 10 1; 10 20 1.1;20 10 1.2; 20 20 1.3]; 
 %          imUtil.background.fill_sparse(GridVal,[30 30])
 
-if nargin<3
-    Method = 'si';
+arguments
+    GridVal(:,3)
+    SizeXY(1,2)
+    Method       {mustBeMember(Method,{'si','impaint'})} = 'si';
 end
-
 
 switch lower(Method)
     case 'si'

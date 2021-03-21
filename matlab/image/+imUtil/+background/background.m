@@ -1,4 +1,4 @@
-function [Back,Var]=background(Image,varargin) 
+function [Back,Var]=background(Image,Args) 
 % Estimate the background and its variance for an astronomical image
 % Package: @imUtil.background
 % Description: A wrapper function for estimating the background and
@@ -63,40 +63,32 @@ function [Back,Var]=background(Image,varargin)
 %      By: Eran O. Ofek                       Apr 2020             
 % Example: [Back,Var]=imUtil.background.background(rand(1024,1024))
 
+arguments
+    Image
+    Args.BackFun                 = @median;
+    Args.BackFunPar cell         = {[1 2]};
+    Args.VarFun                  = @imUtil.background.rvar;
+    Args.VarFunPar cell          = {};
+    Args.SubSizeXY               = [128 128];
+    Args.Overlap                 = 16;
+    Args.FieldName               = 'Im';
+end
 
 
-InPar = inputParser;
-
-%addOptional(InPar,'BackFunOut',{'back','var'});  % back, var, std
-addOptional(InPar,'BackFun',@median); % @imUtil.background.mode); % @median);
-addOptional(InPar,'BackFunPar',{[1 2]}); %{true,true,0.1});      % {[1 2],'omitnan'});
-addOptional(InPar,'VarFun',@imUtil.background.rvar); %[]);    % @imUtil.background.rvar);    % if empty, then will try to read var from second output of BackFun...
-addOptional(InPar,'VarFunPar',{}); % {[1 2]});
-addOptional(InPar,'SubSizeXY',[128 128]);  % or 'full'
-addOptional(InPar,'Overlap',[16]);  % recomended ~1.7 FWHM
-% imUtil.image.subimage2image parameters:
-%addOptional(InPar,'StitchMethod','IgnoreOverlap');  % 'MeanOverlap' | 'IgnoreOverlap' | 'si'  | 'impaint'
-%addOptional(InPar,'SmoothSigma',[]); %NaN);  % NaN - use SubSize./2.35  % otherwise sigma of Gaussian, empty - no smooth 
-
-addOptional(InPar,'FieldName','Im');
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-if ~isa(InPar.BackFun,'function_handle')
+if ~isa(Args.BackFun,'function_handle')
     error('BackFun must be a function handle');
 end
-if ~isempty(InPar.VarFun)
-    if ~isa(InPar.VarFun,'function_handle') && ~isnan(InPar.VarFun)
+if ~isempty(Args.VarFun)
+    if ~isa(Args.VarFun,'function_handle') && ~isnan(Args.VarFun)
         error('VarFun must be a function handle, NaN, or empty');
     end
 end
 
 % partition the image into sub images
-if ischar(InPar.SubSizeXY)
-    switch lower(InPar.SubSizeXY)
+if ischar(Args.SubSizeXY)
+    switch lower(Args.SubSizeXY)
         case 'full'
-            SubImage(1).(InPar.FieldName) = Image;
+            SubImage(1).(Args.FieldName) = Image;
             Size     = size(SubImage);
             CCDSEC   = [1 Size(2) 1 Size(1)];
             Center   = [mean(CCDSEC(:,1:2),2), mean(CCDSEC(:,3:4),2)];
@@ -106,11 +98,11 @@ if ischar(InPar.SubSizeXY)
     end
 else
     
-    [SubImage,CCDSEC,Center]=imUtil.partition.image_partitioning(Image,InPar.SubSizeXY,'Overlap',InPar.Overlap,'FieldNameIm',InPar.FieldName);
+    [SubImage,CCDSEC,Center]=imUtil.partition.image_partitioning(Image,Args.SubSizeXY,'Overlap',Args.Overlap,'FieldNameIm',Args.FieldName);
     
     
 %     [SubImage,CCDSEC,Center]=imUtil.image.partition_subimage(Image,[],...
-%                                 'SubSizeXY',InPar.SubSizeXY,'OverlapXY',InPar.OverlapXY,...
+%                                 'SubSizeXY',Args.SubSizeXY,'OverlapXY',Args.OverlapXY,...
 %                                 'Output','struct','FieldName',FieldName);
 end
 
@@ -119,17 +111,17 @@ end
 Nsub = numel(SubImage);
 for Isub=1:1:Nsub
     %
-    SubI = SubImage(Isub).(InPar.FieldName); %(1:5:end,1:5:end);
+    SubI = SubImage(Isub).(Args.FieldName); %(1:5:end,1:5:end);
    
-    if isempty(InPar.VarFun)
+    if isempty(Args.VarFun)
         % assume the BackFun returns both background and variance
-        [SubImage(Isub).Back, SubImage(Isub).Var] = InPar.BackFun(SubI,InPar.BackFunPar{:});
+        [SubImage(Isub).Back, SubImage(Isub).Var] = Args.BackFun(SubI,Args.BackFunPar{:});
     else
          % different functions for background and variance
-         SubImage(Isub).Back = InPar.BackFun(SubI,InPar.BackFunPar{:});
-         if isa(InPar.VarFun,'function_handle')
-             SubImage(Isub).Var = InPar.VarFun(SubI,InPar.VarFunPar{:});
-         elseif isnan(InPar.VarFun)
+         SubImage(Isub).Back = Args.BackFun(SubI,Args.BackFunPar{:});
+         if isa(Args.VarFun,'function_handle')
+             SubImage(Isub).Var = Args.VarFun(SubI,Args.VarFunPar{:});
+         elseif isnan(Args.VarFun)
              SubImage(Isub).Var = [];
          else
              % do nothing
@@ -166,11 +158,11 @@ else
 end
 
 
-% switch lower(InPar.StitchMethod)
+% switch lower(Args.StitchMethod)
 %     case {'scalar'}
 %         Back = SubImage.Back;
 %     case {'ignoreoverlap','meanoverlap'}
-%         Back = imUtil.image.subimage2image(SubImage,CCDSEC,'FieldName','Back','StitchMethod',InPar.StitchMethod);
+%         Back = imUtil.image.subimage2image(SubImage,CCDSEC,'FieldName','Back','StitchMethod',Args.StitchMethod);
 %     case {'si','impaint'}
 %         GridVal = [Center, [SubImage.Back].'];
 %         Back = imUtil.background.fill_sparse(GridVal,max(CCDSEC(:,[2 4])));
@@ -180,17 +172,17 @@ end
 % 
 % % smmoth background image
 % % make sure that Kernel size is smaller than image
-% if ~isempty(InPar.SmoothSigma)
-%     if isnan(InPar.SmoothSigma)
-%         SigmaX = InPar.SubSizeXY(1)./2.35;
-%         SigmaY = InPar.SubSizeXY(2)./2.35;
+% if ~isempty(Args.SmoothSigma)
+%     if isnan(Args.SmoothSigma)
+%         SigmaX = Args.SubSizeXY(1)./2.35;
+%         SigmaY = Args.SubSizeXY(2)./2.35;
 %         
 %     else
-%         SigmaX = InPar.SmoothSigma(1);
-%         SigmaY = InPar.SmoothSigma(2);
+%         SigmaX = Args.SmoothSigma(1);
+%         SigmaY = Args.SmoothSigma(2);
 %     end
-%     KerSizeX = min(InPar.SubSizeXY(1).*3, max(CCDSEC(:,2)));
-%     KerSizeY = min(InPar.SubSizeXY(2).*3, max(CCDSEC(:,4)));
+%     KerSizeX = min(Args.SubSizeXY(1).*3, max(CCDSEC(:,2)));
+%     KerSizeY = min(Args.SubSizeXY(2).*3, max(CCDSEC(:,4)));
 %     
 %     SmKernel = Kernel2.gauss(SigmaX,SigmaY,0,KerSizeX,KerSizeY);
 %     Back     = imUtil.filter.conv2_fast(Back,SmKernel);
@@ -202,11 +194,11 @@ end
 %     if isempty(SubImage(1).Var)
 %         Var = [];
 %     else
-%         switch lower(InPar.StitchMethod)
+%         switch lower(Args.StitchMethod)
 %             case {'scalar'}
 %                 Var = SubImage.Var;
 %             case {'ignoreoverlap','meanoverlap'}
-%                 Var  = imUtil.image.subimage2image(SubImage,CCDSEC,'FieldName','Var','StitchMethod',InPar.StitchMethod);
+%                 Var  = imUtil.image.subimage2image(SubImage,CCDSEC,'FieldName','Var','StitchMethod',Args.StitchMethod);
 %             case {'si','impaint'}
 %                 GridVal = [Center, [SubImage.Var].'];
 %                 Var = imUtil.background.fill_sparse(GridVal,max(CCDSEC(:,[2 4])));
@@ -214,7 +206,7 @@ end
 %                 error('Unknwon StitchMethod');
 %         end
 %         % smotth variance imaeSubImageSubImage
-%         if ~isempty(InPar.SmoothSigma)
+%         if ~isempty(Args.SmoothSigma)
 %             Var     = imUtil.filter.conv2_fast(Var,SmKernel);
 %         end
 % 

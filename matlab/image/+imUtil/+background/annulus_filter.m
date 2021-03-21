@@ -1,4 +1,4 @@
-function [Back,Var]=annulus_filter(Image,varargin) 
+function [Back,Var]=annulus_filter(Image) 
 %
 % Package: @imUtil.background
 % Input  : - An array.
@@ -8,14 +8,15 @@ function [Back,Var]=annulus_filter(Image,varargin)
 %      By: Eran O. Ofek                       Apr 2020             
 % Example: imUtil.background.rvar(randn(1000,1000))
 
+arguments
+    Image
+    Radius
+end
 
-InPar = inputParser;
-
-addOptional(InPar,'BackFunOut',{'back','var'});  % back, var, std
-
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
+% InPar = inputParser;
+% addOptional(InPar,'BackFunOut',{'back','var'});  % back, var, std
+% parse(InPar,varargin{:});
+% InPar = InPar.Results;
 
 
 % construct 3 roughly equal area filters: 1 circular and 2 annular

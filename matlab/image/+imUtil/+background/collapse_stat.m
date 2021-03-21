@@ -1,4 +1,4 @@
-function Res=collapse_stat(Image,varargin) 
+function Res=collapse_stat(Image,Args) 
 % Collapse an image on one dimension and calc line statistics
 % Package: @imUtil.background
 % Description: Collapse an image on one dimension and calculate the line
@@ -43,29 +43,29 @@ function Res=collapse_stat(Image,varargin)
 %          Res=imUtil.background.collapse_stat(Image,'Dim',2) 
 %          Res=imUtil.background.collapse_stat(Image,'Dim',2,'StdCollapse','rstd','StdCollapsePar',{})
 
-InPar = inputParser;
-addOptional(InPar,'Dim',1);
-addOptional(InPar,'CollapseFun','median');
-addOptional(InPar,'FilterCollapse','medfilt1');
-addOptional(InPar,'FilterCollapsePar',{10});
-addOptional(InPar,'StdCollapse','rstd');
-addOptional(InPar,'StdCollapsePar',{});
-parse(InPar,varargin{:});
-InPar = InPar.Results;
+arguments
+    Image
+    Args.Dim                        = 1;
+    Args.CollapseFun                = 'median';
+    Args.FilterCollapse             = 'medfilt1';
+    Args.FilterCollapsePar cell     = {10};
+    Args.StdCollapse                = 'rstd';
+    Args.StdCollapsePar cell        = {};
+end
 
 
 % collapse
-switch lower(InPar.CollapseFun)
+switch lower(Args.CollapseFun)
     case 'median'
-        Line = nanmedian(Image,InPar.Dim);
+        Line = nanmedian(Image,Args.Dim);
     case 'mean'
-        Line = nanmean(Image,InPar.Dim);
+        Line = nanmean(Image,Args.Dim);
     case 'sum'
-        Line = nansum(Image,InPar.Dim);
+        Line = nansum(Image,Args.Dim);
     case 'std'
-        Line = nanstd(Image,[],InPar.Dim);
+        Line = nanstd(Image,[],Args.Dim);
     case 'var'
-        Line = nanvar(Image,[],InPar.Dim);
+        Line = nanvar(Image,[],Args.Dim);
     otherwise
         error('Unknown CollapseFun option');
 end
@@ -73,41 +73,41 @@ end
 Line = Line(:);
 
 
-switch lower(InPar.FilterCollapse)
+switch lower(Args.FilterCollapse)
     case 'medfilt1'
-        FiltLine = medfilt1(Line,InPar.FilterCollapsePar{:});
+        FiltLine = medfilt1(Line,Args.FilterCollapsePar{:});
     case 'sgolay'
-        FiltLine = sgolay(Line,InPar.FilterCollapsePar{:});
+        FiltLine = sgolay(Line,Args.FilterCollapsePar{:});
     case 'emission'
         % emission filter -remove spectral lines
         % construct a two horn filter
         error('not implemented')
         
-%         X      = (-InPar.FilterCollapsePar{1}:1:InPar.FilterCollapsePar{1}).';
+%         X      = (-Args.FilterCollapsePar{1}:1:Args.FilterCollapsePar{1}).';
 %         Filter = ones(size(X));
-%         Filter(abs(X)<=InPar.FilterCollapsePar{2}) = 0;
+%         Filter(abs(X)<=Args.FilterCollapsePar{2}) = 0;
 %         Filter = Filter./sum(Filter);
 %         Filter = [ifftshift(Filter); zeros(numel(Line)-numel(Filter),1)];
 %         % apply filter
 %         FiltLine = ifft(fft(Line).*conj(fft(Filter)));
     case 'hampel'
-        FiltLine = hampel(Line,InPar.FilterCollapsePar{:});
+        FiltLine = hampel(Line,Args.FilterCollapsePar{:});
     case 'movavg'
-        FiltLine = movavg(Line,InPar.FilterCollapsePar{:});
+        FiltLine = movavg(Line,Args.FilterCollapsePar{:});
     otherwise
         error('Unknown FilterCollapse option');
 end
 
 
-switch lower(InPar.StdCollapse)
+switch lower(Args.StdCollapse)
     case 'std'
-        StdLine = nanstd(Line,InPar.StdCollapsePar{:});
+        StdLine = nanstd(Line,Args.StdCollapsePar{:});
     case 'rstd'
-        StdLine = imUtil.background.rstd(Line,InPar.StdCollapsePar{:});
+        StdLine = imUtil.background.rstd(Line,Args.StdCollapsePar{:});
     case 'stdfilt'
         error('not implemented')
         
-%         X      = (-InPar.FilterCollapsePar{1}:1:InPar.FilterCollapsePar{1}).';
+%         X      = (-Args.FilterCollapsePar{1}:1:Args.FilterCollapsePar{1}).';
 %         Filter = ones(size(X));
 %         Filter = Filter./sum(Filter);
 %         
