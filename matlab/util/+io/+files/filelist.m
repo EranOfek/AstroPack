@@ -1,23 +1,26 @@
 function List=filelist(FileName,Method)
-% Generate a cell array of files list from file name/regular expression
+% Generate a cell array array of files list from file name/regular expression
 % Package: @imUtil.util
 % Input  : - A file name, a file name containing wild
 %            cards or regular expression, a cell array of
 %            file names, or a structure arrawy which is the
 %            output of the dir command.
-%          - Either: 'regexp', or 'wild'.
-%            'wild' allows for simple wild cards (default).
-%            'regexp' allows for full regular expressions.
+%          * ...,key,val,...
+%            'Method' - Either: 'regexp', or 'wild'.
+%               'wild' allows for simple wild cards (default).
+%               'regexp' allows for full regular expressions.
+%            'StringOutput' - Indicate if to convert the output into a
+%               string array (otherwise a cell array). Default is true.
 % Output : - A cell array of file names.
 % Author : Eran Ofek (Apr 2020)
 % Example: List=io.files.filelist('\w*.fits','regexp');
 
 arguments
     FileName
-    Method char         = 'wild';
+    Method char          = 'wild';
 end
 
-if ischar(FileName)
+if ischar(FileName) || isstring(FileName)
     switch lower(Method)
         case 'wild'
             Files = dir(FileName);

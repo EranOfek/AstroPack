@@ -14,13 +14,19 @@ classdef BaseImage < Component
     properties (Hidden, SetAccess = public)
         Data
         Scale double              = 1;
-        DataProp cell             = {'Data'}; % a cell of properties on which the fun_* methods will be applied
+        FileName char
+        
+        IsMask                     = false;
+        IsBackSub logical          = false;
+        IsVar logical              = false;
+        
+        %DataProp cell             = {'Data'}; % a cell of properties on which the fun_* methods will be applied
         
         % all this should go to Component(?)
-        Config
-        UserData
-        Virt VirtImage
-        DB
+        %Config
+        %UserData
+        %Virt VirtImage
+        %DB
     end
     
     

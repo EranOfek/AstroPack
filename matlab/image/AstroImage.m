@@ -9,30 +9,28 @@
 %--------------------------------------------------------------------------
 
 classdef AstroImage < Component
+    % Component should contain:
+    % UserData
+    % Config
     
-    properties (Hidden, SetAccess = public)
-
+    properties (Dependent)
         % Access image data directly
         Image 
         Mask 
         Back 
-        Var 
-        Header 
-        PSF 
-        Cat 
+        Var
+        Cat
+    end
+    properties (SetAccess = public)
+        Header Header
+        PSF PSF
+        CatData CatAst 
         WCS WCS
         % data
-        ImageData(1,1) SimpleImage
-        MaskData(1,1) MaskImage
-        BackData(1,1) SimpleImage
-        VarData(1,1) SimpleImage
-        HeaderData Header
-        PSFData PSF
-        CatData AstCat
-        
-        % Images
-        BImage BaseImage  % but BaseImage is even lower???
-        BBack BaseImage
+        ImageData(1,1) BaseImage
+        MaskData(1,1) BaseImage
+        BackData(1,1) BaseImage
+        VarData(1,1) BaseImage
     end
     
     
