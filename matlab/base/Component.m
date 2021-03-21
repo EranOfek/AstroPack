@@ -6,14 +6,15 @@
 classdef Component < Base
     % Properties
     properties (SetAccess = public)
-        %config          % Configuration 
-        %log             % Log file
+        Conf Config
+        Log LogFile
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
         function Obj = Component()
+
         end
         
         function log(Obj, Msg)

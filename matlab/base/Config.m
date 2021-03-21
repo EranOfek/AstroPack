@@ -15,10 +15,10 @@ classdef Config < Base
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = Config(FileName)
-            if FileName ~= ""
-                Obj.load(FileName)
-            end
+        function Obj = Config() %FileName)
+            %if FileName ~= ""
+            %    Obj.load(FileName)
+            %end
         end
         
         % Read file to lines
@@ -28,6 +28,36 @@ classdef Config < Base
             Obj.Yaml = yaml.ReadYaml(Obj.FileName);
             Result = true;
         end
+        
+        
+        function reload(Obj)
+            load(Obj, Obj.FileName);
+        end
+        
+        % Replace macros in string with values from struct
+        % Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc"
+        % conf.unmacro(conf.Yaml.DarkImage.InputFolder, conf.Yaml.EnvFolders)
+        function Result = unmacro(Obj, Str, MacrosStruct)
+            FieldNames = fieldnames(MacrosStruct);
+            for i = 1:numel(FieldNames)
+                Var = FieldNames{i};
+                Macro = "$" + Var;
+                Value = MacrosStruct.(Var);
+                if ~isempty(strfind(Str, Macro))
+                    NewStr = strrep(Str, Macro, Value);
+                    Str = NewStr;
+                end                    
+            end
+            Result = Str;
+        end
+        
+        
+        % [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
+        function [Min, Max] = getRange(Obj, Cell)
+            Min = Cell{1};
+            Max = Cell{2};
+        end
+        
         
         function Len = listLen(Obj, List)
             [~, Len] = size(List);
@@ -60,6 +90,8 @@ classdef Config < Base
             disp(conf.Yaml.UnitTest.x0x2DKeyMinus);
             
             disp(conf.listLen(conf.Yaml.UnitTest.NonUniqueKeys));
+            
+            disp(conf.unmacro("$Root/abc", conf.Yaml.DarkImage.InputFolder, conf.Yaml.EnvFolders));
             Result = true;
         end
     end    

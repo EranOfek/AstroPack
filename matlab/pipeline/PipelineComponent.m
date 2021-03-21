@@ -6,7 +6,7 @@
 %--------------------------------------------------------------------------
 
 
-classdef PipelineProcess < PipelineComponent
+classdef PipelineComponent < Component
     % Properties
     properties (SetAccess = public)
         
@@ -23,18 +23,28 @@ classdef PipelineProcess < PipelineComponent
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = PipelineProcess()
+        function Obj = PipelineComponent()
         end
-     
+        
 
+        function FilesList = getFilesInFolder(Path, Mask)
+            FilesList = [];
+            List = dir(fullfile(Path, Mask));
+            for i = 1:length(List)
+                if ~List(i).isdir
+                    FileName = fullfile(List(i).folder, List(i).name);
+                    FilesList = [FilesList, FileName];
+                end
+            end
+        end
     end
-
+    
     
     % Unit test
     methods(Static)
         function Result = unitTest()
             fprintf("Started\n");
-            Result = true;
+            result = true;
         end
     end    
         

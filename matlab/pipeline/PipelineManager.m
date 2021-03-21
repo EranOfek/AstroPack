@@ -5,7 +5,7 @@
 % Description:
 %--------------------------------------------------------------------------
 
-classdef TPipelineManager < TComponent
+classdef PipelineManager < Component
     
     % Properties
     properties (SetAccess = public)
@@ -26,7 +26,7 @@ classdef TPipelineManager < TComponent
     methods  
                
         % Constructor    
-        function Obj = TPipelineManager()
+        function Obj = PipelineManager()
             Obj.LogFile = TLogFile("PipelineManager.log");
             Obj.Config = TConfig;
         end
