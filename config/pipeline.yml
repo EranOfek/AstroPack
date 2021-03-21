@@ -1,8 +1,5 @@
 # ULTRASAT Pipeline Configuration File
 
-Version: '1.0'
-
-#
 # Notes:
 #
 #   - A document starts with three dashes and ends with three periods, BUT, is not supported by the Java class
@@ -13,28 +10,43 @@ Version: '1.0'
 #   - Non-unique keys must be defined as list, otherwise you get the last item
 
 #==========================================================================
+
+#==========================================================================
+
+# Folder macros, use as $ROOT/MyFolder, etc.
+EnvFolders:
+    ROOT: c:/pipeline
+    LOG: c:/pipeline/log
+    TEMP: c:/pipeline/temp
+    IAI: c:/iai
+#==========================================================================
+#                                 Pipeline 
+#==========================================================================
 # Pipeline - General
 Pipeline:
     LogPath: c:/iai/log
-    #LogPath: d:/iai/log    
-    #LogPath2: d2:/iai/log
+
+
+#---------------------------------------------------------- DarkImage
+DarkImage:
+    ImageCount: 10    
+    InputFolder: $ROOT/DarkImage/Input/
+
+    # Valid ranges
+    ValidTimeSpanSeconds: [0, 3600]    
+    ValidTemperatureRange: [10, 90]
+    ValidExposureRangeSeconds: [30, 300]
     
-    # Will be x0x2DLogPath
-    #-LogPath: --d:/iai/log    
-
-
-
-
 #==========================================================================
 # Pipeline - IAI GCS Interface
 GcsInterface:
-    InputImagePath: c:/iai/gcs/    
-    ProcessedImagePath: c:/iai/processed
+    InputImagePath: $IAI/gcs/    
+    ProcessedImagePath: $IAI/processed
 
 
 #==========================================================================
 
-# IAI GCS Interface Simulator        
+# IAI GCS Interface Simulator - used by sim_gcs.py
 GcsSimulator:
     LogPath: c:/iai/log
     ImagePath: c:/iai/gcs/

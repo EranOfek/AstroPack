@@ -1,2 +1,2 @@
-# Header
+# Configuration files
 
