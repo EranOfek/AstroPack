@@ -6,7 +6,7 @@
 classdef Dictionary < handle
     properties
         Name char            = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
-        Dic struct           = struct();
+        Dic struct           = struct(); % Primary = {list of alternate names}
         Conversion struct    = struct();
     end
    

@@ -246,6 +246,7 @@ classdef BitDictionary < handle
             Tbl.Properties.VariableNames = {'BitName','BitDescription','BitInd'};
             Obj.Dic = Tbl;
             
+            
             [BitName,BitDescription,BitInd]=bitind_to_name(Obj,[0 1 17])
             
             [BitName,BitDesc,BitInd]=bitdec_to_name(Obj,[3,1,2^11+7; 1 1 1])

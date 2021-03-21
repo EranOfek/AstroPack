@@ -9,7 +9,7 @@ classdef FITS1
     
    
     methods % constructor
-        function Obj=FITS1(FileName,ListHDU)
+        function Obj = FITS1(FileName, ListHDU)
             % FITS object constructor
             % Input  : - A cell array of file names, a file name or a file name with wild cards.
             %          - A vector of HDU numbers with size 1, or equal in
@@ -60,7 +60,7 @@ classdef FITS1
     % writeTable
     
     methods (Static)
-        function Nhdu=numHDU1(FileName)
+        function Nhdu = numHDU1(FileName)
             % return the number of HDUs in a single FITS file
             % A static function of FITS class
             % Input  : - FITS file name.
@@ -165,7 +165,7 @@ classdef FITS1
             
         end
         
-        function [Image,HeadCell,Nhdu]=read1(FileName,HDUnum,Args)
+        function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)
             % Read a single image from a FITS file
             % A static function of FITS class
             % Input  : - FITS file name.
