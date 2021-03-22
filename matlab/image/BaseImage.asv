@@ -247,7 +247,7 @@ classdef BaseImage
             
         end % fun_unaryMF
         
-        function Result=fun_binary(Obj1,Obj2,Fun,FunArg,OutType,DataProp1,DataProp2,DataPropOut)
+        function Result=fun_binary(Obj1,Obj2,Fun,FunArg,OutType,DataProp1,DataProp2)
             % Apply a binary function on a single field
             % Descruption: This function apply a binary function on
             %           an object (Obj1) and another object (Obj2),
@@ -290,10 +290,7 @@ classdef BaseImage
             %            Default is 'Data'.
             %          - (DataProp2) A string containing the property name
             %            in Obj1 on which to execute the operation.
-            %            Default is like DataProp1.
-            %          - (DataPropOut) A string containing the property
-            %            name in which the ouput will be stored.
-            %            Default is like DataProp1.
+            %            Default is like Data2.
             % Output : - The output after applying the function.
             % Author : Eran Ofek (Mar 2021)
             % Example:
@@ -307,14 +304,10 @@ classdef BaseImage
                 OutType char   {mustBeMember(OutType,{'object','matrix','cell','struct'})} = 'object';   
                 DataProp1                                                     = 'Data';
                 DataProp2                                                     = [];
-                DataPropOut                                                   = [];
             end
             
             if isempty(DataProp2)
                 DataProp2 = DataProp1;
-            end
-            if isempty(DataPropOut)
-                DataPropOut = DataProp1;
             end
             
             Nobj = numel(Obj);
@@ -345,15 +338,15 @@ classdef BaseImage
                             if isnumeric(Obj2)
                                 % If Obj2 is an array - second argument on
                                 % each other array
-                                Result(Iobj).(DataPropOut{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2, FunArg{:});
+                                Result(Iobj).(DataProp1{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2, FunArg{:});
                             elseif iscell(Obj2)
                                 % If Obj2 is a cell array than each element
                                 % in the cell corresponds to all the
                                 % properties in one object element.
-                                Result(Iobj).(DataPropOut{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2{Iobj2}, FunArg{:});
+                                Result(Iobj).(DataProp1{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2{Iobj2}, FunArg{:});
                             else
                                 % both args are an object of the same type
-                                Result(Iobj).(DataPropOut{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2(Iobj2).(DataProp2{Idp}), FunArg{:});
+                                Result(Iobj).(DataProp{Idp}) = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2(Iobj2).(DataProp{Idp}), FunArg{:});
                             end
                         end
                     end
@@ -371,11 +364,11 @@ classdef BaseImage
                     Idp=1;
                     
                     if isnumeric(Obj2)
-                        Result = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2, FunArg{:});
+                        Result = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2, FunArg{:});
                     elseif iscell(Obj2)
-                        Result = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2{Iobj2}, FunArg{:});
+                        Result = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2{Iobj2}, FunArg{:});
                     else
-                        Result = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2(Iobj2).(DataProp2{Idp}), FunArg{:});
+                        Result = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2(Iobj2).(DataProp{Idp}), FunArg{:});
                     end    
                     
                 case 'cell'
@@ -391,11 +384,11 @@ classdef BaseImage
                         for Idp=1:1:Ndp
                             Ind = Ind + 1;
                             if isnumeric(Obj2)
-                                Result{Ind} = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2, FunArg{:});
+                                Result{Ind} = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2, FunArg{:});
                             elseif iscell(Obj2)
-                                Result{Ind} = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2{Iobj2}, FunArg{:});
+                                Result{Ind} = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2{Iobj2}, FunArg{:});
                             else
-                                Result{Ind} = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2(Iobj2).(DataProp2{Idp}), FunArg{:});
+                                Result{Ind} = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2(Iobj2).(DataProp{Idp}), FunArg{:});
                             end    
                         end
                     end
@@ -408,11 +401,11 @@ classdef BaseImage
                         Iobj2 = min(Iobj,Nobj2);
                         for Idp=1:1:Ndp
                             if isnumeric(Obj2)
-                                Result(Iobj).(DataPropOut{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2, FunArg{:});
+                                Result(Iobj).(DataProp{Idp}) = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2, FunArg{:});
                             elseif iscell(Obj2)
-                                Result(Iobj).(DataPropOut{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2{Iobj2}, FunArg{:});
+                                Result(Iobj).(DataProp{Idp}) = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2{Iobj2}, FunArg{:});
                             else
-                                Result(Iobj).(DataPropOut{Idp}) = Fun(Obj1(Iobj1).(DataProp1{Idp}), Obj2(Iobj2).(DataProp2{Idp}), FunArg{:});
+                                Result(Iobj).(DataProp{Idp}) = Fun(Obj1(Iobj1).(DataProp{Idp}), Obj2(Iobj2).(DataProp{Idp}), FunArg{:});
                             end    
                         end
                     end
