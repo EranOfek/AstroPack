@@ -35,12 +35,15 @@ function [Cube,RoundXorig,RoundYorig]=find_within_radius_mat(Matrix,X,Y,Radius,C
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-PadVal = NaN;
-
-if nargin<5
-    Circle = false;
+arguments
+    Matrix
+    X
+    Y
+    Radius
+    Circle(1,1) logical      = false;
 end
 
+PadVal = NaN;
 
 
 Nsrc = numel(X);

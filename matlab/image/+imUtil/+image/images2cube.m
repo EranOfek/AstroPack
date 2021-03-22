@@ -1,4 +1,4 @@
-function [Cube]=images2cube(Images,varargin)
+function [Cube]=images2cube(Images,Args)
 % Store a set of images of the same size in a cube.
 % Package: imUtil.image
 % Description: Given a cell array of images or a structure array that
@@ -21,14 +21,11 @@ function [Cube]=images2cube(Images,varargin)
 %          [Cube]=imUtil.image.images2cube({rand(5,4),ones(5,4)},'IndexDim',1);
 % Reliable: 2
 
-
-InPar = inputParser;
-
-addOptional(InPar,'FieldName','Im');
-addOptional(InPar,'IndexDim',3);
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
+arguments
+    Images
+    Args.FieldName          = 'Im';
+    Args.IndexDim           = 3;
+end
 
 
 
@@ -52,13 +49,13 @@ else
         if isstruct(Images)
             % input: a structure array with field 'FieldName'
             N = numel(Images);
-            Size1 = size(Images(1).(InPar.FieldName));
+            Size1 = size(Images(1).(Args.FieldName));
             Cube = zeros(Size1(1),Size1(2),N);
             for I=1:1:N
-                if ~all(size(Images(I).(InPar.FieldName))==Size1)
+                if ~all(size(Images(I).(Args.FieldName))==Size1)
                     error(sprintf('Image number %d is not the same size as image number 1',I));
                 else
-                    Cube(:,:,I) = Images(I).(InPar.FieldName);
+                    Cube(:,:,I) = Images(I).(Args.FieldName);
                 end
             end
         else
@@ -69,14 +66,14 @@ end
 
 
 % reshuffle the image index dimension
-if InPar.IndexDim==1
+if Args.IndexDim==1
     if ndims(Cube)==3
         Cube = permute(Cube,[3 1 2]);
     else
         % do nothing
     end
 else
-    if InPar.IndexDim==3
+    if Args.IndexDim==3
         % do nothing - image index already in 3rd dimension
     else
         error('Unknown IndexDim option - must be 1 or 3');

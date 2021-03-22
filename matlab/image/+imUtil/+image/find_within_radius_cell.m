@@ -34,10 +34,14 @@ function [CellInd,CellRad2]=find_within_radius_cell(Size,X,Y,Radius,Circle)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-
-if (nargin==4)
-    Circle = false;
+arguments
+    Size
+    X
+    Y
+    Radius
+    Circle(1,1) logical      = false;
 end
+    
 
 Radius2 = Radius.^2;
 Nsrc = numel(X);

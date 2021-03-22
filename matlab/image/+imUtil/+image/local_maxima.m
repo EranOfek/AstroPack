@@ -50,7 +50,7 @@ function [BW,Pos,MaxIsn]=local_maxima(Image,Variance,Threshold,Conn)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: Image = imUtil.kernel2.gauss(1.5,[1024 1024]).*30 + randn(1024,1024);
 %          Template = imUtil.kernel2.gauss(1.5);
-%          [SN,Flux]=imUtil.filter.filter2_sn(Image,Variance,Template);
+%          [SN,Flux]=imUtil.filter.filter2_sn(Image,[],[],Template);
 %          [BW,Pos]=imUtil.image.local_maxima(SN,1,5);
 %          % Example with a cube input (find the optimal focus)
 %          Image = imUtil.kernel2.gauss(2.2,[1024 1024]).*300 + randn(1024,1024);
@@ -59,15 +59,26 @@ function [BW,Pos,MaxIsn]=local_maxima(Image,Variance,Threshold,Conn)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<4
-    Conn = 8;
-    if nargin<3
-        Threshold = 5;
-        if nargin<2
-            Variance = var(Image,0,[1 2]);
-        end
-    end
+arguments
+    Image
+    Variance               = [];
+    Threshold              = 5;
+    Conn                   = 8;
 end
+
+if isempty(Variance)
+    Variance = var(Image,0,[1 2]);
+end
+
+% if nargin<4
+%     Conn = 8;
+%     if nargin<3
+%         Threshold = 5;
+%         if nargin<2
+%             Variance = var(Image,0,[1 2]);
+%         end
+%     end
+% end
 
 SN = Image./sqrt(Variance);
 
