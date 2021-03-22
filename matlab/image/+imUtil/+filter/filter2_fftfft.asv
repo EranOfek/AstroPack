@@ -33,10 +33,16 @@ function Res=filter2_fftfft(Mat1,Mat2,Is1fft,Is2fft)
 arguments
     Mat1
     Mat2
-    Is1fft(1,1) logical    = false;
+    Is1fft(!,1) logical    = false;
     Is2fft(1,1) logical    = false;
 end
-
+% 
+% if nargin<4
+%     Is2fft = false;
+%     if nargin<3
+%         Is1fft = false;
+%     end
+% end
 
 Size1 = size(Mat1);
 Size2 = size(Mat2);

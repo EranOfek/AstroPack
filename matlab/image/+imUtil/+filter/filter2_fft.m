@@ -31,8 +31,10 @@ function Res=filter2_fft(Mat1,Mat2,Method)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<3
-    Method = 'conj';
+arguments
+    Mat1
+    Mat2
+    Method         = 'conj';
 end
 
 Size1 = size(Mat1);

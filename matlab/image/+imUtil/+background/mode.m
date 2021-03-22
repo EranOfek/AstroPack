@@ -25,19 +25,14 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN)
 %      By: Eran O. Ofek                       Apr 2020             
 % Example: imUtil.background.mode(randn(1000,1000))
 
-
-if nargin<5
-    MinN = 10;
-    if nargin<4
-        Accuracy = 0.1;
-        if nargin<3
-            IgnoreNaN = true;
-            if nargin<2
-                Log = true;
-            end
-        end
-    end
+arguments
+    Array
+    Log             = true;
+    IgnoreNaN       = true;
+    Accuracy        = 0.1;
+    MinN            = 10;
 end
+
 
 if IgnoreNaN
     Array = Array(~isnan(Array));

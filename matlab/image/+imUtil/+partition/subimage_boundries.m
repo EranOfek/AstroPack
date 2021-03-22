@@ -41,6 +41,10 @@ else
     error('Illegal number of input arguments');
 end
 
+if numel(Buffer)==1
+    Buffer = Buffer + [0 0];
+end
+
 if (isempty(Block))
     Block = Def.Block;
 end
@@ -71,6 +75,13 @@ switch lower(Behav)
     case 'simple'
         Xmin = (1:BlockSize(1):Size(1)-BlockSize(1).*0.5).';
         Xmax = (BlockSize(1):BlockSize(1):Size(1)).';
+        if isempty(Xmin)
+            Xmin = 1;
+        end
+        if isempty(Xmax)
+            Xmax = Size(1);
+        end
+        
         if (numel(Xmin)>numel(Xmax))
             Xmax = [Xmax; Size(1)];
         end
@@ -81,6 +92,13 @@ switch lower(Behav)
 
         Ymin = (1:BlockSize(2):Size(2)-BlockSize(2).*0.5).';
         Ymax = (BlockSize(2):BlockSize(2):Size(2)).';
+        if isempty(Ymin)
+            Ymin = 1;
+        end
+        if isempty(Ymax)
+            Ymax = Size(1);
+        end
+        
         if (numel(Ymin)>numel(Ymax))
             Ymax = [Ymax; Size(2)];
         end
@@ -98,10 +116,10 @@ end
 [Xmax,Ymax] = meshgrid(Xmax,Ymax);
 
 ListEdge   = [Xmin(:), Xmax(:), Ymin(:), Ymax(:)];
-ListEdge(:,1) = ListEdge(:,1) - Buffer;
-ListEdge(:,2) = ListEdge(:,2) + Buffer;
-ListEdge(:,3) = ListEdge(:,3) - Buffer;
-ListEdge(:,4) = ListEdge(:,4) + Buffer;
+ListEdge(:,1) = ListEdge(:,1) - Buffer(1);
+ListEdge(:,2) = ListEdge(:,2) + Buffer(1);
+ListEdge(:,3) = ListEdge(:,3) - Buffer(2);
+ListEdge(:,4) = ListEdge(:,4) + Buffer(2);
 ListEdge(ListEdge(:,1)<0,1) = 1;
 ListEdge(ListEdge(:,3)<0,3) = 1;
 ListEdge(ListEdge(:,2)>Size(1),2) = Size(1);
