@@ -61,21 +61,32 @@ function [SN,Flux,FiltImage,FiltImageVar,Info]=filter2_sn(Image,Background,Varia
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+
+arguments
+    Image
+    Background           = [];
+    Variance             = [];
+    Template             = [];
+end
+
 LogMode = false;  % don't use log option in mode - because of negative numbers...
 
-if nargin<4
+if isempty(Template)
     Template = imUtil.kernel2.gauss;
-    if nargin<3
-        [Mode,Variance] =  imUtil.background.mode(Image,LogMode);
-        if nargin<2
-            if nargin<3
-                Background = Mode;
-            else
-                Background =  imUtil.background.mode(Image,LogMode);
-            end
-        end
+end
+if isempty(Variance)
+    [Mode,Variance] =  imUtil.background.mode(Image,LogMode);
+else
+    Mode = [];
+end
+if isempty(Background)
+    if isempty(Mode)
+        Background =  imUtil.background.mode(Image,LogMode);
+    else
+        Background = Mode;
     end
 end
+
 
 % treat empty background/variance:
 if isempty(Background)
