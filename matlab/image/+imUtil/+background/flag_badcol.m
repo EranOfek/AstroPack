@@ -1,4 +1,4 @@
-function [Flag,Res]=flag_badcol(Image,varargin) 
+function [Flag,Res]=flag_badcol(Image,Args) 
 % Flag a bad column/row in an image
 % Package: @imUtil.background
 % Description: Flag a column/row which background/noise level is high.
@@ -37,35 +37,32 @@ function [Flag,Res]=flag_badcol(Image,varargin)
 % Example: Image = rand(100,150); Image(23,:) = Image(23,:).*5;
 %          Flag=imUtil.background.flag_badcol(Image,'Dim',2) 
 
-
-InPar = inputParser;
-addOptional(InPar,'Dim',1);
-addOptional(InPar,'Threshold',10);
-
-addOptional(InPar,'CollapseFun','median');
-addOptional(InPar,'FilterCollapse','medfilt1');
-addOptional(InPar,'FilterCollapsePar',{10});
-addOptional(InPar,'StdCollapse','rstd');
-addOptional(InPar,'StdCollapsePar',{});
-parse(InPar,varargin{:});
-InPar = InPar.Results;
+arguments
+    Image
+    Args.Dim                    = 1;
+    Args.Threshold              = 10;
+    Args.CollapseFun            = 'median';
+    Args.FilterCollapse         = 'medfilt1';
+    Args.FilterCollapsePar      = {10};
+    Args.StdCollapse            = 'rstd';
+    Args.StdCollapsePar         = {};
+end
 
 
-
-Res = imUtil.background.collapse_stat(Image,'Dim',InPar.Dim,...
-                                            'CollapseFun',InPar.CollapseFun,...
-                                            'FilterCollapse',InPar.FilterCollapse,...
-                                            'FilterCollapsePar',InPar.FilterCollapsePar,...
-                                            'StdCollapse',InPar.StdCollapse,...
-                                            'StdCollapsePar',InPar.StdCollapsePar);
+Res = imUtil.background.collapse_stat(Image,'Dim',Args.Dim,...
+                                            'CollapseFun',Args.CollapseFun,...
+                                            'FilterCollapse',Args.FilterCollapse,...
+                                            'FilterCollapsePar',Args.FilterCollapsePar,...
+                                            'StdCollapse',Args.StdCollapse,...
+                                            'StdCollapsePar',Args.StdCollapsePar);
 
 Stat = (Res.Line - Res.FiltLine)./Res.StdLine;
-Flag = Stat>InPar.Threshold;
+Flag = Stat>Args.Threshold;
 
-if InPar.Dim==1
+if Args.Dim==1
     N       = size(Image,1);
     Flag    = repmat(Flag,N,1);
-elseif InPar.Dim==2
+elseif Args.Dim==2
     N       = size(Image,2);
     Flag    = repmat(Flag,1,N);
 else
