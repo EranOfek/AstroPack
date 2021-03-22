@@ -1,4 +1,4 @@
-function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,varargin)
+function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 % Proper coaddition of images in a cube
 % Package: imUtil.image
 % Description: Proper coaddition (Zackay & Ofek 2017) of images in a cube
@@ -32,13 +32,16 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,varargin)
 % Reliable: 
 %--------------------------------------------------------------------------
 
-InPar = inputParser;
-addOptional(InPar,'F','1');   % std | rstd  
-addOptional(InPar,'Var',1);
-addOptional(InPar,'PsfType','center');
-addOptional(InPar,'Norm',true);
-parse(InPar,varargin{:});
-InPar = InPar.Results;
+arguments
+    Data
+    PSF
+    Args.F                     = 1;
+    Args.Var                   = 1;
+    Args.PsfType               = 'center';
+    Args.Norm(1,1) logical     = true;
+end
+
+
 
 SizeData = size(Data);
 SizePsf  = size(PSF);
@@ -47,13 +50,13 @@ IndexDim = 3;
 
 
 % normalize PSF sum to unity
-if InPar.Norm
+if Args.Norm
     PSF = PSF./sum(PSF,[1 2]);
 end
 
    
 % prep the PSF
-switch lower(InPar.PsfType)
+switch lower(Args.PsfType)
     case 'center'
         % put PSF in corner
         PSF = ifftshift(ifftshift(PSF,1),2);
@@ -71,8 +74,8 @@ end
 % proper coaddition: Zackay & Ofek 2017
 PSF_f = fft2(PSF);
 
-PR_f  = sqrt(sum((InPar.F.^2./InPar.Var) .* abs(PSF_f).^2,IndexDim));
-R_f   = sum((InPar.F./InPar.Var) .* fft2(Data).*conj(PSF_f),IndexDim)./PR_f;
+PR_f  = sqrt(sum((Args.F.^2./Args.Var) .* abs(PSF_f).^2,IndexDim));
+R_f   = sum((Args.F./Args.Var) .* fft2(Data).*conj(PSF_f),IndexDim)./PR_f;
 R     = ifft2(R_f);
 PR    = ifft2(PR_f);
 

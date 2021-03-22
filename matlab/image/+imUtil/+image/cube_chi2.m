@@ -1,4 +1,4 @@
-function [Chi2,Z,Mean,Std,NaboveThreshold]=cube_chi2(Data,Dim,varargin)
+function [Chi2,Z,Mean,Std,NaboveThreshold]=cube_chi2(Data,Dim,Args)
 % Calculate the sigma-clipped mean of a dataset
 % Package: imUtil.image
 % Description: Calculate the sigma-clipped mean of a dataset with
@@ -42,21 +42,35 @@ function [Chi2,Z,Mean,Std,NaboveThreshold]=cube_chi2(Data,Dim,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<3
-    Dim = ndims(Data);
+arguments
+    Data
+    Dim                          = [];
+    Args.MeanFun                 = @nanmean;
+    Args.StdFun                  = 'rstd';
+    Args.ThresholdSigma          = 5;
+    Args.Abs(1,1) logical        = true;
+    
 end
 
-InPar = inputParser;
-addOptional(InPar,'MeanFun',@nanmean);  
-addOptional(InPar,'StdFun','rstd');   % std | rstd  
-addOptional(InPar,'ThresholdSigma',5);
-addOptional(InPar,'Abs',true);
-parse(InPar,varargin{:});
-InPar = InPar.Results;
+if isempty(Dim)
+    Dim = ndims(Data);
+end
+% 
+% if nargin<3
+%     Dim = ndims(Data);
+% end
+% 
+% InPar = inputParser;
+% addOptional(InPar,'MeanFun',@nanmean);  
+% addOptional(InPar,'StdFun','rstd');   % std | rstd  
+% addOptional(InPar,'ThresholdSigma',5);
+% addOptional(InPar,'Abs',true);
+% parse(InPar,varargin{:});
+% InPar = InPar.Results;
 
 
-Mean = InPar.MeanFun(Data,Dim);
-switch lower(InPar.StdFun)
+Mean = Args.MeanFun(Data,Dim);
+switch lower(Args.StdFun)
     case 'std'
         Std  = nanstd(Data,[],Dim);
     case 'rstd'
@@ -69,6 +83,6 @@ Z = (Data - Mean)./Std;
 Chi2 = sum(Z.^2,Dim);
 
 if nargout>4
-    NaboveThreshold = sum(abs(Z)>InPar.ThresholdSigma,Dim);
+    NaboveThreshold = sum(abs(Z)>Args.ThresholdSigma,Dim);
 end
 
