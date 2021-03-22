@@ -39,7 +39,6 @@ function [AC,Res]=autocor(Mat,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-
 InPar = inputParser;
 
 addOptional(InPar,'SubBack',true); %
@@ -63,7 +62,7 @@ if InPar.SubBack
                                                'VarFun',InPar.VarFun,...
                                                'VarFunPar',InPar.VarFunPar,...
                                                'SubSizeXY',InPar.SubSizeXY,...
-                                               'OverlapXY',InPar.OverlapXY);
+                                               'Overlap',InPar.OverlapXY);
 
     % normalize the H2 histogram surface by expected region of pverlap.
     Var = max(Var,InPar.MinVariance);
