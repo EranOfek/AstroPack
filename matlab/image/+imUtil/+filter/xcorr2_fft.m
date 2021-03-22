@@ -1,4 +1,4 @@
-function [XC,Res,ResPeak]=xcorr2_fft(Mat1,Mat2,varargin)
+function [XC,Res,ResPeak]=xcorr2_fft(Mat1,Mat2,Args)
 % Cross-correlation of two matrices using fft, and search local maxima.
 % Package: imUtil.filter
 % Description: Cross correlate two 2D images. If a single image is provided
@@ -97,58 +97,78 @@ function [XC,Res,ResPeak]=xcorr2_fft(Mat1,Mat2,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<2
-    Mat2 = [];
+
+arguments
+    Mat1
+    Mat2                       = [];
+    Args.NormMethod            = 'StD';
+    Args.MaxMethod             = 'thresh_fracmax';
+    Args.FracOfMax             = 0.5;
+    Args.Threshold             = 5;
+    Args.Conn                  = 8;
+    Args.SubBack(1,1) logical  = false;
+    Args.BackFun               = @nanmedian;
+    Args.BackFunPar cell       = {'all'};
+    Args.VarFun                = @imUtil.background.rvar;
+    Args.VarFunPar cell        = {};
+    Args.SubSizeXY             = [128 128];
+    Args.OverlapXY             = [16 16];
+    Args.MinVariance           = 0;
 end
 
-InPar = inputParser;
+% 
+% if nargin<2
+%     Mat2 = [];
+% end
+% 
+% InPar = inputParser;
+% 
+% addOptional(InPar,'NormMethod','StD');
+% 
+% addOptional(InPar,'MaxMethod','thresh_fracmax');
+% addOptional(InPar,'FracOfMax',0.5);
+% addOptional(InPar,'Threshold',5);
+% addOptional(InPar,'Conn',8);
+% 
+% addOptional(InPar,'SubBack',false); %
+% addOptional(InPar,'BackFun',@nanmedian); % @median);
+% addOptional(InPar,'BackFunPar',{'all'});      % {[1 2],'omitnan'});
+% addOptional(InPar,'VarFun',@imUtil.background.rvar);    % if empty, then will try to read var from second output of BackFun...
+% addOptional(InPar,'VarFunPar',{}); % {[1 2]});
+% addOptional(InPar,'SubSizeXY',[128 128]);  % or 'full'
+% addOptional(InPar,'OverlapXY',[16 16]); 
+% addOptional(InPar,'MinVariance',0);
+% 
+% parse(InPar,varargin{:});
+% InPar = InPar.Results;
 
-addOptional(InPar,'NormMethod','StD');
 
-addOptional(InPar,'MaxMethod','thresh_fracmax');
-addOptional(InPar,'FracOfMax',0.5);
-addOptional(InPar,'Threshold',5);
-addOptional(InPar,'Conn',8);
-
-addOptional(InPar,'SubBack',false); %
-addOptional(InPar,'BackFun',@nanmedian); % @median);
-addOptional(InPar,'BackFunPar',{'all'});      % {[1 2],'omitnan'});
-addOptional(InPar,'VarFun',@imUtil.background.rvar);    % if empty, then will try to read var from second output of BackFun...
-addOptional(InPar,'VarFunPar',{}); % {[1 2]});
-addOptional(InPar,'SubSizeXY',[128 128]);  % or 'full'
-addOptional(InPar,'OverlapXY',[16 16]); 
-addOptional(InPar,'MinVariance',0);
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-
-if InPar.SubBack
+if Args.SubBack
     % subtrct backfround - Mat1
     [Back1,Var1]=imUtil.background.background(Mat1,...
-                                               'BackFun',InPar.BackFun,...
-                                               'BackFunPar',InPar.BackFunPar,...
-                                               'VarFun',InPar.VarFun,...
-                                               'VarFunPar',InPar.VarFunPar,...
-                                               'SubSizeXY',InPar.SubSizeXY,...
-                                               'OverlapXY',InPar.OverlapXY);
+                                               'BackFun',Args.BackFun,...
+                                               'BackFunPar',Args.BackFunPar,...
+                                               'VarFun',Args.VarFun,...
+                                               'VarFunPar',Args.VarFunPar,...
+                                               'SubSizeXY',Args.SubSizeXY,...
+                                               'OverlapXY',Args.OverlapXY);
 
     % normalize the H2 histogram surface by expected region of pverlap.
-    Var1 = max(Var1,InPar.MinVariance);
+    Var1 = max(Var1,Args.MinVariance);
     SN1 = (Mat1 - Back1)./sqrt(Var1);
     
     if ~isempty(Mat2)
         % subtrct backfround - Mat2
         [Back2,Var2]=imUtil.background.background(Mat2,...
-                                                   'BackFun',InPar.BackFun,...
-                                                   'BackFunPar',InPar.BackFunPar,...
-                                                   'VarFun',InPar.VarFun,...
-                                                   'VarFunPar',InPar.VarFunPar,...
-                                                   'SubSizeXY',InPar.SubSizeXY,...
-                                                   'OverlapXY',InPar.OverlapXY);
+                                                   'BackFun',Args.BackFun,...
+                                                   'BackFunPar',Args.BackFunPar,...
+                                                   'VarFun',Args.VarFun,...
+                                                   'VarFunPar',Args.VarFunPar,...
+                                                   'SubSizeXY',Args.SubSizeXY,...
+                                                   'OverlapXY',Args.OverlapXY);
 
         % normalize the H2 histogram surface by expected region of pverlap.
-        Var2 = max(Var2,InPar.MinVariance);
+        Var2 = max(Var2,Args.MinVariance);
         SN2  = (Mat2 - Back2)./sqrt(Var2);
     else
         SN2 = SN1;
@@ -167,7 +187,7 @@ SizeM = size(SN1);
 XC = imUtil.filter.filter2_fft(SN1,SN2);
 
 % normalize to correlation units -1..+1 range...
-switch lower(InPar.NormMethod)
+switch lower(Args.NormMethod)
     case 'std'
         % standard normalization
         XC = XC./numel(XC)./sqrt(std(SN1,[],'all').*std(SN2,[],'all'));
@@ -190,13 +210,13 @@ if nargout>1
     % locate local maxima
     if nargout>2
         ResPeak.StD  = 1./sqrt(numel(XC)-3);
-        switch lower(InPar.MaxMethod)
+        switch lower(Args.MaxMethod)
             case 'max1'
                 [ResPeak.MaxVal,MaxInd] = max(XC(:)); %,[],'all');
                 [MaxY,MaxX] = imUtil.image.ind2sub_fast(size(XC),MaxInd);
                 
             otherwise
-                switch lower(InPar.MaxMethod)
+                switch lower(Args.MaxMethod)
                     case {'thresh','thresh_fracmax'}
                         % normalize by StD such that selection will be by
                         % S/N
@@ -204,10 +224,10 @@ if nargout>1
                     otherwise
                         Norm = 1;
                 end
-                [~,Pos]=imUtil.image.local_maxima(XC,1,InPar.Threshold.*Norm,InPar.Conn);
+                [~,Pos]=imUtil.image.local_maxima(XC,1,Args.Threshold.*Norm,Args.Conn);
                 Pos = sortrows(Pos,3,'descend');
                 
-                Flag = imUtil.patternMatch.select_maxima(Pos(:,3)./Norm,'MaxMethod',InPar.MaxMethod,'FracOfMax',InPar.FracOfMax,'Threshold',InPar.Threshold);
+                Flag = imUtil.patternMatch.select_maxima(Pos(:,3)./Norm,'MaxMethod',Args.MaxMethod,'FracOfMax',Args.FracOfMax,'Threshold',Args.Threshold);
                 MaxX   = Pos(Flag,1);
                 MaxY   = Pos(Flag,2);
                 ResPeak.MaxVal = Pos(Flag,3);
