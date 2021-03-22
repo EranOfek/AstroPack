@@ -1,4 +1,4 @@
-function [AC,Res]=autocor(Mat,varargin)
+function [AC,Res]=autocor(Mat,Args)
 % Autocorrelation of a 2D image 
 % Package: imUtil.filter
 % Description: Autocorrelation of a 2D image, with optional background
@@ -39,33 +39,33 @@ function [AC,Res]=autocor(Mat,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-InPar = inputParser;
 
-addOptional(InPar,'SubBack',true); %
-addOptional(InPar,'BackFun',@nanmedian); % @median);
-addOptional(InPar,'BackFunPar',{'all'});      % {[1 2],'omitnan'});
-addOptional(InPar,'VarFun',@imUtil.background.rvar);    % if empty, then will try to read var from second output of BackFun...
-addOptional(InPar,'VarFunPar',{}); % {[1 2]});
-addOptional(InPar,'SubSizeXY',[128 128]);  % or 'full'
-addOptional(InPar,'OverlapXY',[16 16]); 
-addOptional(InPar,'MinVariance',0);
+arguments
+    Mat
+    Args.SubBack(1,1) logical              = true;
+    Args.BackFun                           = @nanmedian;
+    Args.BackFunPar                        = {'all'};
+    Args.VarFun                            = @imUtil.background.rvar;
+    Args.VarFunPar                         = {};
+    Args.SubSizeXY                         = [128 128];
+    Args.OverlapXY                         = [16 16];
+    Args.MinVariance                       = 0;
+end
 
-parse(InPar,varargin{:});
-InPar = InPar.Results;
 
 
-if InPar.SubBack
+if Args.SubBack
     % subtrct backfround
     [Back,Var]=imUtil.background.background(Mat,...
-                                               'BackFun',InPar.BackFun,...
-                                               'BackFunPar',InPar.BackFunPar,...
-                                               'VarFun',InPar.VarFun,...
-                                               'VarFunPar',InPar.VarFunPar,...
-                                               'SubSizeXY',InPar.SubSizeXY,...
-                                               'Overlap',InPar.OverlapXY);
+                                               'BackFun',Args.BackFun,...
+                                               'BackFunPar',Args.BackFunPar,...
+                                               'VarFun',Args.VarFun,...
+                                               'VarFunPar',Args.VarFunPar,...
+                                               'SubSizeXY',Args.SubSizeXY,...
+                                               'Overlap',Args.OverlapXY);
 
     % normalize the H2 histogram surface by expected region of pverlap.
-    Var = max(Var,InPar.MinVariance);
+    Var = max(Var,Args.MinVariance);
     SN = (Mat - Back)./sqrt(Var);
 else
     SN = Mat;
