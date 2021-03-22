@@ -1,16 +1,17 @@
 function Cell=struct2keyval(St,TwoCol)
 % Convert a structure into a cell array of key,val,...
-% Package: +imUtil.util
+% Package: +tools.struct
 % Input  : - A structure.
 %          - A logical indicating if the output is a row cell vector
 %            (false), or a two column cell array [key, val] (true).
 %            Default is false.
 % Output : - A cell array of key,val, in which the even elements are field
 %            names, and the corresponding odd elements are values.
-% Example : St.A = 1; St.B = 2; C=imUtil.util.struct2keyval(St);
+% Example : St.A = 1; St.B = 2; C=tools.struct.struct2keyval(St);
 
-if nargin<2
-    TwoCol = false;
+arguments
+    St
+    TwoCol        = false;
 end
 
 Key = fieldnames(St);
