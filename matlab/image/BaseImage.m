@@ -10,22 +10,22 @@
 
 % Component is in folder ../base/
 
-classdef BaseImage < Component
+classdef BaseImage < ImageComponent
+    
     properties (Hidden, SetAccess = public)
-        Data
+        Data                                   % e.g., Image matrix
         Scale double              = 1;
         FileName char
+        Dict BitDictionary
         
         IsMask                     = false;
         IsBackSub logical          = false;
         IsVar logical              = false;
         
         %DataProp cell             = {'Data'}; % a cell of properties on which the fun_* methods will be applied
-        
-        % all this should go to Component(?)
-        %Config
-        %UserData
-        %Virt VirtImage
+      
+
+        Virt VirtImage
         %DB
     end
     

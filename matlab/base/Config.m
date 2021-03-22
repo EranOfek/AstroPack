@@ -69,6 +69,19 @@ classdef Config < Base
         
     end
     
+    
+   
+    methods(Static)
+        
+        function Result = getDefaultConfig()
+            persistent Conf
+            if isempty(Conf)
+                Conf = Config;
+            end
+            Result = Conf;
+        end
+    end    
+    
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)

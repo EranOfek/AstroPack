@@ -16,3 +16,4 @@ function new_obj = full_copy(obj)
     new_obj = getArrayFromByteStream(objByteArray);
     
 end
+

@@ -22,10 +22,10 @@ classdef AstroImage < Component
         Cat
     end
     properties (SetAccess = public)
-        Header Header
-        PSF PSF
-        CatData CatAst 
-        WCS WCS
+        Header AstroHeader
+        PSF AstroPSF
+        CatData AstroCatalog
+        WCS AstroWCS
         % data
         ImageData(1,1) BaseImage
         MaskData(1,1) BaseImage
