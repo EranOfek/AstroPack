@@ -5,7 +5,7 @@
 % Description:
 %--------------------------------------------------------------------------
 
-classdef AstroHeader %< Component
+classdef AstroHeader < handle %< Component
     % Properties
     properties (SetAccess = public)
         Data(:,3) cell            = cell(0,3);
@@ -13,7 +13,10 @@ classdef AstroHeader %< Component
         
         File                      = '';
         HDU                       = ''; % HDU or dataset
-        
+    end
+    properties (Hidden, SetAccess=private)
+        IsKeyUpToDate(1,1) logical    = true;
+    end
 %         filename        
 %         configPath = "";
 %         data
@@ -22,7 +25,7 @@ classdef AstroHeader %< Component
 %         
 %         inputImagePath
 %         inputImageExt
-    end
+    
     
 
     methods
@@ -48,7 +51,7 @@ classdef AstroHeader %< Component
             
             arguments
                 FileNames      = 1;   % name or array size
-                HDU            = [];
+                HDU            = 1;
                 Args.Method    = 'wild';
             end
             
@@ -83,6 +86,34 @@ classdef AstroHeader %< Component
         end
     end
     
+    methods % setters/getters
+        function KeyS=get.Key(Obj)
+            % getter for Key, generate key structure array if needed
+            
+            Iobj = 1;
+            if Obj(Iobj).IsKeyUpToDate
+                % Key structure is up to date
+                KeyS = Obj(Iobj).Key; % rucusive????
+            else
+
+                % read cell to struct again
+                KeyS = imUtil.headerCell.cellhead2struct(Obj(Iobj).Data);
+                Obj(Iobj).Key = KeyS;
+                Obj(Iobj).IsKeyUpToDate = true;
+            end
+            % return structure array of keys
+            KeyS(Iobj) = KeyS;
+            
+        end
+        
+        function set.Data(Obj,HeaderCell)
+            % setter for the header data / set IsKeyUpToDate to false
+           
+            Obj.Data = HeaderCell; 
+            Obj.IsKeyUpToDate = false;
+            
+        end
+    end
     
     
     methods % read/write
@@ -171,8 +202,10 @@ classdef AstroHeader %< Component
             end
             
             % I need the dictionary in order to continue
-            %[SC,FE,II] = imUtil.headerCell.getVal(Obj.Data,KeySynonym)
-            
+            [SubCell,FlagExist,IndFound,IndKey] = imUtil.headerCell.getVal(Obj.Data,KeySynonym)
+            Val     = SubCell(:,2)
+            Key     = SubCell(:,1)
+            Comment = SubCell(:,3)
         end
         
         function mkeyVal(Obj,KeySynonym,Args)

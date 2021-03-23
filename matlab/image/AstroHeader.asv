@@ -27,17 +27,28 @@ classdef AstroHeader %< Component
 
     methods
         % Constructor    
-        function obj = AstroHeader(FileNames,HDU,Args)
+        function Obj = AstroHeader(FileNames,HDU,Args)
             % Construct AstroHeader object and populate it with headers
             % Input  : - Either a vector of the the size of the empty
             %            AstroHeader object (e.g., [2 2]).
             %            OR a file name with wild cards or regular
             %            expression from which multiple files will be
             %            searched.
-            %            OR a cell array of strings array
+            %            OR a cell array of strings array of file names.
+            %            Default is 1.
+            %          - The index of HDU from which to read the header.
+            %            This can be a vector or a scalar.
+            %            Default is 1.
+            %          * ...,key,val,...
+            %            'Method' - Files extraction method 'wild' |
+            %                   'regexp'. See io.files.filelist.
+            % Output : - An AstroHeader object with populated headers.
+            % Author : Eran Ofek (Mar 20201)
+            % Example: 
+            
             arguments
                 FileNames      = 1;   % name or array size
-                HDU            = [];
+                HDU            = 1;
                 Args.Method    = 'wild';
             end
             
@@ -60,16 +71,21 @@ classdef AstroHeader %< Component
             end
             Obj = reshape(Obj,size(List));
             
+            Nhdu = numel(HDU);
             % read files
             for Ih=1:1:Nh
                 if ~isempty(Obj(Ih).File)
-                    Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File);
+                    Ihdu = min(Ih,Nhdu);
+                    Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File,HDU(Ihdu));
                 end
             end
                
         end
     end
     
+    methods % setters/getters
+        function St=Key(
+    end
     
     
     methods % read/write
@@ -144,6 +160,7 @@ classdef AstroHeader %< Component
             %
             
             arguments
+                Obj
                 KeySynonym char               = '';
                 Args.CaseSens(1,1) logical    = true;
                 Args.SearchType char {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp';
@@ -161,10 +178,11 @@ classdef AstroHeader %< Component
             
         end
         
-        function mkeyVal(Obj,KeySynomym,Args)
+        function mkeyVal(Obj,KeySynonym,Args)
             %
             
             arguments
+                Obj
                 KeySynonym  {mustBeA(KeySynonym,{'char','cell'})}  = '';
                 Args.CaseSens(1,1) logical    = true;
                 Args.NotExist char  {mustBeMember(Args.NotExist,{'NaN','fail'})} = 'NaN';
@@ -179,6 +197,7 @@ classdef AstroHeader %< Component
             %
            
             arguments
+                Obj
                 KeySynonym  {mustBeA(KeySynonym,{'char','cell'})}  = '';
                 Args.CaseSens(1,1) logical    = true;
                 Args.UseDict(1,1) logical     = true;
@@ -191,7 +210,7 @@ classdef AstroHeader %< Component
             
             arguments
                 Obj
-                KeyValComment  {mustBeA(KeySynonym,{'char','cell'})}  = '';
+                KeyValComment  {mustBeA(KeyValComment,{'char','cell'})}  = '';
                 Args.Pos(1,1) double {mustBePositive(Args.Pos)}       = Inf;
             end
         
@@ -202,10 +221,10 @@ classdef AstroHeader %< Component
             %
             arguments
                 Obj
-                Key    {mustBeA(Args.Key,{'char','cell'})} = '';
+                Key    {mustBeA(Key,{'char','cell'})} = '';
                 NewVal                                     = ''; 
-                NewComment                                 = '';
-                NotExist char {mustBeMemeber(Args.NotExist,{'add','fail'})} = 'add'; 
+                Args.NewComment                            = '';
+                Args.NotExist char {mustBeMemeber(Args.NotExist,{'add','fail'})} = 'add'; 
             end
         end
         
@@ -224,10 +243,10 @@ classdef AstroHeader %< Component
             %
             arguments
                 Obj
-                Key    {mustBeA(Args.Key,{'char','cell'})} = '';
+                Key    {mustBeA(Key,{'char','cell'})} = '';
                 Val                                        = [];
-                LogicalOperator char {mustBeMemeber(Args.NotExist,{'and','or'})} = 'and'; 
-                CaseSens(1,1) logical                      = true;
+                Args.LogicalOperator char {mustBeMemeber(Args.LogicalOperator,{'and','or'})} = 'and'; 
+                Args.CaseSens(1,1) logical                      = true;
             end
         
         end
@@ -247,7 +266,16 @@ classdef AstroHeader %< Component
     
     % Unit test
     methods(Static)
-        function result = uTest()
+        function Result = unitTest()
+            %
+            
+            % construct an empty AstroHeader
+            A=AstroHeader([2 2]);
+            % read headers to AstroHeader, on construction
+            A=AstroHeader('*.fits',1);
+            
+            
+            
             fprintf("Started\n");
             conf = Config("c:/temp/conf.txt")
             val = conf.getValue("key1");
