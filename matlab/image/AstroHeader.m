@@ -202,10 +202,10 @@ classdef AstroHeader < handle %< Component
             end
             
             % I need the dictionary in order to continue
-            [SubCell,FlagExist,IndFound,IndKey] = imUtil.headerCell.getVal(Obj.Data,KeySynonym)
-            Val     = SubCell(:,2)
-            Key     = SubCell(:,1)
-            Comment = SubCell(:,3)
+%             [SubCell,FlagExist,IndFound,IndKey] = imUtil.headerCell.getVal(Obj.Data,KeySynonym)
+%             Val     = SubCell(:,2)
+%             Key     = SubCell(:,1)
+%             Comment = SubCell(:,3)
         end
         
         function mkeyVal(Obj,KeySynonym,Args)
