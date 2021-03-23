@@ -1,4 +1,4 @@
-function [M1,M2,Aper]=moment2(Image,X,Y,varargin)
+function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 % Calculate 1st, 2nd moments and (weighted) aperture photometry 
 % Package: @imUtil.image
 % Description: Given a 2D image, or a 3D cube of image stamps, and X, Y
@@ -96,41 +96,40 @@ function [M1,M2,Aper]=moment2(Image,X,Y,varargin)
 %          [M1,M2,Aper]=imUtil.image.moment2(Matrix,16,16)
 %          [M1,M2,Aper]=imUtil.image.moment2(Matrix,16,16,'WeightFun',@(r) 1)
 
+arguments
+    Image             {mustBeNumeric(Image)}
+    X                 {mustBeNumeric(X)}
+    Y                 {mustBeNumeric(Y)}
+    Args.AperRadius   {mustBeNumeric(Args.AperRadius)} = [2 4 6];
+    Args.Annulus      {mustBeNumeric(Args.Annulus)}    = [8 12];
+    Args.BackFun                                       = @nanmedian
+    Args.MomRadius    {mustBeNumeric(Args.MomRadius)}  = 8;    % recomended ~1.7 FWHM
+    Args.WeightFun                                     = 2;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
+    Args.Circle(1,1) logical                           = false;
+    Args.MaxIter      {mustBeNumeric(Args.MaxIter)}    = 10;
+    Args.NoWeightFirstIter(1,1) logical                = true; 
+    Args.PosConvergence                                = 1e-4;
+    Args.DynamicWindow(1,1) logical                    = true;
+    Args.WindowOnlyOnLastIter(1,1) logical             = false;
+    Args.FinalIterWithCorrectWin(1,1) logical          = true;
+    Args.mexCutout(1,1) logical                        = true;
+end
 
 
-InPar = inputParser;
-
-addOptional(InPar,'AperRadius',[2 4 6]);
-addOptional(InPar,'Annulus',[8 12]);
-addOptional(InPar,'BackFun',@nanmedian);
-addOptional(InPar,'MomRadius',8);  % recomended ~1.7 FWHM
-addOptional(InPar,'WeightFun',2);  % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
-addOptional(InPar,'Circle',false);
-addOptional(InPar,'MaxIter',10);
-addOptional(InPar,'NoWeightFirstIter',true);
-addOptional(InPar,'PosConvergence',1e-4);
-addOptional(InPar,'DynamicWindow',true);
-addOptional(InPar,'WindowOnlyOnLastIter',false);
-addOptional(InPar,'FinalIterWithCorrectWin',true);
-addOptional(InPar,'mexCutout',true);
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-MaxRadius  = max(InPar.MomRadius, InPar.Annulus(2));   % need to be larger than all the rest
-Naper      = numel(InPar.AperRadius);
+MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than all the rest
+Naper      = numel(Args.AperRadius);
 
 
 NdimImage = ndims(Image);
 if NdimImage==2
     % Image is 2D - build a cube of 2D stamps
-    if InPar.mexCutout
+    if Args.mexCutout
         [Cube]=imUtil.image.mexCutout(Image,[X,Y],MaxRadius.*2+1);
         Cube  = squeeze(Cube);
         RoundX = round(X);
         RoundY = round(Y);
     else
-        [Cube,RoundX,RoundY]=imUtil.image.find_within_radius_mat(Image,X,Y,MaxRadius,InPar.Circle);
+        [Cube,RoundX,RoundY]=imUtil.image.find_within_radius_mat(Image,X,Y,MaxRadius,Args.Circle);
     end
     
     
@@ -152,19 +151,19 @@ Vec = (1:1:SizeCube(1)) - SizeCube(1).*0.5 - 0.5;
 MatR        = sqrt(MatX.^2 + MatY.^2);
 
 % apply Gaussian weight
-if isa(InPar.WeightFun,'function_handle')
+if isa(Args.WeightFun,'function_handle')
     % WeightFun is a function handle
-    W = InPar.WeightFun(MatR.^2);
-elseif isnumeric(InPar.WeightFun)
+    W = Args.WeightFun(MatR.^2);
+elseif isnumeric(Args.WeightFun)
     % WeightFun is assumed to be the sigma of a Gaussian
-    W   = exp(-0.5.*(MatR./InPar.WeightFun).^2)./(2.*pi.*InPar.WeightFun.^2);
+    W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
     %W         = GaussFun(MatR,WeightFun);   % exp(-MatR.^2./(2.*WeightFun));
 else
     error('WeightFun must be a function handle or a numeric scalar');
 end
 % construct a window with maximal radiu
 W_Max = ones(size(MatR));
-W_Max(MatR>InPar.MomRadius) = 0;
+W_Max(MatR>Args.MomRadius) = 0;
 
 Nsrc = numel(X);
 
@@ -173,7 +172,7 @@ Nsrc = numel(X);
 %M1.Y = RoundY + squeeze(nansum(W.*Cube.*MatY,[1 2]))./squeeze(nansum(W.*Cube,[1 2]));
 
 % 1st moment
-if InPar.NoWeightFirstIter
+if Args.NoWeightFirstIter
     % no weight function on 1st iteration
     % this is good for much faster convergene
     WInt = W_Max.*Cube;
@@ -193,7 +192,7 @@ M1.RoundY = RoundY;
 M1.DeltaLastX = RelX1;
 M1.DeltaLastY = RelY1;
 Iter = 0;
-while Iter<InPar.MaxIter && any(abs(M1.DeltaLastX)>InPar.PosConvergence) && any(abs(M1.DeltaLastY)>InPar.PosConvergence)
+while Iter<Args.MaxIter && any(abs(M1.DeltaLastX)>Args.PosConvergence) && any(abs(M1.DeltaLastY)>Args.PosConvergence)
     Iter = Iter + 1;
     % the MatX/MatY cube - shifted to the first moment position
     MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
@@ -202,13 +201,13 @@ while Iter<InPar.MaxIter && any(abs(M1.DeltaLastX)>InPar.PosConvergence) && any(
     MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
 
     % apply Gaussian weight to the new centeral matrix
-    if ~InPar.WindowOnlyOnLastIter
-        if isa(InPar.WeightFun,'function_handle')
+    if ~Args.WindowOnlyOnLastIter
+        if isa(Args.WeightFun,'function_handle')
             % WeightFun is a function handle
-            W = InPar.WeightFun(MatR.^2);
-        elseif isnumeric(InPar.WeightFun)
+            W = Args.WeightFun(MatR.^2);
+        elseif isnumeric(Args.WeightFun)
             % WeightFun is assumed to be the sigma of a Gaussian
-            if InPar.DynamicWindow
+            if Args.DynamicWindow
                 % tested a few options of dynamic windowing:
                 %Factor = sqrt(sqrt(abs(M1.DeltaLastX)./PosConvergence).*sqrt(abs(M1.DeltaLastY)./PosConvergence));
                 %Factor = log10( abs(M1.DeltaLastX)./PosConvergence.* abs(M1.DeltaLastY)./PosConvergence ) + 1;
@@ -216,7 +215,7 @@ while Iter<InPar.MaxIter && any(abs(M1.DeltaLastX)>InPar.PosConvergence) && any(
             else
                 Factor = 1;
             end
-            W   = exp(-0.5.*(MatR./(InPar.WeightFun.*Factor)).^2)./(2.*pi.*(InPar.WeightFun.*Factor).^2);
+            W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
             %W         = GaussFun(MatR,WeightFun.*Factor);
             %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
         else
@@ -226,7 +225,7 @@ while Iter<InPar.MaxIter && any(abs(M1.DeltaLastX)>InPar.PosConvergence) && any(
 
     % construct a window with maximal radius
     W_Max = ones(size(MatR));
-    W_Max(MatR>InPar.MomRadius) = 0;
+    W_Max(MatR>Args.MomRadius) = 0;
 
 
     WInt = W.*W_Max.*Cube; % Weighted intensity
@@ -242,7 +241,7 @@ while Iter<InPar.MaxIter && any(abs(M1.DeltaLastX)>InPar.PosConvergence) && any(
 end
 
 % final iteration with the correct window
-if InPar.FinalIterWithCorrectWin
+if Args.FinalIterWithCorrectWin
     Iter = Iter + 1;
     % the MatX/MatY cube - shifted to the first moment position
     MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
@@ -251,12 +250,12 @@ if InPar.FinalIterWithCorrectWin
     MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
 
     % apply Gaussian weight to the new centeral matrix
-    if isa(InPar.WeightFun,'function_handle')
+    if isa(Args.WeightFun,'function_handle')
         % WeightFun is a function handle
-        W = InPar.WeightFun(MatR.^2);
-    elseif isnumeric(InPar.WeightFun)
+        W = Args.WeightFun(MatR.^2);
+    elseif isnumeric(Args.WeightFun)
         %Factor = 1;
-        W   = exp(-0.5.*(MatR./InPar.WeightFun).^2)./(2.*pi.*InPar.WeightFun.^2);
+        W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
         %W         = GaussFun(MatR,WeightFun);
         %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
     else
@@ -264,7 +263,7 @@ if InPar.FinalIterWithCorrectWin
     end
     % construct a window with maximal radiu
     W_Max = ones(size(MatR));
-    W_Max(MatR>InPar.MomRadius) = 0;
+    W_Max(MatR>Args.MomRadius) = 0;
 
 
     WInt = W.*W_Max.*Cube; % Weighted intensity
@@ -297,14 +296,14 @@ if nargout>1
     
     if nargout>2
         % aperture photometry
-        Aper.AperRadius = InPar.AperRadius;
+        Aper.AperRadius = Args.AperRadius;
 
         % simple aperture photometry in centered pixeleted aperure
         Aper.AperPhot = zeros(Nsrc,Naper);
         Aper.AperArea = zeros(Nsrc,Naper);
         for Iaper=1:1:Naper
             AperFilter = ones(size(MatR));
-            AperFilter(MatR>InPar.AperRadius(Iaper)) = 0;
+            AperFilter(MatR>Args.AperRadius(Iaper)) = 0;
             Aper.AperPhot(:,Iaper) = sum(Cube.*AperFilter,[1 2]);
             Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
         end
@@ -315,10 +314,10 @@ if nargout>1
 
         % Annulus background
         BackFilter = nan(size(MatR));
-        BackFilter(MatR>InPar.Annulus(1) & MatR<InPar.Annulus(2)) = 1;
+        BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
         BackCube = BackFilter.*Cube;
         % note - use NaN ignoring functions!
-        Aper.AnnulusBack = squeeze(InPar.BackFun(BackCube,[1 2]));
+        Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,[1 2]));
         Aper.AnnulusStd  = squeeze(nanstd(BackCube,0,[1 2]));
 
         % weighted aperture photometry
