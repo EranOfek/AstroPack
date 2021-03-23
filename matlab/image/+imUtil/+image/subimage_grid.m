@@ -1,4 +1,4 @@
-function [CCDSEC,unCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,varargin)
+function [CCDSEC,unCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 % Partition image size into a grid of sub images
 % Package: mUtil.image
 % Description: Given the size of a two dimensional array (e.g., image), and
@@ -27,34 +27,32 @@ function [CCDSEC,unCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,varargin
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+arguments
+    SizeXY
+    Args.SubSizeXY(1,2) {mustBeNumeric(Args.SubSizeXY)}  = [128 128];
+    Args.Nxy                                             = [];
+    Args.OverlapXY(1,2) {mustBeNumeric(Args.OverlapXY)}  = [32  32];
+end
 
-InPar = inputParser;
 
-addOptional(InPar,'SubSizeXY',[128 128]);
-addOptional(InPar,'Nxy',[]);
-addOptional(InPar,'OverlapXY',[32 32]);
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-if isempty(InPar.Nxy)
+if isempty(Args.Nxy)
     % use SubSizeXY
-    Nxy = round(SizeXY./InPar.SubSizeXY);
+    Nxy = round(SizeXY./Args.SubSizeXY);
     SubSizeXY = SizeXY./Nxy;
 else
     % use Nxy
-    Nxy = InPar.Nxy;
-    SubSizeXY = SizeXY./InPar.Nxy;
+    Nxy = Args.Nxy;
+    SubSizeXY = SizeXY./Args.Nxy;
     
 end
 
 VecX   = (0:SubSizeXY(1):SizeXY(1));
-VecXup = floor([VecX(2:end-1)+InPar.OverlapXY(1), VecX(end)]);
-VecXlow = floor([1, VecX(2:end-1)-InPar.OverlapXY(1)]);
+VecXup = floor([VecX(2:end-1)+Args.OverlapXY(1), VecX(end)]);
+VecXlow = floor([1, VecX(2:end-1)-Args.OverlapXY(1)]);
 
 VecY   = (0:SubSizeXY(2):SizeXY(2));
-VecYup = floor([VecY(2:end-1)+InPar.OverlapXY(2), VecY(end)]);
-VecYlow = floor([1, VecY(2:end-1)-InPar.OverlapXY(2)]);
+VecYup = floor([VecY(2:end-1)+Args.OverlapXY(2), VecY(end)]);
+VecYlow = floor([1, VecY(2:end-1)-Args.OverlapXY(2)]);
 
 if all(VecXup==0)
     VecXup = SizeXY(1);

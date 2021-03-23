@@ -1,9 +1,12 @@
-function [SubImage,CCDSEC,Center,NooverlapCCDSEC]=partition_subimage(Image,CCDSEC,varargin)
+function [SubImage,CCDSEC,Center,NooverlapCCDSEC]=partition_subimage(Image,CCDSEC,Args)
 % Partition image into sub images
 % Package: mUtil.image
 % Description: Partition image into sub images defined either by a CCDSEC
 %              matrix, or by imUtil.image.subimage_grid function.
 % Input  : - Image.
+%          - A 4 column matrix of CCDSEC by which to partition the image.
+%            Line per sub image. If empty, will use imUtil.image.subimage_grid
+%            Default is empty.
 %          * Arbitrary number of pairs of input arguments ...,key,val,...
 %            The following keywords are available:
 %            'Output' - Output type {['cell'] | 'struct'}
@@ -26,25 +29,20 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC]=partition_subimage(Image,CCDSE
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: [SubImage,CCDSEC,Center]=imUtil.image.partition_subimage(rand(256,256),[],'SubSizeXY',[64 64],'OverlapXY',[10 10],'Output','struct');
 %          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC)
-%          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC,'Output','struct');
 %          cellfun(@(x) std(x(:)),SubImage,'UniformOutput',false)  % calculate std for each sub image
+%          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC,'Output','struct');
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<2
-    CCDSEC = [];
+arguments
+    Image                {mustBeNumeric(Image)}
+    CCDSEC                                                = [];
+    Args.Output                                           = 'cell';  % 'cell' | 'struct'
+    Args.SubSizeXY(1,2)  {mustBeNumeric(Args.SubSizeXY)}  = [128 128];
+    Args.Nxy                                              = [];
+    Args.OverlapXY       {mustBeNumeric(Args.OverlapXY)}  = [32 32];
+    Args.FieldName                                        = 'Im';
 end
-
-InPar = inputParser;
-
-addOptional(InPar,'Output','cell');  % 'cell' | 'struct'
-addOptional(InPar,'FieldName','Im');  % 
-addOptional(InPar,'SubSizeXY',[128 128]);
-addOptional(InPar,'Nxy',[]);
-addOptional(InPar,'OverlapXY',[32 32]);
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
 
 SizeXY = fliplr(size(Image));
 
@@ -52,9 +50,9 @@ NooverlapCCDSEC = [];
 if isempty(CCDSEC)
     % partition image using subimage_grid
     [CCDSEC,NooverlapCCDSEC,Center,Nxy]=imUtil.image.subimage_grid(SizeXY,...
-                                                            'SubSizeXY',InPar.SubSizeXY,...
-                                                            'Nxy',InPar.Nxy,...
-                                                            'OverlapXY',InPar.OverlapXY);
+                                                            'SubSizeXY',Args.SubSizeXY,...
+                                                            'Nxy',Args.Nxy,...
+                                                            'OverlapXY',Args.OverlapXY);
 end
 
 
@@ -69,7 +67,7 @@ for Isub=1:1:Nsub
         error('CCDSEC must contain integer values');
     end
     
-    switch lower(InPar.Output)
+    switch lower(Args.Output)
         case 'cell'
             if (Isub==1)
                 SubImage = cell(Nsub,1);
@@ -77,9 +75,9 @@ for Isub=1:1:Nsub
             SubImage{Isub} = Image(CCDSEC(Isub,3):CCDSEC(Isub,4),CCDSEC(Isub,1):CCDSEC(Isub,2));
         case 'struct'
             if (Isub==1)
-                SubImage = struct(InPar.FieldName,cell(Nsub,1));
+                SubImage = struct(Args.FieldName,cell(Nsub,1));
             end
-            SubImage(Isub).(InPar.FieldName) = Image(CCDSEC(Isub,3):CCDSEC(Isub,4),CCDSEC(Isub,1):CCDSEC(Isub,2));
+            SubImage(Isub).(Args.FieldName) = Image(CCDSEC(Isub,3):CCDSEC(Isub,4),CCDSEC(Isub,1):CCDSEC(Isub,2));
         otherwise
             error('Unknown Output option');
     end

@@ -1,4 +1,4 @@
-function [FullImage]=subimage2image(SubImage,CCDSEC,varargin)
+function [FullImage]=subimage2image(SubImage,CCDSEC,Args)
 % construct the full image from sub-images
 % Package: mUtil.image
 % Input  : - A cell array of images, or a structure array of images (for
@@ -34,30 +34,25 @@ function [FullImage]=subimage2image(SubImage,CCDSEC,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<2
-    CCDSEC = [];
+arguments
+    SubImage
+    CCDSEC                                 = [];
+    Args.StitchMethod                      = 'IgnoreOverlap';  % 'MeanOverlap' | 'IgnoreOverlap'
+    Args.FieldName                         = 'Im';
 end
 
-InPar = inputParser;
-
-addOptional(InPar,'FieldName','Im');  % 'Back' | 'Var' | ...
-addOptional(InPar,'StitchMethod','IgnoreOverlap');  % 'MeanOverlap' | 'IgnoreOverlap'
-
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
 
 Nsub = numel(SubImage);
 FullCCDSEC = [min(CCDSEC(:,1)), max(CCDSEC(:,2)), min(CCDSEC(:,3)), max(CCDSEC(:,4))];
 
-switch lower(InPar.StitchMethod)
+switch lower(Args.StitchMethod)
     case 'meanoverlap'
         FullCube  = nan(FullCCDSEC(4), FullCCDSEC(2), Nsub);
         for Isub=1:1:Nsub
             if iscell(SubImage)
                 SubI = SubImage{Isub};
             else
-                SubI = SubImage(Isub).(InPar.FieldName);
+                SubI = SubImage(Isub).(Args.FieldName);
             end
             FullCube( CCDSEC(Isub,3):CCDSEC(Isub,4), CCDSEC(Isub,1):CCDSEC(Isub,2), Isub ) = SubI;
 
@@ -70,7 +65,7 @@ switch lower(InPar.StitchMethod)
             if iscell(SubImage)
                 SubI = SubImage{Isub};
             else
-                SubI = SubImage(Isub).(InPar.FieldName);
+                SubI = SubImage(Isub).(Args.FieldName);
             end
             FullImage( CCDSEC(Isub,3):CCDSEC(Isub,4), CCDSEC(Isub,1):CCDSEC(Isub,2) ) = SubI;
 
