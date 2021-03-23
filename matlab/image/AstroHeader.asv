@@ -5,7 +5,7 @@
 % Description:
 %--------------------------------------------------------------------------
 
-classdef Header < Component
+classdef AstroHeader %< Component
     % Properties
     properties (SetAccess = public)
         Data(:,3) cell            = cell(0,3);
@@ -27,9 +27,50 @@ classdef Header < Component
 
     methods
         % Constructor    
-        function obj = Header()
+        function obj = AstroHeader(FileNames,HDU,Args)
+            % Construct AstroHeader object and populate it with headers
+            % Input  : - Either a vector of the the size of the empty
+            %            AstroHeader object (e.g., [2 2]).
+            %            OR a file name with wild cards or regular
+            %            expression from which multiple files will be
+            %            searched.
+            %            OR a cell array of strings array
+            arguments
+                FileNames      = 1;   % name or array size
+                HDU            = [];
+                Args.Method    = 'wild';
+            end
+            
+            if isnumeric(FileNames)
+                % create an empty AstroHeader object
+                List = cell(FileNames);
+                
+            elseif iscell(FileNames) || isstring(FileNames)
+                % User provided a list of file names
+                List = FileNames;
+            else
+                % read file names
+                List = io.files.filelist(FileNames,Args.Method);
+            end
+            
+                
+            Nh = numel(List);
+            for Ih=1:1:Nh
+                Obj(Ih).File = List{Ih};
+            end
+            Obj = reshape(Obj,size(List));
+            
+            % read files
+            for Ih=1:1:Nh
+                if ~isempty(Obj(Ih).File)
+                    Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File);
+                end
+            end
+               
         end
     end
+    
+    
     
     methods % read/write
         function Obj=read(Obj,Args)

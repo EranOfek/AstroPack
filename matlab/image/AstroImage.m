@@ -46,12 +46,12 @@ classdef AstroImage < Component
 
     end
     
- 
+
     
     % Setters/Getters
     methods
         function Obj = set.Image(Obj, Data)
-            Obj.BImage.setData(Data); %#ok<MCSUP>
+            Obj.BImage.setData(Data);
         end
         
         function Data = get.Image(Obj)

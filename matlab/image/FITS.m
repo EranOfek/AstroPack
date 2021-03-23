@@ -71,7 +71,7 @@ classdef FITS < handle
             matlab.io.fits.closeFile(Fptr);
         end
         
-        function [HeadCell,Nhdu] = readHead1(FileName,HDUnum)
+        function [HeadCell,Nhdu] = readHeader1(FileName,HDUnum)
             % Read a single header from a FITS file (Static)
             % A static function of FITS class
             % Input  : - FITS file name
@@ -80,7 +80,7 @@ classdef FITS < handle
             %            [Key, Value, Comment]
             %          - Number of HDUs in FITS file
             % Author : Eran Ofek
-            % Example: [HeadCell,Nhdu] = FITS.readHead1(FileName,HDUnum)
+            % Example: [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum)
             
             arguments
                 FileName char
@@ -200,7 +200,7 @@ classdef FITS < handle
             end
             if nargout>1
                 % read header
-                [HeadCell,Nhdu] = FITS.readHead1(FileName,HDUnum);
+                [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
             end
 
             matlab.io.fits.closeFile(Fptr);
@@ -324,7 +324,7 @@ classdef FITS < handle
                      
             Ifile = 1;
             % get header
-            HeadCell    = FITS.readHead1(ListTableName{1},Args.HDUnum);
+            HeadCell    = FITS.readHeader1(ListTableName{1},Args.HDUnum);
 
             % identify table type
             switch lower(Args.TableType)
@@ -882,7 +882,7 @@ classdef FITS < handle
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 if ~isempty(Obj(Iobj).File)
-                    [HeadCell,Nhdu] = FITS.readHead1(Obj(Iobj).File,HDUnum);
+                    [HeadCell,Nhdu] = FITS.readHeader1(Obj(Iobj).File,HDUnum);
                     Obj(Iobj).Header = HeadCell;
                 end
             end
@@ -1042,7 +1042,7 @@ classdef FITS < handle
             
             % test static functions
             Nh1=FITS.numHDU1(F(1).File)
-            FITS.readHead1(F(1).File)
+            FITS.readHeader1(F(1).File)
             [Im,H,Nh2]=FITS.read1(F(1).File);
             if Nh1~=Nh2
                 error('unitTest for FITS class failed - number of HDus not consistent');
