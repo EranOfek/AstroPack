@@ -1,4 +1,4 @@
-function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,varargin)
+function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 % Calculate the sigma-clipped mean of a dataset
 % Package: imUtil.image
 % Description: Calculate the sigma-clipped mean of a dataset with
@@ -43,22 +43,18 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<2
-    Dim = ndims(Data);
+arguments
+    Data
+    Dim                              = [];
+    Args.MeanFun                     = @nanmean;
+    Args.StdFun                      = 'rstd';
+    Args.Nsigma(1,2)                 = [5 5];
+    Args.MaxIter(1,1)                = 3;
 end
 
-InPar = inputParser;
-
-addOptional(InPar,'MeanFun',@nanmean);  
-addOptional(InPar,'StdFun','rstd');   % std | rstd  
-addOptional(InPar,'Nsigma',[5 5]);
-addOptional(InPar,'MaxIter',3);
-
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-
+if isempty(Dim)
+    Dim = ndims(Data);
+end
 
 
 % if Niter=0, will calculate mean without sigma clipping
@@ -67,13 +63,13 @@ FlagGood = true(size(Data));
 Ngood    = numel(Data);
 NrejectNew = Inf;
 Nreject    = Inf;
-while Iter<=InPar.MaxIter && NrejectNew~=0
+while Iter<=Args.MaxIter && NrejectNew~=0
     if Iter==0
         FlagGood = true(size(Data));
         DataF = Data;
     else
         Zstat = (DataF - Mean)./Std;
-        FlagGood = Zstat>(-abs(InPar.Nsigma(1))) & Zstat<InPar.Nsigma(2);
+        FlagGood = Zstat>(-abs(Args.Nsigma(1))) & Zstat<Args.Nsigma(2);
         DataF(~FlagGood) = NaN;
     end
     % total number of rejected data points
@@ -83,8 +79,8 @@ while Iter<=InPar.MaxIter && NrejectNew~=0
     
     Iter = Iter + 1;
     
-    Mean = InPar.MeanFun(DataF,Dim);
-    switch lower(InPar.StdFun)
+    Mean = Args.MeanFun(DataF,Dim);
+    switch lower(Args.StdFun)
         case 'std'
             Std  = nanstd(DataF,[],Dim);
         case 'rstd'
