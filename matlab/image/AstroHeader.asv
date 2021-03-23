@@ -190,7 +190,7 @@ classdef AstroHeader < handle %< Component
     methods 
         function [Val,Key,Comment]=keyVal(Obj,KeySynonym,Args)
             %
-            % 
+            
             
             arguments
                 Obj
