@@ -642,6 +642,170 @@ classdef FITS < handle
             end
 
         end
+        
+        function Flag=write(Image,FileName,Args)
+            % Write or append an image into FITS file.
+            % Static function
+            %     The image may have N-dimensions.
+            %     Append will write multi extension FITS image.
+            % Input  : - Array to save as FITS image.
+            %          - FITS file name to save.
+            %          * Arbitrary number of ...,key,val,... pairs.
+            %            Following keywords are available:
+            %            'Header' - Cell array of {key,val,comment} header
+            %                       or an HEAD object to write into the
+            %                       FITS file.
+            %            'DataType' - Data type - default is 'single'
+            %                       precision.
+            %            'Append' - Append image as a multi extension to an
+            %                       existing FITS file. Default is false.
+            %            'OverWrite'- Overwrite an existing image. Default
+            %                       is false.
+            %            'WriteTime'- Add creation time to image header.
+            %                       Default is false.
+            % Example: Flag=FITS.write(rand(100,100),'Try.fits');
+            %          Flag=FITS.write(rand(10,10,3),'Try.fits');
+            %
+            
+            arguments
+                Image
+                FileName
+                Args.Header cell              = {};
+                Args.DataType                 = 'single';
+                Args.Append(1,1) logical      = false;
+                Args.OverWrite(1,1) logical   = false;
+                Args.WriteTime(1,1) logical   = false;
+            end
+            
+            HeaderField = HEAD.HeaderField;
+            
+%             DefV.Header             = [];
+%             DefV.DataType           = -32;
+%             DefV.Append             = false;  % true for multi extension
+%             DefV.OverWrite          = false;
+%             DefV.WriteTime          = false;
+%             InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+
+            % Set FITS DataType
+            switch Args.DataType
+                 case {'int8',8}
+                    DataType = 'uint8';
+                 case {'uint16','int16',16}
+                     % apparently uint16 is not supported?! in 2017b
+                    DataType = 'int16';
+                 case {'uint32','int32',32}
+                     % apparently uint16 is not supported?! in 2017b
+                    DataType = 'int32';
+                 case {'int64',64}
+                    DataType = 'int64';
+                 case {'single','float32',-32}
+                    DataType = 'single';
+                 case {'double','float64',-64}
+                    DataType = 'double';
+                 otherwise
+                    error('Unknown DataType option');
+            end
+            
+            % Overwrite existing FITS file
+            if (Args.OverWrite)
+                % delete existing FileName if exist
+                if (exist(FileName,'file')~=0)
+                    delete(FileName);
+                end
+            end
+            
+            % Prepare header
+            if (HEAD.ishead(Args.Header))
+                % already HEAD object
+                Header = Args.Header;
+            else
+                % convert to HEAD object
+                Header = HEAD;
+                Header.(HeaderField) = Args.Header;
+            end
+            %--- Set the FITS "mandatory" keywords ---
+            %--- add BSCALE and BZERO ---
+            % check if BZERO and BSCALE are already in HeaderInfo 
+            Header = replace_key(Header,'BZERO',   single(0),  'offset data range to that of unsigned short',...
+                                        'BSCALE',  single(1),  'default scaling factor');
+                               
+            %--- Write creation date to header ---
+            if (Args.WriteTime)
+                Time = celestial.time.get_atime([],0,0); % Na'ama, 20180516
+                %Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file',...
+                %                            'COMMENT', '',      'File Created by MATLAB FITS.write.m written by E. Ofek');
+                Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file',...
+                                            'COMMENT', 'File Created by MATLAB FITS.write.m written by E. Ofek', ''); % Na'ama, 20180518
+                                        
+            end
+            Nline = size(Header.(HeaderField),1);
+
+            import matlab.io.*
+            if (Args.Append)
+                % append to existing FITS file
+                Fptr = fits.openFile(FileName,'READWRITE');
+            else
+                % Create new FITS file
+                Fptr = fits.createFile(FileName);
+            end
+            
+            % create Image
+            fits.createImg(Fptr,DataType,size(Image));
+            % write Image
+            fits.writeImg(Fptr,Image); %,Fpixels);
+            
+            % write Header
+            for Inl=1:1:Nline
+                if (~isempty(Header.(HeaderField){Inl,1}))
+                    switch lower(Header.(HeaderField){Inl,1})
+                        case 'comment'
+                            fits.writeComment(Fptr,Header.(HeaderField){Inl,2});
+                        case 'history'
+                            fits.writeHistory(Fptr,Header.(HeaderField){Inl,2});
+                        case {'extname', 'xtension'} % Na'ama, 20180905
+                            % do nothing
+                        case {'simple','bitpix','naxis','naxis1','naxis2','naxis3','naxis4'}
+                            % do nothing - these keywords are written by
+                            % the FITS creator
+                         case {'bscale', 'bzero', 'datamax', 'datamin', 'epoch', 'equinox'} % Na'ama, 2018-06-06
+                            % convert to floating point, required by matlab.io.fits.writeKey
+                            if (ischar(Header.(HeaderField){Inl,2}))
+                                Header.(HeaderField){Inl,2} = double(eval(Header.(HeaderField){Inl,2}));
+                            end
+                            if (isempty(Header.(HeaderField){Inl,3}))
+                                Header.(HeaderField){Inl,3} = ' ';
+                            end
+                            fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
+                                               Header.(HeaderField){Inl,2},...
+                                               Header.(HeaderField){Inl,3});   
+                        case 'end'
+                            % do nothing
+                        otherwise
+                            if (isnan(Header.(HeaderField){Inl,2}))
+                                Header.(HeaderField){Inl,2} = ' ';
+                            end
+                            if (isempty(Header.(HeaderField){Inl,3}))
+                                Header.(HeaderField){Inl,3} = ' ';
+                            end
+%                             Header.(HeaderField){Inl,:}
+%                             string(Header.(HeaderField){Inl,3})
+%                             regexprep(Header.(HeaderField){Inl,3},'\W&\S','')
+                            % dela with non-standard keywords
+                            if isempty(Header.(HeaderField){Inl,2})
+                                Header.(HeaderField){Inl,2} = ' ';
+                            end
+                            fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
+                                               Header.(HeaderField){Inl,2},...
+                                               Header.(HeaderField){Inl,3});
+                    end
+                end
+            end
+            % Close FITS file
+            fits.closeFile(Fptr);
+            Flag = sign(Fptr);
+
+        end % end write
+        
     end
     
     methods
@@ -905,6 +1069,18 @@ classdef FITS < handle
             F = FITS('asu.fit',2);
             F.readTable
             
+            % read/write
+            A=rand(10,11);
+            File = 'tmpfile.fits';
+            FITS.write(A,File,'Header',{'a',1,'';'b',2',''});
+            [B,H]=FITS.read1(File);  
+            delete(File);
+            if max(abs(A(:)-B(:)))>1e-7
+                error('write and read files are not identical');
+            end
+            
+
+
         end
     end
     
