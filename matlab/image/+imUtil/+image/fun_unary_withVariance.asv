@@ -35,7 +35,7 @@ function [Result,ResultVar,FlagBad]=fun_unary_withVariance(Operator, Mat, Var, O
             case 'log'
                 ResultVar = Var./(Mat.^2);
             case 'log10'
-                ResultVar = Var./(log(10).*Mat.^2);
+                ResultVar = Var./((log(10).*Mat).^2);
             case 'sum'
                 if numel(Var)==1
                     ResultVar = numel(Mat).*Var;
@@ -51,6 +51,10 @@ function [Result,ResultVar,FlagBad]=fun_unary_withVariance(Operator, Mat, Var, O
             
             otherwise
                 error('Unknown unary operator option');
+                % attempt to use symbolic math
+                % FFU
+                % syms x
+                % eval(sprintf('diff(%s(x))', func2str(Operator)
         end
         FlagBad = isinf(Mat) | isnan(Mat) | isnan(Var);
     end

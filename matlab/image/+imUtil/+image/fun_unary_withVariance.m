@@ -51,6 +51,11 @@ function [Result,ResultVar,FlagBad]=fun_unary_withVariance(Operator, Mat, Var, O
             
             otherwise
                 error('Unknown unary operator option');
+                % attempt to use symbolic math
+                % FFU
+                % syms x
+                % eval(sprintf('diff(%s(x))', func2str(Operator)
+                % use subs
         end
         FlagBad = isinf(Mat) | isnan(Mat) | isnan(Var);
     end
