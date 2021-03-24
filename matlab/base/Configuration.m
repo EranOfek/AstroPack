@@ -5,34 +5,49 @@
 % Description:
 %--------------------------------------------------------------------------
 
-classdef Config < Base
+classdef Configuration < Base
+    
     % Properties
     properties (SetAccess = public)
-        FileName    % Must be single quoted (why?)
-        Yaml        
+        ConfigName      % Optional name for the entire configuration
+        Path            %
+        
+        % 
+        System ConfigurationFile
+        Pipeline ConfigurationFile
+        UnitTest ConfigurationFile
     end
     
     %-------------------------------------------------------- 
-    methods
-        % Constructor    
-        function Obj = Config() %FileName)
-            %if FileName ~= ""
-            %    Obj.load(FileName)
-            %end
+    methods % Constructor            
+        function Obj = Configuration()
         end
-        
-        % Read file to lines
-        function Result = load(Obj, FileName)
-            Obj.FileName = FileName;
-            disp("Config: Loading file: " + Obj.FileName);
-            Obj.Yaml = yaml.ReadYaml(Obj.FileName);
+    end
+
+    
+    methods % Main functions
+        %
+        function Result = load(Obj, Path)
+            Obj.Path = Path
+            Obj.ConfigName = '';
+            disp("Config: Loading file: " + Obj.Path);
+            
+            %
+            Obj.System.load(fullfile(Obj.Path, 'system.yml'));
+            Obj.Pipeline.load(fullfile(Obj.Path, 'pipeline.yml'));
+            Obj.UnitTest.load(fullfile(Obj.Path, 'unittest.yml'));
+            
             Result = true;
         end
         
         
         function reload(Obj)
-            load(Obj, Obj.FileName);
+            load(Obj, Obj.Path);
         end
+    end
+    
+    
+    methods % Helper functions
         
         % Replace macros in string with values from struct
         % Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc"
@@ -71,8 +86,9 @@ classdef Config < Base
     
     
    
-    methods(Static)
+    methods(Static) % Static functions
         
+        % Return singeton object
         function Result = getDefaultConfig()
             persistent Conf
             if isempty(Conf)
@@ -90,11 +106,12 @@ classdef Config < Base
             
             addpath("D:\Ultrasat\AstroPack.git\matlab\external");
 
-            FileName = 'D:\Ultrasat\AstroPack.git\config\pipeline.yml';
-            conf = Config(FileName);
+            Path = 'D:\Ultrasat\AstroPack.git\config';
+            conf = Configuration();
+            conf.load(Path);
             
             %
-            disp(conf.Yaml.UnitTest);
+            disp(conf.UnitTest.Yaml.UnitTest);
             
             %
             disp(conf.Yaml.UnitTest.Key1);

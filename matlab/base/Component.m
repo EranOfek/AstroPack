@@ -6,7 +6,7 @@
 classdef Component < Base
     % Properties
     properties (SetAccess = public)
-        Conf Config
+        Config Configuration
         Log LogFile
     end
     
