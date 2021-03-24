@@ -1,4 +1,4 @@
-# ULTRASAT Pipeline Configuration File
+# System Configuration File
 
 # Notes:
 #
@@ -19,25 +19,7 @@ EnvFolders:
     LOG: c:/pipeline/log
     TEMP: c:/pipeline/temp
     IAI: c:/iai
-    
-#==========================================================================
-#                                 Pipeline 
-#==========================================================================
-# Pipeline - General
-Pipeline:
-    LogPath: c:/iai/log
 
-
-#---------------------------------------------------------- DarkImage
-DarkImage:
-    ImageCount: 10    
-    InputFolder: $ROOT/DarkImage/Input/
-
-    # Valid ranges
-    ValidTimeSpanSeconds: [0, 3600]    
-    ValidTemperatureRange: [10, 90]
-    ValidExposureRangeSeconds: [30, 300]
-    
 #==========================================================================
 # Pipeline - IAI GCS Interface
 GcsInterface:
