@@ -124,6 +124,8 @@ classdef AstroCatalog < handle %ImageComponent
             % Input  : - A single element AstroCatalog object.
             %          - A column name, a cell array of column names or an
             %            array of column indices.
+            %            If empty, then return all columns.
+            %            Default is empty.
             %          - If the colun name is char or cell, and it doesn't
             %            exist, this is the fill value for the column
             %            index. If empty, will fail. Default is NaN.
@@ -134,43 +136,46 @@ classdef AstroCatalog < handle %ImageComponent
             
             arguments
                 Obj(1,1)
-                ColName
+                ColName        = [];
                 FillValue      = NaN;
             end
            
-            if isnumeric(ColName)
-                % assumes columns are already column index
-                ColInd = ColName;
-            elseif ischar(ColName)
-                ColInd = find(strcmp(Obj.ColCell, ColName));
-                Tmp = find(strcmp(Obj.ColCell, ColName));
-                if isempty(Tmp)
-                    if isempty(FillValue)
-                        error('Column %s not found',ColName);
-                    else
-                        ColInd = FillValue;
-                    end
-                else
-                    ColInd = Tmp;
-                end
-                
-            elseif iscell(ColName) || isstring(ColName)
-                Ncol   = numel(ColName);
-                ColInd = nan(1,Ncol);
-                for Icol=1:1:Ncol
-                    Tmp = find(strcmp(Obj.ColCell, ColName{Icol}));
+            if isempty(ColName)
+                ColInd = (1:1:numel(Obj.ColCell));
+            else
+                if isnumeric(ColName)
+                    % assumes columns are already column index
+                    ColInd = ColName;
+                elseif ischar(ColName)
+                    ColInd = find(strcmp(Obj.ColCell, ColName));
+                    Tmp = find(strcmp(Obj.ColCell, ColName));
                     if isempty(Tmp)
                         if isempty(FillValue)
-                            error('Column %s not found',ColName{Icol});
+                            error('Column %s not found',ColName);
                         else
-                            ColInd(Icol) = FillValue;
+                            ColInd = FillValue;
                         end
                     else
-                        ColInd(Icol) = Tmp;
+                        ColInd = Tmp;
+                    end
+
+                elseif iscell(ColName) || isstring(ColName)
+                    Ncol   = numel(ColName);
+                    ColInd = nan(1,Ncol);
+                    for Icol=1:1:Ncol
+                        Tmp = find(strcmp(Obj.ColCell, ColName{Icol}));
+                        if isempty(Tmp)
+                            if isempty(FillValue)
+                                error('Column %s not found',ColName{Icol});
+                            else
+                                ColInd(Icol) = FillValue;
+                            end
+                        else
+                            ColInd(Icol) = Tmp;
+                        end
                     end
                 end
             end
-            
         end
         
         function ColName = colind2name(Obj, ColInd)
@@ -263,11 +268,54 @@ classdef AstroCatalog < handle %ImageComponent
                 end
             end
         end
-        
-        function Result = fun_unary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
-            %
+                
+        function Result = fun_unary(Obj, Operator, OperatorArgs, Columns, UpdateObj)
+            % Apply an unary function to columns of a catalog
+            % Input  : - An AstroCatalog object.
+            %          - Unary operator handle (e.g., @sin).
+            %          - A cell array of additional arguments to pass to
+            %            the operator. Default is {}.
+            %          - List of columns names or indices on which to apply
+            %            the operator. If empty, apply to all columns.
+            %            Default is empty.
+            %          - A logical indicating if to update the object (in
+            %            addition to returning the output).
+            %            Default is false.
+            % Output : - The result (matrix or table).
+            % Author : Eran Ofek (Mar 2021)
+            % Example: AC=AstroCatalog; AC.Catalog = rand(100,3); AC.ColCell={'a','n','s'}; AC.fun_unary(@sin)
            
-            Nobj = numel(Obj)
+            arguments
+                Obj
+                Operator function_handle
+                OperatorArgs cell           = {};
+                Columns                     = [];
+                UpdateObj(1,1) logical      = false;
+            end
+            
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                %
+                ColInd = colname2ind(Obj(Iobj), Columns);  % If columns empty - return all columns
+                if istable(Obj(Iobj).Catalog)
+                    Ncol  = numel(ColInd);
+                    Nrows = size(Obj(Iobj).Catalog,1); 
+                    Result = nan(Nrows,Ncol);
+                    for Icol=1:1:Ncol
+                        ColName = Obj(Iobj).ColCell(ColInd(Icol));
+                        Result(:,Icol)  = Operator(Obj(Iobj).Catalog.(ColName), OperatorArgs{:});
+                        if UpdateObj
+                            Obj(Iobj).Catalog.(ColName) = Result(:,Icol);
+                        end
+                    end
+                else
+                    Result = Operator(Obj(Iobj).Catalog(:,ColInd), OperatorArgs{:});
+                    if UpdateObj
+                        Obj(Iobj).Catalog(:,ColInd) = Result;
+                    end
+                end
+            end
             
             
         end
