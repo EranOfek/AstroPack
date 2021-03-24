@@ -10,12 +10,12 @@
 
 % Component is in folder ../base/
 
-classdef BaseImage  
-    % < ImageComponent
+classdef BaseImage < ImageComponent
     
     properties (Hidden, SetAccess = public)
         Data                                   % e.g., Image matrix
-        Scale      {musBeNumeric(Scale)} = [];
+        Scale      {mustBeNumeric(Scale)} = [];
+        ScaleMethod                      = 'lanczos3';
         FileName char
         Dict BitDictionary                   % The dictionary of a bit mask image
         
@@ -85,7 +85,14 @@ classdef BaseImage
 
         function Result = get.Data(Obj)
             % getter for image data including scaling
-            Result = Obj.getData(NewData);
+            if isempty(Obj.Scale)
+                % return image as is - no scaling is required
+                Result = Obj.Data;
+            else
+                % scaling is required
+                Result = imresize(Obj.Data,Obj.Scale,'Method',Obj.ScaleMethod);
+            end
+                
         end
 
     end

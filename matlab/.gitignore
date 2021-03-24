@@ -1,1 +1,5 @@
+# File: matlab/.gitignore
 
+# Autosave files
+*.asv
+*/*.asv
