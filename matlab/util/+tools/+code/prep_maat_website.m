@@ -1,6 +1,6 @@
 function prep_maat_website(varargin)
 % Prepare the Matlab Astronomy & AStrophysics Toolbox website
-% Package: Util.code
+% Package: tools.code
 % Description: Prepare the Matlab Astronomy & AStrophysics Toolbox website
 % Input  : - 
 %          * Arbitrary number of pairs of arguments: ...,keyword,value,...
@@ -9,7 +9,7 @@ function prep_maat_website(varargin)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Apr 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Util.code.prep_maat_website
+% Example: tools.code.prep_maat_website
 % Reliable: 1
 %--------------------------------------------------------------------------
 
@@ -28,12 +28,12 @@ PWD = pwd;
 
 % read main html template file
 cd(InPar.WebPath);
-MainTemplateStr = Util.files.file2str(sprintf('%s',InPar.MainTemplateFile),'str');
+MainTemplateStr = tools.files.file2str(sprintf('%s',InPar.MainTemplateFile),'str');
 
 
 % prepare function list
 cd(InPar.FunPath);
-[List,TableCell]=Util.code.prep_function_list;
+[List,TableCell]=tools.code.prep_function_list;
 % convert date to YYYY-mm-DD
 DD=datestr(TableCell(:,4),'YYYY-mm-DD');
 for I=1:1:numel(List)
@@ -46,7 +46,7 @@ Header = {'Function Name','Package/Class','IsStatic','Last update','Brief descri
 www.html_table(InPar.FunTableName,'TableCell',TableCell,'TableStatment','class="sortable"','TableHead',Header);
 
 % add sortable javascript
-FileStr = Util.files.file2str(InPar.FunTableName,'str');
+FileStr = tools.files.file2str(InPar.FunTableName,'str');
 Comment = sprintf('<b>Table is sortable - click on column to sort.</b><br> IsStatic indicate if the function is a static class.<br> Number of functions: %d.<br> Last update: %s.<br>',numel(List),date);
 FileStr = sprintf('<script src="sorttable.js"></script>\n\n %s\n<br>\n %s',Comment,FileStr);
 FID = fopen(InPar.FunTableName,'w');
@@ -151,7 +151,7 @@ system(sprintf('mv %s %s',TarFilesData(Itar).FileNameGZ,InPar.WebPath));
 
 % startup.m
 system(sprintf('cp startup.m %s',InPar.WebPath));
-cd('fun/+Util/+code/');
+cd('fun/+tools/+code/');
 system(sprintf('cp install_maat.m %s',InPar.WebPath));
 
 % copy to kesem

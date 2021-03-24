@@ -1,6 +1,6 @@
 function [FunVal,FunErr,ErrExp,ErrVar]=symerror_calc(Fun,varargin)
 % Calculate and evaluate symbolic errors
-% Package: Util.symbolic
+% Package: tools.math.symbolic
 % Description: Given a symbolic expression, the names of the variables
 %              in the expression and the value of the variables and errors,
 %              calculate the symbolic error function and evaluate it.
@@ -38,7 +38,7 @@ for I=1:3:Narg-2
    %eval(sprintf('%s=varargin{I+1};',varargin{I}));
 end
 
-[ErrExp,ErrVar] = Util.symbolic.symerror(Fun,Var{:});
+[ErrExp,ErrVar] = tools.math.symbolic.symerror(Fun,Var{:});
 ErrExpChar = vectorize(char(ErrExp));
 
 VarInd = 0;

@@ -1,6 +1,6 @@
 function Mat=cell2mat_nan(Cell)
 % Convert numeric cell to matrix. Replace empty cells with NaNs.
-% Package: Util.cell
+% Package: tools.cell
 % Description: Convert a numeric only cell array to matrix. Replace
 %              empty cells by NaN.
 % Input  : - Cell array.
@@ -13,7 +13,7 @@ function Mat=cell2mat_nan(Cell)
 Size = size(Cell);
 Mat  = zeros(Size);
 
-Ie = find(Util.cell.isempty_cell(Cell)==1);
+Ie = find(tools.cell.isempty_cell(Cell)==1);
 for I=1:1:length(Ie)
    Cell{Ie(I)} = NaN;
 end

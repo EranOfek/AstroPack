@@ -52,9 +52,9 @@ SizeData = size(Data);
 N        = SizeData(1);
 Col      = SizeData(2);
 
-if (Col==2),
+if (Col==2)
    Data = [Data, NaN.*zeros(N,2)];
-elseif (Col==3),
+elseif (Col==3)
    Data = [Data, NaN.*zeros(N,1)];
 else
    % do nothing
@@ -79,19 +79,19 @@ Mstd    = zeros(Ny,Nx).*NaN;
 Ment    = zeros(Ny,Nx).*NaN;
 
 
-for I=1:1:Ny,
-   for J=1:1:Nx, 
+for I=1:1:Ny
+   for J=1:1:Nx
       K      = find( Data(:,ColX)>=(X(J)-0.5.*StepX) & Data(:,ColX)<(X(J)+0.5.*StepX) & Data(:,ColY)>=(Y(I)-0.5.*StepY) & Data(:,ColY)<(Y(I)+0.5.*StepY));
 
       Mn(I,J)        = length(K);
-      if (Mn(I,J)>MinPoints),
+      if (Mn(I,J)>MinPoints)
          Inonan         = find(isnan(Data(K,ColV))==0);
-         if (length(Inonan)>0),
+         if ~isempty(Inonan)
             Kn             = K(Inonan);
             Mnin(I,J)      = length(Inonan);
             Mmean(I,J)     = mean(Data(Kn,ColV));
             Mmedian(I,J)   = median(Data(Kn,ColV));
-            [WM,WE]        = Util.stat.wmean(Data(Kn,[ColV,ColE]));
+            [WM,WE]        = tools.math.stat.wmean(Data(Kn,[ColV,ColE]));
             if (isempty(WM))
                 Mwmean(I,J)    = NaN;
             else

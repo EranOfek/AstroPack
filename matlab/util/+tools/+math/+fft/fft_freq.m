@@ -1,6 +1,6 @@
 function FreqVec=fft_freq(N)
 % Return the frequencies corresponding to fftshift(fft(vec_of_size_N))
-% Package: Util.fft
+% Package: tools.math.fft
 % Description: Return the frequencies corresponding to
 %              fftshift(fft(vec_of_size_N)), without dviding by the total
 %              time span.
@@ -9,7 +9,7 @@ function FreqVec=fft_freq(N)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Feb 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: FreqVec=Util.fft.fft_freq(4)
+% Example: FreqVec=tools.math.fft.fft_freq(4)
 % Reliable: 2
 %--------------------------------------------------------------------------
 

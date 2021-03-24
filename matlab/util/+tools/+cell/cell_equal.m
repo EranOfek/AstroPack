@@ -17,7 +17,7 @@ function [IsEqual,IsEqualToFirst]=cell_equal(Cell,DelSpace)
 % Example: cell_equal({'A','A','A'}); cell_equal({1,'2','E'});
 % Reliable: 2
 %--------------------------------------------------------------------------
-import Util.string.*
+import tools.string.*
 
 if (nargin<2)
     DelSpace = true;

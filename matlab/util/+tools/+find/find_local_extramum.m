@@ -1,6 +1,6 @@
 function Extram=find_local_extramum(X,Y,Deg)
 % Use stirling interpolation to find local extramum in vector.
-% Package: Util.find
+% Package: tools.find
 % Description: Given table of equally spaced data, use Stirling
 %              interpolation formula to find the local extramums of
 %              the tabulated data. The program find all the local
@@ -38,7 +38,7 @@ Iend   = length(X) - 0.5.*Deg-1;
 Xi     = X(Istart:1:Iend);
 N      = length(Xi);
 
-[Yi,SPoly,H,X0] = Util.interp.interp_diff(X,Y,Xi,Deg,Check);
+[Yi,SPoly,H,X0] = tools.interp.interp_diff(X,Y,Xi,Deg,Check);
 
 
 Extram = zeros(0,3);

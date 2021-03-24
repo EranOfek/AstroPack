@@ -48,7 +48,7 @@ for Id=1:1:Nd
           case {'%s','%c'}
              Data{Id,Icol} = sscanf(Line(FormatCell{Icol,1}:FormatCell{Icol,2}),FormatCell{Icol,3});
           otherwise
-             Data{Id,Icol} = Util.string.str2num_nan(Line(FormatCell{Icol,1}:FormatCell{Icol,2}));
+             Data{Id,Icol} = tools.string.str2num_nan(Line(FormatCell{Icol,1}:FormatCell{Icol,2}));
          end
       end
    end
@@ -68,7 +68,7 @@ for If=1:1:Nf
     case 'monthname'
        Month = zeros(Nd,1);
        for Id=1:1:Nd
-          I=find(Util.cell.isempty_cell(strfind(Month,Data{Id,If}))==0);
+          I=find(tools.cell.isempty_cell(strfind(Month,Data{Id,If}))==0);
           if (isempty(I)==1)
              error('Illegal short month name');
           else
@@ -78,7 +78,7 @@ for If=1:1:Nf
     case 'monthnameshort'
        Month = zeros(Nd,1);
        for Id=1:1:Nd
-          I=find(Util.cell.isempty_cell(strfind(MonthShort,Data{Id,If}))==0);
+          I=find(tools.cell.isempty_cell(strfind(MonthShort,Data{Id,If}))==0);
           if (isempty(I)==1)
              error('Illegal short month name');
           else

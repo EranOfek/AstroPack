@@ -29,7 +29,7 @@ end
 
 Nrow = size(Cell,1);
 
-Groups     = Util.struct.struct_def({'Content','ptr'},1,1);
+Groups     = tools.struct.struct_def({'Content','ptr'},1,1);
 
 Igroup     = 0;
 Flag       = false(Nrow,1);
@@ -45,7 +45,7 @@ for Irow1=1:1:Nrow
 
             % check if two lines are equal
             if (~Flag(Irow2))
-                IsEqual = Util.cell.cell2_equal(Cell(Irow1,:),Cell(Irow2,:),DelSpace);
+                IsEqual = tools.cell.cell2_equal(Cell(Irow1,:),Cell(Irow2,:),DelSpace);
                 if (IsEqual)
                     % found match - add to group
                     Groups(Igroup).ptr     = [Groups(Igroup).ptr; Irow2];

@@ -1,6 +1,6 @@
 function [Yi]=interp_diff_ang(X,Y,Xi,Deg,Check)
 % Stirling 4th order interpolation for angular values
-% Package: Util.interp
+% Package: tools.interp
 % Description: Given a vector of time and a vector of coordinate on a sphere
 %              interpolate the spherical coordinate in a list of times.
 %              This function is talking into account
@@ -36,8 +36,8 @@ end
 Y1 = sin(Y);
 Y2 = cos(Y);
 
-[Yi1] = Util.interp.interp_diff(X,Y1,Xi,Deg,Check);
-[Yi2] = Util.interp.interp_diff(X,Y2,Xi,Deg,Check);
+[Yi1] = tools.interp.interp_diff(X,Y1,Xi,Deg,Check);
+[Yi2] = tools.interp.interp_diff(X,Y2,Xi,Deg,Check);
 
 Yi    = atan2(Yi1,Yi2);
 

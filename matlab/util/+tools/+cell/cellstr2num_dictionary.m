@@ -18,7 +18,7 @@ function [Vector,Dictionary]=cellstr2num_dictionary(VectorCell,Dictionary)
 
 
 if (nargin<2)
-    Dictionary = Util.struct.struct_def({'Ind','Name'},0,1);
+    Dictionary = tools.struct.struct_def({'Ind','Name'},0,1);
 end
 
 UniqueStr = unique(VectorCell);

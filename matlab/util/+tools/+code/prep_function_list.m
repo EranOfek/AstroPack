@@ -1,6 +1,6 @@
 function [List,TableCell]=prep_function_list(List)
 % Prepare list of all functions in the Astro Toolbox
-% Package: Util.code
+% Package: tools.code
 % Description: Prepare list of all functions in the Astro Toolbox under
 %              current directory.
 % Input  : - Input argument for recursive calls.
@@ -9,7 +9,7 @@ function [List,TableCell]=prep_function_list(List)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Feb 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [List,Table]=Util.code.prep_function_list
+% Example: [List,Table]=tools.code.prep_function_list
 % Reliable: 2
 %--------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ AddDir = {};
 DirP = dir('+*');
 DirC = dir('@*');
 DirM = dir('*.m');
-%DirD = Util.files.dir_cell({'ImSpec','ImPhot','ImAstrom','plotting','Swift'});
+%DirD = tools.files.dir_cell({'ImSpec','ImPhot','ImAstrom','plotting','Swift'});
 NdirP = numel(DirP);
 NdirC = numel(DirC);
 NdirM = numel(DirM);
@@ -31,19 +31,19 @@ NdirM = numel(DirM);
 % go over all packages:
 for IdirP=1:1:NdirP
     cd(DirP(IdirP).name)
-    List = Util.code.prep_function_list(List);
+    List = tools.code.prep_function_list(List);
     cd ..
 end
 % go over all classes
 for IdirC=1:1:NdirC
     cd(DirC(IdirC).name)
-    List = Util.code.prep_function_list(List);
+    List = tools.code.prep_function_list(List);
     cd ..
 end
 % % go over all directories
 % for IdirD=1:1:NdirD
 %     cd(DirD(IdirD).name)
-%     List = Util.code.prep_function_list(List);
+%     List = tools.code.prep_function_list(List);
 %     cd ..
 % end
 
@@ -62,18 +62,18 @@ for IdirM=1:1:NdirM
     if (~strcmp(FunName,'startup.m'))
     
     
-        FileCell = Util.files.file2str(FunName,'cell');
+        FileCell = tools.files.file2str(FunName,'cell');
         %List(Nl).Nlines = numel(FileCell);
 
-        if any(~Util.cell.isempty_cell(strfind(FileCell,'classdef '))) && ~strcmp(FunName,'prep_function_list.m')
+        if any(~tools.cell.isempty_cell(strfind(FileCell,'classdef '))) && ~strcmp(FunName,'prep_function_list.m')
             % class definition and methods
 
 
-            Imethod  = find(~Util.cell.isempty_cell(strfind(FileCell,'methods')));
-            ImethodS = find(~Util.cell.isempty_cell(strfind(FileCell,'methods (Static)')));
-            Ifun     = find(~Util.cell.isempty_cell(strfind(FileCell,'function')) & ...
-                             Util.cell.isempty_cell(strfind(FileCell,'%')) & ...
-                             Util.cell.isempty_cell(strfind(FileCell,'function_handle')));
+            Imethod  = find(~tools.cell.isempty_cell(strfind(FileCell,'methods')));
+            ImethodS = find(~tools.cell.isempty_cell(strfind(FileCell,'methods (Static)')));
+            Ifun     = find(~tools.cell.isempty_cell(strfind(FileCell,'function')) & ...
+                             tools.cell.isempty_cell(strfind(FileCell,'%')) & ...
+                             tools.cell.isempty_cell(strfind(FileCell,'function_handle')));
             Nfun     = numel(Ifun);
             for If=1:1:Nfun
                 Nl = Nl + 1;

@@ -24,7 +24,7 @@ function ProgFullPath=construct_fullpath(ProgName,ProgPath,CurFunDirName,CurFunN
 %--------------------------------------------------------------------------
 
 if (nargin==4)
-    CurFunDirName = Util.files.which_dir(CurFunName);
+    CurFunDirName = io.files.which_dir(CurFunName);
 end
 
 

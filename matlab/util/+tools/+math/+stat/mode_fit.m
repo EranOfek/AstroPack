@@ -1,6 +1,6 @@
 function [Mode,StD]=mode_fit(Array,varargin)
 % Estimate the mode of an array by fitting a Gaussian to its histogram.
-% Package: @Util.stat
+% Package: +tools.math.stat
 % Description: Estimate the mode of an array by fitting a Gaussian to
 %              the histogram of the array around its median.
 %              Return also the Sigma of the Gaussian fit.
@@ -31,10 +31,10 @@ function [Mode,StD]=mode_fit(Array,varargin)
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Apr 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Mode,StD]=Util.stat.mode_fit(randn(1000,1000))
+% Example: [Mode,StD]=tools.math.stat.mode_fit(randn(1000,1000))
 % Reliable: 2
 %--------------------------------------------------------------------------
-import Util.fit.*
+import tools.math.fit.*
 
 SIGMA1 = 0.6827;
 
@@ -130,7 +130,7 @@ else
             Flag = N<MaxN;
             Edges = Edges(Flag);
             N     = N(Flag);
-            Res=Util.fit.fit_gauss1d(Edges,N,1);
+            Res=tools.math.fit.fit_gauss1d(Edges,N,1);
             if (Res.X0<min(Edges) || Res.X0>max(Edges))
                 warning('Best fit mode is out of range - set mode to max value and std to rstd');
                 [~,MaxI] = max(N);

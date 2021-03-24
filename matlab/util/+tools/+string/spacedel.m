@@ -1,6 +1,6 @@
 function TrimStr=spacedel(Str,Numeric)
 % recursively delete all spaces from a string.
-% Package: Util.string
+% Package: tools.string
 % Description: Given a string, recursively delete all spaces.
 % Input  : - A string, or a cell array of strings.
 % Output : - A trimmed string.
@@ -15,7 +15,7 @@ function TrimStr=spacedel(Str,Numeric)
 
 TrimStr = regexprep(Str,' ','');
 if (iscell(TrimStr))
-   If = find(Util.cell.isempty_cell(strfind(TrimStr,' '))==0);
+   If = find(tools.cell.isempty_cell(strfind(TrimStr,' '))==0);
 else
    If = strfind(TrimStr,' ');
 end
