@@ -48,31 +48,35 @@ classdef AstroImage < Component
     
 
     
-    % Setters/Getters
-    methods
+    methods % Setters/Getters
         function Obj = set.Image(Obj, Data)
-            Obj.BImage.setData(Data);
+            % setter for Image - store image in ImageData property
+            Obj.ImageData.Data = Data;
         end
         
         function Data = get.Image(Obj)
-            Data = Obj.BImage.getData();
+            % getter for Image - get image from ImageData property
+            Data = Obj.ImageData.Data;
         end        
     end
     
-    % static methods
-    methods (Static)
+    methods (Static)  % static methods
        
     end
     
-    % 
-    
-    % setters/getters
-    methods
+    methods % functionality
+        function Result = fun_unary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
+            %
+           
+            Nobj = numel(Obj)
+            
+            
+        end
         
     end
     
-    % static methods
-    methods (Static)
+    
+    methods (Static) % unitTest: static methods
 
         function Result = unitTest()
             Astro = AstroImage;
