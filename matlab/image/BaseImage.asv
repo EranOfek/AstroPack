@@ -16,7 +16,6 @@ classdef BaseImage
     properties (Hidden, SetAccess = public)
         Data                                   % e.g., Image matrix
         Scale      {musBeNumeric(Scale)} = [];
-        ScaleMethod                      = 'lanczos3';
         FileName char
         Dict BitDictionary                   % The dictionary of a bit mask image
         
@@ -86,14 +85,7 @@ classdef BaseImage
 
         function Result = get.Data(Obj)
             % getter for image data including scaling
-            if isempty(Obj.Scale)
-                % return image as is - no scaling is required
-                Result = Obj.Data;
-            else
-                % scaling is required
-                Result = imresize(Obj.Data,Obj.Scale,'Method',Obj.ScaleMethod);
-            end
-                
+            Result = Obj.getData(NewData);
         end
 
     end
