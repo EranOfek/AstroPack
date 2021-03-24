@@ -8,45 +8,30 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% Component is in folder ../base/
+% "Component" is in folder ../base/
 
-classdef BaseImage  
-    % < ImageComponent
+classdef BaseImage < ImageComponent
     
     properties (Hidden, SetAccess = public)
-        Data                                   % e.g., Image matrix
-        Scale      {musBeNumeric(Scale)} = [];
-        ScaleMethod                      = 'lanczos3';
-        FileName char
-        Dict BitDictionary                   % The dictionary of a bit mask image
+        Dict BitDictionary                      % The dictionary of a bit mask image
         
-        IsMask(1,1) logical              = false;  % Indicating if the Data is a bit maks image
-        IsBackSub(1,1) logical           = false;  % Is the image back subtracted. Set is done by external functions
-        %IsVar(1,1) logical               = false;  % not really useful here
+        IsBackSub(1,1) logical = false;         % Is the image back subtracted. Set is done by external functions
+        %IsVar(1,1) logical = false;            % not really useful here
         
-        %DataProp cell             = {'Data'}; % a cell of properties on which the fun_* methods will be applied
-      
-
-        Virt VirtImage
+        %DataProp cell = {'Data'};              % a cell of properties on which the fun_* methods will be applied
+        Virt VirtImage                          % Actual image data
         %DB
     end
     
     
-    %-------------------
-    %--- Constructor ---
-    %-------------------
-    methods
-       
+    methods % Constructor       
         function Obj = BaseImage
             % Base class constructor
             % Package: @Base
             
             
         end
-
-    end
-    
- 
+    end 
     
 %     methods % DB and read/write
 %         function Data = getData(Obj)
@@ -78,7 +63,7 @@ classdef BaseImage
 %         
 %     end
         
-    methods % setters/getters
+    methods % Setters/getters
         function set.Data(Obj, NewData)
             Obj.setData(NewData);
         end
@@ -92,10 +77,8 @@ classdef BaseImage
             else
                 % scaling is required
                 Result = imresize(Obj.Data,Obj.Scale,'Method',Obj.ScaleMethod);
-            end
-                
+            end                
         end
-
     end
     
     methods (Static) % static methods
@@ -652,9 +635,10 @@ classdef BaseImage
     end
     
     
-    % 
-    methods
-        
+    methods % Unit-Test
+        function Result = unitTest()
+            Result = true;
+        end
     end
     
 end

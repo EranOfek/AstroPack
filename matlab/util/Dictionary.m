@@ -36,11 +36,11 @@ classdef Dictionary < handle
                 % search existing dictionary
                 
                 % stab:
-                St.EXPTIME = {'AEXPTIME','EXPTIME','EXPOSURE'};
-                St.IMTYPE  = {'IMTYPE','IMGTYPE','IMAGETYP'};
-                St.READNOI = {'READNOI','READNOIS','RN'};
-                St.OBSLON  = {'OBSLON','LON','GEOLON','GEODLON','LONG'};
-                St.OBSLAT  = {'OBSLAT','LAT','GEOLAT','GEODLAT'};
+                St.EXPTIME = {'AEXPTIME', 'EXPTIME','EXPOSURE'};
+                St.IMTYPE  = {'IMTYPE', 'IMGTYPE','IMAGETYP'};
+                St.READNOI = {'READNOI', 'READNOIS','RN'};
+                St.OBSLON  = {'OBSLON', 'LON','GEOLON','GEODLON','LONG'};
+                St.OBSLAT  = {'OBSLAT', 'LAT','GEOLAT','GEODLAT'};
                 Obj.Name   = 'FITS_Key_Synonyms';
                 Obj.Family = 'FITS_Key_Synonyms';
                 Obj.Dict   = St;

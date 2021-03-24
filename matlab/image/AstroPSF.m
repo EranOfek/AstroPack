@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef AstroImage < ImageComponent
+classdef AstroPSF < ImageComponent
     % Component should contain:
     % UserData
     % Config
@@ -29,14 +29,14 @@ classdef AstroImage < ImageComponent
         
         % Data
         ImageData(1,1) BaseImage
-        MaskData(1,1) MaskImage
-        BackData(1,1) BackImage
-        VarData(1,1) VarImage
+        MaskData(1,1) BaseImage
+        BackData(1,1) BaseImage
+        VarData(1,1) BaseImage
     end
     
     methods % Constructor
        
-        function Obj = AstroImage
+        function Obj = AstroPSF
             
             
         end

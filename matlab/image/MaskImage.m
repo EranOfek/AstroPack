@@ -8,35 +8,18 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef AstroImage < ImageComponent
-    % Component should contain:
-    % UserData
-    % Config
+classdef MaskImage < ImageComponent
     
     properties (Dependent) % Access image data directly        
-        Image 
-        Mask 
-        Back 
-        Var
-        Cat
     end
     
     properties (SetAccess = public)
-        Header AstroHeader
-        PSF AstroPSF
-        CatData AstroCatalog
-        WCS AstroWCS
-        
-        % Data
-        ImageData(1,1) BaseImage
-        MaskData(1,1) MaskImage
-        BackData(1,1) BackImage
-        VarData(1,1) VarImage
+        Dict BitDictionary                      % The dictionary of a bit mask image        
     end
     
     methods % Constructor
        
-        function Obj = AstroImage
+        function Obj = MaskImage
             
             
         end

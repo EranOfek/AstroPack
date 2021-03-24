@@ -29,9 +29,9 @@ classdef AstroImage < ImageComponent
         
         % Data
         ImageData(1,1) BaseImage
-        MaskData(1,1) MaskImage
-        BackData(1,1) BackImage
-        VarData(1,1) VarImage
+        MaskData(1,1) BaseImage
+        BackData(1,1) BaseImage
+        VarData(1,1) BaseImage
     end
     
     methods % Constructor
