@@ -101,10 +101,31 @@ classdef AstroCatalog < handle %ImageComponent
                 % get ColCell from table properties
                 CellColName = Obj.Catalog.Properties.VariableNames;
             end
-                
-            
         end
             
+        function set.ColUnits(Obj, CellColUnits)
+            % setter for ColUnits - input is either a cell or a string array
+            % if the catalog is in table format it will also set its
+            % Properties.VariableUnits (but only if the size is consistent)
+            Obj.ColUnits = CellColUnits;
+            if istable(Obj.Catalog)
+                % set the column names also in the table
+                if numel(CellColUnits)==size(Obj.Catalog,2)
+                    Obj.Catalog.Properties.VariableUnits = CellColUnits;
+                end
+            end
+        end
+        
+        function CellColUnits = get.ColUnits(Obj)
+            % getter for ColUnits
+           
+            CellColUnits = Obj.ColCell;
+            if isempty(CellColUnits) && ~isempty(Obj.Catalog) && istable(Obj.Catalog)
+                % get ColUnits from table properties
+                CellColUnits = Obj.Catalog.Properties.VariableUnits;
+            end
+        end
+       
         function set.SortByCol(Obj,Val)
             % Setter for SortByCol, also set IsSorted to false
             
@@ -115,10 +136,125 @@ classdef AstroCatalog < handle %ImageComponent
     end
     
     methods (Static)  % static methods
-       
+       function VarNames = default_colcell(Ncol)
+            % create a default ColCell with N columns
+            % Package: @AstroCatalog (Static)
+            % Input  : - Number of columns
+            % Example: AstroCatalog.default_colcell(5)
+            
+            VarNames = cell(1,Ncol);
+            for Icol=1:1:Ncol
+                VarNames{Icol} = sprintf('Var%d',Icol);
+            end
+       end
+        
+       function Ans = compare_colcell(ColCell1,ColCell2)
+            % Compare two ColCell's
+            % Package: @AstroCatalog (Static)
+            % Description: Given two cell array of strings compare their
+            %              content. Return a vector of logical of length
+            %              equal to the longer ColCell.
+            % Input  : - First ColCell
+            %          - Second ColCell
+            % Output : - a vector of logical of length
+            %            equal to the longer ColCell. True if two elements
+            %            are identical.
+            % Example: AstroCatalog.compare_colcell({'a','b'},{'a','b'})
+            
+            N1 = numel(ColCell1);
+            N2 = numel(ColCell2);
+            
+            MaxN = max(N1,N2);
+            MinN = min(N1,N2);
+            Ans  = false(1,MaxN);
+            Ans(1:MinN) = ~tools.cell.isempty_cell(regexp(ColCell1(1:MinN),ColCell2(1:MinN),'match'));
+            
+       end
+        
+       function NewArray = insert_column(OldArray,NewData,ColInd)
+            % Insert a single column into a matrix, table, or a cell array
+            % Package: @AstroCatalog (Static)
+            % Description: Insert a single column into a matrix, table,
+            %              or a cell array.
+            % Input  : - A matrix, cell array, or a table.
+            %          - A multiple column array, table, or cell array, in
+            %            which the number of rows is equal to the number of
+            %            rows in the first input argument.
+            %            The type must be equalt to the type of the first
+            %            input.
+            %          - A column index in which to insert the new column.
+            %            This is the index of the new column after
+            %            insertion. For example, 1 will insert the new
+            %            column as the first column.
+            % Output : - The new array.
+            % Example: AstroCatalog.insert_column({'a','b','c'},{'d','e'},2)
+            %          AstroCatalog.insert_column(ones(5,3),zeros(5,2),2)
+            %          TT=array2table(zeros(5,2));
+            %          TT.Properties.VariableNames={'a','b'};
+            %          AstroCatalog.insert_column(array2table(ones(5,3)),TT,2)
+            
+            [Nrow,Ncol]   = size(OldArray);
+            [NrowI,NcolI] = size(NewData);
+            
+            if ~strcmp(class(OldArray),class(NewData))
+                error('First two input arguments must be of the same class');
+            end
+            
+            if  (Nrow~=NrowI)
+                error('Number of rows in column to insert must equal to the number of rows in array');
+            end
+            if ColInd>(Ncol+1) || ColInd<1
+                error('Column index in which to insert the column must be between 1 and number of columns +1');
+            end
+            
+            NewArray = [OldArray(:,1:(ColInd-1)), NewData, OldArray(:,ColInd:end)];
+        end
     end
     
-    methods % functionality
+    
+    methods % get general info
+        function [Nrow,Ncol] = sizeCatalog(Obj)
+            % Return the number o rows and columns in all elements in an AstroCatalog object
+            % Example: [Nrow,Ncol] = sizeCatalog(Obj)
+            
+            Nrow = zeros(size(Obj));
+            Ncol = zeros(size(Obj));
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [Nrow(Iobj), Ncol(Iobj)] = size(Obj(Iobj).Catalog);
+            end
+                
+        end
+        
+        function Result = isemptyCatalog(Obj)
+            % Return true if Catalog data in AstroCatalog object is empty, otherwise false.
+            % example: Result = isemptyCatalog(Obj)
+            
+            Result = true(size(Obj));
+            Nobj   = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isempty(Obj(Iobj).Catalog);
+            end
+            
+        end
+        
+        function Result = isColumn(Obj,ColName)
+            % Return true if a name is an existing column name in an AstroCatalog object
+            % Example: Result = isColumn(Obj,'RA')
+            
+            arguments
+                Obj
+                ColName char
+            end
+            
+            Result = false(size(Obj));
+            Nobj   = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj) = any(strcmp(ColName, Obj(Iobj).ColCell));
+            end
+            
+        end
+            
         function ColInd = colname2ind(Obj, ColName, FillValue)
             % Convert column names to column indices
             % Input  : - A single element AstroCatalog object.
@@ -189,7 +325,42 @@ classdef AstroCatalog < handle %ImageComponent
             ColName = Obj.ColCell(ColInd);
         end
         
-        function Result = getCol(Obj,Columns,OutputIsTable,UpdateAstroCatalog)
+        function St = col2struct(Obj)
+            % return structure array with column names in field and index in values.
+            % Example: col2struct(A)
+            
+            Nobj = numel(Obj);
+            Iobj = 1;
+            St   = tools.struct.struct_def(Obj(Iobj).ColCell,size(Obj));
+            for Iobj=1:1:Nobj
+                St(Iobj) = cell2struct(num2cell(1:1:numel(Obj(Iobj).ColCell)), Obj(Iobj).ColCell,2);
+            end
+            
+        end
+        
+        function Result = isColIdentical(Obj, ColCell)
+            % Check if ColCell in an AstroCatalog object is identical to another ColCell
+            % Package: @AstroCatalog
+            % Descriptio: For each element in a AstroCatalog object check if the
+            %             ColCell property is equal to a reference ColCell.
+            % Input  : - An AstroCatalog object.
+            %          - A cell array of column names (i.e., a reference
+            %            ColCell).
+            % Output : - A vector lf logical indicating if ColCell's are
+            %            identical
+            % Example:  Ans=isColIdentical(C,C(4).ColCell)
+            
+            Nobj   = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = all(AstroCatalog.compare_colcell(Obj(Iobj).ColCell, ColCell));
+            end
+        end
+        
+    end
+    
+    methods  % columns get/edit
+        function Result = getCol(Obj, Columns, OutputIsTable, UpdateAstroCatalog)
             % Get a catalog columns by index or names
             % Input  : - A single element AstroCatalog object.
             %          - A vector of column indices, or a column name, or a
@@ -239,6 +410,31 @@ classdef AstroCatalog < handle %ImageComponent
             
         end
         
+        function Obj = insertCol(Obj, Data, Pos)
+            %
+           
+            
+        end
+        
+        function Obj = replaceCol(Obj, Data, ColNames)
+            %
+            
+        end
+        
+        function Obj = deleteCol(Obj, Columns)
+            %
+            
+        end
+       
+        function Obj = merge(Obj)
+            %
+            
+        end
+        
+    end
+    
+    methods  % sort and flip
+        
         function Obj = sortrows(Obj,SortByColumn)
             % Sort AstroCatalog objects by some column names/indices
             % Input  : - An AstroCatalog object (multiple elements is possible).
@@ -269,6 +465,21 @@ classdef AstroCatalog < handle %ImageComponent
             end
         end
                 
+        function Obj = flipud(Obj)
+            % flip up-down all catalogs in AstroCatalog object (set IsSorted to false)
+            % Example: flipud(Obj)
+            
+            Nobj = numel();
+            for Iobj=1:1:Nobj
+                Obj(Iobj).Catalog = flipud(Obj(Iobj).Catalog);
+            end
+            
+        end
+        
+    end
+    
+    methods % applay functions and overloads
+            
         function Result = fun_unary(Obj, Operator, OperatorArgs, Columns, UpdateObj)
             % Apply an unary function to columns of a catalog
             % Input  : - An AstroCatalog object.
