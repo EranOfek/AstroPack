@@ -901,7 +901,7 @@ classdef FITS < handle
             % Output : - A FITS object with the Data andHeader fields
             %            populated.
             % Author : Eran Ofek (Mar 2021)
-            % Example: Obj=read(Obj)
+            % Example: Obj=read(Obj,1,'CCDSEC',[1 10 1 10])
             
             arguments
                 Obj
@@ -1052,7 +1052,6 @@ classdef FITS < handle
             % read multiple images into a cube
             [Cube]=FITS.read2cube({F(1:2).File},1,'CCDSEC',[1 10 1 10])
             
-            % BUG - FIX!!
             [Out, Head, Col] = FITS.readTable1('asu.fit');
             
             [KeysVal,KeysComment,Struct]=FITS.get_keys('WFPC2ASSNu5780205bx.fits',{'NAXIS1','NAXIS2'})
