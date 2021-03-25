@@ -1,6 +1,8 @@
 
 classdef ImageComponent < Component
-    
+    properties (Dependent)
+        Image                                   % return the rescaled image
+    end
     
     properties (Hidden, SetAccess = public)
         Data                                    % e.g., Image matrix
@@ -19,21 +21,49 @@ classdef ImageComponent < Component
     end
     
     
-    methods
-       
-        function Obj = ImageComponent
-       
+    methods % Constructor
+        function Obj = ImageComponent(ImageData,Size)
+            % ImageComponent constructor
+            % Input  : - Image data. Default is [].
+            %          - Size of ImageComponent. Default is [1 1].
+            %            Will copy the image data to each element.
+            % Output : - An ImageComponent object
+            % Example: IC = ImageComponent(rand(10,10),[2 2]);
+            
+            arguments
+                ImageData                   = [];
+                Size                        = [1 1];
+            end
+            
+            Nobj = prod(Size);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).Data = ImageData;
+            end
+            Obj = reshape(Obj,Size);
             
         end
 
     end
     
-    
-     
-    
     % 
-    methods
+    methods % getters/setters
+        function Result = get.Image(Obj)
+            % getter for Image (rescale Data)
+            
+            Result = imresize(Obj,[],'UpdateObj',false,'Method',Obj.ScaleMethod);
+        end
         
+        function set.Image(Obj, ImageData)
+            % setter for image - store in Data and set Scale to []
+            Obj.Data  = ImageData;
+            Obj.Scale = [];
+        end
+        
+        function set.Data(Obj, ImageData)
+            % setter for Data - store in Data and set Scale to []
+            Obj.Data  = ImageData;
+            Obj.Scale = [];
+        end
     end
     
     methods % function on images
@@ -540,40 +570,49 @@ classdef ImageComponent < Component
             end
         end
         
-        function Obj=imresize(Obj,NewScale,Args)
-            %
+        function Result = imresize(Obj, Scale, Args)
+            % resize image data using matlab imresize function
+            % Input  : - An ImageComponent object
+            %          - Rescaling factor or [rows, columns] in the ouput
+            %            image. If empty, then will attempt to atke this
+            %            parameter from the ImageComponent object Scale
+            %            property, and if this is also empty, then will do
+            %            nothing.
+            %          * ...,key,val,...
+            %            'Method' - see imresize for methods options.
+            %                   Default is 'lanczos3'.
+            %            'UpdateObj' - If true then will store the resized
+            %                   image also in the Data propery and set the
+            %                   scale to []. Default is false.
+            % Output : - A resized image (matrix).
+            % Example: Result = imresize(Obj, Scale)
+            
             
             arguments
                 Obj
-                NewScale double                   = 1;
-                Args.Method                       = 'lanczos3'; % see imresize for option
-                Args.RelativeScale(1,1) logical   = true;
-                Args.OutputSuze                   = [];    
-                Args.DataProp cell                = {};
+                Scale                             = [];
+                Args.Method char                  = 'lanczos3'; % see imresize for option
+                Args.UpdateObj(1,1) logical       = false;
             end
+            
+            NewScale = Scale;
             
             Nobj  = numel(Obj);
             for Iobj=1:1:Nobj
-                if isempty(Args.DataProp)
-                    DataProp = Obj(Iobj).DataProp;
-                else
-                    DataProp = Args.DataProp;
+                if isempty(Scale)
+                   NewScale = Obj(Iobj).Scale;
                 end
-            
-                Nprop = numel(DataProp);
+                
+                if ~isempty(NewScale)
+                    Result = imresize(Obj(Iobj).Data, Scale, 'Method', Args.Method);
                     
-                if Args.RelativeScale
-                    Scale = NewScale./Obj(Iobj).Scale;
-                    if Scale~=1
-
-                        for Iprop=1:1:Nprop
-                            Obj(Iobj).(DataProp{Iprop}) = imresize(Obj(Iobj).(DataProp{Iprop}),'Method',Args.Method,'OutputSize',Args.OutputSize);
-                        end
+                    if Args.UpdateObj
+                        Obj(Iobj).Data  = Result;
+                        Obj(Iobj).Scale = [];
                     end
                 end
+                
             end
-            
-            
         end
     end
     
