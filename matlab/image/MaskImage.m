@@ -29,15 +29,7 @@ classdef MaskImage < ImageComponent
 
  
     methods % Setters/Getters
-        function Obj = set.Image(Obj, Data)
-            % setter for Image - store image in ImageData property
-            Obj.ImageData.Data = Data;
-        end
-        
-        function Data = get.Image(Obj)
-            % getter for Image - get image from ImageData property
-            Data = Obj.ImageData.Data;
-        end        
+     
     end
     
     methods (Static)  % static methods
