@@ -411,8 +411,30 @@ classdef AstroCatalog < handle %ImageComponent
         end
         
         function Obj = insertCol(Obj, Data, Pos)
-            %
-           
+            % Insert columns to AstroCatalog object
+            % Input  : - An AstroCatalog object
+            %          - Array, cell array, table, or another AstroCatalog
+            %            object to insert.
+            %          - Either number, or column name before which to insert
+            %            the new columns.
+            % Output : - The AstroCatalog object with the new columns.
+            % Example: A=AstroCatalog; A.Catalog=rand(10,3); A.ColCell={'a','b','c'}; insertCol(A,ones(10,2),'c')     
+
+            Nobj = numel(Obj);
+            if isa(Data,'AstroCatalog')
+                Nobj2 = numel(Data);
+                for Iobj=1:1:Nobj
+                    Iobj2             = min(Nobj,Nobj2);
+                    ColInd            = colname2ind(Obj(Iobj), Pos);
+                    Obj(Iobj).Catalog = AstroCatalog.insert_column(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
+                end
+            else
+                for Iobj=1:1:Nobj
+                    ColInd            = colname2ind(Obj(Iobj), Pos);
+                    Obj(Iobj).Catalog = AstroCatalog.insert_column(Obj(Iobj).Catalog, Data, ColInd);
+                    Obj(Iobj).ColCell = AstroCatalog.insert_column(Obj(Iobj).ColCell, AstroCatalog.default_colcell(size(Data,2)), ColInd);
+                end
+            end
             
         end
         
