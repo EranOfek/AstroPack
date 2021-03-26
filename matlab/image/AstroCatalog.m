@@ -64,6 +64,8 @@ classdef AstroCatalog < handle %ImageComponent
             
             if istable(Data)
                 Obj.Catalog = Data;
+                %Obj.ColCell = Data.Properties.VariableNames; % result in
+                %infinte recyusrion
                 
             elseif isnumeric(Data)
                 Obj.Catalog = Data;
@@ -119,7 +121,7 @@ classdef AstroCatalog < handle %ImageComponent
         function CellColUnits = get.ColUnits(Obj)
             % getter for ColUnits
            
-            CellColUnits = Obj.ColCell;
+            CellColUnits = Obj.ColUnits;
             if isempty(CellColUnits) && ~isempty(Obj.Catalog) && istable(Obj.Catalog)
                 % get ColUnits from table properties
                 CellColUnits = Obj.Catalog.Properties.VariableUnits;
@@ -410,16 +412,46 @@ classdef AstroCatalog < handle %ImageComponent
             
         end
         
-        function Obj = insertCol(Obj, Data, Pos)
+        function Obj = array2table(Obj)
+            % Convert catalog data in AstroCatalog to table format
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if ~istable(Obj(Iobj).Catalog)
+                    Obj(Iobj).Catalog = array2table(Obj(Iobj).Catalog);
+                end
+            end
+        end
+        
+        function Obj = table2array(Obj)
+            % Convert catalog data in AstroCatalog to array format
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if istable(Obj(Iobj).Catalog)
+                    Obj(Iobj).Catalog = table2array(Obj(Iobj).Catalog);
+                end
+            end
+        end
+        
+        function Obj = insertCol(Obj, Data, Pos, NewColNames)
             % Insert columns to AstroCatalog object
             % Input  : - An AstroCatalog object
             %          - Array, cell array, table, or another AstroCatalog
             %            object to insert.
             %          - Either number, or column name before which to insert
             %            the new columns.
+            %          - Cell array of new column names. Default is {}.
+            %            If empty, then use default names.
             % Output : - The AstroCatalog object with the new columns.
             % Example: A=AstroCatalog; A.Catalog=rand(10,3); A.ColCell={'a','b','c'}; insertCol(A,ones(10,2),'c')     
 
+            arguments
+                Obj
+                Data
+                Pos
+                NewColNames = {};
+            end
             Nobj = numel(Obj);
             if isa(Data,'AstroCatalog')
                 Nobj2 = numel(Data);
@@ -427,20 +459,86 @@ classdef AstroCatalog < handle %ImageComponent
                     Iobj2             = min(Nobj,Nobj2);
                     ColInd            = colname2ind(Obj(Iobj), Pos);
                     Obj(Iobj).Catalog = AstroCatalog.insert_column(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
+                    if ~isempty(NewColNames)
+                        Obj(Iobj).ColCell(ColInd) = NewColNames;
+                    end
                 end
             else
                 for Iobj=1:1:Nobj
                     ColInd            = colname2ind(Obj(Iobj), Pos);
                     Obj(Iobj).Catalog = AstroCatalog.insert_column(Obj(Iobj).Catalog, Data, ColInd);
                     Obj(Iobj).ColCell = AstroCatalog.insert_column(Obj(Iobj).ColCell, AstroCatalog.default_colcell(size(Data,2)), ColInd);
+                    if ~isempty(NewColNames)
+                        Obj(Iobj).ColCell(ColInd) = NewColNames;
+                    end
                 end
             end
             
         end
         
-        function Obj = replaceCol(Obj, Data, ColNames)
-            %
+        function Obj = replaceColNames(Obj,OldNames,NewNames)
+            % Replace column names in AstroCatalog object
+            % Input  : - An AstroCatalog object.
+            %          - A cell array of column names in the existing input
+            %            AstroCatalog object, or a vector of indices.
+            %          - A cell array of new names to replace the old
+            %            column names.
+            % Output : - An AstroCatalog object with the updated column
+            %            names.
+            % Example: AC.replaceColNames([1 2],{'RA','Dec'})
             
+            if numel(OldNames)~=numel(NewNames)
+                error('Number of old and new names should be identical');
+            end
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                ColInd = colname2ind(Obj(Iobj), OldNames);
+                Obj(Iobj).ColCell(ColInd) = NewNames;
+            end
+            
+        end
+        
+        function Obj = replaceCol(Obj, NewData, ColNames)
+            % replace columns in AstroCatalog
+            % Input  : - An AstroCatalog object.
+            %          - Data of columns to replace. This may be a matrix,
+            %            cell array, a table or another AstroCatalog
+            %            object. However, the data types should be
+            %            consistent.
+            %            If AstroCatalog then numver of elements should be
+            %            1 or equal to the number of elements in the first
+            %            input.
+            % Example: AC = AstroCatalog;
+            %          AC(1).Catalog = rand(100,3);
+            %          AC(1).ColCell={'a','b','c'};
+            %          AC=AC.replaceCol(nan(100,2),{'a','b'});
+            
+            arguments
+                Obj
+                NewData
+                ColNames                 = [];
+            end
+            
+            Nobj   = numel(Obj);
+            if isa(NewData, 'AstroCatalog')
+                % Data is in AstroCatalog format
+                Nobj2 = numel(NewData);
+                if ~(Nobj2==1 || Nobj2==Nobj)
+                    error('Number of elements in second AstroCatalog must be 1 or equal to the number in the first input');
+                end
+                for Iobj=1:1:Nobj
+                    ColInd   = colname2ind(Obj(Iobj),ColNames);
+                    %NcolData = size(Obj(Iobj2).Catalog,2);
+                    Iobj2    = min(Nobj2,Iobj);
+                    Obj(Iobj).Catalog(:,ColInd) = NewData(Iobj2).Catalog;
+                end
+            else
+                % 
+                for Iobj=1:1:Nobj
+                    ColInd   = colname2ind(Obj(Iobj),ColNames);
+                    Obj(Iobj).Catalog(:,ColInd) = NewData;
+                end
+            end
         end
         
         function Obj = deleteCol(Obj, Columns)
