@@ -685,8 +685,15 @@ classdef AstroCatalog < handle %ImageComponent
                 ColInd   = colname2ind(Obj(Iobj), Columns);
                 NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
             end
+            if isempty(ColNames)
+                NewObj.ColCell = Obj(1).ColCell;
+            else
+                NewObj.ColCell = ColNames;
+            end
+            if ~isempty(Obj(1).ColUnits)
+                NewObj.ColUnits = Obj(1).ColUnits;
+            end
               
-            
         end
         
     end
@@ -712,7 +719,7 @@ classdef AstroCatalog < handle %ImageComponent
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                if ~Obj(Iobj).IsSorted
+                if ~Obj(Iobj).IsSorted || SortByColumn(1)~=Obj(Iobj).SortByCol(1)
                     if isempty(SortByColumn)
                         SortByColumn = Obj(Iobj).SortByCol;
                     end
@@ -813,7 +820,22 @@ classdef AstroCatalog < handle %ImageComponent
 
     methods % Unit-Test
         function Result = unitTest()
-            Astro = AstroImage;
+            AC = AstroCatalog;
+            
+            AC=AstroCatalog(array2table(rand(10,2)));
+            AC=AstroCatalog(rand(10,2),'ColCell',{'RA','Dec'});
+            
+            A = AstCat; A(1).Cat=rand(10,2); A(2).Cat=rand(10,2);
+            AC = AstroCatalog(A);
+            AC = AstroCatalog(A,'ColCell',{'RA','Dec'},'ColUnits',{'rad','rad'});
+            MAC = merge(AC);
+            sortrows(MAC,2)
+            if ~(MAC.IsSorted && issorted(MAC.Catalog(:,2)))
+                error('Problem with sort flagging');
+            end
+            
+            
+            
             Result = true;
         end
     end
