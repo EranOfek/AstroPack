@@ -721,8 +721,20 @@ classdef AstroCatalog < handle %ImageComponent
     
     methods % match catalogs
         function MatchedObj = matchXY(Obj,Ref,Args)
+            %
+            
+            arguments
+                Obj
+                Ref
+                Args.MatchRadius    {mustBeNumeric(Args.MatchRadius)} = 1;
+                Args.ColNameX                                         = {'XWIN_IMAGE','X','X_IMAGE'};
+                Args.ColNameY                                         = {'YWIN_IMAGE','Y','Y_IMAGE'};
+                
+            end
             
         end
+        
+        
         
     end
     
