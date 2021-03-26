@@ -727,7 +727,7 @@ classdef AstroCatalog < handle %ImageComponent
             % flip up-down all catalogs in AstroCatalog object (set IsSorted to false)
             % Example: flipud(Obj)
             
-            Nobj = numel();
+            Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 Obj(Iobj).Catalog = flipud(Obj(Iobj).Catalog);
             end
