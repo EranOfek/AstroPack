@@ -201,7 +201,7 @@ classdef AstroCatalog < handle %ImageComponent
         end
        
         function set.SortByCol(Obj,Val)
-            % Setter for SortByCol, also set IsSorted to false
+            % Setter for SortByCol, also set IsSorted to false - sue sortrows to sort
             
             Obj.SortByCol = Val;
             Obj.IsSorted  = false;
