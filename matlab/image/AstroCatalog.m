@@ -17,15 +17,87 @@ classdef AstroCatalog < handle %ImageComponent
         Catalog                                                = [];
         ColCell cell                                           = {};
         ColUnits cell                                          = {};
+        ColDesc cell                                           = {};
         SortByCol                                              = [];
         IsSorted(1,1) logical                                  = false;
     end
     
     methods % Constructor
        
-        function Obj = AstroCatalog
-            %
+        function Obj = AstroCatalog(AnotherObj, Args)
+            % Constrt an AstroCatalog object or transform AstCat/struct/ to Astrocatalog
+            % Input  : - If empty then construct and empty AstroCatalog object.
+            %            If array/table, then construct an AstroCatalog object
+            %               with this array in the Catalog property.
+            %            If an AstCat/catCl object then convert it to
+            %               AstroCatalog object.
+            %          * ...,Key,Val,...
+            %            'ColCell' - A cell array of column names.
+            %                   If empty, try to use other inputs.
+            %                   Default is {}.
+            %            'ColUnits' - A cell array of column units.
+            %                   If empty, try to use other inputs.
+            %                   Default is {}.
+            % Output : - An AstroCatalog object.
+            % Author : Eran Ofek (Mar 2021)
+            % Example: AC=AstroCatalog(array2table(rand(10,2)));
+            %          AC=AstroCatalog(rand(10,2),'ColCell',{'RA','Dec'});
+            %          A = AstCat; A(1).Cat=rand(10,2); A(2).Cat=rand(10,2);
+            %          AC = AstroCatalog(A);
+            %          AC = AstroCatalog(A,'ColCell',{'RA','Dec'},'ColUnits',{'rad','rad'});
             
+            arguments
+                AnotherObj                    = [];
+                Args.ColCell cell             = {};
+                Args.ColUnits cell            = {};
+            end
+            
+            if isempty(AnotherObj)
+                Obj.Catalog = [];
+            else
+                if isnumeric(AnotherObj) || istable(AnotherObj)
+                    % read table into AstroCatalog
+                    Obj(1).Catalog = AnotherObj;
+                    if isempty(Args.ColCell)
+                        if istable(AnotherObj)
+                            Obj(1).ColCell = AnotherObj.Properties.VariableNames;
+                        end
+                    else
+                        Obj(1).ColCell = Args.ColCell;
+                    end
+                    if isempty(Args.ColUnits)
+                        if istable(AnotherObj)
+                            Obj(1).ColUnits = AnotherObj.Properties.VariableUnits;
+                        end
+                    else
+                        Obj(1).ColUnits = Args.ColUnits;
+                    end
+                else
+                    % AnotherObj is not numeric/table
+                    if isa(AnotherObj,'AstCat') || isa(AnotherObj,'catCl')
+                        % read AstCat or catCl objects
+                        Nobj = numel(AnotherObj);
+                        for Iobj=1:1:Nobj
+                            Obj(Iobj) = AstroCatalog;
+                            Obj(Iobj).Catalog  = AnotherObj(Iobj).Cat;
+                            if isempty(Args.ColCell)
+                                Obj(Iobj).ColCell  = AnotherObj(Iobj).ColCell;
+                            else
+                                Obj(Iobj).ColCell  = Args.ColCell;
+                            end
+                            if isempty(Args.ColUnits)
+                                Obj(Iobj).ColUnits = AnotherObj(Iobj).ColUnits;
+                            else
+                                Obj(Iobj).ColUnits = Args.ColUnits;
+                            end
+                            
+                        end
+                    else
+                        error('First input argument is of unsupported class');
+                    end
+                end
+            end
+                   
         end
 
     end
@@ -721,7 +793,7 @@ classdef AstroCatalog < handle %ImageComponent
     
     methods % match catalogs
         function MatchedObj = matchXY(Obj,Ref,Args)
-            %
+            % NEED TO BE A STAND ALONE FUN...
             
             arguments
                 Obj
