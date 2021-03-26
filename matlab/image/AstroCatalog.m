@@ -542,7 +542,32 @@ classdef AstroCatalog < handle %ImageComponent
         end
         
         function Obj = deleteCol(Obj, Columns)
-            %
+            % Delete columns fron an Astrocatalog object.
+            % Input  : - An Astrocatalog object.
+            %          - Column name, cell array of columns or column
+            %            indices to remove from Catalog.
+            % Output : - An Astrocatalog object with the deleted columns.
+            % Example: AC.Catalog=array2table(rand(10,3));
+            %          AC.ColCell={'RA','Dec','flux'}; AC.deleteCol('Dec')
+            %          AC.Catalog=(rand(10,3));
+            %          AC.ColCell={'RA','Dec','flux'}; AC.deleteCol({'RA','Dec'})
+
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                ColInd = colname2ind(Obj(Iobj), Columns);
+                Obj(Iobj).Catalog(:,ColInd) = [];
+                if ~isempty(Obj(Iobj).ColCell)
+                    Obj(Iobj).ColCell(ColInd) = [];
+                end
+                if ~isempty(Obj(Iobj).ColUnits)
+                    Obj(Iobj).ColUnits(ColInd) = [];
+                end
+            end
+                
+                
+                
+            
             
         end
        
