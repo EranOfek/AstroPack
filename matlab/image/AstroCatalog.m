@@ -324,7 +324,12 @@ classdef AstroCatalog < handle %ImageComponent
             %            column indices.
             % Example: colind2name(AC,[2 1])
            
-            ColName = Obj.ColCell(ColInd);
+            if iscell(ColInd) || isstring(ColInd)
+                % assume already in cell format
+                ColName = ColInd;
+            else
+                ColName = Obj.ColCell(ColInd);
+            end
         end
         
         function St = col2struct(Obj)
@@ -571,8 +576,44 @@ classdef AstroCatalog < handle %ImageComponent
             
         end
        
-        function Obj = merge(Obj)
+        function NewObj = merge(Obj,Columns,Args)
+            % Merge table/matrices in multiple AstroCatalog elements
+            % Input  : - An AstroCatalog object.
+            %          - Columns to merge. Either column names or column
+            %            indices. If empty, merge all columns.
+            %          * ...,key,val,...
+            %            'IsTable' - Attempt to merge the catalogs as
+            %                   tables. Default is false.
+            % Output : - A new AstroCatalog object containing the merged
+            %            catalog.
+            % Author : Eran Ofek (Mar 2021)
+            % Example: AC = AstroCatalog; AC(1).Catalog=rand(10,3);
+            % AC(1).ColCell={'a','b','c'}; AC(2).Catalog=rand(10,2);
+            % AC(2).ColCell={'a','c'};
+            % NAC=merge(AC,{'a','c'})
             %
+            % AC = AstroCatalog; AC(1).Catalog=rand(10,3);
+            % AC(1).ColCell={'a','b','c'}; AC(2).Catalog=rand(10,3); AC(2).ColCell={'a','b','c'};
+            % NAC=merge(AC)
+            
+            arguments
+                Obj
+                Columns                       = [];
+                Args.IsTable(1,1) logical     = false;
+            end
+            
+            Nobj     = numel(Obj);
+            ColNames = colind2name(Obj(1), Columns);
+            
+            Ncol     = numel(ColNames);
+            NewObj   = AstroCatalog;
+            NewObj.ColCell = ColNames;
+            NewObj.Catalog = zeros(0,Ncol);
+            for Iobj=1:1:Nobj
+                ColInd   = colname2ind(Obj(Iobj), Columns);
+                NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
+            end
+              
             
         end
         
@@ -673,6 +714,13 @@ classdef AstroCatalog < handle %ImageComponent
                 end
             end
             
+            
+        end
+        
+    end
+    
+    methods % match catalogs
+        function MatchedObj = matchXY(Obj,Ref,Args)
             
         end
         
