@@ -876,6 +876,62 @@ classdef AstroCatalog < handle %ImageComponent
             
         end
         
+        function Result = min(Obj, Columns)
+            % Calculate the min value of all requested columns names/indices. Default is
+            % for all columns.
+            % Input  : - An AstroCatalog object.
+            %          - Column names or indices. If empty, then use all.
+            %            Default is empty.
+            % Output : - An array of minimum values. Line per object
+            %            element, column per Catalog column.
+            % Example: AC=AstroCatalog('asu.fit','HDU',2);
+            % AC.min
+            % AC.min({'mag1','mag2'})
+            % min([AC;AC],{'mag1','mag2'})
+            
+            arguments
+                Obj
+                Columns         = [];
+            end
+            
+            Nobj   = numel(Obj);
+            for Iobj=1:1:Nobj
+                Tmp = fun_unary(Obj, @min, {}, Columns, false);
+                if Iobj==1
+                    Result = zeros(Nobj,numel(Tmp));
+                end
+                Result(Iobj,:) = Tmp;
+            end
+        end
+        
+        function Result = max(Obj, Columns)
+            % Calculate the max value of all requested columns names/indices. Default is
+            % for all columns.
+            % Input  : - An AstroCatalog object.
+            %          - Column names or indices. If empty, then use all.
+            %            Default is empty.
+            % Output : - An array of maximum values. Line per object
+            %            element, column per Catalog column.
+            % Example: AC=AstroCatalog('asu.fit','HDU',2);
+            % AC.max
+            % AC.max({'mag1','mag2'})
+            % max([AC;AC],{'mag1','mag2'})
+            
+            arguments
+                Obj
+                Columns         = [];
+            end
+            
+            Nobj   = numel(Obj);
+            for Iobj=1:1:Nobj
+                Tmp = fun_unary(Obj, @max, {}, Columns, false);
+                if Iobj==1
+                    Result = zeros(Nobj,numel(Tmp));
+                end
+                Result(Iobj,:) = Tmp;
+            end
+        end
+        
     end
     
     methods % match catalogs
@@ -945,6 +1001,11 @@ classdef AstroCatalog < handle %ImageComponent
             fun_unary(AC(1),@sin)
             fun_unary(AC(1),@sin,{},'RA')
             
+            AC=AstroCatalog('asu.fit','HDU',2);
+            min([AC;AC],{'mag1','mag2'})
+            max([AC;AC],{'mag1','mag2'})
+            max([AC;AC],[1 2])
+            max([AC;AC])
             
             % insert columns
             
