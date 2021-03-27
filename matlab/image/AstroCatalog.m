@@ -519,7 +519,7 @@ classdef AstroCatalog < handle %ImageComponent
     end
     
     methods  % columns get/edit
-        function Result = getCol(Obj, Columns, OutputIsTable, UpdateAstroCatalog)
+        function Result = getCol(Obj, Columns, OutputIsTable, UpdateAstroCatalog, Args)
             % Get a catalog columns by index or names
             % Input  : - A single element AstroCatalog object.
             %          - A vector of column indices, or a column name, or a
@@ -531,6 +531,7 @@ classdef AstroCatalog < handle %ImageComponent
             %            catalog, will store this sub catalog in the
             %            Astrocatalog object.
             %            Default is false.
+            %          - Attempt to use dictionary for column names.
             % Output : - A matrix or a table containing the selected
             %            columns.
             % Author : Eran Ofek (Mar 2021)
@@ -543,9 +544,15 @@ classdef AstroCatalog < handle %ImageComponent
                 Columns
                 OutputIsTable(1,1) logical         = false;
                 UpdateAstroCatalog(1,1) logical    = false;
+                Args.UseDict(1,1) logical          = true;
+                Args.DictName                      = {};
+                Args.DictFamily char               = '';
             end
                 
             
+            if Args.UseDict
+                error('FFU: Dictinary is not implemented yet');
+            end
             ColInd = colname2ind(Obj, Columns, []);
             if istable(Obj.Catalog)
                 if OutputIsTable
