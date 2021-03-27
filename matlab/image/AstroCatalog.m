@@ -477,7 +477,7 @@ classdef AstroCatalog < handle %ImageComponent
                 if OutputIsTable
                     Result = array2table(Obj.Catalog(:,ColInd));
                     Result.Properties.VariableNames = Obj.ColCell;
-                    Result.Properties.VariableUnits = Obj.UnitCell;
+                    Result.Properties.VariableUnits = Obj.ColUnits;
                 else
                     Result = Obj.Catalog(:,ColInd);
                 end
@@ -820,20 +820,55 @@ classdef AstroCatalog < handle %ImageComponent
 
     methods % Unit-Test
         function Result = unitTest()
+            
+            % Create an empty AstroCatalog
             AC = AstroCatalog;
             
+            % Create Astrocatalog with table
             AC=AstroCatalog(array2table(rand(10,2)));
             AC=AstroCatalog(rand(10,2),'ColCell',{'RA','Dec'});
             
-            A = AstCat; A(1).Cat=rand(10,2); A(2).Cat=rand(10,2);
+            % Create AstCat and convert to AstroCatalog 
+            A = AstCat; A(1).Cat=rand(10,2);
+            A(2).Cat=rand(10,2);
             AC = AstroCatalog(A);
+            % The same with column names:
             AC = AstroCatalog(A,'ColCell',{'RA','Dec'},'ColUnits',{'rad','rad'});
+            
+            % merge selected columns of AstroCatalog
+            MAC = merge(AC,{'Dec'});
+            % merge two AstroCatalog (all columns)
             MAC = merge(AC);
+            
+            % Sort by second column
             sortrows(MAC,2)
             if ~(MAC.IsSorted && issorted(MAC.Catalog(:,2)))
                 error('Problem with sort flagging');
             end
             
+            % get column
+            getCol(MAC,1)
+            getCol(MAC,'Dec')
+            getCol(MAC,{'Dec','RA'})
+            % output as table
+            getCol(MAC,{'Dec','RA'},true)
+            % store result in original AstroCatalog
+            Result = getCol(MAC,{'Dec','RA'},false,true);
+            if ~all(Result == MAC.Catalog,'all')
+                error('Result should be identical');
+            end
+            
+            % fun_unary
+            fun_unary(AC(1),@sin)
+            fun_unary(AC(1),@sin,{},'RA')
+            
+            
+            % insert columns
+            
+            
+            % delete columns
+            
+            % ...
             
             
             Result = true;
