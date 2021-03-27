@@ -576,6 +576,8 @@ classdef AstroCatalog < handle %ImageComponent
             for Iobj=1:1:Nobj
                 if ~istable(Obj(Iobj).Catalog)
                     Obj(Iobj).Catalog = array2table(Obj(Iobj).Catalog);
+                    Obj(Iobj).Catalog.Properties.VariableNames = Obj(Iobj).ColCell;
+                    Obj(Iobj).Catalog.Properties.VariableUnits = Obj(Iobj).ColUnits;
                 end
             end
         end
@@ -932,6 +934,77 @@ classdef AstroCatalog < handle %ImageComponent
             end
         end
         
+        function [Result,Flag] = query(Obj, QueryStringUser, Args)
+            % Query an AstroCatalog object
+            % Input  : - An AstroCatalog object.
+            %          - A query string with operators on column names
+            %            (e.g., 'mag1>8 & mag2<10'),
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Output is a new object, rather
+            %                   than writing the output lines to the same
+            %                   object. Default is true.
+            % Output : - An AstroCatalog object with the selected lines.
+            % Author : Eran Ofek (Feb 2016)
+            % Example: AC=AstroCatalog('asu.fit','HDU',2);
+            %          BC=query(AC,'mag1>8 & mag2<10');
+            %          query(AC,'mag1>8 & mag2<10','CreateNewObj',false); % modifies AC
+            %          AC=AstroCatalog('asu.fit','HDU',2);
+            %          BC=query([AC;AC],'mag1>8 & mag2<10');
+            %          AC=array2table(AC)
+            %          BC=query(AC,'mag1>8 & mag2<10');
+            
+            arguments
+                Obj
+                QueryStringUser char
+                Args.CreateNewObj(1,1) logical        = true;
+            end
+            
+            Nobj = numel(Obj);
+            
+            if Args.CreateNewObj
+                Result = AstroCatalog(size(Obj));
+            else
+                Result = Obj;
+            end
+            
+            for Iobj=1:1:Nobj
+                % for each AstroCatalog element
+                
+                % for table:  'RA>1' -> 'AstC.(CatField).(AstC.Col.RA)'
+                % for matrix: 'RA>1' -> 'AstC.(CatField)(:,AstC.Col.RA)'
+
+                ColStrLength = cellfun(@numel, Obj(Iobj).ColCell);
+                Ncol   = numel(Obj(Iobj).ColCell);
+                % need to go over column names from longest to shortest
+                [~,SI] = sort(ColStrLength,'descend');
+
+                QueryString = sprintf(' %s',QueryStringUser);
+                if istable(Obj(Iobj).Catalog)
+                    % catalog is stored as table
+                    for Icol=1:1:Ncol
+                        ColName = Obj(Iobj).ColCell{SI(Icol)};
+                        QueryString = regexprep(QueryString, sprintf('(?<=[^.])%s',ColName), sprintf(' Obj(Iobj).Catalog.%s', ColName));
+                    end
+                else
+                    % catalog is stored as array
+                    for Icol=1:1:Ncol
+                        ColName = Obj(Iobj).ColCell{SI(Icol)};
+                        QueryString = regexprep(QueryString, sprintf('(?<=[^.])%s',ColName), sprintf(' getCol(Obj(Iobj), ''%s'')', ColName));
+                    end
+                end
+                Flag = eval(QueryString);
+                
+                Result(Iobj).Catalog   = Obj(Iobj).Catalog(Flag,:);
+                Result(Iobj).ColCell   = Obj(Iobj).ColCell;
+                Result(Iobj).ColUnits  = Obj(Iobj).ColUnits;
+                Result(Iobj).ColDesc   = Obj(Iobj).ColDesc;
+                Result(Iobj).SortByCol = Obj(Iobj).SortByCol;
+                Result(Iobj).IsSorted  = Obj(Iobj).IsSorted;
+                
+            end
+            
+        end
+        
     end
     
     methods % match catalogs
@@ -954,7 +1027,7 @@ classdef AstroCatalog < handle %ImageComponent
     end
     
 
-    methods % Unit-Test
+    methods (Static)  % Unit-Test
         function Result = unitTest()
             
             % Create an empty AstroCatalog
@@ -1014,6 +1087,15 @@ classdef AstroCatalog < handle %ImageComponent
             
             % ...
             
+            
+            % query
+            AC=AstroCatalog('asu.fit','HDU',2);
+            BC=query(AC,'mag1>8 & mag2<10');
+            query(AC,'mag1>8 & mag2<10','CreateNewObj',false); % modifies AC
+            AC=AstroCatalog('asu.fit','HDU',2);
+            BC=query([AC;AC],'mag1>8 & mag2<10');
+            AC=array2table(AC)
+            BC=query(AC,'mag1>8 & mag2<10');
             
             Result = true;
         end
