@@ -31,6 +31,11 @@ classdef AstroCatalog < handle %ImageComponent
             %               with this array in the Catalog property.
             %            If an AstCat/catCl object then convert it to
             %               AstroCatalog object.
+            %            If file name or a cell array of file names, then
+            %               attempt read data from files. Cell array
+            %               contains a list of file names, while a single
+            %               file may contain wild cards or gegular
+            %               expressions.
             %          * ...,Key,Val,...
             %            'ColCell' - A cell array of column names.
             %                   If empty, try to use other inputs.
@@ -38,6 +43,23 @@ classdef AstroCatalog < handle %ImageComponent
             %            'ColUnits' - A cell array of column units.
             %                   If empty, try to use other inputs.
             %                   Default is {}.
+            %            'Method' - Method by which to generate file names
+            %                   list using io.files.filelist.
+            %                   ['wild'] | 'regexp'.
+            %            'FileType' - File type from which to read data:
+            %                   'fits' - FITS table. Default.
+            %                   'hdf5' - HDF5 file (dataset is indicated by
+            %                           HDU).
+            %                   'ipac' | 'txt' | 'mat' | ...
+            %            'TableType' - FITS table type: ['auto'] | 'bintable' | 'table'
+            %            'HDU' - FITS HDU number or HDF5 dataset name.
+            %            'ArgsreadTable1' - A cell array of additional
+            %                   arguments to pass to FITS.readTable1.
+            %                   Default is {}.
+            %            'ConvertTable2array' - When eading a FITS table,
+            %                   attempt to convert the table to an array (only of
+            %                   all columns are of class double).
+            %                   Default is true.
             % Output : - An AstroCatalog object.
             % Author : Eran Ofek (Mar 2021)
             % Example: AC=AstroCatalog(array2table(rand(10,2)));
@@ -45,17 +67,74 @@ classdef AstroCatalog < handle %ImageComponent
             %          A = AstCat; A(1).Cat=rand(10,2); A(2).Cat=rand(10,2);
             %          AC = AstroCatalog(A);
             %          AC = AstroCatalog(A,'ColCell',{'RA','Dec'},'ColUnits',{'rad','rad'});
+            %          AC=AstroCatalog('asu.fit','HDU',2); % read from FITS table
+            %          
             
             arguments
                 AnotherObj                    = [];
                 Args.ColCell cell             = {};
                 Args.ColUnits cell            = {};
+                Args.Method char              = 'wild'; % 'wild' | 'regexp' for io.files.filelist
+                Args.FileType                 = 'fits'; % 'fits' | 'hdf5' | ...
+                Args.TableType                = 'auto'; % 'auto'|'bintable'|'table' for FITS.readTable1
+                Args.HDU                      = 1;  % HDU or dataset name
+                Args.ArgsreadTable1           = {};
+                Args.ConvertTable2array       = true;  % only if all columns are double
             end
             
             if isempty(AnotherObj)
                 Obj.Catalog = [];
             else
-                if isnumeric(AnotherObj) || istable(AnotherObj)
+                if ischar(AnotherObj) || ischar(AnotherObj) || isstring(AnotherObj)
+                    % read from files
+                    List  = io.files.filelist(AnotherObj,Args.Method);
+                    Nlist = numel(List);
+                    for Ilist=1:1:Nlist
+                        % create a single empty AstroCatalog
+                        Obj(Ilist) = AstroCatalog;
+                        switch lower(Args.FileType)
+                            case 'fits'
+                                % read FITS table
+                                Table = FITS.readTable1(List{Ilist}, 'HDU',Args.HDU,...
+                                                                     'TableType',Args.TableType,...
+                                                                     Args.ArgsreadTable1{:});
+                                Obj(Ilist).Catalog = Table;
+                                if Args.ConvertTable2array
+                                    ColTypes = varfun(@class,Obj(Ilist).Catalog,'OutputFormat','cell');
+                                    if all(strcmp(ColTypes, 'double'))
+                                        % conversion to matrix is doable
+                                        Obj(Ilist).Catalog  = table2array(Obj(Ilist).Catalog);
+                                        Obj(Ilist).ColCell  = Table.Properties.VariableNames;
+                                        Obj(Ilist).ColUnits = Table.Properties.VariableUnits;
+                                    end
+                                end
+                                
+                            case {'hdf5','h5'}
+                                % read from HDF5
+                                % FFU
+                                error('FFU: Unsupported FileType');
+                                
+                            case {'ipac'}
+                                % read IPAC text table
+                                error('FFU: Unsupported FileType');
+                                
+                            case {'mat'}
+                                % read from a mat file containing one of
+                                % the supported formats
+                                error('FFU: Unsupported FileType');
+                                % NOT TESTED
+                                %Obj = AstroCatalog(io.files.load2(List{Ilist}));
+                                
+                            case {'txt'}
+                                % attempt to read from text file
+                                error('FFU: Unsupported FileType');
+                                
+                            otherwise
+                                error('Unknown FileType option');
+                        end
+                    end
+                        
+                elseif isnumeric(AnotherObj) || istable(AnotherObj)
                     % read table into AstroCatalog
                     Obj(1).Catalog = AnotherObj;
                     if isempty(Args.ColCell)
@@ -72,29 +151,30 @@ classdef AstroCatalog < handle %ImageComponent
                     else
                         Obj(1).ColUnits = Args.ColUnits;
                     end
-                else
-                    % AnotherObj is not numeric/table
-                    if isa(AnotherObj,'AstCat') || isa(AnotherObj,'catCl')
-                        % read AstCat or catCl objects
-                        Nobj = numel(AnotherObj);
-                        for Iobj=1:1:Nobj
-                            Obj(Iobj) = AstroCatalog;
-                            Obj(Iobj).Catalog  = AnotherObj(Iobj).Cat;
-                            if isempty(Args.ColCell)
-                                Obj(Iobj).ColCell  = AnotherObj(Iobj).ColCell;
-                            else
-                                Obj(Iobj).ColCell  = Args.ColCell;
-                            end
-                            if isempty(Args.ColUnits)
-                                Obj(Iobj).ColUnits = AnotherObj(Iobj).ColUnits;
-                            else
-                                Obj(Iobj).ColUnits = Args.ColUnits;
-                            end
-                            
+                elseif isa(AnotherObj,'AstCat') || isa(AnotherObj,'catCl')
+                    % read AstCat or catCl objects
+                    Nobj = numel(AnotherObj);
+                    for Iobj=1:1:Nobj
+                        Obj(Iobj) = AstroCatalog;
+                        Obj(Iobj).Catalog  = AnotherObj(Iobj).Cat;
+                        if isempty(Args.ColCell)
+                            Obj(Iobj).ColCell  = AnotherObj(Iobj).ColCell;
+                        else
+                            Obj(Iobj).ColCell  = Args.ColCell;
                         end
-                    else
-                        error('First input argument is of unsupported class');
+                        if isempty(Args.ColUnits)
+                            Obj(Iobj).ColUnits = AnotherObj(Iobj).ColUnits;
+                        else
+                            Obj(Iobj).ColUnits = Args.ColUnits;
+                        end
+
                     end
+                    
+                elseif isa(AnotherObj,'AstroCatalog')
+                    % already in AstroCatalog
+                    Obj = AnotherObj;
+                else
+                    error('First input argument is of unsupported class');
                 end
             end
                    
@@ -824,9 +904,12 @@ classdef AstroCatalog < handle %ImageComponent
             % Create an empty AstroCatalog
             AC = AstroCatalog;
             
+            % read from FITS table
+            AC = AstroCatalog('asu.fit','HDU',2);
+            
             % Create Astrocatalog with table
-            AC=AstroCatalog(array2table(rand(10,2)));
-            AC=AstroCatalog(rand(10,2),'ColCell',{'RA','Dec'});
+            AC = AstroCatalog(array2table(rand(10,2)));
+            AC = AstroCatalog(rand(10,2),'ColCell',{'RA','Dec'});
             
             % Create AstCat and convert to AstroCatalog 
             A = AstCat; A(1).Cat=rand(10,2);
