@@ -291,7 +291,7 @@ classdef FITS < handle
             % Tested : Matlab R2014a
             %     By : Eran O. Ofek                    Jan 2015
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
-            % Example: [Out,Head,Col]=FITS.read_table('asu.fit');
+            % Example: [Out,Head,Col]=FITS.readTable1('asu.fit');
             % Reliable: 2
             %--------------------------------------------------------------------------
 

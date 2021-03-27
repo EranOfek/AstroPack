@@ -6,6 +6,7 @@
 classdef Base < handle
     % Properties
     properties (SetAccess = public)
+        UserData
     end
     
     %-------------------------------------------------------- 

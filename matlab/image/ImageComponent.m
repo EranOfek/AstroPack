@@ -4,7 +4,7 @@ classdef ImageComponent < Component
         Image                                   % return the rescaled image
     end
     
-    properties (Hidden, SetAccess = public)
+    properties (SetAccess = public)
         Data                                    % e.g., Image matrix
         Scale {mustBeNumeric(Scale)} = [];      %
         ScaleMethod = 'lanczos3';               %
@@ -604,7 +604,7 @@ classdef ImageComponent < Component
                 end
                 
                 if ~isempty(NewScale)
-                    Result = imresize(Obj(Iobj).Data, Scale, 'Method', Args.Method);
+                    Result = imresize(Obj(Iobj).Data, NewScale, 'Method', Args.Method);
                     
                     if Args.UpdateObj
                         Obj(Iobj).Data  = Result;
@@ -614,6 +614,28 @@ classdef ImageComponent < Component
                 
             end
         end
+    end
+    
+    
+    methods (Static)  % unitTest
+        function Result = unitTest
+            % unitTest for ImageComponent
+            
+            IC = ImageComponent;
+            Data     = [1 2;1 2];
+            IC.Image = Data;
+            IC.Scale = [10 10];
+            if ~all(size(IC.Data)==Data)
+                error('Inconsistent size stored in Data');
+            end
+            if ~all(size(IC.Image)==IC.Scale)
+                error('resized image has the wrong size');
+            end
+            
+            Result = true;
+            
+        end
+        
     end
     
 end
