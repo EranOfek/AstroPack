@@ -16,21 +16,12 @@ classdef AstroPSF < ImageComponent
     
     
     properties (Dependent) % Access image data directly        
-        PSF    % This is the nomincal PSF
-        Var    
+        PSF
+        VarPSF
     end
     
     properties (SetAccess = public)
-        Header AstroHeader
-        PSF AstroPSF
-        CatData AstroCatalog
-        WCS AstroWCS
         
-        % Data
-        ImageData(1,1) BaseImage
-        MaskData(1,1) BaseImage
-        BackData(1,1) BaseImage
-        VarData(1,1) BaseImage
     end
     
     methods % Constructor
@@ -45,15 +36,7 @@ classdef AstroPSF < ImageComponent
 
  
     methods % Setters/Getters
-        function Obj = set.Image(Obj, Data)
-            % setter for Image - store image in ImageData property
-            Obj.ImageData.Data = Data;
-        end
-        
-        function Data = get.Image(Obj)
-            % getter for Image - get image from ImageData property
-            Data = Obj.ImageData.Data;
-        end        
+       
     end
     
     methods (Static)  % static methods
