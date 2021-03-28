@@ -614,6 +614,31 @@ classdef ImageComponent < Component
                 
             end
         end
+        
+    end
+    
+    methods % break/rejoin image to smaller images
+        function Result = subimages(Obj)
+            % break image to sub images
+            
+        end
+        
+        function subimages2image(Obj)
+            %
+            
+        end
+        
+        
+        function Result = cutout(Obj)
+            % break image to cutouts around positions
+            
+        end
+        
+        function [varargout] = funCutout(Obj)
+            %
+            
+        end
+        
     end
     
     

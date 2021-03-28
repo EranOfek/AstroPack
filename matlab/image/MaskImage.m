@@ -37,13 +37,22 @@ classdef MaskImage < ImageComponent
     end
     
     methods % functionality
-        function Result = fun_unary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
-            %
+        function bitwise_cutout(Obj, Operator, Args)
+            % Apply bitwise operator to a cutouts
+            
+            arguments
+                Obj
+                Operator function_handle
+                Args.XY
+                Args.Radius
+                Args.Shape
+            end
            
-            Nobj = numel(Obj)
             
             
         end
+        
+        
         
     end
     
