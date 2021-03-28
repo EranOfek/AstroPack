@@ -9,16 +9,15 @@
 %--------------------------------------------------------------------------
 
 classdef AstroPSF < ImageComponent
-    % Component should contain:
-    % UserData
-    % Config
+    % ImageComponent contains:
+    % Data
+    % Scale
+    % ScaleMethod
+    
     
     properties (Dependent) % Access image data directly        
-        Image 
-        Mask 
-        Back 
-        Var
-        Cat
+        PSF    % This is the nomincal PSF
+        Var    
     end
     
     properties (SetAccess = public)
