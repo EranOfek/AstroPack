@@ -620,12 +620,9 @@ classdef ImageComponent < handle %Component
     end
     
     methods % break/rejoin image to smaller images
-        function Result = subimages(Obj)
-            % break image to sub images
-            
-        end
         
-        function [Result,ListEdge,ListCenter] = subimages2image(Obj,BlockSize,Args)
+        
+        function [Result,ListEdge,ListCenter] = image2subimages(Obj,BlockSize,Args)
             % break an image in a single element ImageComponent into sub images.
             % Input  : - An ImageComponent object with a single element.
             %            If the image is scaled, then will rescale the
@@ -647,7 +644,7 @@ classdef ImageComponent < handle %Component
             %            element contains one sub image.
             % Author : Eran Ofek (Mar 2021)
             % Example: IC=ImageComponent; IC.Image=rand(1000,1000);
-            %          [Result,ListEdge,ListCenter] = subimages2image(IC,[256 256]);
+            %          [Result,ListEdge,ListCenter] = image2subimages(IC,[256 256]);
             
             arguments
                 Obj(1,1)               % must be a single element object
@@ -669,6 +666,10 @@ classdef ImageComponent < handle %Component
             
         end
         
+        function Result = subimages2image(Obj)
+            % break image to sub images
+            
+        end
         
         function Result = cutout(Obj)
             % break image to cutouts around positions
@@ -676,7 +677,7 @@ classdef ImageComponent < handle %Component
         end
         
         function [varargout] = funCutout(Obj)
-            %
+            % Apply function on image cutouts
             
         end
         
