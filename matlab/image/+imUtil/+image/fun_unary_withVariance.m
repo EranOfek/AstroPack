@@ -68,7 +68,12 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
                 ResultVar = Var.*FunH(Mat);
                 warning('The variance was propagated using symbolic math - For speed consider adding this function to the list of built in functions');
         end
-        FlagBad = isinf(Mat) | isnan(Mat) | isnan(Var);
+        
+        if nargout>2
+            %FlagBad = isinf(Mat) | isnan(Mat) | isnan(Var);
+            FlagBad = isnan(ResultVar) | isinf(Result) | isnan(Result);
+        end
+        
     end
     
 end
