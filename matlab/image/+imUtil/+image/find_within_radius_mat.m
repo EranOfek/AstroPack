@@ -4,7 +4,6 @@ function [Cube,RoundXorig,RoundYorig]=find_within_radius_mat(Matrix,X,Y,Radius,C
 % Description: Given an image and a list of coordinates, construct a cybe
 %              of stamps around the coordinates. Region outside the image
 %              are padded with zeros.
-
 %              coordinate a vector (within a cell array) of indices of
 %              the points in the image
 %              that are within a given radius from the coordinate.

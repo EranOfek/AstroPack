@@ -23,7 +23,8 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %              Note that the measurment of the second moment may be highly
 %              biased and it can be usually used only as a relative
 %              quantity.
-% Input  : - a 2D image (background subtracted).
+% Input  : - a 2D image (background subtracted), or a 3D cube of cutouts
+%            (3rd dim is ciutout index).
 %          - A vector of X coordinates around to calculate moments.
 %          - A vector of Y coordinates around to calculate moments.
 %          * Pairs of ...,key,val,... The following keywords are available:
