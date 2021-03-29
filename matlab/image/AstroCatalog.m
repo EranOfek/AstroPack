@@ -550,9 +550,9 @@ classdef AstroCatalog < handle %ImageComponent
             end
                 
             
-            if Args.UseDict
-                error('FFU: Dictinary is not implemented yet');
-            end
+%             if Args.UseDict
+%                 error('FFU: Dictinary is not implemented yet');
+%             end
             ColInd = colname2ind(Obj, Columns, []);
             if istable(Obj.Catalog)
                 if OutputIsTable

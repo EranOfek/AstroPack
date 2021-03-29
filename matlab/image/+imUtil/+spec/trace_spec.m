@@ -4,6 +4,7 @@ function trace_spec(Image,Args)
 arguments
     Image           {mustBeNumeric(Image)}
     Args.DispAxis                           = 2;  % 0-auto; 1,2
+    Args.TraceAlgo char                     = '';      % 'radon' | 'kalman' | '
 end
 
 if Args.DispAxis==1
@@ -17,3 +18,6 @@ elseif Args.DispAxis==2
 else
     error('Unknown DispAxis option');
 end
+
+
+

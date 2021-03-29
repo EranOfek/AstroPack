@@ -1,4 +1,4 @@
-function [Sub,ListEdge,ListCenter]=image_partitioning(Image,BlockSize,varargin)
+function [Sub,ListEdge,ListCenter]=image_partitioning(Image,BlockSize,Args)
 % Partition a 2D image into sub images.
 % Package: ImUtil.Back
 % Description: Partition a 2D image into sub images.
@@ -37,15 +37,17 @@ function [Sub,ListEdge,ListCenter]=image_partitioning(Image,BlockSize,varargin)
 %--------------------------------------------------------------------------
 
 
-InPar = inputParser;
-addOptional(InPar,'ListEdge',[]);
-addOptional(InPar,'ListCenter',[]);
-addOptional(InPar,'Overlap',10);
-addOptional(InPar,'FieldNameIm','Im');
-addOptional(InPar,'FieldNameX','CenterX');
-addOptional(InPar,'FieldNameY','CenterY');
-parse(InPar,varargin{:});
-InPar = InPar.Results;
+arguments
+    Image
+    BlockSize
+    Args.ListEdge         = [];
+    Args.ListCenter       = [];
+    Args.Overlap          = 10;
+    Args.FieldNameIm      = 'Im';
+    Args.FieldNameX       = 'CenterX';
+    Args.FieldNameY       = 'CenterY';
+end
+
 
 ImageSize = fliplr(size(Image));  % [X,Y]
 
@@ -55,10 +57,10 @@ if numel(BlockSize)==1
 end
 
 if isempty(BlockSize)
-    ListEdge = InPar.ListEdge;
-    ListCenter = InPar.ListCenter;
+    ListEdge = Args.ListEdge;
+    ListCenter = Args.ListCenter;
 else
-    [ListEdge,ListCenter] = imUtil.partition.subimage_boundries(ImageSize,BlockSize,InPar.Overlap,'simple');
+    [ListEdge,ListCenter] = imUtil.partition.subimage_boundries(ImageSize,BlockSize,Args.Overlap,'simple');
 end
     
 
@@ -74,9 +76,9 @@ Nblock = size(ListEdge,1);
 Sub = Util.struct.struct_def({'Im','CenterX','CenterY'},Nblock,1);
 
 for Iblock=1:1:Nblock
-    Sub(Iblock).(InPar.FieldNameIm) = Image(Ymin(Iblock):Ymax(Iblock),Xmin(Iblock):Xmax(Iblock));
-    Sub(Iblock).(InPar.FieldNameX)   = ListCenter(Iblock,1);
-    Sub(Iblock).(InPar.FieldNameY)   = ListCenter(Iblock,2);
+    Sub(Iblock).(Args.FieldNameIm) = Image(Ymin(Iblock):Ymax(Iblock),Xmin(Iblock):Xmax(Iblock));
+    Sub(Iblock).(Args.FieldNameX)   = ListCenter(Iblock,1);
+    Sub(Iblock).(Args.FieldNameY)   = ListCenter(Iblock,2);
 end
 
 Nx = numel(unique(ListCenter(:,1)));

@@ -1,5 +1,5 @@
 
-classdef ImageComponent < Component
+classdef ImageComponent < handle %Component
     properties (Dependent)
         Image                                   % return the rescaled image
     end
@@ -91,7 +91,7 @@ classdef ImageComponent < Component
                 Obj
                 Fun function_handle                                      = [];
                 FunArg cell                                              = {};
-                OutType char   {mustBeMember(OutType,{'object','matrix','cell','struct'})} = 'object';                                     
+                OutType char   {mustBeMember(OutType,{'obj','object','matrix','cell','struct'})} = 'obj';                                     
                 DataProp                                                 = 'Data';
                 
             end
@@ -99,7 +99,7 @@ classdef ImageComponent < Component
             Nobj = numel(Obj);
             
             switch lower(OutType)
-                case 'object'
+                case {'obj','object'}
                     Result = Obj;
                     for Iobj=11:1:Nobj
                         Result(Iobj).(DataProp) = Fun(Obj(Iobj).(DataProp), FunArg{:});
@@ -155,7 +155,7 @@ classdef ImageComponent < Component
                 Obj
                 Fun function_handle                                      = [];
                 FunArg cell                                              = {};
-                OutType char   {mustBeMember(OutType,{'object','matrix','cell','struct'})} = 'object';                                     
+                OutType char   {mustBeMember(OutType,{'obj','object','matrix','cell','struct'})} = 'obj';       
                 DataProp       {mustBeA(DataProp,{'char','cell'})}       = {};
             end
                         
@@ -174,7 +174,7 @@ classdef ImageComponent < Component
             Nobj = numel(Obj);
             
             switch lower(OutType)
-                case 'object'
+                case {'obj','object'}
                     Result = Obj;
                     for Iobj=11:1:Nobj
                         for Idp=1:1:Ndp
@@ -276,7 +276,7 @@ classdef ImageComponent < Component
                 Obj2           {mustbeA(Obj2,{'BaseImage','numeric','cell'})} = [];
                 Fun function_handle                                           = [];
                 FunArg cell                                                   = {};
-                OutType char   {mustBeMember(OutType,{'object','matrix','cell','struct'})} = 'object';   
+                OutType char   {mustBeMember(OutType,{'obj','object','matrix','cell','struct'})} = 'obj';   
                 DataProp1                                                     = 'Data';
                 DataProp2                                                     = [];
                 DataPropOut                                                   = [];
@@ -307,7 +307,7 @@ classdef ImageComponent < Component
                 
             
             switch lower(OutType)
-                case 'object'
+                case {'obj','object'}
                     Result = Obj;
                     
                     for Iobj=1:1:Nobj
@@ -448,7 +448,7 @@ classdef ImageComponent < Component
                 Obj2           {mustbeA(Obj2,{'BaseImage','numeric','cell'})} = [];
                 Fun function_handle                                           = [];
                 FunArg cell                                                   = {};
-                OutType char   {mustBeMember(OutType,{'object','matrix','cell','struct'})} = 'object';   
+                OutType char   {mustBeMember(OutType,{'obj','object','matrix','cell','struct'})} = 'obj';   
                 DataProp       {mustBeA(DataProp,{'char','cell'})}            = {};
             end
             
@@ -483,7 +483,7 @@ classdef ImageComponent < Component
                 
             
             switch lower(OutType)
-                case 'object'
+                case {'obj','object'}
                     Result = Obj;
                     
                     for Iobj=1:1:Nobj
@@ -610,6 +610,8 @@ classdef ImageComponent < Component
                         Obj(Iobj).Data  = Result;
                         Obj(Iobj).Scale = [];
                     end
+                else
+                    Result = Obj(Iobj).Data;
                 end
                 
             end
@@ -623,8 +625,47 @@ classdef ImageComponent < Component
             
         end
         
-        function subimages2image(Obj)
-            %
+        function [Result,ListEdge,ListCenter] = subimages2image(Obj,BlockSize,Args)
+            % break an image in a single element ImageComponent into sub images.
+            % Input  : - An ImageComponent object with a single element.
+            %            If the image is scaled, then will rescale the
+            %            image (i.e., will use the 'Image' property).
+            %          - Size [X, Y] of sub images. or [X] (will be copied as [X, X]).
+            %            Alternatively, if this is empty then will use ListEdge and
+            %            ListCenter parameters.
+            %          * ...,key,val,...
+            %            'ListEdge' - [xmin, xmax, ymin, ymax] as returned by
+            %                   imUtil.partition.subimage_boundries.
+            %                   This is used only if BlockSize is empty.
+            %                   Default is empty.
+            %            'ListCenter' - [xcenter,ycenter] as returned by
+            %                   imUtil.partition.subimage_boundries.
+            %                   This is used only if BlockSize is empty.
+            %                   Default is empty.
+            %            'Overlap' - Overlapping buffer. Default is 10 pix.
+            % Output : - A multiple element ImageComponent object. Each
+            %            element contains one sub image.
+            % Author : Eran Ofek (Mar 2021)
+            % Example: IC=ImageComponent; IC.Image=rand(1000,1000);
+            %          [Result,ListEdge,ListCenter] = subimages2image(IC,[256 256]);
+            
+            arguments
+                Obj(1,1)               % must be a single element object
+                BlockSize             = [256 256];
+                Args.ListEdge         = [];
+                Args.ListCenter       = [];
+                Args.Overlap          = 10;
+            end
+            
+            [Sub,ListEdge,ListCenter]=imUtil.partition.image_partitioning(Obj.Image, BlockSize, 'ListEdge',Args.ListEdge,...
+                                                                                                'ListCenter',Args.ListCenter,...
+                                                                                                'Overlap',Args.Overlap);
+            Nsub   = numel(Sub);
+            Result = ImageComponent([1,Nsub]);
+            for Isub=1:1:Nsub
+                Result(Isub).Data  = Sub.Im;
+                Result(Isub).Scale = [];
+            end
             
         end
         

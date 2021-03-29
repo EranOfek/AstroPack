@@ -77,7 +77,24 @@ classdef AstroImage < ImageComponent
     methods % general functionality
         function Result = fun_unary(Obj, Operator, OperatorArgs, OutType, DataProp, DataPropOut)
             %
-            Nobj = numel(Obj)
+            
+            arguments
+                Obj
+                Operator
+                OperatorArgs cell                   = {};
+                Args.OutType char                   = 'obj'; % 'obj' | 'mat'
+                Args.DataProp                       = {};
+                Args.DataPropOut                    = {};
+                Args.ModeHeader                     = 'obj'; % NewHeader, cell_header, 'obj' | 'none'
+            end
+            
+            Nobj = numel(Obj);
+            
+            
+            
+            
+            
+            
         end
         
         function Result = fun_binary(Obj1, Obj2, Operator, OperatorArgs, OutType, DataProp1, DataProp2, DataPropOut)
