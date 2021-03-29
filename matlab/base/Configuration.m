@@ -5,7 +5,7 @@
 % Description:
 %--------------------------------------------------------------------------
 
-classdef Configuration < Base
+classdef Configuration < ConfigurationBase
     
     % Properties
     properties (SetAccess = public)
@@ -48,39 +48,6 @@ classdef Configuration < Base
     
     
     methods % Helper functions
-        
-        % Replace macros in string with values from struct
-        % Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc"
-        % conf.unmacro(conf.Yaml.DarkImage.InputFolder, conf.Yaml.EnvFolders)
-        function Result = unmacro(Obj, Str, MacrosStruct)
-            FieldNames = fieldnames(MacrosStruct);
-            for i = 1:numel(FieldNames)
-                Var = FieldNames{i};
-                Macro = "$" + Var;
-                Value = MacrosStruct.(Var);
-                if ~isempty(strfind(Str, Macro))
-                    NewStr = strrep(Str, Macro, Value);
-                    Str = NewStr;
-                end                    
-            end
-            Result = Str;
-        end
-        
-        
-        % [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
-        function [Min, Max] = getRange(Obj, Cell)
-            Min = Cell{1};
-            Max = Cell{2};
-        end
-        
-        
-        function Len = listLen(Obj, List)
-            [~, Len] = size(List);
-        end
-        
-        function Value = listItem(Obj, List, Index)
-            Value = List
-        end
         
     end
     
