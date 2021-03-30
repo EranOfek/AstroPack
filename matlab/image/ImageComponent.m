@@ -67,6 +67,9 @@ classdef ImageComponent < handle %Component
     end
     
     methods % function on images
+        
+        % consider moving to BaseImage??
+        
         function Result=fun_unary(Obj,Fun,FunArg,OutType,DataProp)
             % Apply a unary function on a single fields and store on object
             % Input  : - (Obj) An object
@@ -567,6 +570,71 @@ classdef ImageComponent < handle %Component
                     
                 otherwise
                     error('Unknown OutType option');
+            end
+        end
+        
+        function [Obj,ObjReplaced] = replace(Obj, Range, NewVal)
+            % Replace values in range in image with a new value and generate a flag image of replaced pixels
+            % Input  : - An ImageComponent object.
+            %          - A two column matrix of min/max ranges, or a single
+            %            column vector of values.
+            %            Any value in the image in this range <=/>= will be
+            %            replaced.
+            %          - A vector of new values that will replace the old
+            %            values. If scalar, then will use the same value
+            %            for all ranges.
+            %            For vector, value can be NaN.
+            %          - A value to subtract to the lower range and add to
+            %            the upper range prior to comparison. This is
+            %            useful in order to avoid problems with comparison
+            %            of floating point numbers. Default is 0.
+            % Output : - The same object, but with the updated values.
+            %          - A new ImageComponent object which contains a
+            %            matrix of logicals. True if value was replaced.
+            % Author : Eran Ofek (Mar 2021)
+            % Example: [Obj,ObjReplaced] = replace(Obj, Range, NewVal);
+            
+            arguments
+                Obj
+                Range      {mustBeNumeric(Range)}
+                NewVal     {mustBeNumeric(NewVal)}
+                Eps        {mustBeNumeric(Eps)}        = 0;
+            end
+            
+            if nargout>1
+                ObjReplaced = ImageComponent(size(Obj));
+            end
+            
+            Nnewval = numel(NewVal); 
+            Nrange  = size(Range,1);
+            Nobj    = numel(Obj);
+            for Iobj=1:1:Nobj
+                FlagAll = false(numel(Obj(Iobj).Image),1);
+                for Irange=1:1:Nrange
+                    if any(isnan(Range(Irange,:)))
+                        % Replace NaN
+                        Flag = isnan(Obj(Iobj).Image(:));
+                    else
+                        % Replace values (not NaN)
+                        MinVal = min(Range(Irange,:),[],2) - Eps;
+                        MaxVal = max(Range(Irange,:),[],2) + Eps;
+
+                        Flag   = Obj(Iobj).Image(:)>=MinVal & Obj(Iobj).Image(:)<=MaxVal;
+                        Inew   = min(Irange, NnewVal);
+                    end
+                    
+                    Obj(Iobj).Image(Flag) = NewVal(Inew);
+                    
+                    if nargout>1
+                        FlagAll = FlagAll | Flag;
+                    end
+                end
+                    
+                if nargout>1
+                    % flag the MaskImage
+                    ObjReplaced(Iobj).Image = false(size(Obj(Iobj).Image));
+                    ObjReplaced(Iobj).Image(FlagAll) = true;
+                end
             end
         end
         
