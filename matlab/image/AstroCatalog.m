@@ -2,10 +2,10 @@
 
 classdef AstroCatalog < AstroTable
     properties
-        ColX
-        ColY
+        ColX                                                            = [];
+        ColY                                                            = [];
         CooType char    {mustBeMember(CooType,{'pix','sphere','auto'})} = 'auto';
-        CooUnits char   {mustBeMember(CooUnits,{'deg','rad'})} = 'deg';
+        CooUnits char   {mustBeMember(CooUnits,{'deg','rad'})}          = 'deg';
     end
     
     properties (Hidden, constant)
@@ -42,9 +42,40 @@ classdef AstroCatalog < AstroTable
             
             % search synonyms in config file
             warning('Search synonym in config file does not operational yet');
+            switch lower(Obj.CooType)
+                case 'auto'
+                    SynonymCell_RA  = Obj.DefNamesRA;
+                    SynonymCell_Dec = Obj.DefNamesDec;
+                    
+                    [Name_RA,  IndInCell_RA,  IndInSynonym_RA]  = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
+                    [Name_Dec, IndInCell_Dec, IndInSynonym_Dec] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
+                    if isempty(IndInCell_RA) || isempty(IndInCell_Dec)
+                        CooType = 'pix';
+                    else
+                        % spherical coordinates found in AstroCatalog
+                        CooType = 'sphere';
+                    end
+                otherwise
+                    CooType = Obj.CooType;
+            end
             
-            
-            
+            switch lower(CooType)
+                case 'pix'
+                    SynonymCell_X = Obj.DefNamesX;
+                    SynonymCell_Y = Obj.DefNamesY;
+                    
+                    [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_X, 'CaseSens', Args.CaseSens);
+                    [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_Y, 'CaseSens', Args.CaseSens);
+                case 'sphere'
+                    SynonymCell_RA  = Obj.DefNamesRA;
+                    SynonymCell_Dec = Obj.DefNamesDec;
+                    
+                    [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
+                    [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
+                otherwise
+                    error('Unknown/illegal CooType option');
+            end
+                    
             
             
         end
