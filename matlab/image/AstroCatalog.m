@@ -4,7 +4,7 @@ classdef AstroCatalog < AstroTable
     properties
         ColX
         ColY
-        CooType char    {mustBeMember(CooType,{'pix','sphere','cosd','auto'})} = 'auto';
+        CooType char    {mustBeMember(CooType,{'pix','sphere','auto'})} = 'auto';
         CooUnits char   {mustBeMember(CooUnits,{'deg','rad'})} = 'deg';
     end
     
@@ -31,11 +31,56 @@ classdef AstroCatalog < AstroTable
         end
     end
     
+    methods % column names
+        function [ColRA, ColDec] = getColCoo(Obj, ReturnName)
+            % get coordinates (x/y or ra/dec) column names or indices
+            
+            arguments
+                Obj(1,1)
+                ReturnName(1,1) logical       = false;
+            end
+            
+            % search synonyms in config file
+            warning('Search synonym in config file does not operational yet');
+            
+            
+            
+            
+            
+        end
+    end
+    
     methods % search by coordinates/name
+        function [Obj, Flag] = coneSearch(Obj, Coo, Args)
+            %
+            
+            arguments
+                Obj
+                Coo
+                Args.Radius
+                Args.Shape char                  = 'circle';
+                Args.CooUnits char               = 'deg';
+                Args.OutIsObj(1,1) logical       = true;
+            end
+            
+        end
+        
+        function [Obj, Flag] = inPolygon(Obj, PolyCoo, Args)
+            %
+            
+        end
+        
+        
+            
         
     end
     
     methods % match two AstroCatalog
+        function [MatchedObj, UnMatchedObj] = match(Obj1, Obj2, Args)
+            %
+            
+        end
+        
         
     end
     

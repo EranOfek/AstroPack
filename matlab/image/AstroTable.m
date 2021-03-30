@@ -362,6 +362,44 @@ classdef AstroTable < handle %ImageComponent
             end
             
             NewArray = [OldArray(:,1:(ColInd-1)), NewData, OldArray(:,ColInd:end)];
+       end
+        
+       function [Name, IndInCell, IndInSynonym] = searchSynonym(Cell, SynonymCell, Args)
+           % Find the first appearance of a synonym in a cell array.
+           % Input  : - A cell array of names.
+           %          - A cell array of synonyms.
+           %          * ...,key,val,...
+           %            'CaseSens' - Case sensetive search. Default is
+           %                    false.
+           % Output : - The found name as appear in the Cell of names.
+           %          - The index of the name in the cell of names.
+           %          - The index of the name as appear in the cell of
+           %            synonyms.
+           % Example: [Name, IndInCell, IndInSynonym] = AstroTable.searchSynonym({'Number','ra','dec','Flux','Color'},{'ALPHA_J2000','RAJ2000','RA','ALPHA'});
+           
+           arguments
+               Cell 
+               SynonymCell
+               Args.CaseSens(1,1) logical            = false;
+           end
+           
+           if Args.CaseSens
+               [Flag,IndInSyn] = ismember(Cell, SynonymCell);
+           else
+               [Flag,IndInSyn] = ismember(lower(Cell), lower(SynonymCell));
+           end
+           
+            if all(IndInSyn==0)
+                % not found
+                Name          = {};
+                IndInCell     = [];
+                IndInSynonym  = [];
+            else             
+                IndInCell     = find(IndInSyn>0, 1, 'first');
+                IndInSynonym  = IndInSyn(IndInCell);
+                Name          = Cell(IndInCell);
+            end
+
         end
     end
     
