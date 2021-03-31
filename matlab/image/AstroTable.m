@@ -85,7 +85,7 @@ classdef AstroTable < handle %ImageComponent
             if isempty(AnotherObj)
                 Obj.Catalog = [];
             else
-                if ischar(AnotherObj) || ischar(AnotherObj) || isstring(AnotherObj)
+                if ischar(AnotherObj) || iscell(AnotherObj) || isstring(AnotherObj)
                     % read from files
                     List  = io.files.filelist(AnotherObj,Args.Method);
                     Nlist = numel(List);

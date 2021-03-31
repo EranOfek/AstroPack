@@ -4,92 +4,106 @@ classdef AstroCatalog < AstroTable
     properties
         ColX                                                            = [];
         ColY                                                            = [];
-        CooType char    {mustBeMember(CooType,{'pix','sphere','auto'})} = 'auto';
+        CooType char    {mustBeMember(CooType,{'pix','sphere',''})}     = '';
         CooUnits char   {mustBeMember(CooUnits,{'deg','rad'})}          = 'deg';
+    end
+    
+    properties (Hidden, SetAccess=private)
+        CooUnitsKnown(1,1) logical                                      = false;
     end
     
     properties (Hidden, Constant)
         DefNamesX cell                   = {'X','X_IMAGE','XWIN_IMAGE','X1','X_PEAK'};
         DefNamesY cell                   = {'Y','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK'};
         DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
-        DefNamesDec cell                 = {'Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DECJ2000','Declination'};
+        DefNamesDec cell                 = {'Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
         DefNamesPMRA cell                = {'PMRA'};
         DefNamesPMDec cell               = {'PMDec'};
         DefNamesPlx cell                 = {'Plx'};
         DefNamesMag cell                 = {'Mag','PSF_MAG','MAG_PSF'};
     end
+  
     
     
     methods % constructor
         function Obj = AstroCatalog(varargin)
             % Constructor for Astrocatalog 
+            %
+            % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             
             % construct AstroTable
-            Obj = AstroTable(varargin{:});
+            AT   = AstroTable(varargin{:});
+            FN   = fieldnames(AT);
+            Nfn  = numel(FN);
+            Nobj = numel(AT);
+            for Iobj=1:1:Nobj
+                for Ifn=1:1:Nfn
+                    Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
+                end
+            end
+                
         end
     end
     
     methods % setters/getters
-        function set.CooType(Obj, CooType)
-            % setter for CooType
-            % Obj.CooType = 'auto' will automatically deduce the CooType
-            % and set the ColX, ColY properties.
-            % If RA/Dec exist in ColNames than will set CooType to 'sphere'
-            
-            % search synonyms in config file
-            warning('Search synonym in config file does not operational yet');
-            switch lower(CooType)
-                case 'auto'
-                    SynonymCell_RA  = Obj.DefNamesRA;
-                    SynonymCell_Dec = Obj.DefNamesDec;
-                    
-                    [Name_RA,  IndInCell_RA,  IndInSynonym_RA]  = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
-                    [Name_Dec, IndInCell_Dec, IndInSynonym_Dec] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
-                    if isempty(IndInCell_RA) || isempty(IndInCell_Dec)
-                        CooType = 'pix';
-                    else
-                        % spherical coordinates found in AstroCatalog
-                        CooType = 'sphere';
-                    end
-                
-                    switch lower(CooType)
-                        case 'pix'
-                            SynonymCell_X = Obj.DefNamesX;
-                            SynonymCell_Y = Obj.DefNamesY;
-
-                            [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_X, 'CaseSens', Args.CaseSens);
-                            [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_Y, 'CaseSens', Args.CaseSens);
-                        case 'sphere'
-                            SynonymCell_RA  = Obj.DefNamesRA;
-                            SynonymCell_Dec = Obj.DefNamesDec;
-
-                            [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
-                            [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj.ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
-                        otherwise
-                            error('Unknown/illegal CooType option');
-                    end
-
-                    Obj.CooType = 'sphere';
-                    Obj.ColX    = IndInCellX;
-                    Obj.ColY    = IndInCellY;
-                    
-                otherwise
-                    Obj.CooType = CooType;
-            end
-        end
+%         function set.CooType(Obj, CooType)
+%             % setter for CooType
+%             % Obj.CooType = 'auto' will automatically deduce the CooType
+%             % and set the ColX, ColY properties.
+%             % If RA/Dec exist in ColNames than will set CooType to 'sphere'
+%             
+%             % search synonyms in config file
+% %             switch lower(CooType)
+% %                 case 'auto'
+% %                     [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(Obj, 'CaseSens', false);
+% %                     
+% %                     Obj.CooType = CooType;
+% %                     Obj.ColX    = IndInCellX;
+% %                     Obj.ColY    = IndInCellY;
+% %                     
+% %                 otherwise
+% %                     Obj.CooType = CooType;
+% %             end
+%         end
         
+%         function Obj = get.CooType(Obj)
+%             %
+%            
+%             
+%             CooType = Obj.CooType;
+%             switch lower(CooType)
+%                 case 'auto'
+%                     [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(Obj, 'CaseSens', false);
+%                     
+%                     Obj.CooType = CooType;
+%                     if isempty(Obj.ColX)
+%                         Obj.ColX    = IndInCellX;
+%                     end
+%                     if isempty(Obj.ColY)
+%                         Obj.ColY    = IndInCellY;
+%                     end
+%                     
+%                 otherwise
+%                     %Obj.CooType = CooType;
+%             end
+%             
+%         end
+%         
         function Units = get.CooUnits(Obj)
             % getter for CooUnits - if empty, attempt to obtain from
             % catalog.
             % Note this is not cleared when the catalog is changed.
            
+%             if Obj.CooUnitsKnown
+%                 Units = '';
+                
             if isempty(Obj.CooUnits)
                 ColIndX = colname2ind(Obj, Obj.ColX);
                 ColIndY = colname2ind(Obj, Obj.ColY);
                 CooUnitsX = Obj.ColUnits{ColIndX};
                 CooUnitsY = Obj.ColUnits{ColIndY};
                 if ~strcmp(CooUnitsX,CooUnitsY)
-                    error('CooUnits for columns %d and %d are inconsistent,'ColIndX, ColIndY);
+                    error('CooUnits for columns %d and %d are inconsistent',ColIndX, ColIndY);
                 end
                 Units        = CooUnitsX;
                 Obj.CooUnits = Units;
@@ -102,69 +116,209 @@ classdef AstroCatalog < AstroTable
         end
         
         function set.CooUnits(Obj, Val)
-            % setter for CooUnits (only if ColUnits for coordinates in Catalog are empty
+            % setter for CooUnits and coordinates unit conversion
+            % If ColNames doesn't contains units, this will just update the
+            % ColNames and CooUnits according to the input value.
+            % If ColName do contain units, this will update the units and
+            % convert the coordinate columns to the requested Units.
+            % If ColX and ColY are empty, then will attempt to populate
+            % them.
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2)
+            %          AC.CooUnits = 'rad';
+            %          AC.CooUnits = 'deg';                     
             
+            if isempty(Obj.ColX) || isempty(Obj.ColY)
+                Obj.getCooTypeAuto;
+            end
             ColIndX = colname2ind(Obj, Obj.ColX);
             ColIndY = colname2ind(Obj, Obj.ColY);
             CooUnitsX = Obj.ColUnits{ColIndX};
             CooUnitsY = Obj.ColUnits{ColIndY};
-            if isempty(CooUnitsX) && isempty(CooUnitsY)
-                Obj.ColUnits(ColIndX) = Val;
-                Obj.ColUnits(ColIndY) = Val;
+            if isempty(CooUnitsX)
+                % set coordinate units without converting the values
+                Obj.ColUnits{ColIndX} = Val;
             else
-                warning('Coordinates are already set to %s and %s',CooUnitsX, CooUnitsY);
+                ConvFactor = convert.angular(CooUnitsX, Val, 1);
+                Obj.Catalog(:,ColIndX) = Obj.Catalog(:,ColIndX).*ConvFactor;
+                Obj.ColUnits{ColIndX} = Val;
             end
-            
-            
+            if isempty(CooUnitsY)
+                % set coordinate units without converting the values
+                Obj.ColUnits{ColIndY} = Val;
+            else
+                ConvFactor = convert.angular(CooUnitsY, Val, 1);
+                Obj.Catalog(:,ColIndY) = Obj.Catalog(:,ColIndY).*ConvFactor;
+                Obj.ColUnits{ColIndY} = Val;
+            end
+                
+            Obj.CooUnits = Val;
         end
     end
     
     methods % column names
-        function Obj = convertCooUnits(Obj,Units)
-            % convert coordinates Units (only if in angular units)
-            % Example: Obj.convertCooUnits('deg')
+        function [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(Obj, Args)
+            % Attempt to get CooType and RA/Dec X/Y column names automatically from Catalog
+            % Input  : - An AstroCatalog object.
+            %          * ...,key,val,...
+            %            'CaseSens' - Case senstive column name search.
+            %                   Default is false.
+            %            'UpdateProp' - Indicating if to update the
+            %            CooType, ColX and ColY properties.
+            %            Default is true.
+            % Output : - CooType: 'sphere' | 'pix', for the last element in
+            %            the AstroCatalog object.
+            %          - X column name.
+            %          - Y column name.
+            %          - X column index.
+            %          - Y column index.
+            % Author : Eran Ofek (Mar 2021)
+            % Example: [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC(1));
+           
+            arguments
+                Obj
+                Args.CaseSens(1,1) logical            = false;
+                Args.UpdateProp(1,1) logical          = true;
+            end
+            
             
             Nobj = numel(Obj);
+            % search synonyms in config file
+            warning('Search synonym in config file does not operational yet');
+            
             for Iobj=1:1:Nobj
-                if strcmp(Obj(Iobj).CooType,'sphere') && ~strcmp(Obj(Iobj).CooUnits,Units)
-                    ColIndX = colname2ind(Obj(Iobj), Obj(Iobj).ColX);
-                    ColIndY = colname2ind(Obj(Iobj), Obj(Iobj).ColY);
+                SynonymCell_RA  = Obj(Iobj).DefNamesRA;
+                SynonymCell_Dec = Obj(Iobj).DefNamesDec;
 
-                    ConvFactor = convert.angular(Obj(Iobj).CooUnits,Units);
-                    Obj(Iobj).Catalog(:,ColIndX) = Obj(Iobj).Catalog(:,ColIndX).*ConvFactor;
-                    Obj(Iobj).Catalog(:,ColIndY) = Obj(Iobj).Catalog(:,ColIndY).*ConvFactor;
-                    Obj(Iobj).ColUnits{ColIndX}  = Units;
-                    Obj(Iobj).ColUnits{ColIndY}  = Units;
-                    Obj(Iobj).CooUnits           = Units;
-
+                [Name_RA,  IndInCell_RA,  IndInSynonym_RA]  = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
+                [Name_Dec, IndInCell_Dec, IndInSynonym_Dec] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
+                if isempty(IndInCell_RA) || isempty(IndInCell_Dec)
+                    CooType = 'pix';
+                else
+                    % spherical coordinates found in AstroCatalog
+                    CooType = 'sphere';
                 end
-                % Otherwise: Coordinates are already in requested Units
-            end
+
+                switch lower(CooType)
+                    case 'pix'
+                        SynonymCell_X = Obj(Iobj).DefNamesX;
+                        SynonymCell_Y = Obj(Iobj).DefNamesY;
+
+                        [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_X, 'CaseSens', Args.CaseSens);
+                        [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Y, 'CaseSens', Args.CaseSens);
+                    case 'sphere'
+                        SynonymCell_RA  = Obj(Iobj).DefNamesRA;
+                        SynonymCell_Dec = Obj(Iobj).DefNamesDec;
+
+                        [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
+                        [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
+                    otherwise
+                        error('Unknown/illegal CooType option');
+                end
+                NameX = NameX{1};
+                NameY = NameY{1};
+                CooUnitsX = Obj(Iobj).ColUnits{IndInCellX};
+                CooUnitsY = Obj(Iobj).ColUnits{IndInCellY};
                 
+                if Args.UpdateProp
+                    Obj(Iobj).CooType = CooType;
+                    Obj(Iobj).ColX    = IndInCellX;
+                    Obj(Iobj).ColY    = IndInCellY;
+                    if ~strcmp(CooUnitsX, CooUnitsY)
+                        error('Coo units must be identical in both axes');
+                    end
+                    Obj(Iobj).CooUnits = CooUnitsX;
+                end
+            end
             
             
         end
+        
+        function Obj = convertCooUnits(Obj,Units)
+            % convert all coordinates Units for multiple element object
+            % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
+            %          AC.convertCooUnits('deg')
+            %          Obj.convertCooUnits('deg')
+            
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).CooUnits = Units;
+            end            
+            
+        end
+        
+        function [varargout]=getCoo(Obj, Units)
+            % get coordinates columns from a single element AstroCatalog object
+            % Input  : - A single element AstroCatalog object
+            %          - Units of output coordinates (for no spherical
+            %            coordinates will return them as they are).
+            % Output : * If two argument are requested then these are X and
+            %            Y, or RA and Dec. If a single argument is
+            %            requested then this is a two column matrix of
+            %            [X, Y] or [RA, Dec].
+            % Author : Eran Ofek (Mar 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [RA, Dec] = AC.getCoo('deg');
+            %          [RADec]   = AC.getCoo('rad');
+            
+            arguments
+                Obj(1,1)
+                Units char                = 'rad';
+            end
+           
+            if isempty(Obj.ColX) || isempty(Obj.ColY)
+                Obj.getCooTypeAuto;
+            end
+            
+            X = getCol(Obj, Obj.ColX);
+            Y = getCol(Obj, Obj.ColY);
+            
+            if strcmp(Obj.CooType, 'sphere') && ~strcmp(Obj.CooUnits, Units)
+                ConvFactor = convert.angular(Obj.CooUnits, Units, 1);
+                X          = X.*ConvFactor;
+                Y          = Y.*ConvFactor;
+            end
+            
+            if nargout>1
+                varargout{1} = X;
+                varargout{2} = Y;
+            else
+                varargout{1} = [X, Y];
+            end
+            
+        end
+        
     end
+    
+    
     
     methods % search by coordinates/name
         function Obj = coneSearch(Obj, Coo, Args)
             %
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          AC.coneSearch([1 1],'Radius',3600)
             
             arguments
                 Obj
                 Coo
-                Args.Radius
+                Args.Radius                      = 5;
+                Args.RadiusUnits                 = 'arcsec';
                 Args.Shape char                  = 'circle';
                 Args.CooUnits char               = 'deg';
                 Args.OutIsObj(1,1) logical       = true;
             end
             
+            RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
+            
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
+                if ~Obj(Iobj).IsSorted
+                    Obj(Iobj).sortrows(Obj(Iobj).ColY);
+                end
+                [Ind,FlagUnique,FlagFound] = VO.search.search_sortedlat_multi(getCoo(Obj(Iobj),'rad'),...
+                                                                              Coo(:,1), Coo(:,2), RadiusRad);
                 
-                [Ind,FlagUnique,FlagFound] = VO.search.search_sortedlat_multi(Obj(Iobj).Catalog ,0.5,0.5,0.01)
-                ...
-                
+             
             end
             
             
