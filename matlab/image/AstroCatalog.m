@@ -294,6 +294,7 @@ classdef AstroCatalog < AstroTable
     
     methods % search by coordinates/name
         function Result = coneSearch(Obj, Coo, Args)
+            % not working yet
             %
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
             %          AC.coneSearch([1 1],'Radius',3600)

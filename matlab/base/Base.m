@@ -18,7 +18,7 @@ classdef Base < handle
     
     methods % copy
         function NewObj = copyObject(Obj, Args)
-            %
+            % not working yet...
             
             arguments
                 Obj
