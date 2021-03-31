@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef AstroTable < handle %ImageComponent
+classdef AstroTable < Component %ImageComponent
     % Component should contain:
     % UserData
     % Config

@@ -318,8 +318,8 @@ classdef AstroCatalog < AstroTable
             
             if Args.OutIsObj
                 if Args.CreateNewObj
-                    Result = AstroCatalog(size(Obj));
-                else
+                    Result = copyObject(Obj, 'ClearProp',{'Catalog','IsSorted'});
+                else 
                     Result = Obj;
                 end
             end
@@ -342,12 +342,10 @@ classdef AstroCatalog < AstroTable
                         AllDist = [AllDist; Ind(Icoo).Dist]; 
                     end
                 end
-                if Args.OutIsObj
-                    Result(Iobj).Catalog = Out;
-                else
-                    Result = [Out, AllDist];
+                Result(Iobj).Catalog = Out;
+                if Args.AddDistCol
+                    Obj(Iobj).insertCol(AllDist, Args.DistColName);
                 end
-                                                                
             end
             
             

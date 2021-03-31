@@ -6,8 +6,8 @@
 classdef Component < Base
     % Properties
     properties (SetAccess = public)
-        Config Configuration
-        Log LogFile
+        %Config Configuration
+        %Log LogFile
     end
     
     %-------------------------------------------------------- 
