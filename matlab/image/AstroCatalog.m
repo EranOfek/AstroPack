@@ -293,7 +293,7 @@ classdef AstroCatalog < AstroTable
     
     
     methods % search by coordinates/name
-        function Obj = coneSearch(Obj, Coo, Args)
+        function Result = coneSearch(Obj, Coo, Args)
             %
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
             %          AC.coneSearch([1 1],'Radius',3600)
@@ -304,21 +304,50 @@ classdef AstroCatalog < AstroTable
                 Args.Radius                      = 5;
                 Args.RadiusUnits                 = 'arcsec';
                 Args.Shape char                  = 'circle';
+                Args.AddDistCol                  = true;
                 Args.CooUnits char               = 'deg';
                 Args.OutIsObj(1,1) logical       = true;
+                Args.CreateNewObj(1,1) logical   = true;
             end
             
             RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
+            if Args.AddDistCol
+                RadiusRad = -abs(RadiusRad);
+            end
+            
+            
+            if Args.OutIsObj
+                if Args.CreateNewObj
+                    Result = AstroCatalog(size(Obj));
+                else
+                    Result = Obj;
+                end
+            end
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 if ~Obj(Iobj).IsSorted
                     Obj(Iobj).sortrows(Obj(Iobj).ColY);
                 end
-                [Ind,FlagUnique,FlagFound] = VO.search.search_sortedlat_multi(getCoo(Obj(Iobj),'rad'),...
-                                                                              Coo(:,1), Coo(:,2), RadiusRad);
+                [Ind,FlagUnique] = VO.search.search_sortedlat_multi(getCoo(Obj(Iobj),'rad'),...
+                                                                    Coo(:,1), Coo(:,2), RadiusRad);
                 
-             
+                % what to do with the found objects
+                Ncoo = numel(Ind);
+                Out     = zeros(0, size(Obj(Iobj).Catalog,2));
+                AllDist = zeros(0,1);
+                for Icoo=1:1:Ncoo
+                    Out     = [Out; Obj(Iobj).Catalog(Ind(Icoo).Ind,:)];
+                    if Args.AddDistCol
+                        AllDist = [AllDist; Ind(Icoo).Dist]; 
+                    end
+                end
+                if Args.OutIsObj
+                    Result(Iobj).Catalog = Out;
+                else
+                    Result = [Out, AllDist];
+                end
+                                                                
             end
             
             
