@@ -739,12 +739,12 @@ classdef ImageComponent < handle %Component
             
         end
         
-        function Result = cutout(Obj)
+        function Result = cutouts(Obj)
             % break image to cutouts around positions
             
         end
         
-        function [varargout] = funCutout(Obj)
+        function [varargout] = funCutouts(Obj)
             % Apply function on image cutouts
             
         end

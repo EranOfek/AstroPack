@@ -1,4 +1,4 @@
-% BaseImage handle class - all images inherits from this class
+2% BaseImage handle class - all images inherits from this class
 % Package: @BaseImage
 % Description: 
 % Tested : Matlab R2018a

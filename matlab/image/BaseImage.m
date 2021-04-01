@@ -13,7 +13,7 @@
 classdef BaseImage < ImageComponent
     
     properties (Hidden, SetAccess = public)
-        Dict BitDictionary                      % The dictionary of a bit mask image
+        % Dict BitDictionary                      % The dictionary of a bit mask image
         
         IsBackSub(1,1) logical = false;         % Is the image back subtracted. Set is done by external functions
         %IsVar(1,1) logical = false;            % not really useful here
