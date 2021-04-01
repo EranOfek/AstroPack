@@ -293,7 +293,7 @@ classdef AstroCatalog < AstroTable
     
     
     methods % search by coordinates/name
-        function Result = coneSearch(Obj, Coo, Args)
+        function [Result, Flag, Dist] = coneSearch(Obj, Coo, Args)
             % not working yet
             %
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
@@ -305,24 +305,23 @@ classdef AstroCatalog < AstroTable
                 Args.Radius                      = 5;
                 Args.RadiusUnits                 = 'arcsec';
                 Args.Shape char                  = 'circle';
-                Args.AddDistCol                  = true;
                 Args.CooUnits char               = 'deg';
-                Args.OutIsObj(1,1) logical       = true;
+                Args.AddDistCol                  = true;
+                Args.DistColName                 = 'Dist';
+                Args.DistColPos                  = Inf;
                 Args.CreateNewObj(1,1) logical   = true;
             end
             
             RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
-            if Args.AddDistCol
+            if Args.AddDistCol || nargout>2
                 RadiusRad = -abs(RadiusRad);
             end
             
             
-            if Args.OutIsObj
-                if Args.CreateNewObj
-                    Result = copyObject(Obj, 'ClearProp',{'Catalog','IsSorted'});
-                else 
-                    Result = Obj;
-                end
+            if Args.CreateNewObj
+                Result = copyObject(Obj, 'ClearProp',{'Catalog'});
+            else 
+                Result = Obj;
             end
             
             Nobj = numel(Obj);
@@ -339,13 +338,11 @@ classdef AstroCatalog < AstroTable
                 AllDist = zeros(0,1);
                 for Icoo=1:1:Ncoo
                     Out     = [Out; Obj(Iobj).Catalog(Ind(Icoo).Ind,:)];
-                    if Args.AddDistCol
-                        AllDist = [AllDist; Ind(Icoo).Dist]; 
-                    end
+                    AllDist = [AllDist; Ind(Icoo).Dist]; 
                 end
                 Result(Iobj).Catalog = Out;
                 if Args.AddDistCol
-                    Obj(Iobj).insertCol(AllDist, Args.DistColName);
+                    Result(Iobj).insertCol(AllDist, Args.DistColPos, Args.DistColName);
                 end
             end
             

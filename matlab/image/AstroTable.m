@@ -339,7 +339,8 @@ classdef AstroTable < Component %ImageComponent
             %          - A column index in which to insert the new column.
             %            This is the index of the new column after
             %            insertion. For example, 1 will insert the new
-            %            column as the first column.
+            %            column as the first column. If Inf, will insert in
+            %            the last column position.
             % Output : - The new array.
             % Example: AstroTable.insertColumn({'a','b','c'},{'d','e'},2)
             %          AstroTable.insertColumn(ones(5,3),zeros(5,2),2)
@@ -357,9 +358,13 @@ classdef AstroTable < Component %ImageComponent
             if  (Nrow~=NrowI)
                 error('Number of rows in column to insert must equal to the number of rows in array');
             end
+            if isinf(ColInd)
+                ColInd = Ncol+1;
+            end
             if ColInd>(Ncol+1) || ColInd<1
                 error('Column index in which to insert the column must be between 1 and number of columns +1');
             end
+            
             
             NewArray = [OldArray(:,1:(ColInd-1)), NewData, OldArray(:,ColInd:end)];
        end
@@ -654,8 +659,13 @@ classdef AstroTable < Component %ImageComponent
                 Obj
                 Data
                 Pos
-                NewColNames = {};
+                NewColNames                           = {};
             end
+            
+            if ~iscell(NewColNames) && ~isstring(NewColNames)
+                NewColNames = {NewColNames};
+            end
+            
             Nobj = numel(Obj);
             if isa(Data,'AstroTable')
                 Nobj2 = numel(Data);
@@ -663,21 +673,27 @@ classdef AstroTable < Component %ImageComponent
                     Iobj2             = min(Nobj,Nobj2);
                     ColInd            = colname2ind(Obj(Iobj), Pos);
                     Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
-                    if ~isempty(NewColNames)
-                        Obj(Iobj).ColNames(ColInd) = NewColNames;
+                    if isempty(NewColNames)
+                        % attempt to copy ColNames from Data
+                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, Data(Iobj2).ColNames, ColInd);
+                    else
+                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
                     end
+                    
                 end
             else
+                if isempty(NewColNames)
+                    NewColNames = AstroTable.defaultColNames(size(Data,2));
+                end
                 for Iobj=1:1:Nobj
                     ColInd            = colname2ind(Obj(Iobj), Pos);
                     Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data, ColInd);
-                    Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, AstroTable.defaultColNames(size(Data,2)), ColInd);
-                    if ~isempty(NewColNames)
-                        Obj(Iobj).ColNames(ColInd) = NewColNames;
+                    if isempty(NewColNames)
+                        NewColNames = AstroTable.defaultColNames(size(Data,2));
                     end
+                    Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
                 end
             end
-            
         end
         
         function Obj = replaceColNames(Obj,OldNames,NewNames)
