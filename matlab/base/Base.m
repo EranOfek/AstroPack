@@ -18,14 +18,25 @@ classdef Base < handle
     
     methods % copy
         function NewObj = copyObject(Obj, Args)
-            % not working yet...
+            % By value copy of an object ans its content
+            % Input  : - Any object that inherits from Base
+            %          * ...,key,val,...
+            %            'ClearProp' - A cell array of properties which
+            %                   will be cleared after the copy operation.
+            %                   default is {}.
+            % Output : - A copy of the original object.
+            % Example: NC=AC.copyObject('ClearProp',{'Catalog'});
             
             arguments
                 Obj
                 Args.DeepCopy(1,1) logical          = true;
-                Args.ClearProp cell                 = {};
+                Args.ClearProp                      = {};
             end
             
+            if ~iscell(Args.ClearProp) && ~isstring(Args.ClearProp)
+                Args.ClearProp = {Args.ClearProp};
+            end
+                
             if Args.DeepCopy
                 ObjByteArray = getByteStreamFromArray(Obj);
                 NewObj       = getArrayFromByteStream(ObjByteArray);
