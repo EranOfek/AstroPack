@@ -400,6 +400,8 @@ classdef AstroCatalog < AstroTable
         
         function [Obj, Flag] = inPolygon(Obj, PolyCoo, Args)
             %
+            % very similar to coneSearch
+            
             
         end
         
@@ -412,14 +414,28 @@ classdef AstroCatalog < AstroTable
             
         end
         
+        function matchPattern(Obj1, Obj2, Args)
+            %
+        end
+        
         
     end
     
     methods % match against external catalog
+        function [MatchedObj, UnMatchedObj] = match_catsHTM(Obj, CatName, Args)
+            %
+        end
         
     end
     
     methods % plotting
+        function H = plot(Obj, Projection, varargin)
+            %
+        end
+        
+        function H = scatter(Obj, Projection, varargin)
+            %
+        end
         
     end
     
