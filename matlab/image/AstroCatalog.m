@@ -293,11 +293,48 @@ classdef AstroCatalog < AstroTable
     
     
     methods % search by coordinates/name
-        function [Result, Flag, Dist] = coneSearch(Obj, Coo, Args)
-            % not working yet
-            %
+        function [Result, Flag, AllDist] = coneSearch(Obj, Coo, Args)
+            % cone search(s) on AstroCatalog object
+            % Input  : - An AstroCatalog object. If multiple elements
+            %            then will perform the cone search on any one of
+            %            the elements.
+            %          - A two column matrix of [RA, Dec] or [X, Y]
+            %            to search.
+            %            If more then one row, then the results of the
+            %            search will be merged.
+            %          * ...,key,val,...
+            %            'Radius'  - Search radius. Default is 5.
+            %            'RadiusUnits' - Search radius units (if spherical
+            %                   coordinates search). Default is 'arcsec'.
+            %            'Shape' - Shape search. Default is 'circle'.
+            %            'CooUnits' - Units of (spherical) coordinates
+            %                   (second input argument). Default is 'deg'.
+            %            'AddDistCol' - Add column distance to outout
+            %                   catalog. Default is true.
+            %            'DistUnits' - Distance units. Default is 'arcsec'.
+            %            'DistColName' - Distance column name.
+            %                   Default is 'Dist'.
+            %            'DistColPos' - Position of Distance column in
+            %                   output catalog. Default is Inf (i.e., last
+            %                   column).
+            %            'CreateNewObj' - Create a new object (true), or
+            %                   store the data in the input object (false).
+            %                   Default is true.
+            % Output : - An AstroCatalog object with the found sources.
+            %          - A vector of logicals with the same length as the
+            %            number of rows in the input object. True if object
+            %            is in cone. If the input is an object with
+            %            multiple elements, then this vector corresponds to
+            %            the last element in the object array.
+            %          - A vector of distances of the found objects from
+            %            the cone search center. If the input is an object with
+            %            multiple elements, then this vector corresponds to
+            %            the last element in the object array.
+            % Author : Eran Ofek (Apr 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          AC.coneSearch([1 1],'Radius',3600)
+            %          AC.getCooTypeAuto
+            %          [NC, Flag, Dist] = coneSearch(AC,[1 1],'Radius',3600)
+            %          [NC, Flag, Dist] = coneSearch(AC,[1 1; 0 0],'Radius',3600);  % search around two positions (merged results).
             
             arguments
                 Obj
@@ -307,6 +344,7 @@ classdef AstroCatalog < AstroTable
                 Args.Shape char                  = 'circle';
                 Args.CooUnits char               = 'deg';
                 Args.AddDistCol                  = true;
+                Args.DistUnits                   = 'arcsec';
                 Args.DistColName                 = 'Dist';
                 Args.DistColPos                  = Inf;
                 Args.CreateNewObj(1,1) logical   = true;
@@ -329,8 +367,16 @@ classdef AstroCatalog < AstroTable
                 if ~Obj(Iobj).IsSorted
                     Obj(Iobj).sortrows(Obj(Iobj).ColY);
                 end
-                [Ind,FlagUnique] = VO.search.search_sortedlat_multi(getCoo(Obj(Iobj),'rad'),...
+                switch lower(Obj(Iobj).CooType)
+                    case 'sphere'
+                        [Ind,Flag] = VO.search.search_sortedlat_multi(getCoo(Obj(Iobj),'rad'),...
                                                                     Coo(:,1), Coo(:,2), RadiusRad);
+                    case 'pix'
+                        error('Pixel coneSearch is not yet supported');
+                    otherwise
+                        error('Unknown CooType option');
+                end
+                        
                 
                 % what to do with the found objects
                 Ncoo = numel(Ind);
@@ -340,6 +386,7 @@ classdef AstroCatalog < AstroTable
                     Out     = [Out; Obj(Iobj).Catalog(Ind(Icoo).Ind,:)];
                     AllDist = [AllDist; Ind(Icoo).Dist]; 
                 end
+                AllDist  = convert.angular('rad', Args.DistUnits, AllDist);
                 Result(Iobj).Catalog = Out;
                 if Args.AddDistCol
                     Result(Iobj).insertCol(AllDist, Args.DistColPos, Args.DistColName);
