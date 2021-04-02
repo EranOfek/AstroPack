@@ -107,7 +107,7 @@ for Ifn=1:1:Nfn
     Tmp = DirList.(FN{Ifn});
     Ndir = numel(Tmp);
     for Idir=1:1:Ndir
-        FullPath = sprintf('%s%s%s%s%s%s%s',fullfile(Tmp{Idir}{:}))
-        %addpath(FullPath);
+        FullPath = sprintf('%s%s%s%s%s%s%s',fullfile(Tmp{Idir}{:}));
+        addpath(FullPath)
     end
 end

@@ -429,12 +429,23 @@ classdef AstroCatalog < AstroTable
     end
     
     methods % plotting
-        function H = plotCoo(Obj, Projection, varargin)
+        function varargin = plotCoo(Obj, Projection, varargin)
             %
-        end
-        
-        function H = scatterCoo(Obj, Projection, varargin)
-            %
+            
+            if nargin<2
+                Projection = [];
+            end
+            if isempty(Projection)
+                Projection = 'aitoff';
+            end
+               
+            
+             % first time
+             axesm(Projection, 'Frame', 'on', 'Grid', 'on');
+             
+             %[varargin{1:1:nargin}] = plot(Obj)
+             
+            
         end
         
     end

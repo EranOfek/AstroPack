@@ -1074,6 +1074,51 @@ classdef AstroTable < Component %ImageComponent
     end
     
     methods % plots
+        function varargout = plotFun(Obj, PlotFun, Columns, varargin)
+            % 
+            % Example: AT = AstroTable; AT.Catalog=rand(10,4);
+            % AT.ColNames={'a','b','c','d'};
+            
+            if nargin<3
+                Columns = [1 2];
+                if nargin<2
+                    PlotFun = @plot;
+                end
+            end
+            
+            GH = groot; % graphic handle without properties
+            FH = get(groot,'CurrentFigure');
+            if isempty(FH)
+                % figure doesn't exist
+                HoldOn = false;
+            else
+                HoldOn = ishold;
+            end
+            
+            Ncol = numel(Columns);
+            if isnumeric(Columns)
+                Columns = num2cell(Columns);
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % columns
+                Data = cell(1,Ncol);
+                for Icol=1:1:Ncol
+                    Data{Icol} = getCol(Obj(Iobj), Columns{Icol});
+                end
+                
+                [varargout{1:1:nargout}] = PlotFun(Data{:}, varargin{:});
+                hold on;
+            end
+            if ~HoldOn
+                % return hold to original state
+                hold off;
+            end
+            
+            
+        end
+        
         function varargout = plot(Obj, ColX, ColY, varargin)
             % plot function for AstroTable objects
             % Input  : - An AstroTable object (multiple elements is supported).
