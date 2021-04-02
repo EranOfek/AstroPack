@@ -429,8 +429,22 @@ classdef AstroCatalog < AstroTable
     end
     
     methods % plotting
-        function varargin = plotCoo(Obj, Projection, varargin)
-            %
+        function varargin = plotMapFun(Obj, Projection, PlotFun, AddCol, varargin)
+            % A general map plotting function for AstroCatalog object
+            % Input  : - An AstroCatalog object.
+            %          - Map projection. See axesm for options.
+            %            Default is 'aitoff'. 
+            %          - Plot function handle. e.g., @plotm.
+            %          - Cell array of additional columns (to Dec, RA) to pass to the
+            %            plot function (e.g., in the case of @scatterm).
+            %            Default is {}.
+            %          * Additional arguments to pass to the plot function.
+            % Output : - 
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          AC.getCooTypeAuto
+            %          AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1)
+            %          AC.plotMapFun('aitoff',@scatterm,{'mag1','sep1'},'.','MarkerSize',1)
             
             if nargin<2
                 Projection = [];
@@ -439,11 +453,19 @@ classdef AstroCatalog < AstroTable
                 Projection = 'aitoff';
             end
                
+            if ~iscell(AddCol)
+                AddCol = num2cell(AddCol);
+            end
             
-             % first time
-             axesm(Projection, 'Frame', 'on', 'Grid', 'on');
-             
-             %[varargin{1:1:nargin}] = plot(Obj)
+            % first time
+            A=axesm(Projection, 'Frame', 'on', 'Grid', 'on');
+
+            CooUnits = Obj.CooUnits;
+            Obj.CooUnits = 'deg';
+            [varargin{1:nargout}] = plotFun(Obj, PlotFun, {Obj.ColY, Obj.ColX, AddCol{:}}, varargin{:});
+            Obj.CooUnits = CooUnits;
+
+            %[varargin{1:1:nargin}] = plot(Obj)
              
             
         end

@@ -1158,27 +1158,7 @@ classdef AstroTable < Component %ImageComponent
             %          AT(2).ColNames={'X','Y','Flux'};
             %          AT.plot({'X','Y'},'o','MarkerFaceColor','r');
             
-            
             [varargout{1:1:nargout}] = plotFun(Obj, @plot, ColXY, varargin{:});
-%             
-%             GH = groot; % graphic handle without properties
-%             FH = get(groot,'CurrentFigure');
-%             if isempty(FH)
-%                 % figure doesn't exist
-%                 HoldOn = false;
-%             else
-%                 HoldOn = ishold;
-%             end
-%             
-%             Nobj = numel(Obj);
-%             for Iobj=1:1:Nobj
-%                 [varargout{1:1:nargout}] = plot(getCol(Obj(Iobj), ColX), getCol(Obj(Iobj), ColY), varargin{:});
-%                 hold on;
-%             end
-%             if ~HoldOn
-%                 % return hold to original state
-%                 hold off;
-%             end
         end
         
     end
