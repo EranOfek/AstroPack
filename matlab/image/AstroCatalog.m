@@ -430,7 +430,7 @@ classdef AstroCatalog < AstroTable
     
     methods % plotting
         function varargin = plotMapFun(Obj, Projection, PlotFun, AddCol, varargin)
-            % A general map plotting function for AstroCatalog object
+            % A general map (RA/Dec) plotting function for AstroCatalog object
             % Input  : - An AstroCatalog object.
             %          - Map projection. See axesm for options.
             %            Default is 'aitoff'. 
