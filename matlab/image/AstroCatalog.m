@@ -429,11 +429,11 @@ classdef AstroCatalog < AstroTable
     end
     
     methods % plotting
-        function H = plot(Obj, Projection, varargin)
+        function H = plotCoo(Obj, Projection, varargin)
             %
         end
         
-        function H = scatter(Obj, Projection, varargin)
+        function H = scatterCoo(Obj, Projection, varargin)
             %
         end
         

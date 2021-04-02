@@ -1073,22 +1073,43 @@ classdef AstroTable < Component %ImageComponent
         
     end
     
-    methods % match catalogs
-        function MatchedObj = matchXY(Obj,Ref,Args)
-            % NEED TO BE A STAND ALONE FUN...
+    methods % plots
+        function varargout = plot(Obj, ColX, ColY, varargin)
+            % plot function for AstroTable objects
+            % Input  : - An AstroTable object (multiple elements is supported).
+            %            If more then one element, then will plot all and
+            %            return the hold state to its original state.
+            %          - Column name or index of X-axis.
+            %          - Column name or index if Y-axis.
+            %          * Additional arguments to pass to the plot function
+            %            e.g., 'o','Color',[1 1 0],'MarkerFaceColor',[1 1 0].
+            % Output : - An handle for the last plot.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AT = AstroTable; AT.Catalog=[(1:1:10).',(1:1:10).', rand(10,1)]
+            %          AT(2).Catalog = [(1:1:10).', (10:-1:1).', rand(10,1)];
+            %          AT(1).ColNames={'X','Y','Flux'};
+            %          AT(2).ColNames={'X','Y','Flux'};
+            %          AT.plot('X','Y','o','MarkerFaceColor','r');
             
-            arguments
-                Obj
-                Ref
-                Args.MatchRadius    {mustBeNumeric(Args.MatchRadius)} = 1;
-                Args.ColNameX                                         = {'XWIN_IMAGE','X','X_IMAGE'};
-                Args.ColNameY                                         = {'YWIN_IMAGE','Y','Y_IMAGE'};
-                
+            GH = groot; % graphic handle without properties
+            FH = get(groot,'CurrentFigure');
+            if isempty(FH)
+                % figure doesn't exist
+                HoldOn = false;
+            else
+                HoldOn = ishold;
             end
             
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [varargout{1:1:nargout}] = plot(getCol(Obj(Iobj), ColX), getCol(Obj(Iobj), ColY), varargin{:});
+                hold on;
+            end
+            if ~HoldOn
+                % return hold to original state
+                hold off;
+            end
         end
-        
-        
         
     end
     
