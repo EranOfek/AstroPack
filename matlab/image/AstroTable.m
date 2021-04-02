@@ -1075,9 +1075,27 @@ classdef AstroTable < Component %ImageComponent
     
     methods % plots
         function varargout = plotFun(Obj, PlotFun, Columns, varargin)
-            % 
+            % Operate a graphical function on AstroTable
+            % Input  : - An AstroTable object. If multiple elements, then
+            %            perform the plot for each element, and hold on.
+            %            The hold state will return to its original state.
+            %          - A plot handle function. e.g., @plot.
+            %            Default is @plot.
+            %          - A single column name, a cell array of column
+            %            names, or a vector of column indices.
+            %            Default is [1 2].
+            %          * Additional arguments to pass to thre plot
+            %            function.
+            % Output : - The plot handle. If multiple elemnts, then only
+            %            the handle of the lastes plot will be returned. 
+            % Author : Eran Ofek (Apr 2021)
             % Example: AT = AstroTable; AT.Catalog=rand(10,4);
             % AT.ColNames={'a','b','c','d'};
+            % AT.plotFun(@plot,{'a','c'},'o')
+            % AT.plotFun(@plot,[1 2],'o','Color','b')
+            % AT.plotFun(@hist,{'c'})
+            % AT.plotFun(@hist,'d')
+            % AT.plotFun(@plot3,[1 2 4],'o','Color','b')
             
             if nargin<3
                 Columns = [1 2];
@@ -1098,6 +1116,10 @@ classdef AstroTable < Component %ImageComponent
             Ncol = numel(Columns);
             if isnumeric(Columns)
                 Columns = num2cell(Columns);
+            else
+                if ischar(Columns)
+                    Columns = {Columns};
+                end
             end
             
             Nobj = numel(Obj);
@@ -1119,13 +1141,13 @@ classdef AstroTable < Component %ImageComponent
             
         end
         
-        function varargout = plot(Obj, ColX, ColY, varargin)
+        function varargout = plot(Obj, ColXY, varargin)
             % plot function for AstroTable objects
             % Input  : - An AstroTable object (multiple elements is supported).
             %            If more then one element, then will plot all and
             %            return the hold state to its original state.
-            %          - Column name or index of X-axis.
-            %          - Column name or index if Y-axis.
+            %          - A vector of [X, Y] colum indices, or a cell array
+            %            of X, Y column names.
             %          * Additional arguments to pass to the plot function
             %            e.g., 'o','Color',[1 1 0],'MarkerFaceColor',[1 1 0].
             % Output : - An handle for the last plot.
@@ -1134,26 +1156,29 @@ classdef AstroTable < Component %ImageComponent
             %          AT(2).Catalog = [(1:1:10).', (10:-1:1).', rand(10,1)];
             %          AT(1).ColNames={'X','Y','Flux'};
             %          AT(2).ColNames={'X','Y','Flux'};
-            %          AT.plot('X','Y','o','MarkerFaceColor','r');
+            %          AT.plot({'X','Y'},'o','MarkerFaceColor','r');
             
-            GH = groot; % graphic handle without properties
-            FH = get(groot,'CurrentFigure');
-            if isempty(FH)
-                % figure doesn't exist
-                HoldOn = false;
-            else
-                HoldOn = ishold;
-            end
             
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                [varargout{1:1:nargout}] = plot(getCol(Obj(Iobj), ColX), getCol(Obj(Iobj), ColY), varargin{:});
-                hold on;
-            end
-            if ~HoldOn
-                % return hold to original state
-                hold off;
-            end
+            [varargout{1:1:nargout}] = plotFun(Obj, @plot, ColXY, varargin{:});
+%             
+%             GH = groot; % graphic handle without properties
+%             FH = get(groot,'CurrentFigure');
+%             if isempty(FH)
+%                 % figure doesn't exist
+%                 HoldOn = false;
+%             else
+%                 HoldOn = ishold;
+%             end
+%             
+%             Nobj = numel(Obj);
+%             for Iobj=1:1:Nobj
+%                 [varargout{1:1:nargout}] = plot(getCol(Obj(Iobj), ColX), getCol(Obj(Iobj), ColY), varargin{:});
+%                 hold on;
+%             end
+%             if ~HoldOn
+%                 % return hold to original state
+%                 hold off;
+%             end
         end
         
     end
@@ -1226,9 +1251,27 @@ classdef AstroTable < Component %ImageComponent
             query(AC,'mag1>8 & mag2<10','CreateNewObj',false); % modifies AC
             AC=AstroTable('asu.fit','HDU',2);
             BC=query([AC;AC],'mag1>8 & mag2<10');
-            AC=array2table(AC)
+            AC=array2table(AC);
             BC=query(AC,'mag1>8 & mag2<10');
             
+            % plot
+            AT = AstroTable;
+            AT.Catalog=rand(10,4);
+            AT.ColNames={'a','b','c','d'};
+            AT.plotFun(@plot,{'a','c'},'o')
+            AT.plotFun(@plot,[1 2],'o','Color','b')
+            AT.plotFun(@hist,{'c'})
+            AT.plotFun(@hist,'d')
+            AT.plotFun(@plot3,[1 2 4],'o','Color','b')
+            
+            AT = AstroTable;
+            AT.Catalog = [(1:1:10).',(1:1:10).', rand(10,1)];
+            AT(2).Catalog = [(1:1:10).', (10:-1:1).', rand(10,1)];
+            AT(1).ColNames = {'X','Y','Flux'};
+            AT(2).ColNames = {'X','Y','Flux'};
+            AT.plot({'X','Y'},'o','MarkerFaceColor','r');
+            
+
             Result = true;
         end
     end
