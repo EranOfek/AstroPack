@@ -440,5 +440,40 @@ classdef AstroCatalog < AstroTable
     end
     
     
+    methods (Static) % unitTest
+        function Result = unitTest
+            % unitTest for the AstroCatalog class
+            
+            AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
+            [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC);
+            if AC(1).ColX~=AC(2).ColX
+                error('ColX in the two elements should have been identical');
+            end
+            if AC(1).ColY~=AC(2).ColY
+                error('ColY in the two elements should have been identical');
+            end
+            
+            % sort
+            AC(1).SortByCol = AC(1).ColY;
+            AC(2).SortByCol = 'DEJ2000';
+            AC.sortrows(AC(1).ColY);
+            if ~issorted(AC(1).Catalog(:,AC(1).ColY))
+                error('catalog is not sorted');
+            end
+            
+            % sort using the SortByCol property
+            AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
+            AC.getCooTypeAuto;
+            AC(1).SortByCol = AC(1).ColY;
+            AC(2).SortByCol = 'DEJ2000';
+            AC.sortrows;
+            if ~issorted(AC(1).Catalog(:,AC(1).ColY))
+                error('catalog is not sorted');
+            end
+            
+            
+        end
+    end
+    
 end
      

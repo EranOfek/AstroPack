@@ -858,16 +858,21 @@ classdef AstroTable < Component %ImageComponent
                 SortByColumn       = [];
             end
            
-            SortByColumn           = colname2ind(Obj,SortByColumn);
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                if ~Obj(Iobj).IsSorted || SortByColumn(1)~=Obj(Iobj).SortByCol(1)
-                    if isempty(SortByColumn)
-                        SortByColumn = Obj(Iobj).SortByCol;
+                if isempty(SortByColumn)
+                    if isempty(Obj(Iobj).SortByCol)
+                        error('Sort column is not specified as input or in SortByCol property');
                     end
-                    Obj(Iobj).Catalog   = sortrows(Obj(Iobj).Catalog, SortByColumn);
-                    Obj(Iobj).SortByCol = SortByColumn;
+                    SortByColumnInd           = colname2ind(Obj(Iobj), Obj(Iobj).SortByCol);
+                else
+                    SortByColumnInd           = colname2ind(Obj(Iobj), SortByColumn);
+                end
+                
+                if ~Obj(Iobj).IsSorted || any(SortByColumnInd~=Obj(Iobj).SortByCol)
+                    Obj(Iobj).Catalog   = sortrows(Obj(Iobj).Catalog, SortByColumnInd);
+                    Obj(Iobj).SortByCol = SortByColumnInd;
                     Obj(Iobj).IsSorted  = true;
                 end
             end
