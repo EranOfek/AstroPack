@@ -8,20 +8,25 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef AstroPSF < ImageComponent
+classdef AstroPSF % <  ??? Component
     % ImageComponent contains:
     % Data
     % Scale
     % ScaleMethod
     
     
-    properties (Dependent) % Access image data directly        
+    properties (Dependent) % Access image data directly    
         PSF
         VarPSF
     end
     
     properties (SetAccess = public)
-        
+        FunPSF                  % e.g., Map = Fun(DataPSF, X,Y, Color, Flux)
+        FunVar
+        DataPSF                 % The fun parameters, or an image
+        DataVar
+        ArgNames                % {'X','Y','Color','Flux'}
+        Type                    % 'image' | 'fun'
     end
     
     methods % Constructor
@@ -40,8 +45,15 @@ classdef AstroPSF < ImageComponent
     end
     
     methods (Static)  % static methods
-       
+        function multiGaussianPSF(DataPSF, X, Y, Color, Flux)
+            %
+            % I = G1(x,y, sigmaX(X,Y,Color,Flux), sigmaY(X,Y,Color,Flux), rho(X,Y,Color,Flux) )
+            
+        end
+            
     end
+    
+    
     
     methods % functionality
         function Result = fun_unary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)

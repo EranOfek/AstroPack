@@ -412,6 +412,48 @@ classdef AstroCatalog < AstroTable
         function [MatchedObj, UnMatchedObj] = match(Obj1, Obj2, Args)
             %
             
+            RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
+            if Args.AddDistCol || nargout>2
+                RadiusRad = -abs(RadiusRad);
+            end
+            
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            Nmax  = max(Nobj1, Nobj2);
+            MatchedObj = AstroCatalog([Nmax,1]);
+            for Imax=1:1:Nmax
+                Iobj1 = min(Imax, Nobj1);
+                Iobj2 = min(Imax, Nobj2);
+               
+                % Match Obj1(Iobj1) against Obj2(Iobj2)
+                if ~Obj1(Iobj1).IsSorted
+                    Obj(Iobj1).sortrows(Obj1(Iobj1).ColY);
+                end
+                if ~strcmp(Obj1(Iobj1).CooType, Obj2(Iobj2).CooType)
+                    error('CooType is not consistent while matching: Iobj1=%d, Iobj2=%d',Iobj1,Iobj2);
+                end
+                switch lower(Obj1(Iobj1).CooType)
+                    case 'sphere'
+                        % match by RA/Dec
+                        Coo1 = getCoo(Obj1(Iobj1), 'rad');
+                        Coo2 = getCoo(Obj2(Iobj2), 'rad');
+                        [Ind,Flag] = VO.search.search_sortedlat_multi(Coo1,...
+                                                                    Coo2(:,1), Coo2(:,2), RadiusRad);
+                        
+                        % select nearest from each Ind
+                        
+                        %Result1(Imax).Catalog = Obj1(Iobj1).Catalog ...
+                        
+                        % got here...
+                            
+                    case 'pix'
+                        error('Pixel coneSearch is not yet supported');
+                    otherwise
+                        error('Unknown CooType option');
+                end
+                 
+            end
+            
         end
         
         function matchPattern(Obj1, Obj2, Args)
