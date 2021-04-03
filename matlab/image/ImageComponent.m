@@ -689,6 +689,51 @@ classdef ImageComponent < handle %Component
     
     methods % break/rejoin image to smaller images
         
+        function [Result] = trim(Obj, CCDSEC, Args)
+            % Trim an ImageComponent object. Either apply multiple trims to
+            %       a single image, or a single trime to multiple images,
+            %       or multiple trims to multiple images (one to one).
+            % Input  : - An ImageComponent object. 
+            %          - Either [minX, maxX, minY, maxY] (Type='ccdsec')
+            %            or [Xcenter, Ycenter, Xhalfsize, Yhalfsize] (Type = 'center')
+            %            or [Xhalfsize, Yhalfsize] (Type = 'center').
+            %          * ..., key, val,...
+            %            'Type' - ['ccdsec'] | 'center'
+            %            'CreateNewObj' - Create a new object (true), or
+            %                   write result over input object (false).
+            %                   Default is false.
+            % Output : - An ImageComponent object with the trimed images.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: 
+            
+            arguments
+                Obj
+                CCDSEC
+                Args.Type char                   = 'ccdsec';
+                Args.CreateNewObj(1,1) logical   = false;
+            end
+            
+            Nobj = numel(Obj);
+            Nsec = size(CCDSEC,1);
+            if Nobj==Nsec || Nobj==1 || Nsec==1
+                Nmax = max(Nobj, Nsec);
+                if Args.CreateNewObj
+                    Result = ImageComponent(Nmax,1);
+                else
+                    Result = Obj;
+                end
+                for Imax=1:1:Nmax
+                    Iobj = min(Imax, Nobj);
+                    Isec = min(Imax, Nsec);
+                    
+                    Result(Imax).Data = imUtil.image.trim(Obj(Iobj).Data, CCDSEC(Isec,:), Args.Type);
+                end
+            else
+                error('trim function works on a single ImageComponent, or a single CCDSEC or number of images equal to number of sections');
+            end
+            
+            
+        end
         
         function [Result,ListEdge,ListCenter] = image2subimages(Obj,BlockSize,Args)
             % break an image in a single element ImageComponent into sub images.
