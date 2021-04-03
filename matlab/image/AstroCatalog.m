@@ -393,6 +393,37 @@ classdef AstroCatalog < AstroTable
             %       This exclude not only the neaest source within the
             %       search radius, but all the sources in Obj1 which have
             %       counterparts within the search radius.
+            % Input  : - An AstroCatalog object.
+            %            If multiple elements then each element will be
+            %            matched against the corresponding element (or a
+            %            single element) in the second object.
+            %          - A second AstroCatalog object - The function will
+            %            attempt to match every source in this catalog with
+            %            objects in the first input catalog.
+            %          * ..., key, val,..
+            %            'Radius'  - Search radius. Default is 5.
+            %            'RadiusUnits' - Search radius units (if spherical
+            %                   coordinates search). Default is 'arcsec'.
+            %            'AddDistCol' - Add column distance to outout
+            %                   catalog. Default is true.
+            %            'DistUnits' - Distance units. Default is 'arcsec'.
+            %            'DistColName' - Distance column name.
+            %                   Default is 'Dist'.
+            %            'DistColPos' - Position of Distance column in
+            %                   output catalog. Default is Inf (i.e., last
+            %                   column).
+            % Output : - An AstroCatalog object of matched sources.
+            %            Numeber of sources eqyual to that of the number
+            %            of sources in the second object.
+            %            Entire line is NaN if no source found.
+            %          - An AstroCatalog object of unmatched sources.
+            %            Include all the sources in the first object that
+            %            are not matched.
+            %          - An AstroCatalog object of truely unmatched
+            %            sources. 
+            %            Include all the sources in the first object that
+            %            are not found in the search radius.
+            % Author : Eran Ofek (Apr 2021)
             % Example : AC = AstroCatalog;
             %           AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
             %           AC.ColNames = {'RA','Dec'}; AC.ColUnits = {'rad','rad'};
@@ -401,7 +432,7 @@ classdef AstroCatalog < AstroTable
             %           AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
             %           AC2.getCooTypeAuto
             %           [M,UM,TUM] = match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
-            %           
+            
             arguments
                 Obj1
                 Obj2
