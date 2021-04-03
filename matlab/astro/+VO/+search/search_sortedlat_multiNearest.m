@@ -11,8 +11,9 @@ function [IndTable,CatFlagNearest,CatFlagAll]=search_sortedlat_multiNearest(Cat,
 %          - A function handle for calculating distances Fun(X1,Y1,X2,Y2).
 %            Default is @celestial.coo.sphere_dist_fast.
 % Output : - A three column matrix with, one line per line in Long,Lat.
-%            Columns are [Index of nearest source, within search radius, in Cat,
-%            Distance, Total number of matches within radius].
+%            Columns are [Index of nearest source, within search radius, in
+%            Cat;
+%            Distance; Total number of matches within radius].
 %          - A vector of logical (length as Cat), which indicate the object
 %            in Cat that were identified as the nearest object to a source in
 %            Long, Lat.

@@ -643,7 +643,7 @@ classdef AstroTable < Component %ImageComponent
             end
         end
         
-        function Obj = insertCol(Obj, Data, Pos, NewColNames)
+        function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits)
             % Insert columns to AstroTable object
             % Input  : - An AstroTable object
             %          - Array, cell array, table, or another AstroTable
@@ -652,6 +652,8 @@ classdef AstroTable < Component %ImageComponent
             %            the new columns.
             %          - Cell array of new column names. Default is {}.
             %            If empty, then use default names.
+            %          - Cell array of new column units. Default is {}.
+            %            If empty, then use ''.
             % Output : - The AstroTable object with the new columns.
             % Example: A=AstroTable; A.Catalog=rand(10,3); A.ColNames={'a','b','c'}; insertCol(A,ones(10,2),'c')     
 
@@ -660,38 +662,55 @@ classdef AstroTable < Component %ImageComponent
                 Data
                 Pos
                 NewColNames                           = {};
+                NewColUnits                           = {};
             end
             
             if ~iscell(NewColNames) && ~isstring(NewColNames)
                 NewColNames = {NewColNames};
             end
+           
             
             Nobj = numel(Obj);
             if isa(Data,'AstroTable')
                 Nobj2 = numel(Data);
                 for Iobj=1:1:Nobj
+                    if isempty(Obj(Iobj).ColUnits)
+                        Ncol = numel(Obj(Iobj).ColNames);
+                        [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                    end
                     Iobj2             = min(Nobj,Nobj2);
                     ColInd            = colname2ind(Obj(Iobj), Pos);
                     Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
                     if isempty(NewColNames)
                         % attempt to copy ColNames from Data
                         Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, Data(Iobj2).ColNames, ColInd);
+                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, Data(Iobj2).ColUnits, ColInd);
                     else
                         Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
+                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, NewColUnits, ColInd);
                     end
                     
                 end
             else
                 if isempty(NewColNames)
                     NewColNames = AstroTable.defaultColNames(size(Data,2));
+                    
                 end
+                if isempty(NewColUnits)
+                    NcolInsert = size(Data,2);
+                    [NewColUnits{1:NcolInsert}] = deal('');
+                end
+                
                 for Iobj=1:1:Nobj
+                    if isempty(Obj(Iobj).ColUnits)
+                        Ncol = numel(Obj(Iobj).ColNames);
+                        [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                    end
                     ColInd            = colname2ind(Obj(Iobj), Pos);
                     Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data, ColInd);
-                    if isempty(NewColNames)
-                        NewColNames = AstroTable.defaultColNames(size(Data,2));
-                    end
+                   
                     Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
+                    Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, NewColUnits, ColInd);
                 end
             end
         end
