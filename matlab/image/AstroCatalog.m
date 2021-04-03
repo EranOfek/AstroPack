@@ -370,8 +370,13 @@ classdef AstroCatalog < AstroTable
                 switch lower(Obj(Iobj).CooType)
                     case 'sphere'
                         [Ind,Flag] = VO.search.search_sortedlat_multi(getCoo(Obj(Iobj),'rad'),...
-                                                                    Coo(:,1), Coo(:,2), RadiusRad);
+                                                                    Coo(:,1), Coo(:,2), RadiusRad, [],...
+                                                                    @celestial.coo.sphere_dist_fast);
                     case 'pix'
+                        [Ind,Flag] = VO.search.search_sortedlat_multi(getCoo(Obj(Iobj),'rad'),...
+                                                                    Coo(:,1), Coo(:,2), RadiusRad, [],...
+                                                                    @tools.math.geometry.plane_dist);
+                        
                         error('Pixel coneSearch is not yet supported');
                     otherwise
                         error('Unknown CooType option');
