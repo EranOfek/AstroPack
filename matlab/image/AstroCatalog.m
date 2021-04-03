@@ -414,25 +414,60 @@ classdef AstroCatalog < AstroTable
     end
     
     methods % match two AstroCatalog
-        function [MatchedObj, UnMatchedObj] = match(Obj1, Obj2, Args)
-            %
+        function [MatchedObj, UnMatchedObj, TruelyUnMatched] = match(Obj1, Obj2, Args)
+            % Match two catalogs in AstroCatalog objects
+            %       This functin returens: a matche source catalog, and an
+            %       unmatched source catalog.
+            %       The matched catalog result has the same number of
+            %       sources as in the Obj2 catalog, and for each Obj2 source,
+            %       the nearest source in Obj1 is listed. If there is no
+            %       source within the search radius, then the entire line
+            %       contains NaNs.
+            %       The sources in Obj1 that doesn't have counterparts in
+            %       Obj2 are listed in the unmatched catalog.
+            %       Also return a catalog of TruelyUnMatchedObj.
+            %       This exclude not only the neaest source within the
+            %       search radius, but all the sources in Obj1 which have
+            %       counterparts within the search radius.
+            % Example : AC = AstroCatalog;
+            %           AC.Catalog  = rand(10,3);
+            %           AC.ColNames = {'RA','Dec','Flux'}; AC.ColUnits = {'rad','rad','rad'};
+            %           AC.getCooTypeAuto
+            %           AC2 = AstroCatalog; AC2.Catalog  = rand(10,3);
+            %           AC2.ColNames = {'RA','Dec','Flux'}; AC2.ColUnits = {'rad','rad','rad'};
+            %           AC2.Catalog  = [AC2.Catalog; AC.Catalog(1:2,:)];
+            %           AC2.getCooTypeAuto
+            %           match(AC,AC2)
+            
+            arguments
+                Obj1
+                Obj2
+                Args.Radius                      = 5;
+                Args.RadiusUnits                 = 'arcsec';
+                Args.Shape char                  = 'circle';
+                Args.CooUnits char               = 'deg';
+                Args.AddDistCol                  = true;
+                Args.DistUnits                   = 'arcsec';
+                Args.DistColName                 = 'Dist';
+                Args.DistColPos                  = Inf;
+                Args.CreateNewObj(1,1) logical   = true;
+            end
             
             RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
-            if Args.AddDistCol || nargout>2
-                RadiusRad = -abs(RadiusRad);
-            end
+                        
             
             Nobj1 = numel(Obj1);
             Nobj2 = numel(Obj2);
             Nmax  = max(Nobj1, Nobj2);
-            MatchedObj = AstroCatalog([Nmax,1]);
+            MatchedObj   = AstroCatalog([Nmax,1]);
+            UnMatchedObj = AstroCatalog([Nmax,1]);
             for Imax=1:1:Nmax
                 Iobj1 = min(Imax, Nobj1);
                 Iobj2 = min(Imax, Nobj2);
                
                 % Match Obj1(Iobj1) against Obj2(Iobj2)
                 if ~Obj1(Iobj1).IsSorted
-                    Obj(Iobj1).sortrows(Obj1(Iobj1).ColY);
+                    Obj1(Iobj1).sortrows(Obj1(Iobj1).ColY);
                 end
                 if ~strcmp(Obj1(Iobj1).CooType, Obj2(Iobj2).CooType)
                     error('CooType is not consistent while matching: Iobj1=%d, Iobj2=%d',Iobj1,Iobj2);
@@ -442,15 +477,36 @@ classdef AstroCatalog < AstroTable
                         % match by RA/Dec
                         Coo1 = getCoo(Obj1(Iobj1), 'rad');
                         Coo2 = getCoo(Obj2(Iobj2), 'rad');
-                        [Ind,Flag] = VO.search.search_sortedlat_multi(Coo1,...
+                        [IndTable, CatFlagNearest, CatFlagAll] = VO.search.search_sortedlat_multiNearest(Coo1,...
                                                                     Coo2(:,1), Coo2(:,2), RadiusRad);
                         
                         % select nearest from each Ind
-                        
                         %Result1(Imax).Catalog = Obj1(Iobj1).Catalog ...
+                        FlagNN = ~isnan(IndTable(:,1));
+                        [Nrow2,Ncol2]   = size(Obj2(Iobj2).Catalog);
+                        MatchedObj(Imax).Catalog = nan(Nrow2,Ncol2);
+                        MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
                         
-                        % got here...
+                        % copy the common properties from Obj2
+                        
+                        MatchedObj(Imax).CooType   = Obj2(Iobj2).CooType;
+                        MatchedObj(Imax).ColX      = Obj2(Iobj2).ColX;
+                        MatchedObj(Imax).ColY      = Obj2(Iobj2).ColY;
+                        MatchedObj(Imax).ColNames  = Obj2(Iobj2).ColNames;
+                        MatchedObj(Imax).ColUnits  = Obj2(Iobj2).ColUnits;
+                        MatchedObj(Imax).ColDesc   = Obj2(Iobj2).ColDesc;
+                        MatchedObj(Imax).SortByCol = Obj2(Iobj2).SortByCol;
+                        MatchedObj(Imax).IsSorted  = Obj2(Iobj2).IsSorted;
+                        
+                        % UnMatchedObj
+                        if nargout>1
+                            UnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagNearest,:);
                             
+                            if nargout>2
+                                TruelyUnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagAll,:);
+                            end
+                        end
+                                                        
                     case 'pix'
                         error('Pixel coneSearch is not yet supported');
                     otherwise
