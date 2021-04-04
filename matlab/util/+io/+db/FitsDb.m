@@ -1,7 +1,4 @@
-% @Chen
-% Component base class
-% Package: 
-% Description:
+% FITS Database Class
 %--------------------------------------------------------------------------
 
 % FITS 
@@ -19,6 +16,10 @@ classdef FitsDb < ImageDb
         function Obj = FitsDb(FileName)
             Obj.FileName = FileName;
         end
+    end
+    
+    
+    methods
         
         
         %
@@ -38,6 +39,10 @@ classdef FitsDb < ImageDb
         end
         
             
+    end
+
+    
+    methods(Static)
     end
     
     
@@ -62,4 +67,16 @@ classdef FitsDb < ImageDb
         
     
 end
+
+
+
+
+
+function msgLog(varargin)
+    %fprintf('fits: ');
+    fprintf(varargin{:});
+    fprintf('\n');
+end
+
+
 

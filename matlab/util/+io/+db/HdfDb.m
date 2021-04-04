@@ -1,3 +1,8 @@
+%
+% CURRENTLY we focus on FITS files only
+%
+
+
 % @Chen
 % Component base class
 % Package: 
