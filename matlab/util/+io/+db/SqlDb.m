@@ -1,9 +1,8 @@
 % FITS Database Class
 %--------------------------------------------------------------------------
 
-% FITS 
-% https://www.mathworks.com/help/matlab/ref/fitsread.html
-classdef FitsDb < ImageDb
+
+classdef SqlDb < Component
     % Properties
     properties (SetAccess = public)
         %config          % Configuration 
@@ -13,7 +12,7 @@ classdef FitsDb < ImageDb
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = FitsDb(FileName)
+        function Obj = SqlDb(FileName)
             Obj.FileName = FileName;
         end
     end
@@ -62,12 +61,11 @@ classdef FitsDb < ImageDb
             % Test: Read more images (HDU)
             disp(size(data));
             
-            % Test: Read tables
+            % Test: Create database and tables
             
-            % Test: Write images
+            % Test: Write data to tables
             
-            % Test: Write tables
-            
+            % Test: Query tables         
             
  
             Result = true;
