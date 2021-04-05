@@ -199,6 +199,32 @@ classdef AstroHeader < handle %< Component
     end
     
     methods 
+        function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
+            % get a single keyword value
+            
+            arguments
+                Obj(1,1)
+                KeySynonym
+                Args.UseDict(1,1) logical              = true;
+                Args.CaseSens(1,1) logical             = true;
+                Args.SearchAlgo char                   = 'strcmp';
+                Args.Fill                              = NaN;
+                Args.Occur                             = 'first';
+            end
+            
+            
+            
+        end
+        
+        
+        function [SubCell,FlagExist,IndFound,IndKey] = getSubHeaderByKey(Cell,Key,Args)
+            %
+            
+        end
+        
+        
+        
+        
         function [Val, Key, Comment, Nfound] = keyValByynonyms(Obj, KeySynonym, Args)
             % Return the first key in the list that appears in the header.
            
