@@ -10,15 +10,25 @@
 % "Component" is in folder ../base/
 
 classdef NoisyImage < Component
+
+    properties (Dependent)
+        Image
+        Back
+        Var
+        Mask
+    end
     
     properties (Hidden, SetAccess = public)
         ImageData ImageComponent
         BackData ImageComponent
         VarData ImageComponent
+        MaskData MaskImage
         
         IsBackSub(1,1) logical              = false;
-        BackVarOriginMap
-        UseOrigin
+        IsPropagateVar(1,1) logical         = false;
+        %VarOriginMap
+        %UseVarOrigin
+        
         
     end
     
@@ -33,7 +43,58 @@ classdef NoisyImage < Component
     
         
     methods % Setters/getters
-     
+        function Result = get.Image(Obj)
+            % getter for Image data
+            
+            Result = Obj.ImageData.Image;
+        end
+        
+        function Obj = set.Image(Obj, Val)
+            % setter for Image data
+            
+            Obj.ImageData.Image = Val;
+            Obj.ImageData.Scale = [];
+        end
+        
+        function Result = get.Back(Obj)
+            % getter for Back data
+            
+            Result = Obj.BackData.Image;
+        end
+        
+        function Obj = set.Back(Obj, Val)
+            % setter for Back data (full image or scalar only)
+            
+            Obj.BackData.Image = Val;
+            Obj.BackData.Scale = [];
+        end
+            
+        function Result = get.Var(Obj)
+            % getter for Var data
+            
+            Result = Obj.VarData.Image;
+        end
+        
+        function Obj = set.Var(Obj, Val)
+            % setter for Var data (full image or scalar only)
+            
+            Obj.VarData.Image = Val;
+            Obj.VarData.Scale = [];
+        end
+        
+        function Result = get.Mask(Obj)
+            % getter for Mask data
+            
+            Result = Obj.MaskData.Image;
+        end
+        
+        function Obj = set.Mask(Obj, Val)
+            % setter for Mask data
+            
+            Obj.MaskData.MaskData.Image = Val;
+            Obj.MaskData.MaskData.Scale = [];
+        end
+        
     end
     
     methods (Static) % static methods
@@ -41,8 +102,69 @@ classdef NoisyImage < Component
     end
     
     methods % basic fununctions 
-        function Obj = fun_unary(Obj, Operator, OpArgs, Args)
+        function Result = fun_unary(Obj, Operator, Args)
             %
+            
+            arguments
+                Obj
+                Operator function_handle
+                Args.ReturnBack                     = true;
+                Args.OperateOnData                  = true;
+                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
+                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
+                Args.DataPropIn                     = {'ImageData','BackData','VarData'}; % not including CatData, PSFData and WCS
+                Args.DataPropOut                    = {};
+                Args.DataPrppScalar                 = {'Image'}; % returned output if IsOutObj=false
+                Args.CreateNewObj(1,1) logical      = false;
+                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
+                Args.CCDSEC                         = [];
+            end
+            
+            if Args.OperateOnData
+                PropName = 'Data';
+            else
+                % operate on full image
+                PropName = 'Image';
+            end
+            
+            
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Obj(Iobj).IsPropagateVar
+                    
+                    if Obj(Iobj).IsBackSub  && Obj(Iobj).ReturnBack
+                        % return background before operation
+                        Mat = Obj(Iobj).ImageData.(PropName) + Obj(Iobj).BackData.(PropName);
+                        % Apply operator with error propagation
+                        [Result,ResultVar,FlagBad,~] = imUtil.image.fun_unary_withVariance(Operator, Mat, Obj(Iobj).VarData.(PropName), Args.OpArg);
+                        % re-subtract background
+                        Result(Iobj).ImageData.(PropName) = Result - Obj(Iobj).BackData.(PropName);
+                        Result(Iobj).VarData.(PropName)   = ResultVar;
+                        
+                    else
+                        % Apply operator with error propagation
+                        [Result,ResultVar,FlagBad,~] = imUtil.image.fun_unary_withVariance(Operator, Mat, Obj(Iobj).VarData.(PropName), Args.OpArg);
+                        Result(Iobj).ImageData.(PropName) = Result;
+                        Result(Iobj).VarData.(PropName)   = ResultVar;
+                        
+                    end
+                    
+                    % FFU: FlagBad
+                    
+                else
+                    % no error propagation
+                    Obj(Iobj).ImageData.Data = Operator(Obj(Iobj).ImageData.Data, Args.OpArgs{:});
+                    % do not change Back / Var / Mask
+                end
+            end
+                    
+            
             
         end
         
