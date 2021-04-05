@@ -8,12 +8,14 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef MaskImage < ImageComponent
+classdef MaskImage < Component
     
-    properties (Dependent) % Access image data directly        
+    properties (Dependent) % Access image data directly  
+        Image
     end
     
     properties (SetAccess = public)
+        MaskData ImageCompnent
         Dict BitDictionary                      % The dictionary of a bit mask image        
     end
     
@@ -25,11 +27,20 @@ classdef MaskImage < ImageComponent
         end
 
     end
- 
-
- 
+  
     methods % Setters/Getters
-     
+        function Result = get.Image(Obj)
+            % getter for mask data
+            Result = Obj.MaskData.Image;
+        end
+        
+        function Obj = set.Image(Obj, Val)
+            % setter for mask data
+            if ~isinteger(Val)
+                error('Mask image must be integers');
+            end
+            Obj.MaskData.Image = Val;
+        end
     end
     
     methods (Static)  % static methods

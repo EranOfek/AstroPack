@@ -26,10 +26,12 @@ classdef AstroImage < ImageComponent
     
     properties (SetAccess = public)
         % Data
-        ImageData(1,1) BaseImage
-        MaskData(1,1) MaskImage
-        BackData(1,1) BackImage
-        VarData(1,1) VarImage
+        ImageData(1,1) NoisyImage
+        
+%         ImageData(1,1) BaseImage
+%         MaskData(1,1) MaskImage
+%         BackData(1,1) BackImage
+%         VarData(1,1) VarImage
         
         HeaderData(1,1) AstroHeader
         CatData(1,1) AstroCatalog
