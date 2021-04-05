@@ -16,7 +16,7 @@ function Cell = deleteKey(Cell,Key)
     end
     
     VecInd   = (1:1:size(Cell,1)).';
-    [~,~,II] = imUtil.headerCell.getVal(Cell,Key,'Fill',[]);
+    [~,~,II] = imUtil.headerCell.getByKey(Cell,Key,'Fill',[]);
     Flag     = ~ismember(VecInd,II);
     Cell     = Cell(Flag,:);
     

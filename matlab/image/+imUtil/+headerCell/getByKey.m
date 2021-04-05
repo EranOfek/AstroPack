@@ -1,13 +1,13 @@
-function [SubCell,FlagExist,IndFound,IndKey]=getVal(Cell,Key,Args)
+function [SubCell,FlagExist,IndFound,IndKey]=getByKey(Cell,Key,Args)
 % get keyword value from an header in a cell format
 % Package: @headCl
 % Description: Given a 3 column cell array [Key, Val, Comment]
-%              search for a keyword name and return its value
-%              and comment.
+%              search for a keyword name and return the sub header that
+%              contains the keyword.
 % Input  : - A 2 or 3 columnn cell array [Key, Val, Comment].
 %          - Keyword name, or a cell array of keyword names to serch.
 %          * ...,key,val,... or ...,key=val',... list
-%            'SearchType' - search using: ['strcmp'] | 'regexp'
+%            'SearchAlgo' - search using: ['strcmp'] | 'regexp'
 %            'CaseSens' - Default is true.
 %            'Fill' - Fill value if not exist: [] - skip. Default is NaN.
 %            'Col' - Column in cell in which to search. Default is 1.
@@ -26,21 +26,21 @@ function [SubCell,FlagExist,IndFound,IndKey]=getVal(Cell,Key,Args)
 %            in which each cell contains the indices of the found keys in
 %            the cell-header.
 % Author: Eran Ofek  (Mar 2021)
-% Example: [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'ExpTime')
-%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},{'ExpTime','A'})
-%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'a','Col',2)
-%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'Exp*','SearchType','regexp')
-%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'TYPE','Fill',[])
-%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime',2,'';'A','a',''},'TYPE','Fill',NaN)
-%          [SC,FE,II]=imUtil.headerCell.getVal({'ExpTime','2','';'A','a',''},'ExpTime')
-%          [SC,FE,II,IK]=imUtil.headerCell.getVal({'ExpTime','2','';'A','NaN',''},{'ExpTime','A'})
-%          [SC,FE,II,IK]=imUtil.headerCell.getVal({'ExpTime','2','';'A','NaN','';'A',1,''},{'ExpTime','A'},'ReturnN',Inf)
+% Example: [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime',2,'';'A','a',''},'ExpTime')
+%          [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime',2,'';'A','a',''},{'ExpTime','A'})
+%          [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime',2,'';'A','a',''},'a','Col',2)
+%          [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime',2,'';'A','a',''},'Exp*','SearchAlgo','regexp')
+%          [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime',2,'';'A','a',''},'TYPE','Fill',[])
+%          [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime',2,'';'A','a',''},'TYPE','Fill',NaN)
+%          [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','a',''},'ExpTime')
+%          [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN',''},{'ExpTime','A'})
+%          [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN','';'A',1,''},{'ExpTime','A'},'ReturnN',Inf)
 % Reliable: 2
 
     arguments
         Cell cell
         Key                   {mustBeA(Key,{'char','cell'})} 
-        Args.SearchType char  {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp'; 
+        Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
         Args.CaseSens(1,1) logical                                      = true;
         Args.Fill                                                       = NaN;
         Args.Col(1,1) double  {mustBeInRange(Args.Col,1,3,'inclusive')} = 1;
@@ -66,7 +66,7 @@ function [SubCell,FlagExist,IndFound,IndKey]=getVal(Cell,Key,Args)
     SubCell   = cell(0,3);
     IndKey    = cell(1,Nkey);
     for Ikey=1:1:Nkey
-        switch lower(Args.SearchType)
+        switch lower(Args.SearchAlgo)
             case 'strcmp'
                 % use exact name search
                 Flag = strcmp(Cell(:,Args.Col),Key{Ikey});
@@ -97,4 +97,4 @@ function [SubCell,FlagExist,IndFound,IndKey]=getVal(Cell,Key,Args)
     end
         
 
-end  % end getVal function
+end  % end getByKey function

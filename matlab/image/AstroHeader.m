@@ -14,13 +14,20 @@ classdef AstroHeader < handle %< Component
         File                      = '';
         HDU                       = ''; % HDU or dataset
         
-        KeyDict Dictionary        = Dictionary('Name','FITS_Key_Synonyms');
-        ValDict Dictionary        = Dictionary('Family',{'FITS_Val_Synonyms'}); 
-        CommentDict Dictionary    = Dictionary('Name','FITS_KeyComments');
+        KeyDict Dictionary        = Dictionary('Name','Header.Synonyms.KeyNames');
+        ValDict Dictionary        = Dictionary('Name','Header.Synonyms.KeyVal.IMTYPE');
+        CommentDict Dictionary    = Dictionary('Name','Header.Comments.Default');
     end
     properties (Hidden, SetAccess=private)
         IsKeyUpToDate(1,1) logical    = true;
     end
+    
+    properties (Constant, Hidden)
+        ColKey     = 1;
+        ColVal     = 2;
+        ColComment = 3;
+    end
+    
 %         filename        
 %         configPath = "";
 %         data
@@ -186,23 +193,67 @@ classdef AstroHeader < handle %< Component
         
         function Dict = getDictionary(Args)
             %
-           
-            
             
         end
         
     end
     
     methods 
+        function [Val, Key, Comment, Nfound] = keyValByynonyms(Obj, KeySynonym, Args)
+            % Return the first key in the list that appears in the header.
+           
+            arguments
+                Obj(1,1)
+                KeySynonym
+                Args.CaseSens(1,1) logical           = true;
+                Args.SearchAlgo char {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
+                Args.Occur                           = 'first';  % 'first' | 'last'
+                Args.Fill                            = NaN;
+                Args.Val2Num(1,1) logical            = true;
+            end
+            
+            if ischar(KeySynonym)
+                KeySynonym = {KeySynonym};
+            end
+            
+            Nsyn   = numel(KeySynonym);
+            Flag   = ismember(Obj.Data(:,Obj.ColKey), KeySynonym);
+            Nfound = sum(Flag);
+            Ind    = find(Flag, 1, Args.Occur);
+            if isempty(Ind)
+                Val     = Args.Fill;
+                Key     = KeySynonym{1};
+                Comment = '';
+            else
+                Key     = Obj.Data(Ind, Obj.ColKey);
+                Val     = Obj.Data(Ind, Obj.ColVal);
+                Comment = Obj.Data(Ind, Obj.ColComment);
+            end
+            
+            % convert to number
+            if Args.Val2Num
+                ValNum  = str2double(Val);
+                if isnan(ValNum) && ~strcmpi(Val,'nan')
+                    % string
+                    % do nothing
+                else
+                    % number
+                    Val = ValNum;
+                end
+            end
+        end
+        
+        
         function [Val,Key,Comment]=keyVal(Obj,KeySynonym,Args)
-            %
+            % get a the value for a single header keyword
             % 
             
             arguments
                 Obj
-                KeySynonym char                   = '';
+                KeySynonym                        = '';
                 Args.CaseSens(1,1) logical        = true;
-                Args.SearchType char {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp';
+                Args.SearchAlgo char {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
+                Args.IsInputAlt(1,1) logical      = true;
                 Args.Fill                         = NaN;
                 Args.Val2Num(1,1) logical         = true;
                 Args.ReturnN                      = 1;
@@ -210,13 +261,20 @@ classdef AstroHeader < handle %< Component
                 Args.ApplyConversion(1,1) logical = true;
             end
             
+            
             if numel(Obj)>1
                 error('Use mkeyVal for Header object with multiple entries or multiple keys');
             end
             
             % I need the dictionary in order to continue
             if Args.UseDict
-                [Alt, AltConv] = searchKey(Obj.KeyDict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchType',Args.SearchType);
+                
+                
+                if Args.IsInputAlt
+                    [Key,AltConv,Alt,~] = searchAlt(Obj.KeyDict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                else
+                    [Alt, AltConv] = searchKey(Obj.KeyDict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                end
                 if isempty(Alt)
                     % unknown synonym - use original key
                     Alt     = {KeySynonym};
@@ -229,7 +287,7 @@ classdef AstroHeader < handle %< Component
             [SubCell,FlagExist,IndFound,IndKey] = imUtil.headerCell.getVal(Obj.Data,...
                                                                            Alt,...
                                                                            'CaseSens',Args.CaseSens,...
-                                                                           'SearchType',Args.SearchType,...
+                                                                           'SearchAlgo',Args.SearchAlgo,...
                                                                            'Fill',Args.Fill,...
                                                                            'Val2Num',Args.Val2Num,...
                                                                            'ReturnN',Args.ReturnN);

@@ -4,14 +4,15 @@
 % Example: D=Dictionary; D.unitTest
 
 classdef Dictionary < Component
-%     properties (Dependent)
-%         Family char              % Dictionary Family
-%     end
+    properties (Dependent, SetAccess = private)
+        NameParts 
+        LastNamePart char         = '';
+    end
     properties
         Name char                 = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
-        Family char               = '';   % Dictionary Family
+        %Family char               = '';   % Dictionary Family
         Dict(1,1) struct          = struct(); % Primary = {list of alternate names}
-        Conversion(1,1) struct    = struct();
+        Conversion
     end
    
     methods % constructor
@@ -40,17 +41,18 @@ classdef Dictionary < Component
                 
                 % stab:
                 switch Args.Name
-                    case 'Header.KeyNames.Synonyms'
+                    case 'Header.Synonyms.KeyNames'
                         
                         St.EXPTIME = {'AEXPTIME', 'EXPTIME','EXPOSURE'};
                         St.IMTYPE  = {'IMTYPE', 'IMGTYPE','IMAGETYP'};
                         St.READNOI = {'READNOI', 'READNOIS','RN'};
                         St.OBSLON  = {'OBSLON', 'LON','GEOLON','GEODLON','LONG'};
                         St.OBSLAT  = {'OBSLAT', 'LAT','GEOLAT','GEODLAT'};
-                        Obj.Name   = 'Header.KeyNames.Synonyms';
+                        St.DATEOBS = {'DATEOBS','DATE-OBS'};
+                        Obj.Name   = Args.Name;
                         Obj.Dict   = St;
                         Obj.Conversion = [];
-                    case 'Header.KeyVal.IMTYPE.Synonyms'
+                    case 'Header.Synonyms.KeyVal.IMTYPE'
                         St.Bias    = {'Bias'};
                         St.Dark    = {'Dark'};
                         St.Flat    = {'Flat','twfalt','domeflat'};
@@ -58,8 +60,68 @@ classdef Dictionary < Component
                         St.Focus   = {'Focus','foc'};
                         St.Arc     = {'Arc'};
                         St.Fringe  = {'Fringe'};
+                        Obj.Name   = Args.Name;
                     case 'Header.Comments.Default'
-                        
+                        % List of default comments for header keywords
+                        Obj.Name   = Args.Name;
+                        St.NAXIS   = {'Number of dimensions'};
+                        St.NAXIS1  = {'Size of axis 1 (X)'};
+                        St.NAXIS2  = {'Size of axis 2 (Y)'};
+                        St.BITPIX  = {'bits per data value'};
+                        St.BZERO   = {'zero point in scaling equation'};
+                        St.BSCALE  = {'linear factor in scaling equation'};
+                        St.MTYPE   = {'Image type'};
+                        St.GAIN    = {'Camera gain [e-/ADU]'};
+                        St.INTGAIN = {'Camera internal gain level'};
+                        St.READNOI = {'Camera Readout noise [e-]'};
+                        St.DARKCUR = {'Dark current [e-/s/pix]'};
+                        St.CAMNUM  = {'Camera Number'};
+% CAMLOC  : Camera Location :
+% CAMTYPE : Camera Type :
+% CAMMODEL: Camera Model :
+% CAMNAME : Camera Name :
+% MOUNTNUM: Mount Number :
+% BINX    : Binning along x-axis :
+% BINY    : Binning along y-axis :
+% OBSLON  : Observatory WGS84 Geodetic longitude [deg] :
+% OBSLAT  : Observatory WGS84 Geodetic latitude [deg] :
+% OBSALT  : Observatory WGS84 Geodetic altitude [m] :
+% M_JRA   : J2000.0 Right Ascension of mount [deg] : 
+% M_JDEC  : J2000.0 Declination of mount [deg] : 
+% M_JHA   : J2000.0 Hour Angle of mount [deg] :
+% M_RA    : Equinox of date R.A. of mount [deg] :
+% M_DEC   : Equinox of date Dec. of mount [deg] :
+% M_HA    : Equinox of date H.A. of mount [deg] :
+% RA      : J2000.0 Right Ascension [deg] : 
+% DEC     : J2000.0 Declination [deg] :
+% HA      : J2000.0 Hour Angle [deg] :
+% EQUINOX : Equinox in Julian years :
+% AIRMASS : Hardie Airmass :
+% AZ      : Telescope Azimuth [deg] :
+% ALT     : Telescope Altitude [deg] :
+% LST     : App. LST at the begining of exposure [deg] :
+% JD      : Julian date at the begining of exposure [day] :
+% MIDJD   : Julian date at the middle of exposure [day] :
+% DATE_OBS: YYYYMMDDTHHMMSS.FFF date :
+% FILTER  : Filter name :
+% FILTER2 : 2nd Filter name :
+% TRK_RA  : Tracking speed R.A. [arcsec/s] :
+% TRK_DEC : Tracking speed Dec. [arcsec/s] :
+% FOCUS   : Focus position :
+% PRVFOCUS: Previous focus position :
+% ORIGIN  : Organization name :
+% TELESCOP: Telescope : 
+% OBSERVER: Observer :
+% REFERENC: Bibilographic reference :
+% EXPTIME : Exposure time [s] :
+% TEMP_DET: Detector temperature [C] :
+% COOLPWR : Cooling power :
+% TEMP_MNT: Mount temperature [C] :
+% TEMP_MIR: Telescope mirror temperature [C] :
+% TEMP_OUT: Outside temperature [C] :
+% TEMP_HUM: Outside humidity [C] :
+% PRESSURE: Barometric pressure [mb] :
+            
                         
                         
                     otherwise
@@ -83,6 +145,17 @@ classdef Dictionary < Component
             %Obj.Dict = 
             %Obj.Conversion = 
         end
+        
+        function Result = get.NameParts(Obj)
+            % getter for NameParts - split names by '.'
+            Result = strsplit(Obj.Name,'.');
+        end
+        
+        function Result = get.LastNamePart(Obj)
+            % getter for the last name part in the name
+            
+            Result = Obj.NameParts{end};
+        end
     end
     
     
@@ -93,7 +166,7 @@ classdef Dictionary < Component
             %          - A single key name.
             %          * ...,key,val,...
             %            'CaseSens' - Default is true.
-            %            'SearchType' - ['strcmp'] | 'regexp'.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
             % Output : - A cell array of alternate names
             %            If key is not found then return [].
             % Example: Alt=searchKey(Obj,'TYPE')
@@ -102,11 +175,11 @@ classdef Dictionary < Component
                 Obj(1,1)
                 Key char
                 Args.CaseSens(1,1) logical            = true;
-                Args.SearchType char    {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp';
+                Args.SearchAlgo char    {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
             end
             
             FN  = fieldnames(Obj.Dict);
-            switch Args.SearchType
+            switch Args.SearchAlgo
                 case 'strcmp'
                     if Args.CaseSens
                         Flag = strcmp(FN,Key);
@@ -120,7 +193,7 @@ classdef Dictionary < Component
                         Flag = regexp(lower(FN),lower(Key),'match');
                     end
                 otherwise
-                    error('Unknown SearchType option');
+                    error('Unknown SearchAlgo option');
             end
             
             Ind  = find(Flag);
@@ -151,7 +224,7 @@ classdef Dictionary < Component
             %          - A string of name to search in the alternate names.
             %          * ...,key,val,...
             %            'CaseSens' - Default is true.
-            %            'SearchType' - ['strcmp'] | 'regexp'.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
             % Output : - The key name in which the alternate name was
             %            found. Empty if not found.
             % Author: Eran Ofek (March 2021)
@@ -161,7 +234,7 @@ classdef Dictionary < Component
                 Obj(1,1)
                 Alt char
                 Args.CaseSens(1,1) logical            = true;
-                Args.SearchType char    {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp';
+                Args.SearchAlgo char    {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
             end
             
             Idic = 1;
@@ -171,7 +244,7 @@ classdef Dictionary < Component
             Key = [];
             AltConv = [];
             for Ifn=1:1:Nfn
-                switch Args.SearchType
+                switch Args.SearchAlgo
                     case 'strcmp'
                         if Args.CaseSens
                             Flag = strcmp(Obj(Idic).Dict.(FN{Ifn}),Alt);
@@ -186,7 +259,7 @@ classdef Dictionary < Component
                         end
 
                     otherwise
-                        error('Unknown SearchType option');
+                        error('Unknown SearchAlgo option');
                 end
                 
                 

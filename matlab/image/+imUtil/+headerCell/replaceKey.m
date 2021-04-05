@@ -5,7 +5,7 @@ function Cell=replaceKey(Cell,Key,Val,Args)
 %          - A vector or a cell array of values, corresponding to the key
 %            names.
 %          * ...,key,val,... or ...,key=val',... list
-%            'SearchType' - search using: ['strcmp'] | 'regexp'
+%            'SearchAlgo' - search using: ['strcmp'] | 'regexp'
 %            'CaseSens' - Default is true.
 %            'DelDup'   - Remove duplicate keys. Default is true.
 %            'RepVal'   - Replace value. Default is true.
@@ -30,7 +30,7 @@ function Cell=replaceKey(Cell,Key,Val,Args)
         Cell
         Key
         Val
-        Args.SearchType char  {mustBeMember(Args.SearchType,{'strcmp','regexp'})} = 'strcmp'; 
+        Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
         Args.CaseSens(1,1) logical                    = true;
         Args.DelDup(1,1) logical                      = true;
         Args.RepVal(1,1) logical                      = true;
@@ -52,7 +52,7 @@ function Cell=replaceKey(Cell,Key,Val,Args)
     
     Nkey = numel(Key);
     
-    [~,~,~,IK] = imUtil.headerCell.getVal(Cell,Key,'SearchType',Args.SearchType,'CaseSens',Args.CaseSens,'ReturnN',Inf);
+    [~,~,~,IK] = imUtil.headerCell.getByKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
 
     
     Nline    = size(Cell,1);
