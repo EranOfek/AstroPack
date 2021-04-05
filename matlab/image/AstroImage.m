@@ -75,21 +75,64 @@ classdef AstroImage < ImageComponent
     end
     
     methods % general functionality
-        function Result = fun_unary(Obj, Operator, OperatorArgs, OutType, DataProp, DataPropOut)
+        function Result = fun_unary(Obj, Operator, Args)
+            %
+            
+            arguments
+                Obj
+                Operator function_handle
+                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
+                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
+                Args.DataPropIn 
+                Args.DataPropOut
+                Args.OutType
+                Args.CreateNewObj(1,1) logical      = false;
+                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
+            end
+            
+            Nobj = numel(Obj);
+            
+            
+                     
+            
+        end
+        
+        function Result = fun_binary(Obj1, Obj2, Operator, Args)
+            %
+            
+            arguments
+                Obj1
+                Obj2
+                Operator function_handle
+                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
+                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
+                Args.DataPropIn1 
+                Args.DataPropIn2
+                Args.DataPropOut
+                Args.OutType
+                Args.CreateNewObj(1,1) logical      = false;
+                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
+            end
+            
+            Nobj = numel(Obj);
+            
+            
+        end
+        
+        function Result = fun_stack(Obj, Operator, Args)
             %
             
             arguments
                 Obj
                 Operator
-                OperatorArgs cell                   = {};
-                Args.OutType char                   = 'obj'; % 'obj' | 'mat'
-                Args.DataProp                       = {};
-                Args.DataPropOut                    = {};
-                Args.ModeHeader                     = 'obj'; % NewHeader, cell_header, 'obj' | 'none'
+                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
+                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
+                Args.DataPropIn 
+                Args.DataPropOut
+                Args.OutType
+                Args.CreateNewObj(1,1) logical      = false;
+                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
             end
-            
-            Nobj = numel(Obj);
-            
             
             
             
@@ -97,9 +140,6 @@ classdef AstroImage < ImageComponent
             
         end
         
-        function Result = fun_binary(Obj1, Obj2, Operator, OperatorArgs, OutType, DataProp1, DataProp2, DataPropOut)
-            %
-        end
         
         function Result = funHeader(Obj, Fun, ArgsToFun)
             %
