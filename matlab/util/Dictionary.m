@@ -3,12 +3,15 @@
 % Author: Eran Ofek (March 2021)
 % Example: D=Dictionary; D.unitTest
 
-classdef Dictionary < handle
+classdef Dictionary < Component
+%     properties (Dependent)
+%         Family char              % Dictionary Family
+%     end
     properties
-        Name char            = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
-        Family char          = '';   % Dictionary Family
-        Dict struct          = struct(); % Primary = {list of alternate names}
-        Conversion struct    = struct();
+        Name char                 = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
+        Family char               = '';   % Dictionary Family
+        Dict(1,1) struct          = struct(); % Primary = {list of alternate names}
+        Conversion(1,1) struct    = struct();
     end
    
     methods % constructor
@@ -36,15 +39,33 @@ classdef Dictionary < handle
                 % search existing dictionary
                 
                 % stab:
-                St.EXPTIME = {'AEXPTIME', 'EXPTIME','EXPOSURE'};
-                St.IMTYPE  = {'IMTYPE', 'IMGTYPE','IMAGETYP'};
-                St.READNOI = {'READNOI', 'READNOIS','RN'};
-                St.OBSLON  = {'OBSLON', 'LON','GEOLON','GEODLON','LONG'};
-                St.OBSLAT  = {'OBSLAT', 'LAT','GEOLAT','GEODLAT'};
-                Obj.Name   = 'FITS_Key_Synonyms';
-                Obj.Family = 'FITS_Key_Synonyms';
-                Obj.Dict   = St;
-                Obj.Conversion = [];
+                switch Args.Name
+                    case 'Header.KeyNames.Synonyms'
+                        
+                        St.EXPTIME = {'AEXPTIME', 'EXPTIME','EXPOSURE'};
+                        St.IMTYPE  = {'IMTYPE', 'IMGTYPE','IMAGETYP'};
+                        St.READNOI = {'READNOI', 'READNOIS','RN'};
+                        St.OBSLON  = {'OBSLON', 'LON','GEOLON','GEODLON','LONG'};
+                        St.OBSLAT  = {'OBSLAT', 'LAT','GEOLAT','GEODLAT'};
+                        Obj.Name   = 'Header.KeyNames.Synonyms';
+                        Obj.Dict   = St;
+                        Obj.Conversion = [];
+                    case 'Header.KeyVal.IMTYPE.Synonyms'
+                        St.Bias    = {'Bias'};
+                        St.Dark    = {'Dark'};
+                        St.Flat    = {'Flat','twfalt','domeflat'};
+                        St.Science = {'Science','sci'};
+                        St.Focus   = {'Focus','foc'};
+                        St.Arc     = {'Arc'};
+                        St.Fringe  = {'Fringe'};
+                    case 'Header.Comments.Default'
+                        
+                        
+                        
+                    otherwise
+                        error('Unknown Dictionary name');
+                end
+                        
                 %
                 
                 %Obj = Dictionary.read('Name',Args.Name,'Family',Args.Family);
@@ -63,6 +84,7 @@ classdef Dictionary < handle
             %Obj.Conversion = 
         end
     end
+    
     
     methods % basic functions
         function [Alt,AltConv]=searchKey(Obj,Key,Args)

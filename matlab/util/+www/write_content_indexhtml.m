@@ -20,7 +20,7 @@ function write_content_indexhtml(varargin)
 
 Files=dir('*');
 Nf = numel(Files);
-FID = fopen('index.html','w');
+FID = fopen('/home/eran/index.html','w');
 for If=1:1:Nf
     
     if ~strcmp(Files(If).name(1),'.')

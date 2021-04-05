@@ -184,6 +184,12 @@ classdef AstroHeader < handle %< Component
     methods  % functions for internal use
         %
         
+        function Dict = getDictionary(Args)
+            %
+           
+            
+            
+        end
         
     end
     
