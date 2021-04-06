@@ -101,19 +101,17 @@ classdef Configuration < dynamicprops
     %----------------------------------------------------------------------   
     methods(Static) % Static functions
                 
-        function Result = getDefaultConfig()
+        function Result = getSingle()
             % Return singleton Configuration object
             persistent Conf
-            
-            % Create instance and load
             if isempty(Conf)
                 Conf = Configuration;
                 Conf.loadConfig();
             end
             Result = Conf;
         end
-            
         
+                 
         function YamlStruct = loadYaml(FileName)
             % Read YAML file to struct, add FileName field
             io.msgLog(LogLevel.Info, 'loadYaml: Loading file: %s', FileName);

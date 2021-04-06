@@ -2,7 +2,7 @@
 
 %--------------------------------------------------------------------------
 
-classdef RunUnitTests < handle
+classdef UnitTester < handle
     
     % Properties
     properties (SetAccess = public)
@@ -12,7 +12,7 @@ classdef RunUnitTests < handle
     
     %-------------------------------------------------------- 
     methods % Constructor            
-        function Obj = RunUnitTests()
+        function Obj = UnitTester()
             % Replace it with env? move to startup.m?
             % addpath('D:\Ultrasat\AstroPack.git\matlab\external');
         end
@@ -25,7 +25,7 @@ classdef RunUnitTests < handle
             % Load specify folder to properties
 
             Obj.Path = Path;
-            msgLog('runFolder: %s', Obj.Path);
+            io.msgLog(LogLevel.Test, 'UnitTester.runFolder: %s', Obj.Path);
             
             % Scan all .m files in folder
             List = dir(fullfile(Path, '*'));
@@ -51,8 +51,9 @@ classdef RunUnitTests < handle
         
         function Result = runFile(Obj, FileName)
             
-            msgLog('runFile: %s', FileName);
+            io.msgLog(LogLevel.Test, 'UnitTester.runFile: %s', FileName);
             
+            % Read file to Lines{}
             fid = fopen(FileName);
             Line = fgetl(fid);
             Lines = cell(0, 1);
@@ -62,9 +63,6 @@ classdef RunUnitTests < handle
             end
             fclose(fid);
 
-            %Data = fileread(FileName);
-            %Lines = strsplit(Data);
-            
             % Search class name
             ClassName = '';
             for i=1:length(Lines)
@@ -74,7 +72,7 @@ classdef RunUnitTests < handle
                 items = split(Line, "%");
                 items = split(items{1}, "classdef ");
                 if length(items) > 1
-                    msgLog(Line);
+                    io.msgLog(LogLevel.Test, 'Found classdef: %s', Line);
                     items = split(items{2}, ' ');
                     %if items{1} == "classdef "
                         ClassName = items{1};
@@ -106,8 +104,8 @@ classdef RunUnitTests < handle
                 if haveUnitTest
                     % Call unitTest
                     Func = ClassName + ".unitTest();"';
-                    %Result = eval(Func);
-                    
+                    io.msgLog(LogLevel.Test, 'Calling %s', Line);
+                    Result = eval(Func);                    
                 else
                 end
             
@@ -115,7 +113,9 @@ classdef RunUnitTests < handle
                 
             % classdef not found
             else
-
+                % @Todo
+                return;
+                
                 % Search unitTest() function
                 haveUnitTest = false;
                 haveFunc = false;
@@ -149,8 +149,20 @@ classdef RunUnitTests < handle
             end
         end
     end
-        
-        
+
+    
+    %----------------------------------------------------------------------
+    % Unit test
+    methods(Static)
+        function Result = testBase()
+            
+            LogFile.unitTest();
+            MsgLogger.unitTest();
+            Base.unitTest();
+            Component.unitTest();
+            
+        end
+    end
     
     %----------------------------------------------------------------------
     % Unit test
@@ -158,29 +170,21 @@ classdef RunUnitTests < handle
         
         function Result = unitTest()
             try
-                Result = RunUnitTests.doUnitTest();
+                Result = UnitTester.doUnitTest();
             catch
                 Result = false;
-                msgLog('unitTest: Exception');
+                io.msgLog(LogLevel.Error, 'unitTest: Exception');
             end
         end
         
             
         function Result = doUnitTest()
-            msgLog('Started\n');
+            io.msgLog(LogLevel.Test, 'Started\n');
             Path = 'C:\Ultrasat\AstroPack.git\matlab\base';
-            Tester = RunUnitTests;
+            Tester = UnitTester;
             Result = Tester.runFolder(Path);
         end
     end
         
-end
-
-
-
-function msgLog(varargin)
-    %fprintf('Configuration: ');
-    fprintf(varargin{:});
-    fprintf('\n');
 end
 

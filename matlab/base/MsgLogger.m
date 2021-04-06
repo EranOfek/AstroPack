@@ -88,7 +88,7 @@ classdef MsgLogger < handle
     
     methods(Static) % Unit test
         function Result = unitTest()            
-            fprintf("MsgLog test started\n");
+            fprintf('MsgLogger test started\n');
             
             MsgLogger.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
             MsgLogger.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));
@@ -97,7 +97,7 @@ classdef MsgLogger < handle
             MsgLogger.msgLog(LogLevel.Error, 'Test: %d', uint32(LogLevel.Error));
             MsgLogger.msgLog(LogLevel.None, 'Test: %d', uint32(LogLevel.None));
             
-            fprintf("MsgLog test passed\n");
+            fprintf('MsgLogger test passed\n');
         end
     end
     

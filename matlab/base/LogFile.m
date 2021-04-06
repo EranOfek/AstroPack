@@ -84,13 +84,16 @@ classdef LogFile < handle
        
     methods(Static) % Unit test
         function Result = unitTest()
-            fprintf("Started\n");
-            Lf = LogFile('');
+            fprintf('LogFile test started\n');
+            Lf = LogFile.getSingle();
+            Lf.write('LogFile test started');
             
-            for i=1:1:10
+            for i=1:1:3
                 Lf.write('Line: %d', i);
             end
            
+            Lf.write('LogFile test passed');
+            fprintf('LogFile test passed\n');
             Result = true;
         end
     end
