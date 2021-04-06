@@ -19,6 +19,8 @@ classdef Configuration < dynamicprops
         function Obj = Configuration()
             % Replace it with env? move to startup.m?
             addpath('D:\Ultrasat\AstroPack.git\matlab\external');
+            
+            Obj.Path = 'D:\Ultrasat\AstroPack.git\config';
         end
     end
 
@@ -26,13 +28,13 @@ classdef Configuration < dynamicprops
     methods % Main functions
          
         function loadConfig(Obj)
+            % Load entire Configuration: all files in folder
             
-            % Load default folder
-            Path = 'D:\Ultrasat\AstroPack.git\config';
-            Obj.loadFolder(Path);
+            % Load default folder            
+            Obj.loadFolder(Obj.Path);
             
             % Load local files
-            Obj.loadFolder(fullfile(Path, 'local'));
+            Obj.loadFolder(fullfile(Obj.Path, 'local'));
         end
         
         
@@ -43,25 +45,25 @@ classdef Configuration < dynamicprops
                 [~, name, ~] = fileparts(FileName);
                 PropName = name;
                 if isprop(Obj, PropName)
-                    msgLog('Property already exist: %s', PropName);
+                    io.msgLog(LogLevel.Warning, 'Property already exist: %s', PropName);
                 else
-                    msgLog('Adding property: %s', PropName);
+                    io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);
                     Obj.addprop(PropName);
                 end
                 Yml = Configuration.loadYaml(FileName);
                 Obj.(PropName) = Yml;
             catch
-                msgLog('loadFile: Exception: %s', FileName);
+                io.msgLog(LogLevel.Error, 'loadFile: Exception: %s', FileName);
             end
         end
         
         
         function loadFolder(Obj, Path)
-            % Load specify folder to properties
+            % Load specified folder to properties
 
             Obj.Path = Path;
             Obj.ConfigName = 'Config';
-            msgLog('loadFolder: %s', Obj.Path);
+            io.msgLog(LogLevel.Info, 'loadFolder: %s', Obj.Path);
             
             List = dir(fullfile(Path, '*.yml'));
             for i = 1:length(List)
@@ -74,18 +76,19 @@ classdef Configuration < dynamicprops
        
      
         function reloadFile(Obj, YamlStruct)
-            % Reload 
+            % Reload specified configuration file            
             Configuration.reload(Obj.(YamlStruct));
         end        
        
      
         function reloadFolder(Obj)
-            % Reload all configuration files from folder
+            % Reload all configuration files from folder            
             loadFolder(Obj, Obj.Path);
         end        
         
         
         function Result = expandFolder(Obj, Path)
+            % Expand Path with macros from Configuration.System.EnvFolders
             if isprop(Obj, 'System') && isfield(Obj.System, 'EnvFolders')
                 Result = Configuration.unmacro(Path, Obj.System.EnvFolders);
             else
@@ -95,36 +98,36 @@ classdef Configuration < dynamicprops
         
     end
 
-   
+    %----------------------------------------------------------------------   
     methods(Static) % Static functions
-        
-        % Return singeton object
+                
         function Result = getDefaultConfig()
+            % Return singleton Configuration object
             persistent Conf
+            
+            % Create instance and load
             if isempty(Conf)
-                Conf = Config;
+                Conf = Configuration;
+                Conf.loadConfig();
             end
             Result = Conf;
         end
-    end    
-    
-    %----------------------------------------------------------------------
-    methods(Static) % Static functions    
+            
         
         function YamlStruct = loadYaml(FileName)
             % Read YAML file to struct, add FileName field
-            msgLog('loadYaml: Loading file: %s', FileName);
+            io.msgLog(LogLevel.Info, 'loadYaml: Loading file: %s', FileName);
             try
                 YamlStruct = yaml.ReadYaml(string(FileName).char);
                 YamlStruct.FileName = FileName;
             catch
-                msgLog('loadYaml: Exception loading file: %s', FileName);
+                io.msgLog(LogLevel.Error, 'loadYaml: Exception loading file: %s', FileName);
             end
         end
      
         
         function NewYamlStruct = reloadYaml(YamlStruct)
-            % Reload file
+            % Reload configurastion file, 'FileName' field must exist
             if isfield(YamlStruct, 'FileName')
                 NewYamlStruct = Configuration.loadYaml(YamlStruct.FileName);
             else
@@ -135,7 +138,7 @@ classdef Configuration < dynamicprops
     end
     
     
-    methods(Static)
+    methods(Static) % Helper functions
    
         function Result = unmacro(Str, MacrosStruct)
             % Replace macros in string with values from struct
@@ -165,6 +168,7 @@ classdef Configuration < dynamicprops
                
         
         function Len = listLen(List)
+            % Return list length
             [~, Len] = size(List);
         end
         
@@ -175,22 +179,21 @@ classdef Configuration < dynamicprops
         
     end
     
-    %----------------------------------------------------------------------
-    % Unit test
-    methods(Static)
+    %----------------------------------------------------------------------   
+    methods(Static) % Unit test
         
-        function Result = unitTest()
-            try
-                Result = Configuration.doUnitTest();
-            catch
-                Result = false;
-                msgLog('unitTest: Exception');
-            end
-        end
+%         function Result = unitTest()
+%             try
+%                 Result = Configuration.doUnitTest();
+%             catch
+%                 Result = false;
+%                 io.msgLog(LogLevel.Error, 'unitTest: Exception');
+%             end
+%         end
         
             
-        function Result = doUnitTest()
-            msgLog('Started\n');
+        function Result = unitTest()
+            io.msgLog(LogLevel.Test, 'Configuration test started');
             
             addpath('D:\Ultrasat\AstroPack.git\matlab\external');
 
@@ -198,57 +201,49 @@ classdef Configuration < dynamicprops
             ConfigFileName = 'D:\Ultrasat\AstroPack.git\config\UnitTest.yml';
             
             % Test low level loading of Yaml struct
-            msgLog('Testing low level functions');
+            io.msgLog(LogLevel.Test, 'Testing low level functions');
             yml = Configuration.loadYaml(ConfigFileName);
             uTest = yml;
-            msgLog(uTest.Key1);
-            msgLog(uTest.Key2);
-            msgLog(uTest.Key0x2D3);
-            msgLog(uTest.x0x2DKeyMinus);
+            io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);
+            io.msgLog(LogLevel.Test, 'Key2: %s', uTest.Key2);
+            io.msgLog(LogLevel.Test, 'Key: %s', uTest.Key0x2D3);
+            io.msgLog(LogLevel.Test, 'Key: %s', uTest.x0x2DKeyMinus);
             yml = Configuration.reloadYaml(yml);
             uTest = yml;
-            msgLog(uTest.Key1);      
-            
+            io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);                  
             
             % Test Configuration class
-            msgLog('Testing Configuration object');
+            io. msgLog(LogLevel.Test, 'Testing Configuration object');
             conf = Configuration();
             conf.loadFile(ConfigFileName);
             
             %
-            msgLog('FileName: %s', conf.UnitTest.FileName);
+            io.msgLog(LogLevel.Test, 'FileName: %s', conf.UnitTest.FileName);
             disp(conf.UnitTest);         
             
             %
-            msgLog(conf.UnitTest.Key1);
-            msgLog(conf.UnitTest.Key2);
-            msgLog(conf.UnitTest.Key0x2D3);
-            msgLog(conf.UnitTest.x0x2DKeyMinus);
+            io.msgLog(LogLevel.Test, 'Key1: %s', conf.UnitTest.Key1);
+            io.msgLog(LogLevel.Test, 'Key2: %s', conf.UnitTest.Key2);
+            io.msgLog(LogLevel.Test, 'Key: %s', conf.UnitTest.Key0x2D3);
+            io.msgLog(LogLevel.Test, 'Key: %s', conf.UnitTest.x0x2DKeyMinus);
             
             %disp(conf.listLen(conf.UnitTest.NonUniqueKeys));
                     
-            
-            msgLog('Testing folder');
+            % Load all config files in folder
+            io.msgLog(LogLevel.Test, 'Testing folder');
             conf.loadFolder(ConfigPath);
             disp(conf.System.EnvFolders);
             
-            msgLog('Testing utility functions');
-            msgLog(Configuration.unmacro("$ROOT/abc", conf.System.EnvFolders));
+            io.msgLog(LogLevel.Test, 'Testing utility functions');
+            io.msgLog(LogLevel.Test, 'unmacro: %s', Configuration.unmacro("$ROOT/abc", conf.System.EnvFolders));
             
-            msgLog(conf.expandFolder("$ROOT/abc"));
+            io.msgLog(LogLevel.Test, 'expandFolder: %s', conf.expandFolder("$ROOT/abc"));
             
             % Done
+            io.msgLog(LogLevel.Test, 'Configuration test passed');
             Result = true;
         end
     end
         
-end
-
-
-
-function msgLog(varargin)
-    %fprintf('Configuration: ');
-    fprintf(varargin{:});
-    fprintf('\n');
 end
 

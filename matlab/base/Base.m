@@ -6,7 +6,7 @@
 classdef Base < handle
     % Properties
     properties (SetAccess = public)
-        UserData
+        UserData    % Optional user data (any type)
     end
     
     %-------------------------------------------------------- 
@@ -15,8 +15,9 @@ classdef Base < handle
         function Obj = Base()
         end
     end
+
     
-    methods % copy
+    methods % Copy
         function NewObj = copyObject(Obj, Args)
             % By value copy of an object ans its content
             % Input  : - Any object that inherits from Base
@@ -50,10 +51,9 @@ classdef Base < handle
                 for Iprop=1:1:Nprop
                     NewObj(Iobj).(Args.ClearProp{Iprop}) = [];
                 end
-            end
-            
-            
+            end                   
         end
+        
         
         function Obj2 = copyProp(Obj1, Obj2, PropList)
             % Copy the content of properties from object1 into object2.
@@ -79,6 +79,23 @@ classdef Base < handle
             end
         end
     end
+    
+    %----------------------------------------------------------------------   
+    methods(Static) % Unit test
+        
+        function Result = unitTest()
+            io.msgLog(LogLevel.Test, 'Base test started');
+            a = Base();
+            a.UserData = 123;            
+            b = a.copyObject();
+            assert(a.UserData == b.UserData);
+            b.UserData = 0;
+            assert(a.UserData ~= b.UserData);
+            
+            io.msgLog(LogLevel.Test, 'Base test passed');
+            Result = true;
+        end
+    end    
     
 end
 
