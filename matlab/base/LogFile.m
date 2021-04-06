@@ -14,45 +14,81 @@ classdef LogFile < handle
     properties (SetAccess = public)
         FileName
         UserData
-        LogPath = "C:\\iai\\log";
+        LogPath = "C:\\_Ultrasat\\log";
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function obj = LogFile(FileName)
-            obj.FileName = fullfile(obj.LogPath, FileName);
+        function Obj = LogFile(FileName)
+            if isempty(FileName)
+                FileName = 'Default';
+            end
+            
+            fn = sprintf('%s-%s.log', Obj.getFileNameTimestamp(), FileName);
+            Obj.FileName = fullfile(Obj.LogPath, fn);
+            Obj.write('=========================================== Started');
         end
     end
     
-    % setters/getters
+
     methods
        
-        function Result = log(Obj, Msg)
+        function Result = write(Obj, varargin)
             % Log text line to file
-            Line = Obj.getTimestamp() + " " + Msg;
-            Fid = fopen(Obj.Filename, "at");
-            fprintf(Fid, "%s\n", Line);
+            Result = write2(Obj, '', varargin{:});
+        end
+        
+        
+        function Result = write2(Obj, Title, varargin)
+            % Log text line to file
+            if isempty(Title)
+                Prompt = sprintf('%s > ', Obj.getTimestamp());
+            else
+                Prompt = sprintf('%s > %s ', Obj.getTimestamp(), Title);
+            end
+            
+            Fid = fopen(Obj.FileName, 'at');
+            fprintf(Fid, Prompt);
+            fprintf(Fid, varargin{:});
+            fprintf(Fid, '\n');
             fclose(Fid);
             Result = true;
         end
         
+    end
 
-        function Result = getTimestamp(Obj)
+    
+    methods(Static)        
+                      
+        function Result = getSingle()
+            % Return singleton object
+            persistent PersObj
+            if isempty(PersObj)
+                PersObj = LogFile('');
+            end
+            Result = PersObj;
+        end
+        
+        
+        function Result = getTimestamp()
             % Return current time as string
             Result = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
         end
+        
+        function Result = getFileNameTimestamp()
+            Result = datestr(now, 'yyyy-mm-dd');
+        end
     end
     
-    
-    % Unit test
-    methods(Static)
+       
+    methods(Static) % Unit test
         function Result = unitTest()
             fprintf("Started\n");
-            Lf = TLogFile("m1.log");
+            Lf = LogFile('');
             
             for i=1:1:10
-                Lf.log("Line: " + string(i));
+                Lf.write('Line: %d', i);
             end
            
             Result = true;

@@ -12,14 +12,14 @@ classdef MsgLogger < handle
     methods
         % Constructor    
         function Obj = MsgLogger()
-            Obj.CurLevel = LogLevel.Debug;
+            Obj.CurLevel = LogLevel.All;
         end
     end
 	
 	
     methods(Static) % Static functions
                 
-        function Result = getGlobal()
+        function Result = getSingle()
             % Return singleton object
             persistent PersObj
             if isempty(PersObj)
@@ -31,20 +31,24 @@ classdef MsgLogger < handle
         
         function setLogLevel(Level)
             % Set global LogLevel
-            m = MsgLogger;
-            m.getGlobal().CurLevel = Level;
+            m = MsgLogger.getSingle();
+            m.CurLevel = Level;
         end
         
         
         function Value = getLogLevel()
             % Get global LogLevel
-            m = MsgLogger;
-            Value = m.getGlobal().CurLevel;
+            Value = MsgLogger.getSingle().CurLevel;
         end
                 
         
 		function msgLog(Level, varargin)
             % Global msgLog
+
+            % Do nothing if log is disabled
+            if Level == LogLevel.None
+                return
+            end
             
             % Ignore levels above CurLevel
             if uint32(Level) > uint32(MsgLogger.getLogLevel())
@@ -55,31 +59,48 @@ classdef MsgLogger < handle
 			s = '';
             switch Level        
 				case LogLevel.None
-					s = 'None';
+					s = 'NON';
 				case LogLevel.Error
-					s = 'Error';
+					s = 'ERR';
 				case LogLevel.Warning
-					s = 'Warning';
+					s = 'WRN';
 				case LogLevel.Info
-					s = 'Info';
+					s = 'INF';
 				case LogLevel.Debug
-					s = 'Debug';
+					s = 'DBG';
 				case LogLevel.Test
-					s = 'UnitTest';
+					s = 'TST';
 				otherwise
 					error('Unknown LogLevel');
             end
-		   
-            % Log to console
-			fprintf('[%s]: ', s);
-            for i=1:nargin-1
-                fprintf('%s', string(varargin{i}));
-            end
+            
+            fprintf('[%s] ', s);
+            fprintf(varargin{:});
 			fprintf('\n');
             
-            % Log to file @TODO
+            % Log to file            
+            f = LogFile.getSingle();
+            f.write2(sprintf('[%s]', s), varargin{:});
+            
 		end
-	end
+    end
+    
+    
+    methods(Static) % Unit test
+        function Result = unitTest()            
+            fprintf("MsgLog test started\n");
+            
+            MsgLogger.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
+            MsgLogger.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));
+            MsgLogger.msgLog(LogLevel.Info, 'Test: %d', uint32(LogLevel.Info));
+            MsgLogger.msgLog(LogLevel.Warning, 'Test: %d', uint32(LogLevel.Warning));
+            MsgLogger.msgLog(LogLevel.Error, 'Test: %d', uint32(LogLevel.Error));
+            MsgLogger.msgLog(LogLevel.None, 'Test: %d', uint32(LogLevel.None));
+            
+            fprintf("MsgLog test passed\n");
+        end
+    end
+    
 end
 
 
