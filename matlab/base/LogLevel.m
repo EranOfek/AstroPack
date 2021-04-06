@@ -11,4 +11,3 @@ classdef LogLevel < uint32
         All(9)          % All 
     end
 end
-

@@ -156,9 +156,13 @@ classdef UnitTester < handle
     methods(Static)
         function Result = testBase()
             
+            % Set maximum log level
+            MsgLogger.setLogLevel(LogLevel.All);
+            
             LogFile.unitTest();
             MsgLogger.unitTest();
             Base.unitTest();
+            Configuration.unitTest();
             Component.unitTest();
             
         end
