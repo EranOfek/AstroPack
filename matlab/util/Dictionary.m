@@ -65,8 +65,8 @@ classdef Dictionary < Component
                         % List of default comments for header keywords
                         Obj.Name   = Args.Name;
                         St.NAXIS   = {'Number of dimensions'};
-                        St.NAXIS1  = {'Size of axis 1 (X)'};
-                        St.NAXIS2  = {'Size of axis 2 (Y)'};
+                        St.NAXIS1  = {'Length of axis 1 (X)'};
+                        St.NAXIS2  = {'Length of axis 2 (Y)'};
                         St.BITPIX  = {'bits per data value'};
                         St.BZERO   = {'zero point in scaling equation'};
                         St.BSCALE  = {'linear factor in scaling equation'};
@@ -76,6 +76,8 @@ classdef Dictionary < Component
                         St.READNOI = {'Camera Readout noise [e-]'};
                         St.DARKCUR = {'Dark current [e-/s/pix]'};
                         St.CAMNUM  = {'Camera Number'};
+                        Obj.Dict   = St;
+                        Obj.Conversion = [];
 % CAMLOC  : Camera Location :
 % CAMTYPE : Camera Type :
 % CAMMODEL: Camera Model :
@@ -243,6 +245,7 @@ classdef Dictionary < Component
             FlagKey = false(Nfn,1);
             Key = [];
             AltConv = [];
+            AllAlt = {};
             for Ifn=1:1:Nfn
                 switch Args.SearchAlgo
                     case 'strcmp'

@@ -219,7 +219,8 @@ classdef AstroHeader < handle %< Component
             %            dictionary, and the cell array will be regarded as
             %            a dictionary.
             %          * ...,key,val,...
-            %            'UseDict'
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
             %            'CaseSens' - Default is true.
             %            'SearchAlgo' - ['strcmp'] | 'regexp'.
             %                   or 'last' match.
@@ -296,11 +297,33 @@ classdef AstroHeader < handle %< Component
         
         
         function [Result ,ResultC, IK] = getStructKey(Obj,ExactKeys,Args)
-            % get multiple (exact) keys from multiple headers and store in a structure array
+            % Get multiple  keys from multiple headers and store in a structure array
+            %       The keyword search can be exact (UseDict=false), or
+            %       using a keywords dictionary (UseDict=true).
             % Input  : - An AstroHeader object (multiple elements supported)
             %          - A cell array of keyword names. These are exact
             %            keyword names without a dictionary interpretation.
             %          * ...,key,val,...
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'Fill' - Fill value for the keyword Val, in case that the
+            %                   key is not found. Default is NaN (comment will be
+            %                   '').
+            %            'Val2Num' - Attempt to convert the value to numeric.
+            %                   Default is true.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
             % Output : - A structure array, where number of elements equal
             %            to the number of elements in the AstroHeader.
             %            For each requested keyword name there is a
@@ -312,7 +335,8 @@ classdef AstroHeader < handle %< Component
             %            the cell-header. This is only for the last elemnt in
             %            the AstroHeader.
             % Author: Eran Ofek  (Apr 2021)
-            % Example: [Result,C] = getStructKey(H, {'EXPTIME'})
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          [Result,C] = getStructKey(H, {'EXPTIME'})
             %          [Result,C] = getStructKey(H, {'EXPTIME','A'})
             %          [Result,C] = getStructKey(H, {'EXPTIME','A'},'UseDict',false)
             
@@ -320,11 +344,12 @@ classdef AstroHeader < handle %< Component
             arguments
                 Obj
                 ExactKeys
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
-                Args.UseDict(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;
                 Args.KeyDict                                                    = [];
             end
@@ -382,6 +407,65 @@ classdef AstroHeader < handle %< Component
 %             
         end
         
+        function Obj = insertDefaultComments(Obj,Args)
+            % Insert/replace default comments for keys using the header comments dictionary
+            % Input  : - 
+            % Output : - 
+            % Author : Eran Ofek (Apr 2021)
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          insertDefaultComments(H)
+            
+            arguments
+                Obj
+                Args.CaseSens(1,1) logical                                      = true;
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.IsInputAlt(1,1) logical                                    = true;
+                Args.Occur                    = 'first';
+                
+            end
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+               
+                DictKeyNames = fieldnames(Obj(Iobj).CommentDict.Dict);
+                NdictKeys    = numel(DictKeyNames);
+                for IdictKeys=1:1:NdictKeys
+                    if Args.IsInputAlt
+                        [Key,AltConv,Alt,~] = searchAlt(Obj(Iobj).KeyDict, DictKeyNames{IdictKeys}, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                        if isempty(Alt)
+                            Alt = DictKeyNames(IdictKeys);
+                        end
+                    else
+                        Alt = DictKeyNames(IdictKeys);
+                    end
+                               
+                    if ~isempty(Alt)
+                        % search for Alt in the header
+                        CleanCell = Obj(Iobj).Data(:, Obj(Iobj).ColKey);
+                        FlagNOK = cellfun(@isnumeric, Obj(Iobj).Data(:,Obj(Iobj).ColKey));
+                        [CleanCell{FlagNOK}] = deal('');
+                        
+                        Flag = ismember(CleanCell, Alt);
+                        Ind  = find(Flag, 1, Args.Occur);
+
+                        if ~isempty(Ind)
+                            KeyName = Obj(Iobj).Data{Ind, Obj(Iobj).ColKey};
+                            Obj(Iobj).Data{Ind, Obj.ColComment} = Obj(Iobj).CommentDict.Dict.(KeyName){1};
+                        end
+                        
+                    end
+                end
+            end
+                    
+        end
+        
+        function Obj = fixKeys(Obj,Args)
+            %
+           
+            
+            
+            
+        end
         
         
         
