@@ -35,6 +35,7 @@ function [SubCell,FlagExist,IndFound,IndKey]=getByKey(Cell,Key,Args)
 %          [SC,FE,II]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','a',''},'ExpTime')
 %          [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN',''},{'ExpTime','A'})
 %          [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN','';'A',1,''},{'ExpTime','A'},'ReturnN',Inf)
+%          [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN','';'A',1,''},{'ExpTime','A'},'ReturnN',1)
 % Reliable: 2
 
     arguments
@@ -76,13 +77,15 @@ function [SubCell,FlagExist,IndFound,IndKey]=getByKey(Cell,Key,Args)
             case 'regexp'
                 Flag = ~cellfun(@isempty,regexp(Cell(:,Args.Col),Key{Ikey},'match'));
         end
+        IndKey{Ikey} = find(Flag,Args.ReturnN,'first');
+        IndFound     = [IndFound; IndKey{Ikey}];
+        
         if ~isempty(Args.Fill) && ~any(Flag)
             SubCell = [SubCell; {Key{Ikey}, Args.Fill, ''}];
         else
-            SubCell = [SubCell; Cell(Flag,:)];
+            SubCell = [SubCell; Cell(IndKey{Ikey},:)];
         end
-        IndKey{Ikey} = find(Flag,Args.ReturnN,'first');
-        IndFound     = [IndFound; IndKey{Ikey}];
+        
         
         
         if any(Flag)

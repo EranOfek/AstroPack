@@ -287,18 +287,105 @@ classdef AstroHeader < handle %< Component
                                                           'SearchAlgo',Args.SearchAlgo,...
                                                           'Fill',Args.Fill,...
                                                           'Val2Num',Args.Val2Num,...
-                                                          'Occur',Args.Occur);
+                                                          'Occur',Args.Occur,...
+                                                          'ColKey',Obj.ColKey,...
+                                                          'ColVal',Obj.ColVal,...
+                                                          'ColComment',Obj.ColComment);
             
         end
         
         
-        function [SubCell,FlagExist,IndFound,IndKey] = getSubHeaderByKey(Cell,Key,Args)
-            %
+        function [Result ,ResultC, IK] = getStructKey(Obj,ExactKeys,Args)
+            % get multiple (exact) keys from multiple headers and store in a structure array
+            % Input  : - An AstroHeader object (multiple elements supported)
+            %          - A cell array of keyword names. These are exact
+            %            keyword names without a dictionary interpretation.
+            %          * ...,key,val,...
+            % Output : - A structure array, where number of elements equal
+            %            to the number of elements in the AstroHeader.
+            %            For each requested keyword name there is a
+            %            corresponding field name, which value is the
+            %            keyword value.
+            %          - The same, but for the comments.
+            %          - A cell array (number of elements equal to the number of keys)
+            %            in which each cell contains the indices of the found keys in
+            %            the cell-header. This is only for the last elemnt in
+            %            the AstroHeader.
+            % Author: Eran Ofek  (Apr 2021)
+            % Example: [Result,C] = getStructKey(H, {'EXPTIME'})
+            %          [Result,C] = getStructKey(H, {'EXPTIME','A'})
+            %          [Result,C] = getStructKey(H, {'EXPTIME','A'},'UseDict',false)
             
+            
+            arguments
+                Obj
+                ExactKeys
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.CaseSens(1,1) logical                                      = true;
+                Args.Fill                                                       = NaN;
+                Args.Val2Num(1,1) logical                                       = true;
+                Args.UseDict(1,1) logical                                       = true;
+                Args.IsInputAlt(1,1) logical                                    = true;
+                Args.KeyDict                                                    = [];
+            end
+            
+            if ischar(ExactKeys)
+                ExactKeys = {ExactKeys};
+            end
+            
+            Nkey = numel(ExactKeys);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Args.KeyDict)
+                    % use Obj dictionary
+                    Dict = Obj(Iobj).KeyDict;
+                else
+                    Dict = Args.KeyDict;
+                end
+                if Args.UseDict    
+                    for Ikey=1:1:Nkey
+                        if Args.IsInputAlt
+                            [Key,AltConv,Alt,~] = searchAlt(Dict, ExactKeys{Ikey}, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                        else
+                            [Alt, AltConv] = searchKey(Dict, ExactKeys{Ikey}, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                        end
+                                              
+                        [Val, Key, Comment, Nfound] = imUtil.headerCell.getValBySynonym(Obj(Iobj).Data, Alt);
+                        Result(Iobj).(ExactKeys{Ikey}) = Val;
+                        if nargout>1
+                            ResultC(Iobj).(ExactKeys{Ikey}) = Comment;
+                        end
+                    end
+                else
+                    [SC, ~, ~, IK] = imUtil.headerCell.getByKey(Obj(Iobj).Data, ExactKeys, ...
+                                                                'ReturnN',1,...
+                                                                'CaseSens',Args.CaseSens,...
+                                                                'Fill',Args.Fill,...
+                                                                'Col',1,...
+                                                                'Val2Num',Args.Val2Num);
+                    %
+                    Result(Iobj) = cell2struct(SC(:,Obj(Iobj).ColVal), SC(:,Obj(Iobj).ColKey), 1);
+                    if nargout>1
+                        ResultC(Iobj) = cell2struct(SC(:,Obj(Iobj).ColComment), SC(:,Obj(Iobj).ColKey), 1);
+                    end
+                end
+                                      
+            end
+            
+            
+%             classdef StrSearchAlgo < uint32
+%                 enumeration
+%                     strcmp(0)
+%                     regexp(1)
+%                 end
+%             end
+%             
         end
         
         
         
+        
+        % got here
         
         function [Val, Key, Comment, Nfound] = keyValByynonyms(Obj, KeySynonym, Args)
             % Return the first key in the list that appears in the header.
