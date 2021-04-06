@@ -409,18 +409,28 @@ classdef AstroHeader < handle %< Component
         
         function Obj = insertDefaultComments(Obj,Args)
             % Insert/replace default comments for keys using the header comments dictionary
-            % Input  : - 
-            % Output : - 
+            % Input  : - An AstroHeader object (multiple elements supported)
+            %          * ...,key,val,...
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'IsInputAlt' - If true then will look for the
+            %                   keyword in the alternate names.
+            %                   Default is true.
+            %            'Occur' - Which keyword appearnce to select
+            %                   ['first'] | 'lsat'.
+            % Output : - An AstroHeader with the comments populated from
+            %            the CommentDict dictionary.
             % Author : Eran Ofek (Apr 2021)
             % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             %          insertDefaultComments(H)
             
             arguments
                 Obj
-                Args.CaseSens(1,1) logical                                      = true;
+                Args.CaseSens(1,1) logical                             = true;
                 Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
-                Args.IsInputAlt(1,1) logical                                    = true;
-                Args.Occur                    = 'first';
+                Args.IsInputAlt(1,1) logical                           = true;
+                Args.Occur                                             = 'first';
                 
             end
            
@@ -460,176 +470,139 @@ classdef AstroHeader < handle %< Component
         end
         
         function Obj = fixKeys(Obj,Args)
-            %
-           
+            % Change the name of header keywords according to their main
+            % name in the keyword synonymns dictionary
+            % Input  : -
+            % Output : -
+            % Author : Eran Ofek (Apr 2021)
+            % Example: 
             
             
             
         end
         
-        
-        
-        % got here
-        
-        function [Val, Key, Comment, Nfound] = keyValByynonyms(Obj, KeySynonym, Args)
-            % Return the first key in the list that appears in the header.
-           
-            arguments
-                Obj(1,1)
-                KeySynonym
-                Args.CaseSens(1,1) logical           = true;
-                Args.SearchAlgo char {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
-                Args.Occur                           = 'first';  % 'first' | 'last'
-                Args.Fill                            = NaN;
-                Args.Val2Num(1,1) logical            = true;
-            end
-            
-            if ischar(KeySynonym)
-                KeySynonym = {KeySynonym};
-            end
-            
-            Nsyn   = numel(KeySynonym);
-            Flag   = ismember(Obj.Data(:,Obj.ColKey), KeySynonym);
-            Nfound = sum(Flag);
-            Ind    = find(Flag, 1, Args.Occur);
-            if isempty(Ind)
-                Val     = Args.Fill;
-                Key     = KeySynonym{1};
-                Comment = '';
-            else
-                Key     = Obj.Data(Ind, Obj.ColKey);
-                Val     = Obj.Data(Ind, Obj.ColVal);
-                Comment = Obj.Data(Ind, Obj.ColComment);
-            end
-            
-            % convert to number
-            if Args.Val2Num
-                ValNum  = str2double(Val);
-                if isnan(ValNum) && ~strcmpi(Val,'nan')
-                    % string
-                    % do nothing
-                else
-                    % number
-                    Val = ValNum;
-                end
-            end
-        end
-        
-        
-        function [Val,Key,Comment]=keyVal(Obj,KeySynonym,Args)
-            % get a the value for a single header keyword
-            % 
+        function Obj = deleteKey(Obj,ExactKeys,Args)
+            % Delete keywords from header by exact keyword name
+            % Input  : - An AstroHeader object (multiple elements are
+            %            supported).
+            %          - A char array or a cell array of chars of keyword
+            %            names to delete from all the headers.
+            %          * ...,key,val,...
+            %            'CaseSens' - Default is true.
+            %            'UseRegExp' - Use regexp (true) or strcmp (false).
+            %                   Default is true.
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          deleteKey(H,{'EXPTIME','A','COMMENT'})
+            %          deleteKey(H,{'EXPTIME','A','SKYSUB\d'}) % use regexp
             
             arguments
                 Obj
-                KeySynonym                        = '';
-                Args.CaseSens(1,1) logical        = true;
-                Args.SearchAlgo char {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
-                Args.IsInputAlt(1,1) logical      = true;
-                Args.Fill                         = NaN;
-                Args.Val2Num(1,1) logical         = true;
-                Args.ReturnN                      = 1;
-                Args.UseDict(1,1) logical         = true;
-                Args.ApplyConversion(1,1) logical = true;
-            end
-            
-            
-            if numel(Obj)>1
-                error('Use mkeyVal for Header object with multiple entries or multiple keys');
-            end
-            
-            % I need the dictionary in order to continue
-            if Args.UseDict
-                
-                
-                if Args.IsInputAlt
-                    [Key,AltConv,Alt,~] = searchAlt(Obj.KeyDict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
-                else
-                    [Alt, AltConv] = searchKey(Obj.KeyDict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
-                end
-                if isempty(Alt)
-                    % unknown synonym - use original key
-                    Alt     = {KeySynonym};
-                end
-            else
-                Alt     = {KeySynonym};
-                AltConv = [];
-            end
-            
-            [SubCell,FlagExist,IndFound,IndKey] = imUtil.headerCell.getVal(Obj.Data,...
-                                                                           Alt,...
-                                                                           'CaseSens',Args.CaseSens,...
-                                                                           'SearchAlgo',Args.SearchAlgo,...
-                                                                           'Fill',Args.Fill,...
-                                                                           'Val2Num',Args.Val2Num,...
-                                                                           'ReturnN',Args.ReturnN);
-            %cellfun(@isnan,SubCell(:,2)
-            if any(FlagExist)
-                Ind = find(FlagExist,1,'first');
-                Val     = SubCell{Ind,2};
-                Key     = SubCell{Ind,1};
-                Comment = SubCell{Ind,3};
-            else
-                % not found
-                Key = KeySynonym;
-                Val = Args.Fill;
-                Comment = '';
-            end
-            
-            if Args.ApplyConversion && ~isempty(AltConv)
-                Val = AltConv(Val);
-            end
-            
-        end
-        
-        function mkeyVal(Obj,KeySynonym,Args)
-            %
-            
-            arguments
-                Obj
-                KeySynonym  {mustBeA(KeySynonym,{'char','cell'})}  = '';
+                ExactKeys
                 Args.CaseSens(1,1) logical    = true;
-                Args.NotExist char  {mustBeMember(Args.NotExist,{'NaN','fail'})} = 'NaN';
-                Args.Val2Num(1,1) logical     = true;
-                Args.UseDict(1,1) logical     = true;
-                Args.OutType char {musBeMember(Args.OutType,{'cell','Header'})} = 'cell';
+                Args.UseRegExp(1,1) logical   = true;
+            end
+            
+            if ischar(ExactKeys)
+                ExactKeys = {ExactKeys};
+            end
+            Nkeys = numel(ExactKeys);
+            
+            searchFun = tools.string.stringSearchFun(Args.UseRegExp, Args.CaseSens);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Nrow = size(Obj(Iobj).Data,1);
+                Flag = false(Nrow,1);
+                for Ikeys=1:1:Nkeys
+                    % in principle can use ismember (but no regexp)
+                    NewFlag = searchFun( Obj(Iobj).Data(:,Obj(Iobj).ColKey), ExactKeys{Ikeys});
+                    Flag = Flag | NewFlag(:);
+                end
+                % remove keywords
+                Obj(Iobj).Data = Obj(Iobj).Data(~Flag,:);
+            end
+                 
+        end
+        
+        function insertKey(Obj, KeyValComment, Pos)
+            % Insert key/val/comment to headers
+            % Input  : - An AstroHeader object (multi. elements supported)
+            %          - Either a key name, or a cell array of
+            %          [Key,Val,Comment], or [Key,Val].
+            % Output : - An AstroHeader object with the new key/vals.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          H.insertKey('stam')
+            %          H.insertKey({'A','','';'B','',''},'end-1')
+            
+            arguments
+                Obj
+                KeyValComment
+                Pos                  = 'end-1';
+            end
+        
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).Data = imUtil.headerCell.insertKey(Obj(Iobj).Data, KeyValComment, Pos);
             end
             
         end
         
-        function Result=deleteKey(Obj,KeySynonym,Args)
-            %
-           
+        
+        function replaceVal(Obj,Key,Val,Args)
+            % Replace a keyword value in headers (no dictionary in key
+            % search).
+            % Input  : - An AstroHeader object (multi elements supported).
+            %          - A key name or a cell array of key names.
+            %          - A vector or a cell array of values, corresponding to the key
+            %            names.
+            %          * ...,key,val,... or ...,key=val',... list
+            %            'SearchAlgo' - search using: ['strcmp'] | 'regexp'
+            %            'CaseSens' - Default is true.
+            %            'DelDup'   - Remove duplicate keys. Default is true.
+            %            'RepVal'   - Replace value. Default is true.
+            %            'Comment'  - A cell array of optional comments.
+            %                   If empty, then do not replace comment. Default is [].
+            %            'NewKey' - A cell array of new keys to replace the old keys.
+            %                   If empty, then do not replace keys.
+            %                   Default is {}.
+            %            'ColKey' - Column index of keys. Default is 1.
+            %            'ColVal' - Column index of values. Default is 2.
+            %            'ColComment' - Column index of comments. Default is 3.
+            % Output : - A new cell array with the replaced keys/values.
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          H.replaceVal({'COMMENT'},{''},'DelDup',false);
+            
             arguments
                 Obj
-                KeySynonym  {mustBeA(KeySynonym,{'char','cell'})}  = '';
-                Args.CaseSens(1,1) logical    = true;
-                Args.UseDict(1,1) logical     = true;
+                Key
+                Val cell
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.CaseSens(1,1) logical                    = true;
+                Args.DelDup(1,1) logical                      = true;
+                Args.RepVal(1,1) logical                      = true;
+                Args.Comment                                  = [];
+                Args.NewKey                                   = {};
+                Args.ColKey(1,1) uint8                        = 1;
+                Args.ColVal(1,1) uint8                        = 2;
+                Args.ColComment(1,1) uint8                    = 3;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).Data = imUtil.headerCell.replaceKey(Obj(Iobj).Data, Key, Val,...
+                                                              'SearchAlgo',Args.SearchAlgo,...
+                                                              'CaseSens',Args.CaseSens,...
+                                                              'DelDup',Args.DelDup,...
+                                                              'RepVal',Args.RepVal,...
+                                                              'Comment',Args.Comment,...
+                                                              'NewKey',Args.NewKey,...
+                                                              'ColKey',Obj(Iobj).ColKey,...
+                                                              'ColVal',Obj(Iobj).ColVal,...
+                                                              'ColComment',Obj(Iobj).ColComment);
+                                                              
             end
             
-        end
-        
-        function insertKey(Obj,KeyValComment,Args)
-            %
-            
-            arguments
-                Obj
-                KeyValComment  {mustBeA(KeyValComment,{'char','cell'})}  = '';
-                Args.Pos(1,1) double {mustBePositive(Args.Pos)}       = Inf;
-            end
-        
-        end
-        
-        
-        function replaceVal(Obj,Key,NewVal,Args)
-            %
-            arguments
-                Obj
-                Key    {mustBeA(Key,{'char','cell'})} = '';
-                NewVal                                     = ''; 
-                Args.NewComment                            = '';
-                Args.NotExist char {mustBeMemeber(Args.NotExist,{'add','fail'})} = 'add'; 
-            end
         end
         
         function search(Obj,Val,Args)
