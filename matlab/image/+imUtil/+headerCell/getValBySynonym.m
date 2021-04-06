@@ -25,6 +25,8 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
     %          [Val, Key, Comment, Nfound] = imUtil.headerCell.getValBySynonym({'A',1','';'B','2','';'C','aa',''; 'A',2,''}, {'A','C'})
     %          [Val, Key, Comment, Nfound] = imUtil.headerCell.getValBySynonym({'A',1','';'B','2','';'C','aa',''}, {'A','C'},'SearchAlgo','regexp')
     %          [Val, Key, Comment, Nfound] = imUtil.headerCell.getValBySynonym({'A',1','';'B','2','';'C','aa',''; 'A',2,''}, {'Aaa','Caa'})
+    %          [Val, Key, Comment, Nfound] =
+    %          imUtil.headerCell.getValBySynonym({'A',1','';'B','2','';'C','aa',''}, []) % return Args.Fill
     
     arguments
         CellHeader(:,3) cell
@@ -39,44 +41,51 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
         Args.ColComment                      = 3;
     end
     
-    if ischar(KeySynonym)
-        KeySynonym = {KeySynonym};
-    end
-    Nsyn = numel(KeySynonym);
-
-    
-    switch Args.SearchAlgo
-        case 'strcmp'
-            if Args.CaseSens
-                strcmpFun = @strcmp;
-            else
-                strcmpFun = @strcmpi;
-            end
-        case 'regexp'
-            if Args.CaseSens
-                strcmpFun = @(x,y) ~tools.cell.isempty_cell(regexp(x,y,'match'));
-            else
-                strcmpFun = @(x,y) ~tools.cell.isempty_cell(regexpi(x,y,'match'));
-            end
-        otherwise
-            error('Unknown SearchAlgo option');
-    end
-            
-    IndSyn  = [];
-    IndCell = [];
-    Nfound  = 0;
-    Cont = true;
-    Isyn = 0;
-    while Cont
-        Isyn   = Isyn + 1;
-        Flag   = strcmpFun(CellHeader(:,Args.ColKey), KeySynonym{Isyn});
-        Nfound = sum(Flag);
-        if any(Flag)
-            IndSyn  = Isyn;
-            IndCell = find(Flag, 1, Args.Occur);
+    if isempty(KeySynonym)
+        IndSyn        = [];
+        KeySynonym{1} = Args.Fill;
+        Nfound        = 0;
+    else
+        
+        if ischar(KeySynonym)
+            KeySynonym = {KeySynonym};
         end
-        if ~isempty(IndSyn) || Isyn==Nsyn 
-            Cont = false;
+        Nsyn = numel(KeySynonym);
+
+
+        switch Args.SearchAlgo
+            case 'strcmp'
+                if Args.CaseSens
+                    strcmpFun = @strcmp;
+                else
+                    strcmpFun = @strcmpi;
+                end
+            case 'regexp'
+                if Args.CaseSens
+                    strcmpFun = @(x,y) ~tools.cell.isempty_cell(regexp(x,y,'match'));
+                else
+                    strcmpFun = @(x,y) ~tools.cell.isempty_cell(regexpi(x,y,'match'));
+                end
+            otherwise
+                error('Unknown SearchAlgo option');
+        end
+
+        IndSyn  = [];
+        IndCell = [];
+        Nfound  = 0;
+        Cont = true;
+        Isyn = 0;
+        while Cont
+            Isyn   = Isyn + 1;
+            Flag   = strcmpFun(CellHeader(:,Args.ColKey), KeySynonym{Isyn});
+            Nfound = sum(Flag);
+            if any(Flag)
+                IndSyn  = Isyn;
+                IndCell = find(Flag, 1, Args.Occur);
+            end
+            if ~isempty(IndSyn) || Isyn==Nsyn 
+                Cont = false;
+            end
         end
     end
 
@@ -88,17 +97,20 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
         Key     = CellHeader{IndCell, Args.ColKey};
         Val     = CellHeader{IndCell, Args.ColVal};
         Comment = CellHeader{IndCell, Args.ColComment};
+        
+        % convert to number
+        if Args.Val2Num
+            ValNum  = str2double(Val);
+            if isnan(ValNum) && ~strcmpi(Val,'nan')
+                % string
+                % do nothing
+            else
+                % number
+                Val = ValNum;
+            end
+        end
+        
     end
     
-    % convert to number
-    if Args.Val2Num
-        ValNum  = str2double(Val);
-        if isnan(ValNum) && ~strcmpi(Val,'nan')
-            % string
-            % do nothing
-        else
-            % number
-            Val = ValNum;
-        end
-    end
+    
 end

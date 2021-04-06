@@ -186,6 +186,15 @@ classdef AstroHeader < handle %< Component
             
         end
         
+        
+        function disp(Obj)
+            % Display all headers in an AstroHeader object
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                disp(Obj(Iobj).Data);
+            end
+        end
     end
     
     methods  % functions for internal use
@@ -200,7 +209,44 @@ classdef AstroHeader < handle %< Component
     
     methods 
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
-            % get a single keyword value
+            % get a single keyword value where the keyword appears first in a dictionary.
+            % Input  : - A single element AstroHeader object
+            %          - Either a single character array, or a cell array
+            %            of character arrays. If a single char array, then 
+            %            search for its first occurence with or without
+            %            dictionary.
+            %            If a cell array, then this will override the
+            %            dictionary, and the cell array will be regarded as
+            %            a dictionary.
+            %          * ...,key,val,...
+            %            'UseDict'
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'Fill' - Fill value for the keyword Val, in case that the
+            %                   key is not found. Default is NaN (comment will be
+            %                   '').
+            %            'Val2Num' - Attempt to convert the value to numeric.
+            %                   Default is true.
+            %            'Occur'        - For each synonym return the
+            %                   ['first'] | 'last'.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME')
+            %          [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','IsInputAlt',true)
+            %          [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME'); % return NaN
+            %          [Val, Key, Comment, Nfound] = getVal(H, {'BB','EXPTIME','AA'})
+            %          [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME','UseDict',false)
+            %          [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','UseDict',false)
             
             arguments
                 Obj(1,1)
@@ -209,10 +255,39 @@ classdef AstroHeader < handle %< Component
                 Args.CaseSens(1,1) logical             = true;
                 Args.SearchAlgo char                   = 'strcmp';
                 Args.Fill                              = NaN;
+                Args.Val2Num(1,1) logical              = true;
                 Args.Occur                             = 'first';
+                Args.KeyDict                           = [];  % a structure of dictionary
+                Args.IsInputAlt(1,1) logical           = false;
             end
             
+            if ischar(KeySynonym)
+                KeySynonym = {KeySynonym};
+            end
+            Nsyn = numel(KeySynonym);
             
+            if Args.UseDict && Nsyn==1
+                if isempty(Args.KeyDict)
+                    % use Obj dictionary
+                    Dict = Obj.KeyDict;
+                else
+                    Dict = Args.KeyDict;
+                end
+                if Args.IsInputAlt
+                    [Key,AltConv,Alt,~] = searchAlt(Dict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                else
+                    [Alt, AltConv] = searchKey(Dict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                end
+            else
+                Alt = KeySynonym;
+            end
+                
+            [Val, Key, Comment, Nfound] = imUtil.headerCell.getValBySynonym(Obj.Data, Alt, ...
+                                                          'CaseSens',Args.CaseSens,...
+                                                          'SearchAlgo',Args.SearchAlgo,...
+                                                          'Fill',Args.Fill,...
+                                                          'Val2Num',Args.Val2Num,...
+                                                          'Occur',Args.Occur);
             
         end
         

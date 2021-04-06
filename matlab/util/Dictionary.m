@@ -232,7 +232,7 @@ classdef Dictionary < Component
             
             arguments
                 Obj(1,1)
-                Alt char
+                Alt
                 Args.CaseSens(1,1) logical            = true;
                 Args.SearchAlgo char    {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
             end
