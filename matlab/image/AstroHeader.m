@@ -334,6 +334,26 @@ classdef AstroHeader < handle %< Component
         
     end
     
+    methods % funUnary/Binary/Stack/Transform
+        function Obj = funUnary(Obj, Operator, Args)
+            %
+            
+            arguments
+                Obj
+                Operator
+                Args.OpArgs cell                  = {};
+                Args.ModifyHeader                 = true;
+                Args.AddHistory                   = true;
+                Args.NewUnits                     = []; % if empty don't change
+                Args.CreateNewObj(1,1) logical    = true;
+                
+            end
+            
+            
+        end
+        
+    end
+    
     methods  % getVal, etc.
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
             % get a single keyword value where the keyword appears first in a dictionary.
