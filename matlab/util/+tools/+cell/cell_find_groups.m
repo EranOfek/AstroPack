@@ -1,4 +1,4 @@
-function [Groups]=cell_find_groups(Cell,DelSpace)
+function [Groups,Flag]=cell_find_groups(Cell,DelSpace)
 % Find all cell lines with identical values, and return indices of groups.
 % Package: Util.cell
 % Description: Given a cell array, find all lines with identical values.
@@ -16,7 +16,7 @@ function [Groups]=cell_find_groups(Cell,DelSpace)
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Mar 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Groups,Flag]=cell_find_groups({1 2;1 2;'E' 2;'R', 'V';'E',2})
+% Example: [Groups,Flag]=tools.cell.cell_find_groups({1 2;1 2;'E' 2;'R', 'V';'E',2})
 % Reliable: 2
 %--------------------------------------------------------------------------
 

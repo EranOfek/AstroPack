@@ -1128,7 +1128,7 @@ classdef convert
         end % convert.time function
         
         % Date to JD
-        function JD=date2jd(Date,Output)
+        function JD=date2jd(Date,Output,TreatOnlyDate)
             % Convert Julian/Gregorian date to Julian Day
             % Package: @convert
             % Description: Convert Julian/Gregorian date to Julian Day.
@@ -1146,6 +1146,8 @@ classdef convert
             %          - Output type. Options are:
             %            'JD'  - Julian days (default).
             %            'MJD' - Modified JD (JD-2400000.5).
+            %          - Flag indicating if possible to treat strings
+            %            containing only dates (no H:M:S). Default is false.
             % Output : - Row vector of Julian days.
             % Tested : Matlab 3.5
             %     By : Eran O. Ofek                    Jan 1994
@@ -1158,21 +1160,41 @@ classdef convert
             % Reliable: 1
             %--------------------------------------------------------------------------
 
+            if nargin<3
+                TreatOnlyDate = false;
+            end
+            
+            IsStr = false;
             if (nargin==0)
                %Date = clock;
                Date = datevec(datetime('now', 'TimeZone', 'UTC'));
-               Date = Date(:,[3 2 1 4 5 6]);
+               IsStr = true;
+               
             end
             if (isempty(Date))
                %Date = clock;
                Date = datevec(datetime('now', 'TimeZone', 'UTC'));
-               Date = Date(:,[3 2 1 4 5 6]);
+               IsStr = true;
+               
             end
             if (ischar(Date) || iscell(Date))
                 Date=convert.str2date(Date);
-                Date = Date(:,[3 2 1 4 5 6]);
+                IsStr = true;
+                
             end
-
+            
+            if IsStr
+                if size(Date,2)==6
+                    Date = Date(:,[3 2 1 4 5 6]);
+                else
+                    if TreatOnlyDate
+                        Date = [Date(:,[3 2 1]), nan(size(Date,1),3)];
+                    else
+                        Date = nan(size(Date,1),6);
+                    end
+                end
+            end
+            
             Y = Date(:,3);
             M = Date(:,2);
             D = Date(:,1);

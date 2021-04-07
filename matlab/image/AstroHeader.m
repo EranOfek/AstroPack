@@ -17,6 +17,7 @@ classdef AstroHeader < handle %< Component
         KeyDict Dictionary        = Dictionary('Name','Header.Synonyms.KeyNames');
         ValDict Dictionary        = Dictionary('Name','Header.Synonyms.KeyVal.IMTYPE');
         CommentDict Dictionary    = Dictionary('Name','Header.Comments.Default');
+        TimeDict Dictionary       = Dictionary('Name','Header.Time.KeyNames');
     end
     properties (Hidden, SetAccess=private)
         IsKeyUpToDate(1,1) logical    = true;
@@ -187,7 +188,7 @@ classdef AstroHeader < handle %< Component
         end
         
         
-        function disp(Obj)
+        function show(Obj)
             % Display all headers in an AstroHeader object
            
             Nobj = numel(Obj);
@@ -196,6 +197,132 @@ classdef AstroHeader < handle %< Component
             end
         end
     end
+    
+    methods (Static) % static methods
+        function Obj = createBasicHeader(Size,varargin)
+            % Create an AstroHeader object with a basic header
+            % Input  : - Size of AstroHeader object (e.g., [2 2]). Default
+            %            is 1.
+            %          * Either a cell array of {Key, Val} or
+            %            {Key, Val, Comment} to replace, or add keywords,
+            %            or pairs of header key,val arguments.
+            % Output : - An AstroHeader object with the basic populated
+            %            header.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: HH = AstroHeader.createBasicHeader
+            %          HH = AstroHeader.createBasicHeader(1,{'WINDDIR',11;'M_STAT','ok';'NEW',1});
+            %          HH = AstroHeader.createBasicHeader(1,{'WINDDIR',11,'aa';'M_STAT','ok','jj'});
+            %          HH = AstroHeader.createBasicHeader([1 2],'WINDDIR',11,'M_STAT','ok','NEW',1);   
+           
+            if nargin==0
+                Size = [1 1];
+            end
+            
+            Narg = numel(varargin);
+            if Narg==1
+                Key     = varargin{1}(:,1);
+                Val     = varargin{1}(:,2);
+                if size(varargin{1},2)>2
+                    Comment = varargin{1}(:,3);
+                else
+                    Comment = [];
+                end
+            else
+                if mod(Narg,2)~=0
+                    error('Number of input arguments must be even (key,val)');
+                end
+                
+                Key = varargin(1:2:end);
+                Val = varargin(2:2:end);
+                Comment = [];
+            end
+            
+            CellHeader  = {'SIMPLE',true,'';...
+                           'BITPIX',-32,'';...
+                           'NAXIS',2,'';...
+                           'NAXIS1',NaN,'';...
+                           'NAXIS2',NaN,'';...
+                           'ORIGIN',[],'';...
+                           'CREATOR',[],'';...
+                           'TELESCOP',[],'';...
+                           'INSTRUME',[],'';...
+                           'OBSERVER',[],'';...
+                           'IMTYPE',[],'';...
+                           'DATE-OBS',[],'';...
+                           'UTC-OBS',[],'';...
+                           'REFERENC',[],'';...
+                           'FILTER',[],'';...
+                           'EXPTIME',[],'';...
+                           'GAIN',[],'';...
+                           'READNOI',[],'';...
+                           'OBSJD',[],'';...
+                           'OBSMJD',[],'';...
+                           'MIDJD',[],'';...
+                           'OBSLST',[],'';...
+                           'PIXSCALE',[],'';...
+                           'RA',[],'';...
+                           'DEC',[],'';...
+                           'HA',[],'';...
+                           'M_RA',[],'';...
+                           'M_DEC',[],'';...
+                           'M_HA',[],'';...
+                           'M_EQUI',[],'';...
+                           'T_RA',[],'';...
+                           'T_DEC',[],'';...
+                           'T_HA',[],'';...
+                           'T_EQUI',[],'';...
+                           'AIRMASS',[],'';...
+                           'WCSAXES',[],'';...
+                           'CRVAL1',[],'';...
+                           'CRVAL2',[],'';...
+                           'CRPIX1',[],'';...
+                           'CRPIX2',[],'';...
+                           'CTYPE1',[],'';...
+                           'CTYPE2',[],'';...
+                           'CUNIT1',[],'';...
+                           'CUNIT2',[],'';...
+                           'CRTYPE1',[],'';...
+                           'CRTYPE2',[],'';...
+                           'CD1_1',[],'';...
+                           'CD1_2',[],'';...
+                           'CD2_1',[],'';...
+                           'CD2_2',[],'';...
+                           'EQUNOX',[],'';...
+                           'LONPOLE',[],'';...
+                           'LATPOLE',[],'';...
+                           'ASTRMS',[],'';...
+                           'SEEING',[],'';...
+                           'LIMMAG',[],'';...
+                           'ZP',[],'';...
+                           'DOMESTAT',[],'';...
+                           'M_STAT',[],'';...
+                           'TEMP_TEL',[],'';...
+                           'TEMP_IN',[],'';...
+                           'TEMP_OUT',[],'';...
+                           'TEMP_CAM',[],'';...
+                           'HUM_IN',[],'';...
+                           'HUM_OUT',[],'';...
+                           'PRESSURE',[],'';...
+                           'WINDSP',[],'';...
+                           'WINDDIR',[],''};
+                         
+            %
+            
+            
+            Obj = AstroHeader(Size);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).HDU  = 1;
+                Obj(Iobj).File = ''; 
+                Obj(Iobj).Data = CellHeader;
+            end
+            
+            Obj.replaceVal(Key,Val,'Comment',Comment);
+            
+        end
+        
+    end
+    
     
     methods  % functions for internal use
         %
@@ -279,6 +406,9 @@ classdef AstroHeader < handle %< Component
                 else
                     [Alt, AltConv] = searchKey(Dict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
                 end
+                if isempty(Alt)
+                    Alt = KeySynonym;
+                end
             else
                 Alt = KeySynonym;
             end
@@ -347,7 +477,6 @@ classdef AstroHeader < handle %< Component
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
                 Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
-                
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;
@@ -375,6 +504,10 @@ classdef AstroHeader < handle %< Component
                             [Alt, AltConv] = searchKey(Dict, ExactKeys{Ikey}, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
                         end
                                               
+                        if isempty(Alt)
+                            Alt = ExactKeys{Ikey};
+                        end
+                        
                         [Val, Key, Comment, Nfound] = imUtil.headerCell.getValBySynonym(Obj(Iobj).Data, Alt);
                         Result(Iobj).(ExactKeys{Ikey}) = Val;
                         if nargout>1
@@ -559,13 +692,15 @@ classdef AstroHeader < handle %< Component
             %          * ...,key,val,... or ...,key=val',... list
             %            'SearchAlgo' - search using: ['strcmp'] | 'regexp'
             %            'CaseSens' - Default is true.
-            %            'DelDup'   - Remove duplicate keys. Default is true.
             %            'RepVal'   - Replace value. Default is true.
             %            'Comment'  - A cell array of optional comments.
             %                   If empty, then do not replace comment. Default is [].
             %            'NewKey' - A cell array of new keys to replace the old keys.
             %                   If empty, then do not replace keys.
             %                   Default is {}.
+            %            'AddKey' - Add key if doens't exist. Default is true.
+            %            'AddPos' - Position in which to add key if doesn't exist.
+            %                   Default is 'end-1'.
             %            'ColKey' - Column index of keys. Default is 1.
             %            'ColVal' - Column index of values. Default is 2.
             %            'ColComment' - Column index of comments. Default is 3.
@@ -579,10 +714,11 @@ classdef AstroHeader < handle %< Component
                 Val cell
                 Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
                 Args.CaseSens(1,1) logical                    = true;
-                Args.DelDup(1,1) logical                      = true;
                 Args.RepVal(1,1) logical                      = true;
                 Args.Comment                                  = [];
                 Args.NewKey                                   = {};
+                Args.AddKey(1,1) logical                      = true;
+                Args.AddPos                                   = 'end-1';
                 Args.ColKey(1,1) uint8                        = 1;
                 Args.ColVal(1,1) uint8                        = 2;
                 Args.ColComment(1,1) uint8                    = 3;
@@ -593,10 +729,11 @@ classdef AstroHeader < handle %< Component
                 Obj(Iobj).Data = imUtil.headerCell.replaceKey(Obj(Iobj).Data, Key, Val,...
                                                               'SearchAlgo',Args.SearchAlgo,...
                                                               'CaseSens',Args.CaseSens,...
-                                                              'DelDup',Args.DelDup,...
                                                               'RepVal',Args.RepVal,...
                                                               'Comment',Args.Comment,...
                                                               'NewKey',Args.NewKey,...
+                                                              'AddKey',Args.AddKey,...
+                                                              'AddPos',Args.AddPos,...
                                                               'ColKey',Obj(Iobj).ColKey,...
                                                               'ColVal',Obj(Iobj).ColVal,...
                                                               'ColComment',Obj(Iobj).ColComment);
@@ -616,23 +753,291 @@ classdef AstroHeader < handle %< Component
         end
         
         
-        function isKeyVal(Obj,Key,Val,Args)
-            %
+        function Result = isKeyVal(Obj, Key, Val, Args)
+            % Check if a single keyword value equal to some value.
+            % Input  : - An AstroHeader object (multi elements supported).
+            %          - A single header keyword name.
+            %          - A value (string or char array) to compare to the
+            %            header keyword value.
+            %          * ...,key,val,...
+            %            'NumericTol' - Tolerance for numerical comparison.
+            %                   Default is 1e-8.
+            %            'KeyCaseSens' - Keyword search is case sensetive. Default is true.
+            %            'ValCaseSens' - Value comparison is case sensetive. Default is false.
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'Fill' - Fill value for the keyword Val, in case that the
+            %                   key is not found. Default is NaN (comment will be
+            %                   '').
+            %            'Val2Num' - Attempt to convert the value to numeric.
+            %                   Default is true.
+            %            'Occur'        - For each synonym return the
+            %                   ['first'] | 'last'.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            % Output : - An array of logical (size like input object),
+            %            indicating for each object element if the keyword 
+            %            value is equal to the specified value.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          isKeyVal([H, H],'EXPTIME',300)
+            %          isKeyVal([H;H], 'KSPOTS','off')
+            %          isKeyVal([H;H], 'KSPOTS','off','ValCaseSens',true)
+            
             arguments
                 Obj
-                Key    {mustBeA(Key,{'char','cell'})} = '';
-                Val                                        = [];
-                Args.LogicalOperator char {mustBeMemeber(Args.LogicalOperator,{'and','or'})} = 'and'; 
-                Args.CaseSens(1,1) logical                      = true;
+                Key
+                Val
+                Args.NumericTol                        = 1e-8;
+                Args.KeyCaseSens(1,1) logical          = true;
+                Args.ValCaseSens(1,1) logical          = false;
+                Args.UseDict(1,1) logical              = true;
+                Args.SearchAlgo char                   = 'strcmp';
+                Args.Fill                              = NaN;
+                Args.Val2Num(1,1) logical              = true;
+                Args.Occur                             = 'first';
+                Args.KeyDict                           = [];  % a structure of dictionary
+                Args.IsInputAlt(1,1) logical           = false;
             end
+            
+            searchFun = tools.string.stringSearchFun(false, Args.ValCaseSens);
+            
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                [KeyVal, Key, ~, Nfound]    = getVal(Obj(Iobj), Key, ...
+                                                     'UseDict',Args.UseDict,...
+                                                     'CaseSens',Args.KeyCaseSens,...
+                                                     'SearchAlgo',Args.SearchAlgo,...
+                                                     'Fill',Args.Fill,...
+                                                     'Val2Num',Args.Val2Num,...
+                                                     'Occur',Args.Occur,...
+                                                     'KeyDict',Args.KeyDict,...
+                                                     'IsInputAlt',Args.IsInputAlt);
+                %
+                if Nfound==0
+                    Result(Iobj) = false;
+                else
+                    if ischar(Val) || ischar(KeyVal)
+                        
+                        Result(Iobj) = searchFun(Val, KeyVal);
+                    else
+                        if isnan(Val) && isnan(KeyVal)
+                            Result(Iobj) = true;
+                        else
+                            Result(Iobj) = abs(Val-KeyVal)<Args.NumericTol;
+                        end
+                    end
+                end                
+            end
+            
+            
+            
         
         end
         
-        % isKeyExist
+        function Result = isKeyExist(Obj, Key, Args)
+            % Check if a single keyword value equal to some value.
+            % Input  : - An AstroHeader object (multi elements supported).
+            %          - A single header keyword name.
+            %            header keyword value.
+            %          * ...,key,val,...
+            %            'CaseSens' - Keyword search is case sensetive. Default is true.
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'Fill' - Fill value for the keyword Val, in case that the
+            %                   key is not found. Default is NaN (comment will be
+            %                   '').
+            %            'Val2Num' - Attempt to convert the value to numeric.
+            %                   Default is true.
+            %            'Occur'        - For each synonym return the
+            %                   ['first'] | 'last'.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            % Output : - An array of logical (size like input object),
+            %            indicating for each object element if the keyword 
+            %            value is equal to the specified value.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          isKeyExist([H, H],'EXPTIME')
+            %          isKeyExist([H, H],'AEXPTIME')
+            %          isKeyExist([H; H],'AEXPTIME','IsInputAlt',true)
+            %          isKeyExist([H, H],'aaa')
+            
+            arguments
+                Obj
+                Key
+                Args.CaseSens(1,1) logical             = true;
+                Args.UseDict(1,1) logical              = true;
+                Args.SearchAlgo char                   = 'strcmp';
+                Args.Fill                              = NaN;
+                Args.Val2Num(1,1) logical              = true;
+                Args.Occur                             = 'first';
+                Args.KeyDict                           = [];  % a structure of dictionary
+                Args.IsInputAlt(1,1) logical           = false;
+            end
+                        
+            Nobj = numel(Obj);
+            Result = true(size(Obj));
+            for Iobj=1:1:Nobj
+                [~, ~, ~, Nfound]           = getVal(Obj(Iobj), Key, ...
+                                                     'UseDict',Args.UseDict,...
+                                                     'CaseSens',Args.CaseSens,...
+                                                     'SearchAlgo',Args.SearchAlgo,...
+                                                     'Fill',Args.Fill,...
+                                                     'Val2Num',Args.Val2Num,...
+                                                     'Occur',Args.Occur,...
+                                                     'KeyDict',Args.KeyDict,...
+                                                     'IsInputAlt',Args.IsInputAlt);
+                %
+                if Nfound==0
+                    Result(Iobj) = false;
+                end
+            end
+        end
         
-        % julday
+        function [MidJD, ExpTime] = julday(Obj, Args)
+            % Calculate mid exposure JD and ExpTime for AstroHeader object
+            %   Given the header keywords attempt calculating the mid JD of
+            %   the exposure. This is done by retrieving the relevank
+            %   header keywords (default in
+            %   config/Header.Time.KeyNames.yml).
+            %   Each keyword is associated with a conversion formulae.
+            % Input  : - AstroHeader object (multi elements supported).
+            %          * ...,key,val,...
+            %            'ExpTimeKey' - Exposure time header keyword.
+            %                   Default is 'EXPTIME'.
+            %            'FunTimeKeys' - A structure array (Dictionary) of
+            %                   time keyword names and their conversion
+            %                   formulae.
+            %                   E.g., Args.FunTimeKeys.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
+            %                   If empty, then will attempt to use TimeDict
+            %                   dictionary stored in the AStroHeader. If th
+            %                   TimeDict is empty, then will use internal
+            %                   function defaults.
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'Fill' - Fill value for the keyword Val, in case that the
+            %                   key is not found. Default is NaN (comment will be
+            %                   '').
+            %            'Val2Num' - Attempt to convert the value to numeric.
+            %                   Default is true.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            % Outout : - Matrix of mid exposure time JD, for each
+            %            AstroHeader element. NaN if can not calculate JD.
+            %          - Matrix of exposure times (usually seconds), for
+            %            each AstroHeader element. NaN if not found.
+            % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          [JD,ET] = julday(H)
+            %          [JD,ET] = julday([H;H])
+            
+            arguments
+                Obj
+                Args.ExpTimeKey                        = 'EXPTIME';
+                Args.FunTimeKeys cell                  = {};
+                Args.UseDict(1,1) logical                                       = true;
+                Args.CaseSens(1,1) logical                                      = true;
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.Fill                                                       = NaN;
+                Args.Val2Num(1,1) logical                                       = true;
+                Args.IsInputAlt(1,1) logical                                    = true;
+                Args.KeyDict                                                    = [];
+                
+            end
+            SEC_IN_DAY = 86400;
+            
+            if isempty(Args.FunTimeKeys)
+                % attempt loading from dictionary
+                if isempty(Obj(1).TimeDict.FieldNames)
+                    % set up to default values
+                    Args.FunTimeKeys.MIDJD     = @(Time,Exp) Time;
+                    Args.FunTimeKeys.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
+                    Args.FunTimeKeys.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+
+                else
+                    % use dictionary
+                    Args.FunTimeKeys = Obj(1).TimeDict;
+                end
+            end
+                                  
+            
+            TimeKeys = fieldnames(Args.FunTimeKeys);
+            NtimeKeys = numel(TimeKeys);
+            
+            StTime    = getStructKey(Obj, TimeKeys);
+            StExp     = getStructKey(Obj, Args.ExpTimeKey);
+            
+            
+            MidJD   = nan(size(Obj));
+            ExpTime = nan(size(Obj));
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                ExpTime(Iobj)  = StExp(Iobj).(Args.ExpTimeKey);
+                Found = false;
+                Ikey = 0;
+                while ~Found && Ikey<NtimeKeys 
+                    Ikey = Ikey + 1;
+                    T  = StTime(Iobj).(TimeKeys{Ikey});
+                    if ~isnan(T)
+                        JD = Args.FunTimeKeys.(TimeKeys{Ikey})(T, ExpTime(Iobj));
+                        if ~isnan(JD)
+                            MidJD(Iobj) = JD;
+                        end
+                    end
+                end
+            end
+        end
         
         % findGroups
+        function Groups = groupByKeyVal(Obj, Args)
+            % Group a set of AstroHeaders by their unique keyword values
+             
+            arguments
+                Obj
+                Args.Keys cell        = {};  % e.g., {'IMTYPE','EXPTIME','FILTER'}
+                
+            end
+            
+            % need a version of getStructKey for cells
+            
+            [Groups,Flag]=tools.cell.cell_find_groups({1 2;1 2;'E' 2;'R', 'V';'E',2})
+        end
         
         % getObsCoo
         

@@ -7,6 +7,7 @@ classdef Dictionary < Component
     properties (Dependent, SetAccess = private)
         NameParts 
         LastNamePart char         = '';
+        FieldNames cell           = {};
     end
     properties
         Name char                 = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
@@ -127,7 +128,10 @@ classdef Dictionary < Component
                         
                         
                     otherwise
-                        error('Unknown Dictionary name');
+                        Obj.Name       = Args.Name;
+                        Obj.Dict       = struct();
+                        Obj.Conversion = [];
+                        %error('Unknown Dictionary name');
                 end
                         
                 %
@@ -157,6 +161,12 @@ classdef Dictionary < Component
             % getter for the last name part in the name
             
             Result = Obj.NameParts{end};
+        end
+        
+        function Result = get.FieldNames(Obj)
+            % Return field names for dictionary
+            
+            Result = fieldnames(Obj.Dict);
         end
     end
     
