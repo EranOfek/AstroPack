@@ -24,7 +24,140 @@ classdef AstroTable < Component %ImageComponent
     
     methods % Constructor
        
-        function Obj = AstroTable(AnotherObj, Args)
+        function Obj = AstroTable(FileName, Args)
+            % Constrt an AstroTable object or transform AstCat/struct/ to AstroTable
+            % Input  : - If empty then construct and empty AstroTable object.
+            %            If array/table, then construct an AstroTable object
+            %               with this array in the Catalog property.
+            %            If an AstCat/catCl object then convert it to
+            %               AstroTable object.
+            %            If file name or a cell array of file names, then
+            %               attempt read data from files. Cell array
+            %               contains a list of file names, while a single
+            %               file may contain wild cards or gegular
+            %               expressions.
+            %          * ...,Key,Val,...
+            %            'ColNames' - A cell array of column names.
+            %                   If empty, try to use other inputs.
+            %                   Default is {}.
+            %            'ColUnits' - A cell array of column units.
+            %                   If empty, try to use other inputs.
+            %                   Default is {}.
+            %            'UseRegExp' - Logical indicating if to use regexp
+            %                   when using io.files.filelist.
+            %                   Default is false.
+            %            'FileType' - File type from which to read data:
+            %                   'fits' - FITS table. Default.
+            %                   'hdf5' - HDF5 file (dataset is indicated by
+            %                           HDU).
+            %                   'ipac' | 'txt' | 'mat' | ...
+            %            'TableType' - FITS table type: ['auto'] | 'bintable' | 'table'
+            %            'HDU' - FITS HDU number or HDF5 dataset name.
+            %            'ArgsreadTable1' - A cell array of additional
+            %                   arguments to pass to FITS.readTable1.
+            %                   Default is {}.
+            %            'ConvertTable2array' - When eading a FITS table,
+            %                   attempt to convert the table to an array (only of
+            %                   all columns are of class double).
+            %                   Default is true.
+            % Output : - An AstroTable object.
+            % Author : Eran Ofek (Mar 2021)
+            % Example: AC = AstroTable
+            %          AC = AstroTable([2 2])
+            %          AC = AstroTable({rand(10,2),rand(10,2)})
+            %          AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            %          AC = AstroTable({rand(10,2),rand(10,2)},'ConvertTable2array',false)
+            %          AC=AstroTable({array2table(rand(10,2))});
+            %          AC=AstroTable({rand(10,2)},'ColNames',{'RA','Dec'});
+            %          A = AstCat; A(1).Cat=rand(10,2);
+            %          A(2).Cat=rand(10,2); A(1).ColCell={'RA','Dec'};
+            %          A(1).ColUnits={'rad','rad'};
+            %          AC = AstroTable(A);
+            %          AC = AstroTable(A,'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});
+            %          AC=AstroTable('asu.fit','HDU',2); % read from FITS table
+            
+            arguments
+                FileName                      = [];
+                Args.ColNames cell            = {};
+                Args.ColUnits cell            = {};
+                
+                Args.UseRegExp(1,1) logical   = false;
+                Args.FileType                 = []; % 'fits' | 'hdf5' | ...
+                Args.HDU                      = 1;  % HDU or dataset name
+                Args.TableType                = 'auto'; % 'auto'|'bintable'|'table' for FITS.readTable1
+                Args.readTableArgs            = {};
+                Args.ConvertTable2array       = true;  % only if all columns are double
+            end
+            
+            % FFU: use ImageIO instead!!!
+            
+            if isempty(FileName)
+                Obj.Catalog = [];
+            else
+                if isa(FileName,'AstroTable')
+                    Obj = FileName;
+                elseif isa(FileName,'AstCat')
+                    % read AstCat or catCl objects
+                    Nobj = numel(FileName);
+                    for Iobj=1:1:Nobj
+                        Obj(Iobj) = AstroTable;
+                        Obj(Iobj).Catalog  = FileName(Iobj).Cat;
+                        if isempty(Args.ColNames)
+                            Obj(Iobj).ColNames  = FileName(Iobj).ColCell;
+                        else
+                            Obj(Iobj).ColNames  = Args.ColNames;
+                        end
+                        if isempty(Args.ColUnits)
+                            Obj(Iobj).ColUnits = FileName(Iobj).ColUnits;
+                        else
+                            Obj(Iobj).ColUnits = Args.ColUnits;
+                        end
+
+                    end
+                else
+                    Args.readTableArgs = [Args.readTableArgs, 'TableType', Args.TableType];
+                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                             'FileType',Args.FileType,...
+                                             'IsTable',true,...
+                                             'UseRegExp',Args.UseRegExp,...
+                                             'readTableArgs',Args.readTableArgs);
+                                         
+                    Nobj = numel(ImIO);
+                    for Iobj=1:1:Nobj
+                        Obj(Iobj) = AstroTable([]);
+                        
+                        if ~isempty(ImIO(Iobj).Data)
+                            % otherwise generate an empty object
+                            Obj(Iobj).Catalog  = ImIO(Iobj).Data;
+                            if isempty(Args.ColNames)
+                                Args.ColNames = Obj(Iobj).Catalog.Properties.VariableNames;
+                            end
+                            if isempty(Args.ColUnits)
+                                Args.ColUnits = Obj(Iobj).Catalog.Properties.VariableUnits;
+                            end
+                            
+                            if Args.ConvertTable2array && istable(Obj(Iobj).Catalog)
+                                Obj(Iobj).Catalog = table2array(Obj(Iobj).Catalog);
+                            end
+                            if ~isempty(Args.ColNames)
+                                Obj(Iobj).ColNames = Args.ColNames;
+                            end
+                            if ~isempty(Args.ColUnits)
+                                Obj(Iobj).ColUnits = Args.ColUnits;
+                            end
+                        end
+                        
+                    end
+                    Obj = reshape(Obj, size(ImIO));
+                    
+                end
+            end
+            
+        end
+
+        
+        
+        function Obj = AstroTable1(AnotherObj, Args)
             % Constrt an AstroTable object or transform AstCat/struct/ to AstroTable
             % Input  : - If empty then construct and empty AstroTable object.
             %            If array/table, then construct an AstroTable object
@@ -1190,23 +1323,22 @@ classdef AstroTable < Component %ImageComponent
             
             % Create an empty AstroTable
             AC = AstroTable;
-            
-            % read from FITS table
-            AC = AstroTable('asu.fit','HDU',2);
-            
-            % Create AstroTable with table
-            AC = AstroTable(array2table(rand(10,2)));
-            AC = AstroTable(rand(10,2),'ColNames',{'RA','Dec'});
-            
-            % Create AstCat and convert to AstroTable 
+            AC = AstroTable([2 2]);
+            AC = AstroTable({rand(10,2),rand(10,2)});
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            AC = AstroTable({rand(10,2),rand(10,2)},'ConvertTable2array',false);
+            AC=AstroTable({array2table(rand(10,2))});
+            AC=AstroTable({rand(10,2)},'ColNames',{'RA','Dec'});
             A = AstCat; A(1).Cat=rand(10,2);
-            A(2).Cat=rand(10,2);
+            A(2).Cat=rand(10,2); A(1).ColCell={'RA','Dec'};
+            A(1).ColUnits={'rad','rad'};
             AC = AstroTable(A);
-            % The same with column names:
             AC = AstroTable(A,'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});
+            AC=AstroTable('asu.fit','HDU',2); % read from FITS table
+            AC.ColNames = {'RA','Dec'};
             
             % merge selected columns of AstroTable
-            MAC = merge(AC,{'Dec'});
+            MAC = merge([AC,AC],{'Dec'});
             % merge two AstroTable (all columns)
             MAC = merge(AC);
             
@@ -1217,11 +1349,11 @@ classdef AstroTable < Component %ImageComponent
             end
             
             % get column
-            getCol(MAC,1)
-            getCol(MAC,'Dec')
-            getCol(MAC,{'Dec','RA'})
+            getCol(MAC,1);
+            getCol(MAC,'Dec');
+            getCol(MAC,{'Dec','RA'});
             % output as table
-            getCol(MAC,{'Dec','RA'},true)
+            getCol(MAC,{'Dec','RA'},true);     %%% <---- BUG
             % store result in original AstroTable
             Result = getCol(MAC,{'Dec','RA'},false,true);
             if ~all(Result == MAC.Catalog,'all')
