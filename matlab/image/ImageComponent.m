@@ -10,6 +10,7 @@ classdef ImageComponent < handle %Component
         ScaleMethod = 'lanczos3';               %
         
         %DataProp cell = {'Data'};              % a cell of properties on which the fun_* methods will be applied
+        FileName                     = '';
         Virt VirtImage                          % Actual image data
         
         % Storage 
@@ -22,25 +23,93 @@ classdef ImageComponent < handle %Component
     
     
     methods % Constructor
-        function Obj = ImageComponent(ImageData,Size)
+        function Obj = ImageComponent(FileNames, Args)
             % ImageComponent constructor
-            % Input  : - Image data. Default is [].
-            %          - Size of ImageComponent. Default is [1 1].
-            %            Will copy the image data to each element.
+            % Input  : - Either: Image name to read; image name to read
+            %            with wild cards or regular expressions;
+            %            a cell array of image names; a cell array of
+            %            image matrices, or a vector of ImageComponent size
+            %            (creates an empty array).
+            %            Default is [1 1].
+            %          * ...,key,val,...
+            %            'Scale' - Image scaling, which will be used to
+            %                   rescale the Data to the full image.
+            %                   Default is [].
+            %            'HDU' - FITS HDU. Default is 1.
+            %            'UseRegExp' - Logical indicating if to use regexp
+            %                   when using io.files.filelist.
+            %                   Default is false.
             % Output : - An ImageComponent object
-            % Example: IC = ImageComponent(rand(10,10),[2 2]);
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent([2 2]);
+            %          IC = ImageComponent({rand(10,10), rand(2,2)});
+            %          IC = ImageComponent({rand(10,10), rand(2,2)},'Scale',5);
+            %          IC = ImageComponent('*.fits')
             
             arguments
-                ImageData                   = [];
-                Size                        = [1 1];
+                FileNames                   = [1 1];
+                Args.Scale                  = [];
+                Args.HDU                    = 1;
+                Args.UseRegExp(1,1) logical = false;
             end
             
-            Nobj = prod(Size);
-            for Iobj=1:1:Nobj
-                Obj(Iobj).Data = ImageData;
+            if isempty(FileNames)
+                % define the object
+                Obj.Data = [];
+            else
+                % fill the object
+                IsCellMat = false;
+                if isnumeric(FileNames)
+                    % create an empty AstroHeader object
+                    List = cell(FileNames);
+                else
+                    if iscellstr(FileNames) || isstring(FileNames)
+                        % User provided a list of file names
+                        List = FileNames;
+                    else
+                        if iscell(FileNames)
+                            % assume input is cell of matrices
+                            IsCellMat = true;
+                            List      = FileNames;
+                        else
+                            if ischar(FileNames)
+                                % read file names
+                                List = io.files.filelist(FileNames, Args.UseRegExp);
+                            end
+                        end
+                    end
+                end
+
+                Nh = numel(List);
+                for Ih=1:1:Nh
+                    % recursive call in order to create an empty object
+                    Obj(Ih)               = ImageComponent([]);
+                    
+                    if IsCellMat
+                        % Input is a cell of image matrices
+                        Obj(Ih).Data      = List{Ih};
+                        Obj(Ih).FileName  = '';
+                        Obj(Ih).Scale     = Args.Scale;
+                    else
+                        Obj(Ih).FileName  = List{Ih};
+                    end
+                end
+                Obj = reshape(Obj,size(List));
+
+                if ~IsCellMat
+                    % read from file
+                    Nhdu = numel(Args.HDU);
+                    % read files
+                    for Ih=1:1:Nh
+                        Ihdu = min(Ih,Nhdu);
+                        % FFU: will have to replace this with a general reader
+                        if ~isempty(Obj(Ih).FileName)
+                            Obj(Ih).Data  = FITS.read1(Obj(Ih).FileName, Args.HDU(Ihdu));
+                            Obj(Ih).Scale = Args.Scale;
+                        end
+                    end
+                end
             end
-            Obj = reshape(Obj,Size);
-            
         end
 
     end
@@ -573,7 +642,7 @@ classdef ImageComponent < handle %Component
             end
         end
         
-        function [Obj,ObjReplaced] = replace(Obj, Range, NewVal)
+        function [Obj,ObjReplaced] = replace(Obj, Range, NewVal, Eps)
             % Replace values in range in image with a new value and generate a flag image of replaced pixels
             % Input  : - An ImageComponent object.
             %          - A two column matrix of min/max ranges, or a single
@@ -801,16 +870,25 @@ classdef ImageComponent < handle %Component
         function Result = unitTest
             % unitTest for ImageComponent
             
-            IC = ImageComponent;
-            Data     = [1 2;1 2];
-            IC.Image = Data;
-            IC.Scale = [10 10];
-            if ~all(size(IC.Data)==Data)
-                error('Inconsistent size stored in Data');
+            Size = [2 2];
+            IC = ImageComponent(Size);
+            if ~all(size(IC)==Size)
+                error('ImageComponent size is not consistent');
             end
-            if ~all(size(IC.Image)==IC.Scale)
-                error('resized image has the wrong size');
+            Npix  = 10;
+            IC = ImageComponent({rand(Npix,Npix), rand(2,2)});
+            Scale = 5;
+            IC = ImageComponent({rand(Npix,Npix), rand(2,2)},'Scale',Scale);
+            if ~all(size(IC(1).Data)==[Npix Npix])
+                error('Image data is not consistent');
             end
+            if ~all(size(IC(1).Image)==[Npix Npix].*Scale)
+                error('Image rescaling is not consistent');
+            end
+            
+            IC = ImageComponent('*.fits')
+            
+            
             
             Result = true;
             
