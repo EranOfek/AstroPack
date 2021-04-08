@@ -741,8 +741,8 @@ classdef AstroTable < Component %ImageComponent
             else
                 if OutputIsTable
                     Result = array2table(Obj.Catalog(:,ColInd));
-                    Result.Properties.VariableNames = Obj.ColNames;
-                    Result.Properties.VariableUnits = Obj.ColUnits;
+                    Result.Properties.VariableNames = Obj.ColNames(ColInd);
+                    Result.Properties.VariableUnits = Obj.ColUnits(ColInd);
                 else
                     Result = Obj.Catalog(:,ColInd);
                 end
@@ -973,6 +973,7 @@ classdef AstroTable < Component %ImageComponent
             
             Nobj     = numel(Obj);
             ColNames = colind2name(Obj(1), Columns);
+            ColIndC  = colname2ind(Obj(1), Columns);
             
             Ncol     = numel(ColNames);
             NewObj   = AstroTable;
@@ -988,7 +989,7 @@ classdef AstroTable < Component %ImageComponent
                 NewObj.ColNames = ColNames;
             end
             if ~isempty(Obj(1).ColUnits)
-                NewObj.ColUnits = Obj(1).ColUnits;
+                NewObj.ColUnits = Obj(1).ColUnits(ColIndC);
             end
               
         end
@@ -1047,49 +1048,50 @@ classdef AstroTable < Component %ImageComponent
     
     methods % applay functions and overloads
             
-        function Result = fun_unary(Obj, Operator, OperatorArgs, Columns, UpdateObj)
+        function Result = funUnary(Obj, Operator, Args)
             % Apply an unary function to columns of a catalog
             % Input  : - An AstroTable object.
             %          - Unary operator handle (e.g., @sin).
-            %          - A cell array of additional arguments to pass to
-            %            the operator. Default is {}.
-            %          - List of columns names or indices on which to apply
-            %            the operator. If empty, apply to all columns.
-            %            Default is empty.
-            %          - A logical indicating if to update the object (in
-            %            addition to returning the output).
-            %            Default is false.
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to pass to
+            %                   the operator. Default is {}.
+            %            'Columns' - List of columns names or indices on which to apply
+            %                   the operator. If empty, apply to all columns.
+            %                   Default is empty.
+            %            'UpdateObj' - A logical indicating if to update the object (in
+            %                   addition to returning the output).
+            %                   Default is false.
             % Output : - The result (matrix or table).
             % Author : Eran Ofek (Mar 2021)
-            % Example: AC=AstroTable; AC.Catalog = rand(100,3); AC.ColNames={'a','n','s'}; AC.fun_unary(@sin)
+            % Example: AC=AstroTable; AC.Catalog = rand(100,3); AC.ColNames={'a','n','s'}; AC.funUnary(@sin)
            
             arguments
                 Obj
                 Operator function_handle
-                OperatorArgs cell           = {};
-                Columns                     = [];
-                UpdateObj(1,1) logical      = false;
+                Args.OpArgs cell            = {};
+                Args.Columns                = [];
+                Args.UpdateObj(1,1) logical = false;
             end
             
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 %
-                ColInd = colname2ind(Obj(Iobj), Columns);  % If columns empty - return all columns
+                ColInd = colname2ind(Obj(Iobj), Args.Columns);  % If columns empty - return all columns
                 if istable(Obj(Iobj).Catalog)
                     Ncol  = numel(ColInd);
                     Nrows = size(Obj(Iobj).Catalog,1); 
                     Result = nan(Nrows,Ncol);
                     for Icol=1:1:Ncol
                         ColName = Obj(Iobj).ColNames(ColInd(Icol));
-                        Result(:,Icol)  = Operator(Obj(Iobj).Catalog.(ColName), OperatorArgs{:});
-                        if UpdateObj
+                        Result(:,Icol)  = Operator(Obj(Iobj).Catalog.(ColName), Args.OpArgs{:});
+                        if Args.UpdateObj
                             Obj(Iobj).Catalog.(ColName) = Result(:,Icol);
                         end
                     end
                 else
-                    Result = Operator(Obj(Iobj).Catalog(:,ColInd), OperatorArgs{:});
-                    if UpdateObj
+                    Result = Operator(Obj(Iobj).Catalog(:,ColInd), Args.OpArgs{:});
+                    if Args.UpdateObj
                         Obj(Iobj).Catalog(:,ColInd) = Result;
                     end
                 end
@@ -1118,7 +1120,7 @@ classdef AstroTable < Component %ImageComponent
             
             Nobj   = numel(Obj);
             for Iobj=1:1:Nobj
-                Tmp = fun_unary(Obj, @min, {}, Columns, false);
+                Tmp = funUnary(Obj, @min, 'OpArgs',{}, 'Columns',Columns, 'UpdateObj',false);
                 if Iobj==1
                     Result = zeros(Nobj,numel(Tmp));
                 end
@@ -1146,7 +1148,7 @@ classdef AstroTable < Component %ImageComponent
             
             Nobj   = numel(Obj);
             for Iobj=1:1:Nobj
-                Tmp = fun_unary(Obj, @max, {}, Columns, false);
+                Tmp = funUnary(Obj, @max, 'OpArgs',{}, 'Columns',Columns, 'UpdateObj',false);
                 if Iobj==1
                     Result = zeros(Nobj,numel(Tmp));
                 end
@@ -1335,34 +1337,34 @@ classdef AstroTable < Component %ImageComponent
             AC = AstroTable(A);
             AC = AstroTable(A,'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});
             AC=AstroTable('asu.fit','HDU',2); % read from FITS table
-            AC.ColNames = {'RA','Dec'};
             
             % merge selected columns of AstroTable
-            MAC = merge([AC,AC],{'Dec'});
+            MAC = merge([AC,AC],{'DEJ2000'});
             % merge two AstroTable (all columns)
-            MAC = merge(AC);
+            MAC = merge([AC,AC]);
             
             % Sort by second column
-            sortrows(MAC,2)
-            if ~(MAC.IsSorted && issorted(MAC.Catalog(:,2)))
+            sortrows(MAC,'DEJ2000')
+            ColIndDec = colname2ind(MAC,'DEJ2000');
+            if ~(MAC.IsSorted && issorted(MAC.Catalog(:,ColIndDec)))
                 error('Problem with sort flagging');
             end
             
             % get column
             getCol(MAC,1);
-            getCol(MAC,'Dec');
-            getCol(MAC,{'Dec','RA'});
+            getCol(MAC,'DEJ2000');
+            getCol(MAC,{'DEJ2000','RAJ2000'});
             % output as table
-            getCol(MAC,{'Dec','RA'},true);     %%% <---- BUG
+            getCol(MAC,{'mag1','sep1'},true);     %%% <---- BUG
             % store result in original AstroTable
-            Result = getCol(MAC,{'Dec','RA'},false,true);
+            Result = getCol(MAC,{'DEJ2000','RAJ2000'},false,true);
             if ~all(Result == MAC.Catalog,'all')
                 error('Result should be identical');
             end
             
-            % fun_unary
-            fun_unary(AC(1),@sin)
-            fun_unary(AC(1),@sin,{},'RA')
+            % funUnary
+            funUnary(AC(1),@sin);
+            funUnary(AC(1),@sin,'Columns','RAJ2000');
             
             AC=AstroTable('asu.fit','HDU',2);
             min([AC;AC],{'mag1','mag2'})
