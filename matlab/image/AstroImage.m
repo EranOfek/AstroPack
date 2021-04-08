@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef AstroImage < ImageComponent
+classdef AstroImage < Component
     % Component should contain:
     % UserData
     % Config
@@ -36,7 +36,7 @@ classdef AstroImage < ImageComponent
         HeaderData(1,1) AstroHeader
         CatData(1,1) AstroCatalog
         PSFData(1,1) AstroPSF
-        WCS(1,1) AstroWCS
+        WCS(1,1)   % not ready: AstroWCS
         
     end
     
@@ -76,7 +76,7 @@ classdef AstroImage < ImageComponent
        
     end
     
-    methods % general functionality
+    methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
         function Result = funUnary(Obj, Operator, Args)
             % Apply an unary function on AstroImage data
             % Input  : - An AstroImage object
@@ -86,14 +86,16 @@ classdef AstroImage < ImageComponent
             arguments
                 Obj
                 Operator function_handle
-                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
                 Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
-                Args.DataPropIn                     = {'ImageData','MaskData','HeaderData'}; % not including CatData, PSFData and WCS
-                Args.DataPropOut                    = {};
-                Args.DataPrppScalar                 = {'Image'}; % returned output if IsOutObj=false
+                Args.PropagateVar(1,1) logical      = false;
+                Args.CCDSEC                         = [];   % empty for full image
                 Args.CreateNewObj(1,1) logical      = false;
+                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
+                % you should not use the following parameters unless you
+                % know what you are doing!
+                Args.DataPropIn                     = {'ImageData','HeaderData'}; % not including CatData, PSFData and WCS
+                Args.DataPropOut                    = {};
                 Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
-                Args.CCDSEC                         = [];
             end
             
             % make sure DataPropIn/Out are cell/string arrays
@@ -125,13 +127,13 @@ classdef AstroImage < ImageComponent
             for Iobj=1:1:Nobj
                 %Result(Iobj).(Args.DataPropOut{Iprop}) = Operator(Obj(Iobj).(Args.DataPropOut{Iprop}), Args.OpArgs{:});
                 % DataPropIn and DataPropOut - use default
-                Result(Iobj).(Args.DataPropOut{Iprop}) = fun_unary(Obj(Iobj).(Args.DataPropOut{Iprop}), Operator, ...
-                                                                   'ReInterpOp',Args.ReInterpOp,...
+                Result(Iobj).(Args.DataPropOut{Iprop}) = fun_unary(Obj(Iobj).(Args.DataPropIn{Iprop}), Operator, ...
                                                                    'OpArgs',Args.OpArgs{:},...
-                                                                   'OutType','obj',...
-                                                                   'CreateNewObj',false,...
-                                                                   'Extra',Args.Extra,...
-                                                                   'CCDSEC',Args.CCDSEC);
+                                                                   'PropagateVar',Args.PropagateVar,...
+                                                                   'CCDSEC',Args.CCDSEC,...
+                                                                   'CreateNewObj',Args.CreateNewObj,...
+                                                                   'ReInterpOp',Args.ReInterpOp);
+                                                               
             end
            
         end

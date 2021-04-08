@@ -9,7 +9,7 @@ classdef AstroCatalog < AstroTable
     end
     
     properties (Hidden, SetAccess=private)
-        CooUnitsKnown(1,1) logical                                      = false;
+        %CooUnitsKnown(1,1) logical                                      = false;
     end
     
     properties (Hidden, Constant)
@@ -27,8 +27,8 @@ classdef AstroCatalog < AstroTable
     
     methods % constructor
         function Obj = AstroCatalog(varargin)
-            % Constructor for Astrocatalog 
-            %
+            % Constructor for AstroCatalog 
+            % For parameters input see: AstroTable
             % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             
             % construct AstroTable
@@ -53,8 +53,6 @@ classdef AstroCatalog < AstroTable
             % catalog.
             % Note this is not cleared when the catalog is changed.
            
-%             if Obj.CooUnitsKnown
-%                 Units = '';
                 
             if isempty(Obj.CooUnits)
                 ColIndX = colname2ind(Obj, Obj.ColX);
@@ -523,7 +521,7 @@ classdef AstroCatalog < AstroTable
             
         end
         
-        function matchPattern(Obj1, Obj2, Args)
+        function matchPattern(Obj1, Obj2, ~)
             %
         end
         
@@ -533,6 +531,21 @@ classdef AstroCatalog < AstroTable
     methods % match against external catalog
         function [MatchedObj, UnMatchedObj] = match_catsHTM(Obj, CatName, Args)
             %
+            
+            arguments
+                Obj
+                CatName
+                Args.RA
+                Args.Dec
+                
+            end
+            
+            
+            Nobj = numel(Obj);
+            MatchedObj = AstroCatalog(size(Obj));
+            
+            
+            
         end
         
     end
@@ -553,6 +566,7 @@ classdef AstroCatalog < AstroTable
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
             %          AC.getCooTypeAuto
             %          AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1)
+            %          
             %          AC.plotMapFun('aitoff',@scatterm,{'mag1','sep1'},'.','MarkerSize',1)
             
             if nargin<2
@@ -641,6 +655,13 @@ classdef AstroCatalog < AstroTable
             end
             
             
+            % plot
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            AC.getCooTypeAuto
+            AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
+
+            
+            Result = true;
         end
     end
     

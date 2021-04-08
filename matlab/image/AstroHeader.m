@@ -55,8 +55,8 @@ classdef AstroHeader < handle %< Component
             %            This can be a vector or a scalar.
             %            Default is 1.
             %          * ...,key,val,...
-            %            'Method' - Files extraction method 'wild' |
-            %                   'regexp'. See io.files.filelist.
+            %            'UseRegExp' - Logical indicating if to use regexp (true)
+            %                   or wild cards (false). Default is false.
             % Output : - An AstroHeader object with populated headers.
             % Author : Eran Ofek (Mar 20201)
             % Example: 
@@ -64,7 +64,7 @@ classdef AstroHeader < handle %< Component
             arguments
                 FileNames      = 1;   % name or array size
                 HDU            = 1;
-                Args.Method    = 'wild';
+                Args.UseRegExp(1,1) logical = false;
             end
             
             if isnumeric(FileNames)
@@ -76,7 +76,7 @@ classdef AstroHeader < handle %< Component
                 List = FileNames;
             else
                 % read file names
-                List = io.files.filelist(FileNames,Args.Method);
+                List = io.files.filelist(FileNames,Args.UseRegExp);
             end
             
                 

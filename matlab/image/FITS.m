@@ -28,7 +28,7 @@ classdef FITS < handle
                 List = convertCharsToStrings(FileName);
             elseif ischar(FileName) || isstring(FileName)
                 % read into cell of files
-                List = io.files.filelist(FileName,'wild');
+                List = io.files.filelist(FileName,false);
             else
                 error('Unknown FileName type');
             end

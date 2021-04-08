@@ -43,9 +43,9 @@ classdef AstroTable < Component %ImageComponent
             %            'ColUnits' - A cell array of column units.
             %                   If empty, try to use other inputs.
             %                   Default is {}.
-            %            'Method' - Method by which to generate file names
-            %                   list using io.files.filelist.
-            %                   ['wild'] | 'regexp'.
+            %            'UseRegExp' - Logical indicating if to use regexp
+            %                   when using io.files.filelist.
+            %                   Default is false.
             %            'FileType' - File type from which to read data:
             %                   'fits' - FITS table. Default.
             %                   'hdf5' - HDF5 file (dataset is indicated by
@@ -72,9 +72,9 @@ classdef AstroTable < Component %ImageComponent
             
             arguments
                 AnotherObj                    = [];
-                Args.ColNames cell             = {};
+                Args.ColNames cell            = {};
                 Args.ColUnits cell            = {};
-                Args.Method char              = 'wild'; % 'wild' | 'regexp' for io.files.filelist
+                Args.UseRegExp(1,1) logical   = false;
                 Args.FileType                 = 'fits'; % 'fits' | 'hdf5' | ...
                 Args.TableType                = 'auto'; % 'auto'|'bintable'|'table' for FITS.readTable1
                 Args.HDU                      = 1;  % HDU or dataset name
@@ -82,12 +82,14 @@ classdef AstroTable < Component %ImageComponent
                 Args.ConvertTable2array       = true;  % only if all columns are double
             end
             
+            % FFU: use ImageIO instead!!!
+            
             if isempty(AnotherObj)
                 Obj.Catalog = [];
             else
-                if ischar(AnotherObj) || iscell(AnotherObj) || isstring(AnotherObj)
+                if ischar(AnotherObj) || iscellstr(AnotherObj) || isstring(AnotherObj)
                     % read from files
-                    List  = io.files.filelist(AnotherObj,Args.Method);
+                    List  = io.files.filelist(AnotherObj, Args.UseRegExp);
                     Nlist = numel(List);
                     for Ilist=1:1:Nlist
                         % create a single empty AstroTable

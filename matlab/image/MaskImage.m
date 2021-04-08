@@ -12,17 +12,31 @@ classdef MaskImage < Component
     
     properties (Dependent) % Access image data directly  
         Image
+        Data
+        Scale 
+        ScaleMethod 
+        FileName      
     end
-    
     properties (SetAccess = public)
-        MaskData ImageCompnent
         Dict BitDictionary                      % The dictionary of a bit mask image        
     end
+    properties (Hidden, SetAccess = public)
+        MaskData ImageComponent
+    end
+    
     
     methods % Constructor
        
-        function Obj = MaskImage
+        function Obj = MaskImage(FileNames)
+            %
             
+            arguments
+                FileNames       = [];
+            end
+            
+            if isempty(FileNames)
+                Obj.MaskData = ImageComponent([]);
+            end
             
         end
 
@@ -30,17 +44,42 @@ classdef MaskImage < Component
   
     methods % Setters/Getters
         function Result = get.Image(Obj)
-            % getter for mask data
+            % getter for Image (from MaskData.Image)
             Result = Obj.MaskData.Image;
         end
-        
+                
         function Obj = set.Image(Obj, Val)
-            % setter for mask data
+            % setter for Image (to MaskData.Image)
             if ~isinteger(Val)
                 error('Mask image must be integers');
             end
             Obj.MaskData.Image = Val;
         end
+        
+        function Result = get.Data(Obj)
+            % getter for Image (from MaskData.Data)
+            Result = Obj.MaskData.Data;
+        end
+        
+        function Obj = set.Data(Obj, Val)
+            % setter for Image (to MaskData.Data)
+            if ~isinteger(Val)
+                error('Mask image must be integers');
+            end
+            Obj.MaskData.Data = Val;
+        end   
+        
+        function Result = get.Scale(Obj)
+            % getter for Scale (from MaskData.Scale)
+            Result = Obj.MaskData.Scale;
+        end
+                
+        function Obj = set.Scale(Obj, Val)
+            % setter for Scale (to MaskData.Scale)
+            
+            Obj.MaskData.Scale = Val;
+        end
+        
     end
     
     methods (Static)  % static methods

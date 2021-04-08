@@ -18,7 +18,7 @@ classdef NoisyImage < Component
         Mask
     end
     
-    properties (Hidden, SetAccess = public)
+    properties (SetAccess = public)
         ImageData ImageComponent
         BackData ImageComponent
         VarData ImageComponent
@@ -34,9 +34,48 @@ classdef NoisyImage < Component
     
     
     methods % Constructor       
-        function Obj = NoisyImage
+        function Obj = NoisyImage(FileNames, Args)
             % class constructor
+            % 
             
+            arguments
+                FileNames                   = [];
+                Args.Back                   = [];
+                Args.Var                    = [];
+                Args.Mask                   = [];
+                Args.Scale                  = [];
+                Args.HDU                    = 1;
+                Args.UseRegExp(1,1) logical = false;
+            end
+            
+            if isempty(FileNames)
+                % construct a single element object
+                Obj.ImageData.Data         = [];
+                Obj.BackData.Data          = [];
+                Obj.VarData.Data           = [];
+                Obj.MaskData.MaskData.Data = [];
+            else
+                
+                
+                
+                
+                
+            Nh = numel(List);
+            for Ih=1:1:Nh
+                Obj(Ih).File = List{Ih};
+            end
+            Obj = reshape(Obj,size(List));
+            
+            Nhdu = numel(HDU);
+            % read files
+            for Ih=1:1:Nh
+                if ~isempty(Obj(Ih).File)
+                    Ihdu = min(Ih,Nhdu);
+                    
+                    Obj(Ih).Data = FITS.read1(Obj(Ih).File,HDU(Ihdu));
+                end
+            end
+               
             
         end
     end 
@@ -102,16 +141,18 @@ classdef NoisyImage < Component
     end
     
     methods % basic fununctions 
-        function Result = fun_unary(Obj, Operator, Args)
+        function Result = funUnary(Obj, Operator, Args)
             %
             
             arguments
                 Obj
                 Operator function_handle
+                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
+                
                 Args.ReturnBack                     = true;
                 Args.OperateOnData                  = true;
                 Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
-                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
+                
                 Args.DataPropIn                     = {'ImageData','BackData','VarData'}; % not including CatData, PSFData and WCS
                 Args.DataPropOut                    = {};
                 Args.DataPrppScalar                 = {'Image'}; % returned output if IsOutObj=false
@@ -179,6 +220,11 @@ classdef NoisyImage < Component
     
     methods % Unit-Test
         function Result = unitTest()
+            % unitTest for NoistImage class
+            
+            N = NoisyImage;
+            
+            
             Result = true;
         end
     end

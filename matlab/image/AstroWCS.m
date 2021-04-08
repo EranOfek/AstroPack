@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef AstroWCS < ImageComponent
+classdef AstroWCS < Component
     % Component should contain:
     % UserData
     % Config
