@@ -99,7 +99,11 @@ classdef ImageIO < Component
                                 Nobj = numel(FileNames);
                                 for Iobj=1:1:Nobj
                                     Obj(Iobj) = ImageIO([]);
-                                    Obj(Iobj).Data = array2table(FileNames{Iobj});
+                                    if Args.IsTable
+                                        Obj(Iobj).Data = array2table(FileNames{Iobj});
+                                    else
+                                        Obj(Iobj).Data = FileNames{Iobj};
+                                    end
                                 end
                             else
                                 List = io.files.filelist(FileNames, Args.UseRegExp);

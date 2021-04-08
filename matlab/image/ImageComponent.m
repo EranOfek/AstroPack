@@ -1,5 +1,5 @@
 
-classdef ImageComponent < handle %Component
+classdef ImageComponent < Component
     properties (Dependent)
         Image                                   % return the rescaled image
     end
@@ -23,7 +23,7 @@ classdef ImageComponent < handle %Component
     
     
     methods % Constructor
-        function Obj = ImageComponent(FileNames, Args)
+        function Obj = ImageComponent(FileName, Args)
             % ImageComponent constructor
             % Input  : - Either: Image name to read; image name to read
             %            with wild cards or regular expressions;
@@ -41,77 +41,52 @@ classdef ImageComponent < handle %Component
             %                   Default is false.
             % Output : - An ImageComponent object
             % Author : Eran Ofek (Apr 2021)
-            % Example: IC = ImageComponent([2 2]);
+            % Example: IC = ImageComponent;
+            %          IC = ImageComponent([2 2]);
             %          IC = ImageComponent({rand(10,10), rand(2,2)});
             %          IC = ImageComponent({rand(10,10), rand(2,2)},'Scale',5);
             %          IC = ImageComponent('*.fits')
             
             arguments
-                FileNames                   = [1 1];
+                FileName                    = [1 1];
                 Args.Scale                  = [];
                 Args.HDU                    = 1;
+                Args.FileType               = [];
                 Args.UseRegExp(1,1) logical = false;
             end
             
-            if isempty(FileNames)
+            if isempty(FileName)
                 % define the object
                 Obj.Data = [];
             else
-                % fill the object
-                IsCellMat = false;
-                if isnumeric(FileNames)
-                    % create an empty AstroHeader object
-                    List = cell(FileNames);
+                if isa(FileName,'ImageComponent')
+                    Obj = FileName;
+                elseif isa(FileName,'SIM') || isa(FileName,'imCl')
+                    Nobj = numel(FileName);
+                    for Iobj=1:1:Nobj
+                        Obj(Iobj) = ImageComponent;
+                        Obj(Iobj).Data  = FileName(Iobj).Im;
+                        Obj(Iobj).Scale = Args.Scale;
+                    end
                 else
-                    if iscellstr(FileNames) || isstring(FileNames)
-                        % User provided a list of file names
-                        List = FileNames;
-                    else
-                        if iscell(FileNames)
-                            % assume input is cell of matrices
-                            IsCellMat = true;
-                            List      = FileNames;
-                        else
-                            if ischar(FileNames)
-                                % read file names
-                                List = io.files.filelist(FileNames, Args.UseRegExp);
-                            end
+                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                             'FileType',Args.FileType,...
+                                             'IsTable',false,...
+                                             'UseRegExp',Args.UseRegExp);
+                                         
+                    Nobj = numel(ImIO);
+                    for Iobj=1:1:Nobj
+                        Obj(Iobj) = ImageComponent([]);
+                        if ~isempty(ImIO(Iobj).Data)
+                            % otherwise generate an empty object
+                            Obj(Iobj).Data  = ImIO(Iobj).Data;
+                            Obj(Iobj).Scale = Args.Scale;
                         end
                     end
+                    Obj = reshape(Obj, size(ImIO));
                 end
-
-                Nh = numel(List);
-                for Ih=1:1:Nh
-                    % recursive call in order to create an empty object
-                    Obj(Ih)               = ImageComponent([]);
-                    
-                    if IsCellMat
-                        % Input is a cell of image matrices
-                        Obj(Ih).Data      = List{Ih};
-                        Obj(Ih).FileName  = '';
-                        Obj(Ih).Scale     = Args.Scale;
-                    else
-                        Obj(Ih).FileName  = List{Ih};
-                    end
-                end
-                Obj = reshape(Obj,size(List));
-
-                if ~IsCellMat
-                    % read from file
-                    Nhdu = numel(Args.HDU);
-                    % read files
-                    for Ih=1:1:Nh
-                        Ihdu = min(Ih,Nhdu);
-                        % FFU: will have to replace this with a general reader
-                        if ~isempty(Obj(Ih).FileName)
-                            Obj(Ih).Data  = FITS.read1(Obj(Ih).FileName, Args.HDU(Ihdu));
-                            Obj(Ih).Scale = Args.Scale;
-                        end
-                    end
-                end
-            end
-        end
-
+            end % end if isempty...
+        end % end ImageComponent
     end
     
     % 
@@ -129,15 +104,187 @@ classdef ImageComponent < handle %Component
         end
         
         function set.Data(Obj, ImageData)
-            % setter for Data - store in Data and set Scale to []
+            % setter for Data - store in Data 
             Obj.Data  = ImageData;
-            Obj.Scale = [];
+            %Obj.Scale = [];
         end
     end
     
     methods % function on images
+                
+        function Result = funUnary(Obj, Operator, Args)
+            % funUnary on ImageComponent
+            % Input  : - An ImageComponent object (multi elemenets supported).
+            %          - Unary operator (e.g., @median, @sin)
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Logical indicatinf if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false)
+            %                   Default is false (i.e., input object will
+            %                   be modified).
+            %            'CCDSEC' - CCDSEC on which to operate:
+            %                   [Xmin, Xmax, Ymin, Ymax].
+            %                   Use [] for the entire image.
+            %                   If not [], then DataPropIn/Out will be
+            %                   modified to 'Image'.
+            %            'OutOnlyCCDSEC' - A logical indicating if the
+            %                   output include only the CCDSEC region, or
+            %                   it is the full image (where the opeartor,
+            %                   operated only on the CCDSEC region).
+            %            'DataPropIn' - Data property in which the operator
+            %                   will be operated. Default is 'Data'.
+            %            'DataPropOut' - Data property in which the result
+            %                   will be stored. Default is 'Data'.
+            % Output : - An ImageComponent object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
+            %          IC.funUnary(@sin);
+            %          IC.funUnary(@median,'OpArgs',{'all','omitnan'});
+            %          IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
+            %          IC.funUnary(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
+            %          IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
+            %          IC.funUnary(@tanh,'CCDSEC',[1 2 1 3]);
+            %          IC.funUnary(@tanh,'CCDSEC',[1 2 1 3],'OutOnlyCCDSEC',true);
+            %          
+            
+            arguments
+                Obj
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CreateNewObj(1,1) logical  = false;
+                Args.CCDSEC                     = [];
+                Args.OutOnlyCCDSEC(1,1) logical = false;
+                Args.DataPropIn                 = 'Data';
+                Args.DataPropOut                = 'Data';
+            end
+            
+            if ~isempty(Args.CCDSEC)
+                % If CCDSEC is given, must operate on the Image
+                Args.DataPropIn  = 'Image';
+                Args.DataPropOut = 'Image';
+            end
+            
+            if isempty(Args.DataPropOut)
+                Args.DataPropOut = Args.DataPropIn;
+            end
+                        
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                
+                if isempty(Args.CCDSEC)
+                    Result(Iobj).(Args.DataPropOut) = Operator(Obj(Iobj).(Args.DataPropIn), Args.OpArgs{:});
+                else
+                    Tmp = Operator(Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Args.OpArgs{:});
+                    if numel(Tmp)==1
+                        Result(Iobj).(Args.DataPropOut) = Tmp;
+                    else
+                        if Args.OutOnlyCCDSEC
+                            Result(Iobj).(Args.DataPropOut) = Tmp;
+                        else
+                            Result(Iobj).(Args.DataPropOut)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = Tmp;
+                        end
+                    end
+                end
+            end
+            
+        end
         
-        % consider moving to BaseImage??
+        function Result = funBinary(Obj1, Obj2, Operator, Args)
+            %
+            % debuging in progress...
+            
+            % Example: IC = ImageComponent({rand(10,10)},'Scale',5)
+            %          
+           
+            arguments
+                Obj1
+                Obj2
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CreateNewObj(1,1) logical  = false;
+                Args.CCDSEC                     = [];
+                Args.OutOnlyCCDSEC(1,1) logical = false;
+                Args.DataPropIn1                = 'Data';
+                Args.DataPropIn2                = '';
+                Args.DataPropOut                = '';
+            end
+            
+            if ~isempty(Args.CCDSEC)
+                % If CCDSEC is given, must operate on the Image
+                Args.DataPropIn1 = 'Image';
+                Args.DataPropIn2 = 'Image';
+                Args.DataPropOut = 'Image';
+            end
+            
+            if isempty(Args.DataPropOut)
+                Args.DataPropOut = Args.DataPropIn1;
+            end
+            if isempty(Args.DataPropIn2)
+                Args.DataPropIn2 = Args.DataPropIn1;
+            end
+                        
+            
+            % make sure Obj2 is in the roght format
+            if isnumeric(Obj2)
+                % If Obj2 is an array with the same size as Obj1, then
+                % convert into a cell array of scalars.
+                if all(size(Obj1)==size(Obj2))
+                    Obj2 = num2cell(Obj2);
+                else
+                    % otherwise a single element cell
+                    Obj2 = {Obj2};
+                end
+            end
+            % at this stage Obj2 must be a cell or an ImageComponent
+            if iscell(Obj2)
+                Obj2IsCell = true;
+            else
+                Obj2IsCell = false;
+            end
+            if ~(Obj2IsCell || isa(Obj2,'ImageComponent'))
+                error('Obj2 must be a cell, and image component or an numeric array');
+            end
+            
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            Nres  = max(Nobj1, Nobj2);
+            if ~(Nobj2==1 || Nobj2==Nobj1)
+                error('number of elements in Obj2 must be 1 or equal to the number in Obj1');
+            end
+                
+            if Args.CreateNewObj
+                Result = Obj1.copyObject;
+            else
+                Result = Obj1;
+            end
+                
+            for Ires=1:1:Nres
+                Iobj1 = min(Ires, Nobj1);
+                Iobj2 = min(Ires, Nobj2);
+                if Obj2IsCell
+                    Tmp = Obj2{Iobj2};
+                else
+                    Tmp = Obj2(Iobj2).(Args.DataPropIn2);
+                end
+                
+                if isempty(Args.CCDSEC)
+                    % operate on full images
+                    Result(Ires).(Args.DataPropOut) = Operator(Obj1(Iobj1).(Args.DataPropIn1), Tmp,               Args.OpArgs{:});
+                else
+                    if Args.OutOnlyCCDSEC
+                        Result(Ires).(Args.DataPropOut) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Tmp, Args.OpArgs{:});
+                    else
+                        Result(Ires).(Args.DataPropOut)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Tmp, Args.OpArgs{:});
+                    end                    
+                end
+            end
+        end
         
         function Result=fun_unary(Obj,Fun,FunArg,OutType,DataProp)
             % Apply a unary function on a single fields and store on object
