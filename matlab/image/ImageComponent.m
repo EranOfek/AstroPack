@@ -196,27 +196,77 @@ classdef ImageComponent < Component
         end
         
         function Result = funBinary(Obj1, Obj2, Operator, Args)
-            %
-            % debuging in progress...
+            % Apply a binary operator to ImageComponent objects
+            % Input  : - The 1st ImageComponent object.
+            %            Number of elements must be equal or larger than
+            %            the number of elements in the 2nd input.
+            %          - The 2nd ImageComponent object, or alternatively
+            %            a cell array of images,
+            %            or an array of numerical values.
+            %            If the array size is equal to the size of the 1st
+            %            object, then it is assumed that each element in
+            %            the array is a scalar image. If not, the array
+            %            size must be consistent with the image size in the
+            %            first object.
+            %          - Binary operator (e.g., @plus)
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CCDSEC1' - [Xmin Xmax Ymin Ymax] CCDSEC for the
+            %                   1st oprand. The Operator will be applied
+            %                   only on this section.
+            %                   If empty, use all image. Default is [].
+            %            'CCDSEC2' - The same as CCDSEC1, but for the 2nd
+            %                   operand. Default is [].
+            %            'OutOnlyCCDSEC' - A logical indicating if the
+            %                   output include only the CCDSEC, or the
+            %                   entire image (in which only the CCDSEC
+            %                   region was modified).
+            %                   Default is true.
+            %            'DataPropIn1' - Data property for 1st operand.
+            %                   Default is 'Data'.
+            %                   If CCDSEC is not empty, then this will be
+            %                   modified into 'Image'.
+            %            'DataPropIn2' - Like DataPropIn1, but for the 2nd
+            %                   operand. If empty, use the value in
+            %                   DataPrope1'. Default is ''.
+            %            'DataPropOut' - Data property for the output
+            %                   object. If empty, use the value in
+            %                   DataPrope1'. Default is ''.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC  = ImageComponent({rand(10,10)})
+            %          R   = funBinary(IC,IC,@plus,'CreateNewObj',true)
+            %          R   = funBinary([IC,IC],1,@plus,'CreateNewObj',true)
+            %          IC1 = ImageComponent({rand(2,2)});
+            %          IC2 = ImageComponent({rand(2,2)});
+            %          R   = funBinary([IC1,IC2],{1 2},@plus,'CreateNewObj',true)
+            %          IC  = ImageComponent({rand(10,10), rand(2,2)},'Scale',5)
+            %          R   = funBinary(IC,3,@times,'CreateNewObj',true) 
+            %          IC  = ImageComponent({rand(10,10), rand(2,2)},'Scale',5)
+            %          R   = funBinary(IC,3,@times,'CreateNewObj',false) 
+            %          IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5)
+            %          IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true)
+            %          IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5)
+            %          IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 3 5])
+            %          IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',true)
+            %          IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',false)
             
-            % Example: IC = ImageComponent({rand(10,10)},'Scale',5)
-            %          
-           
             arguments
                 Obj1
                 Obj2
                 Operator function_handle
                 Args.OpArgs cell                = {};
-                Args.CreateNewObj(1,1) logical  = false;
-                Args.CCDSEC                     = [];
-                Args.OutOnlyCCDSEC(1,1) logical = false;
+                Args.CreateNewObj(1,1) logical  = true;
+                Args.CCDSEC1                    = [];
+                Args.CCDSEC2                    = [];
+                Args.OutOnlyCCDSEC(1,1) logical = true;
                 Args.DataPropIn1                = 'Data';
                 Args.DataPropIn2                = '';
                 Args.DataPropOut                = '';
             end
             
-            if ~isempty(Args.CCDSEC)
-                % If CCDSEC is given, must operate on the Image
+            if ~isempty(Args.CCDSEC1) || ~isempty(Args.CCDSEC2)
+                % If CCDSEC1/2 is given, must operate on the Image
                 Args.DataPropIn1 = 'Image';
                 Args.DataPropIn2 = 'Image';
                 Args.DataPropOut = 'Image';
@@ -230,7 +280,7 @@ classdef ImageComponent < Component
             end
                         
             
-            % make sure Obj2 is in the roght format
+            % make sure Obj2 is in the right format
             if isnumeric(Obj2)
                 % If Obj2 is an array with the same size as Obj1, then
                 % convert into a cell array of scalars.
@@ -267,24 +317,44 @@ classdef ImageComponent < Component
             for Ires=1:1:Nres
                 Iobj1 = min(Ires, Nobj1);
                 Iobj2 = min(Ires, Nobj2);
-                if Obj2IsCell
-                    Tmp = Obj2{Iobj2};
+                if isempty(Args.CCDSEC2)
+                    if Obj2IsCell
+                        Tmp = Obj2{Iobj2};
+                    else
+                        Tmp = Obj2(Iobj2).(Args.DataPropIn2);
+                    end
                 else
-                    Tmp = Obj2(Iobj2).(Args.DataPropIn2);
+                    if Obj2IsCell
+                        Tmp = Obj2{Iobj2}(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                    else
+                        Tmp = Obj2(Iobj2).(Args.DataPropIn2)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                    end
                 end
                 
-                if isempty(Args.CCDSEC)
+                if isempty(Args.CCDSEC1)
                     % operate on full images
                     Result(Ires).(Args.DataPropOut) = Operator(Obj1(Iobj1).(Args.DataPropIn1), Tmp,               Args.OpArgs{:});
                 else
                     if Args.OutOnlyCCDSEC
-                        Result(Ires).(Args.DataPropOut) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Tmp, Args.OpArgs{:});
+                        Result(Ires).(Args.DataPropOut) = [];
+                        Result(Ires).(Args.DataPropOut) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)), Tmp, Args.OpArgs{:});
                     else
-                        Result(Ires).(Args.DataPropOut)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Tmp, Args.OpArgs{:});
+                        Result(Ires).(Args.DataPropOut)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)), Tmp, Args.OpArgs{:});
                     end                    
                 end
             end
         end
+        
+        
+        % got here
+        % funUnaryScalar
+        % funStack
+        % funTransform
+        
+        
+        
+        
+        
         
         function Result=fun_unary(Obj,Fun,FunArg,OutType,DataProp)
             % Apply a unary function on a single fields and store on object
@@ -1033,8 +1103,59 @@ classdef ImageComponent < Component
                 error('Image rescaling is not consistent');
             end
             
-            IC = ImageComponent('*.fits')
+            IC = ImageComponent('*.fits');
             
+            % funUnary
+            IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
+            IC.funUnary(@sin);
+            IC.funUnary(@median,'OpArgs',{'all','omitnan'});
+            IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
+            IC.funUnary(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
+            IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
+            IC.funUnary(@tanh,'CCDSEC',[1 2 1 3]);
+            IC.funUnary(@tanh,'CCDSEC',[1 2 1 3],'OutOnlyCCDSEC',true);
+                 
+            % funBinary
+            IC  = ImageComponent({rand(10,10)});
+            R   = funBinary(IC,IC.copyObject,@plus,'CreateNewObj',true);
+            if ~all(abs(R.Image-2.*IC(1).Image)<1e-8,'all')
+                error('')
+            end
+            R   = funBinary([IC,IC],1,@plus,'CreateNewObj',true);
+            IC1 = ImageComponent({rand(2,2)});
+            IC2 = ImageComponent({rand(2,2)});
+            R   = funBinary([IC1,IC2],{1 2},@plus,'CreateNewObj',true);
+            IC  = ImageComponent({rand(10,10), rand(2,2)},'Scale',5);
+            R   = funBinary(IC,3,@times,'CreateNewObj',true);
+            IC  = ImageComponent({rand(10,10), rand(2,2)},'Scale',5);
+            R   = funBinary(IC,3,@times,'CreateNewObj',false); 
+            IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5);
+            IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true);
+            IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5);
+            % operation between different regions in the 1st and 2nd image
+            IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 3 5]);
+            IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',true);
+            if ~all(size(IB(1).Image)==[3 2])
+                error('Problem with output size in funBinary');
+            end
+            IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',false);
+            if ~all(size(IB(1).Image)==size(IC(1).Image))
+                error('Problem with output size in funBinary');
+            end
+            % operate against a scalar for each image
+            R   = funBinary([IC1, IC2],[1 3],@plus,'CreateNewObj',true);
+            if ~all(abs(R(1).Image - IC1.Image - 1)<1e-8,'all') || ~all(abs(R(2).Image - IC2.Image - 3)<1e-8,'all')
+                error('Problem with arithmatics');
+            end
+            R   = funBinary([IC1],[1 3],@plus,'CreateNewObj',true);
+
+            % In both these case funBinary regards [1 3] as a single image
+            % and the opeation is done column wise
+            R   = funBinary([IC1],[1 3],@plus,'CreateNewObj',true);  
+            R1   = funBinary([IC1],{[1 3]},@plus,'CreateNewObj',true);
+            if ~all(abs(R.Image-R1.Image)<1e-8,'all')
+                error('Should return the same result');
+            end
             
             
             Result = true;
