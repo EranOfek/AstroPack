@@ -117,6 +117,8 @@ classdef ImageComponent < Component
             % Input  : - An ImageComponent object (multi elemenets supported).
             %          - Unary operator (e.g., @median, @sin)
             %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
             %            'CreateNewObj' - Logical indicatinf if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false)
@@ -345,6 +347,61 @@ classdef ImageComponent < Component
             end
         end
         
+        
+        function Result = funUnaryScalar(Obj, Operator, Args)
+            % funUnary on ImageComponent returning an array of scalars (one
+            %       scalar per image)
+            % Input  : - An ImageComponent object (multi elemenets supported).
+            %          - Unary operator (e.g., @median, @sin)
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CCDSEC' - CCDSEC on which to operate:
+            %                   [Xmin, Xmax, Ymin, Ymax].
+            %                   Use [] for the entire image.
+            %                   If not [], then DataPropIn/Out will be
+            %                   modified to 'Image'.
+            %            'DataPropIn' - Data property in which the operator
+            %                   will be operated. Default is 'Data'.
+            % Output : - An ImageComponent object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
+            %          R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'});
+            %          IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
+            %          R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
+            %          
+            
+            arguments
+                Obj
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CCDSEC                     = [];
+                Args.DataPropIn                 = 'Data';
+            end
+            
+            if ~isempty(Args.CCDSEC)
+                % If CCDSEC is given, must operate on the Image
+                Args.DataPropIn  = 'Image';
+            end
+            
+            Result = nan(size(Obj));
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                
+                if isempty(Args.CCDSEC)
+                    Result(Iobj) = Operator(Obj(Iobj).(Args.DataPropIn), Args.OpArgs{:});
+                else
+                    Tmp = Operator(Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Args.OpArgs{:});
+                    if numel(Tmp)==1
+                        Result(Iobj) = Tmp;
+                    else
+                        error('funUnaryScalar operator must return a scalar');
+                    end
+                end
+            end
+            
+        end
         
         % got here
         % funUnaryScalar
@@ -1156,6 +1213,13 @@ classdef ImageComponent < Component
             if ~all(abs(R.Image-R1.Image)<1e-8,'all')
                 error('Should return the same result');
             end
+            
+            % funUnaryScalar
+            IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
+            R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'});
+            IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
+            R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
+            
             
             
             Result = true;
