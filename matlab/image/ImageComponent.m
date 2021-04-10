@@ -590,7 +590,49 @@ classdef ImageComponent < Component
                 
             end
         end
-        
+       
+        function Result = imrotate(Obj, RotationAng, Args)
+            % Apply imrotate (image rotation) in ImageComponent object
+            % Input  : - An ImageComponent object.
+            %          - Rotation angle [deg]. 
+            %          * ...,key,val,...
+            %            'Method' - imrotate interpolation method.
+            %                   Default is 'bicubic'.
+            %            'BBox' - imrotate bounding box ['loose'] | 'crop'.
+            %            'DataProp' - Data prop on which to apply the
+            %                   rotation. Default is 'Image'.
+            %            'CreateNewObj' - Create new object (true), oir
+            %                   update input (false). Default is true.
+            %          * Additional parameters to pass to imrotate:
+            %            Angle(deg), Method, BBOX.
+            %            Default is 'nearest', 'loose'
+            % Output : - An ImageComponent object with the rotated images.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC=ImageComponent({rand(10,10)});
+            %          IC.imrotate(10)
+
+            arguments
+                Obj
+                RotationAng
+                Args.Method                     = 'bicubic';
+                Args.BBox                       = 'loose';
+                Args.DataProp                   = 'Image';
+                Args.CreateNewObj(1,1) logical  = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj).(Args.DataProp) = imrotate(Obj(Iobj).(Args.DataProp), RotationAng, Args.Method, Args.BBox);
+            end
+            
+        end
+          
     end
     
     methods % break/rejoin image to smaller images
