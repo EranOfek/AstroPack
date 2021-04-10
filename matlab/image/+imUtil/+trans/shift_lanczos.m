@@ -3,7 +3,7 @@ function [ShiftedImage]=shift_lanczos(Image,ShiftXY,A,ShiftType)
 % Package: imUtil.image
 % Description: Shift an image using the Lanczos interpolation kernel.
 %              This is works for sub pixel shifts and can treat images
-%              which are larger by 9x9.
+%              which are larger then 9x9.
 % Input  : - An image (2D matrix), or a cube of images in which the image
 %            index is the 3rd dimension.
 %          - A two element vector of [ShiftX, ShiftY] in pixels.

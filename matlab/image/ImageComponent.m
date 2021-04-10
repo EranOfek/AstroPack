@@ -755,23 +755,30 @@ classdef ImageComponent < Component
             % [FullImage]=imUtil.image.subimages2image(SubImage,CCDSEC);
         end
         
-        function CutoutCube = cutouts(Obj, XY, Args)
+        function [CutoutCube, ActualXY] = cutouts(Obj, XY, Args)
             % Break a single image to a cube of cutouts around given positions
+            %       including optional sub pixel shift.
             % Input  : - A single element ImageComponent object.
             %          - A two column matrix of [X, Y] positions around
             %            which to generate the cutouts.
             %          * ...,key,val,...
-            %            'Algo' - Algorithm: ['mex'] | 'wmat'.
+            
             %            'HalfSize' - Cutout half size (actual size will be
             %                   1+2*HalfSize. Default is 8.
+            
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
+            
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
             %            'DataProp' - Data property from which to extract
             %                   the cutouts. Default is 'Image'.
-            %          - A cube of size 1+2*HalfSize X 1+2*HalfSize X
+            % Outout : - A cube of size 1+2*HalfSize X 1+2*HalfSize X
             %               numberOfCutouts. each layer contain a cutout
             %               and 3rd dim is for cutout index.
+            %          - A two column matrix of the actual positions
+            %            [X,Y], around which the cutouts are extracted.
+            %            These may be rounded if 'RoundPos' is set to true.
             % Author : Eran Ofek (Apr 2021)
             % Example: IC = ImageComponent({rand(1000,1000)});
             %          XY = rand(10000,2).*900 + 50;
@@ -779,12 +786,16 @@ classdef ImageComponent < Component
             
             arguments
                 Obj(1,1)
-                XY(:,2)               = zeros(0,2);
-                Args.Algo             = 'mex';  % 'mex' | 'wmat'
-                Args.HalfSize         = 8;
-                Args.PadVal           = NaN;
-                Args.IsCircle         = false;
-                Args.DataProp         = 'Image';
+                XY(:,2)                     = zeros(0,2);
+                Args.HalfSize               = 8;
+                Args.PadVal                 = NaN;
+                
+                Args.CutAlgo                = 'mex';  % 'mex' | 'wmat'
+                Args.Shift(1,1) logical     = false;
+                Args.ShiftAlgo              = 'fft';  % 'fft' | 'lanczos2' | 'lanczos3' | ...
+                
+                Args.IsCircle               = false;
+                Args.DataProp               = 'Image';
             end
             
             CutoutSize = 1+2.*Args.HalfSize;
@@ -792,7 +803,7 @@ classdef ImageComponent < Component
             RoundXY    = round(XY);
             
             Iobj = 1;
-            switch lower(Args.Algo)
+            switch lower(Args.CutAlgo)
                 case 'mex'
                     [CutoutCube] = imUtil.image.mexCutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1); 
                     CutoutCube   = squeeze(CutoutCube);
@@ -802,6 +813,30 @@ classdef ImageComponent < Component
                     error('Unknown Algo option');
             end
             
+            % shift cutouts 
+            if Args.Shift
+                
+                switch lower(Args.ShiftAlgo)
+                    case 'fft'
+                        Ncut = size(XY,1);
+                        DXY   = XY - RoundXY;
+                        
+                        % FFU: I suspect the loop can be removed
+                        if Ncut>0
+                            Icut = 1;
+                            [CutoutCube(:,:,1), NY,NX,Nr,Nc] = imUtil.trans.shift_fft(squeeze(CutoutCube(:,:,Icut)), DXY(Icut,1), DXY(Icut,2));
+                        end
+                        for Icut=2:1:Ncut
+                            [CutoutCube(:,:,Icut), NY,NX,Nr,Nc] = imUtil.trans.shift_fft(squeeze(CutoutCube(:,:,Icut)), DXY(Icut,1), DXY(Icut,2), NY,NX,Nr,Nc);
+                        end
+                        
+                        
+                    otherwise
+                        error('Unknown ShiftAlgo option');
+                end
+                
+                
+            end
             
         end
         
