@@ -830,6 +830,8 @@ classdef ImageComponent < Component
                             [CutoutCube(:,:,Icut), NY,NX,Nr,Nc] = imUtil.trans.shift_fft(squeeze(CutoutCube(:,:,Icut)), DXY(Icut,1), DXY(Icut,2), NY,NX,Nr,Nc);
                         end
                         
+                        % FFT: add lanczos2/3
+                        %ShiftedImage=imUtil.trans.shift_lanczos(G,[1.22,-2.1],3,'circ');
                         
                     otherwise
                         error('Unknown ShiftAlgo option');
