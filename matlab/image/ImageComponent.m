@@ -403,6 +403,8 @@ classdef ImageComponent < Component
             
         end
         
+        
+        
         function Cube = images2cube(Obj, Args)
             % Generate a cube of images from ImageComponent object
             % Input  : - An ImageComponent object (multi elements
