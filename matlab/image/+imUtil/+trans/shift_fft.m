@@ -29,9 +29,66 @@ function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-NewAlgo = true;
+Algo = 1;
 
-if (NewAlgo)
+
+if Algo==0
+    % new for cubes
+    error('not working');
+    
+    [NY,NX] = size(Image);
+    if (0.5*NX==floor(0.5*NX))
+        % NX is even 
+        PadX = 0;
+    else
+        PadX = 1;
+        NX   = NX + 1;
+    end
+    if (0.5*NY==floor(0.5*NY))
+        % NX is even 
+        PadY = 0;
+    else
+        PadY = 1;
+        NY   = NY + 1;
+    end
+    
+    Image = padarray(Image,[PadX PadY],0,'post');
+
+    % Kernel for X dimension
+    OperX = fft([0 1 zeros(1,NX-2)]);
+    KernelX = fftshift(exp(1i.*DX(:).*phase(OperX)), 2);
+    KernelX = KernelX./KernelX(1);
+    KernelX(NX.*0.5+1) = 1;
+    %KernelX = ifft(KernelX);
+
+    % Kernel for Y dimension
+    OperY = fft([0 1 zeros(1,NY-2)]);
+    KernelY = fftshift(exp(1i.*DY(:).*phase(OperY)),1).';
+    KernelY = KernelY./KernelY(1);
+    KernelY(NY.*0.5+1) = 1;
+    %KernelY = ifft(KernelY);
+
+    
+    SX = ifft( fft(Image,[],2) .*KernelX ,[],2);
+    % need to take the real part as there is some residual imaginary
+    % part due to computer precision errors
+    ShiftedImage=real(ifft( fft(SX,[],1).* KernelY,[],1));
+    
+    %ShiftedImage=real(ifft( bsxfun(@times,fft(SX,[],1), KernelY) ,[],1));
+    
+    if (PadX==1)
+        ShiftedImage = ShiftedImage(:,1:end-1,:);
+    end
+    if (PadY==1)
+        ShiftedImage = ShiftedImage(1:end-1,:,:);
+    end
+    Nr = [];
+    Nc = [];
+    
+    
+    
+elseif Algo==1
+    % new
   
     [NY,NX] = size(Image);
     if (0.5*NX==floor(0.5*NX))
@@ -83,7 +140,9 @@ if (NewAlgo)
     end
     Nr = [];
     Nc = [];
-else
+elseif Algo==2
+    % old
+    
     %function [ShiftedImage,NY,NX,Nr,Nc]=image_shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
     % old algorithm - better
     Phase = 2;
@@ -119,4 +178,7 @@ else
     % add bias value to image
     ShiftedImage = abs(ShiftedImage) - MinVal;
     %ShiftedImage = ShiftedImage(NY1+1:2*NY1, NX1+1:2*NX1);
+    
+else
+    error('Unknown Algo');
 end
