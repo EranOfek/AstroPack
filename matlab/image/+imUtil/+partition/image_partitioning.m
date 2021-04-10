@@ -1,6 +1,7 @@
 function [Sub,ListEdge,ListCenter]=image_partitioning(Image,BlockSize,Args)
-% Partition a 2D image into sub images.
-% Package: ImUtil.Back
+% Partition a 2D image into sub images. OBSOLETE: use
+% imUtil.image.partition_subimages instead
+% Package: ImUtil
 % Description: Partition a 2D image into sub images.
 % Input  : - A single 2D image (matrix).
 %          - BlockSize [X,Y], or [X] (will be copied as [X, X]).

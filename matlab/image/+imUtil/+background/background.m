@@ -7,7 +7,7 @@ function [Back,Var]=background(Image,Args)
 %              (using imUtil.image.partition_subimage) and
 %              estimate the background and variance in each sub image.
 %              Next, it collect all the sub images into a full image
-%              (using: imUtil.image.subimage2image).
+%              (using: imUtil.image.subimages2image).
 %              The background and variance are calculated in each sub image
 %              by calling a user supplied functions.
 % Input  : - a 2D matrix.
@@ -43,7 +43,7 @@ function [Back,Var]=background(Image,Args)
 %                   sub images to add to each sub image.
 %                   Default is 16.
 %            'StitchMethod' - Stitching method.
-%                   See imUtil.image.subimage2image for options.
+%                   See imUtil.image.subimages2image for options.
 %                   Another option is 'scalar'. If there is only one sub
 %                   image, then the ouput will be a scalar.
 %                   Default is 'IgnoreOverlap'.
@@ -162,7 +162,7 @@ end
 %     case {'scalar'}
 %         Back = SubImage.Back;
 %     case {'ignoreoverlap','meanoverlap'}
-%         Back = imUtil.image.subimage2image(SubImage,CCDSEC,'FieldName','Back','StitchMethod',Args.StitchMethod);
+%         Back = imUtil.image.subimages2image(SubImage,CCDSEC,'FieldName','Back','StitchMethod',Args.StitchMethod);
 %     case {'si','impaint'}
 %         GridVal = [Center, [SubImage.Back].'];
 %         Back = imUtil.background.fill_sparse(GridVal,max(CCDSEC(:,[2 4])));
@@ -198,7 +198,7 @@ end
 %             case {'scalar'}
 %                 Var = SubImage.Var;
 %             case {'ignoreoverlap','meanoverlap'}
-%                 Var  = imUtil.image.subimage2image(SubImage,CCDSEC,'FieldName','Var','StitchMethod',Args.StitchMethod);
+%                 Var  = imUtil.image.subimages2image(SubImage,CCDSEC,'FieldName','Var','StitchMethod',Args.StitchMethod);
 %             case {'si','impaint'}
 %                 GridVal = [Center, [SubImage.Var].'];
 %                 Var = imUtil.background.fill_sparse(GridVal,max(CCDSEC(:,[2 4])));

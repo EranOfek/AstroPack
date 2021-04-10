@@ -1,4 +1,4 @@
-function [FullImage]=subimage2image(SubImage,CCDSEC,Args)
+function [FullImage]=subimages2image(SubImage,CCDSEC,Args)
 % construct the full image from sub-images
 % Package: mUtil.image
 % Input  : - A cell array of images, or a structure array of images (for
@@ -30,7 +30,7 @@ function [FullImage]=subimage2image(SubImage,CCDSEC,Args)
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: [SubImage,CCDSEC,Center,NoCCDSEC]=imUtil.image.partition_subimage(Image,[],'SubSizeXY',[512 512],'OverlapXY',[16 16],'Output','struct');
-%          [FullImage]=imUtil.image.subimage2image(SubImage,CCDSEC);
+%          [FullImage]=imUtil.image.subimages2image(SubImage,CCDSEC);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

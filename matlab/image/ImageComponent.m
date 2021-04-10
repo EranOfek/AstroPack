@@ -683,41 +683,62 @@ classdef ImageComponent < Component
             
         end
         
-        function [Result,ListEdge,ListCenter] = image2subimages(Obj,BlockSize,Args)
+        function [Result,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = image2subimages(Obj, BlockSize, Args)
             % break an image in a single element ImageComponent into sub images.
             % Input  : - An ImageComponent object with a single element.
             %            If the image is scaled, then will rescale the
             %            image (i.e., will use the 'Image' property).
-            %          - Size [X, Y] of sub images. or [X] (will be copied as [X, X]).
-            %            Alternatively, if this is empty then will use ListEdge and
-            %            ListCenter parameters.
+            %          - BlockSize [X, Y] of sub images. or [X] (will be copied as [X, X]).
+            %            If empty, will use imUtil.image.subimage_grid
             %          * ...,key,val,...
-            %            'ListEdge' - [xmin, xmax, ymin, ymax] as returned by
-            %                   imUtil.partition.subimage_boundries.
-            %                   This is used only if BlockSize is empty.
-            %                   Default is empty.
-            %            'ListCenter' - [xcenter,ycenter] as returned by
-            %                   imUtil.partition.subimage_boundries.
-            %                   This is used only if BlockSize is empty.
-            %                   Default is empty.
-            %            'Overlap' - Overlapping buffer. Default is 10 pix.
+            %            'CCDSEC' - A 4 column matrix of CCDSEC
+            %                   [Xmin, Xmax, Ymin, Ymax]. Each line
+            %                   represent one output sub image boundries.
+            %                   If empty, will use BlockSize.
+            %                   If given, override BlockSize.
+            %                   Default is [].
+            %            'Nxy' - Number of sub images in each axis
+            %                   (e.g., [10 10]). If given this will
+            %                   override BlckSize.
+            %                   Default is [].
+            %            'OverlapXY' - Overlapping buffer [X, Y].
+            %                   Default is 10 pix.
             % Output : - A multiple element ImageComponent object. Each
-            %            element contains one sub image.
+            %            element contains one sub image. The output is
+            %            always a new ImageCompinent object (i.e., the
+            %            input ImageComponent is not modified).
+            %          - EdgesCCDSEC : CCDSEC matrix of the ouput subimages.
+            %          - ListCenters : list of [X,Y] centers of sub images.
+            %          - NoOverlapCCDSEC: CCDSEC matrix of the non
+            %               overlapping regions of the sub images.
             % Author : Eran Ofek (Mar 2021)
             % Example: IC=ImageComponent; IC.Image=rand(1000,1000);
-            %          [Result,ListEdge,ListCenter] = image2subimages(IC,[256 256]);
+            %          [Result,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = image2subimages(IC,[256 256]);
             
             arguments
                 Obj(1,1)               % must be a single element object
-                BlockSize             = [256 256];
-                Args.ListEdge         = [];
-                Args.ListCenter       = [];
-                Args.Overlap          = 10;
+                BlockSize             = [256 256];   % If empty, will use imUtil.image.subimage_grid
+                Args.CCDSEC           = [];   % If given, override BlockSize
+                Args.Nxy              = [];   % If empty then use SubSizeXY. Default is [].
+                Args.OverlapXY        = 10;
+                
+                %Args.ListEdge         = [];
+                %Args.ListCenter       = [];
+                
             end
             
-            [Sub,ListEdge,ListCenter]=imUtil.partition.image_partitioning(Obj.Image, BlockSize, 'ListEdge',Args.ListEdge,...
-                                                                                                'ListCenter',Args.ListCenter,...
-                                                                                                'Overlap',Args.Overlap);
+            [Sub,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = imUtil.image.partition_subimage(Obj.Image, Args.CCDSEC,...
+                                                                                       'Output','struct',...
+                                                                                       'FieldName','Im',...
+                                                                                       'SubSizeXY',BlockSize,...
+                                                                                       'Nxy',Args.Nxy,...
+                                                                                       'OverlapXY',Args.OverlapXY);
+            
+            % old code
+            %[Sub,ListEdge,ListCenter]=imUtil.partition.image_partitioning(Obj.Image, BlockSize, 'ListEdge',Args.ListEdge,...
+            %                                                                                    'ListCenter',Args.ListCenter,...
+            %                                                                                    'Overlap',Args.OverlapXY);
+            
             Nsub   = numel(Sub);
             Result = ImageComponent([1,Nsub]);
             for Isub=1:1:Nsub
@@ -730,10 +751,57 @@ classdef ImageComponent < Component
         function Result = subimages2image(Obj)
             % break image to sub images
             
+            % consider writing a new version of:
+            % [FullImage]=imUtil.image.subimages2image(SubImage,CCDSEC);
         end
         
-        function Result = cutouts(Obj)
-            % break image to cutouts around positions
+        function CutoutCube = cutouts(Obj, XY, Args)
+            % Break a single image to a cube of cutouts around given positions
+            % Input  : - A single element ImageComponent object.
+            %          - A two column matrix of [X, Y] positions around
+            %            which to generate the cutouts.
+            %          * ...,key,val,...
+            %            'Algo' - Algorithm: ['mex'] | 'wmat'.
+            %            'HalfSize' - Cutout half size (actual size will be
+            %                   1+2*HalfSize. Default is 8.
+            %            'IsCircle' - If true then will pad each cutout
+            %                   with NaN outside the HalfSize radius.
+            %                   Default is false.
+            %            'DataProp' - Data property from which to extract
+            %                   the cutouts. Default is 'Image'.
+            %          - A cube of size 1+2*HalfSize X 1+2*HalfSize X
+            %               numberOfCutouts. each layer contain a cutout
+            %               and 3rd dim is for cutout index.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent({rand(1000,1000)});
+            %          XY = rand(10000,2).*900 + 50;
+            %          Cube = cutouts(IC, XY);
+            
+            arguments
+                Obj(1,1)
+                XY(:,2)               = zeros(0,2);
+                Args.Algo             = 'mex';  % 'mex' | 'wmat'
+                Args.HalfSize         = 8;
+                Args.PadVal           = NaN;
+                Args.IsCircle         = false;
+                Args.DataProp         = 'Image';
+            end
+            
+            CutoutSize = 1+2.*Args.HalfSize;
+            
+            RoundXY    = round(XY);
+            
+            Iobj = 1;
+            switch lower(Args.Algo)
+                case 'mex'
+                    [CutoutCube] = imUtil.image.mexCutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1); 
+                    CutoutCube   = squeeze(CutoutCube);
+                case 'wmat'
+                    [CutoutCube] = imUtil.image.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);
+                otherwise
+                    error('Unknown Algo option');
+            end
+            
             
         end
         
