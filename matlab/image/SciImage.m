@@ -17,6 +17,7 @@ classdef SciImage < ImageComponent
     
     properties (SetAccess = public)
         IsBackSubtracted(1,1) logical          = false;
+        % TimeTag(1,1) AstroCatalog             = AstroCatalog();
     end
     
     

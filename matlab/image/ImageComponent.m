@@ -110,6 +110,44 @@ classdef ImageComponent < Component
         end
     end
     
+    methods % data size
+        function [Ny, Nx] = sizeImage(Obj,Prop)
+            % get size of all images/data
+            % Input  : - An ImageComponent object (multi elements supported).
+            %          - Property name for wich the size is requested.
+            %            Default is 'Image'.
+            % Output : arrays [Nx] and [Ny] of all images. 
+            % Example: IC = ImageComponent({rand(10,12)});
+            %          [Nx, Ny] = IC.sizeImage
+           
+            arguments
+                Obj
+                Prop       = 'Image';
+            end
+            
+            Nobj = numel(Obj);
+            Nx   = zeros(size(Obj));
+            Ny   = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+               [Nx(Iobj), Ny(Iobj)] = size(Obj(Iobj).(Prop));
+            end
+        end
+        
+        function Result = isemptyImage(Obj)
+            % Check if images data in ImageComponent are empty (true if
+            % empty). Result is an array (element per image element).
+            % Example: IC = ImageComponent({rand(0,1), rand(10,12)});
+            %          isemptyImage(IC)
+           
+            Result = false(size(Obj));
+            Nobj   = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isempty(Obj(Iobj).Data);
+            end
+            
+        end
+    end
+    
     methods % function on images
                 
         function Result = funUnary(Obj, Operator, Args)
@@ -877,6 +915,12 @@ classdef ImageComponent < Component
             end
             
             IC = ImageComponent('*.fits');
+            
+            % size and empty
+            
+            IC = ImageComponent({rand(0,1), rand(10,12)});
+            [Nx, Ny] = IC.sizeImage;
+            isemptyImage(IC);
             
             % funUnary
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
