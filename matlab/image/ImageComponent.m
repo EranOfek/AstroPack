@@ -634,8 +634,8 @@ classdef ImageComponent < Component
     
     methods % break/rejoin image to smaller images
         
-        function [Result] = trim(Obj, CCDSEC, Args)
-            % Trim an ImageComponent object. Either apply multiple trims to
+        function [Result] = crop(Obj, CCDSEC, Args)
+            % Crop an ImageComponent object. Either apply multiple trims to
             %       a single image, or a single trime to multiple images,
             %       or multiple trims to multiple images (one to one).
             % Input  : - An ImageComponent object. 
@@ -647,7 +647,7 @@ classdef ImageComponent < Component
             %            'CreateNewObj' - Create a new object (true), or
             %                   write result over input object (false).
             %                   Default is false.
-            % Output : - An ImageComponent object with the trimed images.
+            % Output : - An ImageComponent object with the cropped images.
             % Author : Eran Ofek (Apr 2021)
             % Example: 
             
@@ -674,7 +674,7 @@ classdef ImageComponent < Component
                     Result(Imax).Data = imUtil.image.trim(Obj(Iobj).Data, CCDSEC(Isec,:), Args.Type);
                 end
             else
-                error('trim function works on a single ImageComponent, or a single CCDSEC or number of images equal to number of sections');
+                error('crop function works on a single ImageComponent, or a single CCDSEC or number of images equal to number of sections');
             end
             
             
@@ -936,7 +936,7 @@ classdef ImageComponent < Component
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
             R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
             
-            
+            % images2cube
             IC=ImageComponent({ones(5,5),2.*ones(5,5),3.*ones(5,5)});
             Cube = images2cube(IC);
             images2cube(IC,'CCDSEC',[1 2 2 4]);
