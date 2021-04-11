@@ -14,6 +14,8 @@ function [K,CenterXY]=lanczos(A,SizeXY,PosXY)
 %            index.
 %      By: Eran O. Ofek                         May 2020
 % Example: imUtil.kernel2.lanczos(3,[8 8],[4.5 4.5])
+%          imUtil.kernel2.lanczos([3;2],[8 8],[4.5 4.5])
+%          imUtil.kernel2.lanczos([3;2],[8 8],[4.5 4.5; 2 2])
 
 
 if nargin<3
@@ -33,14 +35,17 @@ end
 
 Ntemp = numel(A);
 
-[MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(1), (1:1:SizeXY(2))-PosXY(2) );
-MatR        = sqrt(MatX.^2 + MatY.^2);
+Npos = size(PosXY,1);
 
 K = zeros(SizeXY(2),SizeXY(1),Ntemp);
 for I=1:1:Ntemp
+    Ipos = min(I, Npos);
+    [MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(Ipos,1), (1:1:SizeXY(2))-PosXY(Ipos,2) );
+    MatR        = sqrt(MatX.^2 + MatY.^2);
+    
     Tmp = zeros(SizeXY(2),SizeXY(1));
     
-    Tmp = sinc(MatX).*sinc(MatX./A).*sinc(MatY).*sinc(MatY./A);
+    Tmp = sinc(MatX).*sinc(MatX./A(I)).*sinc(MatY).*sinc(MatY./A(I));
     Tmp(MatR>A(I)) = 0;
     
     K(:,:,I) =  Tmp./sum(Tmp,'all');

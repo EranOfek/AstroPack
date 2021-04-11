@@ -402,9 +402,7 @@ classdef ImageComponent < Component
             end
             
         end
-        
-        
-        
+                
         function Cube = images2cube(Obj, Args)
             % Generate a cube of images from ImageComponent object
             % Input  : - An ImageComponent object (multi elements
@@ -473,10 +471,9 @@ classdef ImageComponent < Component
             
         end
         
-        % got here
+        
         % funStack (including scaling and zero subtracting)
         % funTransform
-        
         
         
         function [Obj,ObjReplaced] = replace(Obj, Range, NewVal, Eps)
@@ -762,15 +759,19 @@ classdef ImageComponent < Component
             %          - A two column matrix of [X, Y] positions around
             %            which to generate the cutouts.
             %          * ...,key,val,...
-            
             %            'HalfSize' - Cutout half size (actual size will be
             %                   1+2*HalfSize. Default is 8.
-            
-            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
-            
+            %            'PadVal' - padding value for cutouts near edge or
+            %                   without circular shifts.
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
+            %            'Shift' - A logical indicating if to shift
+            %            'ShiftAlgo' - Shift algorithm ['lanczos3'] |
+            %                   'lanczos2' | 'fft'.
+            %            'IsCircFilt' - While using lanczos, is circshift
+            %                   is circular or not. Default is false.
             %            'DataProp' - Data property from which to extract
             %                   the cutouts. Default is 'Image'.
             % Outout : - A cube of size 1+2*HalfSize X 1+2*HalfSize X
@@ -783,18 +784,19 @@ classdef ImageComponent < Component
             % Example: IC = ImageComponent({rand(1000,1000)});
             %          XY = rand(10000,2).*900 + 50;
             %          Cube = cutouts(IC, XY);
+            %          Cube = cutouts(IC, XY,'Shift',true);
+            %          Cube = cutouts(IC, XY,'Shift',true,'IsCircFilt',true);
             
             arguments
                 Obj(1,1)
                 XY(:,2)                     = zeros(0,2);
                 Args.HalfSize               = 8;
                 Args.PadVal                 = NaN;
-                
                 Args.CutAlgo                = 'mex';  % 'mex' | 'wmat'
-                Args.Shift(1,1) logical     = false;
-                Args.ShiftAlgo              = 'fft';  % 'fft' | 'lanczos2' | 'lanczos3' | ...
-                
                 Args.IsCircle               = false;
+                Args.Shift(1,1) logical     = false;
+                Args.ShiftAlgo              = 'lanczos3';  % 'fft' | 'lanczos2' | 'lanczos3' | ...
+                Args.IsCircFilt(1,1) logical = true;
                 Args.DataProp               = 'Image';
             end
             
@@ -815,7 +817,7 @@ classdef ImageComponent < Component
             
             % shift cutouts 
             if Args.Shift
-                
+                ActualXY  = XY;
                 switch lower(Args.ShiftAlgo)
                     case 'fft'
                         Ncut = size(XY,1);
@@ -830,15 +832,19 @@ classdef ImageComponent < Component
                             [CutoutCube(:,:,Icut), NY,NX,Nr,Nc] = imUtil.trans.shift_fft(squeeze(CutoutCube(:,:,Icut)), DXY(Icut,1), DXY(Icut,2), NY,NX,Nr,Nc);
                         end
                         
-                        % FFT: add lanczos2/3
-                        %ShiftedImage=imUtil.trans.shift_lanczos(G,[1.22,-2.1],3,'circ');
-                        
+                    case 'lanczos2'
+                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 2, Args.IsCircFilt, Args.PadVal);
+                    case 'lanczos3'
+                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 3, Args.IsCircFilt, Args.PadVal);    
                     otherwise
                         error('Unknown ShiftAlgo option');
                 end
                 
-                
+            
+            else
+                ActualXY  = RoundXY;
             end
+            
             
         end
         
