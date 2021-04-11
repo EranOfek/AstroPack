@@ -17,7 +17,10 @@ classdef SciImage < ImageComponent
     
     properties (SetAccess = public)
         IsBackSubtracted(1,1) logical          = false;
-        % TimeTag(1,1) AstroCatalog             = AstroCatalog();
+    end
+    properties
+        % Time-tag / X-ray related properties
+        PhotonsTime(1,1) PhotonsList
     end
     
     
@@ -31,7 +34,6 @@ classdef SciImage < ImageComponent
         end
 
     end
- 
     
     methods (Static) % Unit-Test
         function Result = unitTest()

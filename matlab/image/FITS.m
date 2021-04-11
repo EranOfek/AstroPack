@@ -319,7 +319,7 @@ classdef FITS < handle
             [ListTableName] = io.files.filelist(TableName);
             Nfile = numel(ListTableName);
             
-            Out = AstCat(Nfile,1);
+            %Out = AstCat(Nfile,1);
             Col = tools.struct.struct_def({'Col','Cell','Units','TypeChar','Repeat','Scale','Zero','Nulval','Tdisp','Data'},Nfile,1);
                      
             Ifile = 1;
@@ -435,6 +435,13 @@ classdef FITS < handle
                    Out.Properties.VariableNames = Col(Ifile).Cell;
                    Out.Properties.VariableUnits = Col(Ifile).Units;
 
+                case {'astrocatalog','astrotable'}
+                    Out(Ifile) = AstroCatalog;
+                    Out(Ifile).Catalog     = [Col(Ifile).Data{:}];
+                    Out(Ifile).ColNames    = Col(Ifile).Cell;
+                    Out(Ifile).ColUnits    = Col(Ifile).Units;
+                    
+                   
 
                 case 'astcat'
                     Out(Ifile).(CatField)     = [Col(Ifile).Data{:}];
