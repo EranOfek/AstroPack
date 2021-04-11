@@ -15,9 +15,9 @@ classdef AstroImage < Component
     
     properties (Dependent) % Access image data directly        
         Image 
-        Mask 
         Back 
         Var
+        Mask 
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Cat     % e.g., Cat, Cat([1 3]), Cat('RA'), Cat({'RA','Dec'})
         PSF
@@ -67,13 +67,91 @@ classdef AstroImage < Component
         function Data = get.Image(Obj)
             % getter for Image - get image from ImageData property
             Data = Obj.ImageData.Image;
-        end        
+        end    
+        
+        function Obj = set.Back(Obj, Data)
+            % setter for BackImage
+            Obj.BackData.Image = Data;
+        end
+        
+        function Data = get.Back(Obj)
+            % getter for BackImage
+            Data = Obj.BackData.Image;
+        end
         
         
     end
     
     methods (Static)  % static methods
        
+    end
+    
+    methods % empty and size
+        function varargout = isemptyImage(Obj, Prop)
+            % Check if data images in AstroImage object are empty
+            % Input  : - An AstroImage object (multi elements supported).
+            %          - A cell array of data properties for which to check
+            %            if empty.
+            %            Default is {'Image','Back','Var','Mask'}.
+            % Output : * One output per requested data property. For each
+            %            data property, this is an array of logical
+            %            indicating if the data isempty.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI=AstroImage;
+            %          [a,b]=AI.isemptyImage({'Image','Back'})
+            
+            arguments
+                Obj
+                Prop        = {'Image','Back','Var','Mask'};
+            end
+            
+            if ischar(Prop)
+                Prop = {Prop};
+            end
+            
+            Nprop = numel(Prop);            
+            Nobj = numel(Obj);
+            varargout = cell(1,nargout);
+            if nargout>Nprop
+                error('Number of requested output (%d) must be equal or smaller then number of reqested data properties (%d)',nargout,Nprop);
+            else
+                Prop  = Prop(1:nargout);
+                Nprop = nargout;
+            end
+            for Iprop=1:1:Nprop
+                varargout{Iprop} = false(size(Obj));
+                for Iobj=1:1:Nobj
+                    [varargout{Iprop}(Iobj)] = isempty(Obj(Iobj).(Prop{Iprop}));
+                end
+            end
+            
+        end
+        
+        function [Nx, Ny] = sizeImage(Obj, Prop)
+            % Return the size of images in AstroImage object
+            % Input  : - An AstroImage object (multi elements supported).
+            %          - A single propery name (char array)
+            % Output : - Number of rows in each AstroImage element.
+            %          - Number of columns in each AstroImage element.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI=AstroImage;
+            %          [Ny, Nx] = AI.sizeImage
+            %          [Ny, Nx] = AI.sizeImage('Back')
+            
+            arguments
+                Obj
+                Prop char       = 'Image';
+            end
+            
+            Nobj = numel(Obj);
+            Nx   = zeros(size(Obj));
+            Ny   = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                [Ny, Nx] = size(Obj(Iobj).(Prop));
+            end
+            
+        end
+        
     end
     
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
