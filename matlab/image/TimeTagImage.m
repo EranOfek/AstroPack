@@ -7,7 +7,7 @@ classdef TimeTagImage < Component
     properties
         ImageData(1,1) ImageComponent
         EventsTable(1,1) AstroCatalog
-        Header(1,1) AstroHeader         % maybe redundent if part of AstroImage
+        %Header(1,1) AstroHeader         % maybe redundent if part of AstroImage
         BadTimes(:,2)                   = zeros(0,2);
         GoodTimeFlag(:,1) logical       = true(0,1);
         UseFlag(:,1) logical            = true(0,1);
@@ -38,7 +38,7 @@ classdef TimeTagImage < Component
     end
     
     methods (Static)    % static functions
-        function Result = evnts2image(Table, Args)
+        function Result = events2image(Table, Args)
             %
             
             

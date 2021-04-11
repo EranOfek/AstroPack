@@ -1,12 +1,10 @@
-% BaseImage handle class - all images inherits from this class
-% Package: @BaseImage
-% Description: 
-% Tested : Matlab R2018a
-% Author : Eran O. Ofek (Mar 2021)
-% Dependencies: @convert, @celestial
-% Example : 
-% Reliable: 2
-%--------------------------------------------------------------------------
+% BackImage class
+%   This is a subclass of ImageComponent
+% Description: BackImage inherits from ImageComponent and it doesn't have
+%   any special capabilities. It is intended for storing background images.
+% Author : Eran Ofek (Apr 2021)
+% Dependencies: 
+% Example : B = BackImage;
 
 classdef BackImage < ImageComponent
     
@@ -23,22 +21,24 @@ classdef BackImage < ImageComponent
     
     methods % Constructor
        
-        function Obj = BackImage
+        function Obj = BackImage(varargin)
+            % Constructor of BackImage class using the superclass
+            % (ImageComponent) constructor
             
-            
+            Obj@ImageComponent(varargin{:});           
         end
 
     end
  
     
-    methods (Static)  % static methods
-       
-    end
-
-    
-    methods % Unit-Test
+    methods (Static) % Unit-Test
         function Result = unitTest()
-            Image = BackImage;
+            % unitTest for BackImage class
+            
+            B = BackImage;
+            B = BackImage(B);
+            B = BackImage([2 2]);
+            
             Result = true;
         end
     end

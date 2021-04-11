@@ -60,7 +60,7 @@ classdef ImageComponent < Component
                 Obj.Data = [];
             else
                 if isa(FileName,'ImageComponent')
-                    Obj = FileName;
+                    %Obj = FileName;   % the constructor must preserve the class of the returned object
                 elseif isa(FileName,'SIM') || isa(FileName,'imCl')
                     Nobj = numel(FileName);
                     for Iobj=1:1:Nobj
@@ -76,7 +76,7 @@ classdef ImageComponent < Component
                                          
                     Nobj = numel(ImIO);
                     for Iobj=1:1:Nobj
-                        Obj(Iobj) = ImageComponent([]);
+                        Obj(Iobj) = ImageComponent(Obj);   % Tailored in order to avoid problems in the superclass
                         if ~isempty(ImIO(Iobj).Data)
                             % otherwise generate an empty object
                             Obj(Iobj).Data  = ImIO(Iobj).Data;

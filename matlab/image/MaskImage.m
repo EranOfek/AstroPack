@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef MaskImage < Component
+classdef MaskImage < Component    % ImageComponent & BitDictionary
     
     properties (Dependent) % Access image data directly  
         Image
@@ -98,11 +98,20 @@ classdef MaskImage < Component
                 Args.Shape
             end
            
-            
+        end
+        
+    end
+    
+    methods % bit statistics
+        function [BitDec, BitNames] = bitNames(Obj, XY)
+            % 
             
         end
         
-        
+        function Result = bitStat(Obj)
+            % Return the bit mask statistics
+            
+        end
         
     end
     
