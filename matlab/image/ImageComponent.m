@@ -4,6 +4,8 @@ classdef ImageComponent < Component
     
     properties (Dependent)
         Image                                   % return the rescaled image
+        Rows
+        Cols        
     end
     
     properties (SetAccess = public)
@@ -110,10 +112,21 @@ classdef ImageComponent < Component
             Obj.Data  = ImageData;
             %Obj.Scale = [];
         end
+
+        
+        function Result = get.Rows(Obj)
+            Result = size(Obj.Image, 1)
+        end
+        
+        function Result = get.Cols(Obj)
+            Result = size(Obj.Image, 2)
+        end
+            
+        
     end
     
     methods % data size
-        function [Ny, Nx] = sizeImage(Obj,Prop)
+        function [Ny, Nx] = sizeImage(Obj, Prop)
             % get size of all images/data
             % Input  : - An ImageComponent object (multi elements supported).
             %          - Property name for wich the size is requested.
@@ -544,7 +557,7 @@ classdef ImageComponent < Component
                 Eps        {mustBeNumeric(Eps)}        = 0;
             end
             
-            if nargout>1
+            if nargout > 1
                 ObjReplaced = ImageComponent(size(Obj));
             end
             
@@ -693,7 +706,7 @@ classdef ImageComponent < Component
             
             arguments
                 Obj
-                CCDSEC
+                CCDSEC                  % [xmin xmax ymin ymax]
                 Args.Type char                   = 'ccdsec';
                 Args.CreateNewObj(1,1) logical   = false;
             end
@@ -755,21 +768,22 @@ classdef ImageComponent < Component
             arguments
                 Obj(1,1)               % must be a single element object
                 BlockSize             = [256 256];   % If empty, will use imUtil.image.subimage_grid
-                Args.CCDSEC           = [];   % If given, override BlockSize
+                Args.CCDSEC           = [];   % [xmin xmax ymin ymax] If given, override BlockSize
                 Args.Nxy              = [];   % If empty then use SubSizeXY. Default is [].
-                Args.OverlapXY        = 10;
+                Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
                 
                 %Args.ListEdge         = [];
                 %Args.ListCenter       = [];
-                
             end
             
-            [Sub,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = imUtil.image.partition_subimage(Obj.Image, Args.CCDSEC,...
-                                                                                       'Output','struct',...
-                                                                                       'FieldName','Im',...
-                                                                                       'SubSizeXY',BlockSize,...
-                                                                                       'Nxy',Args.Nxy,...
-                                                                                       'OverlapXY',Args.OverlapXY);
+            
+            [Sub,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = ...
+                    imUtil.image.partition_subimage(Obj.Image, Args.CCDSEC,...
+                           'Output','struct',...
+                           'FieldName','Im',...
+                           'SubSizeXY',BlockSize,...
+                           'Nxy',Args.Nxy,...
+                           'OverlapXY',Args.OverlapXY);
             
             % old code
             %[Sub,ListEdge,ListCenter]=imUtil.partition.image_partitioning(Obj.Image, BlockSize, 'ListEdge',Args.ListEdge,...
@@ -785,12 +799,14 @@ classdef ImageComponent < Component
             
         end
         
+        
         function Result = subimages2image(Obj)
             % break image to sub images
             
             % consider writing a new version of:
             % [FullImage]=imUtil.image.subimages2image(SubImage,CCDSEC);
         end
+       
         
         function [CutoutCube, ActualXY] = cutouts(Obj, XY, Args)
             % Break a single image to a cube of cutouts around given positions
@@ -878,15 +894,13 @@ classdef ImageComponent < Component
                         CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 3, Args.IsCircFilt, Args.PadVal);    
                     otherwise
                         error('Unknown ShiftAlgo option');
-                end
-                
+                end               
             
             else
                 ActualXY  = RoundXY;
-            end
-            
-            
+            end   
         end
+        
         
         function [varargout] = funCutouts(Obj)
             % Apply function on image cutouts
@@ -967,13 +981,11 @@ classdef ImageComponent < Component
             % operation between different regions in the 1st and 2nd image
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 3 5]);
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',true);
-            if ~all(size(IB(1).Image)==[3 2])
-                error('Problem with output size in funBinary');
-            end
+            assert(all(size(IB(1).Image)==[3 2],  'Problem with output size in funBinary');
+            
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',false);
-            if ~all(size(IB(1).Image)==size(IC(1).Image))
-                error('Problem with output size in funBinary');
-            end
+            assert(all(size(IB(1).Image)==size(IC(1).Image)), 'Problem with output size in funBinary');
+            
             
             % operate against a scalar for each image
             R   = funBinary([IC1, IC2],[1 3],@plus,'CreateNewObj',true);

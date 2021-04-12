@@ -12,6 +12,7 @@ classdef Configuration < dynamicprops
     properties (SetAccess = public)
         ConfigName      % Optional name for the entire configuration
         Path            % Path of configuration files
+        Data struct = struct()
     end
     
     %-------------------------------------------------------- 
@@ -38,6 +39,30 @@ classdef Configuration < dynamicprops
         end
         
         
+%         function Prop = createProp(Obj, FileName)
+%             parts = split(FileName, '.');
+%             parent = Obj.Data;
+%             for i = 1:numel(parts)
+%                 if i==1
+%                     Obj.Data.(parts{i})
+%                 if i==numel(parts)
+%                     Obj.Data.(parts{i}) = [];
+%                 else
+%                     Obj.Data.
+%                     parent.(parts{i}) = struct();
+%                 end
+%                 
+%                     
+% %                 part = parts{i};
+% %                 parent.(part) = struct();
+% %                 parent = parent.(part);
+% %                 parent.tmp = 0;
+%             end
+%             Prop = parent;
+%             Obj.Data = Prop;
+%         end
+        
+        
         function loadFile(Obj, FileName)
             % Load specified file to property            
             
@@ -45,12 +70,16 @@ classdef Configuration < dynamicprops
                 [~, name, ~] = fileparts(FileName);
                 PropName = name;
                 if isprop(Obj, PropName)
+                %if isfield(Obj.Data, PropName)
                     io.msgLog(LogLevel.Warning, 'Property already exist: %s', PropName);
                 else
-                    io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);
+                    io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);                    
                     Obj.addprop(PropName);
                 end
                 Yml = Configuration.loadYaml(FileName);
+                %Prop = Obj.createProp(PropName);
+                %Prop = Yml;
+                Obj.Data.(PropName) = Yml;
                 Obj.(PropName) = Yml;
             catch
                 io.msgLog(LogLevel.Error, 'loadFile: Exception: %s', FileName);
