@@ -916,7 +916,7 @@ classdef ImageComponent < Component
             
             Size = [2 2];
             IC = ImageComponent(Size);
-            assert(all(size(IC) == Size, 'ImageComponent size is not consistent');
+            assert(all(size(IC) == Size), 'ImageComponent size is not consistent');
             
             Npix  = 10;
             IC = ImageComponent({rand(Npix,Npix), rand(2,2)});
@@ -959,7 +959,7 @@ classdef ImageComponent < Component
             
             % R = IC + IC
             R = IC.funBinary(IC, @plus, 'CreateNewObj', true);
-            assert(all(R.Image-2.*IC(1).Image) == 0, 'all'), 'funBinary');
+            assert(all(R.Image-2.*IC(1).Image == 0, 'all'), 'funBinary');
             
             % R = IC + copy(IC)
             IC3 = IC.copyObject;
@@ -981,7 +981,7 @@ classdef ImageComponent < Component
             % operation between different regions in the 1st and 2nd image
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 3 5]);
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',true);
-            assert(all(size(IB(1).Image)==[3 2],  'Problem with output size in funBinary');
+            assert(all(size(IB(1).Image)==[3 2]),  'Problem with output size in funBinary');
             
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',false);
             assert(all(size(IB(1).Image)==size(IC(1).Image)), 'Problem with output size in funBinary');

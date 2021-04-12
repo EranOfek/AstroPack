@@ -11,7 +11,7 @@ classdef Component < Base
         Name                    % Name string
         Owner                   % Indicates the component that is responsible for streaming and freeing this component
         Tag                     % Optional tag (i.e. for events handling)
-        Config configuration    % Configuration, deafult is system configuration
+        Config Configuration    % Configuration, deafult is system configuration
         Log LogFile             % Logger, default is system logger
     end
     

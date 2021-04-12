@@ -14,17 +14,18 @@ classdef LogFile < handle
     properties (SetAccess = public)
         FileName
         UserData
-        LogPath = "C:\\_Ultrasat\\log";
+        LogPath = ''; %"C:\\_Ultrasat\\log";
     end
     
     %-------------------------------------------------------- 
     methods
-        % Constructor    
+        
         function Obj = LogFile(FileName)
-            if isempty(FileName)
+            % Constructor for LogFile
+            
+            arguments
                 FileName = 'Default';
             end
-            
             fn = sprintf('%s-%s.log', Obj.getFileNameTimestamp(), FileName);
             Obj.FileName = fullfile(Obj.LogPath, fn);
             Obj.write('=========================================== Started');
