@@ -10,9 +10,9 @@ classdef Configuration < dynamicprops
     
     % Properties
     properties (SetAccess = public)
-        ConfigName      % Optional name for the entire configuration
-        Path            % Path of configuration files
-        Data struct = struct()
+        ConfigName              % Optional name for the entire configuration
+        Path                    % Path of configuration files
+        Data struct = struct()  % Initialize empty struct, all YML files are added here in tree structure
     end
     
     %-------------------------------------------------------- 
@@ -39,30 +39,6 @@ classdef Configuration < dynamicprops
         end
         
         
-%         function Prop = createProp(Obj, FileName)
-%             parts = split(FileName, '.');
-%             parent = Obj.Data;
-%             for i = 1:numel(parts)
-%                 if i==1
-%                     Obj.Data.(parts{i})
-%                 if i==numel(parts)
-%                     Obj.Data.(parts{i}) = [];
-%                 else
-%                     Obj.Data.
-%                     parent.(parts{i}) = struct();
-%                 end
-%                 
-%                     
-% %                 part = parts{i};
-% %                 parent.(part) = struct();
-% %                 parent = parent.(part);
-% %                 parent.tmp = 0;
-%             end
-%             Prop = parent;
-%             Obj.Data = Prop;
-%         end
-        
-        
         function loadFile(Obj, FileName)
             % Load specified file to property            
             
@@ -74,13 +50,13 @@ classdef Configuration < dynamicprops
                     io.msgLog(LogLevel.Warning, 'Property already exist: %s', PropName);
                 else
                     io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);                    
-                    Obj.addprop(PropName);
+                    %Obj.addprop(PropName);
                 end
                 Yml = Configuration.loadYaml(FileName);
-                %Prop = Obj.createProp(PropName);
-                %Prop = Yml;
-                Obj.Data.(PropName) = Yml;
-                Obj.(PropName) = Yml;
+                
+                % When name contains dots, create tree of structs (i.e. 'x.y.z')
+                s = sprintf('Obj.Data.%s=Yml', name);
+                eval(s);
             catch
                 io.msgLog(LogLevel.Error, 'loadFile: Exception: %s', FileName);
             end
