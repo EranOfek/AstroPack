@@ -13,6 +13,8 @@ classdef ImageComponent < Component
         Scale {mustBeNumeric(Scale)} = [];      %
         ScaleMethod = 'lanczos3';               %
         
+        CCDSEC                       = [];      % [Xmin, Xmax, Ymin, Ymax] from previous image. [] - unknown or full
+        
         %DataProp cell = {'Data'};              % a cell of properties on which the fun_* methods will be applied
         FileName                     = '';      % @FFU
         Virt VirtImage                          % Actual image data
@@ -167,6 +169,7 @@ classdef ImageComponent < Component
                 
         function Result = funUnary(Obj, Operator, Args)
             % funUnary on ImageComponent
+            %       Update CCDSEC accordingly.
             % Input  : - An ImageComponent object (multi elemenets supported).
             %          - Unary operator (e.g., @median, @sin)
             %          * ...,key,val,...
@@ -241,6 +244,7 @@ classdef ImageComponent < Component
                     else
                         if Args.OutOnlyCCDSEC
                             Result(Iobj).(Args.DataPropOut) = Tmp;
+                            Result(Iobj).CCDSEC             = Args.CCDSEC;
                         else
                             Result(Iobj).(Args.DataPropOut)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = Tmp;
                         end
@@ -252,6 +256,7 @@ classdef ImageComponent < Component
         
         function Result = funBinary(Obj1, Obj2, Operator, Args)
             % Apply a binary operator to ImageComponent objects
+            %       CCDSEC is updated according to CCDSEC1.
             % Input  : - The 1st ImageComponent object.
             %            Number of elements must be equal or larger than
             %            the number of elements in the 2nd input.
@@ -393,6 +398,7 @@ classdef ImageComponent < Component
                     if Args.OutOnlyCCDSEC
                         Result(Ires).(Args.DataPropOut) = [];
                         Result(Ires).(Args.DataPropOut) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)), Tmp, Args.OpArgs{:});
+                        Result(Ires).CCDSEC             = Args.CCDSEC1;
                     else
                         Result(Ires).(Args.DataPropOut)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)), Tmp, Args.OpArgs{:});
                     end                    
@@ -643,6 +649,7 @@ classdef ImageComponent < Component
        
         function Result = imrotate(Obj, RotationAng, Args)
             % Apply imrotate (image rotation) in ImageComponent object
+            %       Set CCDSEC to [].
             % Input  : - An ImageComponent object.
             %          - Rotation angle [deg]. 
             %          * ...,key,val,...
@@ -679,6 +686,7 @@ classdef ImageComponent < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 Result(Iobj).(Args.DataProp) = imrotate(Obj(Iobj).(Args.DataProp), RotationAng, Args.Method, Args.BBox);
+                Result(Iobj).CCDSEC          = [];
             end
             
         end
@@ -691,6 +699,7 @@ classdef ImageComponent < Component
             % Crop an ImageComponent object. Either apply multiple trims to
             %       a single image, or a single trime to multiple images,
             %       or multiple trims to multiple images (one to one).
+            %       Update also the CCDSEC propery.
             % Input  : - An ImageComponent object. 
             %          - Either [minX, maxX, minY, maxY] (Type='ccdsec')
             %            or [Xcenter, Ycenter, Xhalfsize, Yhalfsize] (Type = 'center')
@@ -724,7 +733,8 @@ classdef ImageComponent < Component
                     Iobj = min(Imax, Nobj);
                     Isec = min(Imax, Nsec);
                     
-                    Result(Imax).Data = imUtil.image.trim(Obj(Iobj).Data, CCDSEC(Isec,:), Args.Type);
+                    Result(Imax).Data   = imUtil.image.trim(Obj(Iobj).Data, CCDSEC(Isec,:), Args.Type);
+                    Result(Imax).CCDSEC = CCDSEC;
                 end
             else
                 error('crop function works on a single ImageComponent, or a single CCDSEC or number of images equal to number of sections');
@@ -793,8 +803,9 @@ classdef ImageComponent < Component
             Nsub   = numel(Sub);
             Result = ImageComponent([1,Nsub]);
             for Isub=1:1:Nsub
-                Result(Isub).Data  = Sub.Im;
-                Result(Isub).Scale = [];
+                Result(Isub).Data   = Sub.Im;
+                Result(Isub).Scale  = [];
+                Result(Isub).CCDSEC = EdgesCCDSEC(Isub,:);
             end
             
         end
