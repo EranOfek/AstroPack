@@ -1,16 +1,18 @@
-
+% 
 classdef ImageComponent < Component
+    % Parent class for all images
+    
     properties (Dependent)
         Image                                   % return the rescaled image
     end
     
     properties (SetAccess = public)
-        Data                                    % e.g., Image matrix
+        Data                                    % e.g., usually Image matrix
         Scale {mustBeNumeric(Scale)} = [];      %
         ScaleMethod = 'lanczos3';               %
         
         %DataProp cell = {'Data'};              % a cell of properties on which the fun_* methods will be applied
-        FileName                     = '';
+        FileName                     = '';      % @FFU
         Virt VirtImage                          % Actual image data
         
         % Storage 
@@ -89,12 +91,12 @@ classdef ImageComponent < Component
         end % end ImageComponent
     end
     
-    % 
+    
     methods % getters/setters
         function Result = get.Image(Obj)
             % getter for Image (rescale Data)
             
-            Result = imresize(Obj,[],'UpdateObj',false,'Method',Obj.ScaleMethod);
+            Result = imresize(Obj, [], 'UpdateObj', false, 'Method', Obj.ScaleMethod);
         end
         
         function set.Image(Obj, ImageData)
@@ -157,7 +159,7 @@ classdef ImageComponent < Component
             %          * ...,key,val,...
             %            'OpArgs' - A cell array of additional arguments to
             %                   pass to the operator. Default is {}.
-            %            'CreateNewObj' - Logical indicatinf if the output
+            %            'CreateNewObj' - Logical indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false)
             %                   Default is false (i.e., input object will
@@ -900,44 +902,56 @@ classdef ImageComponent < Component
             
             Size = [2 2];
             IC = ImageComponent(Size);
-            if ~all(size(IC)==Size)
-                error('ImageComponent size is not consistent');
-            end
+            assert(all(size(IC) == Size, 'ImageComponent size is not consistent');
+            
             Npix  = 10;
             IC = ImageComponent({rand(Npix,Npix), rand(2,2)});
             Scale = 5;
             IC = ImageComponent({rand(Npix,Npix), rand(2,2)},'Scale',Scale);
-            if ~all(size(IC(1).Data)==[Npix Npix])
-                error('Image data is not consistent');
-            end
-            if ~all(size(IC(1).Image)==[Npix Npix].*Scale)
-                error('Image rescaling is not consistent');
-            end
+            assert(all(size(IC(1).Data)==[Npix Npix]), 'Image data is not consistent');            
+            assert(all(size(IC(1).Image)==[Npix Npix].*Scale), 'Image rescaling is not consistent');
             
+            % Read all FITS files
             IC = ImageComponent('*.fits');
             
-            % size and empty
-            
+            % size and empty            
             IC = ImageComponent({rand(0,1), rand(10,12)});
             [Nx, Ny] = IC.sizeImage;
-            isemptyImage(IC);
+            Res = IC.isemptyImage();
+            assert(all(Res == [1, 0]));
             
             % funUnary
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
-            IC.funUnary(@sin);
+            R = IC.funUnary(@sin);
+            
+            % funUnaryScalar
+            IC = ImageComponent({ones(10,10), zeros(5,4)}, 'Scale',5);
+            R = IC.funUnary(@sin);
+            assert(all(R == sin([1, 0])), 'funUnarry(@sin) failed');
+            
             IC.funUnary(@median,'OpArgs',{'all','omitnan'});
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
-            IC.funUnary(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
+            IC.funUnary(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]); % CCDSEC=[1 2  1 3]
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
             IC.funUnary(@tanh,'CCDSEC',[1 2 1 3]);
             IC.funUnary(@tanh,'CCDSEC',[1 2 1 3],'OutOnlyCCDSEC',true);
                  
             % funBinary
-            IC  = ImageComponent({rand(10,10)});
-            R   = funBinary(IC,IC.copyObject,@plus,'CreateNewObj',true);
-            if ~all(abs(R.Image-2.*IC(1).Image)<1e-8,'all')
-                error('')
-            end
+            IC = ImageComponent({tools.rand.utrandi(10, 10)});
+            IC2 = ImageComponent({tools.rand.utrandi(10,10)});
+            
+            % IC += IC2
+            IC.funBinary(IC2, @plus, 'CreateNewObj', false);
+            
+            % R = IC + IC
+            R = IC.funBinary(IC, @plus, 'CreateNewObj', true);
+            assert(all(R.Image-2.*IC(1).Image) == 0, 'all'), 'funBinary');
+            
+            % R = IC + copy(IC)
+            IC3 = IC.copyObject;
+            R = IC.funBinary(IC3, @plus, 'CreateNewObj',true);
+            
+            
             R   = funBinary([IC,IC],1,@plus,'CreateNewObj',true);
             IC1 = ImageComponent({rand(2,2)});
             IC2 = ImageComponent({rand(2,2)});
@@ -949,6 +963,7 @@ classdef ImageComponent < Component
             IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5);
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true);
             IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5);
+            
             % operation between different regions in the 1st and 2nd image
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 3 5]);
             IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true, 'CCDSEC1',[2 3 2 4],'CCDSEC2',[2 3 2 4],'OutOnlyCCDSEC',true);
@@ -959,6 +974,7 @@ classdef ImageComponent < Component
             if ~all(size(IB(1).Image)==size(IC(1).Image))
                 error('Problem with output size in funBinary');
             end
+            
             % operate against a scalar for each image
             R   = funBinary([IC1, IC2],[1 3],@plus,'CreateNewObj',true);
             if ~all(abs(R(1).Image - IC1.Image - 1)<1e-8,'all') || ~all(abs(R(2).Image - IC2.Image - 3)<1e-8,'all')
@@ -986,17 +1002,11 @@ classdef ImageComponent < Component
             images2cube(IC,'CCDSEC',[1 2 2 4]);
             IC=ImageComponent({ones(5,5),2.*ones(7,7),3.*ones(8,8)},'Scale',5);
             Cube = images2cube(IC,'CCDSEC',[1 2 2 4]);
+            
             % shift and stack using the CCDSEC atgument
-            images2cube(IC,'CCDSEC',[1 2 2 4; 1 2 2 4; 2 3 3 5]);
+            images2cube(IC,'CCDSEC',[1 2 2 4; 1 2 2 4; 2 3 3 5]);            
             
-            
-            Result = true;
-            
-        end
-        
-    end
-    
+            Result = true;            
+        end        
+    end    
 end
-
-
-

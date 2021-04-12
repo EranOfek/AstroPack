@@ -4,6 +4,8 @@
 %--------------------------------------------------------------------------
 
 classdef Base < handle
+    % Base class for all objects 
+    
     % Properties
     properties (SetAccess = public)
         UserData    % Optional user data (any type)
@@ -39,6 +41,7 @@ classdef Base < handle
             end
                 
             if Args.DeepCopy
+                % Copy using serializing/deserializing (@FFU - Is there better/faster way?)                
                 ObjByteArray = getByteStreamFromArray(Obj);
                 NewObj       = getArrayFromByteStream(ObjByteArray);
             else
@@ -55,26 +58,26 @@ classdef Base < handle
         end
         
         
-        function Obj2 = copyProp(Obj1, Obj2, PropList)
+        function Obj2 = copyProp(Obj, Target, PropList)
             % Copy the content of properties from object1 into object2.
             % Input  : - Obj1 (from which to copy)
             %          - Obj2
-            %          - A cell array or a string array of properties to
-            %            copy.
+            %          - A cell array or a string array of properties to copy.
             % Output : - Obj2
             % Author : Eran Ofek (Apr 2021)
             % Example: Obj2 = copyProp(Obj1, Obj2, {'UserData'})
            
+            % Convert to cellarray
             if ischar(PropList)
                 PropList = {PropList};
             end
             Nprop = numel(PropList);
-            Nobj1 = numel(Obj1);
-            Nobj2 = numel(Obj2);
-            for Iobj2=1:1:Nobj2
+            Nobj1 = numel(Obj);
+            Nobj2 = numel(Target);
+            for Iobj2 = 1:1:Nobj2
                 Iobj1 = min(Iobj2, Nobj1);
                 for Iprop=1:1:Nprop
-                    Obj2(Iobj2).(PropList{Iprop}) = Obj1(Iobj1).(PropList{Iprop});
+                    Target(Iobj2).(PropList{Iprop}) = Obj(Iobj1).(PropList{Iprop});
                 end
             end
         end
@@ -85,12 +88,19 @@ classdef Base < handle
         
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'Base test started');
+            
+            % Test copyObject()
             a = Base();
             a.UserData = 123;            
             b = a.copyObject();
             assert(a.UserData == b.UserData);
             b.UserData = 0;
             assert(a.UserData ~= b.UserData);
+            
+            % Test copyProp()
+            c = Base();
+            a.copyProp(c, {'UserData'});
+            assert(a.UserData == c.UserData);
             
             io.msgLog(LogLevel.Test, 'Base test passed');
             Result = true;
