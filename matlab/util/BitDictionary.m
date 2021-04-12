@@ -107,7 +107,7 @@ classdef BitDictionary < handle
     end
     
     methods % conversions
-        function [BitName,BitDescription,BitInd]=bitind_to_name(Obj,BitVal,Args)
+        function [BitName,BitDescription,BitInd]=bitind2name(Obj,BitVal,Args)
             % Convert an array of bit indices to bit names
             % Input  : - A single element BitDictionary object
             %          - An array of bit indices (i.e., the running number of the
@@ -122,7 +122,7 @@ classdef BitDictionary < handle
             %          - An array of the input bit values, but with NaN if
             %            the bit index is out of range.
             % Author : Eran Ofek (Mar 20201)
-            % Example: [BitName,BitDescription,BitInd]=bitind_to_name(Obj,[1 4;7 12])
+            % Example: [BitName,BitDescription,BitInd]=bitind2name(Obj,[1 4;7 12])
             
             arguments
                 Obj(1,1)
@@ -154,7 +154,7 @@ classdef BitDictionary < handle
             end
         end
        
-        function [BitName,BitDescription,BitInd]=bitdec_to_name(Obj,DecVal)
+        function [BitName,BitDescription,BitInd]=bitdec2name(Obj,DecVal)
             % Convert decimal numbers to bit names and indices
             % Input  : - A single element BitDictionary object.
             %          - An array of decimal values (DecVal).
@@ -163,7 +163,7 @@ classdef BitDictionary < handle
             %            the input DecVal array.
             %          - A cell array of cell array of bit descritions.
             %          - A cell array of bit indices.
-            % Example: [BitName,BitDesc,BitInd]=bitdec_to_name(Obj,[3,1,2^11+7; 1 1 1])
+            % Example: [BitName,BitDesc,BitInd]=bitdec2name(Obj,[3,1,2^11+7; 1 1 1])
             
             arguments
                 Obj(1,1)
@@ -184,7 +184,7 @@ classdef BitDictionary < handle
 
         end
         
-        function [BitInd,BitDec,SumBitDec,BitDescription]=name_to_bit(Obj,BitName)
+        function [BitInd,BitDec,SumBitDec,BitDescription]=name2bit(Obj,BitName)
             % Convert bit names to bit indices and decimal representation
             % Input  : - A single element BitDictionary object.
             %          - A string or a cell array of strings containing but
@@ -195,7 +195,7 @@ classdef BitDictionary < handle
             %          - The sum of bits decimal representations.
             %          - A cell array of bit descriptions.
             % Author : Eran Ofek (Mar 20201)
-            % Example: [BitInd,BitDec,SumBitDec,BitDescription]=name_to_bit(Obj,{'Spike','DeadPix'})
+            % Example: [BitInd,BitDec,SumBitDec,BitDescription]=name2bit(Obj,{'Spike','DeadPix'})
             
             arguments
                 Obj(1,1)
@@ -234,10 +234,11 @@ classdef BitDictionary < handle
     
     
     
-    methods % unit Test
-        function unitTest(Obj)
+    methods (Static) % unit Test
+        function Result = unitTest(Obj)
             %
         
+            Obj = BitDictionary;
             Tbl = cell2table({'Saturation', 'Saturated pixel', 0; ...
                               'DeadPix',    'Pixel level at Flat is low', 1; ...
                               'NoisyPix',   'High noise in dark image', 3;...
@@ -247,11 +248,13 @@ classdef BitDictionary < handle
             Obj.Dic = Tbl;
             
             
-            [BitName,BitDescription,BitInd]=bitind_to_name(Obj,[0 1 17])
+            [BitName,BitDescription,BitInd]=bitind2name(Obj,[0 1 17]);
             
-            [BitName,BitDesc,BitInd]=bitdec_to_name(Obj,[3,1,2^11+7; 1 1 1])
+            [BitName,BitDesc,BitInd]=bitdec2name(Obj,[3,1,2^11+7; 1 1 1]);
             
-            [BitInd,BitDec,SumBitDec,BitDescription]=name_to_bit(Obj,{'Spike','DeadPix'})
+            [BitInd,BitDec,SumBitDec,BitDescription]=name2bit(Obj,{'Spike','DeadPix'});
+            
+            Result = true;
         end
     end
     
