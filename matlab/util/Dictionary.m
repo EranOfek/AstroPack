@@ -10,7 +10,7 @@ classdef Dictionary < Component
         FieldNames cell           = {};
     end
     properties
-        Name char                 = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
+        DictName char             = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
         %Family char               = '';   % Dictionary Family
         Dict(1,1) struct          = struct(); % Primary = {list of alternate names}
         Conversion
@@ -22,18 +22,18 @@ classdef Dictionary < Component
             % Input  : Dictionary file name to load. Default is ''.
             
             arguments
-                Args.Name char                 % search by Dictionary name
-                Args.Family char               % search bt Dictionary family
+                Args.DictName char               % search by Dictionary name
+                Args.Family char                 % search bt Dictionary family
                 Args.NewDict             = []; 
                 Args.NewConversion       = [];
             end
            
             if ~isempty(Args.NewDict)
                 % set a new dictionary
-                if isempty(Args.Name) || isempty(Args.Family)
+                if isempty(Args.DictName) || isempty(Args.Family)
                     error('When setting a new Dictionary name and family must be provided');
                 end
-                Obj.Name       = Args.Name;
+                Obj.DictName   = Args.DictName;
                 Obj.Family     = Args.Family;
                 Obj.Dict       = Args.NewDict;
                 Obj.Conversion = Args.NewConversion;
@@ -41,7 +41,7 @@ classdef Dictionary < Component
                 % search existing dictionary
                 
                 % stab:
-                switch Args.Name
+                switch Args.DictName
                     case 'Header.Synonyms.KeyNames'
                         
                         St.EXPTIME = {'AEXPTIME', 'EXPTIME','EXPOSURE'};
@@ -50,7 +50,7 @@ classdef Dictionary < Component
                         St.OBSLON  = {'OBSLON', 'LON','GEOLON','GEODLON','LONG'};
                         St.OBSLAT  = {'OBSLAT', 'LAT','GEOLAT','GEODLAT'};
                         St.DATEOBS = {'DATEOBS','DATE-OBS'};
-                        Obj.Name   = Args.Name;
+                        Obj.DictName   = Args.DictName;
                         Obj.Dict   = St;
                         Obj.Conversion = [];
                     case 'Header.Synonyms.KeyVal.IMTYPE'
@@ -61,10 +61,10 @@ classdef Dictionary < Component
                         St.Focus   = {'Focus','foc'};
                         St.Arc     = {'Arc'};
                         St.Fringe  = {'Fringe'};
-                        Obj.Name   = Args.Name;
+                        Obj.DictName   = Args.DictName;
                     case 'Header.Comments.Default'
                         % List of default comments for header keywords
-                        Obj.Name   = Args.Name;
+                        Obj.DictName   = Args.DictName;
                         St.NAXIS   = {'Number of dimensions'};
                         St.NAXIS1  = {'Length of axis 1 (X)'};
                         St.NAXIS2  = {'Length of axis 2 (Y)'};
@@ -128,7 +128,7 @@ classdef Dictionary < Component
                         
                         
                     otherwise
-                        Obj.Name       = Args.Name;
+                        Obj.DictName   = Args.DictName;
                         Obj.Dict       = struct();
                         Obj.Conversion = [];
                         %error('Unknown Dictionary name');
@@ -143,18 +143,18 @@ classdef Dictionary < Component
     end
     
     methods % setters/getters
-        function set.Name(Obj,Val)
+        function set.DictName(Obj,Val)
             % set Dictionary name and load it
             
             % search the dictionary
-            Obj.Name = Val;
+            Obj.DictName = Val;
             %Obj.Dict = 
             %Obj.Conversion = 
         end
         
         function Result = get.NameParts(Obj)
             % getter for NameParts - split names by '.'
-            Result = strsplit(Obj.Name,'.');
+            Result = strsplit(Obj.DictName,'.');
         end
         
         function Result = get.LastNamePart(Obj)

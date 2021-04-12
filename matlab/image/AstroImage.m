@@ -19,6 +19,7 @@ classdef AstroImage < Component
         Var
         Mask 
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
+        Key
         Cat     % e.g., Cat, Cat([1 3]), Cat('RA'), Cat({'RA','Dec'})
         PSF
         %WCS
@@ -38,12 +39,27 @@ classdef AstroImage < Component
         PSFData(1,1) AstroPSF
         WCS(1,1)   % not ready: AstroWCS
         
+        PropagateErr(1,1) logical          = false;
+    end
+    
+    properties (Hidden, Constant)
+        % set the relation between the Dependent prop and the data prop
+        Relations   = struct('Image','ImageData',...
+                             'Back','BackData',...
+                             'Var','VarData',...
+                             'Mask','MaskData');
+        
+        
     end
     
     methods % Constructor
        
         function Obj = AstroImage(AnotherObj,Args)
             %
+            
+            % this is here for testing only
+            Obj.ImageData  = SciImage({rand(100,100)});
+            Obj.HeaderData.Data = {'EXPTIME',1,'';'FILTER','R',''}; 
             
 %             arguments
 %                 AnotherObj            = [1 1];
@@ -61,6 +77,7 @@ classdef AstroImage < Component
     methods % Setters/Getters
         function Obj = set.Image(Obj, Data)
             % setter for Image - store image in ImageData property
+            %Obj.(Relations.Image).Image = Data;  % can use this instead
             Obj.ImageData.Image = Data;
         end
         
@@ -79,11 +96,68 @@ classdef AstroImage < Component
             Data = Obj.BackData.Image;
         end
         
+        function Obj = set.Var(Obj, Data)
+            % setter for VarImage
+            Obj.VarData.Image = Data;
+        end
+        
+        function Data = get.Var(Obj)
+            % getter for VarImage
+            Data = Obj.VarData.Image;
+        end
+        
+        function Obj = set.Mask(Obj, Data)
+            % setter for MaskImage
+            Obj.MaskData.Image = Data;
+        end
+        
+        function Data = get.Mask(Obj)
+            % getter for MaskImage
+            Data = Obj.MaskData.Image;
+        end
+        
+        function Data = get.Header(Obj)
+            % getter for Header
+            Data = Obj.HeaderData.Data;
+        end
+        
+        function Data = get.Key(Obj)
+            % getter for Header keys
+            Data = Obj.HeaderData.Key;
+        end
+        
+        
         
     end
     
     methods (Static)  % static methods
        
+    end
+    
+    methods % translate Data property names
+        function DataName = translateDataPropName(Obj, DataProp)
+            % translate the Data propert names (e.g., 'Image' -> 'ImageData')
+            % Output : - A cell array of Data property names.;
+            % Example: AI.translateDataPropName('Var')
+            %          AI.translateDataPropName({'Back','Var'})
+            
+            if ischar(DataProp)
+                DataProp = {DataProp};
+            end
+            
+            Nprop    = numel(DataProp);
+            DataName = cell(1,Nprop);
+            for Iprop=1:1:Nprop
+                if isfield(Obj(1).Relations,DataProp{Iprop})
+                    DataName{Iprop} = Obj(1).Relations.(DataProp{Iprop});
+                else
+                    % do not translate - return as is
+                    DataName{Iprop} = DataProp{Iprop};
+                    %error('Requested DataProp: %s - can not be translated into valid data property name',DataProp{Iprop});
+                end
+            end
+            
+        end
     end
     
     methods % empty and size
@@ -155,7 +229,74 @@ classdef AstroImage < Component
     end
     
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
-        function Result = funUnary(Obj, Operator, Args)
+        
+        function funUnary(Obj, Operator, Args)
+            %
+            
+            arguments
+                Obj
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CreateNewObj(1,1) logical  = false;
+                Args.CCDSEC                     = [];
+                Args.OutOnlyCCDSEC(1,1) logical = false;
+                Args.DataPropIn                 = {'Image','Back','Var'};  % should not operate on Mask
+                Args.DataPropOut                = {};
+                Args.ImCompDataPropIn           = 'Data';
+                Args.ImCompDataPropOut          = 'Data';
+            end
+        
+            if isempty(Args.DataPropOut)
+                Args.DataPropOut = Args.DataPropIn;
+            end
+            % translate all the requested property names to "Data"
+            % properties
+            Args.DataPropIn  = translateDataPropName(Obj(1), Args.DataPropIn);
+            Args.DataPropOut = translateDataPropName(Obj(1), Args.DataPropOut);
+            
+            
+            Nobj  = numel(Obj);
+            Nprop = numel(Args.DataPropIn);
+            for Iobj=1:1:Nobj
+                for Iprop=1:1:Nprop
+                    % Note that operating unary fun on Mask should do nothing.
+                    % but this is the user responsibilty not to include
+                    % 'Mask' in the DataProp...
+                    if ~isa(Obj(Iobj).(Args.DataPropIn{Iprop}), 'ImageComponent')
+                        if Obj(Iobj).PropagateErr
+                            % perform error propagation
+                            
+                            
+                            
+                            
+                            
+                            
+                        else
+                            funUnary(Obj(Iobj).(Args.DataPropIn{Iprop}), Operator, 'OpArgs',Args.OpArgs,...
+                                                                               'CreateNewObj',Args.CreateNewObj,...
+                                                                               'CCDSEC',Args.CCDSEC,...
+                                                                               'OutOnlyCCDSEC',Args.OutOnlyCCDSEC,...
+                                                                               'DataPropIn',Args.ImCompDataPropIn,...
+                                                                               'DataPropOut',Args.ImCompDataPropOut);
+                        end
+                    else
+                        error('funUnary must operate on an ImageComponent element');
+                    end
+                end
+                
+                % update Header
+                
+                
+                % Do not modify: Cat, PSF, WCS
+                
+                
+            end
+            
+        
+        end
+            
+        
+        function Result = fun__Unary(Obj, Operator, Args)
             % Apply an unary function on AstroImage data
             % Input  : - An AstroImage object
             %          - Operator (e.g., @tan, @std)

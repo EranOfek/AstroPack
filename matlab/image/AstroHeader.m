@@ -14,10 +14,10 @@ classdef AstroHeader < handle %< Component
         File                      = '';
         HDU                       = ''; % HDU or dataset
         
-        KeyDict Dictionary        = Dictionary('Name','Header.Synonyms.KeyNames');
-        ValDict Dictionary        = Dictionary('Name','Header.Synonyms.KeyVal.IMTYPE');
-        CommentDict Dictionary    = Dictionary('Name','Header.Comments.Default');
-        TimeDict Dictionary       = Dictionary('Name','Header.Time.KeyNames');
+        KeyDict Dictionary        = Dictionary('DictName','Header.Synonyms.KeyNames');
+        ValDict Dictionary        = Dictionary('DictName','Header.Synonyms.KeyVal.IMTYPE');
+        CommentDict Dictionary    = Dictionary('DictName','Header.Comments.Default');
+        TimeDict Dictionary       = Dictionary('DictName','Header.Time.KeyNames');
     end
     properties (Hidden, SetAccess=private)
         IsKeyUpToDate(1,1) logical    = true;
