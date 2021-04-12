@@ -4,20 +4,28 @@
 %--------------------------------------------------------------------------
 
 classdef Component < Base
+    % Parent class for all components
+    
     % Properties
     properties (SetAccess = public)
-        Config Configuration
-        %Log LogFile
+        Name                    % Name string
+        Owner                   % Indicates the component that is responsible for streaming and freeing this component
+        Tag                     % Optional tag (i.e. for events handling)
+        Config configuration    % Configuration, deafult is system configuration
+        Log LogFile             % Logger, default is system logger
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
         function Obj = Component()
+            % By default use system log and configuration
+            Obj.LogFile = MsgLogger.getSingle();
             Obj.Config = Configuration.getSingle();
         end
         
-        function msgLog(Obj, Level, varargin)            
+        function msgLog(Obj, Level, varargin)  
+            % Write message to log
             MsgLogger.msgLog(Level, varargin{:});
         end
     end

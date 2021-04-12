@@ -1,13 +1,15 @@
 
-
 classdef ImageIO < Component
+    % Read/write images, tables, headers from input file or stream
     properties
         File = '';
         HDU  = 1;
     end
+    
     properties (Dependent)
         Dataset
     end
+    
     properties
         Data    = [];
         Header  = cell(0,3);
@@ -17,6 +19,7 @@ classdef ImageIO < Component
     properties % parameters
         FileType     = [];  % auto
     end
+    
     properties (SetAccess = private)
         IsData(1,1) logical      = false;
         IsHeader(1,1) logical    = false;
