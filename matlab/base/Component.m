@@ -20,13 +20,13 @@ classdef Component < Base
         % Constructor    
         function Obj = Component()
             % By default use system log and configuration
-            Obj.LogFile = MsgLogger.getSingle();
+            %Obj.LogFile = MsgLogger.getSingle();
             Obj.Config = Configuration.getSingle();
         end
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
-            MsgLogger.msgLog(Level, varargin{:});
+            %MsgLogger.msgLog(Level, varargin{:});
         end
     end
     
