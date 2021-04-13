@@ -98,6 +98,7 @@ classdef MsgLogger < handle
             MsgLogger.msgLog(LogLevel.None, 'Test: %d', uint32(LogLevel.None));
             
             fprintf('MsgLogger test passed\n');
+            Result = true;
         end
     end
     
