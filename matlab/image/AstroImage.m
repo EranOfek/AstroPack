@@ -532,9 +532,11 @@ classdef AstroImage < Component
             % Output : - An AstroImage object with the operator applied on
             %            the data.
             % Author : Eran Ofek (Apr 2021)
-            % Example: 
-
+            % Example: AI = AstroImage({10.*ones(10,10)},'Back',{ones(5,5)},'BackScale',2,'var',{ones(5,5)},'VarScale',2);
+            %          B=AI.funUnary(@sin,'CreateNewObj',true)
            
+            % B=AI.funUnary(@median,'OpArgs',{'all'})  % <--- BUG size of Var
+            
             arguments
                 Obj
                 Operator function_handle
@@ -562,8 +564,8 @@ classdef AstroImage < Component
                 
 %                 Args.DataPropIn                 = {'Image','Back','Var'};  % should not operate on Mask
 %                 Args.DataPropOut                = {};
-                Args.ImCompDataPropIn           = 'Data';
-                Args.ImCompDataPropOut          = 'Data';
+                Args.ImCompDataPropIn           = 'Image';   % don't change unless you understand
+                Args.ImCompDataPropOut          = 'Image';   % don't change unless you understand
             end
         
 %             if isempty(Args.DataPropOut)
@@ -583,12 +585,8 @@ classdef AstroImage < Component
             
             Nobj  = numel(Obj);
             for Iobj=1:1:Nobj
-                if Obj(Iobj).PropagateErr && Args.CalcVar
-                    % perform error propagation
-                    VarMat = Obj(Iobj).VarData.(Args.ImCompDataPropIn);
-                else
-                    VarMat = [];
-                end
+                
+                VarMat = Obj(Iobj).VarData.(Args.ImCompDataPropIn);
                 
                 % return background to image if needed
                 if Args.ReturnBack && Obj(Iobj).ImageData.IsBackSubtracted && ~isempty(Obj(Iobj).BackData.(Args.ImCompDataPropIn))
@@ -603,7 +601,8 @@ classdef AstroImage < Component
                                                                                        VarMat,...
                                                                                        'OpArgs',Args.OpArgs,...
                                                                                        'CCDSEC',Args.CCDSEC,...
-                                                                                       'OutOnlyCCDSEC',Args.OutOnlyCCDSEC);
+                                                                                       'OutOnlyCCDSEC',Args.OutOnlyCCDSEC,...
+                                                                                       'PropagateErr',Obj(Iobj).PropagateErr && Args.CalcVar);
                 
                 if Args.CalcImage                                                                 
                     if RetBack && Args.ReRemoveBack

@@ -13,6 +13,8 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
 %                   only the CCDSEC region. If false, note that the variance
 %                   will be calculated on the entire image.
 %                   Default is true.
+%            'PropagateErr' - A logical indicating if to propagate the
+%                   errors. Default is true.
 % Output : - The result of applying the operator to the matrix.
 %          - The result of applying the operator to the variance.
 %          - A matrix of logicals indicating if a resulted matrix value is
@@ -31,9 +33,10 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
         Operator 
         Mat          
         Var                             = [];
-        Args.OpArgs cell                 = {};
+        Args.OpArgs cell                = {};
         Args.CCDSEC                     = [];
         Args.OutOnlyCCDSEC(1,1) logical = true;
+        Args.PropagateErr(1,1) logical  = true;
     end
     
     FunH      = [];
@@ -52,53 +55,57 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
         end
     end
     
-    if isempty(Var)
+    if ~Args.PropagateErr
         % Variance is not provided
-        ResultVar = [];
+        ResultVar = Var;
         FlagBad   = [];
     else
-        switch func2str(Operator)
-            case 'sin'
-                ResultVar = Var.*cos(Mat).^2;
-            case 'cos'
-                ResultVar = Var.*sin(Mat).^2;
-            case 'tan'
-                ResultVar = Var.*sec(Mat).^2;
-            case 'log'
-                ResultVar = Var./(Mat.^2);
-            case 'log10'
-                ResultVar = Var./((log(10).*Mat).^2);
-            case 'sum'
-                if numel(Var)==1
-                    ResultVar = numel(Mat).*Var;
-                else
-                    ResultVar = Operator(Var, Args.OpArgs{:});
-                end
-            case 'mean'
-                if numel(Var)==1
-                    ResultVar = Var;
-                else
-                    ResultVar = Operator(Var, Args.OpArgs{:})./numel(Mat);
-                end
-            
-            otherwise
-                % Unknown unary operator option
-                % attempt to use symbolic math
-                syms x;
-                SymFun = eval(sprintf('diff(%s(x))', func2str(Operator)));
-                if SymFun==1
-                    error('Function derivative could not be found symbolically');
-                end
-                FunH   = matlabFunction(SymFun);
-                ResultVar = Var.*FunH(Mat);
-                warning('The variance was propagated using symbolic math - For speed consider adding this function to the list of built in functions');
+        if isempty(Var)
+            ResultVar = [];
+            FlagBad   = [];
+        else
+            switch func2str(Operator)
+                case 'sin'
+                    ResultVar = Var.*cos(Mat).^2;
+                case 'cos'
+                    ResultVar = Var.*sin(Mat).^2;
+                case 'tan'
+                    ResultVar = Var.*sec(Mat).^2;
+                case 'log'
+                    ResultVar = Var./(Mat.^2);
+                case 'log10'
+                    ResultVar = Var./((log(10).*Mat).^2);
+                case 'sum'
+                    if numel(Var)==1
+                        ResultVar = numel(Mat).*Var;
+                    else
+                        ResultVar = Operator(Var, Args.OpArgs{:});
+                    end
+                case 'mean'
+                    if numel(Var)==1
+                        ResultVar = Var;
+                    else
+                        ResultVar = Operator(Var, Args.OpArgs{:})./numel(Mat);
+                    end
+
+                otherwise
+                    % Unknown unary operator option
+                    % attempt to use symbolic math
+                    syms x;
+                    SymFun = eval(sprintf('diff(%s(x))', func2str(Operator)));
+                    if SymFun==1
+                        error('Function derivative could not be found symbolically');
+                    end
+                    FunH   = matlabFunction(SymFun);
+                    ResultVar = Var.*FunH(Mat);
+                    warning('The variance was propagated using symbolic math - For speed consider adding this function to the list of built in functions');
+            end
+
+            if nargout>2
+                %FlagBad = isinf(Mat) | isnan(Mat) | isnan(Var);
+                FlagBad = isnan(ResultVar) | isinf(Result) | isnan(Result);
+            end
         end
-        
-        if nargout>2
-            %FlagBad = isinf(Mat) | isnan(Mat) | isnan(Var);
-            FlagBad = isnan(ResultVar) | isinf(Result) | isnan(Result);
-        end
-        
     end
     
 end

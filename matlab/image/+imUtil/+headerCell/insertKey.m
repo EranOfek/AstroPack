@@ -40,6 +40,11 @@ function NewCell=insertKey(Cell,KeyVal,Pos)
     % complete columns
     KeyVal = [KeyVal, cell(SizeKeyVal(1), Ncol-SizeKeyVal(2))];
     
+    % if Cell is empty
+    if isempty(Cell)
+        Pos = 1;
+    end
+    
     if Pos==1
         NewCell = [KeyVal;Cell];
     elseif Pos==(Nline+1)
