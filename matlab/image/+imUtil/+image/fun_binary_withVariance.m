@@ -1,4 +1,4 @@
-function [Result,ResultVar,FlagBad]=fun_binary_withVariance(Operator, Mat1, Mat2, Var1, Var2, Cov12, OpArg)
+function [Result,ResultVar,FlagBad]=fun_binary_withVariance(Operator, Mat1, Mat2, Var1, Var2, Cov12, OpArgs)
 % Applay an operator on an array and its variance.
 % Input  : - Operator handle (e.g., @sin).
 %          - First array to apply to the left of the operator.
@@ -29,12 +29,12 @@ function [Result,ResultVar,FlagBad]=fun_binary_withVariance(Operator, Mat1, Mat2
         Var1          {mustBeNumeric(Var1)}  = [];
         Var2          {mustBeNumeric(Var2)}  = [];
         Cov12         {mustBeNumeric(Cov12)} = 0;
-        OpArg cell                           = {};
+        OpArgs cell                           = {};
     end
     
     %FunH      = [];
     
-    Result    = Operator(Mat1, Mat2, OpArg{:});
+    Result    = Operator(Mat1, Mat2, OpArgs{:});
     
     if (isempty(Var1) && isempty(Var2))
         % Variance is not provided

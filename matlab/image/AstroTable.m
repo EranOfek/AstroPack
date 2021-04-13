@@ -410,6 +410,21 @@ classdef AstroTable < Component %ImageComponent
             
         end
         
+        function Result = deleteCatalog(Obj)
+            % delete the content of an AstroTable object
+            % Example: Result = deleteCatalog(Obj)
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).Catalog   = [];
+                Obj(Iobj).ColNames  = {};
+                Obj(Iobj).ColUnits  = {};
+                Obj(Iobj).ColDesc   = {};
+                Obj(Iobj).SortByCol = [];
+                Obj(Iobj).IsSorted  = false;
+            end
+        end
+        
         function Result = isColumn(Obj,ColName)
             % Return true if a name is an existing column name in an AstroTable object
             % Example: Result = isColumn(Obj,'RA')

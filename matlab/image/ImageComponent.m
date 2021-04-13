@@ -189,6 +189,7 @@ classdef ImageComponent < Component
             %                   output include only the CCDSEC region, or
             %                   it is the full image (where the opeartor,
             %                   operated only on the CCDSEC region).
+            %                   Default is true.
             %            'DataPropIn' - Data property in which the operator
             %                   will be operated. Default is 'Data'.
             %            'DataPropOut' - Data property in which the result
@@ -211,7 +212,7 @@ classdef ImageComponent < Component
                 Args.OpArgs cell                = {};
                 Args.CreateNewObj(1,1) logical  = false;
                 Args.CCDSEC                     = [];
-                Args.OutOnlyCCDSEC(1,1) logical = false;
+                Args.OutOnlyCCDSEC(1,1) logical = true;
                 Args.DataPropIn                 = 'Data';
                 Args.DataPropOut                = 'Data';
             end

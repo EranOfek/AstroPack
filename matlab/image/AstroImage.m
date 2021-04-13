@@ -57,8 +57,15 @@ classdef AstroImage < Component
         function Obj = AstroImage(AnotherObj,Args)
             %
             
+            
+            
+            
+            
+            
             % this is here for testing only
-            Obj.ImageData  = SciImage({rand(100,100)});
+            Obj.ImageData  = SciImage({300 + 10.*randn(100,100)});
+            Obj.VarData    = VarImage({10.*ones(100,100)});
+            Obj.BackData   = BackImage({300});
             Obj.HeaderData.Data = {'EXPTIME',1,'';'FILTER','R',''}; 
             
 %             arguments
@@ -230,64 +237,200 @@ classdef AstroImage < Component
     
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
         
-        function funUnary(Obj, Operator, Args)
-            %
-            
+        function Result = funUnary(Obj, Operator, Args)
+            % Apply an unary function on AstroImage object.
+            %       This include applying the function  on specific data
+            %       fields, and or image sections (CCDSEC), and error
+            %       propagation.
+            %       Note that error propgation is activated using the
+            %       AstroImage.PropagateErr property (default is false).
+            % Input  : - An AstroImage object (multi elements supported)
+            %          - Operator (function_handle) (e.g., @sin)
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CreateNewObj' - Logical indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false)
+            %                   Default is false (i.e., input object will
+            %                   be modified).
+            %            'CCDSEC' - CCDSEC on which to operate:
+            %                   [Xmin, Xmax, Ymin, Ymax].
+            %                   Use [] for the entire image.
+            %                   If not [], then DataPropIn/Out will be
+            %                   modified to 'Image'.
+            %            'OutOnlyCCDSEC' - A logical indicating if the
+            %                   output include only the CCDSEC region, or
+            %                   it is the full image (where the opeartor,
+            %                   operated only on the CCDSEC region).
+            %                   Default is true.
+            %            'CalcImage' - A logical indicating if to apply the
+            %                   operator to the Image field.
+            %                   Default is true.
+            %            'CalcVar' - A logical indicating if to apply the
+            %                   operator to the Var field.
+            %                   Default is true.
+            %            'CalcBack' - A logical indicating if to apply the
+            %                   operator to the Back field.
+            %                   Default is true.
+            %            'ReturnBack' - A logical indicating if to return
+            %                   the background to the image before applying
+            %                   the operator. Default is true.
+            %            'ReRemoveBack' - A logical indicating if to remove
+            %                   the background from the image after
+            %                   applying the operator (relevant only if the
+            %                   SciImage.IsBackSubtracted=true).
+            %                   Default is true.
+            %            'UpdateHeader' - A logical indicating if to update
+            %                   the header of the output image.
+            %                   Default is true.
+            %            'AddHistory' - A logical indicating if to add an
+            %                   HISTORY line in the header specifying the
+            %                   operation. Default is true.
+            %            'NewUnits' - If empty do nothing. If provided will
+            %                   put this value in the header 'UNITS' key.
+            %                   Default is [].
+            %            'InsertKeys' - A cell array of 3 columns cell
+            %                   array {key,val,comment}, to insert to the
+            %                   header. Default is {}.
+            %            'ReplaceKeys' - A cell array of keywords to
+            %                   replace. Default is {}.
+            %            'ReplaceVals' - A cell array of keywords values to
+            %                   replace (corresponding top ReplaceKeys).
+            %                   Default is {}.
+            %            'replaceValArgs' - A cell array of additional
+            %                   arguments to pass to the replaceVal function.
+            %                   Default is {}.
+            %            'insertKeyArgs' - A cell array of additional
+            %                   arguments to pass to the insertKey function.
+            %                   Default is {}.
+            %            'DeleteCat' - A logical indicating if to delete
+            %                   the catalog data. Default is false.
+            %            'ImCompDataPropIn' - Data property in the
+            %                   ImageComponent on which the operator
+            %                   will be operated. Default is 'Data'.
+            %            'ImCompDataPropOut' - Data property in the
+            %                   ImageComponent in which the output
+            %                   will be stored. Default is 'Data'.
+            % Output : - An AstroImage object with the operator applied on
+            %            the data.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: 
+
+           
             arguments
                 Obj
                 Operator function_handle
                 Args.OpArgs cell                = {};
                 Args.CreateNewObj(1,1) logical  = false;
                 Args.CCDSEC                     = [];
-                Args.OutOnlyCCDSEC(1,1) logical = false;
-                Args.DataPropIn                 = {'Image','Back','Var'};  % should not operate on Mask
-                Args.DataPropOut                = {};
+                Args.OutOnlyCCDSEC(1,1) logical = true;
+                
+                Args.CalcImage(1,1) logical     = true;
+                Args.CalcVar(1,1) logical       = true;
+                Args.CalcBack(1,1) logical      = true;
+                Args.ReturnBack(1,1) logical    = true;
+                Args.ReRemoveBack(1,1) logical  = true;
+                
+                Args.UpdateHeader(1,1) logical  = true;
+                Args.AddHistory(1,1) logical    = true;
+                Args.NewUnits                   = []; % if empty don't change
+                Args.InsertKeys                 = {};
+                Args.ReplaceKeys                = {};
+                Args.ReplaceVals                = {};
+                Args.replaceValArgs             = {};
+                Args.insertKeyArgs              = {};
+               
+                Args.DeleteCat(1,1) logical     = false;
+                
+%                 Args.DataPropIn                 = {'Image','Back','Var'};  % should not operate on Mask
+%                 Args.DataPropOut                = {};
                 Args.ImCompDataPropIn           = 'Data';
                 Args.ImCompDataPropOut          = 'Data';
             end
         
-            if isempty(Args.DataPropOut)
-                Args.DataPropOut = Args.DataPropIn;
-            end
-            % translate all the requested property names to "Data"
-            % properties
-            Args.DataPropIn  = translateDataPropName(Obj(1), Args.DataPropIn);
-            Args.DataPropOut = translateDataPropName(Obj(1), Args.DataPropOut);
+%             if isempty(Args.DataPropOut)
+%                 Args.DataPropOut = Args.DataPropIn;
+%             end
+%             % translate all the requested property names to "Data"
+%             % properties
+%             Args.DataPropIn  = translateDataPropName(Obj(1), Args.DataPropIn);
+%             Args.DataPropOut = translateDataPropName(Obj(1), Args.DataPropOut);
             
+            
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
             
             Nobj  = numel(Obj);
-            Nprop = numel(Args.DataPropIn);
             for Iobj=1:1:Nobj
-                for Iprop=1:1:Nprop
-                    % Note that operating unary fun on Mask should do nothing.
-                    % but this is the user responsibilty not to include
-                    % 'Mask' in the DataProp...
-                    if ~isa(Obj(Iobj).(Args.DataPropIn{Iprop}), 'ImageComponent')
-                        if Obj(Iobj).PropagateErr
-                            % perform error propagation
-                            
-                            
-                            
-                            
-                            
-                            
-                        else
-                            funUnary(Obj(Iobj).(Args.DataPropIn{Iprop}), Operator, 'OpArgs',Args.OpArgs,...
-                                                                               'CreateNewObj',Args.CreateNewObj,...
-                                                                               'CCDSEC',Args.CCDSEC,...
-                                                                               'OutOnlyCCDSEC',Args.OutOnlyCCDSEC,...
-                                                                               'DataPropIn',Args.ImCompDataPropIn,...
-                                                                               'DataPropOut',Args.ImCompDataPropOut);
-                        end
+                if Obj(Iobj).PropagateErr && Args.CalcVar
+                    % perform error propagation
+                    VarMat = Obj(Iobj).VarData.(Args.ImCompDataPropIn);
+                else
+                    VarMat = [];
+                end
+                
+                % return background to image if needed
+                if Args.ReturnBack && Obj(Iobj).ImageData.IsBackSubtracted && ~isempty(Obj(Iobj).BackData.(Args.ImCompDataPropIn))
+                    ImageMat = Obj(Iobj).ImageData.(Args.ImCompDataPropIn) + Obj(Iobj).BackData.(Args.ImCompDataPropIn);
+                    RetBack  = true;
+                else
+                    ImageMat = Obj(Iobj).ImageData.(Args.ImCompDataPropIn);
+                    RetBack  = false;
+                end
+                    
+               [ResultFun,ResultVar,Flag,FunH] = imUtil.image.fun_unary_withVariance(Operator, ImageMat,...
+                                                                                       VarMat,...
+                                                                                       'OpArgs',Args.OpArgs,...
+                                                                                       'CCDSEC',Args.CCDSEC,...
+                                                                                       'OutOnlyCCDSEC',Args.OutOnlyCCDSEC);
+                
+                if Args.CalcImage                                                                 
+                    if RetBack && Args.ReRemoveBack
+                        % remove background from image
+                        ResultFun = ResultFun - Obj(Iobj).BackData.(Args.ImCompDataPropIn);
+                        Obj(Iobj).ImageData.IsBackSubtracted = true;
                     else
-                        error('funUnary must operate on an ImageComponent element');
+                        Obj(Iobj).ImageData.IsBackSubtracted = false;
                     end
+                    Result(Iobj).ImageData.(Args.ImCompDataPropOut) = ResultFun;
+                end
+                
+                if Args.CalcVar
+                    Result(Iobj).VarData.(Args.ImCompDataPropOut) = ResultVar;
+                end
+                if Args.CalcBack && ~isempty(Result(Iobj).Back)
+                    % use funUnary of ImageComponent
+                    Result(Iobj).BackData = funUnary(Result(Iobj).BackData, Operator, 'OpArgs',Args.OpArgs,...
+                                                                                      'CreateNewObj',Args.CreateNewObj,...
+                                                                                      'CCDSEC',Args.CCDSEC,...
+                                                                                      'OutOnlyCCDSEC',Args.OutOnlyCCDSEC,...
+                                                                                      'DataPropIn',Args.ImCompDataPropIn,...
+                                                                                      'DataPropOut',Args.ImCompDataPropOut);
                 end
                 
                 % update Header
+                Result(Iobj).HeaderData = funUnary(Result(Iobj).HeaderData, Operator, 'OpArgs',Args.OpArgs,...
+                                                                                      'UpdateHeader',Args.UpdateHeader,...                                                                        
+                                                                                      'AddHistory',Args.AddHistory,...
+                                                                                      'NewUnits',Args.NewUnits,...
+                                                                                      'InsertKeys',Args.InsertKeys,...
+                                                                                      'ReplaceKeys',Args.ReplaceKeys,...
+                                                                                      'ReplaceVals',Args.ReplaceVals,...
+                                                                                      'CreateNewObj',false,...
+                                                                                      'replaceValArgs',Args.replaceValArgs,...
+                                                                                      'insertKeyArgs',Args.insertKeyArgs);
+                                                                                  
                 
                 
-                % Do not modify: Cat, PSF, WCS
+                if Args.DeleteCat
+                    Obj(Iobj).CatData.deleteCatalog;
+                end
+                
+                % Do not modify: PSF, WCS
                 
                 
             end

@@ -5,7 +5,7 @@
 % Description:
 %--------------------------------------------------------------------------
 
-classdef AstroHeader < handle %< Component
+classdef AstroHeader < Component
     % Properties
     properties (SetAccess = public)
         Data(:,3) cell            = cell(0,3);
@@ -335,20 +335,52 @@ classdef AstroHeader < handle %< Component
     end
     
     methods % funUnary/Binary/Stack/Transform
-        function Obj = funUnary(Obj, Operator, Args)
-            %
+        function Result = funUnary(Obj, Operator, Args)
+            % funUnary for AstroHeader - modif header and add history
+            % This is a self explenatory function usually for internal use
+            % Example: H = AstroHeader('*.fit');
             
             arguments
                 Obj
                 Operator
                 Args.OpArgs cell                  = {};
-                Args.ModifyHeader                 = true;
+                Args.UpdateHeader                 = true;
                 Args.AddHistory                   = true;
                 Args.NewUnits                     = []; % if empty don't change
+                Args.UnitsKey                     = 'UNITS';
+                Args.InsertKeys                   = {};
+                Args.ReplaceKeys                  = {};
+                Args.ReplaceVals                  = {};
                 Args.CreateNewObj(1,1) logical    = true;
+                Args.replaceValArgs               = {};
+                Args.insertKeyArgs                = {};
                 
             end
             
+            
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            if Args.UpdateHeader
+                Nobj = numel(Obj);
+                if ~isempty(Args.NewUnits)
+                    Result = replaceVal(Obj ,Args.UnitsKey, Args.NewUnits, Args.replaceValArgs{:});
+                end
+                
+                if ~isempty(Args.ReplaceKeys)
+                    Result = replaceVal(Obj ,Args.ReplaceKeys, Args.ReplaceVals, Args.replaceValArgs{:});
+                end
+                if ~isempty(Args.InsertKeys)
+                    Result = insertKey(Obj ,ArgsInsertKeys, Args.insertKeyArgs{:});
+                end
+                if Args.AddHistory
+                    HistoryLine = {'HISTORY', sprintf('funUnary with operator: %s',func2str(Operator)),''};
+                    Result = insertKey(Obj ,HistoryLine, Args.insertKeyArgs{:});
+                end
+            end
             
         end
         
@@ -777,7 +809,7 @@ classdef AstroHeader < handle %< Component
                  
         end
         
-        function insertKey(Obj, KeyValComment, Pos)
+        function Obj = insertKey(Obj, KeyValComment, Pos)
             % Insert key/val/comment to headers
             % Input  : - An AstroHeader object (multi. elements supported)
             %          - Either a key name, or a cell array of
