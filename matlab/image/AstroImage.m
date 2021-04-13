@@ -55,13 +55,16 @@ classdef AstroImage < Component
     methods % Constructor
        
         function Obj = AstroImage(FileNames, Args)
+            % Constructor and image reader for AstroImage class
             %
-            
+            % Under development
+            %
             % Example:
             %          AI = AstroImage([2 2]);
             %          AI = AstroImage(FileNames,'HDU',1);
             %          AI = AstroImage(FileNames,'HDU',1,'Back',FileNames,'BackHDU',2);
             %          AI = AstroImage(FileNames,'HDU',1,'Back',FileNamesBack,'BackHDU',1);
+            %          AI = AstroImage({rand(10,10)},'Back',{rand(5,5)},'BackScale',2,'var',{rand(5,5)},'VarScale',2);
             
             arguments
                 FileNames                     = [];
@@ -69,7 +72,7 @@ classdef AstroImage < Component
                 Args.Scale                    = [];
                 Args.ReadHeader(1,1) logical  = true;
                 
-                Args.Back                     = [];
+                Args.Back                     = []; % if empty and BackHDU is not empty, them read from the primary FileNames
                 Args.BackHDU                  = [];
                 Args.BackScale                = [];
                 
@@ -118,7 +121,7 @@ classdef AstroImage < Component
                         
                     else
                         % ImageData
-                        Obj = AstroImage.readImages2AstroImage(FileName,'HDU',Args.HDU,...
+                        Obj = AstroImage.readImages2AstroImage(FileNames,'HDU',Args.HDU,...
                                                                         'Obj',[],...
                                                                         'FileType',Args.FileType,...
                                                                         'UseRegExp',Args.UseRegExp,...
@@ -141,7 +144,7 @@ classdef AstroImage < Component
                             end
                             if ~isempty(Args.(ListProp{Ilist}))
                                 % do not read header
-                                Obj = AstroImage.readImages2AstroImage(FileName,'HDU',Args.(ListHDU{Ilist}),...
+                                Obj = AstroImage.readImages2AstroImage(Args.(ListProp{Ilist}),'HDU',Args.(ListHDU{Ilist}),...
                                                                             'Obj',Obj,...
                                                                             'FileType',Args.FileType,...
                                                                             'UseRegExp',Args.UseRegExp,...
