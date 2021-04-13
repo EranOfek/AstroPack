@@ -535,7 +535,8 @@ classdef AstroImage < Component
             % Example: AI = AstroImage({10.*ones(10,10)},'Back',{ones(5,5)},'BackScale',2,'var',{ones(5,5)},'VarScale',2);
             %          B=AI.funUnary(@sin,'CreateNewObj',true)
            
-            % B=AI.funUnary(@median,'OpArgs',{'all'})  % <--- BUG size of Var
+            % B=AI.funUnary(@median,'OpArgs',{'all'})  % <--- BUG size of
+            % Var - make sense but problematic...
             
             arguments
                 Obj
