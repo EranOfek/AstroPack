@@ -29,14 +29,14 @@ classdef AstroImage < Component
         % Data
         %ImageData(1,1) NoisyImage
         
-        ImageData(1,1) SciImage
-        MaskData(1,1) MaskImage
-        BackData(1,1) BackImage
-        VarData(1,1) VarImage
+        ImageData(1,1) SciImage              = SciImage;
+        MaskData(1,1) MaskImage              = MaskImage;
+        BackData(1,1) BackImage              = BackImage;
+        VarData(1,1) VarImage                = VarImage;
         
-        HeaderData(1,1) AstroHeader
-        CatData(1,1) AstroCatalog
-        PSFData(1,1) AstroPSF
+        HeaderData(1,1) AstroHeader          = AstroHeader;
+        CatData(1,1) AstroCatalog            = AstroCatalog;
+        PSFData(1,1) AstroPSF                = AstroPSF;
         WCS(1,1)   % not ready: AstroWCS
         
         PropagateErr(1,1) logical          = false;
@@ -54,20 +54,71 @@ classdef AstroImage < Component
     
     methods % Constructor
        
-        function Obj = AstroImage(AnotherObj,Args)
+        function Obj = AstroImage(FileNames, Args)
             %
             
+            % Example:
+            %          AI = AstroImage([2 2]);
+            %          AI = AstroImage(FileNames,'HDU',1);
+            %          AI = AstroImage(FileNames,'HDU',1,'Back',FileNames,'BackHDU',2);
+            %          AI = AstroImage(FileNames,'HDU',1,'Back',FileNamesBack,'BackHDU',1);
+            
+            arguments
+                FileNames                  = [];
+                Args.HDU                   = 1;
+                Args.Back                  = [];
+                Args.BackHDU               = [];
+            end
+            
+            if isempty(FileNames)
+                % create a single elemeny empty object
+            else
+                if isnumeric(FileNames)
+                    Nobj = prod(FileNames);
+                    for Iobj=1:1:Nobj
+                        Obj(Iobj) = AstroImage([]);
+                    end
+                    Obj = reshape(Obj, FileNames);
+                    
+                else
+                    if isa(FileNames,'AstroImage')
+                        Obj = FileNames;
+                    elseif isa(FileNames,'SIM')
+                        % convert SIM to AstroImage
+                        
+                    elseif isa(FileNames,'imCl')
+                        % convert imCl to AstroImage
+                        
+                    else
+                        ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                             'FileType',Args.FileType,...
+                                             'IsTable',false,...
+                                             'UseRegExp',Args.UseRegExp);
+                        
+                                         
+                        ImIO = ImageIO(Args.Back, 'HDU',Args.HDU,...
+                                             'FileType',Args.FileType,...
+                                             'IsTable',false,...
+                                             'UseRegExp',Args.UseRegExp);
+                                         
+                                         
+                            
+                    end
+                    
+                end
+            end
+                    
+                
             
             
             
             
-            
-            % this is here for testing only
-            Obj.ImageData  = SciImage({300 + 10.*randn(100,100)});
-            Obj.VarData    = VarImage({10.*ones(100,100)});
-            Obj.BackData   = BackImage({300});
-            Obj.HeaderData.Data = {'EXPTIME',1,'';'FILTER','R',''}; 
-            
+%             % this is here for testing only
+%             Obj.ImageData  = SciImage({300 + 10.*randn(100,100)});
+%             Obj.VarData    = VarImage({10.*ones(100,100)});
+%             Obj.BackData   = BackImage({300});
+%             Obj.HeaderData.Data = {'EXPTIME',1,'';'FILTER','R',''}; 
+%             
 %             arguments
 %                 AnotherObj            = [1 1];
 %                 Args.
@@ -78,7 +129,64 @@ classdef AstroImage < Component
         end
 
     end
- 
+
+    methods (Static) % utilities
+        function Obj = imageIO2AstroImage(ImIO, DataProp, Scale, CopyHeader)
+            %
+            % Example: AI=AstroImage.imageIO2AstroImage(ImIO, 'ImageData', [], true)
+       
+            Obj  = AstroImage(size(ImIO));
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
+                Obj(Iobj).(DataProp).Scale = Scale;
+                if CopyHeader
+                    Obj(Iobj).HeaderData.Data = ImIO(Iobj).Header;
+                end
+            end
+        end
+        
+        function Obj = readImages2AstroImage(FileName, Args)
+            %
+            % Example: AI=AstroImage.readImages2AstroImage('*.fits', 'DataProp', 'ImageData');
+            
+            arguments
+                FileName
+                Args.HDU                    = 1;
+                Args.FileType               = [];
+                Args.UseRegExp(1,1) logical = false;
+                Args.Scale                  = [];
+                Args.DataProp               = 'ImageData';
+                Args.ReadHeader             = true;
+            end
+            
+                
+            switch lower(Args.DataProp)
+                case {'imagedata','backdata','vardata','maskdata'}
+                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                             'FileType',Args.FileType,...
+                                             'IsTable',false,...
+                                             'ReadHeader',Args.ReadHeader,...
+                                             'UseRegExp',Args.UseRegExp);
+                case {'cat','catdata'}
+                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                             'FileType',Args.FileType,...
+                                             'IsTable',true,...
+                                             'ReadHeader',Args.ReadHeader,...
+                                             'UseRegExp',Args.UseRegExp);
+                otherwise
+                    error('DataProp %s is not supported',Args.DataProp);
+            end
+            Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.ReadHeader);
+            
+            
+        end
+                                         
+                                         
+            
+        
+        
+    end
 
  
     methods % Setters/Getters
