@@ -1017,9 +1017,15 @@ classdef AstroTable < Component %ImageComponent
             %          - A query string with operators on column names
             %            (e.g., 'mag1>8 & mag2<10'),
             %          * ...,key,val,...
-            %            'CreateNewObj' - Output is a new object, rather
-            %                   than writing the output lines to the same
-            %                   object. Default is true.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
             % Output : - An AstroTable object with the selected lines.
             % Author : Eran Ofek (Feb 2016)
             % Example: AC=AstroTable('asu.fit','HDU',2);
@@ -1033,7 +1039,15 @@ classdef AstroTable < Component %ImageComponent
             arguments
                 Obj
                 QueryStringUser char
-                Args.CreateNewObj(1,1) logical        = true;
+                Args.CreateNewObj              = [];
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
             end
             
             Nobj = numel(Obj);

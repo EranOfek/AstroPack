@@ -336,7 +336,7 @@ classdef AstroHeader < Component
     
     methods % funUnary/Binary/Stack/Transform
         function Result = funUnary(Obj, Operator, Args)
-            % funUnary for AstroHeader - modif header and add history
+            % funUnary for AstroHeader - modify header and add history
             % This is a self explenatory function usually for internal use
             % Example: H = AstroHeader('*.fit');
             
@@ -351,12 +351,19 @@ classdef AstroHeader < Component
                 Args.InsertKeys                   = {};
                 Args.ReplaceKeys                  = {};
                 Args.ReplaceVals                  = {};
-                Args.CreateNewObj(1,1) logical    = true;
+                Args.CreateNewObj                 = [];
                 Args.replaceValArgs               = {};
                 Args.insertKeyArgs                = {};
                 
             end
             
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
+            end
             
             if Args.CreateNewObj
                 Result = Obj.copyObject;

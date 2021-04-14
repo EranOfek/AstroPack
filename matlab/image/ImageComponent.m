@@ -117,11 +117,11 @@ classdef ImageComponent < Component
 
         
         function Result = get.Rows(Obj)
-            Result = size(Obj.Image, 1)
+            Result = size(Obj.Image, 1);
         end
         
         function Result = get.Cols(Obj)
-            Result = size(Obj.Image, 2)
+            Result = size(Obj.Image, 2);
         end
             
         
@@ -175,11 +175,15 @@ classdef ImageComponent < Component
             %          * ...,key,val,...
             %            'OpArgs' - A cell array of additional arguments to
             %                   pass to the operator. Default is {}.
-            %            'CreateNewObj' - Logical indicating if the output
+            %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
-            %                   handle of the input (false)
-            %                   Default is false (i.e., input object will
-            %                   be modified).
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
             %            'CCDSEC' - CCDSEC on which to operate:
             %                   [Xmin, Xmax, Ymin, Ymax].
             %                   Use [] for the entire image.
@@ -210,11 +214,19 @@ classdef ImageComponent < Component
                 Obj
                 Operator function_handle
                 Args.OpArgs cell                = {};
-                Args.CreateNewObj(1,1) logical  = false;
+                Args.CreateNewObj               = [];
                 Args.CCDSEC                     = [];
                 Args.OutOnlyCCDSEC(1,1) logical = true;
                 Args.DataPropIn                 = 'Data';
                 Args.DataPropOut                = 'Data';
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
             end
             
             if ~isempty(Args.CCDSEC)
@@ -273,6 +285,15 @@ classdef ImageComponent < Component
             %          * ...,key,val,...
             %            'OpArgs' - A cell array of additional arguments to
             %                   pass to the operator. Default is {}.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
             %            'CCDSEC1' - [Xmin Xmax Ymin Ymax] CCDSEC for the
             %                   1st oprand. The Operator will be applied
             %                   only on this section.
@@ -317,13 +338,21 @@ classdef ImageComponent < Component
                 Obj2
                 Operator function_handle
                 Args.OpArgs cell                = {};
-                Args.CreateNewObj(1,1) logical  = true;
+                Args.CreateNewObj               = [];
                 Args.CCDSEC1                    = [];
                 Args.CCDSEC2                    = [];
                 Args.OutOnlyCCDSEC(1,1) logical = true;
                 Args.DataPropIn1                = 'Data';
                 Args.DataPropIn2                = '';
                 Args.DataPropOut                = '';
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
             end
             
             if ~isempty(Args.CCDSEC1) || ~isempty(Args.CCDSEC2)
@@ -707,9 +736,15 @@ classdef ImageComponent < Component
             %            or [Xhalfsize, Yhalfsize] (Type = 'center').
             %          * ..., key, val,...
             %            'Type' - ['ccdsec'] | 'center'
-            %            'CreateNewObj' - Create a new object (true), or
-            %                   write result over input object (false).
-            %                   Default is false.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
             % Output : - An ImageComponent object with the cropped images.
             % Author : Eran Ofek (Apr 2021)
             % Example: 
@@ -718,7 +753,15 @@ classdef ImageComponent < Component
                 Obj
                 CCDSEC                  % [xmin xmax ymin ymax]
                 Args.Type char                   = 'ccdsec';
-                Args.CreateNewObj(1,1) logical   = false;
+                Args.CreateNewObj                = [];
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
             end
             
             Nobj = numel(Obj);

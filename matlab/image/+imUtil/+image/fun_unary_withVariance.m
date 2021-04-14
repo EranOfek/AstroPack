@@ -15,6 +15,9 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
 %                   Default is true.
 %            'PropagateErr' - A logical indicating if to propagate the
 %                   errors. Default is true.
+%            'OperateOnVar' -  If PropagateErr=false, this is a logical
+%                   indicating if to operate the operator on the variance matrix.
+%                   Default is true.
 % Output : - The result of applying the operator to the matrix.
 %          - The result of applying the operator to the variance.
 %          - A matrix of logicals indicating if a resulted matrix value is
@@ -37,6 +40,7 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
         Args.CCDSEC                     = [];
         Args.OutOnlyCCDSEC(1,1) logical = true;
         Args.PropagateErr(1,1) logical  = true;
+        Args.OperateOnVar(1,1) logical  = true;  % only if PropagateErr=false
     end
     
     FunH      = [];
@@ -57,7 +61,24 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
     
     if ~Args.PropagateErr
         % Variance is not provided
-        ResultVar = Var;
+        if Args.OperateOnVar
+            if isempty(Args.CCDSEC)
+                ResultVar    = Operator(Var, Args.OpArgs{:});
+            else
+                if Args.OutOnlyCCDSEC
+                    Var = Var(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
+                    ResultVar    = Operator(Var, Args.OpArgs{:});
+                else
+                    % embed the answer in the full image
+                    % var is operating on the entire image
+                    ResultVar = Var;
+                    ResultVar(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = Operator(Var(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Args.OpArgs{:});
+                end
+            end
+            
+        else
+            ResultVar = Var;
+        end
         FlagBad   = [];
     else
         if isempty(Var)
@@ -94,7 +115,7 @@ function [Result,ResultVar,FlagBad,FunH]=fun_unary_withVariance(Operator, Mat, V
                     syms x;
                     SymFun = eval(sprintf('diff(%s(x))', func2str(Operator)));
                     if SymFun==1
-                        error('Function derivative could not be found symbolically');
+                        error('Function derivative could not be found symbolically : Consider 1. adding the function; 2. using the PropagateErr and OperateOnVar arguments');
                     end
                     FunH   = matlabFunction(SymFun);
                     ResultVar = Var.*FunH(Mat);
