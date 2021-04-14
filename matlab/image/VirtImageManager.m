@@ -1,48 +1,39 @@
-% @Chen
-
-% Configuration base Class
-% Package: 
-% Description:
+% Virtual Image Manager
 %--------------------------------------------------------------------------
 
 
 classdef VirtImageManager < Component
     % Properties
     properties (SetAccess = public)
-        
-        filename        
-        configPath = "";
-        data
-        lines
-        userData
-        imageList
-        virtPath = "";
-        
-        ImageList = []
+        VirtPath = '';      % Default path to storge virtual image files
+        ImageList = []      % containers.Map - List of VirtImage objects
     end
     
     %-------------------------------------------------------- 
-    methods
-        % Constructor    
+    methods % Constructor 
+        
         function Obj = VirtImageManager()
-            Obj.log("VirtImageManager created");
+            Obj.msgLog(LogLevel.Debug, 'VirtImageManager created');
             Obj.ImageList = containers.Map();
             
         end
         
         
         function delete(Obj)
-            Obj.log("VirtImageManager deleted");
+            % Destructor
+            Obj.msgLog(LogLevel.Debug, 'VirtImageManager deleted');
         end
-        
-        
+    end
+    
+    
+    methods    
         function registerImage(Obj, Image)
-            Obj.log("registerImage: ");
+            Obj.msgLog(LogLevel.Debug, 'registerImage: %s', Image.Uuid);
         end
         
         
         function unregisterImage(Obj, Image)
-            Obj.log("unregisterImage: ");
+            Obj.msgLog(LogLevel.Debug, 'unregisterImage: %s', Image.Uuid);
         end
         
     end
@@ -50,7 +41,7 @@ classdef VirtImageManager < Component
     
     methods(Static)
         
-        function Result = getManager()
+        function Result = getSingle()
             persistent Manager
             if isempty(Manager)
                 Manager = VirtImageManager;
@@ -58,11 +49,17 @@ classdef VirtImageManager < Component
             Result = Manager;
         end
     end
+     
     
-    
-    % Unit test
-    methods(Static)
+    methods(Static) % Unit test
         function Result = unitTest()
+            io.msgLog(LogLevel.Test, 'VirtImageManager test started');
+
+            Manager = VirtImageManager.getSingle();
+            
+            
+            
+            io.msgLog(LogLevel.Test, 'VirtImageManager test passed');
             Result = true;
         end
     end    

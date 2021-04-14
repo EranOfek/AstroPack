@@ -1,23 +1,21 @@
-% @Chen
-
-% Configuration base Class
-% Package: 
-% Description:
+% Virtual Image Class
 %--------------------------------------------------------------------------
-
 
 classdef VirtImage < Component
     
     % Properties
     properties (SetAccess = public)
-        Data
-        Manager
+        Data                        %
+        FileName = ''               %
+        Manager VirtImageManager    %
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
         function Obj = VirtImage()
+            Obj.Manager = VirtImageManager.getSingle();
+            Obj.needUuid();
             Obj.Manager.registerImage(Obj);
         end
         
@@ -25,12 +23,7 @@ classdef VirtImage < Component
         function delete(Obj)
             Obj.Manager.unregisterImage(Obj);
         end
-        
-        % Get Manager
-        function Result = get.Manager(Obj)
-            Result = VirtImageManager.getManager();
-        end
-        
+                
         % Get data as matrix
         function Result = getData(Obj)            
             Result = Obj.Data;
@@ -47,6 +40,7 @@ classdef VirtImage < Component
     % Unit test
     methods(Static)
         function Result = unitTest()
+            io.msgLog(LogLevel.Test, 'VirtImage test started');
             
             Image1 = VirtImage;
             Image2 = VirtImage;
@@ -54,6 +48,7 @@ classdef VirtImage < Component
             delete(Image1);
             delete(Image2);
             
+            io.msgLog(LogLevel.Test, 'VirtImage test passed');
             Result = true;
         end
     end    
