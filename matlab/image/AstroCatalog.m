@@ -144,7 +144,7 @@ classdef AstroCatalog < AstroTable
             
             Nobj = numel(Obj);
             % search synonyms in config file
-            warning('Search synonym in config file does not operational yet');
+            %warning('Search synonym in config file does not operational yet');
             
             for Iobj=1:1:Nobj
                 SynonymCell_RA  = Obj(Iobj).DefNamesRA;
@@ -278,9 +278,15 @@ classdef AstroCatalog < AstroTable
             %            'DistColPos' - Position of Distance column in
             %                   output catalog. Default is Inf (i.e., last
             %                   column).
-            %            'CreateNewObj' - Create a new object (true), or
-            %                   store the data in the input object (false).
-            %                   Default is true.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
             % Output : - An AstroCatalog object with the found sources.
             %          - A vector of logicals with the same length as the
             %            number of rows in the input object. True if object
@@ -309,7 +315,15 @@ classdef AstroCatalog < AstroTable
                 Args.DistUnits                   = 'arcsec';
                 Args.DistColName                 = 'Dist';
                 Args.DistColPos                  = Inf;
-                Args.CreateNewObj(1,1) logical   = true;
+                Args.CreateNewObj                = [];
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
             end
             
             RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
