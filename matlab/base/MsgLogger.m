@@ -1,3 +1,12 @@
+% [StackTrace, WorkspaceIndex] = dbstack;
+% 
+% if numel(StackTrace) < 2
+%     CallerName = 'session';
+%     Line      = NaN;
+% else
+%     CallerName = StackTrace(2).name;
+%     Line      = StackTrace(2).line;
+% end
 
 classdef MsgLogger < handle
     % Message logger with levels
@@ -5,6 +14,7 @@ classdef MsgLogger < handle
     % Properties
     properties (SetAccess = public)
         CurLevel LogLevel   % Current level
+        LogF LogFile        % Log file
         UserData            % Optional
     end
     
@@ -13,37 +23,14 @@ classdef MsgLogger < handle
         % Constructor    
         function Obj = MsgLogger()
             Obj.CurLevel = LogLevel.All;
+            Obj.LogF = LogFile.getSingle();
         end
     end
 	
-	
-    methods(Static) % Static functions
-                
-        function Result = getSingle()
-            % Return singleton object
-            persistent PersObj
-            if isempty(PersObj)
-                PersObj = MsgLogger;
-            end
-            Result = PersObj;
-        end
+    
+	methods
         
-        
-        function setLogLevel(Level)
-            % Set global LogLevel
-            m = MsgLogger.getSingle();
-            m.CurLevel = Level;
-        end
-        
-        
-        function Value = getLogLevel()
-            % Get global LogLevel
-            Value = MsgLogger.getSingle().CurLevel;
-        end
-                
-        
-		function msgLog(Level, varargin)
-            % Global msgLog
+		function msgLog(Obj, Level, varargin)
 
             % Do nothing if log is disabled
             if Level == LogLevel.None
@@ -51,7 +38,7 @@ classdef MsgLogger < handle
             end
             
             % Ignore levels above CurLevel
-            if uint32(Level) > uint32(MsgLogger.getLogLevel())
+            if uint32(Level) > uint32(Obj.CurLevel)
                 return
             end
             
@@ -79,23 +66,88 @@ classdef MsgLogger < handle
 			fprintf('\n');
             
             % Log to file            
-            f = LogFile.getSingle();
-            f.write2(sprintf('[%s]', s), varargin{:});
+            if ~isempty(Obj.LogF)
+                Obj.LogF.write2(sprintf('[%s]', s), varargin{:});
+            end
             
-		end
+        end        
+             
+        
+		function msgStack(Obj, Level, varargin)
+            [StackTrace, WorkspaceIndex] = dbstack;
+
+            Obj.msgLog(Level, varargin{:});
+            Obj.msgLog(Level, 'StackTrace:');
+            
+            if numel(StackTrace) < 2
+                CallerName = 'session';
+                Line      = NaN;
+            else
+                va = sprintf(varargin{:});
+                for i = 2:numel(StackTrace)                    
+                    Msg = sprintf('File: %s, Line: #%d, Caller: %s, varargin: %s', StackTrace(i).file, StackTrace(i).line, StackTrace(i).name, va);
+                    Obj.msgLog(Level, Msg);            
+                end
+            end
+
+            %Msg = sprintf('File: %s, Line: #%d, Caller: %s - %s', File, Line, CallerName, sprintf(varargin{:}));
+            %Obj.msgLog(Level, Msg);
+            Obj.msgLog(Level, '');
+        end
+    end
+    
+    
+    methods(Static) % Static functions
+                
+        function Result = getSingle()
+            % Return singleton object
+            persistent PersObj
+            if isempty(PersObj)
+                PersObj = MsgLogger;
+            end
+            Result = PersObj;
+        end
+        
+        
+        function setLogLevel(Level)
+            % Set global LogLevel
+            m = MsgLogger.getSingle();
+            m.CurLevel = Level;
+        end
+        
+        
+        function Value = getLogLevel()
+            % Get global LogLevel
+            Value = MsgLogger.getSingle().CurLevel;
+        end             
+
     end
     
     
     methods(Static) % Unit test
+        
+        function unitTestStackTrace(Count)            
+            if Count > 0
+                M = MsgLogger.getSingle();            
+                M.msgStack(LogLevel.Test, 'Recursion(%d)', Count);            
+                MsgLogger.unitTestStackTrace(Count-1);
+            end
+        end
+
         function Result = unitTest()            
             fprintf('MsgLogger test started\n');
             
-            MsgLogger.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
-            MsgLogger.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));
-            MsgLogger.msgLog(LogLevel.Info, 'Test: %d', uint32(LogLevel.Info));
-            MsgLogger.msgLog(LogLevel.Warning, 'Test: %d', uint32(LogLevel.Warning));
-            MsgLogger.msgLog(LogLevel.Error, 'Test: %d', uint32(LogLevel.Error));
-            MsgLogger.msgLog(LogLevel.None, 'Test: %d', uint32(LogLevel.None));
+            M = MsgLogger.getSingle();
+            
+            M.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
+            M.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));
+            M.msgLog(LogLevel.Info, 'Test: %d', uint32(LogLevel.Info));
+            M.msgLog(LogLevel.Warning, 'Test: %d', uint32(LogLevel.Warning));
+            M.msgLog(LogLevel.Error, 'Test: %d', uint32(LogLevel.Error));
+            M.msgLog(LogLevel.None, 'Test: %d', uint32(LogLevel.None));
+            
+            M.msgStack(LogLevel.Test, 'MyStackTrace: %d', 123);            
+            MsgLogger.unitTestStackTrace(5);
             
             fprintf('MsgLogger test passed\n');
             Result = true;

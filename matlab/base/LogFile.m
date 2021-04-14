@@ -1,28 +1,6 @@
-% @Chen - Basic log file
-
-% Logger Class
-% Package: 
-% Description:
-
-% See: DbStack
-% Add: Log Level
-
-% [StackTrace, WorkspaceIndex] = dbstack;
-% 
-% if numel(StackTrace) < 2
-%     CallerName = 'session';
-%     Line      = NaN;
-% else
-%     CallerName = StackTrace(2).name;
-%     Line      = StackTrace(2).line;
-% end
-        
-
-                
-                
-                
+% Basic log file
+                                   
 %--------------------------------------------------------------------------
-
 
 classdef LogFile < handle
     % Properties

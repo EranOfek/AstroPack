@@ -3,6 +3,17 @@
 % Description:
 %--------------------------------------------------------------------------
 
+% Making a DEEP Copy: Copy each property value and assign it to the new 
+% (copied) property. Recursively copy property values that reference handle 
+% objects to copy all of the underlying data.
+%
+% Making a SHALLOW Copy: Copy each property value and assign it to the new 
+% (copied) property. If a property value is a handle, copy the handle but 
+% not the underlying data.
+%
+% https://www.mathworks.com/help/matlab/ref/matlab.mixin.copyable-class.html
+% < matlab.mixin.Copyable
+
 classdef Base < handle
     % Base class for all objects 
     

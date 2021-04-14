@@ -12,7 +12,7 @@ classdef Component < Base
         Owner                   % Indicates the component that is responsible for streaming and freeing this component
         Tag                     % Optional tag (i.e. for events handling)
         Config Configuration    % Configuration, deafult is system configuration
-        Log LogFile             % Logger, default is system logger
+        Log MsgLogger           % Logger, default is system logger
     end
     
     %-------------------------------------------------------- 
@@ -20,13 +20,13 @@ classdef Component < Base
         % Constructor    
         function Obj = Component()
             % By default use system log and configuration
-            %Obj.LogFile = MsgLogger.getSingle();
+            Obj.Log = MsgLogger.getSingle();
             Obj.Config = Configuration.getSingle();
         end
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
-            %MsgLogger.msgLog(Level, varargin{:});
+            Obj.Log.msgLog(Level, varargin{:});
         end
     end
     

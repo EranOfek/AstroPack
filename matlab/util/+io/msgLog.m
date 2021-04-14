@@ -1,4 +1,5 @@
 
 function msgLog(Level, varargin)
-    MsgLogger.msgLog(Level, varargin{:});
+    m = MsgLogger.getSingle();
+    m.msgLog(Level, varargin{:});
 end

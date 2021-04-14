@@ -12,16 +12,27 @@ classdef Configuration < dynamicprops
     properties (SetAccess = public)
         ConfigName              % Optional name for the entire configuration
         Path                    % Path of configuration files
+        External                % Path to external packages
         Data struct = struct()  % Initialize empty struct, all YML files are added here in tree structure
     end
     
     %-------------------------------------------------------- 
     methods % Constructor            
         function Obj = Configuration()
-            % Replace it with env? move to startup.m?
-            addpath('D:\Ultrasat\AstroPack.git\matlab\external');
             
-            Obj.Path = 'D:\Ultrasat\AstroPack.git\config';
+            % Get full path and name of the file in which the call occurs, 
+            % not including the filename extension
+            MyFileName = mfilename('fullpath');       
+            [MyPath, ~, ~] = fileparts(MyFileName);            
+            
+            % Set path to configuration files
+            % @FFU: overide with env???
+            Obj.Path = fullfile(MyPath, '..', '..', 'config');
+            
+            % Set path to yaml external package
+            % Replace it with env? move to startup.m?
+            Obj.External = fullfile(MyPath, '..', 'external');
+            addpath(Obj.External);            
         end
     end
 
@@ -106,11 +117,20 @@ classdef Configuration < dynamicprops
     %----------------------------------------------------------------------   
     methods(Static) % Static functions
                 
-        function Result = getSingle()
+        function Result = init()
             % Return singleton Configuration object
             persistent Conf
             if isempty(Conf)
                 Conf = Configuration;
+            end
+            Result = Conf;
+        end
+        
+        
+        function Result = getSingle()
+            % Return singleton Configuration object
+            Conf = Configuration.init();
+            if isempty(Conf.Data)
                 Conf.loadConfig();
             end
             Result = Conf;
@@ -198,10 +218,15 @@ classdef Configuration < dynamicprops
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'Configuration test started');
             
-            addpath('D:\Ultrasat\AstroPack.git\matlab\external');
+            Conf = Configuration.init();
+            assert(~isempty(Conf.Path));
+            assert(~isempty(Conf.External));
+            
+            fprintf('Conf.Path: %s\n', Conf.Path);
+            fprintf('Conf.External: %s\n', Conf.External);
 
-            ConfigPath = 'D:\Ultrasat\AstroPack.git\config';
-            ConfigFileName = 'D:\Ultrasat\AstroPack.git\config\UnitTest.yml';
+            ConfigPath = Conf.Path;
+            ConfigFileName = fullfile(ConfigPath, 'UnitTest.yml');
             
             % Test low level loading of Yaml struct
             io.msgLog(LogLevel.Test, 'Testing low level functions');
@@ -217,30 +242,31 @@ classdef Configuration < dynamicprops
             
             % Test Configuration class
             io. msgLog(LogLevel.Test, 'Testing Configuration object');
-            conf = Configuration();
-            conf.loadFile(ConfigFileName);
+            Conf.loadFile(ConfigFileName);
+            
+            confUnitTest = Conf.Data.UnitTest;
             
             %
-            io.msgLog(LogLevel.Test, 'FileName: %s', conf.UnitTest.FileName);
-            disp(conf.UnitTest);         
+            io.msgLog(LogLevel.Test, 'FileName: %s', confUnitTest.FileName);
+            disp(Conf.Data.UnitTest);         
             
             %
-            io.msgLog(LogLevel.Test, 'Key1: %s', conf.UnitTest.Key1);
-            io.msgLog(LogLevel.Test, 'Key2: %s', conf.UnitTest.Key2);
-            io.msgLog(LogLevel.Test, 'Key: %s', conf.UnitTest.Key0x2D3);
-            io.msgLog(LogLevel.Test, 'Key: %s', conf.UnitTest.x0x2DKeyMinus);
+            io.msgLog(LogLevel.Test, 'Key1: %s', confUnitTest.Key1);
+            io.msgLog(LogLevel.Test, 'Key2: %s', confUnitTest.Key2);
+            io.msgLog(LogLevel.Test, 'Key: %s', confUnitTest.Key0x2D3);
+            io.msgLog(LogLevel.Test, 'Key: %s', confUnitTest.x0x2DKeyMinus);
             
             %disp(conf.listLen(conf.UnitTest.NonUniqueKeys));
                     
             % Load all config files in folder
             io.msgLog(LogLevel.Test, 'Testing folder');
-            conf.loadFolder(ConfigPath);
-            disp(conf.System.EnvFolders);
+            Conf.loadFolder(ConfigPath);
+            disp(Conf.Data.System.EnvFolders);
             
             io.msgLog(LogLevel.Test, 'Testing utility functions');
-            io.msgLog(LogLevel.Test, 'unmacro: %s', Configuration.unmacro("$ROOT/abc", conf.System.EnvFolders));
+            io.msgLog(LogLevel.Test, 'unmacro: %s', Configuration.unmacro("$ROOT/abc", Conf.Data.System.EnvFolders));
             
-            io.msgLog(LogLevel.Test, 'expandFolder: %s', conf.expandFolder("$ROOT/abc"));
+            io.msgLog(LogLevel.Test, 'expandFolder: %s', Conf.expandFolder("$ROOT/abc"));
             
             % Done
             io.msgLog(LogLevel.Test, 'Configuration test passed');
