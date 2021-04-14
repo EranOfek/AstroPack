@@ -10,6 +10,7 @@ classdef Component < Base
     properties (SetAccess = public)
         Name                    % Name string
         Owner                   % Indicates the component that is responsible for streaming and freeing this component
+        Uuid                    % Global unique ID
         Tag                     % Optional tag (i.e. for events handling)
         Config Configuration    % Configuration, deafult is system configuration
         Log MsgLogger           % Logger, default is system logger
@@ -23,6 +24,24 @@ classdef Component < Base
             Obj.Log = MsgLogger.getSingle();
             Obj.Config = Configuration.getSingle();
         end
+        
+        
+        function Result = makeUuid(Obj)
+            % Generate unique ID
+            Temp = java.util.UUID.randomUUID;
+            Obj.Uuid = string(Temp.toString()).char;
+            Result = Obj.Uuid;
+        end
+        
+        
+        function Result = needUuid(Obj)
+            % Generate unique ID
+            if isempty(Obj.Uuid)
+                Obj.makeUuid();
+            end
+            Result = Obj.Uuid;
+        end
+
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
@@ -42,7 +61,12 @@ classdef Component < Base
             b.msgLog(LogLevel.Test, 'b created');            
             
             c = Component;
-            c.msgLog(LogLevel.Test, 'c created');            
+            c.msgLog(LogLevel.Test, 'c created');
+            
+            io.msgLog(LogLevel.Test, 'Testing Uuid');            
+            a.needUuid();            
+            b.needUuid();
+            assert(~all(a.Uuid ~= b.Uuid));
            
             io.msgLog(LogLevel.Test, 'Component test passed');            
             Result = true;
