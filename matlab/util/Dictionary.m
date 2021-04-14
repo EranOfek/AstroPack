@@ -17,128 +17,25 @@ classdef Dictionary < Component
     end
    
     methods % constructor
-        function Obj=Dictionary(Args)
-            % Dictionary constructor
-            % Input  : Dictionary file name to load. Default is ''.
-            
-            arguments
-                Args.DictName char               % search by Dictionary name
-                Args.Family char                 % search bt Dictionary family
-                Args.NewDict             = []; 
-                Args.NewConversion       = [];
-            end
+        function Obj = Dictionary(Args)
+            %
            
-            if ~isempty(Args.NewDict)
-                % set a new dictionary
-                if isempty(Args.DictName) || isempty(Args.Family)
-                    error('When setting a new Dictionary name and family must be provided');
-                end
-                Obj.DictName   = Args.DictName;
-                Obj.Family     = Args.Family;
-                Obj.Dict       = Args.NewDict;
-                Obj.Conversion = Args.NewConversion;
-            else
-                % search existing dictionary
-                
-                % stab:
-                switch Args.DictName
-                    case 'Header.Synonyms.KeyNames'
-                        
-                        St.EXPTIME = {'AEXPTIME', 'EXPTIME','EXPOSURE'};
-                        St.IMTYPE  = {'IMTYPE', 'IMGTYPE','IMAGETYP'};
-                        St.READNOI = {'READNOI', 'READNOIS','RN'};
-                        St.OBSLON  = {'OBSLON', 'LON','GEOLON','GEODLON','LONG'};
-                        St.OBSLAT  = {'OBSLAT', 'LAT','GEOLAT','GEODLAT'};
-                        St.DATEOBS = {'DATEOBS','DATE-OBS'};
-                        Obj.DictName   = Args.DictName;
-                        Obj.Dict   = St;
-                        Obj.Conversion = [];
-                    case 'Header.Synonyms.KeyVal.IMTYPE'
-                        St.Bias    = {'Bias'};
-                        St.Dark    = {'Dark'};
-                        St.Flat    = {'Flat','twfalt','domeflat'};
-                        St.Science = {'Science','sci'};
-                        St.Focus   = {'Focus','foc'};
-                        St.Arc     = {'Arc'};
-                        St.Fringe  = {'Fringe'};
-                        Obj.DictName   = Args.DictName;
-                    case 'Header.Comments.Default'
-                        % List of default comments for header keywords
-                        Obj.DictName   = Args.DictName;
-                        St.NAXIS   = {'Number of dimensions'};
-                        St.NAXIS1  = {'Length of axis 1 (X)'};
-                        St.NAXIS2  = {'Length of axis 2 (Y)'};
-                        St.BITPIX  = {'bits per data value'};
-                        St.BZERO   = {'zero point in scaling equation'};
-                        St.BSCALE  = {'linear factor in scaling equation'};
-                        St.MTYPE   = {'Image type'};
-                        St.GAIN    = {'Camera gain [e-/ADU]'};
-                        St.INTGAIN = {'Camera internal gain level'};
-                        St.READNOI = {'Camera Readout noise [e-]'};
-                        St.DARKCUR = {'Dark current [e-/s/pix]'};
-                        St.CAMNUM  = {'Camera Number'};
-                        Obj.Dict   = St;
-                        Obj.Conversion = [];
-% CAMLOC  : Camera Location :
-% CAMTYPE : Camera Type :
-% CAMMODEL: Camera Model :
-% CAMNAME : Camera Name :
-% MOUNTNUM: Mount Number :
-% BINX    : Binning along x-axis :
-% BINY    : Binning along y-axis :
-% OBSLON  : Observatory WGS84 Geodetic longitude [deg] :
-% OBSLAT  : Observatory WGS84 Geodetic latitude [deg] :
-% OBSALT  : Observatory WGS84 Geodetic altitude [m] :
-% M_JRA   : J2000.0 Right Ascension of mount [deg] : 
-% M_JDEC  : J2000.0 Declination of mount [deg] : 
-% M_JHA   : J2000.0 Hour Angle of mount [deg] :
-% M_RA    : Equinox of date R.A. of mount [deg] :
-% M_DEC   : Equinox of date Dec. of mount [deg] :
-% M_HA    : Equinox of date H.A. of mount [deg] :
-% RA      : J2000.0 Right Ascension [deg] : 
-% DEC     : J2000.0 Declination [deg] :
-% HA      : J2000.0 Hour Angle [deg] :
-% EQUINOX : Equinox in Julian years :
-% AIRMASS : Hardie Airmass :
-% AZ      : Telescope Azimuth [deg] :
-% ALT     : Telescope Altitude [deg] :
-% LST     : App. LST at the begining of exposure [deg] :
-% JD      : Julian date at the begining of exposure [day] :
-% MIDJD   : Julian date at the middle of exposure [day] :
-% DATE_OBS: YYYYMMDDTHHMMSS.FFF date :
-% FILTER  : Filter name :
-% FILTER2 : 2nd Filter name :
-% TRK_RA  : Tracking speed R.A. [arcsec/s] :
-% TRK_DEC : Tracking speed Dec. [arcsec/s] :
-% FOCUS   : Focus position :
-% PRVFOCUS: Previous focus position :
-% ORIGIN  : Organization name :
-% TELESCOP: Telescope : 
-% OBSERVER: Observer :
-% REFERENC: Bibilographic reference :
-% EXPTIME : Exposure time [s] :
-% TEMP_DET: Detector temperature [C] :
-% COOLPWR : Cooling power :
-% TEMP_MNT: Mount temperature [C] :
-% TEMP_MIR: Telescope mirror temperature [C] :
-% TEMP_OUT: Outside temperature [C] :
-% TEMP_HUM: Outside humidity [C] :
-% PRESSURE: Barometric pressure [mb] :
-            
-                        
-                        
-                    otherwise
-                        Obj.DictName   = Args.DictName;
-                        Obj.Dict       = struct();
-                        Obj.Conversion = [];
-                        %error('Unknown Dictionary name');
-                end
-                        
-                %
-                
-                %Obj = Dictionary.read('Name',Args.Name,'Family',Args.Family);
+            arguments
+                Args.DictName      = [];
             end
             
+            Obj.DictName = Args.DictName;
+            
+            if isempty(Obj.DictName)
+                % No dictionary
+            else
+                if isempty(fieldnames(Obj.Config.Data))
+                    Obj.Config = Configuration;
+                    Obj.Config.loadConfig;
+                    Args.DictName
+                    Obj.Dict   = eval(sprintf('Obj.Config.Data.%s',Args.DictName));
+                end
+            end
         end
     end
     
