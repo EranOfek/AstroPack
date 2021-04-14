@@ -563,9 +563,11 @@ classdef ImageComponent < Component
         
         % funStack (including scaling and zero subtracting)
         % funTransform
+    end
+    
+    methods % replace, rotate, resize
         
-        
-        function [Obj,ObjReplaced] = replace(Obj, Range, NewVal, Eps)
+        function [Result, ObjReplaced] = replace(Obj, Range, NewVal, Args)
             % Replace values in range in image with a new value and generate a flag image of replaced pixels
             % Input  : - An ImageComponent object.
             %          - A two column matrix of min/max ranges, or a single
@@ -576,13 +578,23 @@ classdef ImageComponent < Component
             %            values. If scalar, then will use the same value
             %            for all ranges.
             %            For vector, value can be NaN.
-            %          - A value to subtract to the lower range and add to
-            %            the upper range prior to comparison. This is
-            %            useful in order to avoid problems with comparison
-            %            of floating point numbers. Default is 0.
+            %          * ...,key,val,...
+            %            'Eps' - A value to subtract to the lower range and add to
+            %                   the upper range prior to comparison. This is
+            %                   useful in order to avoid problems with comparison
+            %                   of floating point numbers. Default is 0.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
             % Output : - The same object, but with the updated values.
-            %          - A new ImageComponent object which contains a
-            %            matrix of logicals. True if value was replaced.
+            %          - An ImageComponent in which the image contains
+            %            logical indicating which pixels were replaced.
             % Author : Eran Ofek (Mar 2021)
             % Example: [Obj,ObjReplaced] = replace(Obj, Range, NewVal);
             
@@ -590,32 +602,47 @@ classdef ImageComponent < Component
                 Obj
                 Range      {mustBeNumeric(Range)}
                 NewVal     {mustBeNumeric(NewVal)}
-                Eps        {mustBeNumeric(Eps)}        = 0;
+                Args.Eps   {mustBeNumeric(Args.Eps)}   = 0;
+                Args.CreateNewObj                      = [];
             end
             
-            if nargout > 1
-                ObjReplaced = ImageComponent(size(Obj));
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
             end
             
             Nnewval = numel(NewVal); 
             Nrange  = size(Range,1);
             Nobj    = numel(Obj);
+            
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            if nargout>1
+                ObjReplaced = ImageComponent(size(Obj));
+            end
+            
             for Iobj=1:1:Nobj
                 FlagAll = false(numel(Obj(Iobj).Image),1);
                 for Irange=1:1:Nrange
+                    Inew   = min(Irange, Nnewval);
                     if any(isnan(Range(Irange,:)))
                         % Replace NaN
                         Flag = isnan(Obj(Iobj).Image(:));
                     else
                         % Replace values (not NaN)
-                        MinVal = min(Range(Irange,:),[],2) - Eps;
-                        MaxVal = max(Range(Irange,:),[],2) + Eps;
+                        MinVal = min(Range(Irange,:),[],2) - Args.Eps;
+                        MaxVal = max(Range(Irange,:),[],2) + Args.Eps;
 
                         Flag   = Obj(Iobj).Image(:)>=MinVal & Obj(Iobj).Image(:)<=MaxVal;
-                        Inew   = min(Irange, NnewVal);
                     end
                     
-                    Obj(Iobj).Image(Flag) = NewVal(Inew);
+                    Result(Iobj).Image(Flag) = NewVal(Inew);
                     
                     if nargout>1
                         FlagAll = FlagAll | Flag;
@@ -688,8 +715,15 @@ classdef ImageComponent < Component
             %            'BBox' - imrotate bounding box ['loose'] | 'crop'.
             %            'DataProp' - Data prop on which to apply the
             %                   rotation. Default is 'Image'.
-            %            'CreateNewObj' - Create new object (true), oir
-            %                   update input (false). Default is true.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
             %          * Additional parameters to pass to imrotate:
             %            Angle(deg), Method, BBOX.
             %            Default is 'nearest', 'loose'
@@ -704,7 +738,15 @@ classdef ImageComponent < Component
                 Args.Method                     = 'bicubic';
                 Args.BBox                       = 'loose';
                 Args.DataProp                   = 'Image';
-                Args.CreateNewObj(1,1) logical  = true;
+                Args.CreateNewObj               = [];
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
             end
             
             if Args.CreateNewObj
@@ -747,7 +789,8 @@ classdef ImageComponent < Component
             %                   IB.
             % Output : - An ImageComponent object with the cropped images.
             % Author : Eran Ofek (Apr 2021)
-            % Example: 
+            % Example: IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
+            %          Res = crop(IC,[1 2 1 3])
             
             arguments
                 Obj
@@ -769,7 +812,7 @@ classdef ImageComponent < Component
             if Nobj==Nsec || Nobj==1 || Nsec==1
                 Nmax = max(Nobj, Nsec);
                 if Args.CreateNewObj
-                    Result = ImageComponent(Nmax,1);
+                    Result = ImageComponent([Nmax,1]);
                 else
                     Result = Obj;
                 end
@@ -996,7 +1039,7 @@ classdef ImageComponent < Component
             % funUnaryScalar
             IC = ImageComponent({ones(10,10), zeros(5,4)}, 'Scale',5);
             R = IC.funUnary(@sin);
-            assert(all(R == sin([1, 0])), 'funUnarry(@sin) failed');
+            
             
             IC.funUnary(@median,'OpArgs',{'all','omitnan'});
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
@@ -1073,7 +1116,54 @@ classdef ImageComponent < Component
             % shift and stack using the CCDSEC atgument
             images2cube(IC,'CCDSEC',[1 2 2 4; 1 2 2 4; 2 3 3 5]);            
             
+            %
+            IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
+            [Obj,ObjReplaced] = replace(IC, [0.2 1], 0.1);
+            if any(Obj(1).Image>0.2)
+                error('replace didnot work properly');
+            end
+            IC(2).Image(1,1) = NaN;
+            [Obj,ObjReplaced] = replace(IC, [NaN], 0.1);
+            if Obj(2).Image(1,1)~=0.1
+                error('replace didnot work properly with NaNs');
+            end
+            % several ranges
+            IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
+            [Obj,ObjReplaced] = replace(IC, [0.2 1;0 0.2], [0.5 0.1]);
+            
+            % imresize - output is a matrix
+            Result = imresize(IC, 2);
+            
+            % imrotate
+            IC=ImageComponent({rand(10,10)});
+            IC.imrotate(10);
+            
+            % crop
+            IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
+            % crop multiple images with a single crop
+            Res = crop(IC,[1 2 1 3]);
+            % crop single image with multiple crops
+            Res = crop(IC(1),[1 2 1 3; 1 2 1 2]);
+            % crop multiple image with multiple crops
+            Res = crop(IC(1:2),[1 2 1 3; 1 2 1 2]);
+            
+            % image2subimages
+            IC=ImageComponent; IC.Image=rand(1000,1000);
+            [Result,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = image2subimages(IC,[256 256]);
+            
+            % cutouts around selected positions in a single image
+            IC = ImageComponent({rand(1000,1000)});
+            XY = rand(10000,2).*900 + 50;
+            Cube = cutouts(IC, XY);
+            if ~all(size(Cube)==[17 17 1e4])
+                error('cutouts output size is incorrect');
+            end
+            Cube = cutouts(IC, XY,'Shift',true);
+            Cube = cutouts(IC, XY,'Shift',true,'IsCircFilt',true);
+            
+            
             Result = true;            
+            
         end        
     end    
 end

@@ -742,27 +742,6 @@ classdef AstroImage < Component
             
         end
         
-%         function Cube = images2cube(Obj, Args)
-%             % This is a few percents faster so not worth the efforts
-%             
-%             arguments
-%                 Obj
-%                 Args.DataProp                      = {'Image','Back','Var','Mask'};
-%                 Args.UseScaledData(1,1) logical    = true;
-%                 Args.CCDSEC                        = [];
-%             end
-%             
-%             
-%             Nobj   = numel(Obj);
-%             [SizeI, SizeJ] = sizeImage(Obj(1)); 
-%             Cube = zeros(SizeI, SizeJ, Nobj);
-%             for Iobj=1:1:Nobj
-%                 Cube(:,:,Iobj) = Obj(Iobj).Image;
-%             end
-%             
-%         end
-        
-
         function varargout = images2cube(Obj, Args)
             % Convert the images in AstroImage object into a cube.
             %       Each data property (e.g., 'ImageData', 'BackData')
@@ -787,6 +766,9 @@ classdef AstroImage < Component
             % Output : * A cube for each DataProp, by the order of their
             %            appearnce in DataProp.
             % Author : Eran Ofek (Apr 2021)
+            % Notes  : Doing this operation directly (without
+            %       astroImage2ImageComponent) will be only a few percents
+            %       faster.
             % Example: AI = AstroImage({rand(1000,1000), rand(1000,1000), rand(1000,1000)})
             %          [CubeImage, CubeBack] = images2cube(AI)
             %          [CubeImage] = images2cube(AI,'CCDSEC',[1 2 2 5])
@@ -812,6 +794,11 @@ classdef AstroImage < Component
 
         end
 
+        
+        
+        
+        
+        
         function Result = fun__Unary(Obj, Operator, Args)
             % Apply an unary function on AstroImage data
             % Input  : - An AstroImage object
