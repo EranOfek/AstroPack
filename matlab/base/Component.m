@@ -143,11 +143,7 @@ classdef Component < Base
                     end
                 end
             end
-                
-            
-            
         end
-        
     end
     
     
