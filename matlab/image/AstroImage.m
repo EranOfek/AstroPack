@@ -794,6 +794,30 @@ classdef AstroImage < Component
 
         end
 
+        function [CutoutCube, ActualXY] = cutouts(Obj, XY, Args)
+            % ?? exact copy of the one in ImageComponent?
+            
+            
+        end
+        
+        % some thoughts
+        % ImageComponent
+        
+        % AstroImage
+        % astroImage2AstroCatalog
+        % cutouts - is this a copy of the one in ImageComponent?
+        % funBiary
+        % object2array - put in Component?
+        % funUnaryScalar (no error propagation)
+        
+        % external
+        % +imProc.cat.Match.coneSearch
+        % +imProc.cat.match.isInPolygon
+        % +imProc.cat.Match.match_xy
+        % +imProc.cat.Match.match_coo
+        % +imProc.cat.Match.match
+        % +imProc.cat.Match.match_catsHTM
+        % +imProc.cat.Match.matched2matrix
         
         
         

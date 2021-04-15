@@ -24,7 +24,9 @@ classdef Component < Base
             Obj.Log = MsgLogger.getSingle();
             Obj.Config = Configuration.getSingle();
         end
-        
+    end
+    
+    methods
         
         function Result = makeUuid(Obj)
             % Generate unique ID
@@ -48,6 +50,106 @@ classdef Component < Base
             Obj.Log.msgLog(Level, varargin{:});
         end
     end
+    
+    methods % some useful functionality
+        function Result = convert2class(Obj, DataPropIn, DataPropOut, ClassOut, Args)
+            % Convert a class that henhirts from Component to another class
+            %       Uses eval, so in some cases maybe slow.
+            %       Creates a new copy.
+            % Input  : - An object which class hinherits from Component.
+            %          - A cell array of data properties in the input
+            %            class.
+            %          - A cell array of data properties, corresponding to
+            %            the previous argument, in the target class.
+            %          - A function handle for the target class.
+            %          * ...,key,val,...
+            %            'UseEval' - A logical indicating if to use the
+            %                   eval function. This is needed when the data
+            %                   properties have levels. Default is false.
+            % Output : - The converted class
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC=ImageComponent; IC.Image = 1;
+            %          AI=convert2class(IC,{'Image'},{'Image'},@AstroImage)
+            %          AI=convert2class(IC,{'Data'},{'ImageData.Data'},@AstroImage,'UseEval',true)
+           
+            arguments
+                Obj
+                DataPropIn              
+                DataPropOut             
+                ClassOut function_handle
+                Args.UseEval(1,1) logical     = false;
+            end
+            
+            Nprop = numel(DataPropIn);
+            if Nprop~=numel(DataPropOut)
+                error('Number of Data properties in and out should be the same');
+            end
+            
+            Nobj   = numel(Obj);
+            Result = ClassOut(size(Obj));
+            for Iobj=1:1:Nobj
+                for Iprop=1:1:Nprop
+                    if Args.UseEval
+                        Str = sprintf('Result(Iobj).%s = Obj(Iobj).%s;',DataPropOut{Iprop},DataPropIn{Iprop});
+                        eval(Str);
+                    else
+                        Result(Iobj).(DataPropOut{Iprop}) = Obj(Iobj).(DataPropIn{Iprop});
+                    end
+                end
+            end
+        end
+        
+        function varargout = data2array(Obj, DataProp)
+            % Convert scalar data property in an object into an array
+            % Input  : - An object that hinherits from Component.
+            %            That have data properties that contains scalar or
+            %            empty.
+            %          - A cell array of data properties.
+            %            The scalar content of each such data property will
+            %            be inserted into an array of numbers which size is
+            %            equal to the size of the input object.
+            % Output : * An array per each data property.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC= ImageComponent({1, 2});
+            %          [A] = data2array(IC,'Image')
+            %          [A,B] = data2array(IC,{'Image','Data'})
+           
+            arguments
+                Obj
+                DataProp
+            end
+            
+            if ischar(DataProp)
+                DataProp = {DataProp};
+            end
+            
+            Nobj  = numel(Obj);
+            Nprop = numel(DataProp);
+            if nargout>Nprop
+                error('Numbre of input data properties must be equal or larger than the number of output arguments');
+            end
+            DataProp = DataProp(1:nargout);
+            
+            for Iprop=1:1:Nprop
+                varargout{Iprop} = nan(size(Obj));
+                for Iobj=1:1:Nobj
+                    Nd = numel(Obj(Iobj).(DataProp{Iprop}));
+                    if Nd==1
+                        varargout{Iprop}(Iobj) = Obj(Iobj).(DataProp{Iprop});
+                    elseif Nd==0
+                        % do nothing - filled with NaNs
+                    else
+                        error('data2array works only on data properties that contains scalars or empty');
+                    end
+                end
+            end
+                
+            
+            
+        end
+        
+    end
+    
     
       
     methods(Static) % Unit test
