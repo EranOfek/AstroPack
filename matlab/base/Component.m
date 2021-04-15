@@ -170,7 +170,18 @@ classdef Component < Base
             b.needUuid();
             assert(~all(a.Uuid ~= b.Uuid));
            
-            io.msgLog(LogLevel.Test, 'Component test passed');            
+            io.msgLog(LogLevel.Test, 'Component test passed');   
+            
+            IC=ImageComponent; IC.Image = 1;
+            AI=convert2class(IC,{'Image'},{'Image'},@AstroImage);
+            AI=convert2class(IC,{'Data'},{'ImageData.Data'},@AstroImage,'UseEval',true);
+
+            IC= ImageComponent({1, 2});
+            [A] = data2array(IC,'Image');
+            [A,B] = data2array(IC,{'Image','Data'});
+
+            
+            
             Result = true;
         end
     end    
