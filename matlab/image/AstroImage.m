@@ -673,6 +673,7 @@ classdef AstroImage < Component
         function Result = funUnaryScalar(Obj, Operator, Args)
             %
             
+            
         end
         
         function Result = funBinary(Obj1, Obj2, Operator, Args)
@@ -740,6 +741,37 @@ classdef AstroImage < Component
             end
              
             
+        end
+        
+        function Result = astroImage2AstroCatalog(Obj, Args)
+            % Convert the CataData in AstroImage object into an AstroCatalog object array.
+            % Input  : - An AstroImage object (multi components supported).
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object or to provide and handle to
+            %                   the existing object. Default is false.
+            % Output : - An astroCatalog object.
+            %            Note that if CreateNewObj=false then changes in
+            %            this object will take place also in the original
+            %            AstroImage object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AC= astroImage2AstroCatalog(AI);
+            %          AC= astroImage2AstroCatalog(AI,'CreateNewObj',true);
+            
+            arguments
+                Obj
+                Args.CreateNewObj(1,1) logical          = false;
+            end
+            
+            Result = AstroCatalog(size(Obj));
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Args.CreateNewObj
+                    Result(Iobj) = Obj(Iobj).CatData.copyObject;
+                else
+                    Result(Iobj) = Obj(Iobj).CatData;
+                end
+            end
         end
         
         function varargout = images2cube(Obj, Args)
@@ -860,16 +892,17 @@ classdef AstroImage < Component
         end
         
         % some thoughts
-        % ImageComponent
+        % * ImageComponent
         
-        % AstroImage
-        % astroImage2AstroCatalog
+        % * AstroImage
+        % DONE: astroImage2AstroCatalog
         % DONE: cutouts 
         % funBiary
         % DONE: object2array - put in Component?
+        % funUnaryScalarWeighted (only for ImageData)
         % funUnaryScalar (no error propagation)
         
-        % external
+        % * external
         % +imProc.cat.Match.coneSearch
         % +imProc.cat.match.isInPolygon
         % +imProc.cat.Match.match_xy
