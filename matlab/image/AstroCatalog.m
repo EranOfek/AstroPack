@@ -252,60 +252,58 @@ classdef AstroCatalog < AstroTable
     end
     
     methods % coordinates and bounding box
-        function [BoxX, BoxY, BoxSemiHeight, BoxSemiWidth] = catalogBoundingBox(Obj, Args)
-            %
-            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2)
-            %          AC.getCooTypeAuto
-            
-            arguments
-                Obj
-                Args.OutUnits char                   = 'deg';
-                Args.MeanFun function_handle         = @median
-            end
-            
-            if isempty(Obj(1).ColX) || isempty(Obj(1).ColY)
-                Obj.getCooTypeAuto;
-            end
-            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-            
-                ColX = colname2ind(Obj(Iobj), Obj(Iobj).ColX);
-                ColY = colname2ind(Obj(Iobj), Obj(Iobj).ColY);
-                
-                switch lower(Obj(Iobj).CooType)
-                    case 'sphere'
-                        % convert coordinates to cosine directions
-                        [CD1, CD2, CD3] = celestial.coo.coo2cosined(Obj.Catalog(:,ColX), Obj.Catalog(:,ColY));
-                        
-                        Args.MeanFun(CD1)
-                        
-                    case 'pix'
-                        [BestXY, BestRadius] = tools.math.geometry.boundingCircle(Obj.Catalog(:,ColX), Obj.Catalog(:,ColY));
-                    otherwise
-                        
-                end
-                        
-                        
-                        
-                
-            end
-            
-            
-        end
-        
         function [CircleX, CircleY, CircleRadius] = catalogBoundingCircle(Obj, Args)
-            %
+            % Fit a bounding circle position and radius to a catalog
+            % Input  : - An AstroCatalog object (multi elements supported).
+            %            All elements must have the same CooType.
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - The best fit circle X/Long
+            %          - The best fit circle Y/Lat
+            %          - The best fit circle radius
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          M = imProc.cat.Match;
+            %          [Result] = M.coneSearch(AC, [1 1], 'Radius',3600.*10)
+            %          [CircleX, CircleY, CircleRadius] = catalogBoundingCircle(Result);
             
             arguments
                 Obj
                 Args.OutUnits char       = 'deg';
             end
             
+            Nobj         = numel(Obj);
+            CircleX      = nan(size(Obj));
+            CircleY      = nan(size(Obj));
+            CircleRadius = nan(size(Obj));
+            
+            for Iobj=1:1:Nobj
+                [X, Y] = getCoo(Obj(Iobj),'rad');
+                switch lower(Obj(Iobj).CooType)
+                    case 'sphere'
+                        [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
+                    case 'pix'
+                        [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
+                    otherwise
+                        error('Unknown CooType=%s option',Obj(Iobj).CooType);
+                end
+                CircleX      = BestCoo(1);
+                CircleY      = BestCoo(2);
+                CircleRadius = BestRadius;
+            end
+            % convert output to Args.OutUnits
+            if strcmp(Obj(Iobj).CooType,'sphere')
+                ConvFactor   = convert.angular('rad',Args.OutUnits);
+                CircleX      = CircleX.*ConvFactor;
+                CircleY      = CircleY.*ConvFactor;
+                CircleRadius = CircleRadius.*ConvFactor;
+            end
         end
             
     end
     
+    
+    % TRANSFERED !!!!
     methods % search by coordinates/name
         function [Result, Flag, AllDist] = coneSearch(Obj, Coo, Args)
             % cone search(s) on AstroCatalog object
@@ -694,7 +692,17 @@ classdef AstroCatalog < AstroTable
                 error('catalog is not sorted');
             end
             
+            % bounding circle
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            M = imProc.cat.Match;
+            [Result] = M.coneSearch(AC, [1 1], 'Radius',3600.*10);
+            [CircleX, CircleY, CircleRadius] = catalogBoundingCircle(Result);
+            if abs(CircleX-1)>0.1 ||  abs(CircleY-1)>0.1 || abs(CircleRadius-10)>0.5
+                error('Problem with catalogBoundingCircle');
+            end
             
+            
+            % TRANSFERED!!
             % match (spherical)
             AC = AstroCatalog;
             AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];

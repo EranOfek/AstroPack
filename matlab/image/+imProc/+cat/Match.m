@@ -140,6 +140,10 @@ classdef Match < Component
                 Args.CreateNewObj                = [];
             end
             
+            if isempty(CatObj(1).CooType)
+                CatObj.getCooTypeAuto;
+            end
+            
             % use object default arguments if not supplied by user
             Args = selectDefaultArgsFromProp(Obj, Args);
             if isempty(CatObj)
@@ -149,6 +153,9 @@ classdef Match < Component
                 Coo = Obj.Coo;
             end
                 
+            % Convert Coo to radians
+            CooRad = convert.angular(Args.CooUnits,'rad',Coo);
+            
             if isempty(Args.CreateNewObj)
                 if nargout>0
                     Args.CreateNewObj = true;
@@ -188,7 +195,7 @@ classdef Match < Component
                 switch lower(CatObj(Iobj).CooType)
                     case 'sphere'
                         [Ind,Flag] = VO.search.search_sortedlat_multi(getCoo(CatObj(Iobj),'rad'),...
-                                                                    Coo(:,1), Coo(:,2), RadiusRad, [],...
+                                                                    CooRad(:,1), CooRad(:,2), RadiusRad, [],...
                                                                     @celestial.coo.sphere_dist_fast);
                     case 'pix'
                         [Ind,Flag] = VO.search.search_sortedlat_multi(getCoo(CatObj(Iobj),'rad'),...
@@ -420,13 +427,16 @@ classdef Match < Component
         function [MatchedObj, UnMatchedObj] = match_catsHTM(MObj, Obj, CatName, Args)
             %
             
+            %'not ready'
+            
             arguments
                 MObj
                 Obj
                 CatName char
-                Args.RA
-                Args.Dec
-                
+                Args.Coo                 = [];
+                Args.CooUnits            = 'deg';
+                Args.Radius              = [];
+                Args.RadiusUnits         = 'arcsec';
             end
             
             % use object default arguments if not supplied by user
@@ -448,11 +458,29 @@ classdef Match < Component
             else
                 error('Input Obj is of unsupported class');
             end
+
+            
+            if isempty(Args.Coo) || isempty(Args.Radius)
+                UseUserCoo = true;
+            else
+                UseUserCoo = false;
+            end
+            
             
             Nobj = numel(Obj);
             MatchedObj = AstroCatalog(size(Obj));
 
             % UNDER CONSTRUCTION
+            for Iobj=1:1:Nobj
+                switch lower(Obj(Iobj).CooType)
+                    case 'sphere'
+                        
+                    case 'pix'
+                        
+                    otherwise
+                        error('Unknown CooType=%s option',Obj(Iobj).CooType);
+                end
+            end
             
             
             
