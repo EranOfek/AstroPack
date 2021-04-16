@@ -69,12 +69,12 @@ classdef Base < handle
         end
         
         
-        function Obj2 = copyProp(Obj, Target, PropList)
+        function Target = copyProp(Obj, Target, PropList)
             % Copy the content of properties from object1 into object2.
             % Input  : - Obj1 (from which to copy)
-            %          - Obj2
+            %          - Target object
             %          - A cell array or a string array of properties to copy.
-            % Output : - Obj2
+            % Output : - Target object
             % Author : Eran Ofek (Apr 2021)
             % Example: Obj2 = copyProp(Obj1, Obj2, {'UserData'})
            

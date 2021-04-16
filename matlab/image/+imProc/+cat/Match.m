@@ -238,7 +238,7 @@ classdef Match < Component
     methods % match two AstroCatalog
         
         % FFU: need to modify
-        function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args)
+        function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(MObj, Obj1, Obj2, Args)
             % Match two catalogs in AstroCatalog objects
             %       This functin returens: a matche source catalog, and an
             %       unmatched source catalog.
@@ -291,9 +291,11 @@ classdef Match < Component
             %           AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]
             %           AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
             %           AC2.getCooTypeAuto
-            %           [M,UM,TUM] = match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
+            %           M = imProc.cat.Match;
+            %           [MC,UM,TUM] = M.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
             
             arguments
+                MObj
                 Obj1
                 Obj2
                 Args.Radius                      = 5;
@@ -304,17 +306,48 @@ classdef Match < Component
                 Args.DistColPos                  = Inf;
             end
             
-            
-         problematic...
-             
-            if isa(Obj1,'AstroCatalog')
-                % do nothing
-            else
-                if isa(Obj1,'AstroImage')
-                    astroImage2AstroCatalog(Obj1, 'CreateNewObj',Args.CreateNewObj);
-                end
+            % use object default arguments if not supplied by user
+            Args = selectDefaultArgsFromProp(MObj, Args);
+            if isempty(Obj1)
+                Obj1 = Obj.Cat;
             end
-                                    
+            if isempty(Obj2)
+                Obj2 = Obj.Ref;
+            end
+                
+            % convert AstroImage to AstroCatalog: Obj1
+            if isa(Obj1,'AstroImage')
+                Obj1 = astroImage2AstroCatalog(Obj1,'CreateNewObj',Args.CreateNewObj);
+            elseif isa(Obj1,'AstroCatalog')
+                % do nothing
+%             elseif isnumeric(Obj1)
+%                 % create an AstroCatalog object with the data
+%                 Obj1 = AstroCatalog({Obj1});
+%                 Obj1.ColNames  = 
+%                 Obj1.ColUnits  = 
+%                 Obj1.CooUnits  = 
+%                 Obj1.CooType   =
+%                 Obj1.SortByCol = 
+            else
+                error('Input Obj1 is of unsupported class');
+            end
+            
+             % convert AstroImage to AstroCatalog: Obj2
+            if isa(Obj2,'AstroImage')
+                Obj2 = astroImage2AstroCatalog(Obj2,'CreateNewObj',Args.CreateNewObj);
+            elseif isa(Obj2,'AstroCatalog')
+                % do nothing
+%             elseif isnumeric(Obj2)
+%                 % create an AstroCatalog object with the data
+%                 Obj2 = AstroCatalog({Obj2});
+%                 Obj2.ColNames  = 
+%                 Obj2.ColUnits  = 
+%                 Obj2.CooUnits  = 
+%                 Obj2.CooType   =
+%                 Obj2.SortByCol = 
+            else
+                error('Input Obj2 is of unsupported class');
+            end
             
             Nobj1 = numel(Obj1);
             Nobj2 = numel(Obj2);
