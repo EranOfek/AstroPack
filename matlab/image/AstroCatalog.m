@@ -251,7 +251,60 @@ classdef AstroCatalog < AstroTable
         
     end
     
-    
+    methods % coordinates and bounding box
+        function [BoxX, BoxY, BoxSemiHeight, BoxSemiWidth] = catalogBoundingBox(Obj, Args)
+            %
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2)
+            %          AC.getCooTypeAuto
+            
+            arguments
+                Obj
+                Args.OutUnits char                   = 'deg';
+                Args.MeanFun function_handle         = @median
+            end
+            
+            if isempty(Obj(1).ColX) || isempty(Obj(1).ColY)
+                Obj.getCooTypeAuto;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+            
+                ColX = colname2ind(Obj(Iobj), Obj(Iobj).ColX);
+                ColY = colname2ind(Obj(Iobj), Obj(Iobj).ColY);
+                
+                switch lower(Obj(Iobj).CooType)
+                    case 'sphere'
+                        % convert coordinates to cosine directions
+                        [CD1, CD2, CD3] = celestial.coo.coo2cosined(Obj.Catalog(:,ColX), Obj.Catalog(:,ColY));
+                        
+                        Args.MeanFun(CD1)
+                        
+                    case 'pix'
+                        [BestXY, BestRadius] = tools.math.geometry.boundingCircle(Obj.Catalog(:,ColX), Obj.Catalog(:,ColY));
+                    otherwise
+                        
+                end
+                        
+                        
+                        
+                
+            end
+            
+            
+        end
+        
+        function [CircleX, CircleY, CircleRadius] = catalogBoundingCircle(Obj, Args)
+            %
+            
+            arguments
+                Obj
+                Args.OutUnits char       = 'deg';
+            end
+            
+        end
+            
+    end
     
     methods % search by coordinates/name
         function [Result, Flag, AllDist] = coneSearch(Obj, Coo, Args)

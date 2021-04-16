@@ -4,6 +4,8 @@ classdef Match < Component
         Cat
         Ref
         Coo
+        CatName
+        
         CooUnits                    = 'deg';
         Radius                      = 3;
         RadiusUnits                 = 'arcsec';
@@ -160,14 +162,8 @@ classdef Match < Component
                 CatObj = astroImage2AstroCatalog(CatObj,'CreateNewObj',Args.CreateNewObj);
             elseif isa(CatObj,'AstroCatalog')
                 % do nothing
-%             elseif isnumeric(CatObj)
-%                 % create an AstroCatalog object with the data
-%                 CatObj = AstroCatalog({CatObj});
-%                 CatObj.ColNames  = 
-%                 CatObj.ColUnits  = 
-%                 CatObj.CooUnits  = 
-%                 CatObj.CooType   =
-%                 CatObj.SortByCol = 
+            elseif isnumeric(CatObj)
+                error('Input CatObj is of unsupported class');
             else
                 error('Input CatObj is of unsupported class');
             end
@@ -237,7 +233,6 @@ classdef Match < Component
     
     methods % match two AstroCatalog
         
-        % FFU: need to modify
         function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(MObj, Obj1, Obj2, Args)
             % Match two catalogs in AstroCatalog objects
             %       This functin returens: a matche source catalog, and an
@@ -320,14 +315,8 @@ classdef Match < Component
                 Obj1 = astroImage2AstroCatalog(Obj1,'CreateNewObj',Args.CreateNewObj);
             elseif isa(Obj1,'AstroCatalog')
                 % do nothing
-%             elseif isnumeric(Obj1)
-%                 % create an AstroCatalog object with the data
-%                 Obj1 = AstroCatalog({Obj1});
-%                 Obj1.ColNames  = 
-%                 Obj1.ColUnits  = 
-%                 Obj1.CooUnits  = 
-%                 Obj1.CooType   =
-%                 Obj1.SortByCol = 
+            elseif isnumeric(Obj1)
+                error('Input Obj1 is of unsupported class');
             else
                 error('Input Obj1 is of unsupported class');
             end
@@ -337,14 +326,8 @@ classdef Match < Component
                 Obj2 = astroImage2AstroCatalog(Obj2,'CreateNewObj',Args.CreateNewObj);
             elseif isa(Obj2,'AstroCatalog')
                 % do nothing
-%             elseif isnumeric(Obj2)
-%                 % create an AstroCatalog object with the data
-%                 Obj2 = AstroCatalog({Obj2});
-%                 Obj2.ColNames  = 
-%                 Obj2.ColUnits  = 
-%                 Obj2.CooUnits  = 
-%                 Obj2.CooType   =
-%                 Obj2.SortByCol = 
+            elseif isnumeric(Obj2)
+                error('Input Obj2 is of unsupported class');
             else
                 error('Input Obj2 is of unsupported class');
             end
@@ -434,20 +417,42 @@ classdef Match < Component
     end
     
     methods % match against external catalog
-        function [MatchedObj, UnMatchedObj] = match_catsHTM(Obj, CatName, Args)
+        function [MatchedObj, UnMatchedObj] = match_catsHTM(MObj, Obj, CatName, Args)
             %
             
             arguments
+                MObj
                 Obj
-                CatName
+                CatName char
                 Args.RA
                 Args.Dec
                 
             end
             
+            % use object default arguments if not supplied by user
+            Args = selectDefaultArgsFromProp(MObj, Args);
+            if isempty(Obj)
+                Obj = Obj.Cat;
+            end
+            if isempty(CatName)
+                CatName = Obj.CatName;
+            end
+                
+            % convert AstroImage to AstroCatalog
+            if isa(Obj,'AstroImage')
+                Obj = astroImage2AstroCatalog(Obj,'CreateNewObj',Args.CreateNewObj);
+            elseif isa(Obj,'AstroCatalog')
+                % do nothing
+            elseif isnumeric(Obj)
+                error('Input Obj is of unsupported class');
+            else
+                error('Input Obj is of unsupported class');
+            end
             
             Nobj = numel(Obj);
             MatchedObj = AstroCatalog(size(Obj));
+
+            % UNDER CONSTRUCTION
             
             
             
