@@ -719,6 +719,103 @@ classdef AstroImage < Component
         
         function Result = funBinary(Obj1, Obj2, Operator, Args)
             %
+            
+            arguments
+                Obj1
+                Obj2
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CreateNewObj               = [];
+                Args.CCDSEC1                    = [];
+                Args.CCDSEC2                    = [];
+                Args.OutOnlyCCDSEC(1,1) logical = true;
+                Args.DataProp                   = {'DataImag','BackImage','VarImage','MaskImage'};
+                Args.DataPropIn                 = 'Image';
+                
+                Args.PropagateErr               = [];
+                
+                Args.DataPropIn2                = '';
+                Args.DataPropOut                = '';
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
+            end
+            
+            Ndp = numel(Args.DataProp);
+            
+            % make sure Obj2 is in the right format
+            if isnumeric(Obj2)
+                % If Obj2 is an array with the same size as Obj1, then
+                % convert into a cell array of scalars.
+                if all(size(Obj1)==size(Obj2))
+                    Obj2 = num2cell(Obj2);
+                else
+                    % otherwise a single element cell
+                    Obj2 = {Obj2};
+                end
+            end
+            % at this stage Obj2 must be a cell, AstroImage or an ImageComponent
+            if iscell(Obj2)
+                Obj2IsCell = true;
+            else
+                Obj2IsCell = false;
+            end
+            if ~Obj2IsCell && ~isa(Obj2,'ImageComponent') && ~isa(Obj2,'AstroImage')
+                error('Obj2 must be a cell, or AstroImage, or ImageComponent, or a numeric array');
+            end
+            
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            Nres  = max(Nobj1, Nobj2);
+            if ~(Nobj2==1 || Nobj2==Nobj1)
+                error('number of elements in Obj2 must be 1 or equal to the number in Obj1');
+            end
+                
+            if Args.CreateNewObj
+                Result = Obj1.copyObject;
+            else
+                Result = Obj1;
+            end
+                
+            for Ires=1:1:Nres
+                Iobj1 = min(Ires, Nobj1);
+                Iobj2 = min(Ires, Nobj2);
+                
+                if isempty(Args.CCDSEC2)
+                    if Obj2IsCell
+                        Tmp{1} = Obj2{Iobj2};
+                        Tmp{2} = [];
+                        Tmp{3} = [];
+                        Tmp{4} = [];
+                    else
+                        for Idp=1:1:Ndp
+                            Tmp{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn);
+                        end
+                    end
+                else
+                    if Obj2IsCell
+                        Tmp{1} = Obj2{Iobj2}(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                        Tmp{2} = [];
+                        Tmp{3} = [];
+                        Tmp{4} = [];
+                    else
+                        for Idp=1:1:Ndp
+                            Tmp{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                        end
+                    end
+                end
+                
+                % operator ...
+                % got here
+                
+                
+            end
+            
         end
                 
         function varargout = astroImage2ImageComponent(Obj, Args)
