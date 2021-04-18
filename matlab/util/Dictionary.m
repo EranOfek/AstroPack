@@ -30,9 +30,9 @@ classdef Dictionary < Component
                 % No dictionary
             else
                 if isempty(fieldnames(Obj.Config.Data))
-                    Obj.Config = Configuration;
-                    Obj.Config.loadConfig;
                     Args.DictName
+                    %Obj.Config = Configuration;
+                    Obj.Config.loadConfig;
                     Obj.Dict   = eval(sprintf('Obj.Config.Data.%s',Args.DictName));
                 end
             end

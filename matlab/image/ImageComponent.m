@@ -452,7 +452,8 @@ classdef ImageComponent < Component
             %                   modified to 'Image'.
             %            'DataPropIn' - Data property in which the operator
             %                   will be operated. Default is 'Data'.
-            % Output : - An ImageComponent object.
+            % Output : - An array in which each element corresponds to the operator applied
+            %            to an element in the ImageComponent object.
             % Author : Eran Ofek (Apr 2021)
             % Example: IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
             %          R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'});

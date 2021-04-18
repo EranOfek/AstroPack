@@ -1,0 +1,113 @@
+2021-04-18 20:58:28.907 > =========================================== Started
+2021-04-18 21:03:43.696 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config
+2021-04-18 21:03:43.716 > [INF] Adding property: A.b
+2021-04-18 21:03:43.720 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/A.b.yml
+2021-04-18 21:03:44.796 > [INF] Adding property: BitMask.Image.Default
+2021-04-18 21:03:44.834 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:03:45.004 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:03:45.006 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:03:45.008 > [INF] Adding property: Header.Comments.Default
+2021-04-18 21:03:45.009 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Comments.Default.yml
+2021-04-18 21:03:45.184 > [INF] Adding property: Header.KeyNames.Default
+2021-04-18 21:03:45.185 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.KeyNames.Default.yml
+2021-04-18 21:03:45.366 > [INF] Adding property: Header.Synonyms.KeyNames
+2021-04-18 21:03:45.368 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyNames.yml
+2021-04-18 21:03:45.423 > [INF] Adding property: Header.Synonyms.KeyVal.IMTYPE
+2021-04-18 21:03:45.424 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyVal.IMTYPE.yml
+2021-04-18 21:03:45.450 > [INF] Adding property: Header.Time.KeyNames
+2021-04-18 21:03:45.451 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Time.KeyNames.yml
+2021-04-18 21:03:45.472 > [INF] Adding property: header
+2021-04-18 21:03:45.472 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:03:45.480 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:03:45.482 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:03:45.483 > [INF] Adding property: pipeline
+2021-04-18 21:03:45.484 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/pipeline.yml
+2021-04-18 21:03:45.524 > [INF] Adding property: system
+2021-04-18 21:03:45.525 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/system.yml
+2021-04-18 21:03:45.557 > [INF] Adding property: unittest
+2021-04-18 21:03:45.558 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/unittest.yml
+2021-04-18 21:03:45.635 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local
+2021-04-18 21:07:16.886 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config
+2021-04-18 21:07:16.895 > [INF] Adding property: A.b
+2021-04-18 21:07:16.897 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/A.b.yml
+2021-04-18 21:07:16.985 > [INF] Adding property: BitMask.Image.Default
+2021-04-18 21:07:16.986 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:07:16.992 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:07:16.993 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:07:16.994 > [INF] Adding property: Header.Comments.Default
+2021-04-18 21:07:16.995 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Comments.Default.yml
+2021-04-18 21:07:17.130 > [INF] Adding property: Header.KeyNames.Default
+2021-04-18 21:07:17.131 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.KeyNames.Default.yml
+2021-04-18 21:07:17.272 > [INF] Adding property: Header.Synonyms.KeyNames
+2021-04-18 21:07:17.273 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyNames.yml
+2021-04-18 21:07:17.299 > [INF] Adding property: Header.Synonyms.KeyVal.IMTYPE
+2021-04-18 21:07:17.300 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyVal.IMTYPE.yml
+2021-04-18 21:07:17.322 > [INF] Adding property: Header.Time.KeyNames
+2021-04-18 21:07:17.323 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Time.KeyNames.yml
+2021-04-18 21:07:17.343 > [INF] Adding property: header
+2021-04-18 21:07:17.344 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:07:17.350 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:07:17.351 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:07:17.352 > [INF] Adding property: pipeline
+2021-04-18 21:07:17.353 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/pipeline.yml
+2021-04-18 21:07:17.387 > [INF] Adding property: system
+2021-04-18 21:07:17.388 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/system.yml
+2021-04-18 21:07:17.413 > [INF] Adding property: unittest
+2021-04-18 21:07:17.414 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/unittest.yml
+2021-04-18 21:07:17.475 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local
+2021-04-18 21:07:23.501 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config
+2021-04-18 21:07:23.503 > [INF] Adding property: A.b
+2021-04-18 21:07:23.504 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/A.b.yml
+2021-04-18 21:07:23.574 > [INF] Adding property: BitMask.Image.Default
+2021-04-18 21:07:23.575 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:07:23.584 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:07:23.585 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:07:23.585 > [INF] Adding property: Header.Comments.Default
+2021-04-18 21:07:23.586 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Comments.Default.yml
+2021-04-18 21:07:23.716 > [INF] Adding property: Header.KeyNames.Default
+2021-04-18 21:07:23.717 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.KeyNames.Default.yml
+2021-04-18 21:07:23.845 > [INF] Adding property: Header.Synonyms.KeyNames
+2021-04-18 21:07:23.846 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyNames.yml
+2021-04-18 21:07:23.874 > [INF] Adding property: Header.Synonyms.KeyVal.IMTYPE
+2021-04-18 21:07:23.875 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyVal.IMTYPE.yml
+2021-04-18 21:07:23.900 > [INF] Adding property: Header.Time.KeyNames
+2021-04-18 21:07:23.901 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Time.KeyNames.yml
+2021-04-18 21:07:23.937 > [INF] Adding property: header
+2021-04-18 21:07:23.938 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:07:23.944 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:07:23.946 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:07:23.947 > [INF] Adding property: pipeline
+2021-04-18 21:07:23.947 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/pipeline.yml
+2021-04-18 21:07:23.983 > [INF] Adding property: system
+2021-04-18 21:07:23.984 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/system.yml
+2021-04-18 21:07:24.010 > [INF] Adding property: unittest
+2021-04-18 21:07:24.011 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/unittest.yml
+2021-04-18 21:07:24.077 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local
+2021-04-18 21:08:32.087 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config
+2021-04-18 21:08:32.090 > [INF] Adding property: A.b
+2021-04-18 21:08:32.091 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/A.b.yml
+2021-04-18 21:08:32.184 > [INF] Adding property: BitMask.Image.Default
+2021-04-18 21:08:32.185 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:08:32.192 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:08:32.194 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-18 21:08:32.195 > [INF] Adding property: Header.Comments.Default
+2021-04-18 21:08:32.196 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Comments.Default.yml
+2021-04-18 21:08:32.372 > [INF] Adding property: Header.KeyNames.Default
+2021-04-18 21:08:32.373 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.KeyNames.Default.yml
+2021-04-18 21:08:32.514 > [INF] Adding property: Header.Synonyms.KeyNames
+2021-04-18 21:08:32.515 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyNames.yml
+2021-04-18 21:08:32.542 > [INF] Adding property: Header.Synonyms.KeyVal.IMTYPE
+2021-04-18 21:08:32.543 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Synonyms.KeyVal.IMTYPE.yml
+2021-04-18 21:08:32.566 > [INF] Adding property: Header.Time.KeyNames
+2021-04-18 21:08:32.566 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/Header.Time.KeyNames.yml
+2021-04-18 21:08:32.590 > [INF] Adding property: header
+2021-04-18 21:08:32.592 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:08:32.600 > [ERR] loadYaml: Exception loading file: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:08:32.602 > [ERR] loadFile: Exception: /home/eran/matlab/AstroPack/config/header.yml
+2021-04-18 21:08:32.603 > [INF] Adding property: pipeline
+2021-04-18 21:08:32.603 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/pipeline.yml
+2021-04-18 21:08:32.642 > [INF] Adding property: system
+2021-04-18 21:08:32.642 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/system.yml
+2021-04-18 21:08:32.671 > [INF] Adding property: unittest
+2021-04-18 21:08:32.672 > [INF] loadYaml: Loading file: /home/eran/matlab/AstroPack/config/unittest.yml
+2021-04-18 21:08:32.742 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local

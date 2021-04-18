@@ -30,9 +30,9 @@ classdef AstroImage < Component
         %ImageData(1,1) NoisyImage
         
         ImageData(1,1) SciImage              %= SciImage;
-        MaskData(1,1) MaskImage              %= MaskImage;
         BackData(1,1) BackImage              %= BackImage;
         VarData(1,1) VarImage                %= VarImage;
+        MaskData(1,1) MaskImage              %= MaskImage;
         
         HeaderData(1,1) AstroHeader          %= AstroHeader;
         CatData(1,1) AstroCatalog            %= AstroCatalog;
@@ -670,10 +670,51 @@ classdef AstroImage < Component
         end
             
         
-        function Result = funUnaryScalar(Obj, Operator, Args)
-            %
+        function varargout = funUnaryScalar(Obj, Operator, Args)
+            % Apply a unary operator that return scalar on AstroImage and return an numeric array
+            % Input  : - An AstroImage object (multi elements supported)
+            %          - Operator (a function handle, e.g., @mean).
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CCDSEC' - CCDSEC on which to operate:
+            %                   [Xmin, Xmax, Ymin, Ymax].
+            %                   Use [] for the entire image.
+            %                   If not [], then DataPropIn/Out will be
+            %                   modified to 'Image'.
+            %            'DataProp' - A cell array of AstroImage data
+            %                   properties on which the operator will operated.
+            %                   Default is
+            %                   {'ImageData','BackData','VarData','MaskData'}.
+            %            'DataPropIn' - Data property in the ImageComponent 
+            %                   on which the operator
+            %                   will be operated. Default is 'Data'.
+            % Output : - An array in which each element corresponds to the operator applied
+            %            to an element in the ImageComponent object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({randn(100,100), randn(100,100)},'Back',{randn(100,100), randn(100,100)});
+            %          [A,B] = funUnaryScalar(AI, @mean, 'OpArgs',{'all'})
+            %          [A,B] = funUnaryScalar(AI, @std, 'OpArgs',{[],'all'})
             
+            arguments
+                Obj
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CCDSEC                     = [];
+                Args.DataProp                   = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataPropIn                 = 'Data';
+            end    
             
+            % Convert AstroImage to (up to 4) ImageComponent objects
+            % CellIC is a cell array of ImageComponent objects
+            [CellIC{1:1:nargout}] = astroImage2ImageComponent(Obj, 'CreateNewObj',false, 'ReturnImageComponent',false, 'DataProp',Args.DataProp);
+            
+            Nic = numel(CellIC);
+            varargout = cell(1,Nic);
+            for Iic=1:1:Nic
+                varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn);
+            
+            end
         end
         
         function Result = funBinary(Obj1, Obj2, Operator, Args)
@@ -900,7 +941,7 @@ classdef AstroImage < Component
         % funBiary
         % DONE: object2array - put in Component?
         % funUnaryScalarWeighted (only for ImageData)
-        % funUnaryScalar (no error propagation)
+        % DONE: funUnaryScalar (no error propagation)
       
         
         

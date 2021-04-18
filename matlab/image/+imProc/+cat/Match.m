@@ -711,7 +711,7 @@ classdef Match < Component
 
             arguments
                 MObj(1,1)
-                MatchedObj
+                MatchedObj   % FFU:  what about AstroImage???
                 Cols
                 IsEpochByInd(1,1) logical           = true;
             end
