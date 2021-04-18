@@ -622,6 +622,7 @@ classdef AstroCatalog < AstroTable
             %          - Map projection. See axesm for options.
             %            Default is 'aitoff'. 
             %          - Plot function handle. e.g., @plotm.
+            %            Default is @plotm.
             %          - Cell array of additional columns (to Dec, RA) to pass to the
             %            plot function (e.g., in the case of @scatterm).
             %            Default is {}.
@@ -634,8 +635,14 @@ classdef AstroCatalog < AstroTable
             %          
             %          AC.plotMapFun('aitoff',@scatterm,{'mag1','sep1'},'.','MarkerSize',1)
             
-            if nargin<2
-                Projection = [];
+            if nargin<4
+                AddCol = {};
+                if nargin<3
+                    PlotFun = @plotm;
+                    if nargin<2
+                        Projection = [];
+                    end
+                end
             end
             if isempty(Projection)
                 Projection = 'aitoff';

@@ -120,10 +120,9 @@ classdef Match < Component
             %            the last element in the object array.
             % Author : Eran Ofek (Apr 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          AC.getCooTypeAuto
-            %          [NC, Flag, Dist] = coneSearch(AC,[1 1],'Radius',3600)
-            %          [NC, Flag, Dist] = coneSearch(AC,[1 1; 0 0],'Radius',3600);  % search around two positions (merged results).
-            
+            %          M = imProc.cat.Match;
+            %          [NC, Flag, Dist] = M.coneSearch(AC,[1 1],'Radius',3600)
+            %          [NC, Flag, Dist] = M.coneSearch(AC,[1 1; 0 0],'Radius',3600);  % search around two positions (merged results).
             
             arguments
                 Obj(1,1)
@@ -180,7 +179,6 @@ classdef Match < Component
                 RadiusRad = -abs(RadiusRad);
             end
             
-            
             if Args.CreateNewObj
                 Result = copyObject(CatObj, 'ClearProp',{'Catalog'});
             else 
@@ -202,7 +200,6 @@ classdef Match < Component
                                                                     Coo(:,1), Coo(:,2), RadiusRad, [],...
                                                                     @tools.math.geometry.plane_dist);
                         
-                        error('Pixel coneSearch is not yet supported');
                     otherwise
                         error('Unknown CooType option');
                 end
@@ -222,15 +219,85 @@ classdef Match < Component
                     Result(Iobj).insertCol(AllDist, Args.DistColPos, Args.DistColName);
                 end
             end
-            
-            
-            
-            
         end
         
-        function [Obj, Flag] = inPolygon(Obj, PolyCoo, Args)
+        function [Result, Flag] = inPolygon(MObj, CatObj, Coo, Args)
             %
             % very similar to coneSearch
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          M = imProc.cat.Match;
+            %          [InP, Flag] = M.inPolygon(AC,[1 1; 1.1 1.1; 0.5 0.1],'CooUnits','rad')
+            
+            
+            
+            arguments
+                MObj(1,1)
+                CatObj
+                Coo
+                
+                Args.CooUnits char               = '';
+                Args.CreateNewObj                = [];
+            end
+            
+            if isempty(CatObj(1).CooType)
+                CatObj.getCooTypeAuto;
+            end
+            
+            % use object default arguments if not supplied by user
+            Args = selectDefaultArgsFromProp(MObj, Args);
+            if isempty(CatObj)
+                CatObj = MObj.Coo;
+            end
+            if isempty(Coo)
+                Coo = MObj.Coo;
+            end
+                
+            % Convert Coo to radians
+            CooRad = convert.angular(Args.CooUnits,'rad',Coo);
+            
+            if isempty(Args.CreateNewObj)
+                if nargout>0
+                    Args.CreateNewObj = true;
+                else
+                    Args.CreateNewObj = false;
+                end
+            end
+            
+            % convert AstroImage to AstroCatalog
+            if isa(CatObj,'AstroImage')
+                CatObj = astroImage2AstroCatalog(CatObj,'CreateNewObj',Args.CreateNewObj);
+            elseif isa(CatObj,'AstroCatalog')
+                % do nothing
+            elseif isnumeric(CatObj)
+                error('Input CatObj is of unsupported class');
+            else
+                error('Input CatObj is of unsupported class');
+            end
+            
+            if Args.CreateNewObj
+                Result = copyObject(CatObj, 'ClearProp',{'Catalog'});
+            else 
+                Result = CatObj;
+            end
+            
+            Nobj = numel(CatObj);
+            for Iobj=1:1:Nobj
+                %if ~CatObj(Iobj).IsSorted
+                %    CatObj(Iobj).sortrows(CatObj(Iobj).ColY);
+                %end
+                
+                switch lower(CatObj(Iobj).CooType)
+                    case 'sphere'
+                        Flag = celestial.htm.in_polysphere(getCoo(CatObj(Iobj),'rad'),CooRad);
+                    case 'pix'
+                        Pos = getCoo(CatObj(Iobj),'rad');  % here 'rad' is ignored
+                        Flag = inpolygon(Pos(:,1),Pos(:,2), Coo(:,1), Coo(:,2));
+                    otherwise
+                        error('Unknown CooType option');
+                end
+                Result(Iobj).Catalog = CatObj(Iobj).Catalog(Flag,:);
+                
+            end
             
             
         end
@@ -495,8 +562,19 @@ classdef Match < Component
         function Result = unitTest
             %
             
+            % coneSearch
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            M = imProc.cat.Match;
+            [NC, Flag, Dist] = M.coneSearch(AC,[1 1],'Radius',3600);
+            [NC, Flag, Dist] = M.coneSearch(AC,[1 1; 0 0],'Radius',3600);  % search around two positions (merged results).
+
+            % inPolygon
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            M = imProc.cat.Match;
+            [InP, Flag] = M.inPolygon(AC,[1 1; 1.1 1.1; 0.5 0.1],'CooUnits','rad');
+            InP.plotMapFun
             
-            
+
             
             Result = true;
         end
