@@ -901,15 +901,7 @@ classdef AstroImage < Component
         % DONE: object2array - put in Component?
         % funUnaryScalarWeighted (only for ImageData)
         % funUnaryScalar (no error propagation)
-        
-        % * external
-        % +imProc.cat.Match.coneSearch
-        % +imProc.cat.match.isInPolygon
-        % +imProc.cat.Match.match_xy
-        % +imProc.cat.Match.match_coo
-        % +imProc.cat.Match.match
-        % +imProc.cat.Match.match_catsHTM
-        % +imProc.cat.Match.matched2matrix
+      
         
         
         
