@@ -9,8 +9,14 @@ classdef Match < Component
         CooUnits                    = 'deg';
         Radius                      = 3;
         RadiusUnits                 = 'arcsec';
+        
+        CatRadius                   = 3600;     % radius for catsHTM
+        CatRadiusUnits              = 'arcsec';
+        
         Shape                       = 'circle';
-   
+        Con                         = [];  % additional constraints for catsHTM
+        catsHTMisRef(1,1) logical   = false;
+        
         AddDistCol(1,1) logical     = true;
         DistUnits                   = 'arcsec';
         DistColName char            = 'Dist';
@@ -365,8 +371,9 @@ classdef Match < Component
             %                   output catalog. Default is Inf (i.e., last
             %                   column).
             % Output : - An AstroCatalog object of matched sources.
-            %            Numeber of sources eqyual to that of the number
-            %            of sources in the second object.
+            %            Numeber of sources equal to that of the number
+            %            of sources in the second object (Obj2).
+            %            Data is taken from Obj1.
             %            Entire line is NaN if no source found.
             %          - An AstroCatalog object of unmatched sources.
             %            Include all the sources in the first object that
@@ -473,7 +480,8 @@ classdef Match < Component
                 %Result1(Imax).Catalog = Obj1(Iobj1).Catalog ...
                 FlagNN = ~isnan(IndTable(:,1));
                 [Nrow2,Ncol2]   = size(Obj2(Iobj2).Catalog);
-                MatchedObj(Imax).Catalog = nan(Nrow2,Ncol2);
+                [Nrow1,Ncol1]   = size(Obj1(Iobj1).Catalog);
+                MatchedObj(Imax).Catalog = nan(Nrow2,Ncol1);
                 MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
 
                 % copy the common properties from Obj2
@@ -506,27 +514,64 @@ classdef Match < Component
             
         end
         
-        function matchPattern(Obj1, Obj2, ~)
-            %
-        end
-        
-        
     end
     
     methods % match against external catalog
-        function [MatchedObj, UnMatchedObj] = match_catsHTM(MObj, Obj, CatName, Args)
-            %
-            
-            %'not ready'
+        function [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = match_catsHTM(MObj, Obj, CatName, Args)
+            % Match an AstroCatalog object with catsHTM catalog
+            % Input  : - A Match object.
+            %          - An AstroCatalog or an AstroImage object (multi
+            %            elements supported). THe AStroCatalog object will
+            %            be matched against a catsHTM catalog.
+            %          - catsHTM catalog name (e.g., 'GAIADR2').
+            %            See catsHTM.catalogs for possible options.
+            %          * ...,key,val,...
+            %            'Coo' - [RA, Dec] of coordinates to search.
+            %                   If empty, then will attempt to find this
+            %                   from the catalog itself. DEfault is [].
+            %            'CooUnits' - Units of coordinates. Object default
+            %                   is 'deg'.
+            %            'Radius' - Matching radius. Default is 3.
+            %            'RadiusUnits' - Matchin radius units.
+            %                   Default is 'arcsec'.
+            %            'CatRadius' - The search radius of the catsHTM
+            %                   catalog. If not given this is taken as the
+            %                   bounding circle radius of the inout
+            %                   AStroCatalog. Default is [].
+            %            'CatRadiusUnits' - CatRadius units.
+            %                   Default is 'arcsec'.
+            %            'Con' - A cell array of additional
+            %                  constraints to apply to output catalog.
+            %                  See catsHTM.cone_search for options.
+            %                  E.g., {{'Mag_G',[15 16]},{'Plx',@(x) ~isnan(x)}}
+            %            'catsHTMisRef' - A logical indicating if the
+            %                   catsHTM catalog is treated as the reference
+            %                   catalog. Default is false.
+            %                   If true, then the number of sources of the matched
+            %                   catalog is like the catsHTM object, while
+            %                   false the size is like the input object.
+            % Output : - A matched AstroCatalog object. See Match.match.
+            %          - An unatched AstroCatalog object. See Match.match.
+            %          - A truely unatched AstroCatalog object. See Match.match.
+            %          - The catsHTM AstroCatalog object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          M = imProc.cat.Match;
+            %          M.coneSearch(AC,[1 1],'Radius',3600);
+            %          [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = M.match_catsHTM(AC,'GAIADR2')
             
             arguments
-                MObj
+                MObj(1,1)
                 Obj
                 CatName char
                 Args.Coo                 = [];
-                Args.CooUnits            = 'deg';
+                Args.CooUnits            = [];
                 Args.Radius              = [];
-                Args.RadiusUnits         = 'arcsec';
+                Args.RadiusUnits         = [];
+                Args.CatRadius           = [];
+                Args.CatRadiusUnits      = [];
+                Args.Con                 = [];
+                Args.catsHTMisRef        = [];
             end
             
             % use object default arguments if not supplied by user
@@ -560,30 +605,47 @@ classdef Match < Component
             Nobj = numel(Obj);
             MatchedObj = AstroCatalog(size(Obj));
 
-            % UNDER CONSTRUCTION
+            CatH = AstroCatalog(size(Obj));  % output of catsHTM
             for Iobj=1:1:Nobj
-                switch lower(Obj(Iobj).CooType)
-                    case 'sphere'
-                        
-                    case 'pix'
-                        
-                    otherwise
-                        error('Unknown CooType=%s option',Obj(Iobj).CooType);
+                if isempty(Args.Coo) || isempty(Args.CatRadius)
+                    % get coordinates using boundingCircle
+                    [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad');
+                    Args.Coo                 = [CircX, CircY];
+                    Args.CatRadius      = CircR;
+                    Args.CooUnits       = 'rad';
+                    Args.CatRadiusUnits = 'rad';
+                else
+                    Args.Coo = convert.angular(Args.CooUnits,'rad',Args.Coo);
                 end
+                Icoo = 1;
+                CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
+                CatH.getCooTypeAuto;
+                % match sources
+                if Args.catsHTMisRef
+                    [MatchedObj, UnMatchedObj, TruelyUnMatched] = MObj.match(Obj, CatH, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
+                else
+                    [MatchedObj, UnMatchedObj, TruelyUnMatched] = MObj.match(CatH, Obj, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
+                end
+                
             end
-            
-            
-            
         end
         
     end
     
     
+    methods
+        function matchPattern(Obj1, Obj2, ~)
+            %
+        end
+        
+        
+    end
+    
     
     
     methods (Static) % unitTest
         function Result = unitTest
-            %
+            % Example: imProc.cat.Match.unitTest
             
             % coneSearch
             AC=AstroCatalog({'asu.fit'},'HDU',2);
@@ -608,6 +670,15 @@ classdef Match < Component
             M = imProc.cat.Match;
             [MC,UM,TUM] = M.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
 
+            % match against catsHTM
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            M = imProc.cat.Match;
+            M.coneSearch(AC,[1 1],'Radius',3600);
+            [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = M.match_catsHTM(AC,'GAIADR2');
+            % catsHTM is the ref catalog:
+            [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = M.match_catsHTM(AC,'GAIADR2','catsHTMisRef',true);
+
+            
 
             Result = true;
         end
