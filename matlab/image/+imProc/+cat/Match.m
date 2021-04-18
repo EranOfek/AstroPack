@@ -222,13 +222,36 @@ classdef Match < Component
         end
         
         function [Result, Flag] = inPolygon(MObj, CatObj, Coo, Args)
-            %
+            % Return sources inside polygon
+            % Input  : - A Match object.
+            %          - An AstroCatalog/AstroImage object. If multiple elements
+            %            then will perform the inPolygon search on any one of
+            %            the elements.
+            %          - A two column matrix of [Long, Lat] or [X,Y] that
+            %            defines the verteces of the polygon.
+            %          * ...,key,val,...
+            %            'CooUnits' - Units of (spherical) coordinates
+            %                   (second input argument). Default is 'deg'.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An AstroCatalog object with the found sources.
+            %          - A vector of logicals with the same length as the
+            %            number of rows in the input object. True if object
+            %            is in polygon. If the input is an object with
+            %            multiple elements, then this vector corresponds to
+            %            the last element in the object array.
+            % Author : Eran Ofek (Apr 2021)
             % very similar to coneSearch
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
             %          M = imProc.cat.Match;
             %          [InP, Flag] = M.inPolygon(AC,[1 1; 1.1 1.1; 0.5 0.1],'CooUnits','rad')
-            
-            
             
             arguments
                 MObj(1,1)
@@ -574,8 +597,18 @@ classdef Match < Component
             [InP, Flag] = M.inPolygon(AC,[1 1; 1.1 1.1; 0.5 0.1],'CooUnits','rad');
             InP.plotMapFun
             
+            % match
+            AC = AstroCatalog;
+            AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
+            AC.ColNames = {'RA','Dec'}; AC.ColUnits = {'rad','rad'};
+            AC.getCooTypeAuto
+            AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]
+            AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
+            AC2.getCooTypeAuto
+            M = imProc.cat.Match;
+            [MC,UM,TUM] = M.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
 
-            
+
             Result = true;
         end
     end
