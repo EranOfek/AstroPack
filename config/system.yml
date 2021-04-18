@@ -19,7 +19,15 @@ EnvFolders:
     LOG: c:/pipeline/log
     TEMP: c:/pipeline/temp
     IAI: c:/iai
+    PRJ: 
 
+    
+# Folders
+Folders:
+    TestImages: $PRJ/data/test_images/fits_samples
+    VirtImageStore: $TEMP/virt_images/
+    
+    
 #==========================================================================
 # Pipeline - IAI GCS Interface
 GcsInterface:
