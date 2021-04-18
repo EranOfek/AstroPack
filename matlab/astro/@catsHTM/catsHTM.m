@@ -1690,6 +1690,12 @@ classdef catsHTM
             switch lower(InPar.OutType)
                 case 'mat'
                     % do nothing
+                case 'astrocatalog'
+                    AstC = AstroCatalog;
+                    AstC.Catalog  = Cat;
+                    AstC.ColNames = ColCell;
+                    AstC.ColUnits = ColUnits;
+                    Cat = AstC;
                 case 'catcl'
                     AstC = catCl;
                     AstC.Cat = Cat;
