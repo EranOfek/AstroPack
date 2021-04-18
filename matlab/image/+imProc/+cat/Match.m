@@ -21,7 +21,10 @@ classdef Match < Component
         DistUnits                   = 'arcsec';
         DistColName char            = 'Dist';
         DistColPos                  = Inf;
-                
+        AddNmatchCol(1,1) logical   = true;
+        NmatchColPos                = Inf;
+        NmatchColName               = 'Nmatch';
+        
         Cols                        = {};
         CreateNewObj                = [];
     end
@@ -404,8 +407,11 @@ classdef Match < Component
                 Args.DistUnits                   = 'arcsec';
                 Args.DistColName                 = 'Dist';
                 Args.DistColPos                  = Inf;
+                Args.AddNmatchCol                = true;
+                Args.NmatchColPos                = Inf;
+                Args.NmatchColName               = 'Nmatch';
             end
-            
+                    
             % use object default arguments if not supplied by user
             Args = selectDefaultArgsFromProp(MObj, Args);
             if isempty(Obj1)
@@ -486,7 +492,7 @@ classdef Match < Component
                 MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
 
                 % copy the common properties from Obj2
-                copyProp(Obj2(Iobj2), MatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+                copyProp(Obj1(Iobj1), MatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
 
                 % add Dist column:
                 if Args.AddDistCol
@@ -498,6 +504,10 @@ classdef Match < Component
                         DistUnits = '';
                     end
                     insertCol(MatchedObj(Imax), Dist, Args.DistColPos , Args.DistColName, {DistUnits});
+                end
+                
+                if Args.AddNmatchCol
+                    insertCol(MatchedObj(Imax), IndTable(:,3), Args.NmatchColPos , Args.NmatchColName, {''});
                 end
                 
                 % UnMatchedObj
@@ -522,7 +532,7 @@ classdef Match < Component
             % Match an AstroCatalog object with catsHTM catalog
             % Input  : - A Match object.
             %          - An AstroCatalog or an AstroImage object (multi
-            %            elements supported). THe AStroCatalog object will
+            %            elements supported). The AStroCatalog object will
             %            be matched against a catsHTM catalog.
             %          - catsHTM catalog name (e.g., 'GAIADR2').
             %            See catsHTM.catalogs for possible options.
