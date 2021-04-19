@@ -453,6 +453,40 @@ classdef AstroImage < Component
         
     end
     
+    methods (Access=private)
+        function [Obj2, Obj2IsCell] = prepOperand2(Obj1, Obj2)
+            % Prepare the 2nd operand for binary operation
+            
+            % make sure Obj2 is in the right format
+            if isnumeric(Obj2)
+                % If Obj2 is an array with the same size as Obj1, then
+                % convert into a cell array of scalars.
+                %if all(size(Obj1)==size(Obj2))
+                %    Obj2 = num2cell(Obj2);
+                %else
+                    % otherwise a single element cell
+                    Obj2 = {Obj2};
+                %end
+            end
+            % at this stage Obj2 must be a cell, AstroImage or an ImageComponent
+            if iscell(Obj2)
+                Obj2IsCell = true;
+            else
+                Obj2IsCell = false;
+            end
+            if isa(Obj2,'ImageComponent')
+                Obj2IsCell = true;
+                error('ImageComponent input is not yet supported');
+                %Obj2       = convert ImageComponent to cell of images
+            end
+                
+            if ~Obj2IsCell && ~isa(Obj2,'ImageComponent') && ~isa(Obj2,'AstroImage')
+                error('Obj2 must be a cell, or AstroImage, or ImageComponent, or a numeric array');
+            end
+            
+        end
+    end
+    
     
     methods % class conversion
         function varargout = astroImage2ImageComponent(Obj, Args)
@@ -812,6 +846,274 @@ classdef AstroImage < Component
             
             end
         end
+                
+        function Result = funBinaryProp(Obj1, Obj2, Operator, Args)
+            % Apply binary function on a single property of AstroImage
+            %       without error propagation.
+            % Input  : - 1st operand - An AstroImage object.
+            %          - 2nd operand - An AstroImage object or a
+            %            cell array of matrices, or an array of numbers.
+            %            If a cell array each element of the cell array
+            %            will be treated as the 2nd operand image.
+            %            If a vector than this will be treated as a single
+            %            image.
+            %          - Operator (a function handle). E.g., @plus.
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            %            'CCDSEC1' - [Xmin Xmax Ymin Ymax] CCDSEC for the
+            %                   1st oprand. The Operator will be applied
+            %                   only on this section.
+            %                   If empty, use all image. Default is [].
+            %            'CCDSEC2' - The same as CCDSEC1, but for the 2nd
+            %                   operand. Default is [].
+            %            'CCDSEC' - The CCDSEC in the output image. Must be
+            %                   of the same size as CCDSEC1 and CCDSEC2.
+            %            'DataProp' - Data property on which to operate.
+            %                   Default is 'ImageData'.
+            %            'DataPropIn' - Data property of the ImageComponent
+            %                   on which to operate. Default is 'Data'.
+            %            'UseOrForMask' - A logical indicating if to use
+            %                   the @bitor operator instead of the input operator
+            %                   if the requested data property is
+            %                   'MaskImage'. Default is true.
+            %            'Result' - An AstroImage object in which the
+            %                   results will be written. If empty, then use
+            %                   the CreateNewObj scheme.
+            %                   Default is [].
+            % Output : - An AstroImage object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI=AstroImage({ones(3,3)});
+            %          Res = funBinaryProp(AI,3,@plus);
+            %          Res = funBinaryProp(AI,[3 2 1 2],@plus);
+            %          Res = funBinaryProp(AI,{2 1},@plus);
+            %          Res = funBinaryProp(AI,AI,@minus)
+           
+            arguments
+                Obj1
+                Obj2
+                Operator function_handle
+                Args.OpArgs                    = {};
+                Args.DataProp                  = 'ImageData';
+                Args.DataPropIn                = 'Data';
+                Args.CCDSEC                    = [];
+                Args.CCDSEC1                   = [];
+                Args.CCDSEC2                   = [];
+                Args.UseOrForMask(1,1) logical = true;
+                Args.CreateNewObj              = [];
+                Args.Result                    = [];
+            end
+            
+            if isempty(Args.Result)
+                if isempty(Args.CreateNewObj)
+                    if nargout>0
+                        Args.CreateNewObj = true;
+                    else
+                        Args.CreateNewObj = false;
+                    end
+                end
+            
+                if Args.CreateNewObj
+                    Result = Obj1.copyObject;
+                else
+                    Result = Obj1;
+                end
+            else
+                Result = Args.Result;
+            end
+            
+            % convert Obj2 to a cell array of images or keep as AstroImage
+            [Obj2, Obj2IsCell] = prepOperand2(Obj1, Obj2);
+            
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            Nres = max(Nobj1, Nobj2);
+            for Ires=1:1:Nres
+                Iobj1 = min(Ires, Nobj1);
+                Iobj2 = min(Ires, Nobj2);
+                
+                if isempty(Args.CCDSEC1)
+                    Tmp1 = Obj1(Iobj1).(Args.DataProp).(Args.DataPropIn);
+                else
+                    Tmp1 = Obj1(Iobj1).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2));
+                end
+                
+                if isempty(Args.CCDSEC2)
+                    if Obj2IsCell
+                        Tmp2 = Obj2{Iobj2};
+                    else
+                        Tmp2 = Obj2(Iobj2).(Args.DataProp).(Args.DataPropIn);
+                    end
+                else
+                    if Obj2IsCell
+                        Tmp2 = Obj2{Iobj2}(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                    else
+                        Tmp2 = Obj2(Iobj2).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                    end
+                end
+            
+                if isa(Obj1(Iobj1).(Args.DataProp),'MaskImage') && Args.UseOrForMask
+                    if isempty(Args.CCDSEC)
+                        Result(Ires).(Args.DataProp).(Args.DataPropIn) = bitor(Tmp1, Tmp2);
+                    else
+                        Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = bitor(Tmp1, Tmp2);
+                    end
+                else
+                    if isempty(Args.CCDSEC)
+                        Result(Ires).(Args.DataProp).(Args.DataPropIn) = Operator(Tmp1, Tmp2, Args.OpArgs{:});
+                    else
+                        Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = perator(Tmp1, Tmp2, Args.OpArgs{:});
+                    end
+                end
+                
+            
+            end
+            
+        end
+        
+        function Result = funBinaryImVar(Obj1, Obj2, Operator, Args)
+            % Apply a binary operator with error propagation to the
+            % ImageData and VarData in an AstroImage object.
+            % Input  : - 1st operand - An AstroImage object.
+            %          - 2nd operand - An AstroImage object or a
+            %            cell array of matrices, or an array of numbers.
+            %            If a cell array each element of the cell array
+            %            will be treated as the 2nd operand image.
+            %            If a vector than this will be treated as a single
+            %            image.
+            %          - Operator (a function handle). E.g., @plus.
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            %            'CCDSEC1' - [Xmin Xmax Ymin Ymax] CCDSEC for the
+            %                   1st oprand. The Operator will be applied
+            %                   only on this section.
+            %                   If empty, use all image. Default is [].
+            %            'CCDSEC2' - The same as CCDSEC1, but for the 2nd
+            %                   operand. Default is [].
+            %            'CCDSEC' - The CCDSEC in the output image. Must be
+            %                   of the same size as CCDSEC1 and CCDSEC2.
+            %            'DataPropIn' - Data property of the ImageComponent
+            %                   on which to operate. Default is 'Data'.
+            %            'Result' - An AstroImage object in which the
+            %                   results will be written. If empty, then use
+            %                   the CreateNewObj scheme.
+            %                   Default is [].
+            % Output : - An AstroImage object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({ones(3,3)},'Var',{ones(3,3)})
+            %          Res = funBinaryImVar(AI,AI,@plus);
+            %          Res = funBinaryImVar(AI,AI,@minus);
+            %          Res = funBinaryImVar(AI,3,@times);
+            
+            arguments
+                Obj1
+                Obj2
+                Operator function_handle
+                Args.OpArgs                    = {};
+                Args.DataPropIn                = 'Data';
+                Args.CCDSEC                    = [];
+                Args.CCDSEC1                   = [];
+                Args.CCDSEC2                   = [];
+                Args.CreateNewObj              = [];
+                Args.Result                    = [];
+            end
+            
+            DataPropImage  = 'ImageData';
+            DataPropVar    = 'VarData';
+            
+            if isempty(Args.Result)
+                if isempty(Args.CreateNewObj)
+                    if nargout>0
+                        Args.CreateNewObj = true;
+                    else
+                        Args.CreateNewObj = false;
+                    end
+                end
+            
+                if Args.CreateNewObj
+                    Result = Obj1.copyObject;
+                else
+                    Result = Obj1;
+                end
+            else
+                Result = Args.Result;
+            end
+            
+            % convert Obj2 to a cell array of images or keep as AstroImage
+            [Obj2, Obj2IsCell] = prepOperand2(Obj1, Obj2);
+            
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            Nres = max(Nobj1, Nobj2);
+            for Ires=1:1:Nres
+                Iobj1 = min(Ires, Nobj1);
+                Iobj2 = min(Ires, Nobj2);
+                
+                if isempty(Args.CCDSEC1)
+                    TmpImage1 = Obj1(Iobj1).(DataPropImage).(Args.DataPropIn);
+                    TmpVar1   = Obj1(Iobj1).(DataPropVar).(Args.DataPropIn);
+                else
+                    TmpImage1 = Obj1(Iobj1).(DataPropImage).(Args.DataPropIn)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2));
+                    TmpVar1   = Obj1(Iobj1).(DataPropVar).(Args.DataPropIn)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2));
+                end
+                
+                if isempty(Args.CCDSEC2)
+                    if Obj2IsCell
+                        TmpImage2 = Obj2{Iobj2};
+                        TmpVar2   = [];
+                    else
+                        TmpImage2 = Obj2(Iobj2).(DataPropImage).(Args.DataPropIn);
+                        TmpVar2   = Obj2(Iobj2).(DataPropVar).(Args.DataPropIn);
+                    end
+                else
+                    if Obj2IsCell
+                        TmpImage2 = Obj2{Iobj2}(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                        TmpVar2   = [];
+                    else
+                        TmpImage2 = Obj2(Iobj2).(DataPropImage).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                        TmpVar2   = Obj2(Iobj2).(DataPropVar).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                    end
+                end
+                
+                if isempty(Args.CCDSEC)
+                    [Result(Ires).(DataPropImage).(Args.DataPropIn)  ,Result(Ires).(DataPropVar).(Args.DataPropIn)] = ...
+                                imUtil.image.fun_binary_withVariance(Operator, TmpImage1, TmpImage2, TmpVar1, TmpVar2, 0, Args.OpArgs);
+                else
+                    [Result(Ires).(DataPropImage).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2))  ,...
+                     Result(Ires).(DataPropVar).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2))] = ...
+                            imUtil.image.fun_binary_withVariance(Operator, TmpImage1, TmpImage2, TmpVar1, TmpVar2, 0, Args.OpArgs);
+                end
+
+                
+            end
+            
+        end
+        
+        
+        
+        
+        
+        
+        
         
         
         
@@ -832,8 +1134,7 @@ classdef AstroImage < Component
                 Args.CalcBack(1,1) logical      = true;
                 Args.CalcVar(1,1) logical       = true;
                 Args.CalcMask(1,1) logical      = true;
-                Args.ReturnBack(1,1) logical    = true;
-                Args.ReRemoveBack(1,1) logical  = true;
+                
                 
                 Args.DataProp                   = {'DataImag','BackImage','VarImage','MaskImage'};
                 Args.DataPropIn                 = 'Image';
@@ -939,15 +1240,24 @@ classdef AstroImage < Component
                 end
                 
                 
-                if Obj1(Iobj1).PropagateErr
-                    % Perform error propagation
-                    [TmpOut{IND_IMAGE}, TmpOut{IND_VAR}] = imUtil.image.fun_binary_withVariance(Operator, Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Tmp1{IND_VAR}, Tmp2{IND_VAR}, [], Args.OpArgs);
-                    
-                else
-                    TmpOut{IND_IMAGE} = Operator(Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Args.OpArgs{:});
-                    TmpOut{IND_IMAGE} = Operator(Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Args.OpArgs{:});
-                    
+                if Args.CalcImage || Args.CalcVar
+                    if Obj1(Iobj1).PropagateErr
+                        % Perform error propagation
+                        [TmpOut{IND_IMAGE}, TmpOut{IND_VAR}] = imUtil.image.fun_binary_withVariance(Operator, Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Tmp1{IND_VAR}, Tmp2{IND_VAR}, [], Args.OpArgs);
+                    else
+                        TmpOut{IND_IMAGE} = Operator(Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Args.OpArgs{:});
+                        TmpOut{IND_VAR}   = Operator(Tmp1{IND_VAR}, Tmp2{IND_VAR}, Args.OpArgs{:});
+                    end
                 end
+                if Args.CalcBack
+                    TmpOut{IND_BACK} = Operator(Tmp1{IND_BACK}, Tmp2{IND_BACK}, Args.OpArgs{:});
+                end
+                    
+                if Args.CalcMask
+                    TmpOut{IND_MASK}
+                end
+                
+                    
                     
                     
                     
@@ -1445,9 +1755,39 @@ classdef AstroImage < Component
         
     end
     
-    methods % Unit-Test
+    methods (Static) % Unit-Test
         function Result = unitTest()
             Astro = AstroImage;
+            
+            
+            % funBinaryProp
+            % funBinary for a single property / no error propagation
+            AI=AstroImage({ones(3,3)});
+            Res = funBinaryProp(AI,3,@plus);
+            if ~all(Res.Image==4)
+                error('funBinaryProp failed');
+            end
+            Res = funBinaryProp(AI,[3 2 1],@plus);
+            if ~all(Res.Image==[4 3 2])
+                error('funBinaryProp failed');
+            end
+            Res = funBinaryProp(AI,{2 1},@plus);
+            if numel(Res)~=2
+                error('funBinaryProp failed');
+            end
+            if ~all(Res(1).Image==3,'all') || ~all(Res(2).Image==2,'all')
+                error('funBinaryProp failed');
+            end
+            Res = funBinaryProp(AI,AI,@minus);
+            if ~all(Res.Image==0)
+                error('funBinaryProp failed');
+            end
+            Res = funBinaryProp(AI,AI,@minus,'DataProp','VarData');
+            if ~all(Res.Image==1)
+                error('funBinaryProp failed');
+            end
+            
+            
             Result = true;
         end
     end

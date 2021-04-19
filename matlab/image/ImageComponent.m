@@ -276,9 +276,7 @@ classdef ImageComponent < Component
             %          - The 2nd ImageComponent object, or alternatively
             %            a cell array of images,
             %            or an array of numerical values.
-            %            If the array size is equal to the size of the 1st
-            %            object, then it is assumed that each element in
-            %            the array is a scalar image. If not, the array
+            %            The array
             %            size must be consistent with the image size in the
             %            first object.
             %          - Binary operator (e.g., @plus)
@@ -374,12 +372,12 @@ classdef ImageComponent < Component
             if isnumeric(Obj2)
                 % If Obj2 is an array with the same size as Obj1, then
                 % convert into a cell array of scalars.
-                if all(size(Obj1)==size(Obj2))
-                    Obj2 = num2cell(Obj2);
-                else
+                %if all(size(Obj1)==size(Obj2))
+                %    Obj2 = num2cell(Obj2);
+                %else
                     % otherwise a single element cell
                     Obj2 = {Obj2};
-                end
+                %end
             end
             % at this stage Obj2 must be a cell or an ImageComponent
             if iscell(Obj2)
@@ -1098,7 +1096,7 @@ classdef ImageComponent < Component
             
             
             % operate against a scalar for each image
-            R   = funBinary([IC1, IC2],[1 3],@plus,'CreateNewObj',true);
+            R   = funBinary([IC1, IC2],num2cell([1 3]),@plus,'CreateNewObj',true);
             if ~all(abs(R(1).Image - IC1.Image - 1)<1e-8,'all') || ~all(abs(R(2).Image - IC2.Image - 3)<1e-8,'all')
                 error('Problem with arithmatics');
             end
