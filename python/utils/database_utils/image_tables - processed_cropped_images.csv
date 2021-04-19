@@ -1,5 +1,0 @@
-Field Name,Description,Data Type,Comments
-[common_image_fields],,,
-RawImageID*,,int32,
-ProcCalibImageID,,int32,
-,,,

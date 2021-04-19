@@ -2,18 +2,28 @@
 %--------------------------------------------------------------------------
 
 
-classdef SqlDb < Component
+classdef SqlDb < DbComponent
     % Properties
-    properties (SetAccess = public)
-        %config          % Configuration 
-        %log             % Log file
+    properties (SetAccess = public)            
+        DataSource = '';
+        UserName = 'postgres';
+        Password = 'pass';
+        Driver = 'org.postgresql.Driver';
+        Url = 'jdbc:postgresql://localhost:5432/avionics';
+        Schema = 'public';
+        Conn = 0;
+        
+        SqlText = ''
+        Record = []
+        
+        DbName = ''
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = SqlDb(FileName)
-            Obj.FileName = FileName;
+        function Obj = SqlDb()
+            
         end
     end
     
@@ -21,22 +31,48 @@ classdef SqlDb < Component
     methods
         
         
-        %
-        function Result = Open(Obj, FileName)
-            Obj.FileName = FileName;
-            Result = true;
+        function Result = open(Obj)
+        end
+        
+            
+        function Result = close(Obj)
         end
         
         
-        % Read         
-        function Data = read(Obj)
-            Data = fitsread(Obj.FileName);       
+        function Result = connect(Obj)
+            
+            Obj.Conn = database(Cbj.DataSource, Obj.UserName, Obj.Password, Obj.Driver, Obj.Url);           
+            switch isopen(Obj.Conn)
+                case 1
+                    msgLog('Database connected OK')
+                    Result = true;
+                otherwise
+                    msgLog('Database connected FAILED')
+                    
+                    % Exception?
+                    error('Failed to connection with database')
+                    Result = false;
+            end            
+            
         end
         
         
-        function Header = readHeader(Obj, Path)
+        function disconnect()
         end
         
+        
+        function select(Obj, QueryText)
+            Obj.SqlText = sprintf('%s FROM %s', QueryText, Obj.Schema);
+            Obj.Record = select(Obj.Conn, Text)
+        end
+        
+        
+        function selectWhere(Obj, QueryText, WhereText)
+        end
+        
+        
+        function exec(Obj, QueryText)
+        end 
             
     end
 
@@ -49,17 +85,8 @@ classdef SqlDb < Component
     % Unit test
     methods(Static)
         function Result = unitTest()
-            fprintf("Started\n");
-            
-            addpath("D:\Ultrasat\AstroPack.git\matlab\external");
-
-            % Test: Read image 
-            FileName = "D:\\Ultrasat\\AstroPack.git\\data\\test_images\\local\\image1.fits";
-            db = FitsDb(FileName);
-            data = db.read(FileName);
-            
-            % Test: Read more images (HDU)
-            disp(size(data));
+            io.msgLog(LogLevel.Test, "Started\n");
+   
             
             % Test: Create database and tables
             
@@ -68,6 +95,7 @@ classdef SqlDb < Component
             % Test: Query tables         
             
  
+            io.msgLog(LogLevel.Test, "Passed")
             Result = true;
         end
     end    

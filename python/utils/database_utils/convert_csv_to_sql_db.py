@@ -3,7 +3,7 @@
 
 # Instructions
 
-import os, glob, time, argparse, shutil, csv
+import os, glob, time, argparse, shutil, csv, json, yaml
 from datetime import datetime
 
 FILE_EXT = ['.csv']
@@ -68,7 +68,7 @@ def get_field_type(field_name, text):
         ftype = '???'
 
         # Special case: Hierarchical Triangular Mesh
-        if field_name == 'HTM_ID':
+        if field_name.startswith('HTM_ID'):
             ftype = 'VARCHAR'
         else:
             log('Unknown field type: ' + text)
@@ -82,10 +82,28 @@ class Field:
         self.field_name = ''
         self.field_type = ''
         self.data_type = ''
+        self.comments = ''
+        self.metadata = ''
+        self.json = None
+        self.yaml = None
         self.primary_key = False
         self.index = False
+        self.index_method = 'btree'
         self.is_common = False
 
+
+def get_csv(row, column, _default = '', _strip = True):
+    if column in row:
+        if row[column]:
+            value = row[column]
+        else:
+            value = ''
+        if _strip:
+            value = value.strip()
+    else:
+        value = _default
+
+    return value
 
 
 class TableDef:
@@ -110,8 +128,12 @@ class TableDef:
         self.db_name = db[0].strip()
         self.table_name = db[1].strip()
 
-        self.sql_filename = os.path.join(path, self.table_name + '.sql')
-        self.outf = open(self.sql_filename, 'w')
+        self.sql_filename = os.path.join(path, self.db_name + '.sql')
+        self.outf = open(self.sql_filename, 'a')
+        self.write('\n\n\n\n')
+
+        #self.sql_filename = os.path.join(path, self.table_name + '.sql')
+        #self.outf = open(self.sql_filename, 'w')
 
 
     def get_include_filename(self, filename: str, include: str) -> str:
@@ -138,12 +160,7 @@ class TableDef:
             try:
                 field = Field()
 
-                field.field_name = row['Field Name'].strip()
-                field.description = row['Description'].strip()
-                field.field_type = row['Data Type'].strip()
-                field.comments = row['Comments'].strip()
-                field.is_common = is_common
-
+                field.field_name = get_csv(row, 'Field Name')
                 if field.field_name == '':
                     continue
 
@@ -153,6 +170,21 @@ class TableDef:
                     if include_filename != '' and os.path.exists(include_filename):
                         self.load_csv(include_filename)
                     continue
+
+
+                field.description = get_csv(row, 'Description')
+                field.field_type = get_csv(row, 'Data Type')
+                field.comments = get_csv(row, 'Comments')
+                field.metadata = get_csv(row, 'Metadata')
+                field.is_common = is_common
+
+                #field.json = json.loads('{' + field.metadata + '}')
+                field.yaml = yaml.load('{' + field.metadata + '}')
+
+                # Parse metadata
+                if 'index_method' in field.yaml:
+                    field.index_method = field.yaml['index_method']
+
 
                 # Field type
                 field.data_type = get_field_type(field.field_name, field.field_type)
@@ -171,8 +203,9 @@ class TableDef:
 
                 # Check if field already seen
                 if field.field_name in self.field_dict:
-                    log('Field already defined: ' + field.field_name)
+                    log('Field already defined, ignored: ' + field.field_name)
                     continue
+
 
                 self.field_list.append(field)
                 self.field_dict[field.field_name] = field
@@ -180,6 +213,7 @@ class TableDef:
                 print('ex')
 
         log('Loading done: ' + filename)
+
 
     #
     def create_table(self):
@@ -200,26 +234,34 @@ class TableDef:
                 primary_key.append(field.field_name)
                 field_def += ' NOT NULL'
 
-            self.write('"{}{}" {}\n'.format(prefix, field.field_name, field_def))
+            field_def += ','
+
+            self.write('{}{} {}\n'.format(prefix, field.field_name, field_def))
+            #self.write('"{}{}" {}\n'.format(prefix, field.field_name, field_def))
 
 
+        # Primary key
         if len(primary_key) > 0:
-            self.write('\n,CONSTRAINT {} PRIMARY KEY("{}")\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
+            self.write('\nCONSTRAINT {} PRIMARY KEY({})\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
+            #self.write('\nCONSTRAINT {} PRIMARY KEY("{}")\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
 
         self.write(');\n\n')
 
         # SET STATISTICS 0
         for field in self.field_list:
-            self.write('ALTER TABLE public."{}"\n  ALTER COLUMN "{}" SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
+            self.write('ALTER TABLE public."{}"\n  ALTER COLUMN {} SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
+            #self.write('ALTER TABLE public."{}"\n  ALTER COLUMN "{}" SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
 
         # Index
         for field in self.field_list:
             if field.index:
                 index_name = self.table_name + '_idx_' + field.field_name
-                self.write('CREATE INDEX {} ON public."{}"\n  USING btree ("{}")\n\n'.format(index_name, self.table_name, field.field_name))
+                self.write('CREATE INDEX {} ON public.{}\n  USING {} ({});\n\n'.format(index_name, self.table_name, field.index_method, field.field_name))
+                #self.write('CREATE INDEX {} ON public."{}"\n  USING {} ("{}");\n\n'.format(index_name, self.table_name, field.index_method, field.field_name))
 
         # OWNER
-        self.write('ALTER TABLE public."{}"\n  OWNER TO postgres;\n'.format(self.table_name))
+        self.write('ALTER TABLE public.{}\n  OWNER TO postgres;\n'.format(self.table_name))
+        #self.write('ALTER TABLE public."{}"\n  OWNER TO postgres;\n'.format(self.table_name))
 
         self.outf.close()
 
