@@ -1,8 +1,8 @@
 Field Name,Description,Data Type,Comments
-RawImageID,,int32,
+[common_image_fields],,,
 RA_Center*,,double,
 Dec_Center*,,double,
-ImageType,"[sci,flat,bias,dark,test]",Enumeration: int8,
+ImageType,"[sci,flat,bias,dark,test]",Int8 (Enumeration),
 HTM_ID*,,,
 Quadrant,¼ quadrants,int8,
 ExpTime,,single,
