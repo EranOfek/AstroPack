@@ -453,6 +453,103 @@ classdef AstroImage < Component
         
     end
     
+    
+    methods % class conversion
+        function varargout = astroImage2ImageComponent(Obj, Args)
+            % Convert an AstroImage data into SciImage, BackImage, etc. objects.
+            % Input  : - An AstroImage object (multiple elements supported)
+            %          * ...,key,val,...
+            %            'ReturnImageComponent' - A logical indicating if
+            %                   to return an ImageComponent class, or the
+            %                   native class of the data object (e.g.,
+            %                   SciImage). Default is false.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is false.
+            %                   Note this parameter must be a logical and
+            %                   it is independent of nargout.
+            %            'DataProp' - A list of Data properties to copy.
+            %                   Default is {'ImageData','BackData',
+            %                   'VarData', 'MaskData'}.
+            %                   The output are returned by this order.
+            % Output : * An object per requested DataProp.
+            %            By default, the first output arg is a SciImage
+            %            object containing all the Images, etc.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: [S,B] = astroImage2ImageComponent(AI)
+            %          [S,B] = astroImage2ImageComponent(AstroImage([2 2]))
+            %          [S,B] = astroImage2ImageComponent(AI,'CreateNewObj',true)
+            %          [S,B] = astroImage2ImageComponent(AI,'CreateNewObj',true,'ReturnImageComponent',true)
+            
+            arguments
+                Obj
+                Args.ReturnImageComponent(1,1) logical  = false;
+                Args.CreateNewObj(1,1) logical          = false;
+                Args.DataProp                           = {'ImageData','BackData', 'VarData', 'MaskData'};
+            end
+            
+            
+            if ischar(Args.DataProp)
+                Args.DataProp = {Args.DataProp};
+            end
+            
+            if nargout>numel(Args.DataProp)
+                error('Number of requested ImageComponent is larger than the number of elements in DataProp list');
+            end
+            
+            Nobj = numel(Obj);
+            
+            varargout = cell(1,nargout);
+            for Iout=1:1:nargout
+                if Args.ReturnImageComponent
+                    OutClass = @ImageComponent;
+                else
+                    OutClass = str2func(class(Obj(1).(Args.DataProp{Iout})));
+                end
+                varargout{Iout} = OutClass(size(Obj));
+                for Iobj=1:1:Nobj
+                    if Args.CreateNewObj
+                        varargout{Iout}(Iobj) = Obj(Iobj).(Args.DataProp{Iout}).copyObject;
+                    else
+                        varargout{Iout}(Iobj) = Obj(Iobj).(Args.DataProp{Iout});
+                    end
+                end
+            end
+             
+            
+        end
+        
+        function Result = astroImage2AstroCatalog(Obj, Args)
+            % Convert the CataData in AstroImage object into an AstroCatalog object array.
+            % Input  : - An AstroImage object (multi components supported).
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object or to provide and handle to
+            %                   the existing object. Default is false.
+            % Output : - An astroCatalog object.
+            %            Note that if CreateNewObj=false then changes in
+            %            this object will take place also in the original
+            %            AstroImage object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AC= astroImage2AstroCatalog(AI);
+            %          AC= astroImage2AstroCatalog(AI,'CreateNewObj',true);
+            
+            arguments
+                Obj
+                Args.CreateNewObj(1,1) logical          = false;
+            end
+            
+            Result = AstroCatalog(size(Obj));
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Args.CreateNewObj
+                    Result(Iobj) = Obj(Iobj).CatData.copyObject;
+                else
+                    Result(Iobj) = Obj(Iobj).CatData;
+                end
+            end
+        end
+    end
+    
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
         
         function Result = funUnary(Obj, Operator, Args)
@@ -669,7 +766,6 @@ classdef AstroImage < Component
         
         end
             
-        
         function varargout = funUnaryScalar(Obj, Operator, Args)
             % Apply a unary operator that return scalar on AstroImage and return an numeric array
             % Input  : - An AstroImage object (multi elements supported)
@@ -717,6 +813,8 @@ classdef AstroImage < Component
             end
         end
         
+        
+        
         function Result = funBinary(Obj1, Obj2, Operator, Args)
             %
             
@@ -729,6 +827,14 @@ classdef AstroImage < Component
                 Args.CCDSEC1                    = [];
                 Args.CCDSEC2                    = [];
                 Args.OutOnlyCCDSEC(1,1) logical = true;
+                
+                Args.CalcImage(1,1) logical     = true;
+                Args.CalcBack(1,1) logical      = true;
+                Args.CalcVar(1,1) logical       = true;
+                Args.CalcMask(1,1) logical      = true;
+                Args.ReturnBack(1,1) logical    = true;
+                Args.ReRemoveBack(1,1) logical  = true;
+                
                 Args.DataProp                   = {'DataImag','BackImage','VarImage','MaskImage'};
                 Args.DataPropIn                 = 'Image';
                 
@@ -737,6 +843,11 @@ classdef AstroImage < Component
                 Args.DataPropIn2                = '';
                 Args.DataPropOut                = '';
             end
+            
+            IND_IMAGE = 1;
+            IND_BACK  = 2;
+            IND_VAR   = 3;
+            IND_MASK  = 4;
             
             if isempty(Args.CreateNewObj)
                 if nargout>0
@@ -747,6 +858,10 @@ classdef AstroImage < Component
             end
             
             Ndp = numel(Args.DataProp);
+            
+            if ~isempty(Args.PropagateErr)
+                [Obj1(1:1:numel(Obj1)).PropagateErr] = deal(Args.PropagateErr);
+            end    
             
             % make sure Obj2 is in the right format
             if isnumeric(Obj2)
@@ -765,6 +880,12 @@ classdef AstroImage < Component
             else
                 Obj2IsCell = false;
             end
+            if isa(Obj2,'ImageComponent')
+                Obj2IsCell = true;
+                %Obj2       = convert ImageComponent to cell of images
+                
+            end
+                
             if ~Obj2IsCell && ~isa(Obj2,'ImageComponent') && ~isa(Obj2,'AstroImage')
                 error('Obj2 must be a cell, or AstroImage, or ImageComponent, or a numeric array');
             end
@@ -786,29 +907,50 @@ classdef AstroImage < Component
                 Iobj1 = min(Ires, Nobj1);
                 Iobj2 = min(Ires, Nobj2);
                 
+                Tmp2 = cell(1,Ndp);
+                % treat the 2nd operand
                 if isempty(Args.CCDSEC2)
                     if Obj2IsCell
-                        Tmp{1} = Obj2{Iobj2};
-                        Tmp{2} = [];
-                        Tmp{3} = [];
-                        Tmp{4} = [];
+                        Tmp2{1} = Obj2{Iobj2};
                     else
                         for Idp=1:1:Ndp
-                            Tmp{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn);
+                            Tmp2{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn);
                         end
                     end
                 else
                     if Obj2IsCell
-                        Tmp{1} = Obj2{Iobj2}(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
-                        Tmp{2} = [];
-                        Tmp{3} = [];
-                        Tmp{4} = [];
+                        Tmp2{1} = Obj2{Iobj2}(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
                     else
                         for Idp=1:1:Ndp
-                            Tmp{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                            Tmp2{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
                         end
                     end
                 end
+                
+                % treat the 1st operand
+                if isempty(Args.CCDSEC1)
+                    for Idp=1:1:Ndp
+                        Tmp1{Idp} = Obj1(Iobj1).(Args.DataProp{Idp}).(Args.DataPropIn);
+                    end
+                else
+                    for Idp=1:1:Ndp
+                        Tmp1{Idp} = Obj1(Iobj1).(Args.DataProp{Idp}).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                    end
+                end
+                
+                
+                if Obj1(Iobj1).PropagateErr
+                    % Perform error propagation
+                    [TmpOut{IND_IMAGE}, TmpOut{IND_VAR}] = imUtil.image.fun_binary_withVariance(Operator, Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Tmp1{IND_VAR}, Tmp2{IND_VAR}, [], Args.OpArgs);
+                    
+                else
+                    TmpOut{IND_IMAGE} = Operator(Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Args.OpArgs{:});
+                    TmpOut{IND_IMAGE} = Operator(Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Args.OpArgs{:});
+                    
+                end
+                    
+                    
+                    
                 
                 % operator ...
                 % got here
@@ -818,99 +960,7 @@ classdef AstroImage < Component
             
         end
                 
-        function varargout = astroImage2ImageComponent(Obj, Args)
-            % Convert an AstroImage data into SciImage, BackImage, etc. objects.
-            % Input  : - An AstroImage object (multiple elements supported)
-            %          * ...,key,val,...
-            %            'ReturnImageComponent' - A logical indicating if
-            %                   to return an ImageComponent class, or the
-            %                   native class of the data object (e.g.,
-            %                   SciImage). Default is false.
-            %            'CreateNewObj' - A logical indicating if to create
-            %                   a new object. Default is false.
-            %                   Note this parameter must be a logical and
-            %                   it is independent of nargout.
-            %            'DataProp' - A list of Data properties to copy.
-            %                   Default is {'ImageData','BackData',
-            %                   'VarData', 'MaskData'}.
-            %                   The output are returned by this order.
-            % Output : * An object per requested DataProp.
-            %            By default, the first output arg is a SciImage
-            %            object containing all the Images, etc.
-            % Author : Eran Ofek (Apr 2021)
-            % Example: [S,B] = astroImage2ImageComponent(AI)
-            %          [S,B] = astroImage2ImageComponent(AstroImage([2 2]))
-            %          [S,B] = astroImage2ImageComponent(AI,'CreateNewObj',true)
-            %          [S,B] = astroImage2ImageComponent(AI,'CreateNewObj',true,'ReturnImageComponent',true)
-            
-            arguments
-                Obj
-                Args.ReturnImageComponent(1,1) logical  = false;
-                Args.CreateNewObj(1,1) logical          = false;
-                Args.DataProp                           = {'ImageData','BackData', 'VarData', 'MaskData'};
-            end
-            
-            
-            if ischar(Args.DataProp)
-                Args.DataProp = {Args.DataProp};
-            end
-            
-            if nargout>numel(Args.DataProp)
-                error('Number of requested ImageComponent is larger than the number of elements in DataProp list');
-            end
-            
-            Nobj = numel(Obj);
-            
-            varargout = cell(1,nargout);
-            for Iout=1:1:nargout
-                if Args.ReturnImageComponent
-                    OutClass = @ImageComponent;
-                else
-                    OutClass = str2func(class(Obj(1).(Args.DataProp{Iout})));
-                end
-                varargout{Iout} = OutClass(size(Obj));
-                for Iobj=1:1:Nobj
-                    if Args.CreateNewObj
-                        varargout{Iout}(Iobj) = Obj(Iobj).(Args.DataProp{Iout}).copyObject;
-                    else
-                        varargout{Iout}(Iobj) = Obj(Iobj).(Args.DataProp{Iout});
-                    end
-                end
-            end
-             
-            
-        end
         
-        function Result = astroImage2AstroCatalog(Obj, Args)
-            % Convert the CataData in AstroImage object into an AstroCatalog object array.
-            % Input  : - An AstroImage object (multi components supported).
-            %          * ...,key,val,...
-            %            'CreateNewObj' - A logical indicating if to create
-            %                   a new object or to provide and handle to
-            %                   the existing object. Default is false.
-            % Output : - An astroCatalog object.
-            %            Note that if CreateNewObj=false then changes in
-            %            this object will take place also in the original
-            %            AstroImage object.
-            % Author : Eran Ofek (Apr 2021)
-            % Example: AC= astroImage2AstroCatalog(AI);
-            %          AC= astroImage2AstroCatalog(AI,'CreateNewObj',true);
-            
-            arguments
-                Obj
-                Args.CreateNewObj(1,1) logical          = false;
-            end
-            
-            Result = AstroCatalog(size(Obj));
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                if Args.CreateNewObj
-                    Result(Iobj) = Obj(Iobj).CatData.copyObject;
-                else
-                    Result(Iobj) = Obj(Iobj).CatData;
-                end
-            end
-        end
         
         function varargout = images2cube(Obj, Args)
             % Convert the images in AstroImage object into a cube.
@@ -1184,109 +1234,7 @@ classdef AstroImage < Component
             
         end
         
-        function varargout = funUnary__Scalar(Obj, Operator, Args)
-            % Apply a unary function that return a scalar and return an
-            % array of the results.
-            % The main difference between this function and funUnary2scalar
-            % is that funUnaryScalar can be used to apply operators on
-            % dependent properties like 'Image', while funUnary2scalar
-            % apply it on the data properties (e.g., 'ImageData'). This
-            % means that funUnary2scalar output may include error
-            % propagation due to the operator, while funUnarayScalar
-            % doesn't.
-            % Input  : -
-            % Output : -
-            % Author : Eran Ofek (Apr 2021)
-            % Example: 
             
-            
-            arguments
-                Obj
-                Operator function_handle
-                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
-                Args.DataProp                       = {'Image','Back','Var'};  % DataProp to retrieve
-                Args.CCDSEC                         = [];
-            end
-            
-            if ischar(Args.DataProp)
-                Args.DataProp = {Args.DataProp};
-            end
-            
-            % select only the requested data properties
-            Args.DataProp = Args.DataProp(1:1:nargout);
-            
-            Nprop = numel(Args.DataProp);
-            Nobj  = numel(Obj);
-            
-            varargout = cell(1,Nprop);
-            for Iprop=1:1:Nprop
-                varargout{Iprop} = nan(size(Obj));
-                if isempty(Args.CCDSEC)
-                    % operator on full image
-                    for Iobj=1:1:Nobj
-                        varargout{Iprop}(Iobj) = Operator(Obj.(Args.DataProp{Iprop}), Args.OpArgs{:});
-                    end
-                else
-                    % operator on sub image
-                    for Iobj=1:1:Nobj
-                        varargout{Iprop}(Iobj) = Operator(Obj.(Args.DataProp{Iprop})(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Args.OpArgs{:});
-                    end
-                end
-            end
-            
-            
-            
-        end
-        
-            
-        
-        function Result = fun__Binary(Obj1, Obj2, Operator, Args)
-            %
-            
-            arguments
-                Obj1
-                Obj2
-                Operator function_handle
-                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
-                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
-                Args.DataPropIn1 
-                Args.DataPropIn2
-                Args.DataPropOut
-                Args.OutType
-                Args.CreateNewObj(1,1) logical      = false;
-                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
-                Args.CCDSEC                         = [];
-            end
-            
-            Nobj = numel(Obj);
-            
-            
-        end
-        
-        function Result = fun_stack(Obj, Operator, Args)
-            %
-            
-            arguments
-                Obj
-                Operator
-                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
-                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
-                Args.DataPropIn 
-                Args.DataPropOut
-                Args.IsOutObj(1,1) logical          = true;
-                Args.CreateNewObj(1,1) logical      = false;
-                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
-                Args.CCDSEC                         = [];
-                Args.MemoryBlocks                   = [Inf Inf];  % do the stack onb sub images and merge
-            end
-            
-            
-            
-            
-            
-            
-            
-        end
         
         function varargout = images2__cube(Obj, Args)
             % Generate cubes of images from array of AstroImage objects
