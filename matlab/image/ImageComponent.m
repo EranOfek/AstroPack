@@ -1013,6 +1013,17 @@ classdef ImageComponent < Component
         function Result = unitTest
             % unitTest for ImageComponent
             
+            % @Chen: Moved here from Component.m
+            IC=ImageComponent; IC.Image = 1;
+            AI=convert2class(IC,{'Image'},{'Image'},@AstroImage);
+            AI=convert2class(IC,{'Data'},{'ImageData.Data'},@AstroImage,'UseEval',true);
+
+            IC= ImageComponent({1, 2});
+            [A] = data2array(IC,'Image');
+            [A,B] = data2array(IC,{'Image','Data'});
+
+
+            
             Size = [2 2];
             IC = ImageComponent(Size);
             assert(all(size(IC) == Size), 'ImageComponent size is not consistent');
