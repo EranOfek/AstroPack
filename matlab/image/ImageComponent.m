@@ -434,7 +434,6 @@ classdef ImageComponent < Component
             end
         end
         
-        
         function Result = funUnaryScalar(Obj, Operator, Args)
             % funUnary on ImageComponent returning an array of scalars (one
             %       scalar per image)
@@ -559,8 +558,106 @@ classdef ImageComponent < Component
             
         end
         
+    end
+    
+    methods % background and variance
+        
+        function [Back, Var] = background(Obj, varargin)
+            % Estimate the background and variance of an ImageComponent
+            % Input  : - An ImageComponent (multi element suppoted)
+            %            The back/var are estimated from the 'Image'
+            %            property.
+            %          * Additional arguments to pass to:
+            %            imUtil.background.background
+            %            Default is no parameters.
+            % Output : - A BackImage with the estimated background in the
+            %            Data property.
+            %          - A VarImage with the estimated variance in the
+            %            Data property.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent({100+randn(1000,1000), 50+randn(100,100)})
+            %          [B,V] = background(IC);
+            
+            Nobj = numel(Obj);
+            Back = BackImage(size(Obj));
+            Var  = VarImage(size(Obj));
+            for Iobj=1:1:Nobj
+                [Back(Iobj).Data, Var(Iobj).Data] = imUtil.background.background(Obj(Iobj).Image, varargin{:});
+                % FFU: set scale parameters if needed
+            end
+            
+        end
+        
+        function Obj = subtractBack(Obj, Back, varargin)
+            % subtract background from an ImageComponent
+            %       If this is a SciImage, then also set the IsBackSubtracted
+            %       to true.
+            % Input  : - An ImageComponet object.
+            %          - Background, either in ImageComponent, a matrix or
+            %            a cell array of matrices. If empty, cal back.
+            %            Default is [].
+            %          * Additional arguments to pass to the background
+            %            function. Default is no arguments.
+            % Output : - A background subtracted ImageComponent
+            % Author : Eran Ofek (Apr 2021)
+            % Example: 
+                
+        
+            if nargin<2
+                Back = [];
+            end
+            
+            Nobj = numel(Obj);
+            
+            if isempty(Back)
+                % estimate background
+                Back = background(Obj, varargin{:});
+            end
+            
+            if isnumeric(Back) || iscell(Back)
+                Back = ImageCompnent(Back);
+            end
+            
+            Nback = numel(Back);
+            
+            if isa(Obj,'SciImage')
+                % SciImage has a IsBackSubtracted prop
+                [Obj(1:1:Nobj).IsBackSubtracted] = deal(true);
+            end
+            
+            N = max(Nobj, Nback);
+            for I=1:1:N
+                Iobj  = min(I, Nobj);
+                Iback = min(I, Nback);
+                
+                Obj(I).Data = Obj(Iobj).Data - Back(Iback).Data;
+                if isa(Obj(Iobj),'SciImage')
+                    Obj(Iobj).IsBackSubtracted = true;
+                end
+            end
+            
+            
+        end
         
         % funStack (including scaling and zero subtracting)
+%         function [Result, ResultVar] = funStack(Obj, Args)
+%             %
+%             
+%             arguments
+%                 SubBack(1,1) logical            = false;
+%                 SubVal                          = [];  % ImageComponent, cell or matrix
+%                 StackMethod                     = 'mean';
+%                 StackMethodArgs                 = {};
+%                 VarImage                        = [];
+%                 NormEnd                         = 'median';  % value or method.
+%             end
+%             
+%             
+%             
+%         end
+        
+        % subBack
+        
         % funTransform
     end
     
