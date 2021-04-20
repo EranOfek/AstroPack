@@ -410,7 +410,7 @@ classdef AstroTable < Component %ImageComponent
             
         end
         
-        function Result = deleteCatalog(Obj)
+        function Obj = deleteCatalog(Obj)
             % delete the content of an AstroTable object
             % Example: Result = deleteCatalog(Obj)
            

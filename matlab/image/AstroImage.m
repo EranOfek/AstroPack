@@ -1107,168 +1107,209 @@ classdef AstroImage < Component
             end
             
         end
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+                
         function Result = funBinary(Obj1, Obj2, Operator, Args)
-            %
+            % Apply a binary operator to AstroImage
+            % Input  : - 1st operand - An AstroImage object.
+            %          - 2nd operand - An AstroImage object or a
+            %            cell array of matrices, or an array of numbers.
+            %            If a cell array each element of the cell array
+            %            will be treated as the 2nd operand image.
+            %            If a vector than this will be treated as a single
+            %            image.
+            %          - Operator (a function handle). E.g., @plus.
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CalcImage' - A logical that state if to apply the
+            %                   operator to the ImageData property.
+            %                   Default is true.
+            %            'CalcBack' - A logical that state if to apply the
+            %                   operator to the BackData property.
+            %                   Default is true.
+            %            'CalcVar' - A logical that state if to apply the
+            %                   operator to the VarData property.
+            %                   Default is true.
+            %            'CalcMask' - A logical that state if to apply the
+            %                   operator to the MaskData property.
+            %                   Default is true.
+            %            'CalcPSF' - A logical that state if to apply the
+            %                   operator to the PSF property.
+            %                   Default is true.
+            %            'PropagateErr' - A logical stating if to apply
+            %                   error propagation. If empty, then use the
+            %                   object PropagateErr property. Default is
+            %                   [].
+            %                   NOTE THAT the first element state dicatates
+            %                   all the rest.
+            %            'DeleteCat' - A logical indicating if to delete
+            %                   the catalog data. Default is false.
+            %            'UpdateHeader' - a logical indicating if to update
+            %                   the header. Default is true.
+            %            'DataPropIn' - Data property of the ImageComponent
+            %                   on which to operate. Default is 'Data'.
+            %            'CCDSEC1' - [Xmin Xmax Ymin Ymax] CCDSEC for the
+            %                   1st oprand. The Operator will be applied
+            %                   only on this section.
+            %                   If empty, use all image. Default is [].
+            %            'CCDSEC2' - The same as CCDSEC1, but for the 2nd
+            %                   operand. Default is [].
+            %            'CCDSEC' - The CCDSEC in the output image. Must be
+            %                   of the same size as CCDSEC1 and CCDSEC2.
+            %            'UseOrForMask' - A logical indicating if to use
+            %                   the @bitor operator instead of the input operator
+            %                   if the requested data property is
+            %                   'MaskImage'. Default is true.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            %            'Result' - An AstroImage object in which the
+            %                   results will be written. If empty, then use
+            %                   the CreateNewObj scheme.
+            %                   Default is [].
+            % Output : An AstroImage object
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({ones(3,3)});
+            %          Result = funBinary(AI,3,@plus)
+            %          AI = AstroImage({3.*ones(3,3)}, 'Back',{ones(3,3)}, 'Var',{3.*ones(3,3)});
+            %          Result = funBinary(AI,3,@plus)
+            %          Result = funBinary(AI,3,@plus,'PropagateErr',true)
             
             arguments
                 Obj1
                 Obj2
                 Operator function_handle
-                Args.OpArgs cell                = {};
-                Args.CreateNewObj               = [];
-                Args.CCDSEC1                    = [];
-                Args.CCDSEC2                    = [];
-                Args.OutOnlyCCDSEC(1,1) logical = true;
-                
-                Args.CalcImage(1,1) logical     = true;
-                Args.CalcBack(1,1) logical      = true;
-                Args.CalcVar(1,1) logical       = true;
-                Args.CalcMask(1,1) logical      = true;
-                
-                
-                Args.DataProp                   = {'DataImag','BackImage','VarImage','MaskImage'};
-                Args.DataPropIn                 = 'Image';
-                
-                Args.PropagateErr               = [];
-                
-                Args.DataPropIn2                = '';
-                Args.DataPropOut                = '';
+                Args.OpArgs                    = {};
+                Args.CalcImage(1,1) logical    = true;
+                Args.CalcBack(1,1) logical     = true;
+                Args.CalcVar(1,1) logical      = true;
+                Args.CalcMask(1,1) logical     = true;
+                Args.CalcPSF(1,1) logical      = false;
+                Args.PropagateErr              = [];
+                Args.DeleteCat(1,1) logical    = false;
+                Args.UpdateHeader(1,1) logical = true;
+                Args.DataPropIn                = 'Data';
+                Args.CCDSEC                    = [];
+                Args.CCDSEC1                   = [];
+                Args.CCDSEC2                   = [];
+                Args.UseOrForMask(1,1) logical = true;
+                Args.CreateNewObj              = [];
+                Args.Result                    = [];
             end
             
-            IND_IMAGE = 1;
-            IND_BACK  = 2;
-            IND_VAR   = 3;
-            IND_MASK  = 4;
-            
-            if isempty(Args.CreateNewObj)
-                if nargout>0
-                    Args.CreateNewObj = true;
-                else
-                    Args.CreateNewObj = false;
+            if isempty(Args.Result)
+                if isempty(Args.CreateNewObj)
+                    if nargout>0
+                        Args.CreateNewObj = true;
+                    else
+                        Args.CreateNewObj = false;
+                    end
                 end
-            end
             
-            Ndp = numel(Args.DataProp);
+                if Args.CreateNewObj
+                    Result = Obj1.copyObject;
+                else
+                    Result = Obj1;
+                end
+            else
+                Result = Args.Result;
+            end
             
             if ~isempty(Args.PropagateErr)
                 [Obj1(1:1:numel(Obj1)).PropagateErr] = deal(Args.PropagateErr);
-            end    
-            
-            % make sure Obj2 is in the right format
-            if isnumeric(Obj2)
-                % If Obj2 is an array with the same size as Obj1, then
-                % convert into a cell array of scalars.
-                if all(size(Obj1)==size(Obj2))
-                    Obj2 = num2cell(Obj2);
-                else
-                    % otherwise a single element cell
-                    Obj2 = {Obj2};
-                end
-            end
-            % at this stage Obj2 must be a cell, AstroImage or an ImageComponent
-            if iscell(Obj2)
-                Obj2IsCell = true;
-            else
-                Obj2IsCell = false;
-            end
-            if isa(Obj2,'ImageComponent')
-                Obj2IsCell = true;
-                %Obj2       = convert ImageComponent to cell of images
-                
-            end
-                
-            if ~Obj2IsCell && ~isa(Obj2,'ImageComponent') && ~isa(Obj2,'AstroImage')
-                error('Obj2 must be a cell, or AstroImage, or ImageComponent, or a numeric array');
             end
             
-            Nobj1 = numel(Obj1);
-            Nobj2 = numel(Obj2);
-            Nres  = max(Nobj1, Nobj2);
-            if ~(Nobj2==1 || Nobj2==Nobj1)
-                error('number of elements in Obj2 must be 1 or equal to the number in Obj1');
-            end
-                
-            if Args.CreateNewObj
-                Result = Obj1.copyObject;
-            else
-                Result = Obj1;
-            end
-                
-            for Ires=1:1:Nres
-                Iobj1 = min(Ires, Nobj1);
-                Iobj2 = min(Ires, Nobj2);
-                
-                Tmp2 = cell(1,Ndp);
-                % treat the 2nd operand
-                if isempty(Args.CCDSEC2)
-                    if Obj2IsCell
-                        Tmp2{1} = Obj2{Iobj2};
-                    else
-                        for Idp=1:1:Ndp
-                            Tmp2{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn);
-                        end
-                    end
-                else
-                    if Obj2IsCell
-                        Tmp2{1} = Obj2{Iobj2}(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
-                    else
-                        for Idp=1:1:Ndp
-                            Tmp2{Idp} = Obj2(Iobj2).(Args.DataProp{Idp}).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
-                        end
-                    end
-                end
-                
-                % treat the 1st operand
-                if isempty(Args.CCDSEC1)
-                    for Idp=1:1:Ndp
-                        Tmp1{Idp} = Obj1(Iobj1).(Args.DataProp{Idp}).(Args.DataPropIn);
-                    end
-                else
-                    for Idp=1:1:Ndp
-                        Tmp1{Idp} = Obj1(Iobj1).(Args.DataProp{Idp}).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
-                    end
-                end
-                
-                
+            % Use PropagateErr from Obj1(1) only
+            if Obj1(1).PropagateErr
                 if Args.CalcImage || Args.CalcVar
-                    if Obj1(Iobj1).PropagateErr
-                        % Perform error propagation
-                        [TmpOut{IND_IMAGE}, TmpOut{IND_VAR}] = imUtil.image.fun_binary_withVariance(Operator, Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Tmp1{IND_VAR}, Tmp2{IND_VAR}, [], Args.OpArgs);
-                    else
-                        TmpOut{IND_IMAGE} = Operator(Tmp1{IND_IMAGE}, Tmp2{IND_IMAGE}, Args.OpArgs{:});
-                        TmpOut{IND_VAR}   = Operator(Tmp1{IND_VAR}, Tmp2{IND_VAR}, Args.OpArgs{:});
-                    end
+                    % propagate errors Image/Var
+                    Result = funBinaryImVar(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
+                                                                  'DataPropIn',Args.DataPropIn,...
+                                                                  'CCDSEC',Args.CCDSEC,...
+                                                                  'CCDSEC1',Args.CCDSEC1,...
+                                                                  'CCDSEC2',Args.CCDSEC2,...
+                                                                  'CreateNewObj',Args.CreateNewObj,...
+                                                                  'Result',Result);
                 end
-                if Args.CalcBack
-                    TmpOut{IND_BACK} = Operator(Tmp1{IND_BACK}, Tmp2{IND_BACK}, Args.OpArgs{:});
+            else
+                if Args.CalcImage 
+                    Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
+                                                                 'DataProp','ImageData',...
+                                                                 'DataPropIn',Args.DataPropIn,...
+                                                                 'CCDSEC',Args.CCDSEC,...
+                                                                 'CCDSEC1',Args.CCDSEC1,...
+                                                                 'CCDSEC2',Args.CCDSEC2,...
+                                                                 'CreateNewObj',Args.CreateNewObj,...
+                                                                 'UseOrForMask',Args.UseOrForMask,...
+                                                                 'Result',Result);
                 end
-                    
-                if Args.CalcMask
-                    TmpOut{IND_MASK}
+                if Args.CalcVar
+                    Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
+                                                                 'DataProp','VarData',...
+                                                                 'DataPropIn',Args.DataPropIn,...
+                                                                 'CCDSEC',Args.CCDSEC,...
+                                                                 'CCDSEC1',Args.CCDSEC1,...
+                                                                 'CCDSEC2',Args.CCDSEC2,...
+                                                                 'CreateNewObj',Args.CreateNewObj,...
+                                                                 'UseOrForMask',Args.UseOrForMask,...
+                                                                 'Result',Result);
                 end
-                
-                    
-                    
-                    
-                    
-                
-                % operator ...
-                % got here
-                
-                
             end
+               
+            if Args.CalcBack
+                Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
+                                                                 'DataProp','BackData',...
+                                                                 'DataPropIn',Args.DataPropIn,...
+                                                                 'CCDSEC',Args.CCDSEC,...
+                                                                 'CCDSEC1',Args.CCDSEC1,...
+                                                                 'CCDSEC2',Args.CCDSEC2,...
+                                                                 'CreateNewObj',Args.CreateNewObj,...
+                                                                 'UseOrForMask',Args.UseOrForMask,...
+                                                                 'Result',Result);
+            end
+            if Args.CalcMask
+                Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
+                                                                 'DataProp','MaskData',...
+                                                                 'DataPropIn',Args.DataPropIn,...
+                                                                 'CCDSEC',Args.CCDSEC,...
+                                                                 'CCDSEC1',Args.CCDSEC1,...
+                                                                 'CCDSEC2',Args.CCDSEC2,...
+                                                                 'CreateNewObj',Args.CreateNewObj,...
+                                                                 'UseOrForMask',Args.UseOrForMask,...
+                                                                 'Result',Result);
+            end
+                
+            if Args.CalcPSF
+                error('PSF funBinary is not implemented yet');
+            end
+            
+            if Args.DeleteCat
+                Result.deleteCatalog;
+            end
+            
+            % header
+            if Args.UpdateHeader
+                Nres = numel(Result);
+                for Ires=1:1:Nres
+                    funUnary(Result(Ires).HeaderData, Operator, 'OpArgs',Args.OpArgs, 'UpdateHeader',Args.UpdateHeader);
+                end
+            end
+            
             
         end
+        
+        
+        
+        
+        
+        
+        
                 
         
         
