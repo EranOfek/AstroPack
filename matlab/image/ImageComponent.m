@@ -640,21 +640,73 @@ classdef ImageComponent < Component
         end
         
         % funStack (including scaling and zero subtracting)
-%         function [Result, ResultVar] = funStack(Obj, Args)
-%             %
-%             
-%             arguments
-%                 SubBack(1,1) logical            = false;
-%                 SubVal                          = [];  % ImageComponent, cell or matrix
-%                 StackMethod                     = 'mean';
-%                 StackMethodArgs                 = {};
-%                 VarImage                        = [];
-%                 NormEnd                         = 'median';  % value or method.
-%             end
-%             
-%             
-%             
-%         end
+        function [Result, ResultVar] = funStack(Obj, Args)
+            %
+            
+            arguments
+                Obj
+                Args.CCDSEC                          = [];
+                Args.SubBack(1,1) logical            = false;
+                Args.SubVal                          = [];  % ImageComponent, cell or matrix
+                Args.BackArgs cell                   = {};
+                Args.NormMethod                      = [];
+                Args.NormArgs                        = {};
+                Args.NormVal                         = [];
+                Args.NormOperator function_handle    = @times;
+                Args.StackMethod                     = 'mean';
+                Args.StackMethodArgs                 = {};
+                Args.VarImage                        = [];
+                Args.NormEnd                         = 'median';  % value or method.
+                Args.NormEndArgs                     = {};
+                Args.DataPropIn                      = 'Data';
+            end
+            
+            
+            if Args.SubBack
+                % subtract background (only if not subtracted)
+                Obj = subtractBack(Obj, [], Args.BackArgs{:});
+            end
+            
+            % generate a cube
+            Cube = images2cube(Obj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
+            
+            % generate a cube of variance
+            if ~isempty(Args.VarImage)
+                VarCube = images2cube(Args.VarImage, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
+                UseVar  = true;
+            else
+                VarCube = [];
+                UseVar  = false;
+            end
+            
+            % subtract additional value
+            
+            % normalize
+            
+            
+            % stack the images
+            if isa(Args.StackMetod,'function_handle')
+                if UseVar
+                    [Coadd, VarCoadd, Ncoadd] = Args.StackMethod(Cube, VarCube, Args.StackMethoArgs{:});
+                else
+                    [Coadd, Ncoadd] = Args.StackMethod(Cube, Args.StackMethoArgs{:});
+                    VarCoadd = [];
+                end
+            else
+                switch lower(Args.StackMethod)
+                    case 'sum'
+                        
+                    otherwise
+                        error('Unknown StackMethod string option');
+                end
+            end
+            
+            % normalize
+            if ~isempty(Args.NormEnd)
+            
+                
+            end
+        end
         
         % subBack
         
