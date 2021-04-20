@@ -1,22 +1,34 @@
-% FITS Database Class
+% PostgreSQL Database Class
+%
 %--------------------------------------------------------------------------
 
+%
+% https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
+%
 
-classdef SqlDb < DbComponent
+
+classdef SqlDb < handle %DbComponent
     % Properties
     properties (SetAccess = public)            
-        DataSource = '';
+        
         UserName = 'postgres';
         Password = 'pass';
-        Driver = 'org.postgresql.Driver';
-        Url = 'jdbc:postgresql://localhost:5432/avionics';
-        Schema = 'public';
-        Conn = 0;
+        Host = 'localhost';
+        Port = 5432;
         
-        SqlText = ''
-        Record = []
+        JarFile = 'postgresql-42.2.19.jar';
+        Driver = [];
+        Url = '';
+        Schema = '';
+        Conn = [];
         
-        DbName = ''
+        SqlText = '';
+        Record = [];
+        ResultSet = [];
+        Statement = [];
+        
+        
+        DatabaseName = 'pipeline';
     end
     
     %-------------------------------------------------------- 
@@ -39,20 +51,57 @@ classdef SqlDb < DbComponent
         end
         
         
-        function Result = connect(Obj)
+        function Result = connect(Obj)          
+
+            % Add jar file to classpath (ensure it is present in your current dir)
+            %javaclasspath('postgresql-9.0-801.jdbc4.jar');
+            javaclasspath(Obj.JarFile);
+
+            % Username and password you chose when installing postgres
+            props = java.util.Properties;
+            props.setProperty('user', Obj.UserName);
+            props.setProperty('password', Obj.Password);
+
+            % Create the database connection (port 5432 is the default postgres chooses
+            % on installation)
+            Obj.Driver = org.postgresql.Driver;
+
+            Obj.Url = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+            Obj.Conn = Obj.Driver.connect(Obj.Url, props);
+
+        end
+        
+        
+        function Result = test(Obj)                  
             
-            Obj.Conn = database(Cbj.DataSource, Obj.UserName, Obj.Password, Obj.Driver, Obj.Url);           
-            switch isopen(Obj.Conn)
-                case 1
-                    msgLog('Database connected OK')
-                    Result = true;
-                otherwise
-                    msgLog('Database connected FAILED')
-                    
-                    % Exception?
-                    error('Failed to connection with database')
-                    Result = false;
-            end            
+            Obj.SqlText = 'select * from raw_images';
+
+            Obj.Statement = Obj.Conn.prepareStatement(Obj.SqlText);            
+            Obj.ResultSet = Obj.Statement.executeQuery();
+
+            % Read the results into an array of result structs
+            count=0;
+            result=struct;
+            while Obj.ResultSet.next()
+                disp(Obj.ResultSet.getString('ImageID'));
+                %count=count+1;
+                %result(count).var1=char(rs.getString(2));
+                %result(count).var2=char(rs.getString(3));
+                %...
+            end
+
+            Obj.ResultSet.close();
+           
+            
+            x = 1;
+
+            for i=1:10
+                pk = ['pk_', string(i).char];
+                sql = 'INSERT INTO raw_images(ImageID, RA_Center) VALUES(%s,%s);'
+
+                Obj.Statement = Obj.Conn.prepareStatement(sql);            
+                Obj.ResultSet = Obj.Statement.executeQuery();                
+            end
             
         end
         
@@ -72,6 +121,12 @@ classdef SqlDb < DbComponent
         
         
         function exec(Obj, QueryText)
+            Obj.SqlText = QueryText;
+            
+            Obj.Statement = Obj.Conn.prepareStatement(Obj.SqlText);
+            
+            Obj.ResultSet = Obj.Statement.executeQuery();
+            
         end 
             
     end
@@ -85,7 +140,7 @@ classdef SqlDb < DbComponent
     % Unit test
     methods(Static)
         function Result = unitTest()
-            io.msgLog(LogLevel.Test, "Started\n");
+            %io.msgLog(LogLevel.Test, "Started\n");
    
             
             % Test: Create database and tables
@@ -95,7 +150,7 @@ classdef SqlDb < DbComponent
             % Test: Query tables         
             
  
-            io.msgLog(LogLevel.Test, "Passed")
+            %io.msgLog(LogLevel.Test, "Passed")
             Result = true;
         end
     end    

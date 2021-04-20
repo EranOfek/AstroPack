@@ -3,13 +3,13 @@
 
 # Instructions
 
-import os, glob, time, argparse, shutil, csv, json, yaml, psycopg2, uuid
+import os, glob, time, argparse, shutil, csv, json, yaml, psycopg2, uuid, random
 from datetime import datetime
 
 
 # Log message to file
 LOG_PATH = 'c:/temp/'
-logfile = open(os.path.join(LOG_PATH, 'trim_trailing_spaces.log'), 'a')
+logfile = open(os.path.join(LOG_PATH, 'insert_records.log'), 'a')
 def log(msg, dt = False):
     global logfile
     if msg == '': dt = False
@@ -43,18 +43,18 @@ def insert_records():
     cur.close()
 
     cur = conn.cursor()
-    cur.execute('SELECT "ImageID" FROM raw_images')
+    cur.execute('SELECT ImageID FROM raw_images')
     rec = cur.fetchone()
     print(rec)
 
     try:
 
         cur = conn.cursor()
-        x = 0.1
+        x = random.randint(1, 10000000)
 
-        for i in range(0, 100):
+        for i in range(0, 10000):
             pk = str(uuid.uuid1())
-            sql = 'INSERT INTO raw_images("ImageID", "RA_Center") VALUES(%s,%s);'
+            sql = 'INSERT INTO raw_images(ImageID, RA_Center) VALUES(%s,%s);'
 
             cur.execute(sql, (pk, x, ))
             x = x + 1

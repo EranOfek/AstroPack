@@ -11,7 +11,7 @@ FILE_EXT = ['.csv']
 
 # Log message to file
 LOG_PATH = 'c:/temp/'
-logfile = open(os.path.join(LOG_PATH, 'trim_trailing_spaces.log'), 'a')
+logfile = open(os.path.join(LOG_PATH, 'convert_csv_to_sql_db.log'), 'a')
 def log(msg, dt = False):
     global logfile
     if msg == '': dt = False
@@ -217,7 +217,8 @@ class TableDef:
 
     #
     def create_table(self):
-        self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
+        self.write('CREATE TABLE public.{} (\n'.format(self.table_name))
+        #self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
 
         primary_key = []
 
@@ -249,7 +250,7 @@ class TableDef:
 
         # SET STATISTICS 0
         for field in self.field_list:
-            self.write('ALTER TABLE public."{}"\n  ALTER COLUMN {} SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
+            self.write('ALTER TABLE public.{}\n  ALTER COLUMN {} SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
             #self.write('ALTER TABLE public."{}"\n  ALTER COLUMN "{}" SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
 
         # Index
