@@ -642,22 +642,24 @@ classdef ImageComponent < Component
         % funStack (including scaling and zero subtracting)
         function [Result, ResultVar] = funStack(Obj, Args)
             %
+            % Example: 
             
             arguments
                 Obj
                 Args.CCDSEC                          = [];
                 Args.SubBack(1,1) logical            = false;
-                Args.SubVal                          = [];  % ImageComponent, cell or matrix
                 Args.BackArgs cell                   = {};
-                Args.NormMethod                      = [];
+                Args.SubMethod                       = [];  % function_handle or vector of numbers
+                Args.SubArgs                         = {};
+                Args.NormMethod                      = [];  % function_handle or vector of numbers
                 Args.NormArgs                        = {};
-                Args.NormVal                         = [];
                 Args.NormOperator function_handle    = @times;
                 Args.StackMethod                     = 'mean';
                 Args.StackMethodArgs                 = {};
                 Args.VarImage                        = [];
-                Args.NormEnd                         = 'median';  % value or method.
+                Args.NormEnd                         = [];  % function_handle or vector of numbers
                 Args.NormEndArgs                     = {};
+                Args.NormEndOperator                 = @times;
                 Args.DataPropIn                      = 'Data';
             end
             
@@ -680,8 +682,23 @@ classdef ImageComponent < Component
             end
             
             % subtract additional value
+            if isa(Args.SubMethod,'function_handle')
+                Cube = Args.SubMethod(Cube, Args.SubArgs{:});
+            elseif isnumeric(Args.SubMethod)
+                Cube = Cube - reshape(Args.SubMethod,[1 1 numel(Args.SubMethod)]);
+            else
+                error('Unknown SubMethod option');
+            end
             
             % normalize
+            if isa(Args.NormMethod,'function_handle')
+                PreNormFactor = Args.NormMethod(Cube, Args.NormArgs{:});
+                Cube = rgs.NormOperator(Cube, reshape(PreNormFactor,[1 1 numel(PreNormFactor)]));
+            elseif isnumeric(Args.NormMethod)
+                Cube = Args.NormOperator(Cube, reshape(Args.NormMethod,[1 1 numel(Args.NormMethod)]));
+            else
+                error('Unknown SubMethod option');
+            end
             
             
             % stack the images
@@ -703,7 +720,12 @@ classdef ImageComponent < Component
             
             % normalize
             if ~isempty(Args.NormEnd)
-            
+                if isa(Args.NormEnd,'function_handle')
+                    NormFactor = Args.NormEnd(Coadd, Args.NormEndArgs{:});
+                    Coadd = Args.NormEndOperator(Coadd, NormFactor);
+                else
+                    Coadd = Args.NormEndOperator(Coadd, Args.NormEnd);
+                end
                 
             end
         end
