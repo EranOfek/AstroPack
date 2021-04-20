@@ -584,6 +584,57 @@ classdef AstroImage < Component
         end
     end
     
+    methods % functions on specific data properties
+        
+        
+        function Obj = funCat(Obj, Fun, varargin)
+            % Apply function of Cat properties in AstroImage array
+            % This function doesn't create a new object
+            % Input  : - AstroImage object
+            %          - An AstroCatalog function handle.
+            %          * Additional arguments to pass to the function.
+            % Output : - An AstroImage object
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({rand(10,10), rand(10,10)});
+            %          AI(1).CatData.Catalog=rand(10,2);
+            %          AI(2).CatData.Catalog=rand(10,2);
+            %          funCat(AI,@sortrows,1);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Fun(Obj(Iobj).CatData, varargin{:});
+            end
+            
+        end
+        
+        function Obj = funHeader(Obj, Fun, varargin)
+            % Apply function of HeaderData properties in AstroImage array
+            % This function doesn't create a new object
+            % Input  : - AstroImage object
+            %          - An AstroHeader function handle.
+            %          * Additional arguments to pass to the function.
+            % Output : - An AstroImage object
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({rand(10,10), rand(10,10)});
+            %          funHeader(AI,@insertKey,{'GAIN',2,''});
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Fun(Obj(Iobj).HeaderData, varargin{:});
+            end
+            
+        end
+        
+        function Result = funWCS(Obj, Fun, ArgsToFun)
+            % Apply function of WCS properties in AstroImage array
+        end
+        
+        function Result = funPSF(Obj, Fun, ArgsToFun)
+            % Apply function of PSF properties in AstroImage array
+        end
+        
+    end
+    
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
         
         function Result = funUnary(Obj, Operator, Args)
@@ -1304,15 +1355,6 @@ classdef AstroImage < Component
             
         end
         
-        
-        
-        
-        
-        
-        
-                
-        
-        
         function varargout = images2cube(Obj, Args)
             % Convert the images in AstroImage object into a cube.
             %       Each data property (e.g., 'ImageData', 'BackData')
@@ -1430,84 +1472,6 @@ classdef AstroImage < Component
             
         end
         
-        % some thoughts
-        % * ImageComponent
-        
-        % * AstroImage
-        % DONE: astroImage2AstroCatalog
-        % DONE: cutouts 
-        % funBiary
-        % DONE: object2array - put in Component?
-        % funUnaryScalarWeighted (only for ImageData)
-        % DONE: funUnaryScalar (no error propagation)
-      
-        
-        
-        
-        
-        
-        function Result = fun__Unary(Obj, Operator, Args)
-            % Apply an unary function on AstroImage data
-            % Input  : - An AstroImage object
-            %          - Operator (e.g., @tan, @std)
-            %
-            
-            arguments
-                Obj
-                Operator function_handle
-                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
-                Args.PropagateVar(1,1) logical      = false;
-                Args.CCDSEC                         = [];   % empty for full image
-                Args.CreateNewObj(1,1) logical      = false;
-                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
-                % you should not use the following parameters unless you
-                % know what you are doing!
-                Args.DataPropIn                     = {'ImageData','HeaderData'}; % not including CatData, PSFData and WCS
-                Args.DataPropOut                    = {};
-                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
-            end
-            
-            % make sure DataPropIn/Out are cell/string arrays
-            if ischar(Args.DataPropIn)
-                Args.DataPropIn  = {Args.DataPropIn};
-            end
-            if ischar(Args.DataPropOut)
-                Args.DataPropOut = {Args.DataPropOut};
-            end
-            % If DataPropOut is empty, make equal to DataPropIn
-            if isempty(Args.DataPropOut)
-                Args.DataPropOut = Args.DataPropIn;
-            end
-            
-            
-            Nprop = numel(Args.DataPropIn);
-            if Nprop~=numel(Args.DataPropOut)
-                error('Numeber of elements in DataPropIn and DataPropOut must be identical');
-            end
-            
-            Nobj = numel(Obj);
-            
-            if Args.CreateNewObj
-                Result = Obj.copyObject;
-            else
-                Result = Obj;
-            end
-            
-            for Iobj=1:1:Nobj
-                %Result(Iobj).(Args.DataPropOut{Iprop}) = Operator(Obj(Iobj).(Args.DataPropOut{Iprop}), Args.OpArgs{:});
-                % DataPropIn and DataPropOut - use default
-                Result(Iobj).(Args.DataPropOut{Iprop}) = fun_unary(Obj(Iobj).(Args.DataPropIn{Iprop}), Operator, ...
-                                                                   'OpArgs',Args.OpArgs{:},...
-                                                                   'PropagateVar',Args.PropagateVar,...
-                                                                   'CCDSEC',Args.CCDSEC,...
-                                                                   'CreateNewObj',Args.CreateNewObj,...
-                                                                   'ReInterpOp',Args.ReInterpOp);
-                                                               
-            end
-           
-        end
-        
-        
         function varargout = object2array(Obj,DataProp)
             % Convert an AstroImage object that contains scalars into an array
             % Input  : - An AstroImage object.
@@ -1547,132 +1511,9 @@ classdef AstroImage < Component
             
         end
         
-        function varargout = funUnary2scalar(Obj, Operator, Args)
-            % Apply unary function using funUnary and convert to array of
-            % scalars using object2array
-            % The main difference between this function and funUnaryScalar
-            % is that funUnaryScalar can be used to apply operators on
-            % dependent properties like 'Image', while funUnary2scalar
-            % apply it on the data properties (e.g., 'ImageData'). This
-            % means that funUnary2scalar output may include error
-            % propagation due to the operator, while funUnarayScalar
-            % doesn't.
-            % Input  : -
-            % Output : -
-            % Author : Eran Ofek (Apr 2021)
-            % Example: 
-            
-            arguments
-                Obj
-                Operator function_handle
-                Args.ReInterpOp(1,1) logical        = true;  % re-interpret the operator (e.g., in mask @plus -> @or
-                Args.OpArgs cell                    = {}; % additional pars. to pass to the operator 
-                Args.DataPropIn                     = {'ImageData'}; % DataProp on which to run the operator
-                Args.DataPropOut                    = {'Image','Back','Var'};  % DataProp to retrieve
-                Args.Extra                          = {}; % extra par for special cases (e.g., header, cat).
-                Args.CCDSEC                         = [];
-            end
-            
-            NewObj = funUnary(Obj, Operator, 'ReInterpOp',Args.ReInterpOp,...
-                                             'OpArgs',Args.OpArgs,...
-                                             'DataPropIn',Args.DataPropIn,...
-                                             'DataPropOut',{},...
-                                             'CreateNewObj',true,...
-                                             'Extra',Args.Extra,...
-                                             'CCDSEC',Args.CCDSEC);
-            % convert into a matrix
-            [varargout{1:1:nargout}] = object2array(NewObj, Args.DataPropOut);
-            
-        end
-        
-            
-        
-        function varargout = images2__cube(Obj, Args)
-            % Generate cubes of images from array of AstroImage objects
-            % Input  : - An AstroImage array
-            %          * ...,key,val,...
-            %            'DataPropIn' - A cell array of data properties
-            %                   from which to generate cubes.
-            %                   Default is {'Image'}.
-            %            'DimIndex' - Dimension of the image index.
-            %                   Either 1 or 3. Default is 3.
-            % Output : * Cube of images, per each element in DataProIn.
-            % Author : Eran Ofek (Apr 2021)
-            % Example: UNTESTED 
-            
-            arguments
-                Obj
-                Args.DataPropIn                    = {'Image'};
-                Args.DimIndex                      = 3;
-                Args.CCDSEC                        = [];  % empty for the entire image
-                %Args.VerifySize(1,1) logical       = false;
-            end
-            
-            if ischar(Args.DataPropIn)
-                Args.DataPropIn = {Args.DataPropIn};
-            end
-            
-            Nobj      = numel(Obj);
-            Nprop     = numel(Args.DataPropIn);
-            varargout = cell(1,Nprop);
-            
-            for Iprop=1:1:Nprop
-                % size of images
-                if isempty(Args.CCDSEC)
-                    Size = size(Obj(1).(Args.DataPropIn{Iprop}));
-                else
-                    Size = [Args.CCDSEC(4)-Args.CCDSEC(3)+1, Args.CCDSEC(2)-Args.CCDSEC(1)+1];
-                end
-                % allocate cube
-                varargout{Iprop} = zeros(Size(1), Size(2), Nobj);
-                
-                if isempty(Args.CCDSEC)
-                    % generate cube from full images
-                    for Iobj=1:1:Nobj
-                        varargout{Iprop}(:,:,Iobj) = Obj(1).(Args.DataPropIn{Iprop});
-                    end
-                else
-                    % generate cube from sub images (CCDSEC)
-                    for Iobj=1:1:Nobj
-                        varargout{Iprop}(:,:,Iobj) = Obj(1).(Args.DataPropIn{Iprop})(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
-                    end
-                end
-                
-                % change dimension
-                if Args.DimIndex==3
-                    % do nothing
-                elseif Args.DimIndex==1
-                    varargout{Iprop} = permute(varargout{Iprop}, [3 1 2]);
-                else
-                    error('DimIndex must be 1 or 3');
-                end
-            end
-            
-            
-            
-        end
-        
-        
-        function Result = funHeader(Obj, Operator, Args)
-            % Apply function of Header properties in AstroImage array
-            
-            
-        end
-        
-        function Result = funCat(Obj, Fun, Args)
-            % Apply function of Cat properties in AstroImage array
-            
-        end
-        
-        function Result = funWCS(Obj, Fun, ArgsToFun)
-            % Apply function of WCS properties in AstroImage array
-        end
-        
-        function Result = funPSF(Obj, Fun, ArgsToFun)
-            % Apply function of PSF properties in AstroImage array
-        end
-        
     end
+    
+    
     
 
     methods % specific functionality and overloads
