@@ -641,9 +641,106 @@ classdef ImageComponent < Component
         
         % funStack (including scaling and zero subtracting)
         function [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Obj, Args)
-            %
-            % Example: IC = ImageComponent({rand(100,100), rand(100,100), rand(100,100)})
+            % Stack (coadd) images in an ImageComponent object
+            % Input  : - An ImageComponent object.
+            %          * ...,key,val,...
+            %            'CCDSEC' - [Xmin Xmax Ymin Ymax] to stack.
+            %                       If empty, use entire image. Default is
+            %                       [].
+            %            'SubBack' - A logical indicating if to subtract
+            %                   background using the background command.
+            %                   Default is false.
+            %            'BackArgs' - A cell array of background arguments.
+            %                   Default is {}.
+            %            'SubMethod' - Either a vector of numbers to
+            %                   subtract from each image, or a function
+            %                   handle which is gettug a cube, and
+            %                   returining a new cube.
+            %                   Default is empty (do nothing).
+            %            'SubArgs' - A cell array of additional arguments
+            %                   to pass to the 'SubMethod' function.
+            %                   Default is {}.
+            %            'NormMethod' - Eiher a vector of numbrers (one per
+            %                   image) for normalizing the images after
+            %                   subtraction and prior to stacking,
+            %                   or a function handle that get a cube and
+            %                   return a vector of numbers.
+            %                   If empty do nothing (default).
+            %            'NormArgs' - A cell array of additional arguments
+            %                   to pass to the 'NormMethod' function.
+            %                   Default is {}.
+            %            'NormOperator' - The operator that will used with
+            %                   the normalization values. Default is
+            %                   @times.
+            %            'VarImage' - An ImageComponent of the variance
+            %                   images. Default is [].
+            %            'StackMethod' - Stacking method. Options are:
+            %                   'sum'
+            %                   ['mean']
+            %                   'median'
+            %                   'var'
+            %                   'min'
+            %                   'max'
+            %                   'range'
+            %                   'quantile' - rquires a quqntile argument.
+            %                   'wmean' 
+            %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
+            %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
+            %              'StackArgs' - A cell array of arguments to pass to the
+            %                   method function. Default is {}.
+            %              'MedianVarCorrForEmpirical' - A logical indicating if to
+            %                   correct the variance calculation by the ratio between
+            %                   the variance of the median and variance of the mean.
+            %                   Default is false.
+            %              'DivideEmpiricalByN' - A logical indicating if to divide
+            %                   CoaddVarEmpirical by N. Default is false.
+            %              'DivideVarByN' - A logical indicating if to divide
+            %                   CoaddVar by N. Default is false.
+            %              'CalcCoaddVarEmpirical' - Logical indicating if to calc the
+            %                   CoaddVarEmpirical. Default is true.
+            %              'CalcCoaddVar' - Logical indicating if to calc the
+            %                   CoaddVar. Default is true.
+            %              'CalcCoaddN' - Logical indicating if to calc the
+            %                   CoaddN. Default is true.
+            %              'NormEnd' - Eiher a vector of numbrers (one per
+            %                   image) for normalizing the images after
+            %                   stacking,
+            %                   or a function handle that get a cube and
+            %                   return a vector of numbers.
+            %                   If empty do nothing (default).
+            %              'NormEndArgs' - A cell array of additional arguments
+            %                   to pass to the 'NormEnd' function.
+            %                   Default is {}.
+            %              'NormEndOperator' - The operator that will used with
+            %                   the normalization values. Default is
+            %                   @times.
+            %              'DataPropIn' - Data property on which to
+            %                   operate in the ImageComponent.
+            %                   Default is 'Data'.
+            %              'OutIsMat' - A logical indicating if the output
+            %                   is matrix or some image object.
+            %                   Default is false.
+            %              'CoaddClass' - Class for the coadd image (if
+            %                   OutIsMat=false). Default is @SciImage.
+            %              'CoaddVarEmpiricalClass' - Default is @VarImage.
+            %              'CoaddVarClass' - Default is @VarImage.
+            %              'CoaddNClass' - Default is @VarImage.
+            % Output : - Coadd image.
+            %          - CoaddVarEmpirical - This is the empirical variance of the
+            %               data. In case the variance of the mean is needed set DivideEmpiricalByN
+            %               to true.
+            %          - CoaddVar - This is the variance of the
+            %               data. In case the variance of the mean is needed set DivideByN
+            %               to true.
+            %          - CoaddN - This is the number of images used in the stacking of
+            %               each pixel.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent({2.*randn(100,100), 2.*randn(100,100), 2.*randn(100,100)})
+            %          Var = ImageComponent({4.*ones(100,100), 4.*ones(100,100), 4.*ones(100,100)})
             %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC);
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC,'StackMethod','wmean','VarImage',Var);
+            
+            %%%% THIS FUNCTION REQUIRES FURTHER TESTING!!!!
             
             arguments
                 Obj
@@ -720,9 +817,11 @@ classdef ImageComponent < Component
             if ~isempty(Args.NormMethod)
                 if isa(Args.NormMethod,'function_handle')
                     PreNormFactor = Args.NormMethod(Cube, Args.NormArgs{:});
-                    Cube = rgs.NormOperator(Cube, reshape(PreNormFactor,[1 1 numel(PreNormFactor)]));
+                    Cube = Args.NormOperator(Cube, reshape(PreNormFactor,[1 1 numel(PreNormFactor)]));
+                    VarCube = Args.NormOperator(VarCube, reshape(PreNormFactor,[1 1 numel(PreNormFactor)]).^2);
                 elseif isnumeric(Args.NormMethod)
                     Cube = Args.NormOperator(Cube, reshape(Args.NormMethod,[1 1 numel(Args.NormMethod)]));
+                    VarCube = Args.NormOperator(Cube, reshape(Args.NormMethod,[1 1 numel(Args.NormMethod)]).^2);
                 else
                     error('Unknown SubMethod option');
                 end
@@ -744,8 +843,13 @@ classdef ImageComponent < Component
                 if isa(Args.NormEnd,'function_handle')
                     NormFactor = Args.NormEnd(Coadd, Args.NormEndArgs{:});
                     Coadd = Args.NormEndOperator(Coadd, NormFactor);
+                    CoaddVar = Args.NormEndOperator(CoaddVar, NormFactor.^2);
+                    CoaddVarEmpirical = Args.NormEndOperator(CoaddVarEmpirical, NormFactor.^2);
+                    
                 else
                     Coadd = Args.NormEndOperator(Coadd, Args.NormEnd);
+                    CoaddVar = Args.NormEndOperator(CoaddVar, Args.NormEnd.^2);
+                    CoaddVarEmpirical = Args.NormEndOperator(CoaddVarEmpirical, Args.NormEnd.^2);
                 end
                 
             end
