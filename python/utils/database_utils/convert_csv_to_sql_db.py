@@ -58,7 +58,7 @@ def get_field_type(field_name, text):
         ftype = 'DOUBLE PRECISION'
     elif text == 'bool':
         ftype = 'BOOLEAN'
-    elif text == 'string':
+    elif text == 'string' or text == 'text':
         ftype = 'VARCHAR'
 
     # Special field: UUID
