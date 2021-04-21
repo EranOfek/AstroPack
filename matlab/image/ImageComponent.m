@@ -640,9 +640,10 @@ classdef ImageComponent < Component
         end
         
         % funStack (including scaling and zero subtracting)
-        function [Result, ResultVar] = funStack(Obj, Args)
+        function [Result, ResultVar, ResultN] = funStack(Obj, Args)
             %
-            % Example: 
+            % Example: IC = ImageComponent({rand(100,100), rand(100,100), rand(100,100)})
+            %          [Result, ResultVar] = funStack(IC);
             
             arguments
                 Obj
@@ -672,6 +673,11 @@ classdef ImageComponent < Component
             % generate a cube
             Cube = images2cube(Obj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
             
+            
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
+            
+            
+            
             % generate a cube of variance
             if ~isempty(Args.VarImage)
                 VarCube = images2cube(Args.VarImage, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
@@ -682,31 +688,98 @@ classdef ImageComponent < Component
             end
             
             % subtract additional value
-            if isa(Args.SubMethod,'function_handle')
-                Cube = Args.SubMethod(Cube, Args.SubArgs{:});
-            elseif isnumeric(Args.SubMethod)
-                Cube = Cube - reshape(Args.SubMethod,[1 1 numel(Args.SubMethod)]);
-            else
-                error('Unknown SubMethod option');
+            if ~isempty(Args.SubMethod)
+                if isa(Args.SubMethod,'function_handle')
+                    Cube = Args.SubMethod(Cube, Args.SubArgs{:});
+                elseif isnumeric(Args.SubMethod)
+                    Cube = Cube - reshape(Args.SubMethod,[1 1 numel(Args.SubMethod)]);
+                else
+                    error('Unknown SubMethod option');
+                end
             end
             
             % normalize
-            if isa(Args.NormMethod,'function_handle')
-                PreNormFactor = Args.NormMethod(Cube, Args.NormArgs{:});
-                Cube = rgs.NormOperator(Cube, reshape(PreNormFactor,[1 1 numel(PreNormFactor)]));
-            elseif isnumeric(Args.NormMethod)
-                Cube = Args.NormOperator(Cube, reshape(Args.NormMethod,[1 1 numel(Args.NormMethod)]));
-            else
-                error('Unknown SubMethod option');
+            if ~isempty(Args.NormMethod)
+                if isa(Args.NormMethod,'function_handle')
+                    PreNormFactor = Args.NormMethod(Cube, Args.NormArgs{:});
+                    Cube = rgs.NormOperator(Cube, reshape(PreNormFactor,[1 1 numel(PreNormFactor)]));
+                elseif isnumeric(Args.NormMethod)
+                    Cube = Args.NormOperator(Cube, reshape(Args.NormMethod,[1 1 numel(Args.NormMethod)]));
+                else
+                    error('Unknown SubMethod option');
+                end
             end
             
             
             % stack the images
-            if isa(Args.StackMetod,'function_handle')
+            CoaddVar = [];
+            switch lower(Args.StackMethod)
+                case 'sum'
+                    Coadd = nansum(Cube,3);
+                    if nargout>2
+                        ResultN = sum(~isnan(Cube),3);
+                    end
+                    if UseVar
+                        CoaddVar = nansum(VarCube,3);
+                    end
+                    
+                case 'mean'
+                    Coadd = nanmean(Cube,3);
+                    if nargout>2 || UseVar
+                        ResultN = sum(~isnan(Cube),3);
+                    end
+                case 'wmean'
+                    if UseVar
+                        InvVarCube = 1./VarCube;
+                        Coadd      = nansum(Cube.*InvVarCube,3)./nansum(InvVarCube,3);
+                        ResultN    = sum(~isnan(Cube),3);
+                        CoaddVar   = InvVarCube.*ResultN;
+                    else
+                        error('In order to calculat weighted mean the variance is needed');
+                    end
+                    
+                    
+                    
+                    
+                    
+                    if UseVar
+                        CoaddVar = nansum(VarCube,3)./(ResultN.^2);
+                    end
+                case 'median'
+                    Coadd = nanmedian(Cube,3);
+                    if nargout>2 || UseVar
+                        ResultN = sum(~isnan(Cube),3);
+                    end
+                    if UseVar
+                        % The correction factor is the ratio betwen the
+                        % variance of the median and the variance of the
+                        % mean  (Kenney and Keeping 1962, p. 211).
+                        CorrFactor = (2.*ResultN+1)./(4.*ResultN);
+                        CoaddVar   = CorrFactor.*nansum(VarCube,3)./(ResultN.^2);
+                    end
+                case 'std'
+                    Coadd = nanstd(Cube,[],3);
+                    if nargout>2
+                        ResultN = sum(~isnan(Cube),3);
+                    end
+                    if nargout>1
+                        CoaddVar = nanvar(Cube,[],3)./(2.*ResultN - 2);
+                    end
+                case 'sigmaclip'
+                    
+                case 'quantile'
+                    error('quantile not supported yet');
+                otherwise
+                    error('Unknown StackMethod option');
+            end
+                        
+                    
+                
+            if isa(Args.StackMethod,'function_handle')
                 if UseVar
                     [Coadd, VarCoadd, Ncoadd] = Args.StackMethod(Cube, VarCube, Args.StackMethoArgs{:});
                 else
-                    [Coadd, Ncoadd] = Args.StackMethod(Cube, Args.StackMethoArgs{:});
+                    [Coadd, Ncoadd] = Args.StackMethod(Cube, Args.StackMethodArgs{:});
                     VarCoadd = [];
                 end
             else
@@ -730,7 +803,6 @@ classdef ImageComponent < Component
             end
         end
         
-        % subBack
         
         % funTransform
     end

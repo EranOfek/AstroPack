@@ -27,7 +27,7 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 %                   reached if no new points were clipped.
 %                   Default is 3.
 % Output : - Sigma clipped mean of data.
-%          - Sigma clipped variance of adat.
+%          - Sigma clipped variance of the data.
 %          - A logical array of the same size of the input Data which
 %            indicate the good data points that were used for the mean
 %            calculation.
