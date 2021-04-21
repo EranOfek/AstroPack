@@ -640,10 +640,10 @@ classdef ImageComponent < Component
         end
         
         % funStack (including scaling and zero subtracting)
-        function [Result, ResultVar, ResultN] = funStack(Obj, Args)
+        function [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Obj, Args)
             %
             % Example: IC = ImageComponent({rand(100,100), rand(100,100), rand(100,100)})
-            %          [Result, ResultVar] = funStack(IC);
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC);
             
             arguments
                 Obj
@@ -656,15 +656,37 @@ classdef ImageComponent < Component
                 Args.NormArgs                        = {};
                 Args.NormOperator function_handle    = @times;
                 
-                Args.StackMethod                     = 'mean';
-                Args.StackMethodArgs                 = {};
                 Args.VarImage                        = [];
+                Args.StackMethod                     = 'mean';
+                Args.StackArgs                       = {};
+                
+                Args.MedianVarCorrForEmpirical(1,1) logical = false;
+                Args.DivideEmpiricalByN(1,1) logical        = false;
+                Args.DivideVarByN(1,1) logical              = false;
+                Args.CalcCoaddVarEmpirical(1,1) logical     = true;
+                Args.CalcCoaddVar(1,1) logical              = true;
+                Args.CalcCoaddN(1,1) logical                = true;
+    
                 Args.NormEnd                         = [];  % function_handle or vector of numbers
                 Args.NormEndArgs                     = {};
                 Args.NormEndOperator                 = @times;
                 Args.DataPropIn                      = 'Data';
+                Args.OutIsMat(1,1) logical           = false;
+                Args.CoaddClass                      = @SciImage;
+                Args.CoaddVarEmpiricalClass          = @VarImage;
+                Args.CoaddVarClass                   = @VarImage;
+                Args.CoaddNClass                     = @VarImage;
             end
             
+            if nargout<4
+                Args.CalacCoaddN = false;
+                if nargout<3
+                    Args.CalcCoaddVar = false;
+                    if nargout<2
+                        Args.CalcCoaddVarEmpirical = false;
+                    end
+                end
+            end  
             
             if Args.SubBack
                 % subtract background (only if not subtracted)
@@ -707,7 +729,7 @@ classdef ImageComponent < Component
             end
             
             [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube, 'StackMethod',Args.StackMethod,...
-                                                                                        'MethodArgs',Args.MethodArgs,...
+                                                                                        'StackArgs',Args.StackArgs,...
                                                                                         'VarCube',VarCube,...
                                                                                         'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
                                                                                         'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
@@ -717,7 +739,6 @@ classdef ImageComponent < Component
                                                                                         'CalcCoaddN',Args.CalcCoaddN);
           
                 
-            
             % normalize
             if ~isempty(Args.NormEnd)
                 if isa(Args.NormEnd,'function_handle')
@@ -728,6 +749,22 @@ classdef ImageComponent < Component
                 end
                 
             end
+            
+            
+            if Args.OutIsMat
+                ResCoadd             = Coadd;
+                ResCoaddVarEmpirical = CoaddVarEmpirical;
+                ResCoaddVar          = CoaddVar;
+                ResCoaddN            = CoaddN;
+            else
+                % convert output matrices to ImageComponent
+                ResCoadd             = Args.CoaddClass({Coadd});
+                ResCoaddVarEmpirical = Args.CoaddVarEmpiricalClass({CoaddVarEmpirical});
+                ResCoaddVar          = Args.CoaddVarClass({CoaddVar});
+                ResCoaddN            = Args.CoaddNClass({CoaddN});
+            end
+            
+            
         end
         
         

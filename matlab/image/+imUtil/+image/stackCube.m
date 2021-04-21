@@ -14,7 +14,7 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 %                   'wmean' 
 %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
 %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
-%              'MethodArgs' - A cell array of arguments to pass to the
+%              'StackArgs' - A cell array of arguments to pass to the
 %                   method function. Default is {}.
 %              'VarCube' - A cube of variances. Default is [].
 %              'MedianVarCorrForEmpirical' - A logical indicating if to
@@ -46,7 +46,7 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube)
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4)
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','sum')
-%          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','quantile','MethodArgs',{0.1})
+%          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','quantile','StackArgs',{0.1})
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','sigmaclip');
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','wsigmaclip');
 
@@ -54,7 +54,7 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 arguments
     Cube
     Args.StackMethod                            = 'mean';
-    Args.MethodArgs cell                        = {};
+    Args.StackArgs cell                         = {};
     Args.VarCube                                = [];
     Args.MedianVarCorrForEmpirical(1,1) logical = false;
     Args.DivideEmpiricalByN(1,1) logical        = false;
@@ -148,7 +148,7 @@ switch lower(Args.StackMethod)
         % CoaddVar is not defined
         
     case 'quantile'
-        Coadd = quantile(Cube, Args.MethodArgs{:}, 3);
+        Coadd = quantile(Cube, Args.StackArgs{:}, 3);
         if Args.CalcCoaddN
             CoaddN  = sum(~isnan(Cube),3);
         end
@@ -165,7 +165,7 @@ switch lower(Args.StackMethod)
         CoaddVar   = Args.VarCube; %InvVarCube; %.*CoaddN;
         
     case 'sigmaclip'
-         [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.mean_sigclip(Cube, 3, Args.MethodArgs{:});
+         [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.mean_sigclip(Cube, 3, Args.StackArgs{:});
          % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
          % 5],'MaxIter',3}
          
@@ -174,7 +174,7 @@ switch lower(Args.StackMethod)
          end
         
     case 'wsigmaclip'
-        [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(Cube,Args.VarCube, 3, Args.MethodArgs{:});
+        [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(Cube,Args.VarCube, 3, Args.StackArgs{:});
          % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
          % 5],'MaxIter',3}
          
