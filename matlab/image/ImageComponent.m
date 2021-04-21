@@ -655,6 +655,7 @@ classdef ImageComponent < Component
                 Args.NormMethod                      = [];  % function_handle or vector of numbers
                 Args.NormArgs                        = {};
                 Args.NormOperator function_handle    = @times;
+                
                 Args.StackMethod                     = 'mean';
                 Args.StackMethodArgs                 = {};
                 Args.VarImage                        = [];
@@ -672,11 +673,6 @@ classdef ImageComponent < Component
             
             % generate a cube
             Cube = images2cube(Obj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
-            
-            
-            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
-            
-            
             
             % generate a cube of variance
             if ~isempty(Args.VarImage)
@@ -710,86 +706,17 @@ classdef ImageComponent < Component
                 end
             end
             
-            
-            % stack the images
-            CoaddVar = [];
-            switch lower(Args.StackMethod)
-                case 'sum'
-                    Coadd = nansum(Cube,3);
-                    if nargout>2
-                        ResultN = sum(~isnan(Cube),3);
-                    end
-                    if UseVar
-                        CoaddVar = nansum(VarCube,3);
-                    end
-                    
-                case 'mean'
-                    Coadd = nanmean(Cube,3);
-                    if nargout>2 || UseVar
-                        ResultN = sum(~isnan(Cube),3);
-                    end
-                case 'wmean'
-                    if UseVar
-                        InvVarCube = 1./VarCube;
-                        Coadd      = nansum(Cube.*InvVarCube,3)./nansum(InvVarCube,3);
-                        ResultN    = sum(~isnan(Cube),3);
-                        CoaddVar   = InvVarCube.*ResultN;
-                    else
-                        error('In order to calculat weighted mean the variance is needed');
-                    end
-                    
-                    
-                    
-                    
-                    
-                    if UseVar
-                        CoaddVar = nansum(VarCube,3)./(ResultN.^2);
-                    end
-                case 'median'
-                    Coadd = nanmedian(Cube,3);
-                    if nargout>2 || UseVar
-                        ResultN = sum(~isnan(Cube),3);
-                    end
-                    if UseVar
-                        % The correction factor is the ratio betwen the
-                        % variance of the median and the variance of the
-                        % mean  (Kenney and Keeping 1962, p. 211).
-                        CorrFactor = (2.*ResultN+1)./(4.*ResultN);
-                        CoaddVar   = CorrFactor.*nansum(VarCube,3)./(ResultN.^2);
-                    end
-                case 'std'
-                    Coadd = nanstd(Cube,[],3);
-                    if nargout>2
-                        ResultN = sum(~isnan(Cube),3);
-                    end
-                    if nargout>1
-                        CoaddVar = nanvar(Cube,[],3)./(2.*ResultN - 2);
-                    end
-                case 'sigmaclip'
-                    
-                case 'quantile'
-                    error('quantile not supported yet');
-                otherwise
-                    error('Unknown StackMethod option');
-            end
-                        
-                    
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube, 'StackMethod',Args.StackMethod,...
+                                                                                        'MethodArgs',Args.MethodArgs,...
+                                                                                        'VarCube',VarCube,...
+                                                                                        'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
+                                                                                        'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
+                                                                                        'DivideVarByN',Args.DivideVarByN,...
+                                                                                        'CalcCoaddVarEmpirical',Args.CalcCoaddVarEmpirical,...
+                                                                                        'CalcCoaddVar',Args.CalcCoaddVar,...
+                                                                                        'CalcCoaddN',Args.CalcCoaddN);
+          
                 
-            if isa(Args.StackMethod,'function_handle')
-                if UseVar
-                    [Coadd, VarCoadd, Ncoadd] = Args.StackMethod(Cube, VarCube, Args.StackMethoArgs{:});
-                else
-                    [Coadd, Ncoadd] = Args.StackMethod(Cube, Args.StackMethodArgs{:});
-                    VarCoadd = [];
-                end
-            else
-                switch lower(Args.StackMethod)
-                    case 'sum'
-                        
-                    otherwise
-                        error('Unknown StackMethod string option');
-                end
-            end
             
             % normalize
             if ~isempty(Args.NormEnd)
