@@ -1,4 +1,6 @@
 % DbQuery
+%
+% https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
 %--------------------------------------------------------------------------
 
 classdef DbQuery < Component
@@ -13,9 +15,14 @@ classdef DbQuery < Component
         % Current SQL statement data
         SqlText = ''               % SQL text
         Statement = []     % Prepared statement object
+        
         ResultSet = []     % Returned result-set
         Record = []        % Current record
-
+        Metadata = []        
+        ColumnCount = 0
+        ColumnNames  = []
+        ColumnType  = []
+        IsOpen = false
         
     end
     
@@ -40,7 +47,7 @@ classdef DbQuery < Component
     end
     
     
-    methods % Connect, disconnect
+    methods % open, close
                                
         function Result = open(Obj, varargin)
             %
@@ -64,7 +71,7 @@ classdef DbQuery < Component
                 Obj.SqlText = varargin{1};
             end
                 
-            % Debug
+            % Prepare query
             Obj.msgLog(LogLevel.Debug, 'DbQuery.open: %s', Obj.SqlText);
             try
                 Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
@@ -72,12 +79,17 @@ classdef DbQuery < Component
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: prepareStatement failed: %s', Obj.SqlText);
             end
             
+            % Execute 
             try
                 Obj.ResultSet = Obj.Statement.executeQuery();
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);
             end
-
+            
+            % Get metadata
+            Obj.getMetadata();
+            return;
+            
             % Read the results into an array of result structs
 
             while Obj.ResultSet.next()
@@ -87,9 +99,11 @@ classdef DbQuery < Component
                 %result(count).var1=char(rs.getString(2));
                 %result(count).var2=char(rs.getString(3));
                 %...
+                break;
             end
 
-            Obj.ResultSet.close();
+            Obj.getMetadata();
+            %Obj.ResultSet.close();
             disp('Done');
             
             %
@@ -105,15 +119,70 @@ classdef DbQuery < Component
             
         end
         
-             
-        function select(Obj, QueryText)
-            % Execute SELECT query
-            Obj.SqlText = sprintf('%s FROM %s', QueryText, Obj.Schema);
-            Obj.Record = select(Obj.Conn, Text)
+        
+        function Result = close(Obj)
+            if ~isempty(Obj.ResultSet)
+                Obj.ResultSet.close();
+                Obj.Statement.close();
+                Obj.clearResultSet();
+                Obj.IsOpen = false;
+            end
+            Result = ~Obj.IsOpen;
         end
         
         
-        function selectWhere(Obj, QueryText, WhereText)
+        function Result = getMetadata(Obj)
+            %
+            
+            Result = false;
+            try
+                Obj.Metadata = Obj.Statement.getMetaData();
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
+            end            
+
+            try
+                % http://docs.oracle.com/javase/7/docs/api/java/sql/Types.html
+                Obj.ColumnCount = Obj.Metadata.getColumnCount();
+                Obj.msgLog(LogLevel.Debug, 'DbQuery.getMetadata: ColumnCount = %d', Obj.ColumnCount);
+                %data = cell(0, Obj.ColumnCount);
+                for ColIndex = Obj.ColumnCount : -1 : 1
+                    Obj.ColumnNames{ColIndex} = char(Obj.Metadata.getColumnLabel(ColIndex));
+                    Obj.ColumnType{ColIndex}  = char(Obj.Metadata.getColumnClassName(ColIndex));  
+                end
+                
+                % Remove 'java.lang.' frm field types, leave 'Double' etc.
+                Obj.ColumnType = regexprep(Obj.ColumnType, '.*\.',''); 
+                Result = true;
+
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
+            end            
+
+        end
+        
+
+        function Result = clearResultSet(Obj)
+            % Clear current ResultSet
+            
+            Obj.ResultSet = [];
+            Obj.Record = [];
+            Obj.Metadata = [];        
+            Obj.ColumnCount = 0;
+            Obj.ColumnNames  = [];
+            Obj.ColumnType  = [];
+            Result = true;
+        end
+        
+
+        function select(Obj, QueryText)
+            % Execute SELECT query
+            Obj.SqlText = sprintf('%s FROM %s', QueryText, Obj.Schema);
+            Obj.Record = select(Obj.Conn, Text);
+        end
+        
+        
+        function Result = selectWhere(Obj, QueryText, WhereText)
         end
         
         
@@ -129,12 +198,52 @@ classdef DbQuery < Component
         end 
         
         
+        function Result = next(Obj)
+            Result = false;
+            try
+                Obj.ResultSet.next();
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
+            end                
+        end
+        
+        
+        function Result = prev(Obj)
+            Result = false;
+            try
+                Obj.ResultSet.previous();
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
+            end                
+        end        
+        
+            
         function Result = getField(Obj, FieldName)
             % Get string field
             
-            if Obj.isField(FieldName)
+            if isnumeric(FieldName)
+                ColIndex = FieldName;
+            else
+                ColIndex = Obj.getFieldIndex(FieldName);
+            end
+                
+            if ColIndex > 0
                 try 
-                    Result = Obj.ResultSet.getString(FieldName);
+                    Type = Obj.ColumnType{ColIndex};
+                    
+                    switch Type
+                        case { 'Float', 'Double' }
+                            Result = Obj.ResultSet.getDouble(ColIndex);
+                        case { 'Long', 'Integer', 'Short', 'BigDecimal' }
+                            Result = double(Obj.ResultSet.getDouble(ColIndex));
+                        case 'Boolean'
+                            Result = logical(Obj.ResultSet.getBoolean(ColIndex));
+                        otherwise % case { 'String', 'Date', 'Time', 'Timestamp' }
+                            Result = char(Obj.ResultSet.getString(ColIndex));
+                    end            
+                    
                 catch
                     Obj.msgLog(LogLevel.Error, 'getString failed: %s', FieldName);
                 end
@@ -150,11 +259,98 @@ classdef DbQuery < Component
                 Result = '';
             else
                 try 
-                    Result = Obj.ResultSet.getString(FieldName);
+                    if ~isempty(Obj.Metadata)
+                        Index = getFieldIndex(FieldName);
+                        Result = (Index > 0);
+                    else
+                        Result = Obj.ResultSet.getString(FieldName);
+                        Result = true;
+                    end
                 catch
                     Obj.msgLog(LogLevel.Error, 'Field not found: %s', FieldName);
                 end
             end
+        end
+        
+        
+        function Result = getFieldIndex(Obj, FieldName)
+            % Get field index in FieldNames{}
+            
+            Result = find(strcmp(Obj.FieldNames, FieldName));
+        end
+         
+        
+        function Result = getFieldType(Obj, FieldName)
+            % Get field type
+            
+            if isnumeric(FieldName)
+                Index = FieldName;
+            else
+                Index = Obj.getFieldIndex(FieldName);
+            end
+                
+            if Index > 0                
+                Result = Obj.ColumnType{Index};
+            else
+            end
+        end  
+                    
+    end
+    
+    
+    methods
+
+                    
+                    
+        function Result = newRecord(Obj)
+            % Create new empty record associated with this query
+            
+            Result = io.db.DbQuery(Obj);
+        end
+        
+        
+        function Result = getRecord(Obj)
+            % Get current record from ResultSet as DbRecord
+            
+            Result = DbRecord;
+            
+            
+            
+            
+        end
+        
+        
+        function Result = insertRecord(Obj, Rec)
+            % Insert new record
+            Result = false;
+        end
+        
+        
+        function Result = updateRecord(Obj, Rec)
+            % Update record
+            Result = false;
+        end        
+        
+        
+        function Result = loadAll(Obj)
+            
+            % Initialize
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColumnCount);
+            Result = cell(0, Obj.ColumnCount);
+            
+            % Loop over all ResultSet rows (records)
+            RowIndex = 1;
+            while Obj.ResultSet.next()
+                
+                % Loop over all columns in the row
+                for ColIndex = 1 : Obj.ColumnCount
+                    Result{RowIndex, ColIndex} = Obj.getField(ColIndex);
+                end
+    
+                RowIndex = RowIndex + 1;
+            end         
+            
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, RowCount = %d', RowIndex);
         end
     end
 
@@ -170,7 +366,10 @@ classdef DbQuery < Component
             io.msgLog(LogLevel.Test, "DbQuery test started")
    
             Q = io.db.DbQuery();
-            Q.open('select * from raw_images');
+            Q.open('select imageid, ra_center from raw_images');
+            %Q.open('select * from raw_images');
+            
+            A = Q.loadAll();
             
             % Test: Create database and tables
             
@@ -185,14 +384,5 @@ classdef DbQuery < Component
     end    
         
     
-end
-
-
-
-
-function msgLog(varargin)
-    %fprintf('fits: ');
-    fprintf(varargin{:});
-    fprintf('\n');
 end
 

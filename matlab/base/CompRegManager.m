@@ -85,25 +85,18 @@ classdef CompRegManager < Component
     end
 
     
-    methods(Static)
-        
-%         function Result = getSingle()
-%             persistent Manager
-%             if isempty(Manager)
-%                 Manager = SqlDbManager;
-%             end
-%             Result = Manager;
-%         end
-    end
-     
-    
     methods(Static) % Unit test
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'CompRegManager test started');
 
-            %Manager = SqlDbManager.getSingle();
+            Manager = CompRegManager;
             
-            % See tests in VirtImage.m
+            Comp1 = Component;
+            Manager.register(Comp1);
+            assert(~isempty(Manager.getComp(Comp1.RegKey)));
+            
+            Manager.unregister(Comp1);
+            assert(isempty(Manager.getComp(Comp1.RegKey)));
             
             io.msgLog(LogLevel.Test, 'CompRegManager test passed');
             Result = true;
