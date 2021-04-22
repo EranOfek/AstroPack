@@ -1075,6 +1075,39 @@ classdef AstroHeader < Component
             end
         end
         
+        function Result = isImType(Obj, ImTypeVal, Args)
+            %
+            
+            arguments
+                Obj
+                ImTypeVal
+                Args.ImTypeKeyName                                   = 'IMTYPE';
+                Args.UseDict(1,1) logical                            = true;
+                Args.CaseSens(1,1) logical                           = true;
+                Args.SearchAlgo                                      = 'strcmp'; 
+                Args.IsInputAlt(1,1) logical                         = true;
+                Args.KeyDict                                         = [];
+            end
+            
+            %
+            [KeyVal] = getStructKey(Obj, Args.ImTypeKeyName,...
+                                         'UseDict',Args.UseDict,...
+                                         'CaseSens',Args.CaseSens,...
+                                         'SearchAlgo',Args.SearchAlgo,...
+                                         'Fill',NaN,...
+                                         'Val2Num',false,...
+                                         'IsInputAlt',Args.IsInputAlt,...
+                                         'KeyDict',Args.KeyDict);
+            %
+            % got here
+            FN = fieldnames(KeyVal);
+            ListVal = {KeyVal.(FN{1})};  % cell array of IMTYPE values
+            
+            %[Key,AltConv,AllAlt,FlagKey]=searchAlt(Obj,Alt,Args)
+                             
+            
+        end
+        
         function [MidJD, ExpTime] = julday(Obj, Args)
             % Calculate mid exposure JD and ExpTime for AstroHeader object
             %   Given the header keywords attempt calculating the mid JD of

@@ -351,8 +351,7 @@ classdef AstroImage < Component
             Data = Obj.HeaderData.Key;
         end
         
-        
-        
+
     end
     
     methods (Static)  % static methods
@@ -1511,22 +1510,59 @@ classdef AstroImage < Component
             
         end
         
-        function funStack(Obj, Args)
-            %
-           
+        function funStackProp(Obj, Args)
+            % Simple stack (coadd) of images in a single property without
+            % pre/post normalization.
+            
             arguments
                 Obj
-                Args
-                Args.StackMethod                         = 'mean';
-                Args.StackArgs cell                      = {};
+                Args.DataProp                        = 'ImageData';
+                Args.DataPropIn                      = 'Data';
+                Args.CCDSEC                          = [];
+                Args.StackMethod                     = 'meansigclip';
+                Args.StackArgs                       = [];
                 
-                Args.DataProp                           = {'ImageData','BackData', 'VarData', 'MaskData'};
+                
             end
+            
+            [IC] = astroImage2ImageComponent(Obj, 'ReturnImageComponent',false, 'CreateNewObj',false, 'DataProp',Args.DataProp);
+            
+            % Stack the Image and Variance
+            [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Image, 'VarImage',[],...
+                                                          'CCDSEC',Args.CCDSEC,...
+                                                          'StackMethod',Args.StackMethod,...
+                                                          'StackArgs',Args.StackArgs);
+                                                          
+        
+            
+            
+        end
+        
+        function funStack(Obj, Args)
+            %
+            arguments
+                Obj
+                Args.ImageStackMethod                         = 'wmeansigclip';
+                Args.ImageStackArgs cell                      = {};
+                Args.VarStackMethod                           = [];
+                Args.BackStackMethod                          = 'sum';
+                Args.MaskStackMethod                          = 'bitor';
+                Args.VarIsEmpirical(1,1) logical              = true;
+                Args.CCDSEC                                   = [];
+                
+                Args.DataProp                            = {'ImageData','BackData', 'VarData', 'MaskData'};
+            end
+            
+            Nobj = numel(Obj);
+            
             
             [Image, Back, Var, Mask] = astroImage2ImageComponent(Obj, 'ReturnImageComponent',false, 'CreateNewObj',false, 'DataProp',Args.DataProp);
             
             % Stack the Image and Variance
+            %if isempty(Args.Var
+            %[ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Image, 'VarImage',Var);
             
+                
             
             % Stack the background
             

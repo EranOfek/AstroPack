@@ -66,7 +66,8 @@ classdef ImageComponent < Component
                 Obj.Data = [];
             else
                 if isa(FileName,'ImageComponent')
-                    %Obj = FileName;   % the constructor must preserve the class of the returned object
+                    % FFU: I uncommented this line
+                    % Obj = FileName;   % the constructor must preserve the class of the returned object
                 elseif isa(FileName,'SIM') || isa(FileName,'imCl')
                     Nobj = numel(FileName);
                     for Iobj=1:1:Nobj
@@ -125,6 +126,43 @@ classdef ImageComponent < Component
         end
             
         
+    end
+    
+    methods % conversion
+        function AI = imageComponent2AstroImage(Obj, DataProp, CreateNewObj)
+            % Convert an ImageComponet to AstroImage
+            % Input  : - An ImageComponent object
+            %          - Data property in the AstroImage in which to store the
+            %            ImageComponent object. Default is 'ImageData'.
+            %          - CreateNewObj. Default is true.
+            % Output : - An AstroImage object
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent({ones(3,3), zeros(3,3)});
+            %          AI = IC.imageComponent2AstroImage;
+            
+            arguments
+                Obj
+                DataProp char                  = 'ImageData';
+                CreateNewObj(1,1) logical      = true;
+            end
+            
+            if CreateNewObj
+                IC = Obj.copyObject;
+            else
+                IC = Obj;
+            end
+                
+            AI = AstroImage(size(Obj));
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                AI(Iobj).(DataProp).Data        = IC(Iobj).Data;
+                AI(Iobj).(DataProp).ScaleMethod = IC(Iobj).ScaleMethod;
+                AI(Iobj).(DataProp).Scale       = IC(Iobj).Scale;
+                AI(Iobj).(DataProp).CCDSEC      = IC(Iobj).CCDSEC;
+                AI(Iobj).(DataProp).Config      = IC(Iobj).Config;
+                AI(Iobj).(DataProp).Log         = IC(Iobj).Log;
+            end
+        end
     end
     
     methods % data size
