@@ -1,4 +1,6 @@
 % DbQuery
+%
+% https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
 %--------------------------------------------------------------------------
 
 classdef DbQuery < Component
@@ -129,6 +131,24 @@ classdef DbQuery < Component
         end 
         
         
+        function Result = next(Obj)
+            try
+                Obj.ResultSet.next();
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
+            end                
+        end
+        
+        
+        function Result = prev(Obj)
+            try
+                Obj.ResultSet.previous();
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
+            end                
+        end        
+        
+            
         function Result = getField(Obj, FieldName)
             % Get string field
             
@@ -156,6 +176,35 @@ classdef DbQuery < Component
                 end
             end
         end
+        
+        
+        function Result = newRecord(Obj)
+            % Create new empty record associated with this query
+            
+            Result = io.db.DbQuery(Obj);
+        end
+        
+        
+        function Result = getRecord(Obj)
+            % Get current record from ResultSet as DbRecord
+            
+            Result = DbRecord;
+            
+            
+            
+            
+        end
+        
+        
+        function Result = insertRecord(Obj, Rec)
+            % Insert new record
+        end
+        
+        
+        function Result = updateRecord(Obj, Rec)
+            % Update record
+        end        
+        function 
     end
 
     

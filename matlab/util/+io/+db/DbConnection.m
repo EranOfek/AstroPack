@@ -24,16 +24,17 @@ classdef DbConnection < Component
     properties (SetAccess = public)            
         
         % Connection details
-        DatabaseName = 'pipeline'  % Database name
-        UserName = 'postgres'      % Login user
-        Password = 'pass'          % Login password
-        Host = 'localhost'         % Host name or IP address
-        Port = 5432                % Post number, 5432 is Postgres default
-        
+        DatabaseName = 'pipeline'   % Database name
+        UserName = 'postgres'       % Login user
+        Password = 'pass'           % Login password
+        Host = 'localhost'          % Host name or IP address
+        Port = 5432                 % Post number, 5432 is Postgres default
+                                    
         % Driver
-        DriverName = 'postgres'    % 
-        Driver = []
-        Url = ''                   % Connection URL
+        DriverName = 'postgres'     % 
+        Driver = [ ]
+        Url = ''                    % Connection URL
+        Metadata = []               %
         
         ConnectionStr = ''
         Conn = []  % Connection object, returned by connect()
@@ -93,6 +94,13 @@ classdef DbConnection < Component
             catch
             end
 
+            % Get metadata
+            try
+                Obj.Metadata = Obj.Conn.getMetaData();   
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbConnection.open: getMetaData failed');
+            end         
+            
             Result = Obj.IsOpen;
         end
         
@@ -109,6 +117,15 @@ classdef DbConnection < Component
             
             Result = ~Obj.IsOpen;
         end
+       
+        
+        function Result = newQuery(Obj)
+            % Create new DbQuery instance
+            
+            Result = io.db.DbQuery(Obj)
+        end
+        
+        
     end
     
        %----------------------------------------------------------------------
