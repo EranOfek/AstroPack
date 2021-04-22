@@ -1103,8 +1103,9 @@ classdef AstroHeader < Component
             FN = fieldnames(KeyVal);
             ListVal = {KeyVal.(FN{1})};  % cell array of IMTYPE values
             
-            %[Key,AltConv,AllAlt,FlagKey]=searchAlt(Obj,Alt,Args)
-                             
+            [Key,~,AllAlt]= searchAlt(Obj(1).ValDict,ImTypeVal, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+            Flag = ismember(ListVal, AllAlt);
+            
             
         end
         
