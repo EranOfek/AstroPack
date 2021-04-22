@@ -130,7 +130,7 @@ classdef Configuration < dynamicprops
         function Result = getSingle()
             % Return singleton Configuration object
             Conf = Configuration.init();
-            if isempty(Conf.Data)
+            if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
                 Conf.loadConfig();
             end
             Result = Conf;
