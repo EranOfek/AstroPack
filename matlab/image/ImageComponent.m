@@ -641,7 +641,132 @@ classdef ImageComponent < Component
         
         % funStack (including scaling and zero subtracting)
         function [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Obj, Args)
-            % Stack (coadd) images in an ImageComponent object
+            % Simple stack (coadd) images in an ImageComponent object without pre/post normalization
+            % Input  : - An ImageComponent object.
+            %          * ...,key,val,...
+            %            'CCDSEC' - [Xmin Xmax Ymin Ymax] to stack.
+            %                       If empty, use entire image. Default is
+            %                       [].
+            %            'VarImage' - An ImageComponent of the variance
+            %                   images. Default is [].
+            %            'StackMethod' - Stacking method. Options are:
+            %                   'sum'
+            %                   ['mean']
+            %                   'median'
+            %                   'var'
+            %                   'min'
+            %                   'max'
+            %                   'range'
+            %                   'quantile' - rquires a quqntile argument.
+            %                   'wmean' 
+            %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
+            %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
+            %                   'bitor' - bit-wise or operation. Return only Coadd.
+            %                   'bitand' - bit-wise and operation. Return only Coadd.
+            %                   'bitnot' - bit-wise not operation. Return only Coadd.
+            %              'StackArgs' - A cell array of arguments to pass to the
+            %                   method function. Default is {}.
+            %              'MedianVarCorrForEmpirical' - A logical indicating if to
+            %                   correct the variance calculation by the ratio between
+            %                   the variance of the median and variance of the mean.
+            %                   Default is false.
+            %              'DivideEmpiricalByN' - A logical indicating if to divide
+            %                   CoaddVarEmpirical by N. Default is false.
+            %              'DivideVarByN' - A logical indicating if to divide
+            %                   CoaddVar by N. Default is false.
+            %              'CalcCoaddVarEmpirical' - Logical indicating if to calc the
+            %                   CoaddVarEmpirical. Default is true.
+            %              'CalcCoaddVar' - Logical indicating if to calc the
+            %                   CoaddVar. Default is true.
+            %              'CalcCoaddN' - Logical indicating if to calc the
+            %                   CoaddN. Default is true.
+            %              'DataPropIn' - Data property on which to
+            %                   operate in the ImageComponent.
+            %                   Default is 'Data'.
+            %              'OutIsMat' - A logical indicating if the output
+            %                   is matrix or some image object.
+            %                   Default is false.
+            %              'CoaddClass' - Class for the coadd image (if
+            %                   OutIsMat=false). Default is @SciImage.
+            %              'CoaddVarEmpiricalClass' - Default is @VarImage.
+            %              'CoaddVarClass' - Default is @VarImage.
+            %              'CoaddNClass' - Default is @VarImage.
+            % Output : - Coadd image.
+            %          - CoaddVarEmpirical - This is the empirical variance of the
+            %               data. In case the variance of the mean is needed set DivideEmpiricalByN
+            %               to true.
+            %          - CoaddVar - This is the variance of the
+            %               data. In case the variance of the mean is needed set DivideByN
+            %               to true.
+            %          - CoaddN - This is the number of images used in the stacking of
+            %               each pixel.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC = ImageComponent({2.*randn(100,100), 2.*randn(100,100), 2.*randn(100,100)})
+            %          Var = ImageComponent({4.*ones(100,100), 4.*ones(100,100), 4.*ones(100,100)})
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC);
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'StackMethod','wmean','VarImage',Var);
+            
+            arguments
+                Obj
+                Args.CCDSEC                          = [];
+                
+                Args.VarImage                        = [];
+                Args.StackMethod                     = 'mean';
+                Args.StackArgs                       = {};
+                
+                Args.MedianVarCorrForEmpirical(1,1) logical = false;
+                Args.DivideEmpiricalByN(1,1) logical        = false;
+                Args.DivideVarByN(1,1) logical              = false;
+                Args.CalcCoaddVarEmpirical(1,1) logical     = true;
+                Args.CalcCoaddVar(1,1) logical              = true;
+                Args.CalcCoaddN(1,1) logical                = true;
+                
+                Args.DataPropIn                      = 'Data';
+                Args.OutIsMat(1,1) logical           = false;
+                Args.CoaddClass                      = @SciImage;
+                Args.CoaddVarEmpiricalClass          = @VarImage;
+                Args.CoaddVarClass                   = @VarImage;
+                Args.CoaddNClass                     = @VarImage;
+            end
+            
+            
+            % generate a cube
+            Cube = images2cube(Obj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
+            
+            % generate a cube of variance
+            if ~isempty(Args.VarImage)
+                VarCube = images2cube(Args.VarImage, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
+            else
+                VarCube = [];
+            end
+            
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube, 'StackMethod',Args.StackMethod,...
+                                                                                        'StackArgs',Args.StackArgs,...
+                                                                                        'VarCube',VarCube,...
+                                                                                        'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
+                                                                                        'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
+                                                                                        'DivideVarByN',Args.DivideVarByN,...
+                                                                                        'CalcCoaddVarEmpirical',Args.CalcCoaddVarEmpirical,...
+                                                                                        'CalcCoaddVar',Args.CalcCoaddVar,...
+                                                                                        'CalcCoaddN',Args.CalcCoaddN);
+          
+            if Args.OutIsMat
+                ResCoadd             = Coadd;
+                ResCoaddVarEmpirical = CoaddVarEmpirical;
+                ResCoaddVar          = CoaddVar;
+                ResCoaddN            = CoaddN;
+            else
+                % convert output matrices to ImageComponent
+                ResCoadd             = Args.CoaddClass({Coadd});
+                ResCoaddVarEmpirical = Args.CoaddVarEmpiricalClass({CoaddVarEmpirical});
+                ResCoaddVar          = Args.CoaddVarClass({CoaddVar});
+                ResCoaddN            = Args.CoaddNClass({CoaddN});
+            end
+        end
+        
+        function [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = coadd(Obj, Args)
+            % coadd images in an ImageComponent object including pre/post
+            % normalization and variance
             % Input  : - An ImageComponent object.
             %          * ...,key,val,...
             %            'CCDSEC' - [Xmin Xmax Ymin Ymax] to stack.
@@ -686,6 +811,9 @@ classdef ImageComponent < Component
             %                   'wmean' 
             %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
             %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
+            %                   'bitor' - bit-wise or operation. Return only Coadd.
+            %                   'bitand' - bit-wise and operation. Return only Coadd.
+            %                   'bitnot' - bit-wise not operation. Return only Coadd.
             %              'StackArgs' - A cell array of arguments to pass to the
             %                   method function. Default is {}.
             %              'MedianVarCorrForEmpirical' - A logical indicating if to
@@ -713,7 +841,7 @@ classdef ImageComponent < Component
             %                   Default is {}.
             %              'NormEndOperator' - The operator that will used with
             %                   the normalization values. Default is
-            %                   @times.
+            %                   @rdivide.
             %              'DataPropIn' - Data property on which to
             %                   operate in the ImageComponent.
             %                   Default is 'Data'.
@@ -737,8 +865,23 @@ classdef ImageComponent < Component
             % Author : Eran Ofek (Apr 2021)
             % Example: IC = ImageComponent({2.*randn(100,100), 2.*randn(100,100), 2.*randn(100,100)})
             %          Var = ImageComponent({4.*ones(100,100), 4.*ones(100,100), 4.*ones(100,100)})
-            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC);
-            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC,'StackMethod','wmean','VarImage',Var);
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC);
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'StackMethod','wmean','VarImage',Var);
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] =
+            %          coadd(IC,'SubMethod',[10 10 10]);
+            %          %mean(CoaddVarEmpirical.Image,'all') should be close
+            %          to 4
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] =
+            %          coadd(IC,'SubMethod',[10 10 10],'NormMethod',[0.5
+            %          0.5 0.5]); % mean(CoaddVarEmpirical.Image,'all')
+            %          should be close to 1
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'SubMethod',[10 10 10],'NormMethod',[0.5 0.5 0.5],'NormEnd',5); % mean(CoaddVarEmpirical.Image,'all')
+            %          % mean(Coadd.Image,'all') should be near -25
+            %          mean(CoaddVarEmpirical.Image,'all') should be near
+            %          25
+            %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN]=coadd(IC,'SubMethod',-100,'NormEnd',@median,'NormEndArgs',{'all'},'NormEndOperator',@rdivide);
+            %          % mean(Coadd.Image,'all') should be near 1
+            
             
             %%%% THIS FUNCTION REQUIRES FURTHER TESTING!!!!
             
@@ -766,7 +909,7 @@ classdef ImageComponent < Component
     
                 Args.NormEnd                         = [];  % function_handle or vector of numbers
                 Args.NormEndArgs                     = {};
-                Args.NormEndOperator                 = @times;
+                Args.NormEndOperator                 = @rdivide;
                 Args.DataPropIn                      = 'Data';
                 Args.OutIsMat(1,1) logical           = false;
                 Args.CoaddClass                      = @SciImage;
@@ -796,10 +939,8 @@ classdef ImageComponent < Component
             % generate a cube of variance
             if ~isempty(Args.VarImage)
                 VarCube = images2cube(Args.VarImage, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DimIndex',3);
-                UseVar  = true;
             else
                 VarCube = [];
-                UseVar  = false;
             end
             
             % subtract additional value
@@ -1437,7 +1578,30 @@ classdef ImageComponent < Component
             % shift and stack using the CCDSEC atgument
             images2cube(IC,'CCDSEC',[1 2 2 4; 1 2 2 4; 2 3 3 5]);            
             
-            %
+            % funStack
+            IC = ImageComponent({2.*randn(100,100), 2.*randn(100,100), 2.*randn(100,100)});
+            Var = ImageComponent({4.*ones(100,100), 4.*ones(100,100), 4.*ones(100,100)});
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC);
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'StackMethod','wmean','VarImage',Var);
+
+            % coadd
+            IC = ImageComponent({2.*randn(100,100), 2.*randn(100,100), 2.*randn(100,100)});
+            Var = ImageComponent({4.*ones(100,100), 4.*ones(100,100), 4.*ones(100,100)});
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC);
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'StackMethod','wmean','VarImage',Var);
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'SubMethod',[10 10 10]);
+            if abs(4-mean(CoaddVarEmpirical.Image,'all'))>0.1
+                error('Mean should be close to 4');
+            end
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'SubMethod',[10 10 10],'NormMethod',[0.5 0.5 0.5]); % mean(CoaddVarEmpirical.Image,'all') should be close to 1
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = coadd(IC,'SubMethod',[10 10 10],'NormMethod',[0.5 0.5 0.5],'NormEnd',5); % mean(CoaddVarEmpirical.Image,'all')
+            % mean(Coadd.Image,'all') should be near -25
+            %mean(CoaddVarEmpirical.Image,'all') should be near 25
+            [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN]=coadd(IC,'SubMethod',-100,'NormEnd',@median,'NormEndArgs',{'all'},'NormEndOperator',@rdivide);
+            % mean(Coadd.Image,'all') should be near 1
+            
+            
+            % replace
             IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
             [Obj,ObjReplaced] = replace(IC, [0.2 1], 0.1);
             if any(Obj(1).Image>0.2)

@@ -14,6 +14,9 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 %                   'wmean' 
 %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
 %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
+%                   'bitor' - bit-wise or operation. Return only Coadd.
+%                   'bitand' - bit-wise and operation. Return only Coadd.
+%                   'bitnot' - bit-wise not operation. Return only Coadd.
 %              'StackArgs' - A cell array of arguments to pass to the
 %                   method function. Default is {}.
 %              'VarCube' - A cube of variances. Default is [].
@@ -49,6 +52,8 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','quantile','StackArgs',{0.1})
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','sigmaclip');
 %          [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube,'VarCube',4,'StackMethod','wsigmaclip');
+%          [Coadd] = imUtil.image.stackCube(uint32(randi(10,[5,5,10])),'StackMethod','bitand');
+%          [Coadd] = imUtil.image.stackCube(uint32(randi(10,[5,5,3])),'StackMethod','bitor');
 
 
 arguments
@@ -181,6 +186,15 @@ switch lower(Args.StackMethod)
          if Args.CalcCoaddVar
             CoaddVar = nansum(Args.VarCube,3); %./(CoaddN.^2);
          end
+         
+    case 'bitor'
+         Coadd = tools.array.bitor_array(Cube, 3);
+         
+    case 'bitand'
+         Coadd = tools.array.bitand_array(Cube, 3);
+         
+    case 'bitnot'
+        error('bitnot not implemented yet');
          
     otherwise
         error('Unknown StackMethod option');
