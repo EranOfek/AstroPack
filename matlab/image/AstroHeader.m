@@ -58,7 +58,7 @@ classdef AstroHeader < Component
             %            'UseRegExp' - Logical indicating if to use regexp (true)
             %                   or wild cards (false). Default is false.
             % Output : - An AstroHeader object with populated headers.
-            % Author : Eran Ofek (Mar 20201)
+            % Author : Eran Ofek (Mar 2021)
             % Example: 
             
             arguments
