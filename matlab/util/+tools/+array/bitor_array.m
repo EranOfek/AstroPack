@@ -11,7 +11,7 @@ function Val=bitor_array(Array,Dim)
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Jun 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Val=bitor_array(Array);
+% Example: Val=tools.array.bitor_array(Array);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

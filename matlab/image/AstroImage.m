@@ -1511,6 +1511,39 @@ classdef AstroImage < Component
             
         end
         
+        function funStack(Obj, Args)
+            %
+           
+            arguments
+                Obj
+                Args
+                Args.StackMethod                         = 'mean';
+                Args.StackArgs cell                      = {};
+                
+                Args.DataProp                           = {'ImageData','BackData', 'VarData', 'MaskData'};
+            end
+            
+            [Image, Back, Var, Mask] = astroImage2ImageComponent(Obj, 'ReturnImageComponent',false, 'CreateNewObj',false, 'DataProp',Args.DataProp);
+            
+            % Stack the Image and Variance
+            
+            
+            % Stack the background
+            
+            
+            % Stack the Mask
+            
+            % Update the header
+            
+            % Catalog
+            
+            % PSF
+            
+            % WCS
+            
+            
+        end
+        
     end
     
     
