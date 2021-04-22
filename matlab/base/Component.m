@@ -12,6 +12,7 @@ classdef Component < Base
         Owner                   % Indicates the component that is responsible for streaming and freeing this component
         Uuid                    % Global unique ID
         Tag                     % Optional tag (i.e. for events handling)
+        RegKey                  % Used with CompRegManager class
         Config Configuration    % Configuration, deafult is system configuration
         Log MsgLogger           % Logger, default is system logger
     end
@@ -43,6 +44,15 @@ classdef Component < Base
             end
             Result = Obj.Uuid;
         end
+        
+        
+        function Result = needRegKey(Obj)
+            % Generate unique ID
+            if isempty(Obj.RegKey)
+                Obj.RegKey = Obj.needUuid();
+            end
+            Result = Obj.RegKey;
+        end        
 
         
         function msgLog(Obj, Level, varargin)  
