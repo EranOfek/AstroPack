@@ -14,10 +14,10 @@ classdef AstroHeader < Component
         File                      = '';
         HDU                       = ''; % HDU or dataset
         
-        KeyDict Dictionary        = Dictionary('DictName','Header.Synonyms.KeyNames');
-        ValDict Dictionary        = Dictionary('DictName','Header.Synonyms.KeyVal.IMTYPE');
-        CommentDict Dictionary    = Dictionary('DictName','Header.Comments.Default');
-        TimeDict Dictionary       = Dictionary('DictName','Header.Time.KeyNames');
+        KeyDict Dictionary        % Initialization is done in constructor
+        ValDict Dictionary        % Initialization is done in constructor
+        CommentDict Dictionary    % Initialization is done in constructor
+        TimeDict Dictionary       % Initialization is done in constructor
     end
     properties (Hidden, SetAccess=private)
         IsKeyUpToDate(1,1) logical    = true;
@@ -93,6 +93,10 @@ classdef AstroHeader < Component
                     Ihdu = min(Ih,Nhdu);
                     Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File,HDU(Ihdu));
                 end
+                Obj(Ih).KeyDict     = Dictionary('DictName','Header.Synonyms.KeyNames');
+                Obj(Ih).ValDict     = Dictionary('DictName','Header.Synonyms.KeyVal.IMTYPE');
+                Obj(Ih).CommentDict = Dictionary('DictName','Header.Comments.Default');
+                % FFU:  Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
             end
                
         end
@@ -1075,8 +1079,30 @@ classdef AstroHeader < Component
             end
         end
         
-        function Result = isImType(Obj, ImTypeVal, Args)
-            %
+        function Flag = isImType(Obj, ImTypeVal, Args)
+            % Check if header IMTYPE keyword value equal some type
+            % Input  : - An AstroHeader object.
+            %          - IMTYPE type to check (e.g., 'bias').
+            %          * ...,key,val,...
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            % Output : - An array of logicals (one per AstroHeader element)
+            %            indicating if the IMTYPE value equal the requested
+            %            value.
+            % Author : Eran Ofek (Apr 2021)
             % Example: H=AstroHeader('*.fits');
             %          Ans = isImType(H, 'bias')
             
