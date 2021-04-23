@@ -1077,6 +1077,8 @@ classdef AstroHeader < Component
         
         function Result = isImType(Obj, ImTypeVal, Args)
             %
+            % Example: H=AstroHeader('*.fits');
+            %          Ans = isImType(H, 'bias')
             
             arguments
                 Obj

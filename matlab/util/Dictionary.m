@@ -33,10 +33,17 @@ classdef Dictionary < Component
                     Args.DictName
                     %Obj.Config = Configuration;
                     Obj.Config.loadConfig;
-                    Obj.Dict   = eval(sprintf('Obj.Config.Data.%s',Args.DictName));
                 end
+                Obj.Dict   = eval(sprintf('Obj.Config.Data.%s',Args.DictName));
             end
         end
+        
+        function delete(Obj)
+            % destructor
+            Obj.DictName = '';
+            Obj.Dict     = struct();
+        end
+        
     end
     
     methods % setters/getters
