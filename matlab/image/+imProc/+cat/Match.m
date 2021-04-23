@@ -68,20 +68,6 @@ classdef Match < Component
         end
     end
     
-    methods % aux functions
-        function Args = selectDefaultArgsFromProp(Obj, Args)
-            % Given an Args structure, go over fields - if empty, take
-            % value from object property. Otherwise, use value.
-            
-            ArgNames = fieldnames(Args);
-            for Ian=1:1:numel(ArgNames)
-                if isempty(Args.(ArgNames{Ian}))
-                    Args.(ArgNames{Ian}) = Obj.(ArgNames{Ian});
-                end
-            end
-            
-        end
-    end
     
     methods % search by coordinates/name
         function [Result, Flag, AllDist] = coneSearch(Obj, CatObj, Coo, Args)

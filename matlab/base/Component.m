@@ -61,6 +61,22 @@ classdef Component < Base
         end
     end
     
+    
+    methods % aux functions
+        function Args = selectDefaultArgsFromProp(Obj, Args)
+            % Given an Args structure, go over fields - if empty, take
+            % value from object property. Otherwise, use value.
+            
+            ArgNames = fieldnames(Args);
+            for Ian=1:1:numel(ArgNames)
+                if isempty(Args.(ArgNames{Ian}))
+                    Args.(ArgNames{Ian}) = Obj.(ArgNames{Ian});
+                end
+            end
+            
+        end
+    end
+    
     methods % some useful functionality
         function Result = convert2class(Obj, DataPropIn, DataPropOut, ClassOut, Args)
             % Convert a class that henhirts from Component to another class
