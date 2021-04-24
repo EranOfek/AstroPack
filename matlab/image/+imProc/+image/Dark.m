@@ -2,6 +2,10 @@
 classdef Dark < Component
     properties
         Images                               % Images on which to work
+        Template
+        TemplateVar
+        Nsigma
+        MaxFracBadPixels
         StackMethod 
         
     end
@@ -84,36 +88,135 @@ classdef Dark < Component
             
         end
         
-        function Result = compare2template(DarkObj, Obj, Args)
-            %
+        function [FlagBad, FracBadPixels, Z] = compare2template(DarkObj, Obj, Args)
+            % Compare AstroImage to a template and variance and flag image
+            %   which are different than the template.
+            %       
+            % Input  : - A Dark object.
+            %          - An AstroImage object containing images.
+            %            The comparison is done 1 to 1, 1 to many, or many
+            %            to 1.
+            %          * ...,key,val,...
+            %            'Template' - A template image with the same size
+            %                   of the input image. This can be either a
+            %                   matrix or an AstroImage object.
+            %                   If this is an AstroImage it may include a
+            %                   variance image.
+            %            'TemplateVar' - A variance image. If provided, and
+            %                   the template is an AstroImage, this will
+            %                   override the content of the variance image
+            %                   in the AstroImage.
+            %            'Nsigma' - Threshold in units of number of sigmas.
+            %                   Defualt is 5.
+            %            'MaxFracBadPixels' - If the fraction of pixels
+            %                   which value deviates from the template by
+            %                   more/less than Nsigma is larger than this
+            %                   threshold then the output FlagBad will be
+            %                   set to true. Default is 0.0001.
+            %            'UseImageVar' - A logical indicating if to add the
+            %                   AstroImage variance to the template
+            %                   variance. If false, use only the template
+            %                   variance. Default is true.
+            %            'DataProp' - Data property in the AstroImage.
+            %                   Default is 'Image'.
+            %            'VarProp' - Variance property in the template
+            %                   image. Default is 'Var'.
+            % Output : - A column vector of logicals indicating if the
+            %            fraction of bad pixels (above or below threshold)
+            %            is above MaxFracBadPixels.
+            %          - A column vector of the fraction of bad pixels in
+            %            each image.
+            %          - An ImageComponent containing the Z image.
+            %            (i.e., Image-Template)/sqrt(Var).
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({2.*randn(10,10)});
+            %          Template = AstroImage({0},'Var',{4});
+            %          D = imProc.image.Dark;
+            %          [FlagBad, FracbadPixels, Z] = D.compare2template(AI, 'Template',Template)
             
             arguments
                 DarkObj(1,1)
                 Obj
                 Args.Template
-                Args.TemplateVar
+                Args.TemplateVar                      = [];
                 Args.Nsigma                           = 5;
                 Args.MaxFracBadPixels(1,1)            = 0.0001;
+                Args.UseImageVar                      = true;
+                
+                Args.DataProp                         = 'Image';
+                Args.VarProp                          = 'Var';
             end
             
+            % use object default arguments if not supplied by user
+            Args = selectDefaultArgsFromProp(DarkObj, Args);
+            if isempty(Obj)
+                Obj = DarkObj.Images;
+            end
+            
+            if isa(Args.Template,'AstroImage')
+                % assume that the Template include the variance image
+                Template = Args.Template;
+                % check if TemplateVar is given
+                if ~isempty(Args.TemplateVar)
+                    % override the template variance in the Template
+                    % AstroImage
+                    Template.(Args.VarProp) = Args.TemplateVar;
+                end
+            elseif isnumeric(Args.Template)
+                Template = AstroImage({Args.Template},'Var',{Args.TemplateVar});
+            else
+                error('Template must be an AstroImage or matrix');
+            end
+            
+            Ntemp = numel(Template);
+            Nobj  = numel(Obj);
+            
+            Nmax    = max(Ntemp, Nobj);
+            FlagBad       = false(Nmax,1);
+            FracBadPixels = nan(Nmax,1);
+            if nargout>2
+                Z = ImageComponent([Nmax,1]);
+            end
+            for Imax=1:1:Nmax
+                Iobj  = min(Imax, Nobj);
+                Itemp = min(Imax, Ntemp);
+                
+                if Args.UseImageVar && ~isempty(Obj(Iobj).(Args.VarProp))
+                    % comobine the image and template variances
+                    TotVar = Template(Itemp).(Args.VarProp) + Obj(Iobj).(Args.VarProp);
+                else
+                    TotVar = Template(Itemp).(Args.VarProp);
+                end
+                Zstat   = (Obj(Iobj).(Args.DataProp) - Template(Itemp).(Args.DataProp))./sqrt(TotVar);
+                NbadPix = sum(abs(Zstat)>Args.Nsigma,'all');
+                
+                FracBadPixels(Imax) = NbadPix./numel(Zstat);
+                FlagBad(Imax)       = FracBadPixels(Imax)>Args.MaxFracBadPixels;
+                
+                if nargout>2
+                    Z(Imax).Image = Zstat;
+                end
+                
+            end
+               
             
         end
         
-        function Result = validateNoise(DarkObj, DarkImages, SuperDark, Args)
-            % Validate that the noise in the image is consistent with readnoise and/or dark current noise
-            % Input  : -
-            % Output : -
-            % Author : 
-            % Example: 
-           
-            arguments
-                DarkObj
-                Obj          
-                Args
-            end
-            
-            
-        end
+%         function Result = validateNoise(DarkObj, DarkImages, SuperDark, Args)
+%             % Validate that the noise in the image is consistent with readnoise and/or dark current noise
+%             % Input  : -
+%             % Output : -
+%             % Author : 
+%             % Example: 
+%            
+%             arguments
+%                 DarkObj
+%                 Obj          
+%                 Args.X
+%             end
+%             
+%             
+%         end
         
         function Result = isBias(Obj, AI, Args)
             % 
