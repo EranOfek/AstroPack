@@ -238,6 +238,38 @@ classdef Dark < Component
             % AI is now an AstroImage object
             Result = isImType(Obj, ImTypeVal, Args);
             
+            % validation
+            
+            
+        end
+        
+        function Bias = bias(DarkObj, Images, Args)
+            %
+            
+            arguments
+                DarkObj
+                Images AstroImage
+                Args.StackMethod              
+                Args.StackArgs
+                Args.StackVarMethod
+                Args.StackVarArgs
+            end
+            
+            
+        end
+        
+        function Dark = dark(DarkObj, Images, Args)
+            %
+            
+            arguments
+                DarkObj
+                Images AstroImage
+                Args.StackMethod              
+                Args.StackArgs
+                Args.StackVarMethod
+                Args.StackVarArgs
+            end
+            
         end
         
         
