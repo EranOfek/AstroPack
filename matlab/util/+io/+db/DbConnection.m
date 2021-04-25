@@ -138,9 +138,9 @@ classdef DbConnection < Component
         
         
         function Result = getDbConnection(ConnKey)
-            persistent Manager
-            if isempty(Manager)
-                Manager = CompRegManager;
+            persistent Map
+            if isempty(Map)
+                Map = ComponentMap('DbConnection');
             end
             
             if isempty(ConnKey)
@@ -148,11 +148,11 @@ classdef DbConnection < Component
             end
             
             Key = ConnKey;
-            Comp = Manager.getComp(Key);
+            Comp = Map.findComp(Key);
             if isempty(Comp)
                 Comp = io.db.DbConnection();
-                Comp.RegKey = ConnKey;
-                Manager.add(Comp);
+                Comp.MapKey = ConnKey;
+                Map.add(Comp);
             else
             end
             Result = Comp;                         

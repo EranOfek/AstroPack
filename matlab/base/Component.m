@@ -12,7 +12,7 @@ classdef Component < Base
         Owner                   % Indicates the component that is responsible for streaming and freeing this component
         Uuid                    % Global unique ID
         Tag                     % Optional tag (i.e. for events handling)
-        RegKey                  % Used with CompRegManager class
+        MapKey                  % Used with ComponentMap class
         Config Configuration    % Configuration, deafult is system configuration
         Log MsgLogger           % Logger, default is system logger
     end
@@ -22,8 +22,8 @@ classdef Component < Base
         % Constructor    
         function Obj = Component()
             % By default use system log and configuration
-            Obj.Log = MsgLogger.getSingle();
-            Obj.Config = Configuration.getSingle();
+            Obj.Log = MsgLogger.getSingleton();
+            Obj.Config = Configuration.getSingleton();
         end
     end
     
@@ -46,12 +46,12 @@ classdef Component < Base
         end
         
         
-        function Result = needRegKey(Obj)
-            % Generate unique ID
-            if isempty(Obj.RegKey)
-                Obj.RegKey = Obj.needUuid();
+        function Result = needMapKey(Obj)
+            % If empty, generate map key as uuid
+            if isempty(Obj.MapKey)
+                Obj.MapKey = Obj.needUuid();
             end
-            Result = Obj.RegKey;
+            Result = Obj.MapKey;
         end        
 
         
@@ -172,7 +172,6 @@ classdef Component < Base
         end
     end
     
-    
       
     methods(Static) % Unit test
         function Result = unitTest()
@@ -182,15 +181,20 @@ classdef Component < Base
             a.msgLog(LogLevel.Test, 'a created');
             
             b = Component;
-            b.msgLog(LogLevel.Test, 'b created');            
+            b.msgLog(LogLevel.Test, 'b created');
             
             c = Component;
             c.msgLog(LogLevel.Test, 'c created');
             
-            io.msgLog(LogLevel.Test, 'Testing Uuid');            
+            io.msgLog(LogLevel.Test, 'Testing Uuid');
             a.needUuid();            
             b.needUuid();
             assert(~all(a.Uuid ~= b.Uuid));
+            
+            io.msgLog(LogLevel.Test, 'Testing MapKey');
+            a.needMapKey();            
+            b.needMapKey();
+            assert(~all(a.MapKey ~= b.MapKey));            
            
             io.msgLog(LogLevel.Test, 'Component test passed');   
                        
