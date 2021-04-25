@@ -55,7 +55,7 @@ classdef LogFile < handle
     
     methods(Static)        
                       
-        function Result = getSingle()
+        function Result = getSingleton()
             % Return singleton object
             persistent PersObj
             if isempty(PersObj)
@@ -79,7 +79,7 @@ classdef LogFile < handle
     methods(Static) % Unit test
         function Result = unitTest()
             fprintf('LogFile test started\n');
-            Lf = LogFile.getSingle();
+            Lf = LogFile.getSingleton();
             Lf.write('LogFile test started');
             
             for i=1:1:3

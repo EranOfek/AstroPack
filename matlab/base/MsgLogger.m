@@ -23,7 +23,7 @@ classdef MsgLogger < handle
         % Constructor    
         function Obj = MsgLogger()
             Obj.CurLevel = LogLevel.All;
-            Obj.LogF = LogFile.getSingle();
+            Obj.LogF = LogFile.getSingleton();
         end
     end
 	
@@ -99,7 +99,7 @@ classdef MsgLogger < handle
     
     methods(Static) % Static functions
                 
-        function Result = getSingle()
+        function Result = getSingleton()
             % Return singleton object
             persistent PersObj
             if isempty(PersObj)
@@ -111,14 +111,14 @@ classdef MsgLogger < handle
         
         function setLogLevel(Level)
             % Set global LogLevel
-            m = MsgLogger.getSingle();
+            m = MsgLogger.getSingleton();
             m.CurLevel = Level;
         end
         
         
         function Value = getLogLevel()
             % Get global LogLevel
-            Value = MsgLogger.getSingle().CurLevel;
+            Value = MsgLogger.getSingleton().CurLevel;
         end             
 
     end
@@ -128,7 +128,7 @@ classdef MsgLogger < handle
         
         function unitTestStackTrace(Count)            
             if Count > 0
-                M = MsgLogger.getSingle();            
+                M = MsgLogger.getSingleton();            
                 M.msgStack(LogLevel.Test, 'Recursion(%d)', Count);            
                 MsgLogger.unitTestStackTrace(Count-1);
             end
@@ -137,7 +137,7 @@ classdef MsgLogger < handle
         function Result = unitTest()            
             fprintf('MsgLogger test started\n');
             
-            M = MsgLogger.getSingle();
+            M = MsgLogger.getSingleton();
             
             M.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
             M.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));

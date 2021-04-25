@@ -127,7 +127,7 @@ classdef Configuration < dynamicprops
         end
         
         
-        function Result = getSingle()
+        function Result = getSingleton()
             % Return singleton Configuration object
             Conf = Configuration.init();
             if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
