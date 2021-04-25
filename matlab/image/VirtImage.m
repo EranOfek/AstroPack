@@ -14,7 +14,7 @@ classdef VirtImage < Component
     methods
         % Constructor    
         function Obj = VirtImage()
-            Obj.Manager = VirtImageManager.getSingle();
+            Obj.Manager = VirtImageManager.getSingleton();
             Obj.needUuid();
             Obj.Manager.registerImage(Obj);
         end

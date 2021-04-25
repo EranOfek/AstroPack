@@ -152,7 +152,7 @@ classdef DbConnection < Component
             if isempty(Comp)
                 Comp = io.db.DbConnection();
                 Comp.RegKey = ConnKey;
-                Manager.register(Comp);
+                Manager.add(Comp);
             else
             end
             Result = Comp;                         

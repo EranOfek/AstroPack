@@ -63,7 +63,7 @@ classdef SqlDbManager < handle % Component
     
     methods(Static)
         
-        function Result = getSingle()
+        function Result = getSingleton()
             persistent Manager
             if isempty(Manager)
                 Manager = SqlDbManager;
@@ -77,7 +77,7 @@ classdef SqlDbManager < handle % Component
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'SqlDbManager test started');
 
-            Manager = SqlDbManager.getSingle();
+            Manager = SqlDbManager.getSingleton();
             
             % See tests in VirtImage.m
             

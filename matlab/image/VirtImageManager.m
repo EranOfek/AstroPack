@@ -77,7 +77,7 @@ classdef VirtImageManager < Component
     
     methods(Static)
         
-        function Result = getSingle()
+        function Result = getSingleton()
             persistent Manager
             if isempty(Manager)
                 Manager = VirtImageManager;
@@ -91,7 +91,7 @@ classdef VirtImageManager < Component
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'VirtImageManager test started');
 
-            Manager = VirtImageManager.getSingle();
+            Manager = VirtImageManager.getSingleton();
             
             % See tests in VirtImage.m
             

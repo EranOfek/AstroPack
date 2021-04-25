@@ -147,7 +147,7 @@ classdef DbDriver < Component
                 Comp = io.db.DbDriver();
                 Comp.DatabaseType = DatabaseType;
                 Comp.RegKey = DatabaseType;
-                Manager.register(Comp);
+                Manager.add(Comp);
             else
             end
             Result = Comp;                         
