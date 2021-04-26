@@ -2,3 +2,5 @@
 **/_temp/*
 **/_bkp/*
 **/_backup/*
+
+*.log
