@@ -31,6 +31,9 @@ classdef DbQuery < Component
         % Constructor    
         function Obj = DbQuery(varargin)
             
+            Obj.needUuid();
+            Obj.msgLog(LogLevel.Debug, 'DbQuery created: %s', Obj.Uuid);
+            
             if numel(varargin) == 1
                 Conn = varargin{1};
             elseif numel(varargin) == 0
@@ -44,6 +47,12 @@ classdef DbQuery < Component
             % Debug
             Obj.SqlText = 'select * from raw_images';
         end
+        
+        
+        % Destructor
+        function delete(Obj)
+            Obj.msgLog(LogLevel.Debug, 'DbQuery deleted: %s', Obj.Uuid);
+        end                        
     end
     
     
@@ -86,37 +95,8 @@ classdef DbQuery < Component
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);
             end
             
-            % Get metadata
+            % Get metadata (@Todo: Make it Optional?)
             Obj.getMetadata();
-            return;
-            
-            % Read the results into an array of result structs
-
-            while Obj.ResultSet.next()
-                ImageID = Obj.getField('ImageID');
-                disp(ImageID);
-                %count=count+1;
-                %result(count).var1=char(rs.getString(2));
-                %result(count).var2=char(rs.getString(3));
-                %...
-                break;
-            end
-
-            Obj.getMetadata();
-            %Obj.ResultSet.close();
-            disp('Done');
-            
-            %
-%             x = 1;
-% 
-%             for i=1:10
-%                 pk = ['pk_', string(i).char];
-%                 sql = 'INSERT INTO raw_images(ImageID, RA_Center) VALUES(%s,%s);'
-% 
-%                 Obj.Statement = Obj.Conn.prepareStatement(sql);            
-%                 Obj.ResultSet = Obj.Statement.executeQuery();                
-%             end
-            
         end
         
         
@@ -240,12 +220,14 @@ classdef DbQuery < Component
                             Result = double(Obj.ResultSet.getDouble(ColIndex));
                         case 'Boolean'
                             Result = logical(Obj.ResultSet.getBoolean(ColIndex));
-                        otherwise % case { 'String', 'Date', 'Time', 'Timestamp' }
+                        case 'String'
+                            Result = char(Obj.ResultSet.getString(ColIndex));
+                        otherwise % case { 'Date', 'Time', 'Timestamp' }
                             Result = char(Obj.ResultSet.getString(ColIndex));
                     end            
                     
                 catch
-                    Obj.msgLog(LogLevel.Error, 'getString failed: %s', FieldName);
+                    Obj.msgLog(LogLevel.Error, 'getField failed: %s', string(FieldName).char);
                 end
             end
         end
@@ -274,9 +256,9 @@ classdef DbQuery < Component
         
         
         function Result = getFieldIndex(Obj, FieldName)
-            % Get field index in FieldNames{}
+            % Get field index in ColumnNames{}
             
-            Result = find(strcmp(Obj.FieldNames, FieldName));
+            Result = find(strcmp(Obj.ColumnNames, FieldName));
         end
          
         
@@ -310,19 +292,41 @@ classdef DbQuery < Component
         
         
         function Result = getRecord(Obj)
+            % STILL HAVE BUGS
+            
             % Get current record from ResultSet as DbRecord
             
-            Result = DbRecord;
+            Rec = io.db.DbRecord;
             
+            % Loop over all columns in the row
+            for ColIndex = 1 : Obj.ColumnCount
+                FieldName = Obj.ColumnNames{ColIndex};
+                Value = Obj.getField(ColIndex);
+                addprop(Rec, FieldName);
+                Rec.(FieldName) = Value;
+            end
             
-            
-            
+            Result = Rec;        
+                        
         end
         
         
         function Result = insertRecord(Obj, Rec)
             % Insert new record
             Result = false;
+            
+            %
+%             x = 1;
+% 
+%             for i=1:10
+%                 pk = ['pk_', string(i).char];
+%                 sql = 'INSERT INTO raw_images(ImageID, RA_Center) VALUES(%s,%s);'
+% 
+%                 Obj.Statement = Obj.Conn.prepareStatement(sql);            
+%                 Obj.ResultSet = Obj.Statement.executeQuery();                
+%             end
+            
+            
         end
         
         
@@ -333,6 +337,7 @@ classdef DbQuery < Component
         
         
         function Result = loadAll(Obj)
+            % Load entire ResultSet to memory, might be time/memory consuming!
             
             % Initialize
             Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColumnCount);
@@ -344,7 +349,8 @@ classdef DbQuery < Component
                 
                 % Loop over all columns in the row
                 for ColIndex = 1 : Obj.ColumnCount
-                    Result{RowIndex, ColIndex} = Obj.getField(ColIndex);
+                    Value = Obj.getField(ColIndex);
+                    Result{RowIndex, ColIndex} = Value;
                 end
     
                 RowIndex = RowIndex + 1;
@@ -365,11 +371,32 @@ classdef DbQuery < Component
         function Result = unitTest()
             io.msgLog(LogLevel.Test, "DbQuery test started")
    
-            Q = io.db.DbQuery();
-            Q.open('select imageid, ra_center from raw_images');
-            %Q.open('select * from raw_images');
+            TableName = 'raw_images';
             
-            A = Q.loadAll();
+            % Use default database
+            Conn = io.db.DbConnection;
+            Conn.open();
+            
+            % Select two fields from table
+            Q = io.db.DbQuery(Conn);
+            Q.open(['select imageid, ra_center from ', TableName, ' limit 10']);
+            assert(Q.ColumnCount == 2);
+            
+            %B = Q.loadAll();
+            %Rec = Q.getRecord();
+            %assert(Rec.ColumnCount > 0);            
+            
+            % Load entire result set to memory
+            Data = Q.loadAll();
+            assert(size(Data, 2) == 2);
+            
+            % Select all fields from table
+            Q.open(['select * from ', TableName, ' limit 10']);
+            
+            % Load current record to memory
+            %Rec = Q.getRecord();
+            %assert(Rec.ColumnCount > 0);
+            
             
             % Test: Create database and tables
             

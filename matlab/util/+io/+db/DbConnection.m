@@ -36,7 +36,7 @@ classdef DbConnection < Component
         Url = ''                    % Connection URL
         Metadata = []               %
         
-        ConnectionStr = ''
+        ConnectionStr = ''          % 'jdbc:postgresql://localhost:5432/pipeline'
         Conn = []  % Connection object, returned by connect()
         IsOpen = false
         
@@ -45,11 +45,21 @@ classdef DbConnection < Component
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = DbConnection()
+        function Obj = DbConnection(varargin)
             
-            % Generate UUID, used with SqlDbManager
-            %Key = Obj.needUuid();
+            Obj.needUuid();
+            Obj.msgLog(LogLevel.Debug, 'DbConnection created: %s', Obj.Uuid);
+            
+            if numel(varargin) > 0
+                
+            end
         end
+        
+        
+        % Destructor
+        function delete(Obj)
+            Obj.msgLog(LogLevel.Debug, 'DbConnection deleted: %s', Obj.Uuid);
+        end                
     end
     
     
@@ -77,6 +87,7 @@ classdef DbConnection < Component
 
             % Prepare username and password
             try                
+                Obj.msgLog(LogLevel.Debug, 'DbConnection.open: setProperty: %s/%s', Obj.UserName, Obj.Password);
                 props = java.util.Properties;
                 props.setProperty('user', Obj.UserName);
                 props.setProperty('password', Obj.Password);
@@ -96,6 +107,7 @@ classdef DbConnection < Component
 
             % Get metadata
             try
+                Obj.msgLog(LogLevel.Debug, 'DbConnection.open: calling getMetaData');
                 Obj.Metadata = Obj.Conn.getMetaData();   
             catch
                 Obj.msgLog(LogLevel.Error, 'DbConnection.open: getMetaData failed');

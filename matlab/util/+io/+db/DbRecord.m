@@ -13,9 +13,20 @@ classdef DbRecord < dynamicprops
     %-------------------------------------------------------- 
     methods % Constructor            
         function Obj = DbRecord(varargin)           
+            
+            io.msgLog(LogLevel.Debug, 'DbRecord created');
+            
             if numel(varargin) == 1
                 Obj.Query = varargin{1};
             end
+            
+            
+        end
+        
+        
+        % Destructor
+        function delete(Obj)
+            io.msgLog(LogLevel.Debug, 'DbRecord deleted');
         end
     end
 
@@ -91,16 +102,7 @@ classdef DbRecord < dynamicprops
     
     %----------------------------------------------------------------------   
     methods(Static) % Unit test
-        
-%         function Result = unitTest()
-%             try
-%                 Result = Configuration.doUnitTest();
-%             catch
-%                 Result = false;
-%                 io.msgLog(LogLevel.Error, 'unitTest: Exception');
-%             end
-%         end
-        
+             
             
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'DbRecord test started');

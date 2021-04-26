@@ -41,7 +41,15 @@ classdef DbDriver < Component
     methods
         % Constructor    
         function Obj = DbDriver()
+            Obj.needUuid();
+            Obj.msgLog(LogLevel.Debug, 'DbDriver created: %s', Obj.Uuid);
         end
+        
+        
+        % Destructor
+        function delete(Obj)
+            Obj.msgLog(LogLevel.Debug, 'DbDriver deleted: %s', Obj.Uuid);
+        end        
     end
     
     
