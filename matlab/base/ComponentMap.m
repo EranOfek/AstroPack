@@ -64,7 +64,7 @@ classdef ComponentMap < Base
         end
               
         
-        function Result = findComp(Obj, CompKey)
+        function Result = find(Obj, CompKey)
             % Return component by key
             if Obj.Map.isKey(CompKey)
                 Result = Obj.Map(CompKey);
@@ -124,14 +124,14 @@ classdef ComponentMap < Base
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'ComponentMap test started');
 
-            Manager = ComponentMap;
+            Map = ComponentMap;
             
             Comp1 = Component;
-            Manager.add(Comp1);
-            assert(~isempty(Manager.getComp(Comp1.RegKey)));
+            Map.add(Comp1);
+            assert(~isempty(Map.find(Comp1.MapKey)));
             
-            Manager.remove(Comp1);
-            assert(isempty(Manager.getComp(Comp1.RegKey)));
+            Map.remove(Comp1);
+            assert(isempty(Map.find(Comp1.MapKey)));
             
             io.msgLog(LogLevel.Test, 'ComponentMap test passed');
             Result = true;

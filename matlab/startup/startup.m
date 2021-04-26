@@ -1,4 +1,5 @@
 % The default matlab startup script for AstroPack
+% edit(fullfile(userpath,'startup.m'))
 
 % display numbers format
 format short g

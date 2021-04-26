@@ -148,7 +148,7 @@ classdef DbConnection < Component
             end
             
             Key = ConnKey;
-            Comp = Map.findComp(Key);
+            Comp = Map.find(Key);
             if isempty(Comp)
                 Comp = io.db.DbConnection();
                 Comp.MapKey = ConnKey;

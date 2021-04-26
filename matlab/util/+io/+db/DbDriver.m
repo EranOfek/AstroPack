@@ -140,7 +140,7 @@ classdef DbDriver < Component
             end
             
             
-            Comp = Map.findComp(DatabaseType);
+            Comp = Map.find(DatabaseType);
             if isempty(Comp)
                 Comp = io.db.DbDriver();
                 Comp.DatabaseType = DatabaseType;
