@@ -42,6 +42,46 @@ classdef MsgLogger < handle
                 return
             end
             
+            LevStr = getLevelStr(Obj, Level);
+            fprintf('[%s] ', LevStr);
+            fprintf(varargin{:});
+			fprintf('\n');
+            
+            % Log to file            
+            if ~isempty(Obj.LogF)
+                Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+            end
+            
+        end        
+             
+        
+		function msgStyle(Obj, Level, Style, varargin)
+
+            % Do nothing if log is disabled
+            if Level == LogLevel.None
+                return
+            end
+            
+            % Ignore levels above CurLevel
+            if uint32(Level) > uint32(Obj.CurLevel)
+                return
+            end
+            
+            LevStr = getLevelStr(Obj, Level);
+            cprintf(Style, '[%s] ', LevStr);
+            cprintf(Style, varargin{:});
+			fprintf('\n');
+            
+            % Log to file            
+            if ~isempty(Obj.LogF)
+                Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+            end
+            
+        end        
+
+        
+        function Result = getLevelStr(Obj, Level)
+        
             % Convert enum to string
 			s = '';
             switch Level        
@@ -60,19 +100,10 @@ classdef MsgLogger < handle
 				otherwise
 					error('Unknown LogLevel');
             end
-            
-            fprintf('[%s] ', s);
-            fprintf(varargin{:});
-			fprintf('\n');
-            
-            % Log to file            
-            if ~isempty(Obj.LogF)
-                Obj.LogF.write2(sprintf('[%s]', s), varargin{:});
-            end
-            
-        end        
-             
+            Result = s;
+        end
         
+    
 		function msgStack(Obj, Level, varargin)
             [StackTrace, WorkspaceIndex] = dbstack;
 
@@ -137,8 +168,18 @@ classdef MsgLogger < handle
         function Result = unitTest()            
             fprintf('MsgLogger test started\n');
             
-            M = MsgLogger.getSingleton();
+            % Test cprintf (in external/)
+            fprintf('cprintf test started\n');
+            cprintf('text',    'regular black text\n');
+            cprintf('hyper',   'followed %s', 'by');
+            cprintf('-comment','& underlined\n');
+            cprintf('err',     'elements: ');
+            cprintf('cyan',    'cyan ');
+            cprintf('_green',  'underlined green\n');
+            fprintf('cprintf test done\n');
             
+            % Test MsgLogger
+            M = MsgLogger.getSingleton();            
             M.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
             M.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));
             M.msgLog(LogLevel.Info, 'Test: %d', uint32(LogLevel.Info));
@@ -148,6 +189,10 @@ classdef MsgLogger < handle
             
             M.msgStack(LogLevel.Test, 'MyStackTrace: %d', 123);            
             MsgLogger.unitTestStackTrace(5);
+            
+            % Test msgStyle
+            M.msgStyle(LogLevel.Test, 'blue', 'Message in blue');
+            M.msgStyle(LogLevel.Test, 'red', 'Message in red');
             
             fprintf('MsgLogger test passed\n');
             Result = true;

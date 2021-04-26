@@ -10,7 +10,7 @@ classdef Component < Base
     properties (SetAccess = public)
         Name                    % Name string
         Owner                   % Indicates the component that is responsible for streaming and freeing this component
-        Uuid                    % Global unique ID
+        Uuid                    % Global unique ID, generated with java.util.UUID.randomUUID()
         Tag                     % Optional tag (i.e. for events handling)
         MapKey                  % Used with ComponentMap class
         Config Configuration    % Configuration, deafult is system configuration
@@ -26,6 +26,7 @@ classdef Component < Base
             Obj.Config = Configuration.getSingleton();
         end
     end
+    
     
     methods
         
@@ -59,6 +60,12 @@ classdef Component < Base
             % Write message to log
             Obj.Log.msgLog(Level, varargin{:});
         end
+        
+
+        function msgStyle(Obj, Level, Style, varargin)  
+            % Write message to log
+            Obj.Log.msgStyle(Level, Style, varargin{:});
+        end        
     end
     
     

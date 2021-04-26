@@ -88,8 +88,9 @@ classdef Configuration < dynamicprops
         function loadFolder(Obj, Path)
             % Load specified folder to properties
 
-            Obj.Path = Path;
-            Obj.ConfigName = 'Config';
+            %@Todo: fix
+            %Obj.Path = Path;
+            %Obj.ConfigName = 'Config';
             io.msgLog(LogLevel.Info, 'loadFolder: %s', Obj.Path);
             
             List = dir(fullfile(Path, '*.yml'));
