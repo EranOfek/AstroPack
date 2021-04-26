@@ -156,15 +156,37 @@ classdef UnitTester < handle
     methods(Static)
         function Result = testBase()
             
+            io.msgLog('UnitTester.testBase started\n');
+            
             % Set maximum log level
             MsgLogger.setLogLevel(LogLevel.All);
             
+            % Must be tested in THIS ORDER:
+            
+            % Test classes that does not require Configuration
             LogFile.unitTest();
             MsgLogger.unitTest();
             Base.unitTest();
+            
+            % Test Configuration, it will be loaded
             Configuration.unitTest();
+            
+            % From this point Configuration is loaded
+            ComponentMap.unitTest();                        
             Component.unitTest();
             
+            % Database
+            io.db.DbDriver.unitTest();
+            io.db.DbConnection.unitTest();
+            io.db.DbRecord.unitTest();            
+            io.db.DbQuery.unitTest();
+            
+            % Images            
+            VirtImage.unitTest();
+            ImageComponent.unitTest();
+            
+            io.msgLog('\nUnitTester.testBase done');
+            Result = true;
         end
     end
     
@@ -172,7 +194,7 @@ classdef UnitTester < handle
     % Unit test
     methods(Static)
         
-        function Result = unitTest()
+        function Result = run()
             try
                 Result = UnitTester.doUnitTest();
             catch
@@ -186,7 +208,8 @@ classdef UnitTester < handle
             io.msgLog(LogLevel.Test, 'Started\n');
             Path = 'C:\Ultrasat\AstroPack.git\matlab\base';
             Tester = UnitTester;
-            Result = Tester.runFolder(Path);
+            Result = Tester.testBase();
+            %Result = Tester.runFolder(Path);
         end
     end
         
