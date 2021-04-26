@@ -586,13 +586,16 @@ classdef AstroImage < Component
     methods % functions on specific data properties
         
         
-        function Obj = funCat(Obj, Fun, varargin)
+        function Result = funCat(Obj, Fun, varargin)
             % Apply function of Cat properties in AstroImage array
             % This function doesn't create a new object
             % Input  : - AstroImage object
             %          - An AstroCatalog function handle.
             %          * Additional arguments to pass to the function.
-            % Output : - An AstroImage object
+            % Output : * If no output argument is specified then this
+            %            will modify the input object with the updated Cat.
+            %            If output argument is specified then the output will be
+            %            written to this output.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({rand(10,10), rand(10,10)});
             %          AI(1).CatData.Catalog=rand(10,2);
@@ -600,26 +603,43 @@ classdef AstroImage < Component
             %          funCat(AI,@sortrows,1);
             
             Nobj = numel(Obj);
+            if nargout==0
+                Result = Obj;
+            end
             for Iobj=1:1:Nobj
-                Fun(Obj(Iobj).CatData, varargin{:});
+                if nargout>0
+                    Result = Fun(Obj(Iobj).CatData, varargin{:});
+                else
+                    Fun(Result(Iobj).CatData, varargin{:});
+                end
             end
             
         end
         
-        function Obj = funHeader(Obj, Fun, varargin)
+        function Result = funHeader(Obj, Fun, varargin)
             % Apply function of HeaderData properties in AstroImage array
             % This function doesn't create a new object
             % Input  : - AstroImage object
             %          - An AstroHeader function handle.
             %          * Additional arguments to pass to the function.
-            % Output : - An AstroImage object
+            % Output : * If no output argument is specified then this
+            %            will modify the input object with the updated Header.
+            %            If output argument is specified then the output will be
+            %            written to this output.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({rand(10,10), rand(10,10)});
             %          funHeader(AI,@insertKey,{'GAIN',2,''});
             
             Nobj = numel(Obj);
+            if nargout==0
+                Result = Obj;
+            end
             for Iobj=1:1:Nobj
-                Fun(Obj(Iobj).HeaderData, varargin{:});
+                if nargout>0
+                    Result = Fun(Obj(Iobj).HeaderData, varargin{:});
+                else
+                    Fun(Result(Iobj).HeaderData, varargin{:});
+                end
             end
             
         end
@@ -889,11 +909,11 @@ classdef AstroImage < Component
             % CellIC is a cell array of ImageComponent objects
             [CellIC{1:1:nargout}] = astroImage2ImageComponent(Obj, 'CreateNewObj',false, 'ReturnImageComponent',false, 'DataProp',Args.DataProp);
             
-            Nic = numel(CellIC);
+            Nic = numel(CellIC); % Number of output arguments
             varargout = cell(1,Nic);
             for Iic=1:1:Nic
-                varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn);
-            
+                Nim = numel(CellIC{Iic}); % number of images in each output arg
+                varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn{Iic});
             end
         end
                 
