@@ -14,14 +14,14 @@ classdef VirtImage < Component
     methods
         % Constructor    
         function Obj = VirtImage()
-            Obj.Manager = VirtImageManager.getSingle();
             Obj.needUuid();
-            Obj.Manager.registerImage(Obj);
+            Obj.Manager = VirtImageManager.getSingleton();            
+            Obj.Manager.add(Obj);
         end
         
         % Destructor
         function delete(Obj)
-            Obj.Manager.unregisterImage(Obj);
+            Obj.Manager.remove(Obj);
         end
                 
         % Get data as matrix
@@ -42,11 +42,18 @@ classdef VirtImage < Component
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'VirtImage test started');
             
-            Image1 = VirtImage;
-            Image2 = VirtImage;
+            Manager = VirtImageManager.getSingleton();
             
+            % Add images
+            Count = Manager.getCount();
+            Image1 = VirtImage;
+            Image2 = VirtImage;                     
+            assert(Manager.getCount() == Count+2);
+            
+            % Delete images
             delete(Image1);
             delete(Image2);
+            assert(Manager.getCount() == Count);
             
             io.msgLog(LogLevel.Test, 'VirtImage test passed');
             Result = true;

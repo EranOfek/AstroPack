@@ -93,6 +93,9 @@ classdef ImageComponent < Component
                     Obj = reshape(Obj, size(ImIO));
                 end
             end % end if isempty...
+            
+            % @Chen: Automatically generate Uuid ??           
+            Obj.MapKey = Obj.needUuid();
         end % end ImageComponent
     end
     
@@ -1512,12 +1515,37 @@ classdef ImageComponent < Component
     end
     
     
+    methods(Static) % getDbDriver
+        
+        function Result = getImageByKey(Key)
+            persistent Map
+            if isempty(Map)
+                Map = ComponentMap('ImageComponent');
+            end
+                      
+            Image = Map.find(Key);
+            if isempty(Comp)
+            else
+            end
+            
+            Result = Image;
+
+        end
+    end
+
+    
+    
     methods (Static)  % unitTest
         function Result = unitTest
             % unitTest for ImageComponent
             
+            IC = ImageComponent; 
+            IC.needMapKey();
+            assert(~isempty(IC.MapKey));
+            
             % @Chen: Moved here from Component.m
-            IC=ImageComponent; IC.Image = 1;
+            IC=ImageComponent; 
+            IC.Image = 1;
             AI=convert2class(IC,{'Image'},{'Image'},@AstroImage);
             AI=convert2class(IC,{'Data'},{'ImageData.Data'},@AstroImage,'UseEval',true);
 

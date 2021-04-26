@@ -51,14 +51,32 @@ classdef Base < handle
                 Args.ClearProp = {Args.ClearProp};
             end
                 
+            % Deep copy
             if Args.DeepCopy
                 % Copy using serializing/deserializing (@FFU - Is there better/faster way?)                
                 ObjByteArray = getByteStreamFromArray(Obj);
                 NewObj       = getArrayFromByteStream(ObjByteArray);
+                
+                % @Chen @Todo: Generate unique UUID?
+                if isprop(Obj, 'Uuid')
+                    
+                    % Generate new uuid
+                    if ~isempty(Obj.Uuid)
+                        NewObj.makeUuid();                        
+                    end
+                    
+                    % Set MapKey
+                    if ~isempty(Obj.MapKey)
+                        NewObj.MapKey = NewObj.Uuid;
+                    end
+                end
+                    
+            % Shallow copy
             else
-                error('Non deep copy are not supported yet');
+                error('Base.copyObject: Shally copy is not supported yet');
             end
             
+            % Optionally clear specified properties
             Nobj  = numel(Obj);
             Nprop = numel(Args.ClearProp);
             for Iobj=1:1:Nobj

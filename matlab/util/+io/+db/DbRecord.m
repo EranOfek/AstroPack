@@ -13,17 +13,26 @@ classdef DbRecord < dynamicprops
     %-------------------------------------------------------- 
     methods % Constructor            
         function Obj = DbRecord(varargin)           
+            
+            io.msgLog(LogLevel.Debug, 'DbRecord created');
+            
             if numel(varargin) == 1
                 Obj.Query = varargin{1};
             end
+            
+            
+        end
+        
+        
+        % Destructor
+        function delete(Obj)
+            io.msgLog(LogLevel.Debug, 'DbRecord deleted');
         end
     end
 
     
     methods % Main functions
     
-      
-        
         function loadFile(Obj, FileName)
             % Load specified file to property            
             
@@ -55,7 +64,7 @@ classdef DbRecord < dynamicprops
                 if isnumeric(Stru.(Field)) || ischar(Stru.(Field)) || ...
                    islogical(Stru.(Field)) || isstring(Stru.(Field))
                     if ~isprop(Obj, Field)
-                        Obj.addprop(Field)
+                        Obj.addprop(Field);
                     end
                     Obj.(Field) = Stru.(Field);
                 else
@@ -69,41 +78,49 @@ classdef DbRecord < dynamicprops
         function Result = Equal(Obj, Other)
             % Compare two records, return true if equal
             
-            Result = true;
+            Result = false;
             Props = properties(Obj);
-            for i = 1:numel(Props)
-                Prop = Props{i};
-                if Other.isprop(Prop)
-                    if Obj.(Prop) ~= Other.(Prop)
+            Others = properties(Other);
+            if numel(Props) == numel(Others)
+                Result = true;
+                for i = 1:numel(Props)
+                    Prop = Props{i};
+                    if isprop(Other, Prop)
+                        if Obj.(Prop) ~= Other.(Prop)
+                            Result = false;
+                            break;
+                        end                                        
+                    else
                         Result = false;
                         break;
-                    end                                        
-                else
-                    Result = false;
-                    break;
-                end                
-            end
-            
+                    end                
+                end
+            end            
         end
         
     end
     
     %----------------------------------------------------------------------   
     methods(Static) % Unit test
-        
-%         function Result = unitTest()
-%             try
-%                 Result = Configuration.doUnitTest();
-%             catch
-%                 Result = false;
-%                 io.msgLog(LogLevel.Error, 'unitTest: Exception');
-%             end
-%         end
-        
+             
             
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'DbRecord test started');
       
+            S.MyX = 1;
+            S.MyY = 2;
+            S.MyZ = 3;
+            R = io.db.DbRecord;
+            R.loadStruct(S);
+            assert(R.MyX == S.MyX);
+            assert(R.MyY == S.MyY);
+            assert(R.MyX ~= S.MyY);
+            
+            %
+            Q = io.db.DbRecord;
+            Q.loadStruct(S);
+            assert(R.Equal(Q));
+            
             % Done
             io.msgLog(LogLevel.Test, 'DbRecord test passed');
             Result = true;

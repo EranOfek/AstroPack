@@ -32,6 +32,17 @@ classdef Configuration < dynamicprops
             % Set path to yaml external package
             % Replace it with env? move to startup.m?
             Obj.External = fullfile(MyPath, '..', 'external');
+            
+            fprintf('Configuration Path: %s\n', Obj.Path);
+            fprintf('Configuration External: %s\n', Obj.External);
+            fprintf('Master Configuration files are located in AstroPack/config\n');            
+            
+            % Validate                      
+            assert(~isempty(Obj.Path));
+            assert(~isempty(Obj.External));
+            assert(isfolder(Obj.Path));
+            assert(isfolder(Obj.External));            
+            
             addpath(Obj.External);            
         end
     end
@@ -77,8 +88,9 @@ classdef Configuration < dynamicprops
         function loadFolder(Obj, Path)
             % Load specified folder to properties
 
-            Obj.Path = Path;
-            Obj.ConfigName = 'Config';
+            %@Todo: fix
+            %Obj.Path = Path;
+            %Obj.ConfigName = 'Config';
             io.msgLog(LogLevel.Info, 'loadFolder: %s', Obj.Path);
             
             List = dir(fullfile(Path, '*.yml'));
@@ -127,7 +139,7 @@ classdef Configuration < dynamicprops
         end
         
         
-        function Result = getSingle()
+        function Result = getSingleton()
             % Return singleton Configuration object
             Conf = Configuration.init();
             if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
@@ -139,8 +151,11 @@ classdef Configuration < dynamicprops
                  
         function YamlStruct = loadYaml(FileName)
             % Read YAML file to struct, add FileName field
-            io.msgLog(LogLevel.Info, 'loadYaml: Loading file: %s', FileName);
+            io.msgLog(LogLevel.Info, 'loadYaml: Loading file: %s', FileName);          
             try
+                if ~isfile(FileName)
+                    io.msgLog(LogLevel.Error, 'loadYaml: File not found: %s', FileName);
+                end
                 YamlStruct = yaml.ReadYaml(string(FileName).char);
                 YamlStruct.FileName = FileName;
             catch
@@ -221,6 +236,8 @@ classdef Configuration < dynamicprops
             Conf = Configuration.init();
             assert(~isempty(Conf.Path));
             assert(~isempty(Conf.External));
+            assert(isfolder(Conf.Path));
+            assert(isfolder(Conf.External));            
             
             fprintf('Conf.Path: %s\n', Conf.Path);
             fprintf('Conf.External: %s\n', Conf.External);

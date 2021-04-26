@@ -41,10 +41,15 @@ classdef DbDriver < Component
     methods
         % Constructor    
         function Obj = DbDriver()
-            
-            % Generate UUID, used with SqlDbManager
-            %Key = Obj.needUuid();
+            Obj.needUuid();
+            Obj.msgLog(LogLevel.Debug, 'DbDriver created: %s', Obj.Uuid);
         end
+        
+        
+        % Destructor
+        function delete(Obj)
+            Obj.msgLog(LogLevel.Debug, 'DbDriver deleted: %s', Obj.Uuid);
+        end        
     end
     
     
@@ -132,22 +137,23 @@ classdef DbDriver < Component
     methods(Static) % getDbDriver
         
         function Result = getDbDriver(DatabaseType)
-            persistent Manager
-            if isempty(Manager)
-                Manager = CompRegManager;
+            persistent Map
+            if isempty(Map)
+                Map = ComponentMap('DbDriver');
             end
             
+            % Set default database type
             if isempty(DatabaseType)
                 DatabaseType = 'postgres';
             end
             
-            Key = DatabaseType;
-            Comp = Manager.getComp(Key);
+            
+            Comp = Map.find(DatabaseType);
             if isempty(Comp)
                 Comp = io.db.DbDriver();
                 Comp.DatabaseType = DatabaseType;
-                Comp.RegKey = DatabaseType;
-                Manager.register(Comp);
+                Comp.MapKey = DatabaseType;
+                Map.add(Comp);
             else
             end
             Result = Comp;                         
