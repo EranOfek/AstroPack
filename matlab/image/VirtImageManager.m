@@ -1,25 +1,18 @@
 % Virtual Image Manager
 %--------------------------------------------------------------------------
 
-classdef VirtImageManager < Component
+classdef VirtImageManager < ComponentMap
     % Properties
     properties (SetAccess = public)
         VirtPath = '';      % Default path to storge virtual image files
-        
-        % Map object is a data structure that allows you to retrieve values 
-        % using a corresponding key. Keys can be real numbers or character 
-        % vectors. As a result, they provide more flexibility for data 
-        % access than array indices, which must be positive integers. 
-        % Values can be scalar or nonscalar arrays.
-        Map = []            % containers.Map - List of VirtImage objects
+
     end
-    
     %-------------------------------------------------------- 
     methods % Constructor 
         
-        function Obj = VirtImageManager()
+        function Obj = VirtImageManager()            
+            Obj@ComponentMap('VirtImage');
             Obj.msgLog(LogLevel.Debug, 'VirtImageManager created');
-            Obj.Map = containers.Map();
             
         end
         
@@ -33,43 +26,28 @@ classdef VirtImageManager < Component
     
     
     methods    
-        function registerImage(Obj, Image)
-            Obj.msgLog(LogLevel.Debug, 'registerImage: %s', Image.Uuid);
-            
-            Key = Obj.getImageKey(Image);
-            if ~Obj.Map.isKey(Key)
-                Obj.Map(Key) = Image;
-            else
-                Obj.msgLog(ObjLevel.Warning, 'registerImage: Image already exists in map: %s', Key);
-            end
+        function add(Obj, Image)
+            Obj.msgLog(LogLevel.Debug, 'VirtImageManager.add: %s', Image.Uuid);
+          
+            add@ComponentMap(Obj, Image);
         end
         
         
-        function unregisterImage(Obj, Image)
-            Obj.msgLog(LogLevel.Debug, 'unregisterImage: %s', Image.Uuid);
+        function remove(Obj, Image)
+            Obj.msgLog(LogLevel.Debug, 'VirtImageManager.remove: %s', Image.Uuid);
             
-            Key = Obj.getImageKey(Image);
-            if Obj.Map.isKey(Key)
-                Obj.Map.remove(Key)
-            else
-                Obj.msgLog(ObjLevel.Warning, 'unregisterImage: Image does not exist in map: %s', Key);
-            end            
-            
-        end
-        
-        
-        function Result = getImagKey(Obj, Image)
-            Result = Image.Uuid;
+            remove@ComponentMap(Obj, Image);
+                        
         end
         
         
         function release(Obj)
-            for Key=Obj.Map.keys
+            for Key = Obj.Map.Map.keys
                 Obj.Map.remove(Key);
             end
             
             % Make sure that everything was removed
-            assert(Obj.Map.Count == 0);
+            assert(Obj.Map.Map.Count == 0);
         end
         
     end
@@ -78,11 +56,11 @@ classdef VirtImageManager < Component
     methods(Static)
         
         function Result = getSingleton()
-            persistent Manager
-            if isempty(Manager)
-                Manager = VirtImageManager;
+            persistent PersObj
+            if isempty(PersObj)
+                PersObj = VirtImageManager;
             end
-            Result = Manager;
+            Result = PersObj;
         end
     end
      

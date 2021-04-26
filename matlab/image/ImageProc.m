@@ -27,7 +27,6 @@ classdef ImageProc < Component
     end
     
     methods % conversion
-        end
         
     end
     
@@ -43,5 +42,7 @@ classdef ImageProc < Component
             Result = true;            
             
         end        
-    end    
+        
+    end
+      
 end
