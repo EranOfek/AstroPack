@@ -1,7 +1,6 @@
+# Insert records into database tables
 #
 # See: https://gist.github.com/antivanov/59e00f6129725e9b4404
-
-# Instructions
 
 import os, glob, time, argparse, shutil, csv, json, yaml, psycopg2, uuid, random
 from datetime import datetime
@@ -53,7 +52,11 @@ def insert_records():
         x = random.randint(1, 10000000)
 
         for i in range(0, 10000):
+
+            # Generate UUID
             pk = str(uuid.uuid1())
+
+            # Insert record
             sql = 'INSERT INTO raw_images(ImageID, RA_Center) VALUES(%s,%s);'
 
             cur.execute(sql, (pk, x, ))
