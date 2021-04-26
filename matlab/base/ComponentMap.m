@@ -33,7 +33,7 @@ classdef ComponentMap < Base
         function delete(Obj)
             % Destructor
             Obj.msgLog(LogLevel.Debug, 'ComponentMap deleted: %s', Obj.Name);
-            release();
+            Obj.release();
         end
     end
     
@@ -41,24 +41,24 @@ classdef ComponentMap < Base
     methods    
         function add(Obj, Comp)
             Key = Obj.getKey(Comp);
-            Obj.msgLog(LogLevel.Info, 'add: %s', Key);            
+            Obj.msgLog(LogLevel.Info, 'ComponentMap.add: %s', Key);            
             
             if ~Obj.Map.isKey(Key)
                 Obj.Map(Key) = Comp;
             else
-                Obj.msgLog(ObjLevel.Warning, 'add: Component already exists in map: %s', Key);
+                Obj.msgLog(ObjLevel.Warning, 'ComponentMap.add: Component already exists in map: %s', Key);
             end
         end
         
         
         function remove(Obj, Comp)
             Key = Obj.getKey(Comp);
-            Obj.msgLog(LogLevel.Debug, 'remove: %s', Key);            
+            Obj.msgLog(LogLevel.Debug, 'ComponentMap.remove: %s', Key);                        
             
             if Obj.Map.isKey(Key)
-                Obj.Map.remove(Key)
+                Obj.Map.remove(Key);
             else
-                Obj.msgLog(ObjLevel.Warning, 'remove: Component does not exist in map: %s', Key);
+                Obj.msgLog(ObjLevel.Warning, 'ComponentMap.remove: Component does not exist in map: %s', Key);
             end            
             
         end
@@ -77,6 +77,11 @@ classdef ComponentMap < Base
         function Result = getKey(Obj, Comp)
             % Get/make component key
             Result = Comp.needMapKey();
+        end
+        
+        
+        function Result = getCount(Obj)
+            Result = Obj.Map.Count;
         end
         
         
@@ -125,9 +130,11 @@ classdef ComponentMap < Base
             io.msgLog(LogLevel.Test, 'ComponentMap test started');
 
             Map = ComponentMap;
+            assert(Map.getCount() == 0);
             
             Comp1 = Component;
             Map.add(Comp1);
+            assert(Map.getCount() == 1);
             assert(~isempty(Map.find(Comp1.MapKey)));
             
             Map.remove(Comp1);
