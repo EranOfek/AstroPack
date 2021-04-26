@@ -7,6 +7,7 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 %                   ['mean']
 %                   'median'
 %                   'var'
+%                   'rvar'
 %                   'min'
 %                   'max'
 %                   'range'
@@ -19,6 +20,8 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 %                   'bitnot' - bit-wise not operation. Return only Coadd.
 %              'StackArgs' - A cell array of arguments to pass to the
 %                   method function. Default is {}.
+%              'EmpiricalVarFun' - Default is @var.
+%              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
 %              'VarCube' - A cube of variances. Default is [].
 %              'MedianVarCorrForEmpirical' - A logical indicating if to
 %                   correct the variance calculation by the ratio between
@@ -60,6 +63,8 @@ arguments
     Cube
     Args.StackMethod                            = 'mean';
     Args.StackArgs cell                         = {};
+    Args.EmpiricalVarFun function_handle        = @var;
+    Args.EmpiricalVarFunArgs                    = {[],3,'omitnan'};
     Args.VarCube                                = [];
     Args.MedianVarCorrForEmpirical(1,1) logical = false;
     Args.DivideEmpiricalByN(1,1) logical        = false;
@@ -120,6 +125,16 @@ switch lower(Args.StackMethod)
         
     case 'var'
         Coadd = nanvar(Cube, [], 3);
+        if Args.CalcCoaddN
+            CoaddN  = sum(~isnan(Cube),3);
+        end
+        
+        if Args.CalcCoaddVar
+            CoaddVar = Coadd./(2.*CoaddN - 2);
+        end
+        
+    case 'rvar'
+        Coadd = imUtil.background.rvar(Cube, 3);
         if Args.CalcCoaddN
             CoaddN  = sum(~isnan(Cube),3);
         end
@@ -202,7 +217,7 @@ end
 
 if Args.CalcCoaddVarEmpirical && isempty(CoaddVarEmpirical)
     % calc empirical variance
-    CoaddVarEmpirical = var(Cube, [], 3, 'omitnan');
+    CoaddVarEmpirical = Args.EmpiricalVarFun(Cube, Args.EmpiricalVarFunArgs{:}); % [], 3, 'omitnan');
     
     if Args.MedianVarCorrForEmpirical
         CorrFactor = pi.*(2.*CoaddN+1)./(4.*CoaddN);

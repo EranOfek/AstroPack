@@ -692,6 +692,7 @@ classdef ImageComponent < Component
             %                   ['mean']
             %                   'median'
             %                   'var'
+            %                   'rvar'
             %                   'min'
             %                   'max'
             %                   'range'
@@ -704,6 +705,8 @@ classdef ImageComponent < Component
             %                   'bitnot' - bit-wise not operation. Return only Coadd.
             %              'StackArgs' - A cell array of arguments to pass to the
             %                   method function. Default is {}.
+            %              'EmpiricalVarFun' - Default is @var.
+            %              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
             %              'MedianVarCorrForEmpirical' - A logical indicating if to
             %                   correct the variance calculation by the ratio between
             %                   the variance of the median and variance of the mean.
@@ -751,6 +754,8 @@ classdef ImageComponent < Component
                 Args.VarImage                        = [];
                 Args.StackMethod                     = 'mean';
                 Args.StackArgs                       = {};
+                Args.EmpiricalVarFun                 = @var;
+                Args.EmpiricalVarFunArgs             = {[],3,'omitnan'};
                 
                 Args.MedianVarCorrForEmpirical(1,1) logical = false;
                 Args.DivideEmpiricalByN(1,1) logical        = false;
@@ -780,6 +785,8 @@ classdef ImageComponent < Component
             
             [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube, 'StackMethod',Args.StackMethod,...
                                                                                         'StackArgs',Args.StackArgs,...
+                                                                                        'EmpiricalVarFun',Args.EmpiricalVarFun,...
+                                                                                        'EmpiricalVarFunArgs',Args.EmpiricalVarFun,...
                                                                                         'VarCube',VarCube,...
                                                                                         'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
                                                                                         'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
@@ -842,6 +849,7 @@ classdef ImageComponent < Component
             %                   ['mean']
             %                   'median'
             %                   'var'
+            %                   'rvar'
             %                   'min'
             %                   'max'
             %                   'range'
@@ -854,6 +862,8 @@ classdef ImageComponent < Component
             %                   'bitnot' - bit-wise not operation. Return only Coadd.
             %              'StackArgs' - A cell array of arguments to pass to the
             %                   method function. Default is {}.
+            %              'EmpiricalVarFun' - Default is @var.
+            %              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
             %              'MedianVarCorrForEmpirical' - A logical indicating if to
             %                   correct the variance calculation by the ratio between
             %                   the variance of the median and variance of the mean.
@@ -934,6 +944,9 @@ classdef ImageComponent < Component
                 Args.NormArgs                        = {};
                 Args.NormOperator function_handle    = @times;
                 
+                Args.EmpiricalVarFun                 = @var;
+                Args.EmpiricalVarFunArgs             = {[],3,'omitnan'};
+                
                 Args.VarImage                        = [];
                 Args.StackMethod                     = 'mean';
                 Args.StackArgs                       = {};
@@ -1009,6 +1022,8 @@ classdef ImageComponent < Component
             [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = imUtil.image.stackCube(Cube, 'StackMethod',Args.StackMethod,...
                                                                                         'StackArgs',Args.StackArgs,...
                                                                                         'VarCube',VarCube,...
+                                                                                        'EmpiricalVarFun',Args.EmpiricalVarFun,...
+                                                                                        'EmpiricalVarFunArgs',Args.EmpiricalVarFun,...
                                                                                         'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
                                                                                         'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
                                                                                         'DivideVarByN',Args.DivideVarByN,...
