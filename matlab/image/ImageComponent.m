@@ -501,7 +501,7 @@ classdef ImageComponent < Component
                 Operator function_handle
                 Args.OpArgs cell                = {};
                 Args.CCDSEC                     = [];
-                Args.DataPropIn                 = 'Data';
+                Args.DataPropIn char            = 'Data';
             end
             
             if ~isempty(Args.CCDSEC)

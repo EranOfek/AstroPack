@@ -909,11 +909,11 @@ classdef AstroImage < Component
             % CellIC is a cell array of ImageComponent objects
             [CellIC{1:1:nargout}] = astroImage2ImageComponent(Obj, 'CreateNewObj',false, 'ReturnImageComponent',false, 'DataProp',Args.DataProp);
             
-            Nic = numel(CellIC);
+            Nic = numel(CellIC); % Number of output arguments
             varargout = cell(1,Nic);
             for Iic=1:1:Nic
-                varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn);
-            
+                Nim = numel(CellIC{Iic}); % number of images in each output arg
+                varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn{Iic});
             end
         end
                 
