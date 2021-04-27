@@ -80,7 +80,7 @@ classdef Configuration < dynamicprops
                 s = sprintf('Obj.Data.%s=Yml', name);
                 eval(s);
             catch
-                io.msgLog(LogLevel.Error, 'loadFile: Exception: %s', FileName);
+                io.msgStyle(LogLevel.Error, '@error', 'loadFile: Exception: %s', FileName);
             end
         end
         
@@ -159,7 +159,7 @@ classdef Configuration < dynamicprops
                 YamlStruct = yaml.ReadYaml(string(FileName).char);
                 YamlStruct.FileName = FileName;
             catch
-                io.msgLog(LogLevel.Error, 'loadYaml: Exception loading file: %s', FileName);
+                io.msgStyle(LogLevel.Error, '@error', 'loadYaml: Exception loading file: %s', FileName);
             end
         end
      
@@ -218,17 +218,7 @@ classdef Configuration < dynamicprops
     end
     
     %----------------------------------------------------------------------   
-    methods(Static) % Unit test
-        
-%         function Result = unitTest()
-%             try
-%                 Result = Configuration.doUnitTest();
-%             catch
-%                 Result = false;
-%                 io.msgLog(LogLevel.Error, 'unitTest: Exception');
-%             end
-%         end
-        
+    methods(Static) % Unit test       
             
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'Configuration test started');

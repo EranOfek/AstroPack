@@ -14,10 +14,12 @@ classdef DbRecord < dynamicprops
     methods % Constructor            
         function Obj = DbRecord(varargin)           
             
-            io.msgLog(LogLevel.Debug, 'DbRecord created');
-            
+            % Set DbQuery
             if numel(varargin) == 1
                 Obj.Query = varargin{1};
+                io.msgLog(LogLevel.Debug, ['DbRecord created, DbQuery: ', Obj.Query.Uuid]);
+            else
+                io.msgLog(LogLevel.Debug, 'DbRecord created');
             end
             
             
@@ -105,7 +107,7 @@ classdef DbRecord < dynamicprops
              
             
         function Result = unitTest()
-            io.msgLog(LogLevel.Test, 'DbRecord test started');
+            io.msgStyle(LogLevel.Test, '@start', 'DbRecord test started');
       
             S.MyX = 1;
             S.MyY = 2;
@@ -122,7 +124,7 @@ classdef DbRecord < dynamicprops
             assert(R.Equal(Q));
             
             % Done
-            io.msgLog(LogLevel.Test, 'DbRecord test passed');
+            io.msgStyle(LogLevel.Test, '@passed', 'DbRecord test passed');
             Result = true;
         end
     end
