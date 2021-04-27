@@ -109,36 +109,106 @@ def get_csv(row, column, _default = '', _strip = True):
     return value
 
 
-class TableDef:
+class DatabaseDef:
 
     #
     def __init__(self):
         self.field_list = []
         self.field_dict = {}
+        self.def_path = ''
         self.db_name = ''
         self.table_name = ''
+        self.source_filename = ''
         self.sql_filename = ''
         self.outf = None
 
 
     #
     def set_db(self, filename: str) -> None:
+
         # Split file name to database name and table name, i.e.
         # 'image_tables - processed_cropped_images.csv'
+        log('set_db: ' + filename)
+
+        self.source_filename = filename
         path, fname = os.path.split(filename)
         fn, ext = os.path.splitext(fname)
-        db = fn.split('-')
-        self.db_name = db[0].strip()
-        self.table_name = db[1].strip()
+        self.def_path = path
 
-        self.sql_filename = os.path.join(path, self.db_name + '.sql')
+        # Get database name from last part of folder name
+        self.db_name = os.path.split(path)[1]
+        log('database name: ' + self.db_name)
+
+        # Get table name from tab name
+        tab_name = fn.split('-')
+        prefix = tab_name[0].strip()
+        if len(tab_name) > 1:
+            self.table_name = tab_name[1].strip()
+        else:
+            self.table_name = ''
+
+        log('table name: ' + self.table_name)
+
+        # Prepare output SQL file name
+        self.sql_filename = os.path.join(path, '__' + self.db_name + '.sql')
+        log('sql output file: ' + self.sql_filename)
+
+        # Field does not exist yet, need to add 'create database' commands
+        need_create = False
+        if not os.path.exists(self.sql_filename):
+            log('sql output file does not exist, creating new database: ' + self.db_name)
+            need_create = True
+
+        # Open file for append
         self.outf = open(self.sql_filename, 'a')
-        self.write('\n\n\n\n')
+        self.write('\n')
 
-        #self.sql_filename = os.path.join(path, self.table_name + '.sql')
-        #self.outf = open(self.sql_filename, 'w')
+        if need_create:
+            self.create_db()
 
 
+    def create_db(self):
+
+        log('create_db started : ' + self.db_name)
+
+        # Check if we have specific file for our database
+        fname = os.path.join(self.def_path, 'create_database.sql')
+
+        # Not found, use general file
+        if not os.path.exists(fname):
+            fname = os.path.join(self.def_path, '..', 'create_database.sql')
+
+            if not os.path.exists(fname):
+                log('create_db: database definition file not found: ' + fname)
+                return
+
+        log('using database file: ' + fname)
+
+        self.write('--\n')
+        self.write('-- Automatic Generated File by convert_csv_to_sq_db.py\n')
+        self.write('-- Source file: ' + fname + '\n')
+        self.write('--\n')
+        self.write('\n\n\n')
+
+        with open(fname) as f:
+            lines = f.read().splitlines()
+
+        for line in lines:
+            line = line.rstrip()
+
+            # Replace database name macro
+            if line.find('$DatabaseName$') > -1:
+                line = line.replace('$DatabaseName$', self.db_name)
+                log('replaced $DatabaseName$: ' + line)
+
+            self.write(line)
+            self.write('\n')
+
+        log('create_db done: ' + self.db_name)
+        log('')
+
+
+    #
     def get_include_filename(self, filename: str, include: str) -> str:
         path, fname = os.path.split(filename)
         fn, ext = os.path.splitext(fname)
@@ -147,31 +217,37 @@ class TableDef:
         return include_filename
 
 
-    #
-    def load_csv(self, filename: str) -> None:
+    # Load table definition from specified csv file
+    def load_table_csv(self, filename: str) -> None:
 
-        log('Loading: ' + filename)
+        log('load_table_csv started: ' + filename)
+        self.source_filename = filename
 
+        # [Tab Name] in brackets indicates common fields (not a table)
         is_common = False
         if filename.find('[') > -1:
             is_common = True
 
         f = open(filename, newline='')
         rdr = csv.DictReader(f)
+        field_count = 0
 
         for row in rdr:
             try:
                 field = Field()
-
                 field.field_name = get_csv(row, 'Field Name')
+
+                # Skip empty rows
                 if field.field_name == '':
                     continue
 
                 # Load include file (common fields)
+                # Note: Recursive call
                 if field.field_name.find('[') > -1:
                     include_filename = self.get_include_filename(filename, field.field_name)
                     if include_filename != '' and os.path.exists(include_filename):
-                        self.load_csv(include_filename)
+                        log('loading include file: ' + include_filename)
+                        self.load_table_csv(include_filename)
                     continue
 
 
@@ -181,18 +257,19 @@ class TableDef:
                 field.metadata = get_csv(row, 'Metadata')
                 field.is_common = is_common
 
-                #field.json = json.loads('{' + field.metadata + '}')
-                field.yaml = yaml.load('{' + field.metadata + '}')
+                # Load field metadata as YAML data
+                field.yaml = yaml.load('{' + field.metadata + '}', Loader=yaml.FullLoader)
 
                 # Parse metadata
                 if 'index_method' in field.yaml:
                     field.index_method = field.yaml['index_method']
 
-
                 # Field type
                 field.data_type = get_field_type(field.field_name, field.field_type)
                 if field.data_type == '':
                     field.data_type = '???'
+                    log('WARNING: unknown field type, field ignored: ' + field.field_name)
+                    continue
 
                 # Primary key
                 if field.field_name.find('**') > -1:
@@ -206,20 +283,31 @@ class TableDef:
 
                 # Check if field already seen
                 if field.field_name in self.field_dict:
-                    log('Field already defined, ignored: ' + field.field_name)
+                    log('field already defined, ignored: ' + field.field_name)
                     continue
 
 
                 self.field_list.append(field)
                 self.field_dict[field.field_name] = field
+                field_count += 1
+
             except:
                 print('ex')
 
-        log('Loading done: ' + filename)
+        log('load_table_csv done: ' + filename + ' - fields loaded: ' + str(field_count))
+        log('')
 
 
-    #
+    # Create table from self.field_list
     def create_table(self):
+        log('create_table started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.write('--\n')
+        self.write('-- Automatic Generated Table Definition\n')
+        self.write('-- Source file: ' + self.source_filename + '\n')
+        self.write('--\n')
+        self.write('\n\n')
+
         self.write('CREATE TABLE public.{} (\n'.format(self.table_name))
         #self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
 
@@ -246,6 +334,7 @@ class TableDef:
 
         # Primary key
         if len(primary_key) > 0:
+            log('primary key: ' + str(primary_key))
             self.write('\nCONSTRAINT {} PRIMARY KEY({})\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
             #self.write('\nCONSTRAINT {} PRIMARY KEY("{}")\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
 
@@ -268,6 +357,8 @@ class TableDef:
         #self.write('ALTER TABLE public."{}"\n  OWNER TO postgres;\n'.format(self.table_name))
 
         self.outf.close()
+        log('create_table done: ' + self.table_name)
+        log('')
 
 
     def write(self, text):
@@ -277,7 +368,7 @@ class TableDef:
 
 
 
-
+# Process folder with CSV database definition files
 def process_folder(fpath, ext_list, subdirs = True):
     if subdirs:
         flist = glob.glob(os.path.join(fpath, '**/*.*'), recursive=True)
@@ -293,12 +384,16 @@ def process_folder(fpath, ext_list, subdirs = True):
         for ext in ext_list:
             ext = ext.lower()
             if filename_lower.endswith(ext):
+
+                # Skip [common fields csv files]
                 if fname.find('[') == -1:
 
-                    table = TableDef()
-                    table.set_db(filename_lower)
-                    table.load_csv(filename_lower)
-                    table.create_table()
+                    # Set database from file name
+                    log('')
+                    db = DatabaseDef()
+                    db.set_db(filename_lower)
+                    db.load_table_csv(filename_lower)
+                    db.create_table()
 
 
 def main():
