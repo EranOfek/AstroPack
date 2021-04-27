@@ -1,7 +1,7 @@
 
 classdef Coadd < Component
     properties
-        
+        ImObj AstroImage
         
     end
     
@@ -93,7 +93,7 @@ classdef Coadd < Component
             
             arguments
                 Obj(1,1) 
-                ImObj
+                ImObj                         = [];
                 Offset                        = [];   % AstroImage, cell of matrices, or array
                 Operator function_handle      = @minus;
                 Args.OpArgs cell              = {};
@@ -101,6 +101,14 @@ classdef Coadd < Component
                 Args.DataProp char            = 'ImageData';
                 Args.DataPropIn char          = 'Data';
                 Args.CreateNewObj             = [];
+            end
+            
+            if isempty(ImObj)
+                if isempty(Obj.ImObj)
+                    error('ImObj must be provided either as an argument or via the Coadd class properties');
+                else
+                    ImObj = Obj.ImObj;
+                end
             end
             
             if isempty(Args.CreateNewObj)
@@ -182,7 +190,7 @@ classdef Coadd < Component
             
             arguments
                 Obj(1,1) 
-                ImObj
+                ImObj                     = [];
                 Offset                    = [];   % AstroImage, cell of matrices, or array
                 Args.OpArgs cell          = {};
                 Args.DataProp char        = 'ImageData';
@@ -243,7 +251,7 @@ classdef Coadd < Component
             
             arguments
                 Obj(1,1) 
-                ImObj
+                ImObj                     = [];
                 Factor                    = [];   % AstroImage, cell of matrices, or array
                 Args.OpArgs cell          = {};
                 Args.DataProp char        = 'ImageData';
@@ -318,7 +326,7 @@ classdef Coadd < Component
             
             arguments
                 Obj(1,1)
-                ImObj AstroImage
+                ImObj                              = [];
                 Args.CCDSEC                        = [];
                 Args.FunCube                       = {@mean, @var};
                 Args.FunArgs cell                  = {{3,'omitnan'}, {[],3,'omitnan'}};
@@ -328,6 +336,14 @@ classdef Coadd < Component
                 Args.DimIndex                      = 3;
             end
            
+            if isempty(ImObj)
+                if isempty(Obj.ImObj)
+                    error('ImObj must be provided either as an argument or via the Coadd class properties');
+                else
+                    ImObj = Obj.ImObj;
+                end
+            end
+            
             % convert AstroImage to cubes
             [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DataProp',{Args.DataProp}, 'DimIndex',Args.DimIndex);
             
@@ -356,31 +372,161 @@ classdef Coadd < Component
             end
         end
         
-        function Result = stackCube(Obj, ImObj, Args)
-            % Combine images in an AstroImage object
-            %       Combine the ImageData, BackImage, and MaksImage
-            %       The VarImage is either combined or calculated.
+        function [Result, CoaddN] = coadd(Obj, ImObj, Args)
+            % Coadd images in AstroImage object including pre/post normalization
+            % Input  : -
+            % Output : -
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
             
+           
             arguments
-                Obj
-                ImObj
+                Obj(1,1)
+                ImObj                                       = [];
+                
+                Args.CCDSEC                                 = [];
+                Args.DataPropIn                             = 'Data';
+                
+                Args.Offset                                 = [];  % function_handle or []
+                Args.OffsetArgs                             = {};
+                
+                Args.PreNorm                                = [];
+                Args.PreNormArgs                            = {};
+                
+                Args.UseWeights(1,1) logical                = true;
+                Args.Weights                                = [];  % if empty use inverse variance
+                
                 Args.StackMethod                            = 'mean';
                 Args.StackArgs cell                         = {};
+                
+                Args.MaskStackMethod                        = 'bitor';
+                Args.MaskStackArgs cell                     = {};
+                
+                Args.CombineBack(1,1) logical               = true;
+                Args.CombineMask(1,1) logical               = true;
+                
                 Args.EmpiricalVarFun function_handle        = @var;
                 Args.EmpiricalVarFunArgs                    = {[],3,'omitnan'};
                 Args.VarCube                                = [];
                 Args.MedianVarCorrForEmpirical(1,1) logical = false;
                 Args.DivideEmpiricalByN(1,1) logical        = false;
-                Args.DivideVarByN(1,1) logical              = false;
-                Args.CalcCoaddVarEmpirical(1,1) logical     = true;
-                Args.CalcCoaddVar(1,1) logical              = true;
-                Args.CalcCoaddN(1,1) logical                = true;
+                
+                Args.PostNorm                               = [];   % function_handle or []
+                Args.PostNormArgs                           = {};
+                
+            end
+            DataProp                      = {'ImageData','BackData', 'VarData', 'MaskData'};
+            DimIndex                      = 3;
+            
+            if isempty(ImObj)
+                if isempty(Obj.ImObj)
+                    error('ImObj must be provided either as an argument or via the Coadd class properties');
+                else
+                    ImObj = Obj.ImObj;
+                end
             end
             
+            % allocate output
+            Result = AstroImage;
+            
+            Nim = numel(ImObj);
             
             
+            % create a cube for each dataset
+            [ImageCube, BackCube, VarCube, MaskCube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
+            
+            % subtract offset (only from image)
+            if ~isempty(Args.Offset)
+                if isa(Args.Offset,'function_handle')
+                    Args.Offset = Args.Offset(ImageCube, Args.OffsetArgs{:});
+                end
+                Noff = numel(Args.Offset);
+                if Noff~=1 && Noff~=Nim
+                    error('Number of offsets mnust be 1 or equal to number of images');
+                end
+                ImageCube = ImageCube - reshape(Args.Offset,[1 1 Noff]);
+            end
+            
+            % pre normalization (only from image and variance)
+            if ~isempty(Args.PreNorm)
+                if isa(Args.PreNorm,'function_handle')
+                    Args.PreNorm = Args.PreNorm(ImageCube, Args.PreNormArgs{:});
+               end
+                Nnorm = numel(Args.PreNorm);
+                if Nnorm~=1 && Nnorm~=Nim
+                    error('Number of pre normalizations mnust be 1 or equal to number of images');
+                end
+                PreNorm = reshape(1./Args.PreNorm,[1 1 Nnorm]);
+                ImageCube = ImageCube .* PreNorm;
+                VarCube   = VarCube   .* PreNorm.^2;
+            end
+            
+            % stack the images
+            if Args.UseWeights
+                %
+                if isempty(Args.Weights)
+                    % use inverse variance as weights
+                    Args.Weights = VarCube;
+                else
+                    Nw = nuem(Args.Weights);
+                    Args.Weights = reshape(Args.Weights, [1 1 Nw]);
+                end
+            else
+                Args.Weights = [];
+            end
+            [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.stackCube(ImageCube, 'StackMethod',Args.StackMethod,...
+                                                                                     'StackArgs',Args.StackArgs,...
+                                                                                     'EmpiricalVarFun',Args.EmpiricalVarFun,...
+                                                                                     'EmpiricalVarFunArgs',Args.EmpiricalVarFunArgs,...
+                                                                                     'VarCube',Args.Weights,...
+                                                                                     'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
+                                                                                     'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
+                                                                                     'DivideVarByN',false,...
+                                                                                     'CalcCoaddVarEmpirical',true,...
+                                                                                     'CalcCoaddVar',false,...
+                                                                                     'CalcCoaddN',true);
+                
+                
+            
+            if Args.CombineBack && ~isempty(BackCube)
+                [BackCoadd] = imUtil.image.stackCube(BackCube, 'StackMethod',Args.StackMethod,...
+                                                                                     'StackArgs',Args.StackArgs,...
+                                                                                     'VarCube',[],...
+                                                                                     'CalcCoaddVarEmpirical',false,...
+                                                                                     'CalcCoaddVar',false,...
+                                                                                     'CalcCoaddN',false);
+                 Result.BackData.(Args.DataPropIn)  = BackCoadd;                                                                
+            end
+            if Args.CombineMask && ~isempty(MaskCube)
+                [MaskCoadd] = imUtil.image.stackCube(MaskCube, 'StackMethod',Args.MaskStackMethod,...
+                                                                                     'StackArgs',Args.MaskStackArgs,...
+                                                                                     'VarCube',[],...
+                                                                                     'CalcCoaddVarEmpirical',false,...
+                                                                                     'CalcCoaddVar',false,...
+                                                                                     'CalcCoaddN',false);
+                Result.MaskData.(Args.DataPropIn)  = MaskCoadd;                                                                
+            end
+                                                                                 
+            % post normalization (image and variance)
+            if ~isempty(Args.PostNorm)
+                if isa(Args.PostNorm,'function_handle')
+                    Args.PostNorm = Args.PostNorm(Coadd, Args.PostNormArgs{:});
+               end
+                Nnorm = numel(Args.PostNorm);
+                if Nnorm~=1
+                    error('Number of post normalizations mnust be 1');
+                end
+                PostNorm          = 1./Args.PostNorm;
+                Coadd             = Coadd             .* PostNorm;
+                CoaddVarEmpirical = CoaddVarEmpirical .* PostNorm.^2;
+            end
+            
+            % store in AstroImage object
+            Result.ImageData.(Args.DataPropIn) = Coadd;
+            Result.VarData.(Args.DataPropIn)   = CoaddVarEmpirical;
             
         end
+        
         
     end
     
