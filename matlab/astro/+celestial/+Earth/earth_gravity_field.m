@@ -51,10 +51,10 @@ Lambda = Lambda.';
 
 switch lower(InPar.Model)
     case 'dgm-1s'
-        EGM = Util.IO.load2('EGM_DGM-1S.mat');
+        EGM = io.files.load2('EGM_DGM-1S.mat');
     case 'eigen-6c3stat'
         error('This model is not formatted correctly');
-        EGM = Util.IO.load2('EGM_EIGEN-6C3stat.mat');
+        EGM = io.files.load2('EGM_EIGEN-6C3stat.mat');
     otherwise
         error('Unknown Model option');
 end

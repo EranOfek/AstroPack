@@ -95,7 +95,7 @@ classdef ImageComponent < Component
             end % end if isempty...
             
             % @Chen: Automatically generate Uuid ??           
-            Obj.MapKey = Obj.needUuid();
+            %Obj.MapKey = Obj.needUuid();
         end % end ImageComponent
     end
     
