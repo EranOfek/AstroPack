@@ -636,7 +636,7 @@ classdef AstroImage < Component
             end
             for Iobj=1:1:Nobj
                 if nargout>0
-                    Result = Fun(Obj(Iobj).HeaderData, varargin{:});
+                    Result(Iobj) = Fun(Obj(Iobj).HeaderData, varargin{:});
                 else
                     Fun(Result(Iobj).HeaderData, varargin{:});
                 end

@@ -24,7 +24,7 @@ function Res=pixel_flat_response(Cube,varargin)
 %                   noise is Poisson. Default is 1.
 %            'ReadNoise' - Readnoise in electrons, used for the \chi^2
 %                   calculation. Default is 5.
-%            'MeanFun' - If 'Intensity' is not orovided, this is a function
+%            'MeanFun' - If 'Intensity' is not porovided, this is a function
 %                   handle that will operate on each image in the cube in
 %                   order to calculate its mean value.
 %                   Default is @nanmedian.
