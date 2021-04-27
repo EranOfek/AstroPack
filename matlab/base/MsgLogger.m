@@ -42,6 +42,16 @@ classdef MsgLogger < handle
                 return
             end
             
+            if Level == LogLevel.Error
+                Obj.msgStyle(Level, '@error', varargin{:});
+                return
+            end
+            
+            if Level == LogLevel.Warning
+                Obj.msgStyle(Level, '@warn', varargin{:});
+                return
+            end            
+            
             LevStr = getLevelStr(Obj, Level);
             fprintf('[%s] ', LevStr);
             fprintf(varargin{:});

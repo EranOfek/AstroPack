@@ -309,6 +309,8 @@ function [underlineFlag,boldFlag,style,debugFlag] = processStyleInfo(style)
           style = 'red';
       elseif strcmp(style, '@error')
           style = 'red';          
+      elseif strcmp(style, '@warn')
+          style = 'red';                    
       end
       
       

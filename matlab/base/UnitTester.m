@@ -199,7 +199,7 @@ classdef UnitTester < handle
                 Result = UnitTester.doUnitTest();
             catch
                 Result = false;
-                io.msgLog(LogLevel.Error, 'unitTest: Exception');
+                io.msgStyle(LogLevel.Error, '@error', 'unitTest: Exception');
             end
         end
         

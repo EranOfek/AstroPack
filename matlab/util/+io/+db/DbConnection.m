@@ -101,7 +101,7 @@ classdef DbConnection < Component
                 Obj.msgLog(LogLevel.Info, 'DbConnection.open: Url: %s', Obj.Url);
                 Obj.Conn = Obj.Driver.Driver.connect(Obj.Url, props);
                 Obj.IsOpen = true;
-                Obj.msgLog(LogLevel.Error, 'DbConnection.open: connect OK');
+                Obj.msgLog(LogLevel.Info, 'DbConnection.open: connect OK');
             catch
             end
 
