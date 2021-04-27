@@ -176,7 +176,7 @@ classdef DbConnection < Component
     % Unit test
     methods(Static)
         function Result = unitTest()
-            io.msgLog(LogLevel.Test, "DbConnection test started");
+            io.msgStyle(LogLevel.Test, '@start', 'DbConnection test started');
    
             % Open/close connection
             Conn = io.db.DbConnection;            
@@ -196,7 +196,7 @@ classdef DbConnection < Component
             assert(~Con2.IsOpen);
                         
             % Done            
-            io.msgLog(LogLevel.Test, "DbConnection test passed");
+            io.msgStyle(LogLevel.Test, '@passed', 'DbConnection test passed');
             Result = true;
         end
     end    

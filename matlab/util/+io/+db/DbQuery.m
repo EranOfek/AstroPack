@@ -13,16 +13,17 @@ classdef DbQuery < Component
         Conn = []
         
         % Current SQL statement data
-        SqlText = ''               % SQL text
-        Statement = []     % Prepared statement object
+        SqlText = ''        % SQL text
+        Statement = []      % Prepared statement object
         
-        ResultSet = []     % Returned result-set
-        Record = []        % Current record
+        ResultSet = []      % Returned result-set
+        Record = []         % Current record
         Metadata = []        
-        ColumnCount = 0
-        ColumnNames  = []
-        ColumnType  = []
-        IsOpen = false
+        ColumnCount = 0     %
+        ColumnNames  = []   %
+        ColumnType  = []    %
+        IsOpen = false      %
+        Eof = true          %
         
     end
     
@@ -97,6 +98,9 @@ classdef DbQuery < Component
             
             % Get metadata (@Todo: Make it Optional?)
             Obj.getMetadata();
+            
+            %
+            Obj.next();
         end
         
         
@@ -180,9 +184,10 @@ classdef DbQuery < Component
         
         function Result = next(Obj)
             Result = false;
+            Obj.Eof = true;
             try
-                Obj.ResultSet.next();
-                Result = true;
+                Obj.Eof = ~Obj.ResultSet.next();
+                Result = ~Obj.Eof;
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
             end                
@@ -191,9 +196,10 @@ classdef DbQuery < Component
         
         function Result = prev(Obj)
             Result = false;
+            Obj.Eof = true;
             try
-                Obj.ResultSet.previous();
-                Result = true;
+                Obj.Eof = ~Obj.ResultSet.previous();
+                Result = ~Obj.Eof;
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
             end                
@@ -292,16 +298,16 @@ classdef DbQuery < Component
         
         
         function Result = getRecord(Obj)
-            % STILL HAVE BUGS
-            
             % Get current record from ResultSet as DbRecord
             
-            Rec = io.db.DbRecord;
+            % Create new record object
+            Rec = io.db.DbRecord(Obj);
             
             % Loop over all columns in the row
             for ColIndex = 1 : Obj.ColumnCount
+                
                 FieldName = Obj.ColumnNames{ColIndex};
-                Value = Obj.getField(ColIndex);
+                Value = Obj.getField(ColIndex);                           
                 addprop(Rec, FieldName);
                 Rec.(FieldName) = Value;
             end
@@ -338,6 +344,7 @@ classdef DbQuery < Component
         
         function Result = loadAll(Obj)
             % Load entire ResultSet to memory, might be time/memory consuming!
+            % @Todo?: add arg max row
             
             % Initialize
             Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColumnCount);
@@ -345,15 +352,19 @@ classdef DbQuery < Component
             
             % Loop over all ResultSet rows (records)
             RowIndex = 1;
-            while Obj.ResultSet.next()
+            while ~Obj.Eof
                 
                 % Loop over all columns in the row
                 for ColIndex = 1 : Obj.ColumnCount
                     Value = Obj.getField(ColIndex);
                     Result{RowIndex, ColIndex} = Value;
                 end
-    
-                RowIndex = RowIndex + 1;
+                
+                if ~Obj.next()
+                    break
+                end
+                
+                RowIndex = RowIndex + 1;                
             end         
             
             Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, RowCount = %d', RowIndex);
@@ -369,7 +380,7 @@ classdef DbQuery < Component
     % Unit test
     methods(Static)
         function Result = unitTest()
-            io.msgLog(LogLevel.Test, "DbQuery test started")
+            io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
    
             TableName = 'raw_images';
             
@@ -379,11 +390,15 @@ classdef DbQuery < Component
             
             % Select two fields from table
             Q = io.db.DbQuery(Conn);
-            Q.open(['select imageid, ra_center from ', TableName, ' limit 10']);
+            Q.open(['select imageid, ra_center from ', TableName, ' limit 5']);
             assert(Q.ColumnCount == 2);
             
-            %B = Q.loadAll();
-            %Rec = Q.getRecord();
+            Rec = Q.getRecord();
+            B = Q.loadAll();
+            
+            
+            
+            
             %assert(Rec.ColumnCount > 0);            
             
             % Load entire result set to memory
@@ -405,7 +420,7 @@ classdef DbQuery < Component
             % Test: Query tables         
             
  
-            io.msgLog(LogLevel.Test, "DbQuery test passed")
+            io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
             Result = true;
         end
     end    

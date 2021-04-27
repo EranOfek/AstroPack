@@ -164,7 +164,7 @@ classdef DbDriver < Component
     % Unit test
     methods(Static)
         function Result = unitTest()
-            io.msgLog(LogLevel.Test, "DbDriver test started\n");
+            io.msgStyle(LogLevel.Test, '@start', 'DbDriver test started\n');
                
             % Test: Open/close driver
             Driver = io.db.DbDriver;
@@ -184,7 +184,7 @@ classdef DbDriver < Component
             assert(~Drv2.IsOpen);
             
             % Done
-            io.msgLog(LogLevel.Test, "DbDriver test passed")
+            io.msgStyle(LogLevel.Test, '@passed', 'DbDriver test passed')
             Result = true;
         end
     end    

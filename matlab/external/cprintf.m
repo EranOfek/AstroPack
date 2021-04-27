@@ -299,6 +299,19 @@ function [underlineFlag,boldFlag,style,debugFlag] = processStyleInfo(style)
 
   % First, strip out the underline/bold markers
   if ischar(style)
+      
+      % @Chen - Special attributes
+      if strcmp(style, '@start')
+          style = 'blue';
+      elseif strcmp(style, '@passed')
+          style = 'green';
+      elseif strcmp(style, '@failed')
+          style = 'red';
+      elseif strcmp(style, '@error')
+          style = 'red';          
+      end
+      
+      
       % Styles containing '-' or '_' should be underlined (using a no-target hyperlink hack)
       %if style(1)=='-'
       underlineIdx = (style=='-') | (style=='_');
@@ -380,6 +393,7 @@ function [underlineFlag,boldFlag,style,debugFlag] = processStyleInfo(style)
 
       % Color name
       elseif matches < length(validStyles)
+          %        'Black','Cyan','Magenta','Blue','Green','Red','Yellow','White', ...
           colors = [0,0,0; 0,1,1; 1,0,1; 0,0,1; 0,1,0; 1,0,0; 1,1,0; 1,1,1];
           requestedColor = colors(matches-length(matlabStyles),:);
           style = getColorStyle(requestedColor);
