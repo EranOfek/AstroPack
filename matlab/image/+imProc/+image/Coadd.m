@@ -374,24 +374,105 @@ classdef Coadd < Component
         
         function [Result, CoaddN] = coadd(Obj, ImObj, Args)
             % Coadd images in AstroImage object including pre/post normalization
-            % Input  : -
-            % Output : -
+            % Input  : - A Coadd object.
+            %          - An AstroImage object.
+            %          * ...,key,val,...
+            %            'CCDSEC' - CCDSEC on which to operate:
+            %                   [Xmin, Xmax, Ymin, Ymax].
+            %                   Use [] for the entire image.
+            %                   If not [], then DataPropIn/Out will be
+            %                   modified to 'Image'.
+            %            'DataPropIn' - The data property that contains the
+            %                   the data in the ImageComponent.
+            %                   Default is 'Data'.
+            %            'Offset' - Either a function handle, a vector, or
+            %                   empty. If function handle, then will applay
+            %                   it to the ImageData to calculate an offset
+            %                   per image. This offset will be subtracted
+            %                   from each image. If vector, then this is a
+            %                   offset value per image. If empty, do not
+            %                   apply offset. Default is [].
+            %            'OffsetArgs' - A cell array of additional
+            %                   arguments to pass to the offset function.
+            %                   Default is {}.
+            %            'PreNorm' - Like offset, but for the
+            %                   pre-normalization for the images. The
+            %                   pre-normalization is done after the offset.
+            %                   Default is [].
+            %            'PreNormArgs' - A cell array of additional
+            %                   arguments to pass to the pre-normalization function.
+            %                   Default is {}.
+            %            'UseWeights' - A logical indicating if to applay
+            %                   weights. Default is true.
+            %            'Weights' - A vector of variances (one per image).
+            %                   If empty, then will attempt to use the
+            %                   VarImage.Image in the AstroImage.
+            %                   Default is [].
+            %            'StackMethod' - - Stacking method. Options are:
+            %                   'sum'
+            %                   ['mean']
+            %                   'median'
+            %                   'var'
+            %                   'rvar'
+            %                   'min'
+            %                   'max'
+            %                   'range'
+            %                   'quantile' - rquires a quqntile argument.
+            %                   'wmean' 
+            %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
+            %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
+            %                   'bitor' - bit-wise or operation. Return only Coadd.
+            %                   'bitand' - bit-wise and operation. Return only Coadd.
+            %                   'bitnot' - bit-wise not operation. Return only Coadd.
+            %              'StackArgs' - A cell array of arguments to pass to the
+            %                   method function. Default is {}.
+            %              'MaskStackMethod' - Like 'StackMethod', but for the
+            %                   coaddition of the Mask. Default is 'bitor'.
+            %              'MaskStackArgs' - A cell array of arguments to pass to the
+            %                   mask method function. Default is {}.
+            %              'CombineBack' - A logical indicating if to
+            %                   combine the background image (using the
+            %                   StackMethod). Default is true.
+            %              'CombineMask' - A logical indicating if to
+            %                   combine the mask image. Default is true.
+            %              '
+            %              'EmpiricalVarFun' - Default is @var.
+            %              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
+            %              'MedianVarCorrForEmpirical' - A logical indicating if to
+            %                   correct the variance calculation by the ratio between
+            %                   the variance of the median and variance of the mean.
+            %                   Default is false.
+            %              'DivideEmpiricalByN' - A logical indicating if to divide
+            %                   CoaddVarEmpirical by N. Default is false.
+            %              'PostNorm' - Like offset, but for the
+            %                   post-normalization for the images (a scalar). The
+            %                   post-normalization is done after the stacking.
+            %                   Default is [].
+            %              'PostNormArgs' - A cell array of additional
+            %                   arguments to pass to the post-normalization function.
+            %                   Default is {}.
+            % Output : - An AstroImage with the coadded image, includinf
+            %            the coadded background and mask. The VarData is always
+            %            including the empirical variance.
+            %          - A matrix in which each pixel give the number of
+            %            images on which the coaddition was based.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
-            
+            %          C = imProc.image.Coadd;
+            %          [Result, CoaddN] = C.coadd(AI);
            
             arguments
                 Obj(1,1)
                 ImObj                                       = [];
                 
                 Args.CCDSEC                                 = [];
-                Args.DataPropIn                             = 'Data';
+                Args.DataPropIn char                        = 'Data';
                 
-                Args.Offset                                 = [];  % function_handle or []
-                Args.OffsetArgs                             = {};
+                Args.Offset                                 = [];  % function_handle, vector, or []
+                Args.OffsetArgs cell                        = {};
                 
                 Args.PreNorm                                = [];
-                Args.PreNormArgs                            = {};
+                Args.PreNormArgs cell                       = {};
                 
                 Args.UseWeights(1,1) logical                = true;
                 Args.Weights                                = [];  % if empty use inverse variance
@@ -407,12 +488,11 @@ classdef Coadd < Component
                 
                 Args.EmpiricalVarFun function_handle        = @var;
                 Args.EmpiricalVarFunArgs                    = {[],3,'omitnan'};
-                Args.VarCube                                = [];
                 Args.MedianVarCorrForEmpirical(1,1) logical = false;
                 Args.DivideEmpiricalByN(1,1) logical        = false;
                 
                 Args.PostNorm                               = [];   % function_handle or []
-                Args.PostNormArgs                           = {};
+                Args.PostNormArgs cell                      = {};
                 
             end
             DataProp                      = {'ImageData','BackData', 'VarData', 'MaskData'};
