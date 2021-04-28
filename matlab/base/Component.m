@@ -8,11 +8,11 @@ classdef Component < Base
     
     % Properties
     properties (SetAccess = public)
-        Name                    % Name string
-        Owner                   % Indicates the component that is responsible for streaming and freeing this component
-        Uuid                    % Global unique ID, generated with java.util.UUID.randomUUID()
-        Tag                     % Optional tag (i.e. for events handling)
-        MapKey                  % Used with ComponentMap class
+        Name = []               % Name string
+        Owner = []              % Indicates the component that is responsible for streaming and freeing this component
+        Uuid = []               % Global unique ID, generated with java.util.UUID.randomUUID()
+        Tag = []                % Optional tag (i.e. for events handling)
+        MapKey = []             % Used with ComponentMap class
         Config Configuration    % Configuration, deafult is system configuration
         Log MsgLogger           % Logger, default is system logger
     end
@@ -32,39 +32,60 @@ classdef Component < Base
         
         function Result = makeUuid(Obj)
             % Generate unique ID
-            Temp = java.util.UUID.randomUUID;
-            Obj.Uuid = string(Temp.toString()).char;
-            Result = Obj.Uuid;
+            for i = 1:numel(Obj)
+                Temp = java.util.UUID.randomUUID;
+                Obj(i).Uuid = string(Temp.toString()).char;
+            end
+            
+            if numel(Obj) == 1
+                Result = Obj.Uuid;
+            else
+                Result = [];
+            end
         end
         
         
         function Result = needUuid(Obj)
             % Generate unique ID
-            if isempty(Obj.Uuid)
-                Obj.makeUuid();
+            for i = 1:numel(Obj)            
+                if isempty(Obj(i).Uuid)
+                    Obj(i).makeUuid();
+                end
             end
-            Result = Obj.Uuid;
+            
+            if numel(Obj) == 1
+                Result = Obj.Uuid;                
+            else
+                Result = [];
+            end
         end
         
         
         function Result = needMapKey(Obj)
             % If empty, generate map key as uuid
-            if isempty(Obj.MapKey)
-                Obj.MapKey = Obj.needUuid();
+            for i = 1:numel(Obj)
+                if isempty(Obj(i).MapKey)
+                    Obj(i).MapKey = Obj(i).needUuid();
+                end
             end
-            Result = Obj.MapKey;
+            
+            if numel(Obj) == 1
+                Result = Obj.MapKey;
+            else
+                Result = [];
+            end
         end        
 
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
-            Obj.Log.msgLog(Level, varargin{:});
+            Obj(1).Log.msgLog(Level, varargin{:});
         end
         
 
         function msgStyle(Obj, Level, Style, varargin)  
             % Write message to log
-            Obj.Log.msgStyle(Level, Style, varargin{:});
+            Obj(1).Log.msgStyle(Level, Style, varargin{:});
         end        
     end
     
@@ -203,9 +224,16 @@ classdef Component < Base
             b.needMapKey();
             assert(~all(a.MapKey ~= b.MapKey));            
            
-            io.msgLog(LogLevel.Test, 'Component test passed');   
-                       
+            c(1) = Component;
+            c(2) = Component;
+            c.msgLog(LogLevel.Test, 'Msg');
+            u = c.needUuid();
+            disp(u);
+            k = c.needMapKey();
+            disp(k);
             
+            io.msgStyle(LogLevel.Test, '@passed', 'Component test passed');   
+                       
             Result = true;
         end
     end    
