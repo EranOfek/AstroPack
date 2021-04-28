@@ -243,19 +243,70 @@ classdef Dark < Component
             
         end
         
-        function Bias = bias(DarkObj, Images, Args)
+        function Bias = bias(Obj, ImObj, Args)
             %
             
             arguments
-                DarkObj
-                Images AstroImage
-                Args.StackMethod              
-                Args.StackArgs
+                Obj
+                ImObj AstroImage
+                Args.IsBias                     = true;  % if empty - call isBias
+                Args.IsBiasArgs cell            = {};
+                Args.StackMethod                = 'sigmaclip';   
+                Args.StackArgs                  = {'MeanFun',@nanmean, 'StdFun','rstd', 'Nsigma',[5 5], 'MaxIter',3};
+                Args.EmpiricalVarFun            = @var;
+                Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
+                Args.DivideEmpiricalByN         = false;
+                
                 Args.StackVarMethod
                 Args.StackVarArgs
             end
             
+            Nim = numel(ImObj);
+            if isempty(Args.IsBias)
+                IsBias = Obj.isBias(ImObj, Args.IsBiasArgs{:});
+            else
+                IsBias = Args.IsBias;
+                if numel(IsBias)==1 && Nim>1
+                    if IsBias
+                        IsBias = true(Nim,1);
+                    else
+                        IsBias = false(Nim,1);
+                    end
+                end
+            end
+
+            % validate individual bias images
             
+            C = imProc.image.Coadd;
+            [Result, CoaddN, ImageCube] = C.coadd(ImObj, 'CCDSEC',[],...
+                                              'Offset',[],...
+                                              'PreNorm',[],...
+                                              'UseWeighs',false,...
+                                              'StackMethod',Args.StackMethod,...
+                                              'StackArgs',Args.StackArgs,...
+                                              'CombineBack',false,...
+                                              'CombineMask',true,...
+                                              'EmpiricalVarFun',Args.EmpiricalVarFun,...
+                                              'EmpiricalVarFunArgs',Args.EmpiricalVarFunArgs,...
+                                              'MedianVarCorrForEmpirical',false,...
+                                              'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
+                                              'PostNorm',[]);
+                                          
+             % Prepare Mask image
+             % mask LowRN
+             
+             % mask HighRN
+             
+             % mask DarkHighVal
+             
+             % mask DarkLowVal
+             
+             % mask BiasFlaring
+             
+                                          
+                                          
+                                          
+                
         end
         
         function Dark = dark(DarkObj, Images, Args)

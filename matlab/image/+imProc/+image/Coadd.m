@@ -372,7 +372,7 @@ classdef Coadd < Component
             end
         end
         
-        function [Result, CoaddN] = coadd(Obj, ImObj, Args)
+        function [Result, CoaddN, ImageCube] = coadd(Obj, ImObj, Args)
             % Coadd images in AstroImage object including pre/post normalization
             % Input  : - A Coadd object.
             %          - An AstroImage object.
@@ -456,6 +456,7 @@ classdef Coadd < Component
             %            including the empirical variance.
             %          - A matrix in which each pixel give the number of
             %            images on which the coaddition was based.
+            %          - The cube of images
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
             %          C = imProc.image.Coadd;
