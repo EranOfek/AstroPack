@@ -108,9 +108,9 @@ if isempty(InPar.Intensity)
     % estimate the intensity expectation from the images mean
     H = squeeze(InPar.MeanFun(Cube,InPar.MeanFunPar{:}));  
 else
+    InPar.Intensity = InPar.Intensity(:);
     H = InPar.Intensity;
 end
-
 
 
 
@@ -118,7 +118,6 @@ end
 SizeCube = size(Cube);
 
 Y = reshape(Cube,SizeCube(1).*SizeCube(2),SizeCube(3)).';
-
 
 % null hypothesis model - linear relation without offset
 % 'x'

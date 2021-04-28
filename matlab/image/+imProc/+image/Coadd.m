@@ -688,7 +688,11 @@ classdef Coadd < Component
             %                       number of degrees of freedom.
             %                       small or 0 where the model is prefered over H0.
             % Author : Eran Ofek (Apr 2021)
-            % Example: 
+            % Example: AI = AstroImage({ones(3,3), 2.*ones(3,3), 10.*ones(3,3), 11.*ones(3,3), 13.*ones(3,3)});
+            %          C  = imProc.image.Coadd;
+            %          Result = C.functionalResponse(AI);
+            %          Result = C.functionalResponse(AI, 'Intensity',[1 2 10 11 13])
+            
             
             arguments
                 Obj(1,1)
@@ -699,7 +703,7 @@ classdef Coadd < Component
                 Args.Gain                          = 1;   % if char array then this is a header keyword name
                 Args.ReadNoise                     = 5;   % if char array then this is a header keyword name
                 Args.MeanFun function_handle       = @nanmedian
-                Args.MeanFunPar cell               = {};
+                Args.MeanFunPar cell               = {[1 2]};
                 Args.Intensity                     = [];  % if char array then this is a header keyword name (e.g., 'EXPTIME')
                 Args.Model cell                    = {'c+x','c+x+x^2','x+x^2'};
             end
@@ -719,20 +723,20 @@ classdef Coadd < Component
             Nim = numel(ImObj);
             
             % create a cube for each dataset
-            [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
+            [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn);
             
             % obtain Gain from header
-            if ischar(Args.Gain) || iscellstring(Args.Gain)
+            if ischar(Args.Gain) || iscellstr(Args.Gain)
                 Args.Gain = funHeader(ImObj, @getVal, Args.Gain);
             end
             
             % obtain readnoise from header
-            if ischar(Args.ReadNoise) || iscellstring(Args.ReadNoise)
+            if ischar(Args.ReadNoise) || iscellstr(Args.ReadNoise)
                 Args.ReadNoise = funHeader(ImObj, @getVal, Args.ReadNoise);
             end
             
             % obtain Intensity from header (e.g., EXPTIME)
-            if ischar(Args.Intensity) || iscellstring(Args.Intensity)
+            if ischar(Args.Intensity) || iscellstr(Args.Intensity)
                 Args.Intensity = funHeader(ImObj, @getVal, Args.Intensity);
             end
             
@@ -793,6 +797,13 @@ classdef Coadd < Component
             AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
             C = imProc.image.Coadd;
             [Result, CoaddN] = C.coadd(AI);
+            
+            % functionalResponse
+            AI = AstroImage({ones(3,3), 2.*ones(3,3), 10.*ones(3,3), 11.*ones(3,3), 13.*ones(3,3)});
+            C  = imProc.image.Coadd;
+            Result = C.functionalResponse(AI);
+            Result = C.functionalResponse(AI, 'Intensity',[1 2 10 11 13])
+            
             
             Result = true;
                      
