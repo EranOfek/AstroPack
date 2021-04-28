@@ -61,7 +61,12 @@ classdef UnitTester < handle
             
             Result = Obj.testCore();
             
-            SourcePath = 'D:\Ultrasat\AstroPack.git\matlab\';
+            % @Todo: Fix path
+            if tools.os.iswindows()
+                SourcePath = 'D:\Ultrasat\AstroPack.git\matlab\';
+            else
+                SourcePath = 'D:\Ultrasat\AstroPack.git\matlab\';
+            end
             
             Result = Obj.runFolder(SourcePath);
         end
@@ -223,8 +228,12 @@ classdef UnitTester < handle
                 % unitTest() function found
                 if haveUnitTest
                     % Call unitTest
-                    [MyPath, ~, ~] = fileparts(FileName);            
-                    MyPath = [MyPath, '\'];
+                    [MyPath, ~, ~] = fileparts(FileName);
+                    if tools.os.iswindows()
+                        MyPath = [MyPath, '\'];
+                    else
+                        MyPath = [MyPath, '/'];
+                    end
                     
                     ClassName = strrep(FileName, '.m', '');
                     ClassName = strrep(ClassName, MyPath, '');

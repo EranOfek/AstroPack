@@ -1,8 +1,4 @@
-% @Chen
 
-% Configuration base Class
-% Package: 
-% Description:
 %--------------------------------------------------------------------------
 
 
