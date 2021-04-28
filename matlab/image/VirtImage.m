@@ -14,6 +14,7 @@ classdef VirtImage < Component
     methods
         % Constructor    
         function Obj = VirtImage()
+			% @Todo: should we take care of VirtImage array?
             Obj.needUuid();
             Obj.Manager = VirtImageManager.getSingleton();            
             Obj.Manager.add(Obj);
