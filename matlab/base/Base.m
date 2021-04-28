@@ -61,12 +61,12 @@ classdef Base < handle
                 if isprop(Obj, 'Uuid')
                     
                     % Generate new uuid
-                    if ~isempty(Obj.Uuid)
+                    if ~isempty(Obj(1).Uuid)
                         NewObj.makeUuid();                        
                     end
                     
                     % Set MapKey
-                    if ~isempty(Obj.MapKey)
+                    if ~isempty(Obj(1).MapKey)
                         NewObj.MapKey = NewObj.Uuid;
                     end
                 end

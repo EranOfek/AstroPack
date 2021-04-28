@@ -321,7 +321,7 @@ classdef Coadd < Component
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({rand(10,10), rand(10,10), rand(10,10)});
             %          C = imProc.image.Coadd;
-            %          [Cube1, Cube2] = funCube(AI);
+            %          [Cube1, Cube2] = C.funCube(AI);
             %          [CAI] = C.funCube(AI,'SaveInProp',{'ImageData','VarData'});
             
             arguments
@@ -790,7 +790,7 @@ classdef Coadd < Component
             % funCube
             AI = AstroImage({rand(10,10), rand(10,10), rand(10,10)});
             C = imProc.image.Coadd;
-            [Cube1, Cube2] = funCube(AI);
+            [Cube1, Cube2] = C.funCube(AI);
             [CAI] = C.funCube(AI,'SaveInProp',{'ImageData','VarData'});
 
             % coadd

@@ -61,7 +61,7 @@ classdef UnitTester < handle
             
             Result = Obj.testCore();
             
-            SourcePath = 'D:\Ultrasat\AstroPack.git\matlab\';
+            SourcePath = '/home/eran/matlab/AstroPack/matlab/';  %'D:\Ultrasat\AstroPack.git\matlab\';
             
             Result = Obj.runFolder(SourcePath);
         end
@@ -224,7 +224,7 @@ classdef UnitTester < handle
                 if haveUnitTest
                     % Call unitTest
                     [MyPath, ~, ~] = fileparts(FileName);            
-                    MyPath = [MyPath, '\'];
+                    MyPath = [MyPath, '/'];
                     
                     ClassName = strrep(FileName, '.m', '');
                     ClassName = strrep(ClassName, MyPath, '');
