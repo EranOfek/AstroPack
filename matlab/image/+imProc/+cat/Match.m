@@ -352,6 +352,19 @@ classdef Match < Component
             %            'Radius'  - Search radius. Default is 5.
             %            'RadiusUnits' - Search radius units (if spherical
             %                   coordinates search). Default is 'arcsec'.
+            %            'AddIndInRef' - A logical indicating if to add a
+            %                   column to  Obj1 that include the index of
+            %                   the source in the reference catalog (Obj2).
+            %                   Default is true.
+            %            'IndInRefColName' - The column name of the Index
+            %                   in reference. Default is 'IndInRef'.
+            %            'IndInRefColPos' - Position of the IndInRef column
+            %                   name to add to Obj1. Default is Inf (i.e.,
+            %                   last column).
+            %            'DeleteExistIndInRef' - A logical indicating if to
+            %                   delete existing IndRefColName, before
+            %                   inserting the new column.
+            %                   Default is true.
             %            'AddDistCol' - Add column distance to outout
             %                   catalog. Default is true.
             %            'DistUnits' - Distance units. Default is 'arcsec'.
@@ -389,13 +402,17 @@ classdef Match < Component
                 Obj2
                 Args.Radius                      = 5;
                 Args.RadiusUnits                 = 'arcsec';
-                Args.AddDistCol                  = true;
+                Args.AddIndInRef(1,1) logical    = true;
+                Args.IndInRefColName char        = 'IndInRef';
+                Args.IndInRefColPos              = Inf;
+                Args.DeleteExistIndInRef         = true;
+                Args.AddDistCol(1,1) logical     = true;
                 Args.DistUnits                   = 'arcsec';
-                Args.DistColName                 = 'Dist';
+                Args.DistColName char            = 'Dist';
                 Args.DistColPos                  = Inf;
-                Args.AddNmatchCol                = true;
+                Args.AddNmatchCol(1,1) logical   = true;
                 Args.NmatchColPos                = Inf;
-                Args.NmatchColName               = 'Nmatch';
+                Args.NmatchColName char          = 'Nmatch';
             end
                     
             % use object default arguments if not supplied by user
@@ -466,47 +483,64 @@ classdef Match < Component
                 end   
                 % match
                 
-                [IndTable, CatFlagNearest, CatFlagAll] = VO.search.search_sortedlat_multiNearest(Coo1,...
+                [IndTable, CatFlagNearest, CatFlagAll, IndInRef] = VO.search.search_sortedlat_multiNearest(Coo1,...
                                                             Coo2(:,1), Coo2(:,2), RadiusRad, DistFun);
 
-                % select nearest from each Ind
-                %Result1(Imax).Catalog = Obj1(Iobj1).Catalog ...
-                FlagNN = ~isnan(IndTable(:,1));
-                [Nrow2,Ncol2]   = size(Obj2(Iobj2).Catalog);
-                [Nrow1,Ncol1]   = size(Obj1(Iobj1).Catalog);
-                MatchedObj(Imax).Catalog = nan(Nrow2,Ncol1);
-                MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
-
-                % copy the common properties from Obj2
-                copyProp(Obj1(Iobj1), MatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
-
-                % add Dist column:
-                if Args.AddDistCol
-                    if ConvertDist
-                        Dist = convert.angular('rad', Args.DistUnits, IndTable(:,2));
-                        DistUnits = Args.DistUnits;
-                    else
-                        Dist = IndTable(:,2);
-                        DistUnits = '';
+                % Columns of IndTable:
+                % 1. Index of nearest source, within search radius, in Cat;
+                % 2. Distance;
+                % 3. Total number of matches within radius.
+                
+                % add a column to the Cat (Obj1) with the index of the
+                % source in the Ref (Obj2)
+                if Args.AddIndInRef
+                    if isColumn(Obj1(Iobj1), Args.IndInRefColName) && Args.DeleteExistIndInRef
+                        % the IndInRef column already exist
+                        deleteCol(Obj1(Iobj1), Args.IndInRefColName);
                     end
-                    insertCol(MatchedObj(Imax), Dist, Args.DistColPos , Args.DistColName, {DistUnits});
+                        
+                    insertCol(Obj1(Iobj1), IndInRef, Args.IndInRefColPos , Args.IndInRefColName, {''});
                 end
                 
-                if Args.AddNmatchCol
-                    insertCol(MatchedObj(Imax), IndTable(:,3), Args.NmatchColPos , Args.NmatchColName, {''});
-                end
-                
-                % UnMatchedObj
-                if nargout>1
-                    UnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagNearest,:);
-                    UnMatchedObj(Imax) = copyProp(Obj1(Iobj2), UnMatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+                if nargout>0
+                    % select nearest from each Ind
+                    %Result1(Imax).Catalog = Obj1(Iobj1).Catalog ...
+                    FlagNN = ~isnan(IndTable(:,1));
+                    [Nrow2,Ncol2]   = size(Obj2(Iobj2).Catalog);
+                    [Nrow1,Ncol1]   = size(Obj1(Iobj1).Catalog);
+                    MatchedObj(Imax).Catalog = nan(Nrow2,Ncol1);
+                    MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
 
-                    if nargout>2
-                        TruelyUnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagAll,:);
-                        TruelyUnMatchedObj(Imax) = copyProp(Obj1(Iobj2), TruelyUnMatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+                    % copy the common properties from Obj2
+                    copyProp(Obj1(Iobj1), MatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+
+                    % add Dist column:
+                    if Args.AddDistCol
+                        if ConvertDist
+                            Dist = convert.angular('rad', Args.DistUnits, IndTable(:,2));
+                            DistUnits = Args.DistUnits;
+                        else
+                            Dist = IndTable(:,2);
+                            DistUnits = '';
+                        end
+                        insertCol(MatchedObj(Imax), Dist, Args.DistColPos , Args.DistColName, {DistUnits});
+                    end
+
+                    if Args.AddNmatchCol
+                        insertCol(MatchedObj(Imax), IndTable(:,3), Args.NmatchColPos , Args.NmatchColName, {''});
+                    end
+
+                    % UnMatchedObj
+                    if nargout>1
+                        UnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagNearest,:);
+                        UnMatchedObj(Imax) = copyProp(Obj1(Iobj2), UnMatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+
+                        if nargout>2
+                            TruelyUnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagAll,:);
+                            TruelyUnMatchedObj(Imax) = copyProp(Obj1(Iobj2), TruelyUnMatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+                        end
                     end
                 end
-                      
             end
             
         end

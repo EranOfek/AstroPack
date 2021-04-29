@@ -1,4 +1,4 @@
-function [IndTable,CatFlagNearest,CatFlagAll]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun)
+function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun)
 % Search a single long/lat in a catalog sorted by latitude
 % Package: VO.search
 % Description: A low level function for a single cone search
@@ -19,6 +19,8 @@ function [IndTable,CatFlagNearest,CatFlagAll]=search_sortedlat_multiNearest(Cat,
 %            Long, Lat.
 %          - The same as the previous output, but for all the sources
 %            within the search radius.
+%          - A vector of the indices of the sources in the ref image. NaN
+%            if the source is not apperas in the ref image.
 %     By : Eran O. Ofek                    Feb 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: Cat=sortrows(rand(10000,2),2);
@@ -79,4 +81,18 @@ for I=1:1:Nlat
         
     end
     
+end
+
+
+if nargout>3
+    IndRef = (1:1:Nlat).';
+    NewIndTable = IndTable(:,1);
+
+    FlagNN = ~isnan(NewIndTable);
+    IndRef = IndRef(FlagNN);
+    NewIndTable = NewIndTable(FlagNN);
+
+    IndInRef = nan(Ncat,1);
+
+    IndInRef(NewIndTable) = IndRef;
 end
