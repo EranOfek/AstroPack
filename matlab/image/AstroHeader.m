@@ -96,7 +96,8 @@ classdef AstroHeader < Component
                 Obj(Ih).KeyDict     = Dictionary('DictName','Header.Synonyms.KeyNames');
                 Obj(Ih).ValDict     = Dictionary('DictName','Header.Synonyms.KeyVal.IMTYPE');
                 Obj(Ih).CommentDict = Dictionary('DictName','Header.Comments.Default');
-                % FFU:  Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
+                %Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
+                %Obj(Ih).TimeDict    = string2funHandle(Obj(Ih).TimeDict);
             end
                
         end

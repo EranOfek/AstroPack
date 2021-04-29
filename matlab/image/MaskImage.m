@@ -246,7 +246,9 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
 
     methods % Unit-Test
         function Result = unitTest()
-            Astro = AstroImage;
+            M = MaskImage;
+            
+            M = MaskImage({uint32(zeros(3,3))});
             Result = true;
         end
     end

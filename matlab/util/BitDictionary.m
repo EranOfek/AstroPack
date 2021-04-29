@@ -5,9 +5,9 @@
 % Author: Eran Ofek (March 2021)
 % Example: BD=BitDictionary; D.unitTest
 
-classdef BitDictionary < handle
+classdef BitDictionary < Component
     properties
-        Name char            = '';   % BitDictionary name - e.g., 'HeaderKeySynonyms'
+        BitDictName char     = '';   % BitDictionary name - e.g., 'HeaderKeySynonyms'
         Dic table            = table();    % Name, Description, BitInd
     end
     properties (SetAccess=private)
@@ -87,10 +87,6 @@ classdef BitDictionary < handle
             
         end
         
-        function set.Name(Obj,DicName)
-            % setter for bit dictionary name - will load new dic if exist
-            % FFU
-        end
     end
     
     methods % load/save

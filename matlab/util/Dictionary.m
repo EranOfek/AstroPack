@@ -194,6 +194,26 @@ classdef Dictionary < Component
             end
         end
         
+        function Obj = string2funHandle(Obj)
+            % convert dictionary items that start with '@' to a function
+            % handle
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                FN  = fieldnames(Obj(Iobj).Dict);
+                Nfn = numel(FN);
+                for Ifn=1:1:Nfn
+                    Cell  = Obj(Iobj).Dict.(FN{Ifn});
+                    Ncell = numel(Cell);
+                    for Icell=1:1:Ncell
+                        if strcmp(Cell{Icell},'@')
+                            Obj(Iobj).Dict.(FN{Ifn}){Icell} = str2func(Cell{Icell});
+                        end
+                    end
+                end
+            end
+        end
+        
     end
     
     methods % unitTest
