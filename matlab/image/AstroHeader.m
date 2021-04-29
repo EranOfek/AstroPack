@@ -20,7 +20,7 @@ classdef AstroHeader < Component
         TimeDict Dictionary       % Initialization is done in constructor
     end
     properties (Hidden, SetAccess=private)
-        IsKeyUpToDate(1,1) logical    = true;
+        IsKeyUpToDate(1,1) logical    = true; % this is used by get.Key in order to avoid reformatting the cell array into a structure everytime.
     end
     
     properties (Constant, Hidden)
