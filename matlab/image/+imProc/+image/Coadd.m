@@ -451,6 +451,17 @@ classdef Coadd < Component
             %              'PostNormArgs' - A cell array of additional
             %                   arguments to pass to the post-normalization function.
             %                   Default is {}.
+            %              'HeaderCopy1' - A logical indicating if to copy
+            %                   the header from the 1st coadd image.
+            %                   Default is true.
+            %              'NewHeader' - An header to add to the coadd
+            %                   image header. This can be a 3 column cell
+            %                   array, an AstroHeader or AstroImage. If
+            %                   empty do nothing. Default is [].
+            %              'UpdateTimes' - A logical indicatin if to add
+            %                   keywords regarding the number of coadded
+            %                   images and update the EXPTIME and MIDJD.
+            %                   Default is true.
             % Output : - An AstroImage with the coadded image, includinf
             %            the coadded background and mask. The VarData is always
             %            including the empirical variance.
