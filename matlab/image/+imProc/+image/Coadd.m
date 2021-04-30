@@ -495,6 +495,10 @@ classdef Coadd < Component
                 Args.PostNorm                               = [];   % function_handle or []
                 Args.PostNormArgs cell                      = {};
                 
+                Args.HeaderCopy1(1,1) logical               = true;
+                Args.NewHeader                              = [];
+                Args.UpdateTimes(1,1) logical               = true;
+                
             end
             DataProp                      = {'ImageData','BackData', 'VarData', 'MaskData'};
             DimIndex                      = 3;
@@ -606,7 +610,36 @@ classdef Coadd < Component
             Result.VarData.(Args.DataPropIn)   = CoaddVarEmpirical;
             
             % FFU: update header
-            % FFU : update Catalog
+            if Args.HeaderCopy1
+                % copy image header from first image
+                Result.HeaderData.Data = ImObj(1).HeaderData.Data;
+            end
+            if ~isempty(Args.NewHeader)
+                if isa(Args.NewHeader,'AstroHeader')
+                    Result.HeaderData = Args.NewHeader;
+                elseif iscell(Args.NewHeader)
+                    Result.HeaderData.Data = Args.NewHeader;
+                elseif isa(Args.NewHeader,'AstroImage')
+                    Result.HeaderData = Args.NewHeader.HeaderData;
+                else
+                    error('Unknown NewHeader option');
+                end
+            end
+            if Args.UpdateTimes
+                % update ExpTime, and MIDJD + add info re coaddition
+                VecExpTime = funHeader(ImObj, @getVal,'EXPTIME');
+                MidJD      = funHeader(ImObj, @julday);
+                InfoCell = {'NCOADD',Nim,'Number of coadded images';...
+                            'AVNCOADD',mean(CoaddN,'all'),'Mean number of coadded images per pixel';...
+                            'MINCOADD',min(CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
+                            'MINJD',min(MidJD),'MIDJD of first coadded observation';...
+                            'MAXJD',max(MidJD),'MIDJD of last coadded observation'};
+                Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
+                
+                Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {sum(VecExpTime)});
+                Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
+                
+            end
             
         end
         

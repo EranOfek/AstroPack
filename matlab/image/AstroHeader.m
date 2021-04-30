@@ -846,7 +846,7 @@ classdef AstroHeader < Component
         end
         
         
-        function replaceVal(Obj,Key,Val,Args)
+        function Obj = replaceVal(Obj,Key,Val,Args)
             % Replace a keyword value in headers (no dictionary in key
             % search).
             % Input  : - An AstroHeader object (multi elements supported).
