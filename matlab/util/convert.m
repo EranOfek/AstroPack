@@ -1161,7 +1161,7 @@ classdef convert
             %--------------------------------------------------------------------------
 
             if nargin<3
-                TreatOnlyDate = false;
+                TreatOnlyDate = true;
             end
             
             IsStr = false;
@@ -1188,7 +1188,7 @@ classdef convert
                     Date = Date(:,[3 2 1 4 5 6]);
                 else
                     if TreatOnlyDate
-                        Date = [Date(:,[3 2 1]), nan(size(Date,1),3)];
+                        Date = [Date(:,[3 2 1]), zeros(size(Date,1),3)];
                     else
                         Date = nan(size(Date,1),6);
                     end

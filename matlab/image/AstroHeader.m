@@ -96,8 +96,8 @@ classdef AstroHeader < Component
                 Obj(Ih).KeyDict     = Dictionary('DictName','Header.Synonyms.KeyNames');
                 Obj(Ih).ValDict     = Dictionary('DictName','Header.Synonyms.KeyVal.IMTYPE');
                 Obj(Ih).CommentDict = Dictionary('DictName','Header.Comments.Default');
-                %Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
-                %Obj(Ih).TimeDict    = string2funHandle(Obj(Ih).TimeDict);
+                Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
+                Obj(Ih).TimeDict    = string2funHandle(Obj(Ih).TimeDict);
             end
                
         end
@@ -1204,13 +1204,13 @@ classdef AstroHeader < Component
                 % attempt loading from dictionary
                 if isempty(Obj(1).TimeDict.FieldNames)
                     % set up to default values
-                    Args.FunTimeKeys.MIDJD     = @(Time,Exp) Time;
-                    Args.FunTimeKeys.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
-                    Args.FunTimeKeys.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.MIDJD     = @(Time,Exp) Time;
+                    Args.FunTimeKeys.Dicr.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
+                    Args.FunTimeKeys.Dict.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
 
                 else
                     % use dictionary
@@ -1219,7 +1219,7 @@ classdef AstroHeader < Component
             end
                                   
             
-            TimeKeys = fieldnames(Args.FunTimeKeys);
+            TimeKeys = fieldnames(Args.FunTimeKeys.Dict);
             NtimeKeys = numel(TimeKeys);
             
             StTime    = getStructKey(Obj, TimeKeys);
@@ -1237,7 +1237,11 @@ classdef AstroHeader < Component
                     Ikey = Ikey + 1;
                     T  = StTime(Iobj).(TimeKeys{Ikey});
                     if ~isnan(T)
-                        JD = Args.FunTimeKeys.(TimeKeys{Ikey})(T, ExpTime(Iobj));
+                        if iscell(Args.FunTimeKeys.Dict.(TimeKeys{Ikey}))
+                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey}){1}(T, ExpTime(Iobj));
+                        else
+                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey})(T, ExpTime(Iobj));
+                        end
                         if ~isnan(JD)
                             MidJD(Iobj) = JD;
                         end

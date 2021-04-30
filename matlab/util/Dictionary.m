@@ -204,10 +204,12 @@ classdef Dictionary < Component
                 Nfn = numel(FN);
                 for Ifn=1:1:Nfn
                     Cell  = Obj(Iobj).Dict.(FN{Ifn});
-                    Ncell = numel(Cell);
-                    for Icell=1:1:Ncell
-                        if strcmp(Cell{Icell},'@')
-                            Obj(Iobj).Dict.(FN{Ifn}){Icell} = str2func(Cell{Icell});
+                    if iscellstr(Cell)
+                        Ncell = numel(Cell);
+                        for Icell=1:1:Ncell
+                            if strcmp(Cell{Icell}(1),'@')
+                                Obj(Iobj).Dict.(FN{Ifn}){Icell} = str2func(Cell{Icell});
+                            end
                         end
                     end
                 end
