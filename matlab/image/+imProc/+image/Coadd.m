@@ -605,6 +605,9 @@ classdef Coadd < Component
             Result.ImageData.(Args.DataPropIn) = Coadd;
             Result.VarData.(Args.DataPropIn)   = CoaddVarEmpirical;
             
+            % FFU: update header
+            % FFU : update Catalog
+            
         end
         
         function Result = functionalResponse(Obj, ImObj, Args)
