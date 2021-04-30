@@ -12,7 +12,7 @@ classdef BitDictionary < Component
     end
     properties (SetAccess=private)
         Nbit                 = 8; % setter by Dic
-        Class                = 'uint8';
+        Class                = @uint8;
     end
     properties (Hidden, Constant)
         ColBitName        = 'BitName';
@@ -21,15 +21,30 @@ classdef BitDictionary < Component
     end
    
     methods % constructor
-        function Obj=Dictionary(DictionaryName)
+        function Obj=BitDictionary(DictionaryName)
             % Dictionary constructor
             % Input  : Dictionary file name to load. Default is ''.
+            % Example: BD=BitDictionary('BitMask.Image.Default')
             
             arguments
                 DictionaryName char    = '';
             end
            
             Obj.Name = DictionaryName;
+            if ~isempty(DictionaryName)
+                St  = eval(sprintf('Obj.Config.Data.%s',DictionaryName));
+                FN  = fieldnames(St);
+                Nfn = numel(FN);
+                Cell = cell(Nfn-1,3);
+                for Ifn=1:1:Nfn
+                    if iscell(St.(FN{Ifn}))
+                        Cell{Ifn,1} = FN{Ifn};
+                        Cell(Ifn,2) = St.(FN{Ifn})(2);
+                        Cell(Ifn,3) = St.(FN{Ifn})(1);
+                    end
+                end
+                Obj.Dic = cell2table(Cell);
+            end
         end
     end
     
@@ -43,6 +58,7 @@ classdef BitDictionary < Component
                 Obj.Dic.Properties.VariableNames = {Obj.ColBitName, Obj.ColBitDescription, Obj.ColBitInd};
             elseif iscell(BinDic)
                 Obj.Dic = cell2table(BinDic);
+                Obj.Dic.Properties.VariableNames = {Obj.ColBitName, Obj.ColBitDescription, Obj.ColBitInd};
             else
                 error('Illegal BinDic class option');
             end
@@ -52,19 +68,19 @@ classdef BitDictionary < Component
             Ndigits  = ceil(log(MaxBitInd)./log(2));  % number of binary digits required to represent the dictionary
             if MaxBitInd<=8
                 Obj.Nbit  = 8;
-                Obj.Class = 'uint8'; 
+                Obj.Class = @uint8; 
             else
                 if MaxBitInd<=16
                     Obj.Nbit = 16;
-                    Obj.Class = 'uint16'; 
+                    Obj.Class = @uint16; 
                 else
                     if MaxBitInd<=32
                         Obj.Nbit = 32;
-                        Obj.Class = 'uint32'; 
+                        Obj.Class = @uint32; 
                     else
                         if MaxBitInd<=64
                             Obj.Nbit = 64;
-                            Obj.Class = 'uint64'; 
+                            Obj.Class = @uint64; 
                         else
                             error('More than 64 bits in BitDictionary are not supported');
                         end
