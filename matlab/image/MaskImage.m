@@ -103,10 +103,10 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
 
                 if isempty(Obj(Iobj).Image)
                     % no maks image - allocate
-                    Obj(Iobj).Image = Obj(Iobj).Dict.Class(zeros(SizeImage));
+                    Result(Iobj).Image = Obj(Iobj).Dict.Class(zeros(SizeImage));
                 end
 
-                Result(Iobj).Image = bitset(Obj(Iobj).Image, BitInd, SetVal);
+                Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
             end
             
                  
@@ -265,6 +265,21 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             M = MaskImage;
             
             M = MaskImage({uint32(zeros(3,3))});
+            MI=MaskImage;
+            
+            MI.Dict=BitDictionary('BitMask.Image.Default');
+            Flag = false(3,3); Flag(1,2)=true;
+            Result = MI.maskSet(Flag,'Saturated');
+            [BitInd,BitDec] = MI.Dict.name2bit('Saturated');
+            if Result.Image(1,2)~=BitDec
+                error('set bit was not sucessful');
+            end
+            Result = Result.maskSet(Flag,'Streak');
+            [BitInd,BitDec2] = Result.Dict.name2bit('Streak');
+            if Result.Image(1,2)~=(BitDec+BitDec2)
+                error('set bit was not sucessful (2)');
+            end
+            
             Result = true;
         end
     end

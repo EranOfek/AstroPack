@@ -652,6 +652,64 @@ classdef AstroImage < Component
             % Apply function of PSF properties in AstroImage array
         end
         
+        function Result = maskSet(Obj, Flag, BitName, SetVal, Args)
+            % Set the value of a bit in a bit mask (Maskdata) in AstroImage
+            % Input  : - An AsstroImage Object.
+            %          - A matrix of logicals, with the same size as the
+            %            Image in the MaskData.Image, in which values which are
+            %            true will be set.
+            %          - Bit name, or bit index (start from 0), to set.
+            %          - Value to set (0 | 1). Default is 1.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An AstroImage object.
+            % Author : Eran Ofek (May 2021)
+            % Example: AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))})
+            %       AI.MaskData.Dict=BitDictionary('BitMask.Image.Default')
+            %       Flag = false(3,3); Flag(1,2)=true;
+            %       Result = AI.maskSet(Flag,'Saturated')
+            %       Result = AI.maskSet(Flag,'Streak')
+            
+            arguments
+                Obj
+                Flag logical                 % matrix of logicals
+                BitName                      % name or bit index (start with zero)
+                SetVal                 = 1;
+                Args.CreateNewObj      = [];
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout==0
+                    Args.CreateNewObj = false;
+                    Result = Obj;
+                else
+                    % create new obj
+                    Args.CreateNewObj = true;
+                    Result = Obj.copyObject;
+                end
+            else
+                if Args.CreateNewObj
+                    Result = Obj.copyObject;
+                else
+                    Result = Obj;
+                end
+            end
+                    
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'CreateNewObj', Args.CreateNewObj);
+            end
+         
+        end
+        
     end
     
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
@@ -1717,6 +1775,7 @@ classdef AstroImage < Component
             if ~all(Res.Image==1)
                 error('funBinaryProp failed');
             end
+            
             
             
             Result = true;
