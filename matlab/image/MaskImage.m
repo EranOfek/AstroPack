@@ -27,58 +27,11 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     methods % Constructor
        
-%         function Obj = MaskImage(FileNames)
-%             %
-%             
-%             arguments
-%                 FileNames       = [];
-%             end
-%             
-%             if isempty(FileNames)
-%                 Obj.MaskData = ImageComponent([]);
-%             end
-%             
-%         end
 
     end
   
     methods % Setters/Getters
-%         function Result = get.Image(Obj)
-%             % getter for Image (from MaskData.Image)
-%             Result = Obj.MaskData.Image;
-%         end
-%                 
-%         function Obj = set.Image(Obj, Val)
-%             % setter for Image (to MaskData.Image)
-%             if ~isinteger(Val)
-%                 error('Mask image must be integers');
-%             end
-%             Obj.MaskData.Image = Val;
-%         end
-%         
-%         function Result = get.Data(Obj)
-%             % getter for Image (from MaskData.Data)
-%             Result = Obj.MaskData.Data;
-%         end
-%         
-%         function Obj = set.Data(Obj, Val)
-%             % setter for Image (to MaskData.Data)
-%             if ~isinteger(Val)
-%                 error('Mask image must be integers');
-%             end
-%             Obj.MaskData.Data = Val;
-%         end   
-%         
-%         function Result = get.Scale(Obj)
-%             % getter for Scale (from MaskData.Scale)
-%             Result = Obj.MaskData.Scale;
-%         end
-%                 
-%         function Obj = set.Scale(Obj, Val)
-%             % setter for Scale (to MaskData.Scale)
-%             
-%             Obj.MaskData.Scale = Val;
-%         end
+
         
     end
     
@@ -87,18 +40,38 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     end
     
     methods % functionality
-        function Result = flagBit(Obj, Flag, BitName, Args)
-            % 
-            % MI=MaskImage;
-            % MI.Dict=BitDictionary('BitMask.Image.Default')
-            % Flag = false(3,3); Flag(1,2)=true;
-            % Result = MI.flagBit(Flag,'Saturated')
-            % Result = MI.flagBit(Flag,'Streak')
+        function Result = maskSet(Obj, Flag, BitName, SetVal, Args)
+            % Set the value of a bit in a bit mask
+            % Input  : - An ImageMask Object.
+            %          - A matrix of logical, with the same size as the
+            %            Image in the ImageMask, in which values which are
+            %            true will be set.
+            %          - Bit name, or bit index (start from 0), to set.
+            %          - Value to set (0 | 1). Default is 1.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An ImageMaks object.
+            % Author : Eran Ofek (May 2021)
+            % Example: 
+            %       MI=MaskImage;
+            %       MI.Dict=BitDictionary('BitMask.Image.Default')
+            %       Flag = false(3,3); Flag(1,2)=true;
+            %       Result = MI.maskSet(Flag,'Saturated')
+            %       Result = MI.maskSet(Flag,'Streak')
             
             arguments
                 Obj
                 Flag logical                 % matrix of logicals
                 BitName                      % name or bit index (start with zero)
+                SetVal                 = 1;
                 Args.CreateNewObj      = [];
             end
             
@@ -133,7 +106,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Obj(Iobj).Image = Obj(Iobj).Dict.Class(zeros(SizeImage));
                 end
 
-                Result(Iobj).Image = bitset(Obj(Iobj).Image, BitInd);
+                Result(Iobj).Image = bitset(Obj(Iobj).Image, BitInd, SetVal);
             end
             
                  
