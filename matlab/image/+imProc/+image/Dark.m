@@ -324,6 +324,17 @@ classdef Dark < Component
                 
                 Args.StackVarMethod
                 Args.StackVarArgs
+                
+                Args.DarkHighVal_BitName        = 'DarkHighVal';
+                Args.DarkHighVal_Threshold      = 2;
+                
+                Args.DarkLowVal_BitName         = 'DarkLowVal';
+                Args.DarkLowVal_Threshold       = 0.2;
+                
+                Args.BiasFlaring_BitName        = 'BiasFlaring';
+                Args.BiasFlaring_Threshold      = 20;
+                Args.BiasFlaringArgs cell       = {};
+                
             end
             
             Nim = numel(ImObj);
@@ -364,12 +375,16 @@ classdef Dark < Component
              % mask HighRN
              
              % mask DarkHighVal
+             FlagHigh = Result.Image< (Args.DarkHighVal_Threshold.*mean(Result.Image,'all'));
+             Result = maskSet(Result, FlagHigh, Args.DarkHighVal_BitName, 1);
              
              % mask DarkLowVal
+             FlagLow = Result.Image< (Args.DarkLowVal_Threshold.*mean(Result.Image,'all'));
+             Result = maskSet(Result, FlagLow, Args.DarkLowVal_BitName, 1);
              
              % mask BiasFlaring
-             
-                                          
+             [FlagFlaring] = identifyFlaringPixels(Obj, ImageCube, Args.BiasFlaringArgs{:}, 'Threshold',Args.BiasFlaring_Threshold);
+             Result = maskSet(Result, FlagFlaring, Args.BiasFlaring_BitName, 1);                             
                                           
                                           
                 
