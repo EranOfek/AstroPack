@@ -46,6 +46,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %          - A matrix of logical, with the same size as the
             %            Image in the ImageMask, in which values which are
             %            true will be set.
+            %            Alternatively, this can be a vector of indices.
             %          - Bit name, or bit index (start from 0), to set.
             %          - Value to set (0 | 1). Default is 1.
             %          * ...,key,val,...
@@ -69,7 +70,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
             arguments
                 Obj
-                Flag logical                 % matrix of logicals
+                Flag                         % matrix of logicals, or vector of indices
                 BitName                      % name or bit index (start with zero)
                 SetVal                 = 1;
                 Args.CreateNewObj      = [];
@@ -93,7 +94,11 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             Nobj = numel(Obj);
             
             % a single Flag image
-            SizeImage = size(Flag);
+            if islogical(Flag)
+                SizeImage = size(Flag);
+            else
+                SizeImage = [];
+            end
             for Iobj=1:1:Nobj
                 if isnumeric(BitName)
                     BitInd = BitName + 1;
@@ -103,6 +108,9 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
 
                 if isempty(Obj(Iobj).Image)
                     % no maks image - allocate
+                    if isempty(SizeImage)
+                        error('When Flag is a vector of indices, image mask must be pre defined');
+                    end
                     Result(Iobj).Image = Obj(Iobj).Dict.Class(zeros(SizeImage));
                 end
 

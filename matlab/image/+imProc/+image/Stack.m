@@ -2,7 +2,8 @@
 classdef Stack < Component
     properties
         ImObj AstroImage
-        
+        Cube                                           % will be used only if SaveCube=true
+        SaveCube(1,1) logical              = false;   
     end
     
     methods % constructor
@@ -345,8 +346,17 @@ classdef Stack < Component
             end
             
             % convert AstroImage to cubes
-            [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DataProp',{Args.DataProp}, 'DimIndex',Args.DimIndex);
-            
+            if Obj.SaveCube && ~isempty(Obj.Cube)
+                % Cube exist - use it
+                Cube = Obj.Cube;
+            else
+                % Cube doesn't exist
+                [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DataProp',{Args.DataProp}, 'DimIndex',Args.DimIndex);
+                if Obj.SaveCube
+                    Obj.Cube = Cube;
+                end
+            end
+                
             if ~iscell(Args.FunCube)
                 Args.FunCube = {Args.FunCube};
                 Args.FunArgs = {Args.FunArgs};
@@ -527,7 +537,17 @@ classdef Stack < Component
             Nim = numel(ImObj);
             
             % create a cube for each dataset
-            [ImageCube, BackCube, VarCube, MaskCube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
+            if Obj.SaveCube && ~isempty(Obj.Cube)
+                % Cube exist - use it
+                ImageCube = Obj.Cube;
+            else
+                % Cube doesn't exist
+                [ImageCube, BackCube, VarCube, MaskCube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
+                if Obj.SaveCube
+                    Obj.Cube = ImageCube;
+                end
+            end
+            
             
             % subtract offset (only from image)
             if ~isempty(Args.Offset)
@@ -771,7 +791,17 @@ classdef Stack < Component
             Nim = numel(ImObj);
             
             % create a cube for each dataset
-            [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn);
+            if Obj.SaveCube && ~isempty(Obj.Cube)
+                % Cube exist - use it
+                Cube = Obj.Cube;
+            else
+                % Cube doesn't exist
+                [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn);
+                if Obj.SaveCube
+                    Obj.Cube = Cube;
+                end
+            end
+            
             
             % obtain Gain from header
             if ischar(Args.Gain) || iscellstr(Args.Gain)

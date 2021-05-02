@@ -658,6 +658,7 @@ classdef AstroImage < Component
             %          - A matrix of logicals, with the same size as the
             %            Image in the MaskData.Image, in which values which are
             %            true will be set.
+            %            Alternatively, this can be a vector of indices.
             %          - Bit name, or bit index (start from 0), to set.
             %          - Value to set (0 | 1). Default is 1.
             %          * ...,key,val,...
@@ -680,7 +681,7 @@ classdef AstroImage < Component
             
             arguments
                 Obj
-                Flag logical                 % matrix of logicals
+                Flag                         % matrix of logicals
                 BitName                      % name or bit index (start with zero)
                 SetVal                 = 1;
                 Args.CreateNewObj      = [];
