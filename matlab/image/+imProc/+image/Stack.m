@@ -1,12 +1,12 @@
 
-classdef Coadd < Component
+classdef Stack < Component
     properties
         ImObj AstroImage
         
     end
     
     methods % constructor
-        function CObj = Coadd(Args)
+        function CObj = Stack(Args)
             % Constructor for a Match object
             % Input  : * ...,key,val,...
             %            Can be any Match object property name followed by
@@ -46,7 +46,7 @@ classdef Coadd < Component
         
         function Result = applayUnaryFun(Obj, ImObj, Offset, Operator, Args)
             % Applay scalar an unary function (e.g., constant) on AstroImage
-            % Input  : - A Coadd object.
+            % Input  : - A Stack object.
             %          - An AstroImage object.
             %          - An AstroImage object, or a cell array of matrices
             %            (images) or scalars, or a vector of scalars, or a
@@ -82,7 +82,7 @@ classdef Coadd < Component
             % Output : - An AstroImage object.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(3,3), 3.*ones(4,4)});
-            %          C  = imProc.image.Coadd;
+            %          C  = imProc.image.Stack;
             %          R  = C.applayUnaryFun(AI,1);
             %          R  = C.applayUnaryFun(AI,[1 2]);
             %          R  = C.applayUnaryFun(AI,{1 2}); % the same
@@ -105,7 +105,7 @@ classdef Coadd < Component
             
             if isempty(ImObj)
                 if isempty(Obj.ImObj)
-                    error('ImObj must be provided either as an argument or via the Coadd class properties');
+                    error('ImObj must be provided either as an argument or via the Stack class properties');
                 else
                     ImObj = Obj.ImObj;
                 end
@@ -151,7 +151,7 @@ classdef Coadd < Component
         
         function Result = subtractOffset(Obj, ImObj, Offset, Args)
             % Remove offset (constant) from AstroImage
-            % Input  : - A Coadd object.
+            % Input  : - A Stack object.
             %          - An AstroImage object.
             %          - An AstroImage object, or a cell array of matrices
             %            (images) or scalars, or a vector of scalars, or a
@@ -181,7 +181,7 @@ classdef Coadd < Component
             % Output : - An AstroImage object.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(3,3), 3.*ones(4,4)});
-            %          C  = imProc.image.Coadd;
+            %          C  = imProc.image.Stack;
             %          R  = C.subtractOffset(AI,1);
             %          R  = C.subtractOffset(AI,[1 2]);
             %          R  = C.subtractOffset(AI,{1 2}); % the same
@@ -212,7 +212,7 @@ classdef Coadd < Component
         
         function Result = divideFactor(Obj, ImObj, Factor, Args)
             % Divide factor (constant) from AstroImage
-            % Input  : - A Coadd object.
+            % Input  : - A Stack object.
             %          - An AstroImage object.
             %          - An AstroImage object, or a cell array of matrices
             %            (images) or scalars, or a vector of scalars, or a
@@ -242,7 +242,7 @@ classdef Coadd < Component
             % Output : - An AstroImage object.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(3,3), 3.*ones(4,4)});
-            %          C  = imProc.image.Coadd;
+            %          C  = imProc.image.Stack;
             %          R  = C.divideFactor(AI,1);
             %          R  = C.divideFactor(AI,[1 2]);
             %          R  = C.divideFactor(AI,{1 2}); % the same
@@ -276,7 +276,7 @@ classdef Coadd < Component
     methods % coaddition functions
         function varargout = funCube(Obj, ImObj, Args)
             % Applay function/s on a single cube
-            % Input  : - A Coadd object.
+            % Input  : - A Stack object.
             %          - An AstroImage object.
             %          * ...,key,val,...
             %            'CCDSEC' - [Xmin Xmax Ymin Ymax] to stack.
@@ -320,7 +320,7 @@ classdef Coadd < Component
             %            corresponds to one 'FunCube' function.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({rand(10,10), rand(10,10), rand(10,10)});
-            %          C = imProc.image.Coadd;
+            %          C = imProc.image.Stack;
             %          [Cube1, Cube2] = C.funCube(AI);
             %          [CAI] = C.funCube(AI,'SaveInProp',{'ImageData','VarData'});
             
@@ -338,7 +338,7 @@ classdef Coadd < Component
            
             if isempty(ImObj)
                 if isempty(Obj.ImObj)
-                    error('ImObj must be provided either as an argument or via the Coadd class properties');
+                    error('ImObj must be provided either as an argument or via the Stack class properties');
                 else
                     ImObj = Obj.ImObj;
                 end
@@ -374,7 +374,7 @@ classdef Coadd < Component
         
         function [Result, CoaddN, ImageCube] = coadd(Obj, ImObj, Args)
             % Coadd images in AstroImage object including pre/post normalization
-            % Input  : - A Coadd object.
+            % Input  : - A Stack object.
             %          - An AstroImage object.
             %          * ...,key,val,...
             %            'CCDSEC' - CCDSEC on which to operate:
@@ -406,7 +406,7 @@ classdef Coadd < Component
             %                   weights. Default is true.
             %            'Weights' - A vector of variances (one per image).
             %                   If empty, then will attempt to use the
-            %                   VarImage.Image in the AstroImage.
+            %                   VarImage image in the AstroImage.
             %                   Default is [].
             %            'StackMethod' - - Stacking method. Options are:
             %                   'sum'
@@ -421,9 +421,9 @@ classdef Coadd < Component
             %                   'wmean' 
             %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
             %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
-            %                   'bitor' - bit-wise or operation. Return only Coadd.
-            %                   'bitand' - bit-wise and operation. Return only Coadd.
-            %                   'bitnot' - bit-wise not operation. Return only Coadd.
+            %                   'bitor' - bit-wise or operation. Return only Stack.
+            %                   'bitand' - bit-wise and operation. Return only Stack.
+            %                   'bitnot' - bit-wise not operation. Return only Stack.
             %              'StackArgs' - A cell array of arguments to pass to the
             %                   method function. Default is {}.
             %              'MaskStackMethod' - Like 'StackMethod', but for the
@@ -435,7 +435,6 @@ classdef Coadd < Component
             %                   StackMethod). Default is true.
             %              'CombineMask' - A logical indicating if to
             %                   combine the mask image. Default is true.
-            %              '
             %              'EmpiricalVarFun' - Default is @var.
             %              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
             %              'MedianVarCorrForEmpirical' - A logical indicating if to
@@ -470,7 +469,7 @@ classdef Coadd < Component
             %          - The cube of images
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
-            %          C = imProc.image.Coadd;
+            %          C = imProc.image.Stack;
             %          [Result, CoaddN] = C.coadd(AI);
            
             arguments
@@ -516,7 +515,7 @@ classdef Coadd < Component
             
             if isempty(ImObj)
                 if isempty(Obj.ImObj)
-                    error('ImObj must be provided either as an argument or via the Coadd class properties');
+                    error('ImObj must be provided either as an argument or via the Stack class properties');
                 else
                     ImObj = Obj.ImObj;
                 end
@@ -641,6 +640,7 @@ classdef Coadd < Component
                 VecExpTime = funHeader(ImObj, @getVal,'EXPTIME');
                 MidJD      = funHeader(ImObj, @julday);
                 InfoCell = {'NCOADD',Nim,'Number of coadded images';...
+                            'COADDOP',Args.StackMethod,'Coaddition method';...
                             'AVNCOADD',mean(CoaddN,'all'),'Mean number of coadded images per pixel';...
                             'MINCOADD',min(CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
                             'MINJD',min(MidJD),'MIDJD of first coadded observation';...
@@ -737,7 +737,7 @@ classdef Coadd < Component
             %                       small or 0 where the model is prefered over H0.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(3,3), 2.*ones(3,3), 10.*ones(3,3), 11.*ones(3,3), 13.*ones(3,3)});
-            %          C  = imProc.image.Coadd;
+            %          C  = imProc.image.Stack;
             %          Result = C.functionalResponse(AI);
             %          Result = C.functionalResponse(AI, 'Intensity',[1 2 10 11 13])
             
@@ -759,7 +759,7 @@ classdef Coadd < Component
             
             if isempty(ImObj)
                 if isempty(Obj.ImObj)
-                    error('ImObj must be provided either as an argument or via the Coadd class properties');
+                    error('ImObj must be provided either as an argument or via the Stack class properties');
                 else
                     ImObj = Obj.ImObj;
                 end
@@ -804,12 +804,12 @@ classdef Coadd < Component
     
     methods (Static)  % unitTest
         function Result = unitTest()
-            % unitTest for the Coadd class
-            % Example: Result = imProc.image.Coadd.unitTest
+            % unitTest for the Stack class
+            % Example: Result = imProc.image.Stack.unitTest
             
             % applyUnaryFun
             AI = AstroImage({ones(3,3), 3.*ones(4,4)});
-            C  = imProc.image.Coadd;
+            C  = imProc.image.Stack;
             R  = C.applayUnaryFun(AI,1);
             R  = C.applayUnaryFun(AI,[1 2]);
             R  = C.applayUnaryFun(AI,{1 2}); % the same
@@ -819,7 +819,7 @@ classdef Coadd < Component
             
             % subtractOffset
             AI = AstroImage({ones(3,3), 3.*ones(4,4)});
-            C  = imProc.image.Coadd;
+            C  = imProc.image.Stack;
             R  = C.subtractOffset(AI,1);
             R  = C.subtractOffset(AI,[1 2]);
             R  = C.subtractOffset(AI,{1 2}); % the same
@@ -828,7 +828,7 @@ classdef Coadd < Component
 
             % divideFactor
             AI = AstroImage({ones(3,3), 3.*ones(4,4)});
-            C  = imProc.image.Coadd;
+            C  = imProc.image.Stack;
             R  = C.divideFactor(AI,1);
             R  = C.divideFactor(AI,[1 2]);
             R  = C.divideFactor(AI,{1 2}); % the same
@@ -837,18 +837,18 @@ classdef Coadd < Component
 
             % funCube
             AI = AstroImage({rand(10,10), rand(10,10), rand(10,10)});
-            C = imProc.image.Coadd;
+            C = imProc.image.Stack;
             [Cube1, Cube2] = C.funCube(AI);
             [CAI] = C.funCube(AI,'SaveInProp',{'ImageData','VarData'});
 
             % coadd
             AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
-            C = imProc.image.Coadd;
+            C = imProc.image.Stack;
             [Result, CoaddN] = C.coadd(AI);
             
             % functionalResponse
             AI = AstroImage({ones(3,3), 2.*ones(3,3), 10.*ones(3,3), 11.*ones(3,3), 13.*ones(3,3)});
-            C  = imProc.image.Coadd;
+            C  = imProc.image.Stack;
             Result = C.functionalResponse(AI);
             Result = C.functionalResponse(AI, 'Intensity',[1 2 10 11 13])
             
