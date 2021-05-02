@@ -202,7 +202,7 @@ classdef Dark < Component
             
         end
         
-        function [Result] = identifyFlaringPixels(DarkObj, Cube, Args)
+        function [Result, Mean, Std, Max] = identifyFlaringPixels(DarkObj, Cube, Args)
             % Identify flaring pixels in a cube of images
             %       Searched by looking at (Cube-Mean)/Std>Threshold
             % Input  : - A Dark object
@@ -230,8 +230,14 @@ classdef Dark < Component
             %                   Default is 10.
             % Output : - A matrix of logicals indicating pixels that are
             %            above the flaring threshold.
+            %          - A matrix of the mean values.
+            %          - A matrix of the std values.
+            %          - A matrix of the max values.
             % Author : Eran Ofek (May 2021)
-            % Example: 
+            % Example: Cube = randn(100,100,10); Cube(1,1,1)=30;
+            %          Dark = imProc.image.Dark;
+            %          [Result,Mean,Std,Max] = identifyFlaringPixels(Dark, Cube);
+            %          [Result,Mean,Std,Max] = identifyFlaringPixels(Dark, Cube,'MeanFunArgs',{'all'});
             
             arguments
                 DarkObj(1,1)
@@ -242,7 +248,7 @@ classdef Dark < Component
                 Args.MaxFunArgs cell                    = {[],3};
                 Args.StdFun                             = @imUtil.background.rstd;   % or number or image
                 Args.StdFunArgs cell                    = {3};
-                Args.Threshold                          = 10;   % number of sigmas
+                Args.Threshold                          = 20;   % number of sigmas
             end
             
             if isa(Args.MeanFun,'function_handle')
