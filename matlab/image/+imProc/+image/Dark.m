@@ -202,6 +202,65 @@ classdef Dark < Component
             
         end
         
+        function [Result] = identifyFlaringPixels(DarkObj, Cube, Args)
+            % Identify flaring pixels in a cube of images
+            %       Searched by looking at (Cube-Mean)/Std>Threshold
+            % Input  : - A Dark object
+            %          - A cube of images. Usulally the image index is in
+            %            the 3rd dimension.
+            %          * ...,key,val,...
+            %            'MeanFun' - Either a number, a matrix or a
+            %                   function handle by which to calculate the
+            %                   mean function. Default is @median.
+            %            'MeanFunArgs' - A cell array of arguments to pass
+            %                   to the mean function.
+            %                   Default is {3,'omitnan'}.
+            %            'MaxFun' - A function handle by which to calculate
+            %                   the max of the data. Default is @max.
+            %            'MaxFunArgs' - A cell array of arguments to pass
+            %                   to the max function.
+            %                   Default is {[],3}.
+            %            'StdFun' - Either a number, a matrix or a
+            %                   function handle by which to calculate the
+            %                   mean function. Default is @imUtil.background.rstd
+            %            'StdFunArgs' - A cell array of arguments to pass
+            %                   to the std function.
+            %                   Default is {3}.
+            %            'Threshold' - Threshold above to flag the pixel.
+            %                   Default is 10.
+            % Output : - A matrix of logicals indicating pixels that are
+            %            above the flaring threshold.
+            % Author : Eran Ofek (May 2021)
+            % Example: 
+            
+            arguments
+                DarkObj(1,1)
+                Cube
+                Args.MeanFun                            = @median;  % or number or imagew
+                Args.MeanFunArgs cell                   = {3,'omitnan'};
+                Args.MaxFun function_handle             = @max;
+                Args.MaxFunArgs cell                    = {[],3};
+                Args.StdFun                             = @imUtil.background.rstd;   % or number or image
+                Args.StdFunArgs cell                    = {3};
+                Args.Threshold                          = 10;   % number of sigmas
+            end
+            
+            if isa(Args.MeanFun,'function_handle')
+                Mean = Args.MeanFun(Cube, Args.MeanFunArgs{:});
+            else
+                Mean = Args.MeanFun;
+            end
+            Max  = Args.MaxFun(Cube,  Args.MaxFunArgs{:});
+            if isa(Args.StdFun,'function_handle')
+                Std = Args.StdFun(Cube, Args.StdFunArgs{:});
+            else
+                Std = Args.StdFun;
+            end
+            
+            Result = (Max - Mean)./Std > Args.Threshold;
+            
+        end
+        
 %         function Result = validateNoise(DarkObj, DarkImages, SuperDark, Args)
 %             % Validate that the noise in the image is consistent with readnoise and/or dark current noise
 %             % Input  : -
@@ -294,6 +353,7 @@ classdef Dark < Component
                                           
              % Prepare Mask image
              % mask LowRN
+             
              
              % mask HighRN
              
