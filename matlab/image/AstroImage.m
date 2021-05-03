@@ -713,6 +713,61 @@ classdef AstroImage < Component
         
     end
     
+    methods % specific header functions
+        function Result = isImType(Obj, ImTypeVal, Args)
+            % Check if header IMTYPE keyword value equal some type
+            % Input  : - An AstroImage object.
+            %          - IMTYPE type to check (e.g., 'bias').
+            %          * ...,key,val,...
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            % Output : - An array of logicals (one per AstroImage element)
+            %            indicating if the IMTYPE value equal the requested
+            %            value.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: H=AstroImage('*.fits');
+            %          Ans = isImType(H, 'bias')
+            
+            arguments
+                Obj
+                ImTypeVal
+                Args.ImTypeKeyName                                   = 'IMTYPE';
+                Args.UseDict(1,1) logical                            = true;
+                Args.CaseSens(1,1) logical                           = true;
+                Args.SearchAlgo                                      = 'strcmp'; 
+                Args.IsInputAlt(1,1) logical                         = true;
+                Args.KeyDict                                         = [];
+            end
+            
+            Nobj   = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isImType(Obj(Iobj).HeaderData, ImTypeVal, 'ImTypeKeyName',Args.ImTypeKeyName,...
+                                                                         'UseDict',Args.UseDict,...
+                                                                         'CaseSens',Args.CaseSens,...
+                                                                         'SearchAlgo',Args.SearchAlgo,...
+                                                                         'IsInputAlt',Args.IsInputAlt,...
+                                                                         'KeyDict',Args.KeyDict);
+            end
+            
+        end
+        
+        
+    end
+    
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
         
         function Result = funUnary(Obj, Operator, Args)

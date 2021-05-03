@@ -47,7 +47,7 @@ classdef Dark < Component
             %            'MaxAllowedFrac' - The fraction of identical
             %                   pixels above to set the output argument
             %                   PassedThreshold to true.
-            %                   Default is 0.001.
+            %                   Default is 0.2.
             % Output : - PassedThreshold. True if the fraction of identical
             %            pixels in two sucessive images is larger than the
             %            MaxAllowedFrac threshold.
@@ -63,7 +63,7 @@ classdef Dark < Component
                 DarkObj
                 Obj
                 Args.DataProp                = 'Image';
-                Args.MaxAllowedFrac          = 0.001;
+                Args.MaxAllowedFrac          = 0.2;
             end
            
             % use object default arguments if not supplied by user
@@ -267,31 +267,59 @@ classdef Dark < Component
             
         end
         
-%         function Result = validateNoise(DarkObj, DarkImages, SuperDark, Args)
-%             % Validate that the noise in the image is consistent with readnoise and/or dark current noise
-%             % Input  : -
-%             % Output : -
-%             % Author : 
-%             % Example: 
-%            
-%             arguments
-%                 DarkObj
-%                 Obj          
-%                 Args.X
-%             end
-%             
-%             
-%         end
-        
-        function Result = isBias(Obj, AI, Args)
-            % 
-            % Input  : - An AstroImage object.
+        function [Result,Flag] = isBias(Obj, AI, Args)
+            % Check and validate that a set of images in an AstroImage object are bias images
+            % Input  : - A imProc.image.Dark object.
+            %          - An AstroImage object.
+            %          * ...,key,val,...
+            %            'MaxAllowedFrac' - The fraction of identical
+            %                   pixels above to set the output argument
+            %                   PassedThreshold to true.
+            %                   This parameter is passed to identifySimilarImages
+            %                   Default is 0.2.
+            %            'Template' - A template image with the same size
+            %                   of the input image. This can be either a
+            %                   matrix or an AstroImage object.
+            %                   If this is an AstroImage it may include a
+            %                   variance image.
+            %            'TemplateVar' - A variance image. If provided, and
+            %                   the template is an AstroImage, this will
+            %                   override the content of the variance image
+            %                   in the AstroImage.
+            %            'Nsigma' - Threshold in units of number of sigmas.
+            %                   Defualt is 5.
+            %            'MaxFracBadPixels' - If the fraction of pixels
+            %                   which value deviates from the template by
+            %                   more/less than Nsigma is larger than this
+            %                   threshold then the output FlagBad will be
+            %                   set to true. Default is 0.0001.
+            %            'UseImageVar' - A logical indicating if to add the
+            %                   AstroImage variance to the template
+            %                   variance. If false, use only the template
+            %                   variance. Default is true.
+            %            'ImTypeKeyName' - IMTYPE header keyword name.
+            %                   Default is 'IMTYPE'.
+            %            Additional parameters to pass yo isImType.
+            % Output : - A vector of logical indicating if an
+            %            image is a validate bias/dark image.
+            %          - A structure containing vector of logicals for
+            %            individaul tests.
+            % Author : Eran Ofek (May 2021)
+            % Example: A=AstroImage('LAST.*_dark.fits');
+            %          D=imProc.image.Dark;
+            %          [Result,Flag] = D.isBias(A)
             
             arguments
-                Obj
-                AI
-                Args.ImTypeKeyName                                              = 'IMTYPE';
+                Obj(1,1)
+                AI AstroImage
+                Args.MaxAllowedFrac                                             = 0.2;
+                Args.Template                                                   = [];
+                Args.TemplateVar                                                = [];
+                Args.Nsigma                                                     = 5;
+                Args.MaxFracBadPixels(1,1)                                      = 0.0001;
+                Args.UseImageVar                                                = true;
                 
+                Args.ImTypeKeyName                                              = 'IMTYPE';                
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
                 Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
@@ -301,29 +329,161 @@ classdef Dark < Component
             ImTypeVal = 'Bias';
             
             % AI is now an AstroImage object
-            Result = isImType(Obj, ImTypeVal, Args);
+            Flag.IsImType = isImType(AI, ImTypeVal, 'UseDict',Args.UseDict,...
+                                             'CaseSens',Args.CaseSens,...
+                                             'SearchAlgo',Args.SearchAlgo,...
+                                             'IsInputAlt',Args.IsInputAlt,...
+                                             'KeyDict',Args.KeyDict);
             
             % validation
-            
+            if isempty(Args.MaxAllowedFrac)
+                Flag.IdenticalPixOK = true(size(Flag.IsImType));
+            else
+                [PassedThresholdIdentical, FracIdentical] = identifySimilarImages(Obj, AI, 'DataProp','Image', 'MaxAllowedFrac',Args.MaxAllowedFrac);
+                Flag.IdenticalPixOK = ~PassedThresholdIdentical;
+            end
+            if isempty(Args.Template)
+                Flag.TemplateOK = true(size(Flag.IsImType));
+            else
+                [Flag.FlagBad, FracBadPixels, Z] = compare2template(Obj, AI, 'Template',Args.Template,...
+                                                                    'TemplateVar',Args.TemplateVar,...
+                                                                    'Nsigma',Args.Nsigma,...
+                                                                    'MaxFracBadPixels',Args.MaxFracBadPixels,...
+                                                                    'UseImageVar',Args.UseImageVar,...
+                                                                    'DataProp','Image',...
+                                                                    'VarProp','Var');
+                Flag.TemplateOK = ~Flag.FlagBad;                       
+            end                   
+            Result = Flag.IsImType & Flag.IdenticalPixOK & Flag.TemplateOK;
             
         end
         
-        function Bias = bias(Obj, ImObj, Args)
+        function [Result,Flag] = isDark(Obj, AI, Args)
+            % Check and validate that a set of images in an AstroImage object are dark images
+            % Input  : - A imProc.image.Dark object.
+            %          - An AstroImage object.
+            %          * ...,key,val,...
+            %            'MaxAllowedFrac' - The fraction of identical
+            %                   pixels above to set the output argument
+            %                   PassedThreshold to true.
+            %                   This parameter is passed to identifySimilarImages
+            %                   Default is 0.2.
+            %            'Template' - A template image with the same size
+            %                   of the input image. This can be either a
+            %                   matrix or an AstroImage object.
+            %                   If this is an AstroImage it may include a
+            %                   variance image.
+            %            'TemplateVar' - A variance image. If provided, and
+            %                   the template is an AstroImage, this will
+            %                   override the content of the variance image
+            %                   in the AstroImage.
+            %            'Nsigma' - Threshold in units of number of sigmas.
+            %                   Defualt is 5.
+            %            'MaxFracBadPixels' - If the fraction of pixels
+            %                   which value deviates from the template by
+            %                   more/less than Nsigma is larger than this
+            %                   threshold then the output FlagBad will be
+            %                   set to true. Default is 0.0001.
+            %            'UseImageVar' - A logical indicating if to add the
+            %                   AstroImage variance to the template
+            %                   variance. If false, use only the template
+            %                   variance. Default is true.
+            %            'ImTypeKeyName' - IMTYPE header keyword name.
+            %                   Default is 'IMTYPE'.
+            %            Additional parameters to pass yo isImType.
+            % Output : - A vector of logical indicating if an
+            %            image is a validate bias/dark image.
+            %          - A structure containing vector of logicals for
+            %            individaul tests.
+            % Author : Eran Ofek (May 2021)
+            % Example: A=AstroImage('LAST.*_dark.fits');
+            %          D=imProc.image.Dark;
+            %          [Result,Flag] = D.isDark(A)
+            
+            arguments
+                Obj(1,1)
+                AI AstroImage
+                Args.MaxAllowedFrac                                             = 0.2;
+                Args.Template                                                   = [];
+                Args.TemplateVar                                                = [];
+                Args.Nsigma                                                     = 5;
+                Args.MaxFracBadPixels(1,1)                                      = 0.0001;
+                Args.UseImageVar                                                = true;
+                
+                Args.ImTypeKeyName                                              = 'IMTYPE';                
+                Args.UseDict(1,1) logical                                       = true;
+                Args.CaseSens(1,1) logical                                      = true;
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.IsInputAlt(1,1) logical                                    = true;
+                Args.KeyDict                                                    = [];
+            end
+            ImTypeVal = 'Dark';
+            
+            % AI is now an AstroImage object
+            Flag.IsImType = isImType(AI, ImTypeVal, 'UseDict',Args.UseDict,...
+                                             'CaseSens',Args.CaseSens,...
+                                             'SearchAlgo',Args.SearchAlgo,...
+                                             'IsInputAlt',Args.IsInputAlt,...
+                                             'KeyDict',Args.KeyDict);
+            
+            % validation
+            if isempty(Args.MaxAllowedFrac)
+                Flag.IdenticalPixOK = true(size(Flag.IsImType));
+            else
+                [PassedThresholdIdentical, FracIdentical] = identifySimilarImages(Obj, AI, 'DataProp','Image', 'MaxAllowedFrac',Args.MaxAllowedFrac);
+                Flag.IdenticalPixOK = ~PassedThresholdIdentical;
+            end
+            if isempty(Args.Template)
+                Flag.TemplateOK = true(size(Flag.IsImType));
+            else
+                [Flag.FlagBad, FracBadPixels, Z] = compare2template(Obj, AI, 'Template',Args.Template,...
+                                                                    'TemplateVar',Args.TemplateVar,...
+                                                                    'Nsigma',Args.Nsigma,...
+                                                                    'MaxFracBadPixels',Args.MaxFracBadPixels,...
+                                                                    'UseImageVar',Args.UseImageVar,...
+                                                                    'DataProp','Image',...
+                                                                    'VarProp','Var');
+                Flag.TemplateOK = ~Flag.FlagBad;                       
+            end                   
+            Result = Flag.IsImType & Flag.IdenticalPixOK & Flag.TemplateOK;
+            
+        end
+        
+    end
+    
+    methods % bias/dark
+        
+        function [Result, IsBias, CoaddN] = bias(Obj, ImObj, Args)
             %
+            % Example: A=AstroImage('LAST.*_dark.fits')
+            %          D = imProc.image.Dark;
+            %          Bias = D.bias(A)
             
             arguments
                 Obj
                 ImObj AstroImage
-                Args.IsBias                     = true;  % if empty - call isBias
+                Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
+                
+                Args.IsBias                     = [];  % @isBias, @isDark, vector of logical or [] - use all.
                 Args.IsBiasArgs cell            = {};
+                
                 Args.StackMethod                = 'sigmaclip';   
-                Args.StackArgs                  = {'MeanFun',@nanmean, 'StdFun','rstd', 'Nsigma',[5 5], 'MaxIter',3};
+                Args.StackArgs                  = {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1};
                 Args.EmpiricalVarFun            = @var;
                 Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
                 Args.DivideEmpiricalByN         = false;
                 
                 Args.StackVarMethod
                 Args.StackVarArgs
+                
+                Args.LowRN_BitName              = 'LowRN';
+                Args.LowRN_Threshold            = 0.05;
+                Args.LowRN_MeanFun              = @median;   % or RN or RN keyword...
+                Args.getValArgs                 = {};
+                
+                Args.HighRN_BitName             = 'HighRN';
+                Args.HighRN_Threshold           = 10;
+                Args.HighRN_MeanFun             = @median;   % or RN or RN keyword...
                 
                 Args.DarkHighVal_BitName        = 'DarkHighVal';
                 Args.DarkHighVal_Threshold      = 2;
@@ -338,26 +498,26 @@ classdef Dark < Component
             end
             
             Nim = numel(ImObj);
+            
             if isempty(Args.IsBias)
-                IsBias = Obj.isBias(ImObj, Args.IsBiasArgs{:});
+                % use all images
+                IsBias = true(Nim,1);
             else
-                IsBias = Args.IsBias;
-                if numel(IsBias)==1 && Nim>1
-                    if IsBias
-                        IsBias = true(Nim,1);
-                    else
-                        IsBias = false(Nim,1);
-                    end
+                if isa(Args.IsBias,'function_handle')
+                    % call the function
+                    IsBias = Args.isBias(ImObj, Args.IsBiasArgs{:});
+                elseif islogical(Args.IsBias) || isnumeric(Args.IsBias)
+                    IsBias = Args.IsBias;
+                else
+                    error('Unknown IsBias option');
                 end
             end
-
-            % validate individual bias images
-            
+                    
             C = imProc.image.Stack;
             [Result, CoaddN, ImageCube] = C.coadd(ImObj, 'CCDSEC',[],...
                                               'Offset',[],...
                                               'PreNorm',[],...
-                                              'UseWeighs',false,...
+                                              'UseWeights',false,...
                                               'StackMethod',Args.StackMethod,...
                                               'StackArgs',Args.StackArgs,...
                                               'CombineBack',false,...
@@ -368,11 +528,49 @@ classdef Dark < Component
                                               'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
                                               'PostNorm',[]);
                                           
+             % Make sure BitDictionary is populated
+             if ~isempty(Args.BitDictinaryName)
+                 if ischar(Args.BitDictinaryName)
+                     Result.MaskData.Dict = BitDictionary(Args.BitDictinaryName);
+                 elseif isa(Args.BitDictinaryName,'BitDictionary')
+                     Result.MaskData.Dict = Args.BitDictinaryName;
+                 else
+                     error('BitDictinaryName must be a char array or a BitDictionary');
+                 end
+             end % else do nothing
+             
              % Prepare Mask image
-             % mask LowRN
+             % mask LowRN             
+             if isa(Args.LowRN_MeanFun,'function_handle')
+                 FlagLowRN = Result.Var < (Args.LowRN_Threshold.*Args.LowRN_MeanFun(Result.Var,'all'));
+             elseif isnumeric(Args.LowRN_MeanFun)
+                 % value for RN
+                 FlagLowRN = Result.Var < (Args.LowRN_Threshold.*Args.LowRN_MeanFun.^2);
+             elseif ischar(Args.LowRN_MeanFun)
+                 % header keyword for RN
+                 Args.LowRN_MeanFun = funHeader(Result, @getVal, Args.LowRN_MeanFun, Args.getValArgs{:});
+                 FlagLowRN = Result.Var < (Args.LowRN_Threshold.*Args.LowRN_MeanFun.^2);
+             else
+                 error('Unknown LowRN_MeanFun option');
+             end
+             Result = maskSet(Result, FlagLowRN, Args.LowRN_BitName, 1);
+             
              
              
              % mask HighRN
+             if isa(Args.HighRN_MeanFun,'function_handle')
+                 FlagHighRN = Result.Var < (Args.HighRN_Threshold.*Args.HighRN_MeanFun(Result.Var,'all'));
+             elseif isnumeric(Args.HighRN_MeanFun)
+                 % value for RN
+                 FlagHighRN = Result.Var < (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
+             elseif ischar(Args.HighRN_MeanFun)
+                 % header keyword for RN
+                 Args.HighRN_MeanFun = funHeader(Result, @getVal, Args.HighRN_MeanFun, Args.getValArgs{:});
+                 FlagHighRN = Result.Var < (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
+             else
+                 error('Unknown LowRN_MeanFun option');
+             end
+             Result = maskSet(Result, FlagHighRN, Args.HighRN_BitName, 1);
              
              % mask DarkHighVal
              FlagHigh = Result.Image< (Args.DarkHighVal_Threshold.*mean(Result.Image,'all'));

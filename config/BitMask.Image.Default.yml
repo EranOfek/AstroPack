@@ -1,7 +1,7 @@
 
 Saturated        : [0  ,       'Pixel is saturated']
-LowRN            : [1  ,       'Pixel noise is low (<0.05*RN) (probably dead)']
-HighRN           : [2  ,       'Pixel noise is high (>10*RN) (noisy pixel)']
+LowRN            : [1  ,       'Pixel noise is low (Var<median(Var).*0.05) (probably dead)']
+HighRN           : [2  ,       'Pixel noise is high (Var>10*median(Var)) (noisy pixel)']
 DarkHighVal      : [3  ,       'Pixel bias/dark value is high (>2*Mean)']
 DarkLowVal       : [4  ,       'Pixel bias/dark value is low (<0.2*Mean)']
 BiasFlaring      : [5  ,       'Pixel is possibly flaring (>20 sigma)']

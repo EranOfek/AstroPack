@@ -253,11 +253,11 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Result(Iobj).BitName = bitind2name(Obj(Iobj), (1:1:Obj(Iobj).Dict.Nbit) ); % should we subtract 1???
+                Result(Iobj).BitName = bitind2name(Obj(Iobj).Dict, (1:1:Obj(Iobj).Dict.Nbit) ); % should we subtract 1???
                 Result(Iobj).SumBit  = zeros(1,Obj(Iobj).Dict.Nbit);
                 for Ibit=0:1:Obj(Iobj).Dict.Nbit-1
 
-                    [Flag] = findBit(Obj(Iobj), BitNames, 'Method','any', 'OutType','mat', 'DataProp',Args.DataProp);
+                    [Flag] = findBit(Obj(Iobj), Result(Iobj).BitName, 'Method','any', 'OutType','mat', 'DataProp',Args.DataProp);
                     Result(Iobj).SumBit(Ibit+1) = sum(Flag,'all');
                 end
             end
