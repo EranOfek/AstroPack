@@ -26,6 +26,8 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 %                   clipping. Will stop before maximum number of iterations
 %                   reached if no new points were clipped.
 %                   Default is 3.
+%            'EpsilonStd' - A small nuymber that will be added to the StD,
+%                   in order to avoid division by zero. Default is 1e-12.
 % Output : - Sigma clipped mean of data.
 %          - Sigma clipped variance of the data.
 %          - A logical array of the same size of the input Data which
@@ -50,6 +52,7 @@ arguments
     Args.StdFun                      = 'rstd';
     Args.Nsigma(1,2)                 = [5 5];
     Args.MaxIter(1,1)                = 3;
+    Args.EpsilonStd                  = 1e-12;
 end
 
 if isempty(Dim)
@@ -68,7 +71,7 @@ while Iter<=Args.MaxIter && NrejectNew~=0
         FlagGood = true(size(Data));
         DataF = Data;
     else
-        Zstat = (DataF - Mean)./Std;
+        Zstat = (DataF - Mean)./(Std+Args.EpsilonStd);
         FlagGood = Zstat>(-abs(Args.Nsigma(1))) & Zstat<Args.Nsigma(2);
         DataF(~FlagGood) = NaN;
     end

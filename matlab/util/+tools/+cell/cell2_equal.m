@@ -17,7 +17,6 @@ function [IsEqual,IsEqualEach]=cell2_equal(Cell1,Cell2,DelSpace)
 % Example: [IsEqual,IsEqualEach]=Util.cell.cell2_equal({'2',1},{'2',1})
 % Reliable: 2
 %--------------------------------------------------------------------------
-import Util.string.*
 
 if (nargin<3)
     DelSpace = true;
@@ -38,7 +37,7 @@ else
     for Ic=1:1:Ncell1
         if (ischar(Cell1{Ic}) && ischar(Cell2{Ic}))
             if (DelSpace)
-                IsEqualEach(Ic) = strcmp(spacedel(Cell1{Ic}),spacedel(Cell2{Ic}));
+                IsEqualEach(Ic) = strcmp(tools.string.spacedel(Cell1{Ic}),tools.string.spacedel(Cell2{Ic}));
             else
                 IsEqualEach(Ic) = strcmp(Cell1{Ic},Cell2{Ic});
             end

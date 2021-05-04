@@ -195,7 +195,7 @@ classdef Dictionary < Component
         end
         
         function Obj = string2funHandle(Obj)
-            % convert dictionary items that start with '@' to a function
+            % convert dictionary items thaatom&t start with '@' to a function
             % handle
            
             Nobj = numel(Obj);

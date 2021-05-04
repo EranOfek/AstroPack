@@ -15,7 +15,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef DS9
+classdef ds9
     % A static class
     
     % Constructor method (display)
@@ -433,7 +433,7 @@ classdef DS9
         end
         
         % display images in all formats
-        function disp(Images,varargin)
+        function disp(Images,Frame,Args)
             % Display images in ds9 (use ds9 for short cut)
             % Package: @ds9
             % Description: Display images in ds9 
@@ -448,9 +448,8 @@ classdef DS9
             %            5. A cube (display a cube).
             %            6. Cell array of matrices.
             %            7. A SIM object.
-            %          * A vector of frames (see 'Frame') in which to load
-            %            the images into followed by ...,key,val,... pairs,
-            %            or just the ...,key,val,... pairs.
+            %          - Frame number, or vector of frames. Default is 1.
+            %          * ...,key,val,...
             %            'Frame' - Frame indices or frame parameters
             %                      (e.g., 'next'). Default is (1:N), where
             %                      N is the number of images to display.
@@ -462,39 +461,27 @@ classdef DS9
             %            'Zoom'  - See ds9.zoom. Default is 1.
             % Output : null
             % Example: ds9.disp(rand(100,100),1,'Zoom',2)
-            %          ds9.disp(rand(100,100),'Zoom',2);
+            %          ds9.disp(rand(100,100),1,'Zoom',2);
             %          ds9.disp(Sim(1:3));
             %          ds9.disp('MyFitsImage.fits');
             %          ds9.disp('Images*.fits');
             % Reliable: 2
             
-            Narg = numel(varargin);
-            if (Narg.*0.5)~=floor(Narg.*0.5)
-                % odd number of arguments
-                % assume 1st argument is frame
-                Frame = varargin{1};
-                varargin = varargin(2:end);
-            else
-                Frame = [];
+            arguments
+                Images
+                Frame         = 1;
+                Args.Scale    = 'mode zscale';
+                Args.CMap     = [];
+                Args.Colorbar = 'no';
+                Args.Orient   = [];
+                Args.Rotate   = [];
+                Args.Zoom     = 1;
             end
             
-            DefV.Frame                 = [];
-            DefV.Scale                 = 'mode zscale';
-            DefV.CMap                  = [];
-            DefV.Colorbar              = 'no';
-            DefV.Orient                = [];
-            DefV.Rotate                = [];
-            DefV.Zoom                  = 1;
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
             
             % open ds9
             ds9.open;
-            
-            if (isempty(Frame))
-                % use default instead
-                Frame = InPar.Frame;
-            end
-                       
+                    
 
             ImageField = SIM.ImageField;
             IsFits = false;
@@ -573,23 +560,23 @@ classdef DS9
                 end
                 
                 % set image properties
-                if (~isempty(InPar.Scale))
-                    ds9.scale(InPar.Scale);
+                if (~isempty(Args.Scale))
+                    ds9.scale(Args.Scale);
                 end
-                if (~isempty(InPar.CMap))
-                    ds9.cmap(InPar.CMap);
+                if (~isempty(Args.CMap))
+                    ds9.cmap(Args.CMap);
                 end
-                if (~isempty(InPar.Colorbar))
-                    ds9.colorbar(InPar.Colorbar);
+                if (~isempty(Args.Colorbar))
+                    ds9.colorbar(Args.Colorbar);
                 end
-                if (~isempty(InPar.Orient))
-                    ds9.orient(InPar.Orient);
+                if (~isempty(Args.Orient))
+                    ds9.orient(Args.Orient);
                 end
-                if (~isempty(InPar.Rotate))
-                    ds9.rotate(InPar.Rotate);
+                if (~isempty(Args.Rotate))
+                    ds9.rotate(Args.Rotate);
                 end
-                if (~isempty(InPar.Zoom))
-                    ds9.zoom(InPar.Zoom);
+                if (~isempty(Args.Zoom))
+                    ds9.zoom(Args.Zoom);
                 end
                    
                

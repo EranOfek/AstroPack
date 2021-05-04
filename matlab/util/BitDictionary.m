@@ -210,8 +210,15 @@ classdef BitDictionary < Component
             % Example: [BitInd,BitDec,SumBitDec,BitDescription]=name2bit(Obj,{'Spike','DeadPix'})
             
             arguments
-                Obj(1,1)
+                Obj
                 BitName     {mustBeA(BitName,{'char','cell'})}
+            end
+            
+            if isempty(Obj)
+                error('BitDictionary must be populated');
+            end
+            if numel(Obj)>1
+                error('BitDictionary must contain a single element');
             end
             
             if ~iscell(BitName)

@@ -745,7 +745,7 @@ classdef AstroHeader < Component
                     else
                         Alt = DictKeyNames(IdictKeys);
                     end
-                               
+                      
                     if ~isempty(Alt)
                         % search for Alt in the header
                         CleanCell = Obj(Iobj).Data(:, Obj(Iobj).ColKey);
@@ -757,7 +757,11 @@ classdef AstroHeader < Component
 
                         if ~isempty(Ind)
                             KeyName = Obj(Iobj).Data{Ind, Obj(Iobj).ColKey};
-                            Obj(Iobj).Data{Ind, Obj.ColComment} = Obj(Iobj).CommentDict.Dict.(KeyName){1};
+                            try
+                                Obj(Iobj).Data{Ind, Obj.ColComment} = Obj(Iobj).CommentDict.Dict.(KeyName){1};
+                            catch
+                                Obj(Iobj).Data{Ind, Obj.ColComment} = Obj(Iobj).CommentDict.Dict.(Key){1};
+                            end
                         end
                         
                     end
