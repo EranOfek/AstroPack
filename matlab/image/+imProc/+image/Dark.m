@@ -779,18 +779,23 @@ classdef Dark < Component
         
         end
         
-        function [Result, Overscan] = overscan(Obj, ImObj, Args)
+        function [Result, Overscan, OverScanIC] = overscan(Obj, ImObj, Args)
             % Create overscan images and optionally subtract from images
             
             arguments
                 Obj(1,1)
                 ImObj AstroImage
                 Args.OverScan                = 'OVERSCAN';  % keyword or CCDSEC
+                Args.OverScanDir             = []; % 'x'|'y',1,2,[]- auto
                 Args.Method
-                Args.MethodArgs
+                Args.MethodArgs cell         = {50};
             end
+            DefArgSGolay = {3 50}; 
             
             Nim = numel(ImObj);
+            if nargout>2
+                OverScanIC = AstroImage(size(ImObj));
+            end
             for Iim=1:1:Nim
                 if ischar(Args.OverScan)
                     % read from header
@@ -800,8 +805,66 @@ classdef Dark < Component
                 end
                 
                 % cut overscan
+                OverScanImage = ImObj(Iim).Image(OverScan(3):OverScan(4), OverScan(1):OverScan(2));
                 
                 
+                % overscan direction
+                if isempty(Args.OverScanDir)
+                    % select according to the long axis
+                    SizeOverScan = size(OverScanImage);
+                    if SizeOverScan(1)>SizeOverScan(2)
+                        Dir = 2;
+                    else
+                        Dir = 1;
+                    end
+                else
+                    if isnumeric(Args.OverScanDir)
+                        Dir = Args.OverScanDir;
+                    else
+                        switch lower(Args.OverScanDir)
+                            case 'x'
+                                Dir = 2;
+                            case 'y'
+                                Dir = 1;
+                            otherwise
+                                error('Unknown OverScanDir option');
+                        end
+                    end
+                end
+                
+                % perform analysis on OverScanImage
+                switch lower(Args.Method)
+                    case 'globalmedian'
+                        OverScanLine = median(OverScanImage,'all','omitnan');
+                    case 'globalmean'
+                        OverScanLine = mean(OverScanImage,'all','omitnan');
+                    case 'median'
+                        OverScanLine = median(OverScanImage,Dir,'omitnan');
+                    case 'mean'
+                        OverScanLine = mean(OverScanImage,Dir,'omitnan');
+                    case 'medmedfilt'
+                        % medain followed by median filter
+                        OverScanLine = median(OverScanImage,Dir,'omitnan');
+                        OverScanLine = medfilt1(OverScanLine,Args.MethodArgs{:});
+                    case 'medsgolayfilt'
+                        % medain followed by Svitzky-Golay filter
+                        OverScanLine = median(OverScanImage,Dir,'omitnan');
+                        if numel(Args.MethodArgs)<2
+                            Args.MethodArgs = DefArgSGolay;
+                        end
+                        OverScanLine = sgolayfilt(OverScanLine,Args.MethodArgs{:});
+                    otherwise
+                        error('Unknown Method option');
+                end
+                
+                
+                % store over scan in AstroImage (only if requested)
+                if nargout>2
+                    OverScanIC(Iobj).Image = OverScanImage;
+                    OverScanIC(Iobj).Back  = OverScanLine;
+                end        
+                        
+                        
             end
            
             
