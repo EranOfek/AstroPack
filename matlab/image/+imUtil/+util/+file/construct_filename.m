@@ -1,4 +1,4 @@
-function [FileName,Path]=construct_filename(varargin)
+function [FileName,Path] = construct_filename(varargin)
 % Construct image/catalog file name based on the LAST/ULTRASAT standard
 % Package: +imUtil/+util/+file
 % Description: Return data product file name and path according to the

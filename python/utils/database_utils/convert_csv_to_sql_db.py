@@ -5,6 +5,16 @@
 # See: https://gist.github.com/antivanov/59e00f6129725e9b4404
 
 # Instructions
+#
+#
+# Unit-Test:
+#
+# Use unittest__tables from GDrive to test
+#
+# Requirements:
+#
+#       pip3 install pyyaml openpyxl psycopg2
+#
 
 import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
@@ -50,9 +60,9 @@ def get_field_type(field_name, text):
     ftype = ''
     text = text.split(' ')[0]
     text = text.replace('Enumeration:', '').strip().lower()
-    if text == 'int8' or text == 'int16' or text == 'int32':
+    if text == 'int' or text == 'int8' or text == 'int16' or text == 'int32':
         ftype = 'INTEGER'
-    elif text == 'int64':
+    elif text == 'int64' or text == 'bigint':
         ftype = 'BIGINT'
     elif text == 'single' or text == 'double':
         ftype = 'DOUBLE PRECISION'
@@ -65,13 +75,14 @@ def get_field_type(field_name, text):
     elif text == 'uuid':
         ftype = 'VARCHAR'
     else:
-        ftype = '???'
 
         # Special case: Hierarchical Triangular Mesh
         if field_name.startswith('HTM_ID'):
             ftype = 'VARCHAR'
-        else:
-            log('Unknown field type: ' + text)
+
+    if ftype == '':
+        ftype = '???'
+        log('Unknown field type: ' + text)
 
     return ftype
 
@@ -84,12 +95,14 @@ class Field:
         self.data_type = ''
         self.comments = ''
         self.metadata = ''
+        self.source = ''
         self.json = None
         self.yaml = None
         self.primary_key = False
         self.index = False
         self.index_method = 'btree'
         self.is_common = False
+
 
 
 def get_csv(row, column, _default = '', _strip = True):
@@ -240,6 +253,10 @@ class DatabaseDef:
                 if field.field_name == '':
                     continue
 
+                # Skip comment rows
+                if field.field_name.startswith('#') or field.field_name.startswith('%'):
+                    continue
+
                 # Load include file (common fields)
                 # Note: Recursive call
                 if field.field_name.find('(') > -1:
@@ -254,6 +271,7 @@ class DatabaseDef:
                 field.field_type = get_csv(row, 'Data Type')
                 field.comments = get_csv(row, 'Comments')
                 field.metadata = get_csv(row, 'Metadata')
+                field.source = get_csv(row, 'Source')
                 field.is_common = is_common
 
                 # Load field metadata as YAML data

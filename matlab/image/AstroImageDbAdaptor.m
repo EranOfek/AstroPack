@@ -18,6 +18,19 @@ classdef AstroImageDbAdaptor < Component
     end
     
  
+    methods
+    
+        function Result = writeImage(Image, WriteData)
+            % 
+        end
+        
+        
+        function Result = writeHeader(Image, WriteData)
+            % 
+        end        
+        
+    end
+    
     
     % Setters/Getters
     methods
@@ -41,6 +54,26 @@ classdef AstroImageDbAdaptor < Component
     methods
         
     end
+
+    
+    
+    % static methods
+    methods (Static)
+        
+        
+        function Result = getTableName(TableId)
+           % Convert table enum to string 
+           
+        end
+        
+        
+        function Result = getTableId(TableName)
+            % Convert table name to enum
+            
+            
+        end
+    end
+    
     
     % static methods
     methods (Static)
