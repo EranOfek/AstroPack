@@ -471,6 +471,9 @@ classdef Stack < Component
             %                   keywords regarding the number of coadded
             %                   images and update the EXPTIME and MIDJD.
             %                   Default is true.
+            %              'SumExpTime' - A logical indicating if to sum
+            %                   the EXPTIME in the new header, or to use
+            %                   the mean (false). Default is true.
             % Output : - An AstroImage with the coadded image, includinf
             %            the coadded background and mask. The VarData is always
             %            including the empirical variance.
@@ -518,6 +521,7 @@ classdef Stack < Component
                 Args.HeaderCopy1(1,1) logical               = true;
                 Args.NewHeader                              = [];
                 Args.UpdateTimes(1,1) logical               = true;
+                Args.SumExpTime(1,1) logical                = true;
                 
             end
             DataProp                      = {'ImageData','BackData', 'VarData', 'MaskData'};
@@ -667,7 +671,11 @@ classdef Stack < Component
                             'MAXJD',max(MidJD),'MIDJD of last coadded observation'};
                 Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
                 
-                Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {sum(VecExpTime)});
+                if Args.SumExpTime
+                    Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {sum(VecExpTime)});
+                else
+                    Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {mean(VecExpTime)});
+                end
                 Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
                 
             end

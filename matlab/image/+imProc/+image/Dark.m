@@ -537,6 +537,9 @@ classdef Dark < Component
             %                   header. Default is {}.
             %            'AddHeaderPos' - Position of the added header.
             %                   Default is 'end'.
+            %            'SumExpTime' - A logical indicating if to sum
+            %                   (true) or take the mean (false) of the
+            %                   EXPTIME header keyword. Default is false.
             % Output : - An AstroImage containing the bias/dark image.
             %          - A vector of logical indicating which images were
             %            used.
@@ -581,6 +584,7 @@ classdef Dark < Component
                 
                 Args.AddHeader                  = {};
                 Args.AddHeaderPos               = 'end';
+                Args.SumExpTime(1,1) logical    = false;
                 
             end
             
@@ -613,7 +617,8 @@ classdef Dark < Component
                                               'EmpiricalVarFunArgs',Args.EmpiricalVarFunArgs,...
                                               'MedianVarCorrForEmpirical',false,...
                                               'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
-                                              'PostNorm',[]);
+                                              'PostNorm',[],...
+                                              'SumExpTime',Args.SumExpTime);
                                           
              % Make sure BitDictionary is populated
              if ~isempty(Args.BitDictinaryName)
