@@ -44,6 +44,7 @@ classdef BitDictionary < Component
                     end
                 end
                 Obj.Dic = cell2table(Cell);
+                Obj.BitDictName = DictionaryName;
             end
         end
     end

@@ -182,29 +182,32 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             end
             
             for Iobj=1:1:Nobj
-                if iscell(BitNames) || isstring(BitNames)
-                    [BitInd,BitDec,SumBitDec,BitDescription] = name2bit(Obj(Iobj), BitNames);
+                if isempty(BitNames)
+                    Flag = [];
                 else
-                    SumBitDec = BitNames;
-                end
+                    if iscell(BitNames) || isstring(BitNames)
+                        [BitInd,BitDec,SumBitDec,BitDescription] = name2bit(Obj(Iobj).Dict, BitNames);
+                    else
+                        SumBitDec = BitNames;
+                    end
 
-                switch lower(Args.Method)
-                    case 'all'
-                        if isempty(Args.CCDSEC)
-                            Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) == SumBitDec;
-                        else
-                            Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) == SumBitDec;
-                        end
-                    case 'any'
-                        if isempty(Args.CCDSEC)
-                            Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) > 0;
-                        else
-                            Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) > 0;
-                        end
-                    otherwise
-                        error('Unknown Method option');
+                    switch lower(Args.Method)
+                        case 'all'
+                            if isempty(Args.CCDSEC)
+                                Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) == SumBitDec;
+                            else
+                                Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) == SumBitDec;
+                            end
+                        case 'any'
+                            if isempty(Args.CCDSEC)
+                                Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) > 0;
+                            else
+                                Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) > 0;
+                            end
+                        otherwise
+                            error('Unknown Method option');
+                    end
                 end
-                
                 switch lower(Args.OutType)
                     case 'imagecomponent'
                         Result(Iobj).(Args.DataProp) = Flag;
@@ -213,7 +216,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     otherwise
                         error('Unknown OutType option');
                 end
-                
+
             end
             
             if nargout>1
@@ -243,6 +246,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     methods % bit statistics
         function Result = bitStat(Obj, Args)
             %
+            % Example: Stat = Bias.MaskData.bitStat
             
             arguments
                 Obj
@@ -253,15 +257,16 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Result(Iobj).BitName = bitind2name(Obj(Iobj).Dict, (1:1:Obj(Iobj).Dict.Nbit) ); % should we subtract 1???
+                Result(Iobj).BitName = bitind2name(Obj(Iobj).Dict, (0:1:Obj(Iobj).Dict.Nbit-1) ); % should we subtract 1???
                 Result(Iobj).SumBit  = zeros(1,Obj(Iobj).Dict.Nbit);
+                Result(Iobj).FracBit = zeros(1,Obj(Iobj).Dict.Nbit);
+                Npix                 = numel(Obj(Iobj).Image);
                 for Ibit=0:1:Obj(Iobj).Dict.Nbit-1
-
-                    [Flag] = findBit(Obj(Iobj), Result(Iobj).BitName, 'Method','any', 'OutType','mat', 'DataProp',Args.DataProp);
-                    Result(Iobj).SumBit(Ibit+1) = sum(Flag,'all');
+                    [Flag] = findBit(Obj(Iobj), Result(Iobj).BitName{Ibit+1}, 'Method','any', 'OutType','mat', 'DataProp',Args.DataProp);
+                    Result(Iobj).SumBit(Ibit+1)  = sum(Flag,'all');
+                    Result(Iobj).FracBit(Ibit+1) = Result(Iobj).SumBit(Ibit+1)./Npix;
                 end
             end
-            
             
         end
         

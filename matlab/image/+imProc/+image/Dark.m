@@ -454,7 +454,94 @@ classdef Dark < Component
     methods % bias/dark
         
         function [Result, IsBias, CoaddN] = bias(Obj, ImObj, Args)
-            %
+            % Generate a super bias image from a s et of bias images.
+            % Input  : - A Dark object.
+            %          - An AstroImage object with multiple images.
+            %          * ...,key,val,...
+            %            'BitDictinaryName' - A BitDictionary name.
+            %                   If empty, will use existing BitDictionary.
+            %                   Note, that if BitDictionary doesn't exist
+            %                   and not provided, the function will fail.
+            %                   Default is 'BitMask.Image.Default' (located
+            %                   in the config/ directory).
+            %            'IsBias' - A function handle for a function that
+            %                   selects and validates bias/dark images
+            %                   (e.g., @isBias, @isDark).
+            %                   Alternatively, a vector of logicals
+            %                   indicating which image is a bias/dark
+            %                   image. If empty use all images.
+            %                   Default is empty.
+            %            'IsBiasArgs' - A cell array of arguments to pass
+            %                   to the  IsBias function. Default is {}.
+            %            'StackMethod' - For options, see
+            %                   imProc.image.Stack.coadd).
+            %                   Default is 'sigmaclip'.
+            %              'StackArgs' - A cell array of arguments to pass to the
+            %                   method function. Default is
+            %                   {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.
+            %              'EmpiricalVarFun' - Default is @var.
+            %              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
+            %              'DivideEmpiricalByN' - A logical indicating if to divide
+            %                   CoaddVarEmpirical by N. Default is false.
+            %              'getValArgs' - A cell array of arguments to pass
+            %                   to the Header/getVal function. Default is {}.
+            %              'LowRN_BitName' - LowRN bit name.
+            %                   This bit flag pixels which variance is
+            %                   larger than Threshold*RN^2, where RN is the
+            %                   ReadNoise.
+            %                   Default is 'LowRN'.
+            %              'LowRN_Threshold' - Threshold value.
+            %                   Default is 0.05.
+            %              'LowRN_MeanFun' - A string, a function handle or
+            %                   numerical value. If string then this is an
+            %                   header keyword name, and will attempt to
+            %                   look for this keyword (using the getVal
+            %                   function). If numerical value, than assume
+            %                   this is the RN. If a function handle than
+            %                   this function will be applied on the
+            %                   variance image to estimate the RN.
+            %                   Default is @median.
+            %              'HighRN_BitName'
+            %                   This bit flag pixels which variance is
+            %                   smaller than Threshold*RN^2, where RN is the
+            %                   ReadNoise.
+            %                   Default is 'HighRN'.
+            %              'HighRN_Threshold' - Threshold value.
+            %                   Default is 10.
+            %              'HighRN_MeanFun' - Like LowRN, buit for the
+            %                   HighRN bit.
+            %                   Default is @median.
+            %              'DarkHighVal_BitName' - Bit name for high
+            %                   dark/bias values. Defined as image values
+            %                   larger than Threshold*Mean, where Mean is
+            %                   the image mean.
+            %                   Default is 'DarkHighVal'.
+            %              'DarkHighVal_Threshold' - Threshold value.
+            %                   Default is 2.
+            %              'DarkLowVal_BitName' - Bit name for low
+            %                   dark/bias values. Defined as image values
+            %                   smaller than Threshold*Mean, where Mean is
+            %                   the image mean.
+            %                   Default is 'DarkLowVal'.
+            %              'DarkLowVal_Threshold' - Threshold value.
+            %                   Default is 0.2.
+            %              'BiasFlaring_BitName' - Bit name for flaring
+            %                   pixels identified using
+            %                   identifyFlaringPixels.
+            %              'BiasFlaring_Threshold' - A threshold value
+            %                   (number of sigma above mean). Default is 20.
+            %              'BiasFlaringArgs' - A cell array of additional
+            %                   arguments to pass to identifyFlaringPixels.
+            %                   Default is {}.
+            %              'AddHeader' - A 3 column cell array to add to
+            %                   header. Default is {}.
+            %              'AddHeaderPos' - Position of the added header.
+            %                   Default is 'end'.
+            % Output : - An AstroImage containing the bias/dark image.
+            %          - A vector of logical indicating which images were
+            %            used.
+            %          - A matrix of the number of images used in each
+            %            pixel.
             % Example: A=AstroImage('LAST.*_dark.fits')
             %          D = imProc.image.Dark;
             %          Bias = D.bias(A)
@@ -473,13 +560,10 @@ classdef Dark < Component
                 Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
                 Args.DivideEmpiricalByN         = false;
                 
-                Args.StackVarMethod
-                Args.StackVarArgs
-                
+                Args.getValArgs                 = {};
                 Args.LowRN_BitName              = 'LowRN';
                 Args.LowRN_Threshold            = 0.05;
                 Args.LowRN_MeanFun              = @median;   % or RN or RN keyword...
-                Args.getValArgs                 = {};
                 
                 Args.HighRN_BitName             = 'HighRN';
                 Args.HighRN_Threshold           = 10;
@@ -494,6 +578,9 @@ classdef Dark < Component
                 Args.BiasFlaring_BitName        = 'BiasFlaring';
                 Args.BiasFlaring_Threshold      = 20;
                 Args.BiasFlaringArgs cell       = {};
+                
+                Args.AddHeader                  = {};
+                Args.AddHeaderPos               = 'end';
                 
             end
             
@@ -555,36 +642,38 @@ classdef Dark < Component
              end
              Result = maskSet(Result, FlagLowRN, Args.LowRN_BitName, 1);
              
-             
-             
              % mask HighRN
              if isa(Args.HighRN_MeanFun,'function_handle')
-                 FlagHighRN = Result.Var < (Args.HighRN_Threshold.*Args.HighRN_MeanFun(Result.Var,'all'));
+                 FlagHighRN = Result.Var > (Args.HighRN_Threshold.*Args.HighRN_MeanFun(Result.Var,'all'));
              elseif isnumeric(Args.HighRN_MeanFun)
                  % value for RN
-                 FlagHighRN = Result.Var < (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
+                 FlagHighRN = Result.Var > (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
              elseif ischar(Args.HighRN_MeanFun)
                  % header keyword for RN
                  Args.HighRN_MeanFun = funHeader(Result, @getVal, Args.HighRN_MeanFun, Args.getValArgs{:});
-                 FlagHighRN = Result.Var < (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
+                 FlagHighRN = Result.Var > (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
              else
                  error('Unknown LowRN_MeanFun option');
              end
              Result = maskSet(Result, FlagHighRN, Args.HighRN_BitName, 1);
              
              % mask DarkHighVal
-             FlagHigh = Result.Image< (Args.DarkHighVal_Threshold.*mean(Result.Image,'all'));
+             FlagHigh = Result.Image > (Args.DarkHighVal_Threshold.*mean(Result.Image,'all'));
              Result = maskSet(Result, FlagHigh, Args.DarkHighVal_BitName, 1);
              
              % mask DarkLowVal
-             FlagLow = Result.Image< (Args.DarkLowVal_Threshold.*mean(Result.Image,'all'));
+             FlagLow = Result.Image < (Args.DarkLowVal_Threshold.*mean(Result.Image,'all'));
              Result = maskSet(Result, FlagLow, Args.DarkLowVal_BitName, 1);
              
              % mask BiasFlaring
              [FlagFlaring] = identifyFlaringPixels(Obj, ImageCube, Args.BiasFlaringArgs{:}, 'Threshold',Args.BiasFlaring_Threshold);
              Result = maskSet(Result, FlagFlaring, Args.BiasFlaring_BitName, 1);                             
                                           
-                                          
+             % Update Header
+             if ~isempty(Args.AddHeader)
+                Result.HeaderData = insertKey(Result.HeaderData, Args.AddHeader, Args.AddHeaderPos);
+             end
+             
                 
         end
         
