@@ -779,7 +779,33 @@ classdef Dark < Component
         
         end
         
-        
+        function [Result, Overscan] = overscan(Obj, ImObj, Args)
+            % Create overscan images and optionally subtract from images
+            
+            arguments
+                Obj(1,1)
+                ImObj AstroImage
+                Args.OverScan                = 'OVERSCAN';  % keyword or CCDSEC
+                Args.Method
+                Args.MethodArgs
+            end
+            
+            Nim = numel(ImObj);
+            for Iim=1:1:Nim
+                if ischar(Args.OverScan)
+                    % read from header
+                    OverScan = getval(ImObj(Iim).HeaderData,'ReadCCDSEC',true);
+                else
+                    OverScan = Args.OverScan;
+                end
+                
+                % cut overscan
+                
+                
+            end
+           
+            
+        end
     end
     
 end

@@ -432,6 +432,14 @@ classdef AstroHeader < Component
             %                   For example, if you would like to search
             %                   by 'AEXPTIME' use true.
             %                   Default is false.
+            %            'ReadCCDSEC' - If true will attempt to convert a
+            %                   CCDSEC-like string (i.e., '[xmin xmax ymin ymax]')
+            %                   into a 4-elements vector.
+            % Output : - Value
+            %          - Keyword name
+            %          - Comment
+            %          - Nfound
+            % Author : Eran Ofek (Mar 2021)
             % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             %          [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME')
             %          [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','IsInputAlt',true)
@@ -451,6 +459,7 @@ classdef AstroHeader < Component
                 Args.Occur                             = 'first';
                 Args.KeyDict                           = [];  % a structure of dictionary
                 Args.IsInputAlt(1,1) logical           = false;
+                Args.ReadCCDSEC(1,1) logical           = false;
             end
             
             if ischar(KeySynonym)
@@ -487,6 +496,11 @@ classdef AstroHeader < Component
                                                           'ColVal',Obj.ColVal,...
                                                           'ColComment',Obj.ColComment);
             
+            if Args.ReadCCDSEC && ischar(Val)
+                % Convert a CCDSEC like argument to vector
+                CCDSEC = str2double(regexp(Val,'\[|\]|\s','split'));
+                Val    = CCDSEC(2:end-1);
+            end
         end
               
         function [Result ,ResultC, IK] = getStructKey(Obj,ExactKeys,Args)
