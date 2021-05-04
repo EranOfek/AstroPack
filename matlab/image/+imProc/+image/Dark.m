@@ -476,23 +476,23 @@ classdef Dark < Component
             %            'StackMethod' - For options, see
             %                   imProc.image.Stack.coadd).
             %                   Default is 'sigmaclip'.
-            %              'StackArgs' - A cell array of arguments to pass to the
+            %            'StackArgs' - A cell array of arguments to pass to the
             %                   method function. Default is
             %                   {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.
-            %              'EmpiricalVarFun' - Default is @var.
-            %              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
-            %              'DivideEmpiricalByN' - A logical indicating if to divide
+            %            'EmpiricalVarFun' - Default is @var.
+            %            'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
+            %            'DivideEmpiricalByN' - A logical indicating if to divide
             %                   CoaddVarEmpirical by N. Default is false.
-            %              'getValArgs' - A cell array of arguments to pass
+            %            'getValArgs' - A cell array of arguments to pass
             %                   to the Header/getVal function. Default is {}.
-            %              'LowRN_BitName' - LowRN bit name.
+            %            'LowRN_BitName' - LowRN bit name.
             %                   This bit flag pixels which variance is
             %                   larger than Threshold*RN^2, where RN is the
             %                   ReadNoise.
             %                   Default is 'LowRN'.
-            %              'LowRN_Threshold' - Threshold value.
+            %            'LowRN_Threshold' - Threshold value.
             %                   Default is 0.05.
-            %              'LowRN_MeanFun' - A string, a function handle or
+            %            'LowRN_MeanFun' - A string, a function handle or
             %                   numerical value. If string then this is an
             %                   header keyword name, and will attempt to
             %                   look for this keyword (using the getVal
@@ -501,41 +501,41 @@ classdef Dark < Component
             %                   this function will be applied on the
             %                   variance image to estimate the RN.
             %                   Default is @median.
-            %              'HighRN_BitName'
+            %            'HighRN_BitName'
             %                   This bit flag pixels which variance is
             %                   smaller than Threshold*RN^2, where RN is the
             %                   ReadNoise.
             %                   Default is 'HighRN'.
-            %              'HighRN_Threshold' - Threshold value.
+            %            'HighRN_Threshold' - Threshold value.
             %                   Default is 10.
-            %              'HighRN_MeanFun' - Like LowRN, buit for the
+            %            'HighRN_MeanFun' - Like LowRN, buit for the
             %                   HighRN bit.
             %                   Default is @median.
-            %              'DarkHighVal_BitName' - Bit name for high
+            %            'DarkHighVal_BitName' - Bit name for high
             %                   dark/bias values. Defined as image values
             %                   larger than Threshold*Mean, where Mean is
             %                   the image mean.
             %                   Default is 'DarkHighVal'.
-            %              'DarkHighVal_Threshold' - Threshold value.
+            %            'DarkHighVal_Threshold' - Threshold value.
             %                   Default is 2.
-            %              'DarkLowVal_BitName' - Bit name for low
+            %                   DarkLowVal_BitName' - Bit name for low
             %                   dark/bias values. Defined as image values
             %                   smaller than Threshold*Mean, where Mean is
             %                   the image mean.
             %                   Default is 'DarkLowVal'.
-            %              'DarkLowVal_Threshold' - Threshold value.
+            %            'DarkLowVal_Threshold' - Threshold value.
             %                   Default is 0.2.
-            %              'BiasFlaring_BitName' - Bit name for flaring
+            %            'BiasFlaring_BitName' - Bit name for flaring
             %                   pixels identified using
             %                   identifyFlaringPixels.
-            %              'BiasFlaring_Threshold' - A threshold value
+            %            'BiasFlaring_Threshold' - A threshold value
             %                   (number of sigma above mean). Default is 20.
-            %              'BiasFlaringArgs' - A cell array of additional
+            %            'BiasFlaringArgs' - A cell array of additional
             %                   arguments to pass to identifyFlaringPixels.
             %                   Default is {}.
-            %              'AddHeader' - A 3 column cell array to add to
+            %            'AddHeader' - A 3 column cell array to add to
             %                   header. Default is {}.
-            %              'AddHeaderPos' - Position of the added header.
+            %            'AddHeaderPos' - Position of the added header.
             %                   Default is 'end'.
             % Output : - An AstroImage containing the bias/dark image.
             %          - A vector of logical indicating which images were
@@ -677,21 +677,107 @@ classdef Dark < Component
                 
         end
         
-        function Dark = dark(DarkObj, Images, Args)
-            %
-            
+        function [Result, Bias, IsBias, IsNotBias] = debias(Obj, ImObj, Bias, Args)
+            % Subtract bias (and construct if needed) from a list of images
+            % Input  : - A Dark object.
+            %          - An AstroImage object. Either containing images
+            %            from which to subtract the bias, or all the images
+            %            including the bias images.
+            %          - A bias image. If empty, will attempt to construct
+            %            the bias/dark image. Default is [].
+            %          * ...,key,val,...
+            %            'BitDictinaryName' - A BitDictionary name.
+            %                   If empty, will use existing BitDictionary.
+            %                   Note, that if BitDictionary doesn't exist
+            %                   and not provided, the function will fail.
+            %                   Default is 'BitMask.Image.Default' (located
+            %                   in the config/ directory).
+            %            'IsBias' - A function handle for a function that
+            %                   selects and validates bias/dark images
+            %                   (e.g., @isBias, @isDark).
+            %                   Alternatively, a vector of logicals
+            %                   indicating which image is a bias/dark
+            %                   image. If empty use all images.
+            %                   Default is empty.
+            %            'BiasArgs' - A cell array of additional arguments
+            %                   to pass to the bias method.
+            %                   Default is {}.
+            %            'CCDSEC' - A CCDSEC on which to operate the bias
+            %                   subtraction (will be used both on the bias
+            %                   and target images). If empty, use the
+            %                   entire image. Default is [].
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An AstroImage object containing the non-bias
+            %            images after bias subtraction and mask propagation.
+            %          - A bias image.
+            %          - A vector of logicals indicating bias images.
+            %          - A vector of logicals indicating non-bias images.
+            % Author : Eran Ofek (May 2021)
+            % Example: D = imProc.image.Dark;
+            %          AI = AstroImage('LAST.2.1.2_20200821.015445.457_clear_0_science.fits');
+            %          AB = D.debias(AI,Bias);
+           
             arguments
-                DarkObj
-                Images AstroImage
-                Args.StackMethod              
-                Args.StackArgs
-                Args.StackVarMethod
-                Args.StackVarArgs
+                Obj(1,1)
+                ImObj AstroImage
+                Bias                            = [];  % A bias (AstroImage) image 
+                Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
+                Args.IsBias                     = [];  % @isBias, @isDark, vector of logical or [] - use all.                
+                Args.BiasArgs cell              = {};
+                Args.CCDSEC                     = [];
+                Args.CreateNewObj              = [];
             end
             
+            if isempty(Args.CreateNewObj)
+                if nargout==0
+                    Args.CreateNewObj = false;
+                else
+                    Args.CreateNewObj = true;
+                end
+            end
+            
+            if isempty(Bias)
+                % generate bias image
+                %KeyVal                 = namedargs2cell(Args);
+                [Bias, IsBias]         = bias(Obj, ImObj, Args.BiasArgs{:}, 'BitDictinaryName',Args.BitDictinaryName,...
+                                                                            'IsBias',Args.IsBias); % KeyVal{:});
+                IsNotBias              = ~IsBias;
+            else
+                % bias image is provided
+                IsBias                 = [];    % unknown
+                IsNotBias              = true(size(ImObj));
+            end
+            
+            % subtract the bias image
+            Result = funBinaryProp(ImObj(IsNotBias), Bias, @minus, 'OpArgs',{},...
+                                                        'DataProp','ImageData',...
+                                                        'DataPropIn','Data',...
+                                                        'CCDSEC',Args.CCDSEC,...
+                                                        'CCDSEC1',Args.CCDSEC,...
+                                                        'CCDSEC2',Args.CCDSEC,...
+                                                        'UseOrForMask',true,...
+                                                        'CreateNewObj',Args.CreateNewObj,...
+                                                        'Result',[]);
+            % propagate the mask image
+            Result = funBinaryProp(ImObj(IsNotBias), Bias, @minus, 'OpArgs',{},...
+                                                        'DataProp','MaskData',...
+                                                        'DataPropIn','Data',...
+                                                        'CCDSEC',Args.CCDSEC,...
+                                                        'CCDSEC1',Args.CCDSEC,...
+                                                        'CCDSEC2',Args.CCDSEC,...
+                                                        'UseOrForMask',true,...
+                                                        'CreateNewObj',false,...
+                                                        'Result',Result);
+        
         end
-        
-        
         
         
     end

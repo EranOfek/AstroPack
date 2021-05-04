@@ -1144,6 +1144,14 @@ classdef AstroImage < Component
                         Tmp2 = Obj2(Iobj2).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
                     end
                 end
+                
+                % make sure Tmp1 and Tmp2 are not empty
+                if isempty(Tmp1) && ~isempty(Tmp2)
+                    Tmp1 = 0;
+                end
+                if isempty(Tmp2) && ~isempty(Tmp1)
+                    Tmp2 = 0;
+                end
             
                 if isa(Obj1(Iobj1).(Args.DataProp),'MaskImage') && Args.UseOrForMask
                     if isempty(Args.CCDSEC)
