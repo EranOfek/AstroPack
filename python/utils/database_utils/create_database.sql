@@ -23,7 +23,7 @@ SET row_security = off;
 -- Name: pipeline; Type: DATABASE; Schema: -; Owner: postgres
 --
 
-CREATE DATABASE $DatabaseName$ WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE = 'Hebrew_Israel.1255';
+CREATE DATABASE $DatabaseName$ WITH TEMPLATE = template0 ENCODING = 'UTF8';
 
 
 ALTER DATABASE $DatabaseName$ OWNER TO postgres;
