@@ -16,12 +16,24 @@
 #       sudo apt install python3-pip
 #       pip3 install pyyaml openpyxl psycopg2
 #
+# psql -V
+# psql -U postgres -f __unittest.sql
+
+# Chen Windows: postgres/pass
+# Linux default:
+#
 
 import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
+from sys import platform
 
 # Log message to file
-LOG_PATH = 'c:/temp/'
+if platform == "win32":
+    LOG_PATH = 'c:/temp/'
+else:
+    LOG_PATH = '/tmp/'
+
+
 logfile = open(os.path.join(LOG_PATH, 'convert_csv_to_sql_db.log'), 'a')
 def log(msg, dt = False):
     global logfile
@@ -71,6 +83,8 @@ def get_field_type(field_name, text):
         ftype = 'BOOLEAN'
     elif text == 'string' or text == 'text':
         ftype = 'VARCHAR'
+    elif text == 'timestamp' or text == 'date' or text == 'time':
+        ftype = 'TIMESTAMP'
 
     # Special field: UUID
     elif text == 'uuid':
@@ -445,6 +459,10 @@ def extract_xlsx(filename):
 # Process XLSX file with database definitions
 def process_xlsx_file(filename):
     log('process_xlsx_file: ' + filename)
+    if not os.path.exists(filename):
+        log('file not found: ' + filename)
+        return
+
     filename_lower = filename.lower()
     out_path = extract_xlsx(filename_lower)
     process_folder(out_path, ['.csv'], False)
@@ -454,6 +472,10 @@ def process_xlsx_file(filename):
 # Process CSV file with database definitions
 def process_csv_file(filename):
     log('processing csv: ' + filename)
+    if not os.path.exists(filename):
+        log('file not found: ' + filename)
+        return
+
     filename_lower = filename.lower()
     path, fname = os.path.split(filename_lower)
 
