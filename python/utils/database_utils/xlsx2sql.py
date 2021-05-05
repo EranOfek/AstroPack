@@ -13,6 +13,7 @@
 #
 # Requirements:
 #
+#       sudo apt install python3-pip
 #       pip3 install pyyaml openpyxl psycopg2
 #
 
@@ -190,7 +191,9 @@ class DatabaseDef:
 
         # Not found, use general file
         if not os.path.exists(fname):
-            fname = os.path.join(self.def_path, '../..', 'create_database.sql')
+
+            script_path = os.path.dirname(os.path.realpath(__file__))
+            fname = os.path.join(script_path, 'create_database.sql')
 
             if not os.path.exists(fname):
                 log('create_db: database definition file not found: ' + fname)
