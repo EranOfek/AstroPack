@@ -81,8 +81,9 @@ def get_field_type(field_name, text):
             ftype = 'VARCHAR'
 
     if ftype == '':
-        ftype = '???'
-        log('Unknown field type: ' + text)
+        #ftype = '???'
+        ftype = 'DOUBLE PRECISION'
+        log('Unknown field type, using default DOUBLE: ' + text)
 
     return ftype
 
