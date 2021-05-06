@@ -264,7 +264,6 @@ classdef Dark < Component
             % Check and validate that a set of images in an AstroImage object are bias images
             % Input  : - A imProc.image.Dark object.
             %          - An AstroImage object.
-            %            If empty, will attempt to atke from dark object.
             %          * ...,key,val,...
             %            'MaxAllowedFrac' - The fraction of identical
             %                   pixels above to set the output argument
@@ -305,7 +304,7 @@ classdef Dark < Component
             
             arguments
                 Obj(1,1)
-                AI                                                              = [];
+                AI AstroImage
                 Args.MaxAllowedFrac                                             = 0.2;
                 Args.Template                                                   = [];
                 Args.TemplateVar                                                = [];
@@ -321,14 +320,6 @@ classdef Dark < Component
                 Args.KeyDict                                                    = [];
             end
             ImTypeVal = 'Bias';
-            
-            if isempty(AI)
-                % check if AI is available via Class
-                AI = DarkObj.ImObj;
-            else
-                DarkObj.ImObj = AI;
-            end
-            
             
             % AI is now an AstroImage object
             Flag.IsImType = isImType(AI, ImTypeVal, 'UseDict',Args.UseDict,...
