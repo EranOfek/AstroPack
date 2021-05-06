@@ -61,6 +61,7 @@ classdef Flat < Component
             %            individaul tests.
             % Author : Eran Ofek (May 2021)
             
+            % NOT TESTED
             
             % Example: A=AstroImage('LAST.*_dark.fits');
             %          D=imProc.image.Flat;
