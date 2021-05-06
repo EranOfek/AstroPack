@@ -1,20 +1,14 @@
 
 classdef Dark < Component
     properties
-        Images                               % Images on which to work
-        Template
-        TemplateVar
-        Nsigma
-        MaxFracBadPixels
-        StackMethod 
-        
+        Bias AstroImage
     end
     
     methods  % Constructor
         function Obj = Dark(Args)
             % Constructor for a Dark object
             % Input  : * ...,key,val,...
-            %            Can be any Match object property name followed by
+            %            Can be any Dark object property name followed by
             %            its new value.
             % Output : - A Dark object
             % Author : Eran Ofek (Apr 2021)
@@ -61,11 +55,11 @@ classdef Dark < Component
             
             arguments
                 DarkObj
-                Obj
+                Obj AstroImage
                 Args.DataProp                = 'Image';
                 Args.MaxAllowedFrac          = 0.2;
             end
-           
+            
             % use object default arguments if not supplied by user
             Args = selectDefaultArgsFromProp(DarkObj, Args);
             if isempty(Obj)
@@ -91,7 +85,6 @@ classdef Dark < Component
         function [FlagBad, FracBadPixels, Z] = compare2template(DarkObj, Obj, Args)
             % Compare AstroImage to a template and variance and flag image
             %   which are different than the template.
-            %       
             % Input  : - A Dark object.
             %          - An AstroImage object containing images.
             %            The comparison is done 1 to 1, 1 to many, or many
@@ -136,7 +129,7 @@ classdef Dark < Component
             
             arguments
                 DarkObj(1,1)
-                Obj
+                Obj AstroImage
                 Args.Template
                 Args.TemplateVar                      = [];
                 Args.Nsigma                           = 5;
@@ -271,6 +264,7 @@ classdef Dark < Component
             % Check and validate that a set of images in an AstroImage object are bias images
             % Input  : - A imProc.image.Dark object.
             %          - An AstroImage object.
+            %            If empty, will attempt to atke from dark object.
             %          * ...,key,val,...
             %            'MaxAllowedFrac' - The fraction of identical
             %                   pixels above to set the output argument
@@ -311,7 +305,7 @@ classdef Dark < Component
             
             arguments
                 Obj(1,1)
-                AI AstroImage
+                AI                                                              = [];
                 Args.MaxAllowedFrac                                             = 0.2;
                 Args.Template                                                   = [];
                 Args.TemplateVar                                                = [];
@@ -327,6 +321,14 @@ classdef Dark < Component
                 Args.KeyDict                                                    = [];
             end
             ImTypeVal = 'Bias';
+            
+            if isempty(AI)
+                % check if AI is available via Class
+                AI = DarkObj.ImObj;
+            else
+                DarkObj.ImObj = AI;
+            end
+            
             
             % AI is now an AstroImage object
             Flag.IsImType = isImType(AI, ImTypeVal, 'UseDict',Args.UseDict,...
@@ -679,6 +681,8 @@ classdef Dark < Component
                 Result.HeaderData = insertKey(Result.HeaderData, Args.AddHeader, Args.AddHeaderPos);
              end
              
+             % store Bias in Dark object
+             Obj.Bias = Result;
                 
         end
         
