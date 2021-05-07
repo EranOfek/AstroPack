@@ -1,3 +1,14 @@
+% imProc.image.Stack class
+%   This class provides functionality for stack/coadd images.
+% Functionality:
+%   applayUnaryFun - Applay scalar-unary function (e.g., function that returns a scalar) on AstroImage
+%   subtractOffset - Remove offset (constant) from AstroImage
+%   divideFactor   - Divide factor (constant) from AstroImage
+%   funCube        - Applay function/s on a single cube
+%   coadd          - Coadd images in AstroImage object including pre/post normalization
+%   functionalResponse - Fit the pixel response to light as a function of intensity in a cube of images
+%
+
 
 classdef Stack < Component
     properties
@@ -46,7 +57,7 @@ classdef Stack < Component
     methods % basic normalization function
         
         function Result = applayUnaryFun(Obj, ImObj, Offset, Operator, Args)
-            % Applay scalar an unary function (e.g., constant) on AstroImage
+            % Applay scalar-unary function (e.g., function that returns a scalar) on AstroImage
             % Input  : - A Stack object.
             %          - An AstroImage object.
             %          - An AstroImage object, or a cell array of matrices
@@ -888,7 +899,7 @@ classdef Stack < Component
             AI = AstroImage({ones(3,3), 2.*ones(3,3), 10.*ones(3,3), 11.*ones(3,3), 13.*ones(3,3)});
             C  = imProc.image.Stack;
             Result = C.functionalResponse(AI);
-            Result = C.functionalResponse(AI, 'Intensity',[1 2 10 11 13])
+            Result = C.functionalResponse(AI, 'Intensity',[1 2 10 11 13]);
             
             
             Result = true;
