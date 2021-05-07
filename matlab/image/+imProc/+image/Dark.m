@@ -1,3 +1,17 @@
+% imProc.image.Dark class
+%       This class provides functionality for generation and operations
+%       related to Dark/Bias images.
+% Functionality:
+%   identifySimilarImages - Search for sucessive images with a fraction of identical pixel values
+%   compare2template - Compare AstroImage to a template and variance and flag image
+%           which are different than the template.
+%   identifyFlaringPixels - Identify flaring pixels in a cube of images
+%   isBias - Check and validate that a set of images in an AstroImage object are bias images
+%   isDark - Check and validate that a set of images in an AstroImage object are dark images
+%   bias   - Generate a super bias image from a s et of bias images.
+%   debias - Subtract bias (and construct if needed) from a list of images
+%   overscan - Create overscan images and optionally subtract from images
+
 
 classdef Dark < Component
     properties
