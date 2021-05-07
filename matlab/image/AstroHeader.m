@@ -1151,8 +1151,16 @@ classdef AstroHeader < Component
             ListVal = {KeyVal.(FN{1})};  % cell array of IMTYPE values
             
             [Key,~,AllAlt]= searchAlt(Obj(1).ValDict,ImTypeVal, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+            if ~iscellstr(ListVal)
+                % remove NaN values
+                IsNaN = tools.cell.isnan_cell(ListVal);
+                ListVal = ListVal(~IsNaN);
+            end
+                
             Flag = ismember(ListVal, AllAlt);
-            
+            if isempty(Flag)
+                Flag = false;
+            end
             
         end
         

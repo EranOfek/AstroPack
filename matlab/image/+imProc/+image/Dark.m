@@ -154,12 +154,6 @@ classdef Dark < Component
                 Args.VarProp                          = 'Var';
             end
             
-            % use object default arguments if not supplied by user
-            Args = selectDefaultArgsFromProp(DarkObj, Args);
-            if isempty(Obj)
-                Obj = DarkObj.Images;
-            end
-            
             if isa(Args.Template,'AstroImage')
                 % assume that the Template include the variance image
                 Template = Args.Template;
@@ -477,7 +471,8 @@ classdef Dark < Component
             %                   Alternatively, a vector of logicals
             %                   indicating which image is a bias/dark
             %                   image. If empty use all images.
-            %                   Default is empty.
+            %                   The function must be a method of Dark.
+            %                   Default is @isBias.
             %            'IsBiasArgs' - A cell array of arguments to pass
             %                   to the  IsBias function. Default is {}.
             %            'StackMethod' - For options, see
@@ -561,7 +556,7 @@ classdef Dark < Component
                 ImObj AstroImage
                 Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
                 
-                Args.IsBias                     = [];  % @isBias, @isDark, vector of logical or [] - use all.
+                Args.IsBias                     = @isBias;  % @isBias, @isDark, vector of logical or [] - use all.
                 Args.IsBiasArgs cell            = {};
                 
                 Args.StackMethod                = 'sigmaclip';   
@@ -603,7 +598,7 @@ classdef Dark < Component
             else
                 if isa(Args.IsBias,'function_handle')
                     % call the function
-                    IsBias = Args.isBias(ImObj, Args.IsBiasArgs{:});
+                    IsBias = Args.IsBias(Obj, ImObj, Args.IsBiasArgs{:});
                 elseif islogical(Args.IsBias) || isnumeric(Args.IsBias)
                     IsBias = Args.IsBias;
                 else
@@ -712,7 +707,7 @@ classdef Dark < Component
             %                   Alternatively, a vector of logicals
             %                   indicating which image is a bias/dark
             %                   image. If empty use all images.
-            %                   Default is empty.
+            %                   Default is @isBias.
             %            'BiasArgs' - A cell array of additional arguments
             %                   to pass to the bias method.
             %                   Default is {}.
@@ -744,7 +739,7 @@ classdef Dark < Component
                 ImObj AstroImage
                 Bias                            = [];  % A bias (AstroImage) image 
                 Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
-                Args.IsBias                     = [];  % @isBias, @isDark, vector of logical or [] - use all.                
+                Args.IsBias                     = @isBias;  % @isBias, @isDark, vector of logical or [] - use all.                
                 Args.BiasArgs cell              = {};
                 Args.CCDSEC                     = [];
                 Args.CreateNewObj               = [];
@@ -761,6 +756,7 @@ classdef Dark < Component
             if isempty(Bias)
                 % generate bias image
                 %KeyVal                 = namedargs2cell(Args);
+                % IsBias = Obj.isBias(ImObj)
                 [Bias, IsBias]         = bias(Obj, ImObj, Args.BiasArgs{:}, 'BitDictinaryName',Args.BitDictinaryName,...
                                                                             'IsBias',Args.IsBias); % KeyVal{:});
                 IsNotBias              = ~IsBias;
@@ -771,6 +767,9 @@ classdef Dark < Component
             end
             
             % subtract the bias image
+            if ~any(IsNotBias)
+                error('No non-bias image from which to subtract bias');
+            end
             Result = funBinaryProp(ImObj(IsNotBias), Bias, @minus, 'OpArgs',{},...
                                                         'DataProp','ImageData',...
                                                         'DataPropIn','Data',...
@@ -1015,4 +1014,80 @@ classdef Dark < Component
         end
     end
     
+    methods (Static) % unitTest
+        function Result = unitTest()
+            % unitTest for the Dark class
+            % Example: Result = imProc.image.Dark.unitTest
+            
+            D  = imProc.image.Dark;
+            % identifySimilarImages
+            AI = AstroImage({ones(100,100), ones(100,100)});
+            [PassedThreshold, FracIdentical] = D.identifySimilarImages(AI);
+            if ~PassedThreshold
+                error('identifySimilarImages failed on detecting identical pixels');
+            end
+            AI = AstroImage({ones(100,100), zeros(100,100)});
+            [PassedThreshold, FracIdentical] = D.identifySimilarImages(AI);
+            if PassedThreshold
+                error('identifySimilarImages failed on detecting identical pixels');
+            end
+            
+            % compare2template
+            AI = AstroImage({2.*randn(10,10)});
+            Template = AstroImage({0},'Var',{4});
+            D = imProc.image.Dark;
+            [FlagBad, FracbadPixels, Z] = D.compare2template(AI, 'Template',Template);
+            if FlagBad
+                error('Possible problem with compare2template');
+            end
+            
+            % identifyFlaringPixels
+            Cube = randn(100,100,10);
+            Cube(1,1,1)=30;
+            Dark = imProc.image.Dark;
+            [Result,Mean,Std,Max] = identifyFlaringPixels(Dark, Cube);
+            [Result,Mean,Std,Max] = identifyFlaringPixels(Dark, Cube,'MeanFunArgs',{'all'});
+            if ~Result(1,1) && all(Result(:,2))
+                error('Possible problem with identifyFlaringPixels');
+            end
+            
+            % isBias/isDark
+            AI=AstroImage({rand(100,100)});
+            [Result,Flag] = D.isBias(AI);
+            if Result
+                error('isBias problem');
+            end
+            AI.HeaderData.insertKey({'IMTYPE','Dark'});
+            [Result,Flag] = D.isBias(AI);
+            if Result
+                error('isBias problem');
+            end
+            [Result,Flag] = D.isDark(AI);
+            if ~Result
+                error('isBias problem');
+            end
+            
+            % bias
+            AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
+            AI.funHeader(@insertKey, {'IMTYPE','Bias'});
+            AI = [AI, AstroImage({rand(100,100)})];
+            Bias = D.bias(AI);
+            
+            % debias
+            AI = D.debias(AI);
+            
+            % overscan
+            AI = AstroImage({rand(200,100)});
+            [Result, OverScanAI] = D.overscan(AI, 'OverScan',[1 10 1 200]);
+            [Result, OverScanAI] = D.overscan(AI, 'OverScan',[91 100 1 200]);
+            [Result, OverScanAI] = D.overscan(AI, 'OverScan',[91 100 1 200],'Method','medmedfilt');
+            [y,x] = sizeImage(Result);
+            if ~(y==90 && x==200)
+                error('Problem with overscan subtraction');
+            end
+            
+            Result = true;
+            
+        end
+    end
 end
