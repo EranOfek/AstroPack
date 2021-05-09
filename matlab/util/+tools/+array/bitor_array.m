@@ -23,12 +23,16 @@ C = class(Array);
 switch lower(C)
     case {'uint8','int8'}
         Nbit = 8;
+        Fun  = @uint8;
     case {'uint16','int16'}
         Nbit = 16;
+        Fun  = @uint16;
     case {'uint32','int32'}
         Nbit = 32;
+        Fun  = @uint32;
     case {'uint64','int64'}
         Nbit = 64;
+        Fun  = @uint64;
     otherwise
         error('Unknown class - only integers are allowed');
 end
@@ -37,6 +41,8 @@ Val = 0;
 for Ibit=1:1:Nbit
     Val = Val + (2.^(Ibit-1)).*any(bitget(Array,Ibit),Dim);
 end
+% transform back to uint
+Val = Fun(Val);
     
     
     
