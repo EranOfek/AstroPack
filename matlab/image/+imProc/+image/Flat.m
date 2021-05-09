@@ -124,7 +124,7 @@ classdef Flat < Component
     end
     
     methods % flat, deflat
-        function [Result, IsBias, CoaddN] = flat(Obj, ImObj, Args)
+        function [Result, IsFlat, CoaddN] = flat(Obj, ImObj, Args)
             % Generate a super flat image from a set of flat images.
             % Input  : - A Flat object.
             %          - An AstroImage object with multiple images.
@@ -145,7 +145,6 @@ classdef Flat < Component
             %                   Default is @isFlat.
             %            'IsBiasArgs' - A cell array of arguments to pass
             %                   to the IsFlat function. Default is {}.
-            
             %            'StackMethod' - For options, see
             %                   imProc.image.Stack.coadd).
             %                   Default is 'sigmaclip'.
@@ -158,54 +157,22 @@ classdef Flat < Component
             %                   CoaddVarEmpirical by N. Default is false.
             %            'getValArgs' - A cell array of arguments to pass
             %                   to the Header/getVal function. Default is {}.
-            %            'LowRN_BitName' - LowRN bit name.
-            %                   This bit flag pixels which variance is
-            %                   larger than Threshold*RN^2, where RN is the
-            %                   ReadNoise.
-            %                   Default is 'LowRN'.
-            %            'LowRN_Threshold' - Threshold value.
-            %                   Default is 0.05.
-            %            'LowRN_MeanFun' - A string, a function handle or
-            %                   numerical value. If string then this is an
-            %                   header keyword name, and will attempt to
-            %                   look for this keyword (using the getVal
-            %                   function). If numerical value, than assume
-            %                   this is the RN. If a function handle than
-            %                   this function will be applied on the
-            %                   variance image to estimate the RN.
-            %                   Default is @median.
-            %            'HighRN_BitName'
-            %                   This bit flag pixels which variance is
-            %                   smaller than Threshold*RN^2, where RN is the
-            %                   ReadNoise.
-            %                   Default is 'HighRN'.
-            %            'HighRN_Threshold' - Threshold value.
-            %                   Default is 10.
-            %            'HighRN_MeanFun' - Like LowRN, buit for the
-            %                   HighRN bit.
-            %                   Default is @median.
-            %            'DarkHighVal_BitName' - Bit name for high
-            %                   dark/bias values. Defined as image values
-            %                   larger than Threshold*Mean, where Mean is
-            %                   the image mean.
-            %                   Default is 'DarkHighVal'.
-            %            'DarkHighVal_Threshold' - Threshold value.
-            %                   Default is 2.
-            %                   DarkLowVal_BitName' - Bit name for low
-            %                   dark/bias values. Defined as image values
-            %                   smaller than Threshold*Mean, where Mean is
-            %                   the image mean.
-            %                   Default is 'DarkLowVal'.
-            %            'DarkLowVal_Threshold' - Threshold value.
-            %                   Default is 0.2.
-            %            'BiasFlaring_BitName' - Bit name for flaring
-            %                   pixels identified using
-            %                   identifyFlaringPixels.
-            %            'BiasFlaring_Threshold' - A threshold value
-            %                   (number of sigma above mean). Default is 20.
-            %            'BiasFlaringArgs' - A cell array of additional
-            %                   arguments to pass to identifyFlaringPixels.
-            %                   Default is {}.
+            %            'FlatHighStd_BitName' - FlatHighStd bit name.
+            %                   Default is 'FlatHighStd'.
+            %            'FlatHighStd_Threshold' - Threshold value for
+            %                   FlatHighStd, in units of the MeanFun value.
+            %            'FlatHighStd_MeanFun' - Either a function handle
+            %                   or a value. The function handle is used for
+            %                   the calculation of the mean of the image variance.
+            %                   The threshold is in units of this mean
+            %                   value. Default is 1e-4.
+            %            'FlatLowVal_BitName' - A FlatLowVal bit name.
+            %                   Default is 'FlatLowVal'.
+            %            'FlatLowVal_Threshold' - Flat low value
+            %                   threshold below to flag as FlatLowVal.
+            %                   Default is 0.5.
+            %            'NaN_BitName' - A NaN bit name.
+            %                   Default is 'NaN';
             %            'AddHeader' - A 3 column cell array to add to
             %                   header. Default is {}.
             %            'AddHeaderPos' - Position of the added header.
@@ -218,9 +185,14 @@ classdef Flat < Component
             %            used.
             %          - A matrix of the number of images used in each
             %            pixel.
-            % Example: A=AstroImage('LAST.*_dark.fits')
+            % Example: AI = AstroImage('LAST.*_dark.fits')
             %          D = imProc.image.Dark;
-            %          Bias = D.bias(A)
+            %          Bias = D.bias(AI);
+            %          AI = AstroImage('LAST.*_twflat.fits');
+            %          F = imProc.image.Flat;
+            %          F.isFlat(AI)
+            %          D.debias(AI,Bias);  % note that with CreateNewObj it fails
+            %          [Flat,IsFlat,CoaddN]=F.flat(AI);
             
             arguments
                 Obj
@@ -230,36 +202,28 @@ classdef Flat < Component
                 Args.IsFlat                     = @isFlat;  % @isFlat, vector of logical or [] - use all.
                 Args.IsFlatArgs cell            = {};
                 
-                Args.PerNorm                    = @median;
+                Args.PreNorm                    = @median;
                 Args.PreNormArgs cell           = {[1 2],'omitnan'};
                 Args.PostNorm                   = @median;
                 Args.PostNormArgs cell          = {[1 2],'omitnan'};
                 
                 Args.StackMethod                = 'sigmaclip';   
-                Args.StackArgs                  = {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1};
+                Args.StackArgs                  = {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',2};
                 Args.EmpiricalVarFun            = @var;
                 Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
                 Args.DivideEmpiricalByN         = false;
                 
                 
                 Args.getValArgs                 = {};
-                Args.LowRN_BitName              = 'LowRN';
-                Args.LowRN_Threshold            = 0.05;
-                Args.LowRN_MeanFun              = @median;   % or RN or RN keyword...
                 
-                Args.HighRN_BitName             = 'HighRN';
-                Args.HighRN_Threshold           = 10;
-                Args.HighRN_MeanFun             = @median;   % or RN or RN keyword...
+                Args.FlatHighStd_BitName        = 'FlatHighStd';
+                Args.FlatHighStd_Threshold      = 1;
+                Args.FlatHighStd_MeanFun        = 0.0001;   %@median;   % or RN or RN keyword...
                 
-                Args.DarkHighVal_BitName        = 'DarkHighVal';
-                Args.DarkHighVal_Threshold      = 2;
+                Args.FlatLowVal_BitName         = 'FlatLowVal';
+                Args.FlatLowVal_Threshold       = 0.5;
                 
-                Args.DarkLowVal_BitName         = 'DarkLowVal';
-                Args.DarkLowVal_Threshold       = 0.2;
-                
-                Args.BiasFlaring_BitName        = 'BiasFlaring';
-                Args.BiasFlaring_Threshold      = 20;
-                Args.BiasFlaringArgs cell       = {};
+                Args.NaN_BitName                = 'NaN';
                 
                 Args.AddHeader                  = {};
                 Args.AddHeaderPos               = 'end';
@@ -312,60 +276,32 @@ classdef Flat < Component
                  end
              end % else do nothing
              
-             % got here
-             
-             
-             
-             % Prepare Mask image
-             % mask LowRN             
-             if isa(Args.LowRN_MeanFun,'function_handle')
-                 FlagLowRN = Result.Var < (Args.LowRN_Threshold.*Args.LowRN_MeanFun(Result.Var,'all'));
-             elseif isnumeric(Args.LowRN_MeanFun)
+             % FlatHighStd
+             if isa(Args.FlatHighStd_MeanFun,'function_handle')
+                 FlagFlatHighStd = Result.Var > (Args.FlatHighStd_Threshold.*Args.FlatHighStd_MeanFun(Result.Var,'all'));
+             elseif isnumeric(Args.FlatHighStd_MeanFun)
                  % value for RN
-                 FlagLowRN = Result.Var < (Args.LowRN_Threshold.*Args.LowRN_MeanFun.^2);
-             elseif ischar(Args.LowRN_MeanFun)
-                 % header keyword for RN
-                 Args.LowRN_MeanFun = funHeader(Result, @getVal, Args.LowRN_MeanFun, Args.getValArgs{:});
-                 FlagLowRN = Result.Var < (Args.LowRN_Threshold.*Args.LowRN_MeanFun.^2);
+                 FlagFlatHighStd = Result.Var > (Args.FlatHighStd_Threshold.*Args.FlatHighStd_MeanFun.^2);
              else
-                 error('Unknown LowRN_MeanFun option');
+                 error('Unknown FlatHighStd_MeanFun option');
              end
-             Result = maskSet(Result, FlagLowRN, Args.LowRN_BitName, 1);
+             Result = maskSet(Result, FlagFlatHighStd, Args.FlatHighStd_BitName, 1);
              
-             % mask HighRN
-             if isa(Args.HighRN_MeanFun,'function_handle')
-                 FlagHighRN = Result.Var > (Args.HighRN_Threshold.*Args.HighRN_MeanFun(Result.Var,'all'));
-             elseif isnumeric(Args.HighRN_MeanFun)
-                 % value for RN
-                 FlagHighRN = Result.Var > (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
-             elseif ischar(Args.HighRN_MeanFun)
-                 % header keyword for RN
-                 Args.HighRN_MeanFun = funHeader(Result, @getVal, Args.HighRN_MeanFun, Args.getValArgs{:});
-                 FlagHighRN = Result.Var > (Args.HighRN_Threshold.*Args.HighRN_MeanFun.^2);
-             else
-                 error('Unknown LowRN_MeanFun option');
-             end
-             Result = maskSet(Result, FlagHighRN, Args.HighRN_BitName, 1);
+             % FlatLowVal
+             FlagFlatLowVal = Result.Image < Args.FlatLowVal_Threshold;
+             Result = maskSet(Result, FlagFlatLowVal, Args.FlatLowVal_BitName, 1);
              
-             % mask DarkHighVal
-             FlagHigh = Result.Image > (Args.DarkHighVal_Threshold.*mean(Result.Image,'all'));
-             Result = maskSet(Result, FlagHigh, Args.DarkHighVal_BitName, 1);
-             
-             % mask DarkLowVal
-             FlagLow = Result.Image < (Args.DarkLowVal_Threshold.*mean(Result.Image,'all'));
-             Result = maskSet(Result, FlagLow, Args.DarkLowVal_BitName, 1);
-             
-             % mask BiasFlaring
-             [FlagFlaring] = identifyFlaringPixels(Obj, ImageCube, Args.BiasFlaringArgs{:}, 'Threshold',Args.BiasFlaring_Threshold);
-             Result = maskSet(Result, FlagFlaring, Args.BiasFlaring_BitName, 1);                             
-                                          
+             % NaN
+             FlagNaN = isnan(Result.Image);
+             Result  = maskSet(Result, FlagNaN, Args.NaN_BitName, 1);
+                                   
              % Update Header
              if ~isempty(Args.AddHeader)
                 Result.HeaderData = insertKey(Result.HeaderData, Args.AddHeader, Args.AddHeaderPos);
              end
              
              % store Bias in Dark object
-             Obj.Bias = Result;
+             Obj.FlatIm = Result;
                 
         end
         

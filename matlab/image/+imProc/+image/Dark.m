@@ -15,7 +15,7 @@
 
 classdef Dark < Component
     properties
-        Bias AstroImage
+        BiasIm AstroImage
     end
     
     methods  % Constructor
@@ -682,7 +682,7 @@ classdef Dark < Component
              end
              
              % store Bias in Dark object
-             Obj.Bias = Result;
+             Obj.BiasIm = Result;
                 
         end
         

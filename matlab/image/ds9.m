@@ -488,7 +488,7 @@ classdef ds9
             
             % prepare cell array of string (FITS images)
             if (ischar(Images))
-                [~,List] = Util.files.create_list(Images,NaN);
+                [~,List] = io.files.create_list(Images,NaN);
                 IsFits = true;
                 Nim = numel(List);
             end
@@ -583,7 +583,7 @@ classdef ds9
             end
             
             if (IsTmp)
-                Util.files.delete_cell(List);
+                io.files.delete_cell(List);
             end
             pause(0.2);
             
@@ -2595,7 +2595,7 @@ classdef ds9
                 
                 [MatVal,MatX,MatY]=ds9.getbox([min(X), max(X), min(Y), max(Y)],'section');
                 
-                Dist       = Util.Geom.plane_dist(X(1),Y(1),X(2),Y(2));
+                Dist       = tools.math.geometry.plane_dist(X(1),Y(1),X(2),Y(2));
                 RoundDist  = round(Dist);
                 LineX      = (X(1):(X(2)-X(1))./RoundDist:X(2)).';
                 LineY      = (Y(1):(Y(2)-Y(1))./RoundDist:Y(2)).';
@@ -2846,7 +2846,7 @@ classdef ds9
                         fprintf('Click on position to get SIM catalog near coordinates - q to abort\n');
                         [RA,Dec,Val,Key]=ds9.getpos(1);
 
-                        D = Util.Geom.plane_dist(X,Y,RA,Dec);
+                        D = tools.math.geometry.plane_dist(X,Y,RA,Dec);
                     otherwise
                         error('Unknown ColUnits option');
                 end
@@ -2870,7 +2870,7 @@ classdef ds9
                         YDec(Ind)    = Dec;
                         PixVal(Ind)  = Val;
 
-                        if (InPar.Verbose),
+                        if (InPar.Verbose)
                             fprintf('\n');
                             fprintf('Clicked position:  %f %f [%s]\n',RA,Dec,Units{Ind})
                             fprintf('Distance: %f [%s]\n',MinDist(Ind),Units{Ind});

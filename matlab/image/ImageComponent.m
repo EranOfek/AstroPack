@@ -546,6 +546,9 @@ classdef ImageComponent < Component
             %                   the image. Default is 'Image'.
             %            'DimIndex' - Cube dimension of the image index.
             %                   Either 1 or 3. Default is 3.
+            %            'Class'    - Force thr output to be of some class.
+            %                   If empty will use the first object class.
+            %                   Default is empty.
             % Output : - A cube of images.
             % Author : Eran Ofek (Apr 2021)
             % Example: IC=ImageComponent({ones(5,5),2.*ones(5,5),3.*ones(5,5)});
@@ -560,6 +563,7 @@ classdef ImageComponent < Component
                 Args.CCDSEC                        = [];  % empty for the entire image
                 Args.DataPropIn                    = 'Image';
                 Args.DimIndex                      = 3;
+                Args.Class                         = [];
             end
             
             
@@ -573,7 +577,10 @@ classdef ImageComponent < Component
                 Size = [Args.CCDSEC(Iobj,4)-Args.CCDSEC(Iobj,3)+1, Args.CCDSEC(Iobj,2)-Args.CCDSEC(Iobj,1)+1];
             end
             % allocate cube
-            Cube = zeros(Size(1), Size(2), Nobj);
+            if isempty(Args.Class)
+                Args.Class = class(Obj(Iobj).(Args.DataPropIn));
+            end
+            Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
                 
             if isempty(Args.CCDSEC)
                 % generate cube from full images
