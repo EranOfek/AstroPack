@@ -20,7 +20,7 @@ classdef AstroHeader < Component
         TimeDict Dictionary       % Initialization is done in constructor
     end
     properties (Hidden, SetAccess=private)
-        IsKeyUpToDate(1,1) logical    = true;
+        IsKeyUpToDate(1,1) logical    = true; % this is used by get.Key in order to avoid reformatting the cell array into a structure everytime.
     end
     
     properties (Constant, Hidden)
@@ -96,7 +96,8 @@ classdef AstroHeader < Component
                 Obj(Ih).KeyDict     = Dictionary('DictName','Header.Synonyms.KeyNames');
                 Obj(Ih).ValDict     = Dictionary('DictName','Header.Synonyms.KeyVal.IMTYPE');
                 Obj(Ih).CommentDict = Dictionary('DictName','Header.Comments.Default');
-                % FFU:  Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
+                Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
+                Obj(Ih).TimeDict    = string2funHandle(Obj(Ih).TimeDict);
             end
                
         end
@@ -431,6 +432,14 @@ classdef AstroHeader < Component
             %                   For example, if you would like to search
             %                   by 'AEXPTIME' use true.
             %                   Default is false.
+            %            'ReadCCDSEC' - If true will attempt to convert a
+            %                   CCDSEC-like string (i.e., '[xmin xmax ymin ymax]')
+            %                   into a 4-elements vector.
+            % Output : - Value
+            %          - Keyword name
+            %          - Comment
+            %          - Nfound
+            % Author : Eran Ofek (Mar 2021)
             % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             %          [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME')
             %          [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','IsInputAlt',true)
@@ -450,6 +459,7 @@ classdef AstroHeader < Component
                 Args.Occur                             = 'first';
                 Args.KeyDict                           = [];  % a structure of dictionary
                 Args.IsInputAlt(1,1) logical           = false;
+                Args.ReadCCDSEC(1,1) logical           = false;
             end
             
             if ischar(KeySynonym)
@@ -486,6 +496,11 @@ classdef AstroHeader < Component
                                                           'ColVal',Obj.ColVal,...
                                                           'ColComment',Obj.ColComment);
             
+            if Args.ReadCCDSEC && ischar(Val)
+                % Convert a CCDSEC like argument to vector
+                CCDSEC = str2double(regexp(Val,'\[|\]|\s','split'));
+                Val    = CCDSEC(2:end-1);
+            end
         end
               
         function [Result ,ResultC, IK] = getStructKey(Obj,ExactKeys,Args)
@@ -744,7 +759,7 @@ classdef AstroHeader < Component
                     else
                         Alt = DictKeyNames(IdictKeys);
                     end
-                               
+                      
                     if ~isempty(Alt)
                         % search for Alt in the header
                         CleanCell = Obj(Iobj).Data(:, Obj(Iobj).ColKey);
@@ -756,7 +771,11 @@ classdef AstroHeader < Component
 
                         if ~isempty(Ind)
                             KeyName = Obj(Iobj).Data{Ind, Obj(Iobj).ColKey};
-                            Obj(Iobj).Data{Ind, Obj.ColComment} = Obj(Iobj).CommentDict.Dict.(KeyName){1};
+                            try
+                                Obj(Iobj).Data{Ind, Obj.ColComment} = Obj(Iobj).CommentDict.Dict.(KeyName){1};
+                            catch
+                                Obj(Iobj).Data{Ind, Obj.ColComment} = Obj(Iobj).CommentDict.Dict.(Key){1};
+                            end
                         end
                         
                     end
@@ -845,7 +864,7 @@ classdef AstroHeader < Component
         end
         
         
-        function replaceVal(Obj,Key,Val,Args)
+        function Obj = replaceVal(Obj,Key,Val,Args)
             % Replace a keyword value in headers (no dictionary in key
             % search).
             % Input  : - An AstroHeader object (multi elements supported).
@@ -1132,8 +1151,16 @@ classdef AstroHeader < Component
             ListVal = {KeyVal.(FN{1})};  % cell array of IMTYPE values
             
             [Key,~,AllAlt]= searchAlt(Obj(1).ValDict,ImTypeVal, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+            if ~iscellstr(ListVal)
+                % remove NaN values
+                IsNaN = tools.cell.isnan_cell(ListVal);
+                ListVal = ListVal(~IsNaN);
+            end
+                
             Flag = ismember(ListVal, AllAlt);
-            
+            if isempty(Flag)
+                Flag = false;
+            end
             
         end
         
@@ -1203,13 +1230,13 @@ classdef AstroHeader < Component
                 % attempt loading from dictionary
                 if isempty(Obj(1).TimeDict.FieldNames)
                     % set up to default values
-                    Args.FunTimeKeys.MIDJD     = @(Time,Exp) Time;
-                    Args.FunTimeKeys.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
-                    Args.FunTimeKeys.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.MIDJD     = @(Time,Exp) Time;
+                    Args.FunTimeKeys.Dicr.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
+                    Args.FunTimeKeys.Dict.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                    Args.FunTimeKeys.Dict.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
 
                 else
                     % use dictionary
@@ -1218,7 +1245,7 @@ classdef AstroHeader < Component
             end
                                   
             
-            TimeKeys = fieldnames(Args.FunTimeKeys);
+            TimeKeys = fieldnames(Args.FunTimeKeys.Dict);
             NtimeKeys = numel(TimeKeys);
             
             StTime    = getStructKey(Obj, TimeKeys);
@@ -1236,7 +1263,11 @@ classdef AstroHeader < Component
                     Ikey = Ikey + 1;
                     T  = StTime(Iobj).(TimeKeys{Ikey});
                     if ~isnan(T)
-                        JD = Args.FunTimeKeys.(TimeKeys{Ikey})(T, ExpTime(Iobj));
+                        if iscell(Args.FunTimeKeys.Dict.(TimeKeys{Ikey}))
+                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey}){1}(T, ExpTime(Iobj));
+                        else
+                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey})(T, ExpTime(Iobj));
+                        end
                         if ~isnan(JD)
                             MidJD(Iobj) = JD;
                         end

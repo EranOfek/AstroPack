@@ -2,6 +2,8 @@
 %
 % https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
 %--------------------------------------------------------------------------
+% Use unittest__tables from GDrive to test
+%
 
 classdef DbQuery < Component
     
@@ -342,9 +344,16 @@ classdef DbQuery < Component
         end        
         
         
-        function Result = loadAll(Obj)
+        function Result = loadAll(Obj, Args)
             % Load entire ResultSet to memory, might be time/memory consuming!
             % @Todo?: add arg max row
+            % @Todo: load to Table (instead?)
+            
+            arguments
+                Obj
+                Args.MaxRecords = 0
+            end
+            
             
             % Initialize
             Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColumnCount);
@@ -361,6 +370,10 @@ classdef DbQuery < Component
                 end
                 
                 if ~Obj.next()
+                    break
+                end
+                
+                if Args.MaxRecords > 0 && RowIndex > Args.MaxRecords
                     break
                 end
                 
@@ -381,16 +394,19 @@ classdef DbQuery < Component
     methods(Static)
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
-   
-            TableName = 'raw_images';
-            
+               
             % Use default database
             Conn = io.db.DbConnection;
             Conn.open();
+
+            % Query Postgres version
             
+            %print('PostgreSQL database version:')
+            %cur.execute('SELECT version()')
+    
             % Select two fields from table
             Q = io.db.DbQuery(Conn);
-            Q.open(['select imageid, ra_center from ', TableName, ' limit 5']);
+            Q.open(['select RecId, FInt from master_table', TableName, ' limit 5']);
             assert(Q.ColumnCount == 2);
             
             Rec = Q.getRecord();
@@ -406,10 +422,29 @@ classdef DbQuery < Component
             assert(size(Data, 2) == 2);
             
             % Select all fields from table
-            Q.open(['select * from ', TableName, ' limit 10']);
+            Q.open(['select * from master_table limit 10']);
             
             % Load current record to memory
-            %Rec = Q.getRecord();
+            Rec = Q.getRecord();
+            
+            % Generate UUID
+            RecID = Rec.recid;
+            InsertTime = Rec.inserttime;
+            UpdateTime = Rec.updatetime;
+            FInt = Rec.fint;
+            FBigInt = Rec.bigint;
+            FBool = Rec.fbool;
+            FDouble = Rec.fdouble;
+            FTimestamp = Rec.ftimestamp;
+            FString = Rec.fstring;
+
+            % Insert records            
+            % sql = 'INSERT INTO master_table(RecID, InsertTime, UpdateTime, FInt, FBigInt, FBool, FDouble, FTimestamp, FString) VALUES(%s,%s);'
+            for i = 1:100
+            end
+            
+
+            
             %assert(Rec.ColumnCount > 0);
             
             

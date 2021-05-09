@@ -1,6 +1,9 @@
 % Component base class
-% Package: 
-% Description:
+%       This is the base class from which all the classes in AstroPack
+%       hinerits.
+% Functionality:
+%       copyObject - by value deep copy of an object/
+%       copyProp - Copy specific properyies from one object to another
 %--------------------------------------------------------------------------
 
 % Making a DEEP Copy: Copy each property value and assign it to the new 
@@ -116,6 +119,7 @@ classdef Base < handle
     methods(Static) % Unit test
         
         function Result = unitTest()
+            % unitTest for Base class
             io.msgLog(LogLevel.Test, 'Base test started');
             
             % Test copyObject()

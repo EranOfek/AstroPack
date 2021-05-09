@@ -652,6 +652,120 @@ classdef AstroImage < Component
             % Apply function of PSF properties in AstroImage array
         end
         
+        function Result = maskSet(Obj, Flag, BitName, SetVal, Args)
+            % Set the value of a bit in a bit mask (Maskdata) in AstroImage
+            % Input  : - An AsstroImage Object.
+            %          - A matrix of logicals, with the same size as the
+            %            Image in the MaskData.Image, in which values which are
+            %            true will be set.
+            %            Alternatively, this can be a vector of indices.
+            %          - Bit name, or bit index (start from 0), to set.
+            %          - Value to set (0 | 1). Default is 1.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An AstroImage object.
+            % Author : Eran Ofek (May 2021)
+            % Example: AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))})
+            %       AI.MaskData.Dict=BitDictionary('BitMask.Image.Default')
+            %       Flag = false(3,3); Flag(1,2)=true;
+            %       Result = AI.maskSet(Flag,'Saturated')
+            %       Result = AI.maskSet(Flag,'Streak')
+            
+            arguments
+                Obj
+                Flag                         % matrix of logicals
+                BitName                      % name or bit index (start with zero)
+                SetVal                 = 1;
+                Args.CreateNewObj      = [];
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout==0
+                    Args.CreateNewObj = false;
+                    Result = Obj;
+                else
+                    % create new obj
+                    Args.CreateNewObj = true;
+                    Result = Obj.copyObject;
+                end
+            else
+                if Args.CreateNewObj
+                    Result = Obj.copyObject;
+                else
+                    Result = Obj;
+                end
+            end
+                    
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'CreateNewObj', Args.CreateNewObj);
+            end
+         
+        end
+        
+    end
+    
+    methods % specific header functions
+        function Result = isImType(Obj, ImTypeVal, Args)
+            % Check if header IMTYPE keyword value equal some type
+            % Input  : - An AstroImage object.
+            %          - IMTYPE type to check (e.g., 'bias').
+            %          * ...,key,val,...
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            % Output : - An array of logicals (one per AstroImage element)
+            %            indicating if the IMTYPE value equal the requested
+            %            value.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: H=AstroImage('*.fits');
+            %          Ans = isImType(H, 'bias')
+            
+            arguments
+                Obj
+                ImTypeVal
+                Args.ImTypeKeyName                                   = 'IMTYPE';
+                Args.UseDict(1,1) logical                            = true;
+                Args.CaseSens(1,1) logical                           = true;
+                Args.SearchAlgo                                      = 'strcmp'; 
+                Args.IsInputAlt(1,1) logical                         = true;
+                Args.KeyDict                                         = [];
+            end
+            
+            Nobj   = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isImType(Obj(Iobj).HeaderData, ImTypeVal, 'ImTypeKeyName',Args.ImTypeKeyName,...
+                                                                         'UseDict',Args.UseDict,...
+                                                                         'CaseSens',Args.CaseSens,...
+                                                                         'SearchAlgo',Args.SearchAlgo,...
+                                                                         'IsInputAlt',Args.IsInputAlt,...
+                                                                         'KeyDict',Args.KeyDict);
+            end
+            
+        end
+        
+        
     end
     
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
@@ -1029,6 +1143,14 @@ classdef AstroImage < Component
                     else
                         Tmp2 = Obj2(Iobj2).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
                     end
+                end
+                
+                % make sure Tmp1 and Tmp2 are not empty
+                if isempty(Tmp1) && ~isempty(Tmp2)
+                    Tmp1 = 0;
+                end
+                if isempty(Tmp2) && ~isempty(Tmp1)
+                    Tmp2 = 0;
                 end
             
                 if isa(Obj1(Iobj1).(Args.DataProp),'MaskImage') && Args.UseOrForMask
@@ -1530,75 +1652,35 @@ classdef AstroImage < Component
             
         end
         
-        function funStackProp(Obj, Args)
-            % Simple stack (coadd) of images in a single property without
-            % pre/post normalization.
-            
-            arguments
-                Obj
-                Args.DataProp                        = 'ImageData';
-                Args.DataPropIn                      = 'Data';
-                Args.CCDSEC                          = [];
-                Args.StackMethod                     = 'meansigclip';
-                Args.StackArgs                       = [];
-                
-                
-            end
-            
-            [IC] = astroImage2ImageComponent(Obj, 'ReturnImageComponent',false, 'CreateNewObj',false, 'DataProp',Args.DataProp);
-            
-            % Stack the Image and Variance
-            [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Image, 'VarImage',[],...
-                                                          'CCDSEC',Args.CCDSEC,...
-                                                          'StackMethod',Args.StackMethod,...
-                                                          'StackArgs',Args.StackArgs);
-                                                          
+%         function funStackProp(Obj, Args)
+%             % Simple stack (coadd) of images in a single property without
+%             % pre/post normalization.
+%             
+%             arguments
+%                 Obj
+%                 Args.DataProp                        = 'ImageData';
+%                 Args.DataPropIn                      = 'Data';
+%                 Args.CCDSEC                          = [];
+%                 Args.StackMethod                     = 'meansigclip';
+%                 Args.StackArgs                       = [];
+%                 
+%                 
+%             end
+%             
+%             [IC] = astroImage2ImageComponent(Obj, 'ReturnImageComponent',false, 'CreateNewObj',false, 'DataProp',Args.DataProp);
+%             
+%             % Stack the Image and Variance
+%             [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Image, 'VarImage',[],...
+%                                                           'CCDSEC',Args.CCDSEC,...
+%                                                           'StackMethod',Args.StackMethod,...
+%                                                           'StackArgs',Args.StackArgs);
+%                                                           
+%         
+%             
+%             
+%         end
         
             
-            
-        end
-        
-        function funStack(Obj, Args)
-            %
-            arguments
-                Obj
-                Args.ImageStackMethod                         = 'wmeansigclip';
-                Args.ImageStackArgs cell                      = {};
-                Args.VarStackMethod                           = [];
-                Args.BackStackMethod                          = 'sum';
-                Args.MaskStackMethod                          = 'bitor';
-                Args.VarIsEmpirical(1,1) logical              = true;
-                Args.CCDSEC                                   = [];
-                
-                Args.DataProp                            = {'ImageData','BackData', 'VarData', 'MaskData'};
-            end
-            
-            Nobj = numel(Obj);
-            
-            
-            [Image, Back, Var, Mask] = astroImage2ImageComponent(Obj, 'ReturnImageComponent',false, 'CreateNewObj',false, 'DataProp',Args.DataProp);
-            
-            % Stack the Image and Variance
-            %if isempty(Args.Var
-            %[ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Image, 'VarImage',Var);
-            
-                
-            
-            % Stack the background
-            
-            
-            % Stack the Mask
-            
-            % Update the header
-            
-            % Catalog
-            
-            % PSF
-            
-            % WCS
-            
-            
-        end
         
     end
     
@@ -1757,6 +1839,7 @@ classdef AstroImage < Component
             if ~all(Res.Image==1)
                 error('funBinaryProp failed');
             end
+            
             
             
             Result = true;

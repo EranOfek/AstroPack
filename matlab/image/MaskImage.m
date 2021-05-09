@@ -27,58 +27,11 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     methods % Constructor
        
-%         function Obj = MaskImage(FileNames)
-%             %
-%             
-%             arguments
-%                 FileNames       = [];
-%             end
-%             
-%             if isempty(FileNames)
-%                 Obj.MaskData = ImageComponent([]);
-%             end
-%             
-%         end
 
     end
   
     methods % Setters/Getters
-%         function Result = get.Image(Obj)
-%             % getter for Image (from MaskData.Image)
-%             Result = Obj.MaskData.Image;
-%         end
-%                 
-%         function Obj = set.Image(Obj, Val)
-%             % setter for Image (to MaskData.Image)
-%             if ~isinteger(Val)
-%                 error('Mask image must be integers');
-%             end
-%             Obj.MaskData.Image = Val;
-%         end
-%         
-%         function Result = get.Data(Obj)
-%             % getter for Image (from MaskData.Data)
-%             Result = Obj.MaskData.Data;
-%         end
-%         
-%         function Obj = set.Data(Obj, Val)
-%             % setter for Image (to MaskData.Data)
-%             if ~isinteger(Val)
-%                 error('Mask image must be integers');
-%             end
-%             Obj.MaskData.Data = Val;
-%         end   
-%         
-%         function Result = get.Scale(Obj)
-%             % getter for Scale (from MaskData.Scale)
-%             Result = Obj.MaskData.Scale;
-%         end
-%                 
-%         function Obj = set.Scale(Obj, Val)
-%             % setter for Scale (to MaskData.Scale)
-%             
-%             Obj.MaskData.Scale = Val;
-%         end
+
         
     end
     
@@ -87,29 +40,86 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     end
     
     methods % functionality
-        function Result = bitStat(Obj, Args)
-            %
+        function Result = maskSet(Obj, Flag, BitName, SetVal, Args)
+            % Set the value of a bit in a bit mask
+            % Input  : - An ImageMask Object.
+            %          - A matrix of logical, with the same size as the
+            %            Image in the ImageMask, in which values which are
+            %            true will be set.
+            %            Alternatively, this can be a vector of indices.
+            %          - Bit name, or bit index (start from 0), to set.
+            %          - Value to set (0 | 1). Default is 1.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An ImageMaks object.
+            % Author : Eran Ofek (May 2021)
+            % Example: 
+            %       MI=MaskImage;
+            %       MI.Dict=BitDictionary('BitMask.Image.Default')
+            %       Flag = false(3,3); Flag(1,2)=true;
+            %       Result = MI.maskSet(Flag,'Saturated')
+            %       Result = MI.maskSet(Flag,'Streak')
             
             arguments
                 Obj
-                Args.CCDSEC             = [];
-                Args.DataProp           = 'Image';
+                Flag                         % matrix of logicals, or vector of indices
+                BitName                      % name or bit index (start with zero)
+                SetVal                 = 1;
+                Args.CreateNewObj      = [];
             end
             
-            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                Result(Iobj).BitName = bitind2name(Obj(Iobj), (1:1:Obj(Iobj).Dict.Nbit) ); % should we subtract 1???
-                Result(Iobj).SumBit  = zeros(1,Obj(Iobj).Dict.Nbit);
-                for Ibit=0:1:Obj(Iobj).Dict.Nbit-1
-
-                    [Flag] = findBit(Obj(Iobj), BitNames, 'Method','any', 'OutType','mat', 'DataProp',Args.DataProp);
-                    Result(Iobj).SumBit(Ibit+1) = sum(Flag,'all');
+            if isempty(Args.CreateNewObj)
+                if nargout==0
+                    Result = Obj;
+                else
+                    % create new obj
+                    Result = Obj.copyObject;
+                end
+            else
+                if Args.CreateNewObj
+                    Result = Obj.copyObject;
+                else
+                    Result = Obj;
                 end
             end
+                    
+            Nobj = numel(Obj);
             
+            % a single Flag image
+            if islogical(Flag)
+                SizeImage = size(Flag);
+            else
+                SizeImage = [];
+            end
+            for Iobj=1:1:Nobj
+                if isnumeric(BitName)
+                    BitInd = BitName + 1;
+                else
+                    BitInd = Obj(Iobj).Dict.name2bit(BitName) + 1;
+                end
+
+                if isempty(Obj(Iobj).Image)
+                    % no maks image - allocate
+                    if isempty(SizeImage)
+                        error('When Flag is a vector of indices, image mask must be pre defined');
+                    end
+                    Result(Iobj).Image = Obj(Iobj).Dict.Class(zeros(SizeImage));
+                end
+
+                Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+            end
             
+                 
         end
+        
         
         function [Result, XY, Ind] = findBit(Obj, BitNames, Args)
             % find pixels with some specific mask-bit open
@@ -172,29 +182,32 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             end
             
             for Iobj=1:1:Nobj
-                if iscell(BitNames) || isstring(BitNames)
-                    [BitInd,BitDec,SumBitDec,BitDescription] = name2bit(Obj(Iobj), BitNames);
+                if isempty(BitNames)
+                    Flag = [];
                 else
-                    SumBitDec = BitNames;
-                end
+                    if iscell(BitNames) || isstring(BitNames)
+                        [BitInd,BitDec,SumBitDec,BitDescription] = name2bit(Obj(Iobj).Dict, BitNames);
+                    else
+                        SumBitDec = BitNames;
+                    end
 
-                switch lower(Args.Method)
-                    case 'all'
-                        if isempty(Args.CCDSEC)
-                            Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) == SumBitDec;
-                        else
-                            Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) == SumBitDec;
-                        end
-                    case 'any'
-                        if isempty(Args.CCDSEC)
-                            Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) > 0;
-                        else
-                            Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) > 0;
-                        end
-                    otherwise
-                        error('Unknown Method option');
+                    switch lower(Args.Method)
+                        case 'all'
+                            if isempty(Args.CCDSEC)
+                                Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) == SumBitDec;
+                            else
+                                Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) == SumBitDec;
+                            end
+                        case 'any'
+                            if isempty(Args.CCDSEC)
+                                Flag = bitand(Obj(Iobj).(Args.DataProp), SumBitDec) > 0;
+                            else
+                                Flag = bitand(Obj(Iobj).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), SumBitDec) > 0;
+                            end
+                        otherwise
+                            error('Unknown Method option');
+                    end
                 end
-                
                 switch lower(Args.OutType)
                     case 'imagecomponent'
                         Result(Iobj).(Args.DataProp) = Flag;
@@ -203,7 +216,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     otherwise
                         error('Unknown OutType option');
                 end
-                
+
             end
             
             if nargout>1
@@ -231,22 +244,55 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     end
     
     methods % bit statistics
-%         function [BitDec, BitNames] = bitNames(Obj, XY)
-%             % 
-%             
-%         end
-%         
-%         function Result = bitStat(Obj)
-%             % Return the bit mask statistics
-%             
-%         end
+        function Result = bitStat(Obj, Args)
+            %
+            % Example: Stat = Bias.MaskData.bitStat
+            
+            arguments
+                Obj
+                Args.CCDSEC             = [];
+                Args.DataProp           = 'Image';
+            end
+            
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj).BitName = bitind2name(Obj(Iobj).Dict, (0:1:Obj(Iobj).Dict.Nbit-1) ); % should we subtract 1???
+                Result(Iobj).SumBit  = zeros(1,Obj(Iobj).Dict.Nbit);
+                Result(Iobj).FracBit = zeros(1,Obj(Iobj).Dict.Nbit);
+                Npix                 = numel(Obj(Iobj).Image);
+                for Ibit=0:1:Obj(Iobj).Dict.Nbit-1
+                    [Flag] = findBit(Obj(Iobj), Result(Iobj).BitName{Ibit+1}, 'Method','any', 'OutType','mat', 'DataProp',Args.DataProp);
+                    Result(Iobj).SumBit(Ibit+1)  = sum(Flag,'all');
+                    Result(Iobj).FracBit(Ibit+1) = Result(Iobj).SumBit(Ibit+1)./Npix;
+                end
+            end
+            
+        end
         
     end
     
 
     methods % Unit-Test
         function Result = unitTest()
-            Astro = AstroImage;
+            M = MaskImage;
+            
+            M = MaskImage({uint32(zeros(3,3))});
+            MI=MaskImage;
+            
+            MI.Dict=BitDictionary('BitMask.Image.Default');
+            Flag = false(3,3); Flag(1,2)=true;
+            Result = MI.maskSet(Flag,'Saturated');
+            [BitInd,BitDec] = MI.Dict.name2bit('Saturated');
+            if Result.Image(1,2)~=BitDec
+                error('set bit was not sucessful');
+            end
+            Result = Result.maskSet(Flag,'Streak');
+            [BitInd,BitDec2] = Result.Dict.name2bit('Streak');
+            if Result.Image(1,2)~=(BitDec+BitDec2)
+                error('set bit was not sucessful (2)');
+            end
+            
             Result = true;
         end
     end

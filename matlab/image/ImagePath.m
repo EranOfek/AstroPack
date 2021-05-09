@@ -1,3 +1,5 @@
+% This class is a wrapper for imUtil.util.file.construct_filename
+
 % ImagePath class - construct image file name and path
 % Package: @BaseImage
 % Description: 
@@ -46,23 +48,19 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
     end
     
     
-    %-------------------
-    %--- Constructor ---
-    %-------------------
-    methods
+    methods % Constructor
        
         function D=ImagePath
             % Base class constructor
-            % Package: @Base
-            
+            % Package: @Base           
             
         end
-
     end
+    
     
     % setters and getters
     methods
-        function Result=get.FullName(Obj)
+        function Result = get.FullName(Obj)
             % getter for FullName
             
             if isempty(Obj.FullName) || Obj.ParUpdated
@@ -74,7 +72,8 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
             Obj.ParUpdated = false;
         end
         
-        function Result=get.Path(Obj)
+        
+        function Result = get.Path(Obj)
             % getter for Path
             
             if isempty(Obj.Path) || Obj.ParUpdated
@@ -86,7 +85,8 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
             Obj.ParUpdated = false;
         end
         
-        function Result=get.FileName(Obj)
+        
+        function Result = get.FileName(Obj)
             % getter for FileName
             
             if isempty(Obj.FileName) || Obj.ParUpdated
@@ -104,86 +104,120 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
             Obj.ProjName   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.Date(Obj,Val)
             % setter
             Obj.Date   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.Filter(Obj,Val)
             % setter
             Obj.Filter   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.FieldID(Obj,Val)
             % setter
             Obj.FieldID   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.FormatFieldID(Obj,Val)
             % setter
             Obj.FormatFieldID   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.Type(Obj,Val)
             % setter
             Obj.Type   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.Level(Obj,Val)
             % setter
             Obj.Level   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.SubLevel(Obj,Val)
             % setter
             Obj.SubLevel   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.Product(Obj,Val)
             % setter
             Obj.Product   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.Version(Obj,Val)
             % setter
             Obj.Version   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.FormatVersion(Obj,Val)
             % setter
             Obj.FormatVersion   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.FileType(Obj,Val)
             % setter
             Obj.FileType   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.TimeZone(Obj,Val)
             % setter
             Obj.TimeZone   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.RefVersion(Obj,Val)
             % setter
             Obj.RefVersion   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.FormatRefVersion(Obj,Val)
             % setter
             Obj.FormatRefVersion   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.SubDir(Obj,Val)
             % setter
             Obj.SubDir   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.DataDir(Obj,Val)
             % setter
             Obj.DataDir   = Val;
             Obj.ParUpdated = true;
         end
+        
+        
         function set.Base(Obj,Val)
             % setter
             Obj.Base   = Val;
@@ -191,8 +225,9 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
         end
     end
     
+    
     methods
-        function [FileName,Path]=construct_filename(Obj,varargin)
+        function [FileName,Path] = construct_filename(Obj,varargin)
             % Construct image/catalog file name based on the LAST/ULTRASAT standard
             % Package: +imUtil/+util/+file
             % Description: Return data product file name and path according to the
@@ -285,6 +320,22 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
         
     end
     
+    
+    %----------------------------------------------------------------------
+    % Unit test
+    methods(Static)
+        function Result = unitTest()
+            io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
+    
+            p = ImagePath;
+            fn = p.FullName;
+            
+            % Done
+            io.msgStyle(LogLevel.Test, '@passed', 'ImagePath test passed')
+            Result = true;
+        end
+    end    
+        
     
     
 end

@@ -32,35 +32,41 @@ def insert_records():
     # create a cursor
     cur = conn.cursor()
 
-    # execute a statement
+    # Get the PostgreSQL database server version
     print('PostgreSQL database version:')
     cur.execute('SELECT version()')
-
-    # display the PostgreSQL database server version
     db_version = cur.fetchone()
     print(db_version)
     cur.close()
 
     cur = conn.cursor()
-    cur.execute('SELECT ImageID FROM raw_images')
+    cur.execute('SELECT * FROM master_table limit 1')
     rec = cur.fetchone()
     print(rec)
 
     try:
 
         cur = conn.cursor()
-        x = random.randint(1, 10000000)
+        rand_start = random.randint(1, 10000000)
 
+        # Insert records
         for i in range(0, 10000):
 
             # Generate UUID
-            pk = str(uuid.uuid1())
+            RecID = str(uuid.uuid1())
+            InsertTime = datetime.now()
+            UpdateTime = InsertTime
+            FInt = rand_start + i
+            FBigInt = 100000000000 + FInt
+            FBool = True
+            FDouble = FInt / 100000000000.0
+            FTimestamp = InsertTime
+            FString = 'String: ' + FTimestamp.strftime('%d/%m/%y %H:%M:%S.%f')[:-3]
 
             # Insert record
-            sql = 'INSERT INTO raw_images(ImageID, RA_Center) VALUES(%s,%s);'
+            sql = 'INSERT INTO master_table(RecID, InsertTime, UpdateTime, FInt, FBigInt, FBool, FDouble, FTimestamp, FString) VALUES(%s,%s);'
 
-            cur.execute(sql, (pk, x, ))
-            x = x + 1
+            cur.execute(sql, (RecID, InsertTime, UpdateTime, FInt, FBigInt, FBool, FDouble, FTimestamp, FString, ))
 
         #cur.executemany(sql, (pk,))
         #id = cur.fetchone()[0
@@ -75,6 +81,7 @@ def insert_records():
     finally:
         if conn is not None:
             conn.close()
+
 
 def main():
 

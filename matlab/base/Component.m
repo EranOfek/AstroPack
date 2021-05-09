@@ -1,6 +1,20 @@
-% Component base class
-% Package: 
-% Description:
+% Component class - this class hinerits from Base class, and most
+% astro-related class are hinerits from this class.
+% The component class starts loads the Configuration object into it.
+% Functionality: 
+%       makeUuid - (re)generate a UUID to each element in an object
+%       needUuid - generate a UUID to each element, only if empty
+%       needMapKey -
+%       msgLog   - write msg to log
+%       msgStyle - set msg style.
+%       selectDefaultArgsFromProp(Obj, Args) -
+%               Given an Args structure, go over fields - if empty, take
+%               value from object property. Otherwise, use value.
+%       convert2class(Obj, DataPropIn, DataPropOut, ClassOut, Args) -
+%               Convert a class that henhirts from Component to another class
+%               Uses eval, so in some cases maybe slow. Creates a new copy.
+%       data2array(Obj, DataProp) - 
+%               Convert scalar data property in an object into an array
 %--------------------------------------------------------------------------
 
 classdef Component < Base
@@ -8,13 +22,13 @@ classdef Component < Base
     
     % Properties
     properties (SetAccess = public)
-        Name = []               % Name string
-        Owner = []              % Indicates the component that is responsible for streaming and freeing this component
-        Uuid = []               % Global unique ID, generated with java.util.UUID.randomUUID()
-        Tag = []                % Optional tag (i.e. for events handling)
-        MapKey = []             % Used with ComponentMap class
-        Config Configuration    % Configuration, deafult is system configuration
-        Log MsgLogger           % Logger, default is system logger
+        Name   = []                % Name string
+        Owner  = []                % Indicates the component that is responsible for streaming and freeing this component
+        Uuid   = []                % Global unique ID, generated with java.util.UUID.randomUUID()
+        Tag    = []                % Optional tag (i.e. for events handling)
+        MapKey = []                % Used with ComponentMap class
+        Config Configuration       % Configuration, deafult is system configuration
+        Log MsgLogger              % Logger, default is system logger
     end
     
     %-------------------------------------------------------- 
@@ -31,7 +45,7 @@ classdef Component < Base
     methods
         
         function Result = makeUuid(Obj)
-            % Generate unique ID
+            % (re)Generate unique ID for each element in object
             for i = 1:numel(Obj)
                 Temp = java.util.UUID.randomUUID;
                 Obj(i).Uuid = string(Temp.toString()).char;
@@ -46,7 +60,7 @@ classdef Component < Base
         
         
         function Result = needUuid(Obj)
-            % Generate unique ID
+            % Generate unique ID only if not empty
             for i = 1:numel(Obj)            
                 if isempty(Obj(i).Uuid)
                     Obj(i).makeUuid();
@@ -84,7 +98,7 @@ classdef Component < Base
         
 
         function msgStyle(Obj, Level, Style, varargin)  
-            % Write message to log
+            % Set msg style
             Obj(1).Log.msgStyle(Level, Style, varargin{:});
         end        
     end
@@ -203,6 +217,7 @@ classdef Component < Base
       
     methods(Static) % Unit test
         function Result = unitTest()
+            % unitTest for Component class
             io.msgLog(LogLevel.Test, 'Component test started');
             
             a = Component;

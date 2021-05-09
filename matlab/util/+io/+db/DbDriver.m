@@ -86,7 +86,7 @@ classdef DbDriver < Component
         
         
         function Result = copyDriverFile(Obj, FileName)        
-            % Copy driver file to target path
+            % Copy driver file from source folder to target path
             Result = false;
             
             % Get full path and name of the file in which the call occurs

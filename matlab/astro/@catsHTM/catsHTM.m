@@ -883,8 +883,8 @@ classdef catsHTM
             PWD = pwd;
             cd(Dir);
             
-            F1 = Util.IO.rdir('*.hdf5');
-            F2 = Util.IO.rdir('*.mat');
+            F1 = io.files.rdir('*.hdf5');
+            F2 = io.files.rdir('*.mat');
             F  = [F1;F2];
             
             Nf = numel(F);
@@ -977,8 +977,8 @@ classdef catsHTM
                     Ndi = size(DataInd,1);
 
                     % search the index
-                    I1 = Util.find.bin_sear(DataInd(:,2),SearchParValue(1));
-                    I2 = Util.find.bin_sear(DataInd(:,2),SearchParValue(2));
+                    I1 = tools.find.bin_sear(DataInd(:,2),SearchParValue(1));
+                    I2 = tools.find.bin_sear(DataInd(:,2),SearchParValue(2));
 
                     if (isempty(Ncol))
                         % get number of columns from HDF5 file attributes
@@ -1304,7 +1304,7 @@ classdef catsHTM
             
             % load into HTM structure
             Nhtm = size(Data,1);
-            HTM  = Util.struct.struct_def({'level','father','son','PolesCoo'},1,Nhtm);
+            HTM  = tools.struct.struct_def({'level','father','son','PolesCoo'},1,Nhtm);
             for Ihtm=1:1:Nhtm
                 HTM(Ihtm).level = Data(Ihtm,1);
                 %HTM(Ihtm).id    = [];
@@ -1628,7 +1628,7 @@ classdef catsHTM
             FileID = floor(ID./InPar.NcatInFile).*InPar.NcatInFile;
             Nid = numel(ID);
             Cat = zeros(0,Ncol);
-            C = Util.struct.struct_def({'Cat'},Nid,1);
+            C = tools.struct.struct_def({'Cat'},Nid,1);
             for Iid=1:1:Nid
 
                 %FileID    = floor(ID(Iid)./InPar.NcatInFile).*InPar.NcatInFile;
