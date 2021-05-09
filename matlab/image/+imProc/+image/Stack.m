@@ -1,10 +1,10 @@
 % imProc.image.Stack class
 %   This class provides functionality for stack/coadd images.
 % Functionality:
-%   applayUnaryFun - Applay scalar-unary function (e.g., function that returns a scalar) on AstroImage
+%   applyUnaryFun  - Apply scalar-unary function (e.g., function that returns a scalar) on AstroImage
 %   subtractOffset - Remove offset (constant) from AstroImage
 %   divideFactor   - Divide factor (constant) from AstroImage
-%   funCube        - Applay function/s on a single cube
+%   funCube        - Apply function/s on a single cube
 %   coadd          - Coadd images in AstroImage object including pre/post normalization
 %   functionalResponse - Fit the pixel response to light as a function of intensity in a cube of images
 %
@@ -56,7 +56,7 @@ classdef Stack < Component
     
     methods % basic normalization function
         
-        function Result = applayUnaryFun(Obj, ImObj, Offset, Operator, Args)
+        function Result = applyUnaryFun(Obj, ImObj, Offset, Operator, Args)
             % Applay scalar-unary function (e.g., function that returns a scalar) on AstroImage
             % Input  : - A Stack object.
             %          - An AstroImage object.
@@ -95,12 +95,12 @@ classdef Stack < Component
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({ones(3,3), 3.*ones(4,4)});
             %          C  = imProc.image.Stack;
-            %          R  = C.applayUnaryFun(AI,1);
-            %          R  = C.applayUnaryFun(AI,[1 2]);
-            %          R  = C.applayUnaryFun(AI,{1 2}); % the same
-            %          R  = C.applayUnaryFun(AI,AI); 
-            %          R  = C.applayUnaryFun(AI,@mean,@minus,'OpArgs',{'all'});
-            %          R  = C.applayUnaryFun(AI,@mean,@rdivide,'OpArgs',{'all'});
+            %          R  = C.applyUnaryFun(AI,1);
+            %          R  = C.applyUnaryFun(AI,[1 2]);
+            %          R  = C.applyUnaryFun(AI,{1 2}); % the same
+            %          R  = C.applyUnaryFun(AI,AI); 
+            %          R  = C.applyUnaryFun(AI,@mean,@minus,'OpArgs',{'all'});
+            %          R  = C.applyUnaryFun(AI,@mean,@rdivide,'OpArgs',{'all'});
             
             
             arguments
@@ -218,7 +218,7 @@ classdef Stack < Component
                 end
             end
             
-            Result  = Obj.applayUnaryFun(ImObj, Offset, @minus, 'OpArgs',{'all'}, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn, 'CreateNewObj',Args.CreateNewObj, 'PreDivide',false);
+            Result  = Obj.applyUnaryFun(ImObj, Offset, @minus, 'OpArgs',{'all'}, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn, 'CreateNewObj',Args.CreateNewObj, 'PreDivide',false);
             
         end
         
@@ -279,7 +279,7 @@ classdef Stack < Component
                 end
             end
             
-            Result  = Obj.applayUnaryFun(ImObj, Factor, @times, 'OpArgs',{'all'}, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn, 'CreateNewObj',Args.CreateNewObj, 'PreDivide',true);
+            Result  = Obj.applyUnaryFun(ImObj, Factor, @times, 'OpArgs',{'all'}, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn, 'CreateNewObj',Args.CreateNewObj, 'PreDivide',true);
             
         end
         
@@ -287,7 +287,7 @@ classdef Stack < Component
     
     methods % coaddition functions
         function varargout = funCube(Obj, ImObj, Args)
-            % Applay function/s on a single cube
+            % Apply function/s on a single cube
             % Input  : - A Stack object.
             %          - An AstroImage object.
             %          * ...,key,val,...
@@ -295,7 +295,7 @@ classdef Stack < Component
             %                       If empty, use entire image. Default is
             %                       [].
             %            'FunCube' - A function handle, or a cell array of
-            %                   function handles to applay on cube.
+            %                   function handles to apply on cube.
             %                   Default is {@mean, @var}.
             %                   All the functions are applayed on the same
             %                   cube. Note that the number of functions
@@ -407,7 +407,7 @@ classdef Stack < Component
             %                   the data in the ImageComponent.
             %                   Default is 'Data'.
             %            'Offset' - Either a function handle, a vector, or
-            %                   empty. If function handle, then will applay
+            %                   empty. If function handle, then will apply
             %                   it to the ImageData to calculate an offset
             %                   per image. This offset will be subtracted
             %                   from each image. If vector, then this is a
@@ -423,7 +423,7 @@ classdef Stack < Component
             %            'PreNormArgs' - A cell array of additional
             %                   arguments to pass to the pre-normalization function.
             %                   Default is {}.
-            %            'UseWeights' - A logical indicating if to applay
+            %            'UseWeights' - A logical indicating if to apply
             %                   weights. Default is true.
             %            'Weights' - A vector of variances (one per image).
             %                   If empty, then will attempt to use the
@@ -859,12 +859,12 @@ classdef Stack < Component
             % applyUnaryFun
             AI = AstroImage({ones(3,3), 3.*ones(4,4)});
             C  = imProc.image.Stack;
-            R  = C.applayUnaryFun(AI,1);
-            R  = C.applayUnaryFun(AI,[1 2]);
-            R  = C.applayUnaryFun(AI,{1 2}); % the same
-            R  = C.applayUnaryFun(AI,AI); 
-            R  = C.applayUnaryFun(AI,@mean,@minus,'OpArgs',{'all'});
-            R  = C.applayUnaryFun(AI,@mean,@rdivide,'OpArgs',{'all'});
+            R  = C.applyUnaryFun(AI,1);
+            R  = C.applyUnaryFun(AI,[1 2]);
+            R  = C.applyUnaryFun(AI,{1 2}); % the same
+            R  = C.applyUnaryFun(AI,AI); 
+            R  = C.applyUnaryFun(AI,@mean,@minus,'OpArgs',{'all'});
+            R  = C.applyUnaryFun(AI,@mean,@rdivide,'OpArgs',{'all'});
             
             % subtractOffset
             AI = AstroImage({ones(3,3), 3.*ones(4,4)});
