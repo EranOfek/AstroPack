@@ -4,6 +4,7 @@
 *.obj
 *.exe
 *.res
+*.ico
 *.lfm
 *.compiled
 
