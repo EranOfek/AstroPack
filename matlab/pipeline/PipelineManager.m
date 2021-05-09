@@ -1,11 +1,7 @@
-% @Chen
-
-% Configuration base Class
-% Package: 
-% Description:
-%--------------------------------------------------------------------------
 
 classdef PipelineManager < Component
+    % Top level Pipeline Manager
+    
     
     % Properties
     properties (SetAccess = public)

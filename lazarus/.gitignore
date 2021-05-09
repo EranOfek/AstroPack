@@ -1,0 +1,13 @@
+# File: lazarus/.gitignore
+
+*.o
+*.obj
+*.exe
+*.res
+*.lfm
+*.compiled
+
+
+x86_64-win64/
+backup/
+

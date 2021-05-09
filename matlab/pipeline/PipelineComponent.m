@@ -1,12 +1,8 @@
-% @Chen
-
-% Configuration base Class
-% Package: 
-% Description:
-%--------------------------------------------------------------------------
-
 
 classdef PipelineComponent < Component
+    % Parent class for Pipeline processing components
+    
+    
     % Properties
     properties (SetAccess = public)
         

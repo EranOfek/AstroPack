@@ -1,0 +1,9 @@
+# File: lazarus/.gitignore
+
+*.o
+*.obj
+*.exe
+*.res
+
+
+
