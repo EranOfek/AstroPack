@@ -1,4 +1,4 @@
-unit Unit1;
+unit About;
 
 {$mode objfpc}{$H+}
 
@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs;
 
 type
-  TForm1 = class(TForm)
+  TAboutForm = class(TForm)
   private
 
   public
@@ -16,11 +16,12 @@ type
   end;
 
 var
-  Form1: TForm1;
+  AboutForm: TAboutForm;
 
 implementation
 
 {$R *.lfm}
 
 end.
+
 
