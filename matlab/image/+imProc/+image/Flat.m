@@ -3,7 +3,7 @@
 
 classdef Flat < Component
     properties
-        FlatIm AstroImage
+        %FlatIm AstroImage
     end
     
     methods  % Constructor
@@ -71,12 +71,8 @@ classdef Flat < Component
             %          - A structure containing vector of logicals for
             %            individaul tests.
             % Author : Eran Ofek (May 2021)
-            
-            % NOT TESTED
-            
             % Example: A=AstroImage('LAST.*_dark.fits');
-            %          D=imProc.image.Flat;
-            %          [Result,Flag] = D.isFlat(A)
+            %          [Result,Flag] = imProc.image.Flat.isFlat(A)
             
             arguments
                 Obj(1,1)
@@ -301,7 +297,7 @@ classdef Flat < Component
              end
              
              % store Bias in Dark object
-             Obj.FlatIm = Result;
+             % Obj.FlatIm = Result;
                 
         end
         

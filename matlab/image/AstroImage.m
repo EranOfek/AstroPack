@@ -358,31 +358,31 @@ classdef AstroImage < Component
        
     end
     
-    methods % translate Data property names
-        function DataName = translateDataPropName(Obj, DataProp)
-            % translate the Data propert names (e.g., 'Image' -> 'ImageData')
-            % Output : - A cell array of Data property names.;
-            % Example: AI.translateDataPropName('Var')
-            %          AI.translateDataPropName({'Back','Var'})
-            
-            if ischar(DataProp)
-                DataProp = {DataProp};
-            end
-            
-            Nprop    = numel(DataProp);
-            DataName = cell(1,Nprop);
-            for Iprop=1:1:Nprop
-                if isfield(Obj(1).Relations,DataProp{Iprop})
-                    DataName{Iprop} = Obj(1).Relations.(DataProp{Iprop});
-                else
-                    % do not translate - return as is
-                    DataName{Iprop} = DataProp{Iprop};
-                    %error('Requested DataProp: %s - can not be translated into valid data property name',DataProp{Iprop});
-                end
-            end
-            
-        end
-    end
+%     methods % translate Data property names
+%         function DataName = translateDataPropName(Obj, DataProp)
+%             % translate the Data propert names (e.g., 'Image' -> 'ImageData')
+%             % Output : - A cell array of Data property names.;
+%             % Example: AI.translateDataPropName('Var')
+%             %          AI.translateDataPropName({'Back','Var'})
+%             
+%             if ischar(DataProp)
+%                 DataProp = {DataProp};
+%             end
+%             
+%             Nprop    = numel(DataProp);
+%             DataName = cell(1,Nprop);
+%             for Iprop=1:1:Nprop
+%                 if isfield(Obj(1).Relations,DataProp{Iprop})
+%                     DataName{Iprop} = Obj(1).Relations.(DataProp{Iprop});
+%                 else
+%                     % do not translate - return as is
+%                     DataName{Iprop} = DataProp{Iprop};
+%                     %error('Requested DataProp: %s - can not be translated into valid data property name',DataProp{Iprop});
+%                 end
+%             end
+%             
+%         end
+%     end
     
     methods % empty and size
         function varargout = isemptyImage(Obj, Prop)
@@ -1651,54 +1651,51 @@ classdef AstroImage < Component
             end
             
         end
-        
-%         function funStackProp(Obj, Args)
-%             % Simple stack (coadd) of images in a single property without
-%             % pre/post normalization.
-%             
-%             arguments
-%                 Obj
-%                 Args.DataProp                        = 'ImageData';
-%                 Args.DataPropIn                      = 'Data';
-%                 Args.CCDSEC                          = [];
-%                 Args.StackMethod                     = 'meansigclip';
-%                 Args.StackArgs                       = [];
-%                 
-%                 
-%             end
-%             
-%             [IC] = astroImage2ImageComponent(Obj, 'ReturnImageComponent',false, 'CreateNewObj',false, 'DataProp',Args.DataProp);
-%             
-%             % Stack the Image and Variance
-%             [ResCoadd, ResCoaddVarEmpirical, ResCoaddVar, ResCoaddN] = funStack(Image, 'VarImage',[],...
-%                                                           'CCDSEC',Args.CCDSEC,...
-%                                                           'StackMethod',Args.StackMethod,...
-%                                                           'StackArgs',Args.StackArgs);
-%                                                           
-%         
-%             
-%             
-%         end
-        
-            
-        
+                
     end
     
     
     
 
     methods % specific functionality and overloads
-        function conv(Obj, Args)
+        function Result = conv(Obj, Args)
             % Convolve images with their PSF, or another PSF
             arguments
                 Obj
                 Args.PSF                         = [];
                 Args.ArgsPSF                     = {};
-                Args.DataPropIn                  = {'Image'}
+                Args.DataPropIn                  = {'ImageData'}
                 Args.DataPropOut                 = {'Image'};
                 Args.CreateNewObj(1,1) logical   = true;
                 Args.IsOutObj(1,1) logical       = true;
             end
+            
+            if isempty(Args.CreateNewObj)   
+                if nargout==0
+                    Args.CreateNewObj = false;
+                else
+                    Args.CreateNewObj = true;
+                end
+            end
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Args.PSF)
+                    % take PSF from PSFData
+                    Args.PSF = Obj(Iobj).getPSF(Args.ArgsPSF);
+                end
+                if isa(Args.PSF,'AstroPSF')
+                    
+                end
+            end
+            
+                
+            
             
             
             
