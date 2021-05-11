@@ -1,4 +1,4 @@
-program Pipe;
+program PipeGui;
 
 {$mode objfpc}{$H+}
 
@@ -17,7 +17,6 @@ begin
   Application.Scaled:=True;
   Application.Initialize;
   Application.CreateForm(TMainForm, MainForm);
-  Application.CreateForm(TAboutForm, AboutForm);
   Application.Run;
 end.
 

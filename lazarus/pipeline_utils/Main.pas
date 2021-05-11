@@ -5,7 +5,7 @@ unit Main;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, Menus,
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus,
   About;
 
 type
@@ -14,15 +14,13 @@ type
 
   TMainForm = class(TForm)
     MainMenu: TMainMenu;
-    MIXlsxToSql: TMenuItem;
-    MIExit: TMenuItem;
-    MIDatabase: TMenuItem;
-    MIAbout: TMenuItem;
     MIFile: TMenuItem;
+    MIExit: TMenuItem;
+    MIAbout: TMenuItem;
     MIHelp: TMenuItem;
-    Panel1: TPanel;
-    Panel2: TPanel;
-    procedure MIHelpClick(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
+    procedure MIAboutClick(Sender: TObject);
+    procedure MIExitClick(Sender: TObject);
   private
 
   public
@@ -38,11 +36,23 @@ implementation
 
 { TMainForm }
 
-procedure TMainForm.MIHelpClick(Sender: TObject);
+procedure TMainForm.MIExitClick(Sender: TObject);
 begin
+  Application.Terminate();
+end;
 
+procedure TMainForm.MIAboutClick(Sender: TObject);
+begin
+  if AboutForm = nil then
+     AboutForm := TAboutForm.Create(Self);
+
+  AboutForm.Show();
+end;
+
+procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+begin
+     CanClose := Application.Terminated;
 end;
 
 end.
-
 
