@@ -1,6 +1,6 @@
 <deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
-  <configuration build-checksum="709794621" file="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test1.prj" location="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile" name="test1" preferred-package-location="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test1\for_redistribution" preferred-package-type="package.type.exe" target="target.ezdeploy.standalone" target-name="Application Compiler">
-    <param.appname>test1</param.appname>
+  <configuration build-checksum="709794621" file="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile2\test2.prj" location="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile2" name="test2" preferred-package-location="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_redistribution" preferred-package-type="package.type.exe" target="target.ezdeploy.standalone" target-name="Application Compiler">
+    <param.appname>test2</param.appname>
     <param.icon />
     <param.icons />
     <param.version>1.0</param.version>
@@ -11,21 +11,21 @@
     <param.description />
     <param.screenshot />
     <param.guid />
-    <param.installpath.string>\test1\</param.installpath.string>
+    <param.installpath.string>\test2\</param.installpath.string>
     <param.installpath.combo>option.installpath.programfiles</param.installpath.combo>
     <param.logo />
     <param.install.notes />
     <param.target.install.notes />
-    <param.intermediate>${PROJECT_ROOT}\test1\for_testing</param.intermediate>
-    <param.files.only>${PROJECT_ROOT}\test1\for_redistribution_files_only</param.files.only>
-    <param.output>${PROJECT_ROOT}\test1\for_redistribution</param.output>
-    <param.logdir>D:\Ultrasat\AstroPack.git\matlab\testing\test_compile2</param.logdir>
+    <param.intermediate>D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_testing</param.intermediate>
+    <param.files.only>D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_redistribution_files_only</param.files.only>
+    <param.output>D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_redistribution</param.output>
+    <param.logdir>${PROJECT_ROOT}</param.logdir>
     <param.enable.clean.build>false</param.enable.clean.build>
     <param.user.defined.mcr.options />
     <param.target.type>subtarget.standalone</param.target.type>
     <param.support.packages />
-    <param.web.mcr>false</param.web.mcr>
-    <param.package.mcr>true</param.package.mcr>
+    <param.web.mcr>true</param.web.mcr>
+    <param.package.mcr>false</param.package.mcr>
     <param.no.mcr>false</param.no.mcr>
     <param.web.mcr.name>MyAppInstaller_web</param.web.mcr.name>
     <param.package.mcr.name>MyAppInstaller_mcr</param.package.mcr.name>
@@ -37,8 +37,8 @@
     <param.checkbox>false</param.checkbox>
     <param.example />
     <param.help.text>Syntax 
-	 test1 -? 
-	 test1 n 
+	 test2 -? 
+	 test2 n 
  Input Arguments 
 	 -?  print help on how to use the application 
 	 n  input arguments</param.help.text>
@@ -62,6 +62,8 @@
       <param.user.defined.mcr.options />
       <param.target.type />
       <param.support.packages />
+      <param.web.mcr />
+      <param.package.mcr />
       <param.no.mcr />
       <param.web.mcr.name />
       <param.package.mcr.name />
@@ -73,15 +75,15 @@
       <param.example />
     </unset>
     <fileset.main>
-      <file>D:\Ultrasat\AstroPack.git\matlab\testing\test_compile2\test1.m</file>
+      <file>${PROJECT_ROOT}\test2.m</file>
     </fileset.main>
     <fileset.resources />
     <fileset.package />
     <fileset.depfun />
     <build-deliverables>
-      <file location="${PROJECT_ROOT}\test1\for_testing" name="splash.png" optional="false">D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test1\for_testing\splash.png</file>
-      <file location="${PROJECT_ROOT}\test1\for_testing" name="test1.exe" optional="false">D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test1\for_testing\test1.exe</file>
-      <file location="${PROJECT_ROOT}\test1\for_testing" name="readme.txt" optional="true">D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test1\for_testing\readme.txt</file>
+      <file location="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_testing" name="test2.exe" optional="false">D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_testing\test2.exe</file>
+      <file location="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_testing" name="splash.png" optional="false">D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_testing\splash.png</file>
+      <file location="D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_testing" name="readme.txt" optional="true">D:\Ultrasat\AstroPack.git\matlab\testing\test_compile\test2\for_testing\readme.txt</file>
     </build-deliverables>
     <workflow />
     <matlab>
