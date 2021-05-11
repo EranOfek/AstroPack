@@ -17,7 +17,7 @@ function Curve=curve_of_growth(Matrix,CenterPSFxy,Step)
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Curve=imUtil.psf.curve_of_growth(Kernel2.gauss)
+% Example: Curve=imUtil.psf.curve_of_growth(imUtil.kernel2.gauss)
 % Reliable: 2
 %--------------------------------------------------------------------------
 

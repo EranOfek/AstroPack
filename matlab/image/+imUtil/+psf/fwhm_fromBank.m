@@ -19,6 +19,7 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,varargin)
 % Author : Eran Ofek (Mar 2021)
 % Example: FWHM=imUtil.psf.fwhm_fromBank(Image);
 
+
 InPar = inputParser;
 addOptional(InPar,'MinSN',50); 
 addOptional(InPar,'Background',[]); 
@@ -42,7 +43,7 @@ Pos = Pos(Pos(:,4)~=1,:);
 
 Nstars = size(Pos,1);
 
-if Nstars<InPar.MinStars;
+if Nstars<InPar.MinStars
     FWHM = NaN;
 else
     % instead one can check if the SN improves...

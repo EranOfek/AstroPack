@@ -93,9 +93,11 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %      By: Eran O. Ofek                       Apr 2020             
 % Example: Image = rand(1024,1024); X=rand(1e4,1).*1023+1; Y=rand(1e4,1).*1023+1;
 %          [M1,M2,Aper]=imUtil.image.moment2(Image,X,Y);
-%          Matrix = Kernel2.gauss(2,2,0.1,31,31);
+%          Matrix = imUtil.kernel2.gauss(2, [16 16]);
 %          [M1,M2,Aper]=imUtil.image.moment2(Matrix,16,16)
 %          [M1,M2,Aper]=imUtil.image.moment2(Matrix,16,16,'WeightFun',@(r) 1)
+%          Cube = imUtil.kernel2.gauss([2;2.1;2.2], [31 31]);
+%          [M1,M2,Aper]=imUtil.image.moment2(Cube,16,16)
 
 arguments
     Image             {mustBeNumeric(Image)}
@@ -135,10 +137,20 @@ if NdimImage==2
     
     
 elseif NdimImage==3
-    % Image is a lready a cube of stamps
+    % Image is already a cube of stamps
     Cube   = Image;
     RoundX = round(X);
     RoundY = round(Y);
+    [~,~,Nc] = size(Cube);
+    if numel(X)==1
+        RoundX = RoundX.*ones(Nc,1);
+        X      = X.*ones(Nc,1);
+    end
+    if numel(Y)==1
+        RoundY = RoundY.*ones(Nc,1);
+        Y      = Y.*ones(Nc,1);
+    end
+    
 else
     error('Image number of dimensions must be 2 or 3');
 end
