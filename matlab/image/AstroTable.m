@@ -517,6 +517,30 @@ classdef AstroTable < Component %ImageComponent
             end
         end
         
+        function [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(Obj, ColNames)
+            % Given a list of column names, select the first that appear in Table
+            % Input  : - An AstroTable (single element)
+            %          - A cell array of column names
+            % Output : - The selected column index.
+            %          - The selected column name.
+            %          - The index of the selected column in the input
+            %            ColNames.
+            % Author : Eran Ofek (May 2021)
+            % Example: AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            %          [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(AC(1),{'X','Y','a','Z'})
+            
+            arguments
+                Obj(1,1)
+                ColNames
+            end
+                        
+            ColInd = colname2ind(Obj, ColNames, NaN);
+            
+            IndOfSelectedName = find(~isnan(ColInd),1);
+            ColInd            = ColInd(IndOfSelectedName);
+            ColName           = colind2name(Obj, ColInd);
+        end
+            
         function St = col2struct(Obj)
             % return structure array with column names in field and index in values.
             % Example: col2struct(A)
@@ -576,7 +600,7 @@ classdef AstroTable < Component %ImageComponent
                 Obj(1,1)
                 Columns
                 OutputIsTable(1,1) logical         = false;
-                UpdateAstroTable(1,1) logical    = false;
+                UpdateAstroTable(1,1) logical      = false;
                 Args.UseDict(1,1) logical          = true;
                 Args.DictName                      = {};
                 Args.DictFamily char               = '';
@@ -1206,6 +1230,13 @@ classdef AstroTable < Component %ImageComponent
             AC = AstroTable(A);
             AC = AstroTable(A,'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});
             AC=AstroTable('asu.fit','HDU',2); % read from FITS table
+            
+            % colnameDict2ind
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(AC(1),{'X','Y','a','Z'})
+            if ColInd~=1 || IndOfSelectedName~=3
+                error('Problem with colnameDict2ind');
+            end
             
             % merge selected columns of AstroTable
             MAC = merge([AC,AC],{'DEJ2000'});

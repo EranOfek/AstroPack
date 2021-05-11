@@ -1613,6 +1613,9 @@ classdef AstroImage < Component
             
         end
         
+        % function crop(Obj, CCDSEC, Args)
+        
+        
         function Result = image2subimages(Obj, BlockSize, Args)
             % Partition an AstroImage image into sub images
             % Input  : - An AstroImage object with a single element.
@@ -1640,6 +1643,13 @@ classdef AstroImage < Component
                 Args.CCDSEC           = [];   % [xmin xmax ymin ymax] If given, override BlockSize
                 Args.Nxy              = [];   % If empty then use SubSizeXY. Default is [].
                 Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
+                
+                Args.UpdateCat(1,1) logical        = true;
+                Args.ColX                          = {'X','XWIN_IMAGE','XWIN','XPEAK','X_PEAK'};
+                Args.ColY                          = {'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
+                Args.AddX                          = {};  % additional X-coo to update
+                Args.AddY                          = {};
+                Args.UpdateXY(1,1) logical         = true;
             end
            
             % find the correct partition
@@ -1705,13 +1715,19 @@ classdef AstroImage < Component
                 warning('Update WCS is not implenmented');
                 
                 % update the Catalog
-                warning('Update Catalog is not implenmented');
-                
+                if Args.UpdateCat
+                    for Isub=1:1:Nsub
+                        cropXY(Result(Isub).CatData, EdgesCCDSEC(Isub,:), 'ColX',Args.ColX,...
+                                                                          'ColY',Args.ColY,...
+                                                                          'AddX',Args.AddX,...
+                                                                          'AddY',Args.AddY,...
+                                                                          'UpdateXY',Args.UpdateXY);
+                    end
+                end                
             end
-            
-            
-            
         end
+        
+        
         
         function varargout = object2array(Obj,DataProp)
             % Convert an AstroImage object that contains scalars into an array
