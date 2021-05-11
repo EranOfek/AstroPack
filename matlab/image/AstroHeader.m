@@ -1,9 +1,33 @@
-% @Chen
-
-% Configuration base Class
-% Package: 
-% Description:
-%--------------------------------------------------------------------------
+% AstroHeader Class - A container for astronomical image/tables headers
+% Properties:
+%   Data - a 3 columns cell array of [key,val,comment]
+%   Key  - A structure array containing on the fly-generated header
+%   File 
+%   HDU
+%   KeyDict - Dictionary of key names synonyms
+%   ValDict - Dictionary of key values (IMTYPE) synonyms
+%   CommentDict - Dictionary of default comments
+%   TimeDict - Dictionary of time keywords and their conversion functions.
+%   IsKeyUpToDate - Is Ket structure up to date.
+% Functionality:
+%   read - read as a single/multiple headers from file/s into an Header object
+%   show - dipslay default
+%   createBasicHeader (static) - Create an AstroHeader object with a basic header
+%   funUnary - funUnary for AstroHeader - modify header and add history
+%   getVal - get a single keyword value where the keyword appears first in a dictionary.
+%   getStructKey - Get multiple  keys from multiple headers and store in a structure array
+%   getCellKey - Get multiple  keys from multiple headers and store in a cell array
+%   insertDefaultComments - Insert/replace default comments for keys using the header comments dictionary
+%   deleteKey - Delete keywords from header by exact keyword name
+%   insertKey - Insert key/val/comment to headers
+%   replaceVal - Replace a keyword value in headers (no dictionary in key
+%   isKeyVal - Check if a single keyword value equal to some value.
+%   isKeyExist - Check if a single keyword value equal to some value.
+%   isImType - Check if header IMTYPE keyword value equal some type
+%   julday - Calculate mid exposure JD and ExpTime for AstroHeader object
+%   groupByKeyVal - Group a set of AstroHeaders by their unique keyword values.
+%   unitTest (static) - unitTest for AstroHeader class
+%
 
 classdef AstroHeader < Component
     % Properties
@@ -784,17 +808,17 @@ classdef AstroHeader < Component
                     
         end
         
-        function Obj = fixKeys(Obj,Args)
-            % Change the name of header keywords according to their main
-            % name in the keyword synonymns dictionary
-            % Input  : -
-            % Output : -
-            % Author : Eran Ofek (Apr 2021)
-            % Example: 
-            
-            
-            
-        end
+%         function Obj = fixKeys(Obj,Args)
+%             % Change the name of header keywords according to their main
+%             % name in the keyword synonymns dictionary
+%             % Input  : -
+%             % Output : -
+%             % Author : Eran Ofek (Apr 2021)
+%             % Example: 
+%             
+%             
+%             
+%         end
         
         function Obj = deleteKey(Obj,ExactKeys,Args)
             % Delete keywords from header by exact keyword name
@@ -924,15 +948,15 @@ classdef AstroHeader < Component
             
         end
         
-        function search(Obj,Val,Args)
-            %
-            arguments
-                Obj         
-                Val                 
-                Args.Column                  = 1;
-                Args.CaseSens(1,1) logical   = true;
-            end
-        end
+%         function search(Obj,Val,Args)
+%             %
+%             arguments
+%                 Obj         
+%                 Val                 
+%                 Args.Column                  = 1;
+%                 Args.CaseSens(1,1) logical   = true;
+%             end
+%         end
         
         
         function Result = isKeyVal(Obj, Key, Val, Args)
