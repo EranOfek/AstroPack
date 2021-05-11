@@ -71,6 +71,7 @@ classdef AstroPSF < Component
             
         end
             
+        
     end
     
     methods % generating PSF
@@ -329,6 +330,10 @@ classdef AstroPSF < Component
             FWHM_Flux   = 2.*FWHM_Flux;
             
         end
+        
+%         function fitGaussians
+%             
+%         end
     end
     
     methods % functionality
@@ -369,6 +374,14 @@ classdef AstroPSF < Component
             
             
         end
+        
+%         function selectPSF
+%             
+%         end
+        
+%         function combinePSF
+%             
+%         end
         
     end
     
