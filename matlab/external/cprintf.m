@@ -303,6 +303,8 @@ function [underlineFlag,boldFlag,style,debugFlag] = processStyleInfo(style)
       % @Chen - Special attributes
       if strcmp(style, '@start')
           style = 'blue';
+      elseif strcmp(style, '@stop') || strcmp(style, '@end') || strcmp(style, '@done') 
+          style = 'cyan';          
       elseif strcmp(style, '@passed')
           style = 'green';
       elseif strcmp(style, '@failed')
