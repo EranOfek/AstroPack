@@ -1613,6 +1613,106 @@ classdef AstroImage < Component
             
         end
         
+        function Result = image2subimages(Obj, BlockSize, Args)
+            % Partition an AstroImage image into sub images
+            % Input  : - An AstroImage object with a single element.
+            %          - BlockSize [X, Y] of sub images. or [X] (will be copied as [X, X]).
+            %            If empty, will use imUtil.image.subimage_grid
+            %            Default is [256 256].
+            %          * Arbitrary number of pairs of input arguments ...,key,val,...
+            %            The following keywords are available:
+            %            'Output' - Output type {['cell'] | 'struct'}
+            %            'FieldName' - Field name in a struct output in which to store
+            %                       the sub images. Default is 'Im'.
+            %            'SubSizeXY' - Sub image size [X,Y]. Default is [128 128].
+            %            'CCDSEC' - CCDSEC of image to partition. If empty,
+            %                   use full image. Default is empty.
+            %            'Nxy' - Number of sub images along each dimension [Nx, Ny].
+            %                    If empty then use SubSizeXY. Default is [].
+            %            'OverlapXY' - Overlapping extra [X, Y] to add to SubSizeXY
+            %                    from each side. Default is [32 32].
+            % Example: AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
+            %          Result = image2subimages(AI,[256 256])
+            
+            arguments
+                Obj(1,1)
+                BlockSize             = [256 256];   % If empty, will use imUtil.image.subimage_grid
+                Args.CCDSEC           = [];   % [xmin xmax ymin ymax] If given, override BlockSize
+                Args.Nxy              = [];   % If empty then use SubSizeXY. Default is [].
+                Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
+            end
+           
+            % find the correct partition
+            PropList = {'ImageData','BackData','VarData','MaskData'};
+            Nprop    = numel(PropList);
+            Ind      = 0;
+            Nsub     = NaN;
+            Result   = [];
+            for Iprop=1:1:Nprop
+                Prop = PropList{Iprop};
+                if ~isempty(Obj.(Prop).Data)
+                    Ind = Ind + 1;
+                    if Ind==1
+                        [Sub,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC,NewNoOverlap] = ...
+                                imUtil.image.partition_subimage(Obj.(Prop).Image, Args.CCDSEC,...
+                                       'Output','struct',...
+                                       'FieldName','Im',...
+                                       'SubSizeXY',BlockSize,...
+                                       'Nxy',Args.Nxy,...
+                                       'OverlapXY',Args.OverlapXY);
+                        Nsub   = numel(Sub);
+                        Result = AstroImage([1,Nsub]);
+                    else
+                        [Sub] = ...
+                                imUtil.image.partition_subimage(Obj.(Prop).Image, Args.CCDSEC,...
+                                       'Output','struct',...
+                                       'FieldName','Im',...
+                                       'SubSizeXY',BlockSize,...
+                                       'Nxy',Args.Nxy,...
+                                       'OverlapXY',Args.OverlapXY);
+                    end
+                    
+                    for Isub=1:1:Nsub
+                        Result(Isub).(Prop).Data   = Sub.Im;
+                        Result(Isub).(Prop).Scale  = [];
+                        Result(Isub).(Prop).CCDSEC = EdgesCCDSEC(Isub,:);
+                    end
+                end
+            end
+            
+            if ~isnan(Nsub)
+                % set the Mask data for edge and overlapping pixels
+
+                % update the header
+                KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC','ORIGUSEC','UNIQSEC'};
+                KeyVals  = cell(size(KeyNames));
+                for Isub=1:1:Nsub
+                    % 
+                    KeyVals{1} = size(Result(Isub).ImageData.Image,2);  % NAXIS1
+                    KeyVals{2} = size(Result(Isub).ImageData.Image,1);  % NAXI2
+                    KeyVals{3} = imUtil.ccdsec.ccdsec2str([1, KeyVals{1}, 1, KeyVals{2}]); % CCDSEC of current image
+                    KeyVals{4} = imUtil.ccdsec.ccdsec2str(EdgesCCDSEC(Isub,:));            % ORIGSEC : SEC of subimage in full image
+                    KeyVals{5} = imUtil.ccdsec.ccdsec2str(NoOverlapCCDSEC(Isub,:));        % ORIGUSEC : SEC of non-overlapping sub image in full image
+                    KeyVals{6} = imUtil.ccdsec.ccdsec2str(NewNoOverlap(Isub,:));           % UNIQSEC : SEC of non-overlapping sub image in new sub image
+                    
+                    Result(Isub).HeaderData.replaceVal(KeyNames, KeyVals);
+                end
+                    
+                % update the PSF
+                warning('Update PSF is not implenmented');
+                
+                % update the WCS
+                warning('Update WCS is not implenmented');
+                
+                % update the Catalog
+                warning('Update Catalog is not implenmented');
+                
+            end
+            
+            
+            
+        end
+        
         function varargout = object2array(Obj,DataProp)
             % Convert an AstroImage object that contains scalars into an array
             % Input  : - An AstroImage object.
@@ -1836,6 +1936,14 @@ classdef AstroImage < Component
             if ~all(Res.Image==1)
                 error('funBinaryProp failed');
             end
+            
+            
+            
+            
+            
+            % image2subimages
+            AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
+            Result = image2subimages(AI,[256 256]);
             
             
             

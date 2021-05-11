@@ -924,7 +924,7 @@ classdef AstroHeader < Component
                 Args.Comment                                  = [];
                 Args.NewKey                                   = {};
                 Args.AddKey(1,1) logical                      = true;
-                Args.AddPos                                   = 'end-1';
+                Args.AddPos                                   = 'end';
                 Args.ColKey(1,1) uint8                        = 1;
                 Args.ColVal(1,1) uint8                        = 2;
                 Args.ColComment(1,1) uint8                    = 3;

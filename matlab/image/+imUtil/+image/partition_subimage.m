@@ -1,4 +1,4 @@
-function [SubImage,CCDSEC,Center,NooverlapCCDSEC]=partition_subimage(Image,CCDSEC,Args)
+function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap]=partition_subimage(Image,CCDSEC,Args)
 % Partition image into sub images
 % Package: mUtil.image
 % Description: Partition image into sub images defined either by a CCDSEC
@@ -24,10 +24,11 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC]=partition_subimage(Image,CCDSE
 %          - Centers of sub images [X,Y].
 %          - CCDSEC without overlap. This will be rturned only of input CCDSEC
 %            is empty. Otherwise, will return empty matrix.
+%          - CCDSEC in the new sub image of the non-overlapping region
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [SubImage,CCDSEC,Center]=imUtil.image.partition_subimage(rand(256,256),[],'SubSizeXY',[64 64],'OverlapXY',[10 10],'Output','struct');
+% Example: [SubImage,CCDSEC,Center,NoOverLap]=imUtil.image.partition_subimage(rand(256,256),[],'SubSizeXY',[64 64],'OverlapXY',[10 10],'Output','struct');
 %          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC)
 %          cellfun(@(x) std(x(:)),SubImage,'UniformOutput',false)  % calculate std for each sub image
 %          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC,'Output','struct');
@@ -49,7 +50,7 @@ SizeXY = fliplr(size(Image));
 NooverlapCCDSEC = [];
 if isempty(CCDSEC)
     % partition image using subimage_grid
-    [CCDSEC,NooverlapCCDSEC,Center,Nxy] = imUtil.image.subimage_grid(SizeXY,...
+    [CCDSEC,NooverlapCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid(SizeXY,...
                                                             'SubSizeXY',Args.SubSizeXY,...
                                                             'Nxy',Args.Nxy,...
                                                             'OverlapXY',Args.OverlapXY);

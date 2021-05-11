@@ -65,5 +65,7 @@ CUNIT1  : ['Image axis-1 celestial-coordinate units']
 CUNIT2  : ['Image axis-2 celestial-coordinate units']
 CRTYPE1 : ['Data units of CRVAL1']
 CRTYPE2 : ['Data units of CRVAL2']
-
+ORIGSEC : ['Section of subimage in full image']
+ORIGUSEC: ['Section of non-overlapping sub image in full image']
+UNIQSEC : ['Section of non-overlapping sub image in new sub image']
                         
