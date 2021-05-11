@@ -1,0 +1,50 @@
+package Python;
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Python4Delphi - Run-time Engine Package'}
+{$LIBSUFFIX AUTO}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  dbrtl,
+  FireDAC,
+  FireDACCommonDriver,
+  FireDACCommon;
+
+contains
+  MethodCallBack in '..\..\..\Source\MethodCallBack.pas',
+  PythonEngine in '..\..\..\Source\PythonEngine.pas',
+  PythonVersions in '..\..\..\Source\PythonVersions.pas',
+  VarPyth in '..\..\..\Source\VarPyth.pas',
+  WrapDelphi in '..\..\..\Source\WrapDelphi.pas',
+  WrapDelphiClasses in '..\..\..\Source\WrapDelphiClasses.pas',
+  WrapDelphiTypes in '..\..\..\Source\WrapDelphiTypes.pas',
+  WrapDelphiWindows in '..\..\..\Source\WrapDelphiWindows.pas',
+  WrapFireDAC in '..\..\..\Source\WrapFireDAC.pas';
+
+end.
