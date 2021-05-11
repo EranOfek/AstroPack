@@ -29,6 +29,7 @@ classdef Component < Base
         MapKey = []                % Used with ComponentMap class
         Config Configuration       % Configuration, deafult is system configuration
         Log MsgLogger              % Logger, default is system logger
+        DebugMode = false          % DebugMode
     end
     
     %-------------------------------------------------------- 
@@ -46,9 +47,8 @@ classdef Component < Base
         
         function Result = makeUuid(Obj)
             % (re)Generate unique ID for each element in object
-            for i = 1:numel(Obj)
-                Temp = java.util.UUID.randomUUID;
-                Obj(i).Uuid = string(Temp.toString()).char;
+            for i = 1:numel(Obj)                
+                Obj(i).Uuid = Component.newUuid();
             end
             
             if numel(Obj) == 1
@@ -214,7 +214,37 @@ classdef Component < Base
         end
     end
     
-      
+
+    
+    methods(Static)
+        function Result = newUuid()    
+            % Generate Uuid
+            Temp = java.util.UUID.randomUUID;
+            Result = string(Temp.toString()).char;
+        end
+        
+        
+        function Result = newSerial()    
+            % Generate simple serial number, used as fast local uuid
+            persistent Counter
+            if isempty(Counter)
+                Counter = 0;
+            end
+            Counter = Counter + 1;
+            Result = Counter;
+        end        
+        
+        function Result = newSerialStr(varargin)    
+            % Generate simple serial number, used as fast local uuid
+            if numel(varargin) == 1
+                Result = string(varargin(1) + string(Component.newSerial())).char;
+            else                
+                Result = string(Component.newSerial()).char;
+            end
+        end
+    end
+        
+                
     methods(Static) % Unit test
         function Result = unitTest()
             % unitTest for Component class
