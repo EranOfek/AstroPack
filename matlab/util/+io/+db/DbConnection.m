@@ -67,6 +67,7 @@ classdef DbConnection < Component
                
         function Result = open(Obj)          
             % Connect to database specified by Host:Port:Database as UserName/Password
+            f_ = io.FuncLog('DbConnection.open');
             Obj.msgLog(LogLevel.Info, 'DbConnection.open');
             
             % Already open            
@@ -101,7 +102,7 @@ classdef DbConnection < Component
                 Obj.msgLog(LogLevel.Info, 'DbConnection.open: Url: %s', Obj.Url);
                 Obj.Conn = Obj.Driver.Driver.connect(Obj.Url, props);
                 Obj.IsOpen = true;
-                Obj.msgLog(LogLevel.Info, 'DbConnection.open: connect OK');
+                Obj.msgLog(LogLevel.Info, 'DbConnection.open: connect OK: %s', Obj.Url);
             catch
             end
 
@@ -114,6 +115,7 @@ classdef DbConnection < Component
             end         
             
             Result = Obj.IsOpen;
+            Obj.msgLog(LogLevel.Info, 'DbConnection.open finished');
         end
         
         
@@ -149,7 +151,11 @@ classdef DbConnection < Component
         end
         
         
-        function Result = getDbConnection(ConnKey)
+        function Result = getDbConnection(ConnKey) %, Args)
+            arguments
+                ConnKey
+            end
+            
             persistent Map
             if isempty(Map)
                 Map = ComponentMap('DbConnection');
@@ -172,6 +178,19 @@ classdef DbConnection < Component
     end
     
     
+
+    % Unit test
+    methods(Static)
+        function Result = setupDefault()
+            
+            Con = io.db.DbConnection.getDbConnection('default');
+            assert(~isempty(Con));
+            Result = true;
+        end            
+        
+    end
+    
+    
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)
@@ -179,7 +198,8 @@ classdef DbConnection < Component
             io.msgStyle(LogLevel.Test, '@start', 'DbConnection test started');
    
             % Open/close connection
-            Conn = io.db.DbConnection;            
+            Conn = io.db.DbConnection(); %'Database', 'unittest');
+            Conn.DatabaseName = 'unittest';
             Conn.open();
             assert(Conn.IsOpen);        
             Conn.close();
@@ -187,6 +207,7 @@ classdef DbConnection < Component
             
             % Get/register connection, open, close
             Con = io.db.DbConnection.getDbConnection('test');
+            Con.DatabaseName = 'unittest';
             assert(~isempty(Con));
             Con.open();
             assert(Con.IsOpen);
