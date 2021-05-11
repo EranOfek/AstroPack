@@ -1,7 +1,2 @@
 # Docker containers
 
-
-
-
-
-

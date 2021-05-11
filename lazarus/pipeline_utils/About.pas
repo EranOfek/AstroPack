@@ -5,10 +5,19 @@ unit About;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls;
 
 type
+
+  { TAboutForm }
+
   TAboutForm = class(TForm)
+    BtnClose: TButton;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Panel1: TPanel;
+    procedure BtnCloseClick(Sender: TObject);
   private
 
   public
@@ -22,6 +31,12 @@ implementation
 
 {$R *.lfm}
 
-end.
+{ TAboutForm }
 
+procedure TAboutForm.BtnCloseClick(Sender: TObject);
+begin
+  Close();
+end;
+
+end.
 

@@ -1,9 +1,7 @@
-# File: lazarus/.gitignore
+# File: delphi/.gitignore
 
 *.o
 *.obj
 *.exe
 *.res
-
-
 
