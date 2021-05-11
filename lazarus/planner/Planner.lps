@@ -19,12 +19,10 @@
         <ComponentName Value="AboutForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="4"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="21"/>
         <CursorPos X="4" Y="28"/>
         <UsageCount Value="20"/>
-        <Loaded Value="True"/>
-        <LoadedDesigner Value="True"/>
       </Unit1>
       <Unit2>
         <Filename Value="Main.pas"/>
@@ -32,11 +30,10 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="37"/>
         <CursorPos Y="50"/>
         <UsageCount Value="20"/>
-        <Loaded Value="True"/>
-        <LoadedDesigner Value="True"/>
       </Unit2>
       <Unit3>
         <Filename Value="Main.lfm"/>
@@ -49,120 +46,32 @@
       </Unit3>
       <Unit4>
         <Filename Value="C:\Bin\Lazarus\lcl\include\customform.inc"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="3170"/>
         <CursorPos Y="3184"/>
         <UsageCount Value="10"/>
-        <Loaded Value="True"/>
       </Unit4>
       <Unit5>
         <Filename Value="C:\Bin\Lazarus\lcl\lclclasses.pp"/>
         <UnitName Value="LCLClasses"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="127"/>
         <CursorPos Y="138"/>
         <UsageCount Value="10"/>
-        <Loaded Value="True"/>
       </Unit5>
       <Unit6>
         <Filename Value="C:\Bin\Lazarus\lcl\include\menuitem.inc"/>
         <IsVisibleTab Value="True"/>
-        <EditorIndex Value="1"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="75"/>
         <CursorPos X="42" Y="87"/>
         <UsageCount Value="10"/>
-        <Loaded Value="True"/>
       </Unit6>
     </Units>
-    <JumpHistory Count="22" HistoryIndex="21">
-      <Position1>
-        <Filename Value="Main.pas"/>
-        <Caret Line="16" Column="30"/>
-      </Position1>
-      <Position2>
-        <Filename Value="Main.pas"/>
-      </Position2>
-      <Position3>
-        <Filename Value="Main.pas"/>
-        <Caret Line="39" Column="27" TopLine="18"/>
-      </Position3>
-      <Position4>
-        <Filename Value="Main.pas"/>
-        <Caret Line="9" Column="8" TopLine="3"/>
-      </Position4>
-      <Position5>
-        <Filename Value="Main.pas"/>
-        <Caret Line="10" Column="39"/>
-      </Position5>
-      <Position6>
-        <Filename Value="Main.pas"/>
-        <Caret Line="45" Column="18" TopLine="25"/>
-      </Position6>
-      <Position7>
-        <Filename Value="Main.pas"/>
-        <Caret Line="46" Column="40" TopLine="29"/>
-      </Position7>
-      <Position8>
-        <Filename Value="Main.pas"/>
-        <Caret Line="45" Column="17" TopLine="31"/>
-      </Position8>
-      <Position9>
-        <Filename Value="Main.pas"/>
-        <Caret Line="46" Column="40" TopLine="31"/>
-      </Position9>
-      <Position10>
-        <Filename Value="Main.pas"/>
-        <Caret Line="40" Column="39" TopLine="32"/>
-      </Position10>
-      <Position11>
-        <Filename Value="Main.pas"/>
-        <Caret Line="54" Column="40" TopLine="37"/>
-      </Position11>
-      <Position12>
-        <Filename Value="Main.pas"/>
-        <Caret Line="43" Column="30" TopLine="37"/>
-      </Position12>
-      <Position13>
-        <Filename Value="Main.pas"/>
-        <Caret Line="47" TopLine="37"/>
-      </Position13>
-      <Position14>
-        <Filename Value="C:\Bin\Lazarus\lcl\include\customform.inc"/>
-        <Caret Line="3181" TopLine="3170"/>
-      </Position14>
-      <Position15>
-        <Filename Value="C:\Bin\Lazarus\lcl\lclclasses.pp"/>
-        <Caret Line="138" TopLine="127"/>
-      </Position15>
-      <Position16>
-        <Filename Value="C:\Bin\Lazarus\lcl\include\customform.inc"/>
-        <Caret Line="3182" TopLine="3170"/>
-      </Position16>
-      <Position17>
-        <Filename Value="C:\Bin\Lazarus\lcl\include\customform.inc"/>
-        <Caret Line="3183" TopLine="3170"/>
-      </Position17>
-      <Position18>
-        <Filename Value="C:\Bin\Lazarus\lcl\include\customform.inc"/>
-        <Caret Line="3184" TopLine="3170"/>
-      </Position18>
-      <Position19>
-        <Filename Value="C:\Bin\Lazarus\lcl\include\customform.inc"/>
-        <Caret Line="3181" TopLine="3170"/>
-      </Position19>
-      <Position20>
-        <Filename Value="C:\Bin\Lazarus\lcl\include\customform.inc"/>
-        <Caret Line="3184" TopLine="3170"/>
-      </Position20>
-      <Position21>
-        <Filename Value="Main.pas"/>
-        <Caret Line="49" TopLine="37"/>
-      </Position21>
-      <Position22>
-        <Filename Value="Main.pas"/>
-        <Caret Line="50" TopLine="37"/>
-      </Position22>
-    </JumpHistory>
+    <General>
+      <ActiveWindowIndexAtStart Value="-1"/>
+    </General>
+    <JumpHistory HistoryIndex="-1"/>
     <RunParams>
       <FormatVersion Value="2"/>
       <Modes Count="0" ActiveMode=""/>
