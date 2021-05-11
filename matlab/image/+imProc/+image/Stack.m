@@ -1,3 +1,5 @@
+% obsolete:
+
 % imProc.image.Stack class
 %   This class provides functionality for stack/coadd images.
 % Functionality:
@@ -55,6 +57,7 @@ classdef Stack < Component
     end
     
     methods % basic normalization function
+        
         
         function Result = applyUnaryFun(Obj, ImObj, Offset, Operator, Args)
             % Applay scalar-unary function (e.g., function that returns a scalar) on AstroImage
