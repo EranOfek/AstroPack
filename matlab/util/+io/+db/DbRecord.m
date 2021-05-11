@@ -8,6 +8,8 @@ classdef DbRecord < dynamicprops
     properties (SetAccess = public)
         Query = []
         KeyField = ''
+        Uuid = ''
+        UseUuid = false;
     end
     
     %-------------------------------------------------------- 
@@ -15,11 +17,17 @@ classdef DbRecord < dynamicprops
         function Obj = DbRecord(varargin)           
             
             % Set DbQuery
+            if Obj.UseUuid
+                Obj.Uuid = Component.newUuid();
+            else
+                Obj.Uuid = Component.newSerialStr('DbRecord');
+            end
+            
             if numel(varargin) == 1
                 Obj.Query = varargin{1};
-                io.msgLog(LogLevel.Debug, ['DbRecord created, DbQuery: ', Obj.Query.Uuid]);
+                io.msgLog(LogLevel.Debug, 'DbRecord created: %s, DbQuery: %s', Obj.Uuid, Obj.Query.Uuid);
             else
-                io.msgLog(LogLevel.Debug, 'DbRecord created');
+                io.msgLog(LogLevel.Debug, 'DbRecord created: %s', Obj.Uuid);
             end
             
             
@@ -28,7 +36,7 @@ classdef DbRecord < dynamicprops
         
         % Destructor
         function delete(Obj)
-            io.msgLog(LogLevel.Debug, 'DbRecord deleted');
+            io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
         end
     end
 

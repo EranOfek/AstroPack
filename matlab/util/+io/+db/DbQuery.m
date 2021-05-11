@@ -44,11 +44,9 @@ classdef DbQuery < Component
             else
                 error('DbQuery: Unknown parameters');
             end
-            
-            Obj.Conn = Conn;
 
-            % Debug
-            Obj.SqlText = 'select * from raw_images';
+            Obj.DebugMode = true;
+            Obj.Conn = Conn;
         end
         
         
@@ -77,7 +75,12 @@ classdef DbQuery < Component
                     error('DbQuery.open: Open connection failed');
                 end
             end            
-               
+            
+            % Clear current query
+            if Obj.IsOpen
+                Obj.clear();
+            end
+            
             % Set SQL text
             if numel(varargin) == 1
                 Obj.SqlText = varargin{1};
@@ -106,7 +109,8 @@ classdef DbQuery < Component
         end
         
         
-        function Result = close(Obj)
+        function Result = clear(Obj)
+            Obj.clearResultSet();
             if ~isempty(Obj.ResultSet)
                 Obj.ResultSet.close();
                 Obj.Statement.close();
@@ -117,8 +121,16 @@ classdef DbQuery < Component
         end
         
         
+        function Result = close(Obj)
+            Result = Obj.clear();
+        end
+        
+        
         function Result = getMetadata(Obj)
             %
+            Obj.ColumnCount = 0;
+            Obj.ColumnNames = {};
+            Obj.ColumnType = {};
             
             Result = false;
             try
@@ -161,16 +173,46 @@ classdef DbQuery < Component
         end
         
 
-        function select(Obj, QueryText)
-            % Execute SELECT query
-            Obj.SqlText = sprintf('%s FROM %s', QueryText, Obj.Schema);
-            Obj.Record = select(Obj.Conn, Text);
+        function select(Obj, Fields, TableName, Args)
+            % Execute: SELECT Fields FROM TableName
+            
+            arguments 
+                Obj
+                Fields
+                TableName
+                Args.Where = ''
+                Args.Order = ''
+                Args.Limit = -1
+            end
+            
+            % Select
+            Obj.SqlText = sprintf('SELECT %s FROM %s', Fields, TableName);
+            
+            % Where
+            if ~isempty(Args.Where)
+                Obj.SqlText = [Obj.SqlText, ' WHERE ', Args.Where];
+            end
+            
+            % Order
+            if ~isempty(Args.Order)
+                Obj.SqlText = [Obj.SqlText, ' ORDER BY ', Args.Order];
+            end
+            
+            % Limit            
+            if Args.Limit > -1
+                Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
+            end
+            
+            % Open
+            Obj.open();            
         end
         
         
-        function Result = selectWhere(Obj, QueryText, WhereText)
+        function selectWhere(Obj, Fields, TableName, Where)
+            % Execute: SELECT Fields FROM TableName WHERE Where
+            Obj.SqlText = sprintf('%s FROM %s WHERE %s', Fields, TableName, Where);
+            Obj.open();            
         end
-        
         
         function exec(Obj, QueryText)
             % Execute query text
@@ -232,7 +274,10 @@ classdef DbQuery < Component
                             Result = char(Obj.ResultSet.getString(ColIndex));
                         otherwise % case { 'Date', 'Time', 'Timestamp' }
                             Result = char(Obj.ResultSet.getString(ColIndex));
-                    end            
+                    end
+                    if Obj.DebugMode
+                        Obj.msgLog(LogLevel.Debug, 'getField %s = %s', string(FieldName).char, string(Result).char);
+                    end
                     
                 catch
                     Obj.msgLog(LogLevel.Error, 'getField failed: %s', string(FieldName).char);
@@ -354,6 +399,7 @@ classdef DbQuery < Component
                 Args.MaxRecords = 0
             end
             
+            FL_ = io.FuncLog('loadAll');
             
             % Initialize
             Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColumnCount);
@@ -395,10 +441,13 @@ classdef DbQuery < Component
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
                
-            % Use default database
-            Conn = io.db.DbConnection;
-            Conn.open();
+            % Create database connection
+            %Conn = io.db.DbConnection;
+            %Conn.DatabaseName = 'unittest';
+            %Conn.open();
 
+            Conn = io.db.Db.getUnitTest();
+            
             % Query Postgres version
             
             %print('PostgreSQL database version:')
@@ -406,16 +455,12 @@ classdef DbQuery < Component
     
             % Select two fields from table
             Q = io.db.DbQuery(Conn);
-            Q.open(['select RecId, FInt from master_table', TableName, ' limit 5']);
+            Q.open('select RecId, FInt from master_table limit 5');
             assert(Q.ColumnCount == 2);
             
+            %
             Rec = Q.getRecord();
             B = Q.loadAll();
-            
-            
-            
-            
-            %assert(Rec.ColumnCount > 0);            
             
             % Load entire result set to memory
             Data = Q.loadAll();
@@ -427,17 +472,23 @@ classdef DbQuery < Component
             % Load current record to memory
             Rec = Q.getRecord();
             
-            % Generate UUID
+            % Get all fields, show not throw exception as all these fields
+            % exist in table 'master_table'
             RecID = Rec.recid;
             InsertTime = Rec.inserttime;
             UpdateTime = Rec.updatetime;
             FInt = Rec.fint;
-            FBigInt = Rec.bigint;
+            FBigInt = Rec.fbigint;
             FBool = Rec.fbool;
             FDouble = Rec.fdouble;
             FTimestamp = Rec.ftimestamp;
             FString = Rec.fstring;
 
+            % Test select function
+            % select RecId, FInt, FBigInt from master_table where recid != ''
+            Q.select('RecID, Fint', 'master_table', 'where', 'Fint > 0');
+            Rec = Q.getRecord();
+            
             % Insert records            
             % sql = 'INSERT INTO master_table(RecID, InsertTime, UpdateTime, FInt, FBigInt, FBool, FDouble, FTimestamp, FString) VALUES(%s,%s);'
             for i = 1:100

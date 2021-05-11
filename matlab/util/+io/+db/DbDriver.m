@@ -147,14 +147,16 @@ classdef DbDriver < Component
                 DatabaseType = 'postgres';
             end
             
-            
+            % Search in map
             Comp = Map.find(DatabaseType);
             if isempty(Comp)
+                % Not found, create
                 Comp = io.db.DbDriver();
                 Comp.DatabaseType = DatabaseType;
                 Comp.MapKey = DatabaseType;
                 Map.add(Comp);
             else
+                % Already exist
             end
             Result = Comp;                         
         end

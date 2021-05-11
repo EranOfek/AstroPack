@@ -1,0 +1,65 @@
+
+classdef FuncLog < handle
+    % Function start/done log
+    
+    % Properties
+    properties (SetAccess = public)
+        Title
+    end
+    
+    %-------------------------------------------------------- 
+    methods
+        % Constructor    
+        function Obj = FuncLog(Title)
+            Obj.Title = Title;
+            io.msgStyle(LogLevel.Debug, '@start', 'Func Start: %s', Obj.Title);
+        end
+        
+        
+        % Destructor
+        function delete(Obj)
+            io.msgStyle(LogLevel.Debug, '@done', 'Func Done: %s', Obj.Title);
+        end        
+    end
+   
+    
+    methods(Static)
+        function Result = unitTest()
+            io.msgStyle(LogLevel.Test, '@start', 'FuncLog test started')
+           
+            % Explicit delete
+            f = io.FuncLog('testing explicit delete');
+            io.msgLog(LogLevel.Test, 'Doing something...');
+            delete(f);
+            
+            % Function
+            io.msgLog(LogLevel.Test, 'testing inside function');
+            io.FuncLog.unitTestHelper1();
+            
+            % @Todo: Scope - object is destructed on function end, not on out of
+            % scope, to be fixed?
+            a = 1;
+            if a == 1
+                f_ = io.FuncLog('testing scope true');
+                
+                % Explicit delete
+                delete(f_);
+            else
+                % @Todo: Here it will not be called automatically, only
+                % when function is done
+                f_ = io.FuncLog('testing scope false');
+            end
+            
+            io.msgStyle(LogLevel.Test, '@passed', 'FuncLog test done')
+            Result = true;
+        end
+        
+        
+        function unitTestHelper1()
+            % Test auto-destructor
+            io.FuncLog('unitTestHelper test');
+        end        
+    end    
+    
+end
+
