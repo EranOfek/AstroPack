@@ -11,6 +11,12 @@
 % Functionality :
 %       
 
+% TODO:
+%   1. resampling and scaling of PSF
+%       In some cases we may want to generate the PSF in oversampling
+%   2. Info about sub pixel response?
+%   3. Info about how the PSF was generated
+
 classdef AstroPSF < Component
     properties (Dependent) % Access image data directly    
         Data
@@ -382,7 +388,15 @@ classdef AstroPSF < Component
 %         function combinePSF
 %             
 %         end
+
+%         function fit
+% 
+%         end
         
+%         function pad
+% 
+%         end
+
     end
     
 
