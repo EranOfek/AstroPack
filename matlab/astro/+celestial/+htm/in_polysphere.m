@@ -72,7 +72,7 @@ Corners = [Corners;Corners(1,:)];
 Nvert = size(Corners,1)-1;
 % cross (X) two verteces in order to get the pole of the great
 % circle defined by the two verteces
-PoleVec = Util.math.cross_fast(Corners(1:end-1,:),Corners(2:end,:));
+PoleVec = tools.math.geometry.cross_fast(Corners(1:end-1,:),Corners(2:end,:));
 % normalize polar vector to unity
 PoleVec = bsxfun(@times,PoleVec, 1./sqrt(sum(PoleVec.^2,2)));
 FlagMat = celestial.htm.in_halfspace(Positions,PoleVec,0,1,Crit).';
