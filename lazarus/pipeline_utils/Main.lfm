@@ -24,7 +24,6 @@ object MainForm: TMainForm
     ClientHeight = 98
     ClientWidth = 851
     TabOrder = 0
-    OnClick = PanelLogoClick
     object ImageLogo: TImage
       Left = 1
       Height = 96
@@ -11141,6 +11140,32 @@ object MainForm: TMainForm
       Stretch = True
     end
   end
+  object Panel1: TPanel
+    Left = 104
+    Height = 232
+    Top = 120
+    Width = 354
+    Caption = 'Panel1'
+    TabOrder = 1
+  end
+  object Button1: TButton
+    Left = 496
+    Height = 25
+    Top = 136
+    Width = 75
+    Caption = 'Button1'
+    OnClick = Button1Click
+    TabOrder = 2
+  end
+  object Button2: TButton
+    Left = 504
+    Height = 25
+    Top = 192
+    Width = 75
+    Caption = 'Button2'
+    OnClick = Button2Click
+    TabOrder = 3
+  end
   object MainMenu: TMainMenu
     Left = 48
     Top = 144
@@ -11158,5 +11183,12 @@ object MainForm: TMainForm
         OnClick = MIAboutClick
       end
     end
+  end
+  object Timer1: TTimer
+    Enabled = False
+    Interval = 100
+    OnTimer = Timer1Timer
+    Left = 496
+    Top = 240
   end
 end
