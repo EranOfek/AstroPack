@@ -1003,7 +1003,7 @@ classdef catsHTM
             
         end
 
-        function [Cat,CatID,Cat1,Ihtm,ColCell]=load_cat_with_edges(CatName,Ih,IsHTMindex,varargin)
+        function [Cat,CatID,Cat1,Ihtm,ColCell]=load_cat_with_edges(CatName,Ih,IsHTMindex,Args)
             % load catalogs from all HTMs near a specific HTM triangle.
             % Package: @catsHTM
             % Description:
@@ -1037,20 +1037,18 @@ classdef catsHTM
             % Example:
             % [Cat,CatID,Cat1,Ihtm,ColCell]=catsHTM.load_cat_with_edges('FIRST',1,false,'Level',7);
 
-            if nargin<3
-                IsHTMindex = true;
+            arguments
+                CatName
+                Ih
+                IsHTMindex(1,1) logical   = true;
+                Args.HTM                  = [];
+                Args.LevelH               = [];
+                Args.Level                = [];
+                Args.SearchRadius         = 2;  % [arcsec]
+                Args.SearchRadiusUnits    = 'arcsec';
             end
-
-            DefV.HTM                  = [];
-            DefV.LevelH               = [];
-            DefV.Level                = [];
-            DefV.SearchRadius         = 2;  % [arcsec]
-            DefV.SearchRadiusUnits    = 'arcsec';
-          
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
-
-
-            SearchRadius = convert.angular(InPar.SearchRadiusUnits,'rad',InPar.SearchRadius);  % [rad]
+            
+            SearchRadius = convert.angular(Args.SearchRadiusUnits,'rad',Args.SearchRadius);  % [rad]
 
             % load HTM data for Cat2
             [IndexFileName,IndexVarName] = catsHTM.get_index_filename(CatName);
@@ -1060,16 +1058,16 @@ classdef catsHTM
             % poles 1 lat, ..., Nsrc
 
 
-            if isempty(InPar.HTM) && isempty(InPar.LevelH)
+            if isempty(Args.HTM) && isempty(Args.LevelH)
                 % generate HTM and Level
-                if isempty(InPar.Level)
+                if isempty(Args.Level)
                     error('If HTM and LevelH are not provided, Level must be provided');
                 end
 
-                [HTM,LevelH] = celestial.htm.htm_build(InPar.Level);   % < from input   
+                [HTM,LevelH] = celestial.htm.htm_build(Args.Level);   % < from input   
             else
-                HTM    = InPar.HTM;
-                LevelH = InPar.LevelH;
+                HTM    = Args.HTM;
+                LevelH = Args.LevelH;
             end
 
 
@@ -1519,7 +1517,7 @@ classdef catsHTM
     
     % search
     methods (Static)
-        function [Cat,ColCell,ColUnits]=cone_search(CatName,RA,Dec,Radius,varargin)
+        function [Cat,ColCell,ColUnits]=cone_search(CatName,RA,Dec,Radius,Args)
             % Cone earch on local HDF5/HTM catalog
             % Package: @catsHTM
             % Description: Perform a cone search around RA/Dec on a local catalog in
@@ -1581,29 +1579,33 @@ classdef catsHTM
             % Reliable: 2
             %--------------------------------------------------------------------------
 
+            arguments
+                CatName
+                RA
+                Dec
+                Radius
+                Args.Con                  = {};
+                Args.RadiusUnits          = 'arcsec';  % do not change this default!
+                Args.IndexFileTemplate    = '%s_htm.hdf5';
+                Args.CatFileTemplate      = '%s_htm_%06d.hdf5';
+                Args.htmTemplate          = 'htm_%06d';
+                Args.NcatInFile           = 100;
+                Args.IndexVarName         = [];
+                Args.UseIndex             = false;
+                Args.ColRA                = 1;
+                Args.ColDec               = 2;
+                Args.OnlyCone             = true;
+                Args.ColCellFile          = '%s_htmColCell.mat';
+                Args.OutType              = 'mat';
+            end
+            
             RAD = 180./pi;
 
-            DefV.Con                  = {};
-            DefV.RadiusUnits          = 'arcsec';  % do not change this default!
-            DefV.IndexFileTemplate    = '%s_htm.hdf5';
-            DefV.CatFileTemplate      = '%s_htm_%06d.hdf5';
-            DefV.htmTemplate          = 'htm_%06d';
-            DefV.NcatInFile           = 100;
-            DefV.IndexVarName         = [];
-            DefV.UseIndex             = false;
-            DefV.ColRA                = 1;
-            DefV.ColDec               = 2;
-            DefV.OnlyCone             = true;
-            DefV.ColCellFile          = '%s_htmColCell.mat';
-            DefV.OutType              = 'mat';
-
-            if (isempty(varargin))
-                InPar  = DefV;
-                Radius = Radius./(RAD.*3600);  % arcsec to [radians]
-            else
-                InPar  = InArg.populate_keyval(DefV,varargin,mfilename);
-                Radius = convert.angular(InPar.RadiusUnits,'rad',Radius);  % [radians]
-            end
+            %if nargin<5
+            %    Radius = Radius./(RAD.*3600);  % arcsec to [radians]
+            %else
+                Radius = convert.angular(Args.RadiusUnits,'rad',Radius);  % [radians]
+            %end
 
             if (ischar(RA))
                 RA = celestial.coo.convertdms(RA,'SH','r');
@@ -1612,44 +1614,44 @@ classdef catsHTM
                 Dec = celestial.coo.convertdms(Dec,'SD','R');
             end
             
-            InPar.ColCellFile = sprintf(InPar.ColCellFile,CatName);
+            Args.ColCellFile = sprintf(Args.ColCellFile,CatName);
 
-            load(InPar.ColCellFile);
+            load(Args.ColCellFile);
             Ncol  = numel(ColCell);
 
             % number of additional constraints
-            Ncon  = numel(InPar.Con);
+            Ncon  = numel(Args.Con);
 
             MinDec = Dec - Radius;
             MaxDec = Dec + Radius;
 
-            IndexFileName = sprintf(InPar.IndexFileTemplate,CatName);
-            ID     = catsHTM.search_htm_ind(IndexFileName,InPar.IndexVarName,RA,Dec,Radius);
-            FileID = floor(ID./InPar.NcatInFile).*InPar.NcatInFile;
+            IndexFileName = sprintf(Args.IndexFileTemplate,CatName);
+            ID     = catsHTM.search_htm_ind(IndexFileName,Args.IndexVarName,RA,Dec,Radius);
+            FileID = floor(ID./Args.NcatInFile).*Args.NcatInFile;
             Nid = numel(ID);
             Cat = zeros(0,Ncol);
             C = tools.struct.struct_def({'Cat'},Nid,1);
             for Iid=1:1:Nid
 
-                %FileID    = floor(ID(Iid)./InPar.NcatInFile).*InPar.NcatInFile;
-                FileName  = sprintf(InPar.CatFileTemplate,CatName,FileID(Iid));
-                DataName  = sprintf(InPar.htmTemplate,ID(Iid));
+                %FileID    = floor(ID(Iid)./Args.NcatInFile).*Args.NcatInFile;
+                FileName  = sprintf(Args.CatFileTemplate,CatName,FileID(Iid));
+                DataName  = sprintf(Args.htmTemplate,ID(Iid));
 
                 %Cat = [Cat; catsHTM.load_cat(FileName,DataName,[MinDec, MaxDec],Ncol)];
-                if InPar.UseIndex
+                if Args.UseIndex
                     C(Iid).Cat = catsHTM.load_cat(FileName,DataName,[MinDec, MaxDec],Ncol).';
                 else
                     C(Iid).Cat = HDF5.load(FileName,DataName).';
                 end
                 
-                if ~isempty(InPar.Con)
+                if ~isempty(Args.Con)
                     Flag = true(1,size(C(Iid).Cat,2));
                     for Icon=1:1:Ncon
-                        ColInd = strcmp(InPar.Con{Icon}{1},ColCell);
-                        if isa(InPar.Con{Icon}{2},'function_handle')
-                            Flag = Flag & InPar.Con{Icon}{2}(C(Iid).Cat(ColInd,:));
+                        ColInd = strcmp(Args.Con{Icon}{1},ColCell);
+                        if isa(Args.Con{Icon}{2},'function_handle')
+                            Flag = Flag & Args.Con{Icon}{2}(C(Iid).Cat(ColInd,:));
                         else
-                            Flag = Flag & C(Iid).Cat(ColInd,:)>=InPar.Con{Icon}{2}(1) & C(Iid).Cat(ColInd,:)<=InPar.Con{Icon}{2}(2);
+                            Flag = Flag & C(Iid).Cat(ColInd,:)>=Args.Con{Icon}{2}(1) & C(Iid).Cat(ColInd,:)<=Args.Con{Icon}{2}(2);
                         end
                     end
                     C(Iid).Cat = C(Iid).Cat(:,Flag);
@@ -1658,7 +1660,7 @@ classdef catsHTM
 
                 
 %                 if (Iid==1)
-%                     if InPar.UseIndex
+%                     if Args.UseIndex
 %                         Cat = catsHTM.load_cat(FileName,DataName,[MinDec, MaxDec],Ncol);
 %                     else
 %                         Cat = HDF5.load(FileName,DataName);
@@ -1666,7 +1668,7 @@ classdef catsHTM
 %                     
 %                     %Ncol = size(Cat,2);
 %                 else
-%                     if InPar.UseIndex
+%                     if Args.UseIndex
 %                         Cat = [Cat; catsHTM.load_cat(FileName,DataName,[MinDec, MaxDec],Ncol)];
 %                     else
 %                         Cat = [Cat; HDF5.load(FileName,DataName)];
@@ -1680,14 +1682,14 @@ classdef catsHTM
             Cat = [C.Cat]';
 
             % select only sources in Cone
-            if (InPar.OnlyCone && ~isempty(Cat))
-                D = celestial.coo.sphere_dist_fast(RA,Dec,Cat(:,InPar.ColRA),Cat(:,InPar.ColDec));
+            if (Args.OnlyCone && ~isempty(Cat))
+                D = celestial.coo.sphere_dist_fast(RA,Dec,Cat(:,Args.ColRA),Cat(:,Args.ColDec));
                 Cat = Cat(D<Radius,:);
             end
 
 
 
-            switch lower(InPar.OutType)
+            switch lower(Args.OutType)
                 case 'mat'
                     % do nothing
                 case 'astrocatalog'
@@ -1718,7 +1720,7 @@ classdef catsHTM
   
         
         
-        function CatM=sources_match(CatName,Cat,varargin)
+        function CatM=sources_match(CatName,Cat,Args)
             % Match sources in an input catalog with catsHTM catalog
             % Package: @catsHTM
             % Description: Given a catalog of sources with their RA/Dec,
@@ -1746,40 +1748,42 @@ classdef catsHTM
             % Output : - A matched catalog.
             % Example: CatM=catsHTM.sources_match('GAIADR2',CoaddSim);
             
+            arguments
+                CatName
+                Cat
+                Args.ConeSearchPar         = {};
+                Args.OutType               = 'AstCat';
+                Args.SearchRadius          = 2;
+                Args.SearchRadiusUnits     = 'arcsec';
+                Args.ColCell               = {};
+                Args.ColRA                 = {'RA','ALPHAWIN_J2000'};
+                Args.ColDec                = {'Dec','DELTAWIN_J2000'};
+                Args.CooUnits              = 'rad';  % in the AstCat object
+                Args.ColDecHTM             = 2;
+                Args.ColRAHTM              = 1;
+            end
+            
             CatField     = AstCat.CatField;
             ColCellField = AstCat.ColCellField;
             
-            DefV.ConeSearchPar         = {};
-            DefV.OutType               = 'AstCat';
-            DefV.SearchRadius          = 2;
-            DefV.SearchRadiusUnits     = 'arcsec';
-            DefV.ColCell               = {};
-            DefV.ColRA                 = {'RA','ALPHAWIN_J2000'};
-            DefV.ColDec                = {'Dec','DELTAWIN_J2000'};
-            DefV.CooUnits              = 'rad';  % in the AstCat object
-            DefV.ColDecHTM             = 2;
-            DefV.ColRAHTM              = 1;
-            
-            InPar  = InArg.populate_keyval(DefV,varargin,mfilename);
-
-            InPar.SearchRadius = convert.angular(InPar.SearchRadiusUnits,'rad',InPar.SearchRadius);  % [rad]
+            Args.SearchRadius = convert.angular(Args.SearchRadiusUnits,'rad',Args.SearchRadius);  % [rad]
             
             % Convert input catalog to an AstCat object
             if (~AstCat.isastcat(Cat))
                 Tmp = Cat;
                 Cat = AstCat;
                 Cat.(CatField)     = Tmp;
-                Cat.(ColCellField) = InPar.ColCell;
+                Cat.(ColCellField) = Args.ColCell;
                 Cat                = colcell2col(Cat);
             end
             % RA/Dec columns
-            [~,Col.RA,~]     = select_exist_colnames(Cat,InPar.ColRA(:));
-            [~,Col.Dec,~]    = select_exist_colnames(Cat,InPar.ColDec(:));
+            [~,Col.RA,~]     = select_exist_colnames(Cat,Args.ColRA(:));
+            [~,Col.Dec,~]    = select_exist_colnames(Cat,Args.ColDec(:));
             
             RA  = Cat.(CatField)(:,Col.RA);
             Dec = Cat.(CatField)(:,Col.Dec);
             % convert to radians;
-            ConvCoo = convert.angular(InPar.CooUnits,'rad');
+            ConvCoo = convert.angular(Args.CooUnits,'rad');
             RA      = RA.*ConvCoo;
             Dec     = Dec.*ConvCoo;
             
@@ -1789,10 +1793,10 @@ classdef catsHTM
             Radius  = max(D).*(1+10.*eps);  % [rad]
             Radius  = convert.angular('rad','arcsec',Radius); % [arcsec]
             
-            [CatH,ColCellH] = catsHTM.cone_search(CatName,MedRA,MedDec,Radius,InPar.ConeSearchPar{:});
+            [CatH,ColCellH] = catsHTM.cone_search(CatName,MedRA,MedDec,Radius,Args.ConeSearchPar{:});
             
             
-            CatH = sortrows(CatH,InPar.ColDecHTM);
+            CatH = sortrows(CatH,Args.ColDecHTM);
             
             Nsrc = size(Cat.(CatField),1);
             CatM.Match  = nan(Nsrc,numel(ColCellH));
@@ -1801,10 +1805,10 @@ classdef catsHTM
             if (~isempty(CatH))
                 for Isrc=1:1:Nsrc
                     % search match for Cat.Cat(Isrc,:)
-                    Ind = VO.search.search_sortedlat(CatH,RA(Isrc),Dec(Isrc),InPar.SearchRadius);
+                    Ind = VO.search.search_sortedlat(CatH,RA(Isrc),Dec(Isrc),Args.SearchRadius);
 
                     if (~isempty(Ind))
-                        Dist = celestial.coo.sphere_dist_fast(RA(Isrc),Dec(Isrc),CatH(Ind,InPar.ColRAHTM),CatH(Ind,InPar.ColDecHTM));
+                        Dist = celestial.coo.sphere_dist_fast(RA(Isrc),Dec(Isrc),CatH(Ind,Args.ColRAHTM),CatH(Ind,Args.ColDecHTM));
                         Nmatch = numel(Ind);
                         if (Nmatch>1)
                             [Dist,MinInd] = min(Dist);
@@ -1819,7 +1823,7 @@ classdef catsHTM
             end
             CatM.ColCell = ColCellH;
             
-            switch lower(InPar.OutType)
+            switch lower(Args.OutType)
                 case 'astcat'
                     Cat = AstCat;
                     Cat.(CatField) = CatM.Match;
@@ -1835,7 +1839,7 @@ classdef catsHTM
             
         end
         
-        function [ColCell,ConcatRes]=serial_search(CatName,Fun,varargin)
+        function [ColCell,ConcatRes]=serial_search(CatName,Fun,Args)
             % Execute a function on entire HDF5/HTM catalog
             % Package: @catsHTM
             % Description: Execute a function on entire HDF5/HTM catalog.
@@ -1873,19 +1877,22 @@ classdef catsHTM
             % Example: [ColCell]=catsHTM.serial_search('APASS',@sin)
             % Reliable: 2
             
-            DefV.Concat                = true;
-            DefV.FunPar                = {};
-            DefV.NparPool              = 24;
-            DefV.Xmatch                = false;
-            DefV.FunX                  = [];
-            DefV.FunXPar               = {};
-            DefV.SearchRadius         = 100;  % [arcsec]
-            DefV.SearchRadiusUnits    = 'arcsec';
-            DefV.ColDec               = 2;          
-            DefV.Verbose              = true;
-            InPar  = InArg.populate_keyval(DefV,varargin,mfilename);
-            
-            SearchRadius = convert.angular(InPar.SearchRadiusUnits,'rad',InPar.SearchRadius);  % [rad]
+            arguments
+                CatName
+                Fun
+                Args.Concat                = true;
+                Args.FunPar                = {};
+                Args.NparPool              = 24;
+                Args.Xmatch                = false;
+                Args.FunX                  = [];
+                Args.FunXPar               = {};
+                Args.SearchRadius         = 100;  % [arcsec]
+                Args.SearchRadiusUnits    = 'arcsec';
+                Args.ColDec               = 2;          
+                Args.Verbose              = true;
+            end
+                        
+            SearchRadius = convert.angular(Args.SearchRadiusUnits,'rad',Args.SearchRadius);  % [rad]
 
             % load HTM data for Cat1
             [IndexFileName,IndexVarName] = catsHTM.get_index_filename(CatName);
@@ -1907,7 +1914,7 @@ classdef catsHTM
             Ncol      = numel(ColCell);
             
             % number of parallel processes
-            %parpool(InPar.NparPool);
+            %parpool(Args.NparPool);
             
             %parfor Ih=1:1:Nh
             %Sum{1}=0;
@@ -1934,9 +1941,9 @@ classdef catsHTM
                     
                    
                     if (~isempty(Fun))
-                        if (InPar.Concat)
-                            CR = Fun(Cat,Ihtm,InPar.FunPar{:});
-                            if (InPar.Verbose)
+                        if (Args.Concat)
+                            CR = Fun(Cat,Ihtm,Args.FunPar{:});
+                            if (Args.Verbose)
                                 fprintf('HTM index: %d    Number of objects: %d\n',Ih,size(CR,1));
                             end
                             if ~isempty(CR)
@@ -1948,7 +1955,7 @@ classdef catsHTM
                                 end
                             end
                         else
-                            Fun(Cat,InPar.FunPar{:});
+                            Fun(Cat,Args.FunPar{:});
                         end
                     end
                     
@@ -1958,7 +1965,7 @@ classdef catsHTM
         end
         
         
-        function [ColCell,ConCat]=serial_search_x(CatName,Fun,varargin)
+        function [ColCell,ConCat]=serial_search_x(CatName,Fun,Args)
             % Execute a function on entire HDF5/HTM catalog
             % Package: @catsHTM
             % Description: Execute a function on entire HDF5/HTM catalog.
@@ -1993,19 +2000,22 @@ classdef catsHTM
             %          [~,ConCat]=catsHTM.serial_search_x('LAMOSTDR6',[],'FunX',@search_duplicate,'Xmatch',true)
             % Reliable: 2
             
-            DefV.Istart                = 1;
-            DefV.Iend                  = Inf;
-            DefV.FunPar                = {};
-            DefV.NparPool              = 24;
-            DefV.Xmatch                = false;
-            DefV.FunX                  = [];
-            DefV.FunXPar               = {};
-            DefV.SearchRadius         = 100;  % [arcsec]
-            DefV.SearchRadiusUnits    = 'arcsec';
-            DefV.ColDec               = 2;          
-            InPar  = InArg.populate_keyval(DefV,varargin,mfilename);
+            arguments
+                CatName
+                Fun
+                Args.Istart                = 1;
+                Args.Iend                  = Inf;
+                Args.FunPar                = {};
+                Args.NparPool              = 24;
+                Args.Xmatch                = false;
+                Args.FunX                  = [];
+                Args.FunXPar               = {};
+                Args.SearchRadius         = 100;  % [arcsec]
+                Args.SearchRadiusUnits    = 'arcsec';
+                Args.ColDec               = 2;   
+            end
             
-            SearchRadius = convert.angular(InPar.SearchRadiusUnits,'rad',InPar.SearchRadius);  % [rad]
+            SearchRadius = convert.angular(Args.SearchRadiusUnits,'rad',Args.SearchRadius);  % [rad]
 
             % load HTM data for Cat1
             [IndexFileName,IndexVarName] = catsHTM.get_index_filename(CatName);
@@ -2027,23 +2037,23 @@ classdef catsHTM
             Ncol      = numel(ColCell);
             
             % number of parallel processes
-            %parpool(InPar.NparPool);
+            %parpool(Args.NparPool);
             
             %parfor Ih=1:1:Nh
             %Sum{1}=0;
             %Sum{2}=0;
             %ResML = [];
             
-            if (isinf(InPar.Iend))
+            if (isinf(Args.Iend))
                 % do nothing - use Nh
             else
-                Nh = InPar.Iend;
+                Nh = Args.Iend;
             end
             
             
             tic;
             ConCat = [];
-             for Ih=InPar.Istart:1:Nh
+             for Ih=Args.Istart:1:Nh
                  %Ih
                  if (Ih./1000)==floor(Ih./1000)
                     Ih
@@ -2060,7 +2070,7 @@ classdef catsHTM
       
                     Cat = catsHTM.load_cat(CatName,Ihtm);
                     
-                    if (InPar.Xmatch)
+                    if (Args.Xmatch)
                         
                         % search for all HTMs in Cat2 that may opverlap with
                         % Cat1 current HTM
@@ -2094,13 +2104,13 @@ classdef catsHTM
                         else
 
                             % sort Cat2 and Cat2ID
-                            [Cat2,SI] = sortrows(Cat2,InPar.ColDec);
+                            [Cat2,SI] = sortrows(Cat2,Args.ColDec);
                             %Cat2ID = Cat2ID(SI,:);
 
                             % cross match Cat1 and Cat2
                             %[Match,Ind,IndCatMinDist] = VO.search.match_cats(Cat2,Cat1,'Radius',SearchRadius,'RadiusUnits','rad');
 
-                            ConCat=InPar.FunX(Cat,Cat2,ConCat,ColCell,InPar.FunXPar{:});
+                            ConCat=Args.FunX(Cat,Cat2,ConCat,ColCell,Args.FunXPar{:});
                             
                         end
                         
@@ -2108,7 +2118,7 @@ classdef catsHTM
                     
                     %
                     if (~isempty(Fun))
-                        Fun(Cat,ColCell,InPar.FunPar{:});
+                        Fun(Cat,ColCell,Args.FunPar{:});
                     end
                     
                 end
@@ -2121,7 +2131,7 @@ classdef catsHTM
     
     % cross matching
     methods (Static)
-        function xmatch_2cats(CatName1,CatName2,varargin)
+        function xmatch_2cats(CatName1,CatName2,Args)
             % Cross match two HDF5/HTM catalogs
             % Package: @catsHTM
             % Description: Cross match two HDF5/HTM catalogs. For each
@@ -2162,21 +2172,24 @@ classdef catsHTM
             % Example: catsHTM.xmatch_2cats('APASS','APASS')
             % Reliable: 2
             
-            DefV.SearchRadius         = 2;  % [arcsec]
-            DefV.SearchRadiusUnits    = 'arcsec';
-            DefV.SelfMatch            = false;
-            DefV.QueryAllFun          = [];
-            DefV.QueryAllFunPar       = {};
-            DefV.QueryFun             = [];
-            DefV.QueryFunPar          = {};
-            DefV.SaveFun              = [];
-            DefV.SaveFunPar           = {};
-            DefV.Cat2_ColDec          = 2;
-            DefV.NparPool             = 24;
-            DefV.DeleteParPool        = false;
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+            arguments
+                CatName1
+                CatName2
+                Args.SearchRadius         = 2;  % [arcsec]
+                Args.SearchRadiusUnits    = 'arcsec';
+                Args.SelfMatch            = false;
+                Args.QueryAllFun          = [];
+                Args.QueryAllFunPar       = {};
+                Args.QueryFun             = [];
+                Args.QueryFunPar          = {};
+                Args.SaveFun              = [];
+                Args.SaveFunPar           = {};
+                Args.Cat2_ColDec          = 2;
+                Args.NparPool             = 24;
+                Args.DeleteParPool        = false;
+            end
             
-            SearchRadius = convert.angular(InPar.SearchRadiusUnits,'rad',InPar.SearchRadius);  % [rad]
+            SearchRadius = convert.angular(Args.SearchRadiusUnits,'rad',Args.SearchRadius);  % [rad]
             
             % load HTM data for Cat1
             [IndexFileName1,IndexVarName1] = catsHTM.get_index_filename(CatName1);
@@ -2211,12 +2224,12 @@ classdef catsHTM
             Ncol2      = numel(ColCell2);
             
             % number of parallel processes
-            if (InPar.DeleteParPool)
+            if (Args.DeleteParPool)
                 delete(gcp('nocreate'));
             end
             
             % comment out if needed
-            %parpool(InPar.NparPool);
+            %parpool(Args.NparPool);
             
             % replace parfor with for if needed
             Nh1
@@ -2273,7 +2286,7 @@ classdef catsHTM
                     else
                         
                         % sort Cat2 and Cat2ID
-                        [Cat2,SI] = sortrows(Cat2,InPar.Cat2_ColDec);
+                        [Cat2,SI] = sortrows(Cat2,Args.Cat2_ColDec);
                         %Cat2ID = Cat2ID(SI,:);
 
                         % cross match Cat1 and Cat2
@@ -2282,7 +2295,7 @@ classdef catsHTM
 
                         % self match
                         % match Cat1 with itself
-                        if (InPar.SelfMatch)
+                        if (Args.SelfMatch)
                             [MatchS,IndS,IndCatMinDistS] = VO.search.match_cats(Cat2,Cat2,'Radius',SearchRadius,'RadiusUnits','rad');
                             % adding column to Cat2 with number of
                             % additional sources in the search radius
@@ -2291,15 +2304,15 @@ classdef catsHTM
                             
                             
 
-                        if (~isempty(InPar.QueryAllFun))
-                            % execute InPar.QueryAllFun
+                        if (~isempty(Args.QueryAllFun))
+                            % execute Args.QueryAllFun
                             %  QueryAllFun(Cat1,Ind,Cat2,varargin)
                             if (Ih1==Istart)
                                 Data = [];
                             end
                             
                             
-                            Data = InPar.QueryAllFun(Cat1,Ind,Cat2,IndCatMinDist,InPar.QueryAllFunPar{:},'Data',Data,'Ih1',Ih1,'Nh1',Nh1,'SearchRadius',InPar.SearchRadius);
+                            Data = Args.QueryAllFun(Cat1,Ind,Cat2,IndCatMinDist,Args.QueryAllFunPar{:},'Data',Data,'Ih1',Ih1,'Nh1',Nh1,'SearchRadius',Args.SearchRadius);
                         end
                         
                         %Cat2(IndCatMinDist,:)
@@ -2313,23 +2326,23 @@ classdef catsHTM
 
                         Cat2matched        = Cat2(IndCatMinDist,:);
                         Cat2matched(IsN,:) = NaN;
-                        if (~isempty(InPar.QueryFun))
-                            % execute InPar.QueryFun
+                        if (~isempty(Args.QueryFun))
+                            % execute Args.QueryFun
                             % QueryFun can select specific sources (by some
                             % attributes) from the matched Cat1 and Cat2
-%InPar.QueryFunPar{1} = Ihtm1;
+%Args.QueryFunPar{1} = Ihtm1;
 
-                            FlagSelected       = InPar.QueryFun(Cat1,Cat2matched,Ihtm1,InPar.QueryFunPar{:});
+                            FlagSelected       = Args.QueryFun(Cat1,Cat2matched,Ihtm1,Args.QueryFunPar{:});
                             % what to do with FlagSelected?
                             Cat1        = Cat1(FlagSelected,:);
                             Cat2matched = Cat2matched(FlagSelected,:);
 
                         end
 
-                        if (~isempty(InPar.SaveFun))
-                            % execute InPar.SaveFun
+                        if (~isempty(Args.SaveFun))
+                            % execute Args.SaveFun
                             % Fun(Cat1,Cat2matched)
-                            InPar.SaveFun(Cat1,Cat2matched,InPar.SaveFunPar{:});
+                            Args.SaveFun(Cat1,Cat2matched,Args.SaveFunPar{:});
                         end
                     end
                     %%
@@ -2353,7 +2366,7 @@ classdef catsHTM
     
     % plots
     methods (Static)
-        function [H,Table]=plot_density(CatName,varargin)
+        function [H,Table]=plot_density(CatName,Args)
             % Plot a catsHTM catalog surface density
             % Package: @catsHTM
             % Description: Plot a catsHTM catalog surface density in
@@ -2378,17 +2391,18 @@ classdef catsHTM
             % Output : - Plot handle.
             % Example: H=catsHTM.plot_density('SDSSDR10')
             
+            arguments
+                CatName
+                Args.PerDeg2              = true;  % otherwise per HTM
+                Args.Step                 = 0.3;  % [deg]
+                Args.PlotType             = 'scatterm';
+                Args.MarkerSize           = 5;
+                Args.Projection           = 'aitoff';
+                Args.LogN                 = false;
+            end
             
             RAD = 180./pi;
             
-            DefV.PerDeg2              = true;  % otherwise per HTM
-            DefV.Step                 = 0.3;  % [deg]
-            DefV.PlotType             = 'scatterm';
-            DefV.MarkerSize           = 5;
-            DefV.Projection           = 'aitoff';
-            DefV.LogN                 = false;
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
-
             Col.Level    = 1;
             Col.PolesLon = [7 9 11];
             Col.PolesLat = [8 10 12];
@@ -2407,18 +2421,18 @@ classdef catsHTM
                 MeanDec = mean(HTM(IndHTM).coo(:,2));
                 Table(Ihtm,:) = [MeanRA, MeanDec, Data1(Ihtm,Col.Nsrc)];
             end
-            if (InPar.PerDeg2)
+            if (Args.PerDeg2)
                 % Area of HTM triangle [deg^2]
                 Area = 4.*pi.*RAD.^2./Nhtm;
                 Table(:,3) = Table(:,3)./Area;  % convert to sources per deg^2
             end
             Table(:,1:2) = Table(:,1:2).*RAD;
             
-            if (InPar.LogN)
+            if (Args.LogN)
                 Table(:,3) = log10(Table(:,3));
             end
             
-            switch InPar.PlotType
+            switch Args.PlotType
                 case 'trisurf'
                     Tri = delaunay(Table(:,1),Table(:,2));
                     H=trisurf(Tri,Table(:,1), Table(:,2), Table(:,3));
@@ -2426,17 +2440,17 @@ classdef catsHTM
                     shading interp
                     colorbar
                 case 'scatterm'
-                    axesm(InPar.Projection); 
+                    axesm(Args.Projection); 
                     framem
-                    H=scatterm(Table(:,2),Table(:,1),InPar.MarkerSize,Table(:,3),'filled');
+                    H=scatterm(Table(:,2),Table(:,1),Args.MarkerSize,Table(:,3),'filled');
                     colorbar
                 otherwise
                     error('Unknown PlotType option');
             end
             
 %             F = scatteredInterpolant(Table(:,2).*RAD,Table(:,1).*RAD,Table(:,3));
-%             Lon = (-180:InPar.Step:180);
-%             Lat = (-90:InPar.Step:90);
+%             Lon = (-180:Args.Step:180);
+%             Lat = (-90:Args.Step:90);
 %             [MLon,MLat] = meshgrid(Lon,Lat);
 %              
 %             F.Method = 'nearest';

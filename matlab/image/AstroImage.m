@@ -583,6 +583,25 @@ classdef AstroImage < Component
         end
     end
     
+    methods % write
+%         function write1(Obj, FileName)
+%             % Write a single image in a single object
+%         
+%             arguments
+%                 Obj
+%                 FileName
+%                 DataProp char              = 'ImageData';
+%                 DataPropIn char            = 'Image';
+%                 WriteHeader(1,1) logical   = true;
+%             end
+%             
+%             
+%             
+%             
+%         end
+        
+    end
+    
     methods % functions on specific data properties
         
         
