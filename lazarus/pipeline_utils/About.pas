@@ -13,11 +13,14 @@ type
 
   TAboutForm = class(TForm)
     BtnClose: TButton;
-    Label1: TLabel;
-    Label2: TLabel;
-    Label3: TLabel;
+    ImageLogo: TImage;
+    LabelVersion: TLabel;
+    LabelTitle: TLabel;
+    LabelCopyright: TLabel;
+    LabelSubTitle: TLabel;
     Panel1: TPanel;
     procedure BtnCloseClick(Sender: TObject);
+    procedure ImageLogoClick(Sender: TObject);
   private
 
   public
@@ -36,6 +39,11 @@ implementation
 procedure TAboutForm.BtnCloseClick(Sender: TObject);
 begin
   Close();
+end;
+
+procedure TAboutForm.ImageLogoClick(Sender: TObject);
+begin
+
 end;
 
 end.

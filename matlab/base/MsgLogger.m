@@ -103,6 +103,8 @@ classdef MsgLogger < handle
 					s = 'WRN';
 				case LogLevel.Info
 					s = 'INF';
+				case LogLevel.Verbose
+					s = 'VRB';                    
 				case LogLevel.Debug
 					s = 'DBG';
 				case LogLevel.Test
@@ -210,5 +212,3 @@ classdef MsgLogger < handle
     end
     
 end
-
-

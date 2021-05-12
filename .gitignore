@@ -1,3 +1,5 @@
+# Top level gitignore
+
 **/_unused/*
 **/_temp/*
 **/_bkp/*
