@@ -1,4 +1,4 @@
-function [IntImage]=interp_sparse2full(X,Y,Image,OutSize,varargin)
+function [IntImage]=interp_sparse2full(X, Y, Image, OutSize, Args)
 % Interpolate sparse image to a full image
 % Package: imUtil.partition
 % Description: 
@@ -16,15 +16,18 @@ function [IntImage]=interp_sparse2full(X,Y,Image,OutSize,varargin)
 % Reliable: 
 %--------------------------------------------------------------------------
 
-
-DefV.Method               = 'interp';   % 'interp' | 'fit'
-DefV.InterpMethod         = 'makima';   % 'linear' | 'nearest' | 'spline' | 'cubic' | 'makima'
-
-InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+arguments
+    X
+    Y
+    Image
+    OutSize
+    Args.Method               = 'interp';   % 'interp' | 'fit'
+    Args.InterpMethod         = 'makima';   % 'linear' | 'nearest' | 'spline' | 'cubic' | 'makima'
+end
 
 [MatX,MatY] = meshgrid((1:1:OutSize(1)),(1:1:OutSize(2)));
 
-switch lower(InPar.Method)
+switch lower(Args.Method)
     case 'interp'
         
         if (any(size(Image)==1))
@@ -38,7 +41,7 @@ switch lower(InPar.Method)
             
         else
             % regular grid - use interp2
-            IntImage = interp2(X,Y,Image,MatX,MatY,InPar.InterpMethod);
+            IntImage = interp2(X,Y,Image,MatX,MatY,Args.InterpMethod);
         end
         
     case 'fit'

@@ -244,7 +244,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     end
     
     methods % bit statistics
-        function Result = bitStat(Obj, Args)
+        function [Tab, Result] = bitStat(Obj, Args)
             %
             % Example: Stat = Bias.MaskData.bitStat
             
@@ -266,7 +266,9 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result(Iobj).SumBit(Ibit+1)  = sum(Flag,'all');
                     Result(Iobj).FracBit(Ibit+1) = Result(Iobj).SumBit(Ibit+1)./Npix;
                 end
+                Tab(Iobj).BitSummary = cell2table([Result(Iobj).BitName(:), num2cell(Result(Iobj).SumBit)', num2cell(Result(Iobj).FracBit)']);
             end
+            
             
         end
         

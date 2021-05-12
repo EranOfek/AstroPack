@@ -1,4 +1,4 @@
-function [CCDSEC,unCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
+function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 % Partition image size into a grid of sub images
 % Package: mUtil.image
 % Description: Given the size of a two dimensional array (e.g., image), and
@@ -77,15 +77,15 @@ UnCCDSEC = zeros(Nx.*Ny,4);
 for Iy=1:1:Ny
     Ind = (Nx.*(Iy-1)+1:Iy.*Nx);
     CCDSEC(Ind,:)   = [CX, CY(Iy,:).*ones(Nx,1)];
-    unCCDSEC(Ind,:) = [unCX, unCY(Iy,:).*ones(Nx,1)];
+    UnCCDSEC(Ind,:) = [CX, CY(Iy,:).*ones(Nx,1)];
     
 end
 Center = [mean(CCDSEC(:,1:2),2), mean(CCDSEC(:,3:4),2)];
 
-DX = unCCDSEC(:,1)-CCDSEC(:,1);
-DY = unCCDSEC(:,3)-CCDSEC(:,3);
-WX = unCCDSEC(:,2)-unCCDSEC(:,1);
-WY = unCCDSEC(:,4)-unCCDSEC(:,3);
+DX = UnCCDSEC(:,1)-CCDSEC(:,1);
+DY = UnCCDSEC(:,3)-CCDSEC(:,3);
+WX = UnCCDSEC(:,2)-UnCCDSEC(:,1);
+WY = UnCCDSEC(:,4)-UnCCDSEC(:,3);
 
 NewNoOverlap = 1+[DX, WX-DX, DY, WY-DY];
 

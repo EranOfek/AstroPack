@@ -98,8 +98,9 @@ if ischar(Args.SubSizeXY)
     end
 else
     
-    [SubImage,CCDSEC,Center]=imUtil.partition.image_partitioning(Image,Args.SubSizeXY,'Overlap',Args.Overlap,'FieldNameIm',Args.FieldName);
-    
+    %[SubImage,CCDSEC,Center]=imUtil.partition.image_partitioning(Image,Args.SubSizeXY,'Overlap',Args.Overlap,'FieldNameIm',Args.FieldName);
+    [SubImage, CCDSEC, Center] = imUtil.image.partition_subimage(Image, [], 'SubSizeXY',Args.SubSizeXY, 'OverlapXY',Args.Overlap,...
+                                                                               'Output','struct', 'FieldName',Args.FieldName);
     
 %     [SubImage,CCDSEC,Center]=imUtil.image.partition_subimage(Image,[],...
 %                                 'SubSizeXY',Args.SubSizeXY,'OverlapXY',Args.OverlapXY,...
@@ -139,9 +140,11 @@ BackIm = reshape([SubImage.Back],SizeSub);
 if numel(BackIm)==1
     Back = BackIm; % + zeros(size(Image));
 else
-    X = reshape([SubImage.CenterX],SizeSub);
-    Y = reshape([SubImage.CenterY],SizeSub);
-    [Back] = ImUtil.Back.interp_sparse2full(X,Y,BackIm,fliplr(size(Image)));
+    %X = reshape([SubImage.CenterX],SizeSub);
+    X = reshape(Center(:,1),SizeSub);
+    %Y = reshape([SubImage.CenterY],SizeSub);
+    Y = reshape(Center(:,2),SizeSub);
+    [Back] = imUtil.partition.interp_sparse2full(X,Y,BackIm,fliplr(size(Image)));
 end
 
 if isempty(SubImage(1).Var) || nargout<2
@@ -151,9 +154,11 @@ else
     if numel(VarIm)==1
         Var = VarIm; % + zeros(size(Image));
     else
-        X = reshape([SubImage.CenterX],SizeSub);
-        Y = reshape([SubImage.CenterY],SizeSub);
-        [Var]  = ImUtil.Back.interp_sparse2full(X,Y,VarIm,fliplr(size(Image)));
+        %X = reshape([SubImage.CenterX],SizeSub);
+        X = reshape(Center(:,1),SizeSub);
+        %Y = reshape([SubImage.CenterY],SizeSub);
+        Y = reshape(Center(:,1),SizeSub);
+        [Var]  = imUtil.partition.interp_sparse2full(X,Y,VarIm,fliplr(size(Image)));
     end
 end
 

@@ -1663,6 +1663,12 @@ classdef AstroImage < Component
                 Args.Nxy              = [];   % If empty then use SubSizeXY. Default is [].
                 Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
                 
+                Args.UpdateMask(1,1) logical       = true;
+                Args.EdgeDist                      = 1;
+                Args.NearEdge_BitName char         = 'NearEdge';
+                Args.Overlap_BitName char          = 'Overlap';
+                Args.BitDict(1,1) BitDictionary    = BitDictionary('BitMask.Image.Default');
+                
                 Args.UpdateCat(1,1) logical        = true;
                 Args.ColX                          = {'X','XWIN_IMAGE','XWIN','XPEAK','X_PEAK'};
                 Args.ColY                          = {'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
@@ -1727,6 +1733,31 @@ classdef AstroImage < Component
                     Result(Isub).HeaderData.replaceVal(KeyNames, KeyVals);
                 end
                     
+                % update Mask
+                if Args.UpdateMask
+                    
+                    
+                    % add edge bit and overlap bit
+                    for Isub=1:1:Nsub
+                        % make sure that BitDictionary is populated
+                        if isempty(Result(Isub).MaskData.Dict)
+                            % populate the BitDictionary
+                            Result(Isub).MaskData.Dict = Args.BitDict;
+                        end
+                        SizeIJ = size(Result(Isub).ImageData.Image);
+                        
+                        % near edge
+                        Flag   = imUtil.ccdsec.selectNearEdges(SizeIJ, Args.EdgeDist);
+                        Result(Isub) = maskSet(Result(Isub), Flag, Args.NearEdge_BitName, true, 'CreateNewObj',true);
+                        
+                        % ovelaping
+                        Flag = imUtil.ccdsec.flag_ccdsec(SizeIJ, NewNoOverlap(Isub,:), false);
+                        Result(Isub) = maskSet(Result(Isub), Flag, Args.Overlap_BitName, true, 'CreateNewObj',true);
+                        
+                    end
+                    
+                end
+                
                 % update the PSF
                 warning('Update PSF is not implenmented');
                 
@@ -1979,6 +2010,9 @@ classdef AstroImage < Component
             % image2subimages
             AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
             Result = image2subimages(AI,[256 256]);
+            s=Result(1).MaskData.bitStat;
+            s.BitSummary;
+
             
             
             

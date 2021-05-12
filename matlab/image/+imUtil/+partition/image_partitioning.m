@@ -74,7 +74,7 @@ Ymax = ListEdge(:,4);
 
 Nblock = size(ListEdge,1);
 
-Sub = Util.struct.struct_def({'Im','CenterX','CenterY'},Nblock,1);
+Sub = tools.struct.struct_def({'Im','CenterX','CenterY'},Nblock,1);
 
 for Iblock=1:1:Nblock
     Sub(Iblock).(Args.FieldNameIm) = Image(Ymin(Iblock):Ymax(Iblock),Xmin(Iblock):Xmax(Iblock));

@@ -1,4 +1,4 @@
-function [Cat,ColCellOut,Res]=find_sources(Image,varargin)
+function [Cat, ColCellOut, Res]=find_sources(Image, Args)
 % find sources in an image
 % Package: imUtil.sources
 % Description: Find sources in an image using a matched filter of template
@@ -94,43 +94,35 @@ function [Cat,ColCellOut,Res]=find_sources(Image,varargin)
 %     By : Eran O. Ofek                    Apr 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: [Cat,ColCell,Res]=imUtil.sources.find_sources(I1.Im,'Threshold',5)
+%          Im=imUtil.kernel2.gauss(2,[128 128]);
+%          Im=Im.*1000 +randn(size(Im));        
+%          [Cat,ColCell,Res]=imUtil.sources.find_sources(Im,'Threshold',5);
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-InPar = inputParser;
-
-%addOptional(InPar,'BackFunOut',{'back','var'});  % back, var, std
-addOptional(InPar,'Threshold',5);
-
-addOptional(InPar,'Psf',[]);
-addOptional(InPar,'PsfFun',@imUtil.kernel2.gauss);
-addOptional(InPar,'PsfFunPar',{[0.1;1.5;3]});
-
-addOptional(InPar,'RemoveEdgeDist',0);  % NaN for non removal
-
-addOptional(InPar,'ForcedList',[]);
-addOptional(InPar,'OnlyForced',false);
-
-addOptional(InPar,'BackIm',[]);
-addOptional(InPar,'VarIm',[]);
-
-addOptional(InPar,'BackPar',{});
-addOptional(InPar,'MomPar',{});
-addOptional(InPar,'OutType','catCl');  % 'mat', 'table', 'catcl', 'struct'
-addOptional(InPar,'ColCell',{'XPEAK','YPEAK','TEMP_ID','SN','FLUX_CONV','BACK_IM','VAR_IM',...           
-                             'X', 'Y',...
-                             'X2','Y2','XY',...
-                             'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS', 'FLUX_WAPER'});
- 
-addOptional(InPar,'Conn',8);
-addOptional(InPar,'ImageField','Im');
-addOptional(InPar,'BackField','Back');
-addOptional(InPar,'VarField','Var');
-
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
+arguments
+    Image
+    Args.Threshold                     = 5;
+    Args.Psf                           = [];
+    Args.PsfFun function_handle        = @imUtil.kernel2.gauss;
+    Args.PsfFunPar cell                = {[0.1;1.5;3]};
+    Args.RemoveEdgeDist                = 0;  % NaN for non removal
+    Args.ForcedList                    = [];
+    Args.OnlyForced(1,1) logical       = false;
+    Args.BackIm                        = [];
+    Args.VarIm                         = [];
+    Args.BackPar cell                  = {};
+    Args.MomPar cell                   = {};
+    Args.OutType                       = 'AstroCatalog';   % 'mat', 'table', 'catcl', 'struct'
+    Args.ColCell cell                  = {'XPEAK','YPEAK','TEMP_ID','SN','FLUX_CONV','BACK_IM','VAR_IM',...           
+                                            'X', 'Y',...
+                                            'X2','Y2','XY',...
+                                            'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS', 'FLUX_WAPER'};
+    Args.Conn                          = 8;
+    Args.ImageField char               = 'Im';
+    Args.BackField char                = 'Back';
+    Args.VarField char                 = 'Var';
+end
 
 Mom1Cell   = {'X', 'Y'};
 Mom2Cell   = {'X2','Y2','XY'};
@@ -140,25 +132,25 @@ Mom3Cell   = {'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS'
 
 
 if isstruct(Image)
-    if isempty(InPar.BackIm)
-        Back = Image.(InPar.BackField);
+    if isempty(Args.BackIm)
+        Back = Image.(Args.BackField);
     end
-    if isempty(InPar.VarIm)
-        Var  = Image.(InPar.VarField);
+    if isempty(Args.VarIm)
+        Var  = Image.(Args.VarField);
     end
 else
-    Back = InPar.BackIm;
-    Var  = InPar.VarIm;
+    Back = Args.BackIm;
+    Var  = Args.VarIm;
 end
 
 if isempty(Back) || isempty(Var)
-    [Back,Var] = imUtil.background.background(Image,InPar.BackPar{:});
+    [Back,Var] = imUtil.background.background(Image,Args.BackPar{:});
 end
 
-if ~isempty(InPar.Psf)
-    Template = InPar.Psf;
+if ~isempty(Args.Psf)
+    Template = Args.Psf;
 else
-    Template = InPar.PsfFun(InPar.PsfFunPar{:});
+    Template = Args.PsfFun(Args.PsfFunPar{:});
 end
 
 % Template = single(Template);
@@ -169,10 +161,10 @@ end
     
 % filter the images with all the templates
 [SN,Flux,FiltImage,FiltImageVar] = imUtil.filter.filter2_snBank(Image,Back,Var,Template);
-if InPar.OnlyForced
+if Args.OnlyForced
     Pos = zeros(0,4);
 else
-    [~,Pos]                       = imUtil.image.local_maxima(SN,1,InPar.Threshold,InPar.Conn);
+    [~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
 end
 % Pos contains [X,Y,SN,IndexTemplate]
 
@@ -182,11 +174,11 @@ Size = size(SN);
 Ntemplate = size(Template,3);
 
 % add forced photometry surces
-if ~isempty(InPar.ForcedList)
-    NsrcF = size(InPar.ForcedList,1);
+if ~isempty(Args.ForcedList)
+    NsrcF = size(Args.ForcedList,1);
     PosF  = nan(NsrcF,4);
     % take the rounded positions
-    PosF(:,1:2) = round(InPar.ForcedList);
+    PosF(:,1:2) = round(Args.ForcedList);
     % forced photomety are marked as arriving from template=NaN
     Pos = [Pos; PosF];
 end
@@ -222,16 +214,16 @@ end
 
 %if nargout>2
 %    varargout = cell(1:nargout-1);
-%    [varargout{1:nargout-1}] = imUtil.image.moment2(Image-Back,Pos(:,1),Pos(:,2),InPar.MomPar{:});
+%    [varargout{1:nargout-1}] = imUtil.image.moment2(Image-Back,Pos(:,1),Pos(:,2),Args.MomPar{:});
 %end
 
-if any(ismember(InPar.ColCell,Mom3Cell))
-    [M1,M2,Aper] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,InPar.MomPar{:});
-elseif any(ismember(InPar.ColCell,Mom2Cell))
-    [M1,M2] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,InPar.MomPar{:});
+if any(ismember(Args.ColCell,Mom3Cell))
+    [M1,M2,Aper] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
+elseif any(ismember(Args.ColCell,Mom2Cell))
+    [M1,M2] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
     Aper    = [];
-elseif any(ismember(InPar.ColCell,Mom1Cell))
-    [M1] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,InPar.MomPar{:});
+elseif any(ismember(Args.ColCell,Mom1Cell))
+    [M1] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
     M2   = [];
     Aper = [];
 else
@@ -245,20 +237,20 @@ end
 %--- construct the output array ---
 
 % calc number of requested columns
-Ncol = numel(InPar.ColCell);
+Ncol = numel(Args.ColCell);
 
 NcolOut = Ncol;
 % properties that may have multiple columns:
-if any(strcmp(InPar.ColCell,'SN'))
+if any(strcmp(Args.ColCell,'SN'))
     NcolOut = NcolOut + Ntemplate - 1;
 end
-if any(strcmp(InPar.ColCell,'FLUX_CONV'))
+if any(strcmp(Args.ColCell,'FLUX_CONV'))
     NcolOut = NcolOut + Ntemplate - 1;
 end
-if any(strcmp(InPar.ColCell,'FLUX_APER'))
+if any(strcmp(Args.ColCell,'FLUX_APER'))
     NcolOut = NcolOut + numel(Aper.AperRadius) - 1;
 end
-if any(strcmp(InPar.ColCell,'APER_AREA'))
+if any(strcmp(Args.ColCell,'APER_AREA'))
     NcolOut = NcolOut + numel(Aper.AperRadius) - 1;
 end
 
@@ -268,8 +260,8 @@ ColCellOut = cell(1,NcolOut);
 K    = 0;
 for Icol=1:1:Ncol
     K = K + 1;
-    ColCellOut{K} = InPar.ColCell{Icol};
-    switch lower(InPar.ColCell{Icol})
+    ColCellOut{K} = Args.ColCell{Icol};
+    switch lower(Args.ColCell{Icol})
         case 'xpeak'
             Cat(:,K) = Src.XPEAK;
         case 'ypeak'
@@ -280,13 +272,13 @@ for Icol=1:1:Ncol
             % may have multiple columns
             NC = size(Src.SN,2);
             Cat(:,K:K+NC-1) = Src.SN;
-            [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(InPar.ColCell{Icol},(1:1:NC)));
+            [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
             K  = K + NC - 1;
         case 'flux_conv'
             % may have multiple columns
             NC = size(Src.FLUX_CONV,2);
             Cat(:,K:K+NC-1) = Src.FLUX_CONV;
-            [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(InPar.ColCell{Icol},(1:1:NC)));
+            [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
             K = K + NC - 1;
         case 'back_im'
             Cat(:,K) = Src.BACK_IM;
@@ -325,17 +317,17 @@ for Icol=1:1:Ncol
         case 'flux_waper'
             Cat(:,K) = Aper.WeightedAper;
         otherwise
-            error('Unknown column in ColCell (%s)',InPar.ColCell{Icol});
+            error('Unknown column in ColCell (%s)',Args.ColCell{Icol});
             
     end
 end
 
-if ~isnan(InPar.RemoveEdgeDist)
+if ~isnan(Args.RemoveEdgeDist)
     SizeIm = size(Image);
-    FlagEdge = Src.XPEAK<=(InPar.RemoveEdgeDist+1) | ...
-               Src.XPEAK>=(SizeIm(2)-InPar.RemoveEdgeDist) | ...
-               Src.YPEAK<=(InPar.RemoveEdgeDist+1) | ...
-               Src.YPEAK>=(SizeIm(1)-InPar.RemoveEdgeDist);
+    FlagEdge = Src.XPEAK<=(Args.RemoveEdgeDist+1) | ...
+               Src.XPEAK>=(SizeIm(2)-Args.RemoveEdgeDist) | ...
+               Src.YPEAK<=(Args.RemoveEdgeDist+1) | ...
+               Src.YPEAK>=(SizeIm(1)-Args.RemoveEdgeDist);
     Cat = Cat(~FlagEdge,:);
 end
 
@@ -351,7 +343,16 @@ end
 
 
 
-switch lower(InPar.OutType)
+switch lower(Args.OutType)
+    case 'astrocatalog'
+        Tmp = AstroCatalog;
+        Tmp.Catalog = Cat;
+        Cat = Tmp;
+        Cat.ColNames = ColCellOut;
+        Cat.ColX = colname2ind(Cat,'X');
+        Cat.ColY = colname2ind(Cat,'Y');
+        Cat.CooType = 'pix';
+        
     case 'mat'
         % do nothing
     case 'table'
