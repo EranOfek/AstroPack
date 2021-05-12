@@ -50,14 +50,10 @@ type
     procedure Paint; override;
     procedure SetScrollBars;
 
+  private
     procedure PaintBoxPaint(Sender: TObject);
-
-
     procedure ScrollBarChange(Sender: TObject);
-
-
     procedure UpdateTimerEvent(Sender: TObject);
-
     procedure PaintBoxMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X: Integer; Y: Integer);
 
@@ -112,6 +108,7 @@ begin
   FThreadList := TThreadList.Create;
 
   MaxLines        := 2500;             // (28/12/11) changed from 500 to 2500
+  FMaxLength      := 0;
   FUpdateInterval := 50;               // (28/12/11) changed from 0 to 50, to be thread-safe
   AddAtEnd        := true;
   AutoScroll      := true;
@@ -133,7 +130,7 @@ begin
   FHScrollBar.Kind       := sbHorizontal;
   FHScrollBar.Align      := alBottom;
   FHScrollBar.Height     := 12;
-  //FHScrollBar.OnChange   := ScrollBarChange;
+  FHScrollBar.OnChange   := @ScrollBarChange;
   FHScrollBar.Visible    := false;
 
 
@@ -142,15 +139,15 @@ begin
   FVScrollBar.Kind       := sbVertical;
   FVScrollBar.Align      := alRight;
   FVScrollBar.Width      := 12;
-  //FVScrollBar.OnChange   := ScrollBarChange;
+  FVScrollBar.OnChange   := @ScrollBarChange;
   FVScrollBar.Visible    := true;
 
   // Create PaintBox
   FPaintBox := TPaintBox.Create(Self);
   FPaintBox.Align        := alClient;
   FPaintBox.Color        := clWhite;
-  //FPaintBox.OnPaint      := PaintBoxPaint;
-  //FPaintBox.OnMouseDown  := PaintBoxMouseDown;
+  FPaintBox.OnPaint      := @PaintBoxPaint;
+  FPaintBox.OnMouseDown  := @PaintBoxMouseDown;
   FPaintBox.Visible      := true;
 
   InsertControl(FHScrollBar);
@@ -159,7 +156,7 @@ begin
 
   FUpdateTimer := TTimer.Create(Self);
   FUpdateTimer.Enabled := false;
-  //FUpdateTimer.OnTimer := UpdateTimerEvent;
+  FUpdateTimer.OnTimer := @UpdateTimerEvent;
 end;
 
 
@@ -175,71 +172,71 @@ procedure TLogPanel.Add(MsgText: String; TextColor: TColor = $7FFFFFFF;
 var
   List: TList;
   Msg, OldMsg: TLogPanelMsg;
-  Prompt: String;
+  Prompt, AText: String;
 
 begin
   try
-      Prompt := TimeStr;
-      //AText   := Prompt + MsgText;
+    Prompt := TimeStr;
+    AText   := Prompt + MsgText;
 
-      if (FMaxLength < Length(Text)) then
-        FMaxLength := Length(Text);
+    if (FMaxLength < Length(AText)) then
+      FMaxLength := Length(AText);
 
-      if (TextColor = $7FFFFFFF) then
-        TextColor := FDefColor;
+    if (TextColor = $7FFFFFFF) then
+      TextColor := FDefColor;
 
-      if (BackColor = $7FFFFFFF) then
-        BackColor := FDefBack;
+    if (BackColor = $7FFFFFFF) then
+      BackColor := FDefBack;
 
-      Msg := TLogPanelMsg.Create(Prompt, MsgText, TextColor, BackColor);
+    Msg := TLogPanelMsg.Create(Prompt, MsgText, TextColor, BackColor);
 
-      // Add to list
-      List := FThreadList.LockList;
+    // Add to list
+    List := FThreadList.LockList;
 
-      if FAddAtEnd then
+    if FAddAtEnd then
+    begin
+      // Remove first line if list is full
+      if (List.Count >= FMaxLines) then
       begin
-        // Remove first line if list is full
-        if (List.Count >= FMaxLines) then
-        begin
-          OldMsg := TObject(List.Items[0]) as TLogPanelMsg;
-          OldMsg.Destroy;
-          List.Delete(0);
-        end;
+        OldMsg := TObject(List.Items[0]) as TLogPanelMsg;
+        OldMsg.Destroy;
+        List.Delete(0);
+      end;
 
-        // Add at end
-        List.Add(Msg);
+      // Add at end
+      List.Add(Msg);
+    end
+    else
+    begin
+      // Remove last line if list is full
+      if (List.Count >= FMaxLines) then
+      begin
+        OldMsg := TObject(List.Items[List.Count-1]) as TLogPanelMsg;
+        OldMsg.Destroy;
+        List.Delete(List.Count-1);
+      end;
+
+      // Insert at top
+      List.Insert(0, Msg);
+    end;
+
+    FThreadList.UnlockList;
+
+    //
+    if FAutoScroll and not FPaused then
+    begin
+      // Trigger timer or update now
+      if (FUpdateInterval > 0) then
+      begin
+        FUpdateTimer.Interval := FUpdateInterval;
+        FUpdateTimer.Enabled  := true;
       end
       else
       begin
-        // Remove last line if list is full
-        if (List.Count >= FMaxLines) then
-        begin
-          OldMsg := TObject(List.Items[List.Count-1]) as TLogPanelMsg;
-          OldMsg.Destroy;
-          List.Delete(List.Count-1);
-        end;
-
-        // Insert at top
-        List.Insert(0, Msg);
+        SetScrollBars;
+        FPaintBox.Invalidate;
       end;
-
-      FThreadList.UnlockList;
-
-      //
-      if FAutoScroll and not FPaused then
-      begin
-        // Trigger timer or update now
-        if (FUpdateInterval > 0) then
-        begin
-          FUpdateTimer.Interval := FUpdateInterval;
-          FUpdateTimer.Enabled  := true;
-        end
-        else
-        begin
-          SetScrollBars;
-          FPaintBox.Invalidate;
-        end;
-      end;
+    end;
 
   finally
   end;
@@ -384,7 +381,8 @@ begin
               FPaintBox.Canvas.Font.Color  := Font.Color;
 
               // Fill background
-              //@Todo ARect := Rect(0, Y, PromptWidth - 1, Y+TextHeight);
+              // @Todo: replace .Create with Rect() !!!!
+              ARect := TRect.Create(0, Y, PromptWidth - 1, Y+TextHeight);
               FPaintBox.Canvas.FillRect(ARect);
 
               // Write text
@@ -396,13 +394,13 @@ begin
             FPaintBox.Canvas.Font.Color  := Msg.TextColor;
 
             // Fill background
-            //@Todo ARect := Rect(PromptWidth, Y, PromptWidth + TextWidth, Y+TextHeight);
+            ARect := TRect.Create(PromptWidth, Y, PromptWidth + TextWidth, Y+TextHeight);
             FPaintBox.Canvas.FillRect(ARect);
 
             // Write text
             //int Len = Msg.Text.Length();  // - HPos - Msg.Prompt.Length();
             //if (Len < 0) Len = 0;
-            AText := Msg.Text.SubString(HPos + 1, Length(Msg.Text));
+            AText := Msg.Text.SubString(HPos, Length(Msg.Text));
             FPaintBox.Canvas.TextOut(PromptWidth + 2, Y + 2, AText);
 
             Y := Y + TextHeight;
@@ -412,7 +410,7 @@ begin
     FThreadList.UnlockList;
 
     // Fill bottom of window
-    //@Todo ARect := Rect(0, Y, FPaintBox.ClientWidth, FPaintBox.Height);
+    ARect := Rect.Create(0, Y, FPaintBox.ClientWidth, FPaintBox.Height);
     FPaintBox.Canvas.Brush.Color := Color;
     FPaintBox.Canvas.FillRect(ARect);
 end;
