@@ -51,7 +51,10 @@ var
 { TMainForm }
 
 procedure TMainForm.MIExitClick(Sender: TObject);
+var
+  r: trect;
 begin
+  r := rect(1,2,3,4);
   Application.Terminate();
 end;
 
