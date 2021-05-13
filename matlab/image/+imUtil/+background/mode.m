@@ -60,28 +60,43 @@ else
     Nbin = (1./Accuracy).^2;
     BinSize = (Max - Min)./Nbin;
     Edges = (Min-BinSize:BinSize:Max+BinSize).';
-    Nhist = histcounts(Array,Edges);
-
-    [~,MaxI]  = max(Nhist);
-    Mode = Edges(MaxI) + 0.5.*BinSize;
-    
-    if Log
-        Mode = 10.^Mode;
-    end
-    
-    if nargout>1
-        CumN = cumsum(Nhist(:));
-        CumN = CumN + (1:1:numel(CumN)).'.*1000.*eps;
-        % interp1q is faster, but doesnt check validity
-        IqrVal = interp1q(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
-        %IqrVal = interp1(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end),'linear');
-        
-        Factor = 0.7413;  %  = 1./norminv(0.75,0,1)
-                
-        if Log
-            Variance = (range(10.^IqrVal).*Factor).^2;
+    if isempty(Edges)
+        % this happens when there is only a single value
+        if Max==Min
+            if Log
+                Mode = 10.^Max;
+            else
+                Mode = Max;
+            end
+            Variance = 0;
         else
-            Variance = (range(IqrVal).*Factor).^2;
+            error('Edges is empty and Max not equal Min');
+        end
+    else
+        
+        Nhist = histcounts(Array,Edges);
+
+        [~,MaxI]  = max(Nhist);
+        Mode = Edges(MaxI) + 0.5.*BinSize;
+
+        if Log
+            Mode = 10.^Mode;
+        end
+
+        if nargout>1
+            CumN = cumsum(Nhist(:));
+            CumN = CumN + (1:1:numel(CumN)).'.*1000.*eps;
+            % interp1q is faster, but doesnt check validity
+            IqrVal = interp1q(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
+            %IqrVal = interp1(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end),'linear');
+
+            Factor = 0.7413;  %  = 1./norminv(0.75,0,1)
+
+            if Log
+                Variance = (range(10.^IqrVal).*Factor).^2;
+            else
+                Variance = (range(IqrVal).*Factor).^2;
+            end
         end
     end
 end

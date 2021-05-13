@@ -1,4 +1,4 @@
-function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap]=partition_subimage(Image,CCDSEC,Args)
+function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy]=partition_subimage(Image,CCDSEC,Args)
 % Partition image into sub images
 % Package: mUtil.image
 % Description: Partition image into sub images defined either by a CCDSEC
@@ -25,6 +25,7 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap]=partition_subimag
 %          - CCDSEC without overlap. This will be rturned only of input CCDSEC
 %            is empty. Otherwise, will return empty matrix.
 %          - CCDSEC in the new sub image of the non-overlapping region
+%          - Nxy [numbre of sub images in x-dir X number in y0dir].
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
@@ -54,6 +55,8 @@ if isempty(CCDSEC)
                                                             'SubSizeXY',Args.SubSizeXY,...
                                                             'Nxy',Args.Nxy,...
                                                             'OverlapXY',Args.OverlapXY);
+else
+    Nxy = Args.Nxy;
 end
 
 

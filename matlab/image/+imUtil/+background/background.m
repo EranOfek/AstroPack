@@ -42,6 +42,9 @@ function [Back,Var]=background(Image,Args)
 %            'Overlap' - The [X,Y] additional overlaping buffer between
 %                   sub images to add to each sub image.
 %                   Default is 16.
+%            'ExtendFull' - A logical indicating if to extend the
+%                   background map into a full-size image. Default is true.
+%         Not relevent anymore:
 %            'StitchMethod' - Stitching method.
 %                   See imUtil.image.subimages2image for options.
 %                   Another option is 'scalar'. If there is only one sub
@@ -61,7 +64,7 @@ function [Back,Var]=background(Image,Args)
 % Output : - Background image.
 %          - Variance image.
 %      By: Eran O. Ofek                       Apr 2020             
-% Example: [Back,Var]=imUtil.background.background(rand(1024,1024))
+% Example: [Back,Var]=imUtil.background.background(rand(1024,1024));
 
 arguments
     Image
@@ -71,6 +74,7 @@ arguments
     Args.VarFunPar cell          = {};
     Args.SubSizeXY               = [128 128];
     Args.Overlap                 = 16;
+    Args.ExtendFull(1,1) logical = true;
     Args.FieldName               = 'Im';
 end
 
@@ -92,20 +96,21 @@ if ischar(Args.SubSizeXY)
             Size     = size(SubImage);
             CCDSEC   = [1 Size(2) 1 Size(1)];
             Center   = [mean(CCDSEC(:,1:2),2), mean(CCDSEC(:,3:4),2)];
-
+            Nxy      = [1 1];
         otherwise
             error('Unknown SubSizeXY option');
     end
 else
     
     %[SubImage,CCDSEC,Center]=imUtil.partition.image_partitioning(Image,Args.SubSizeXY,'Overlap',Args.Overlap,'FieldNameIm',Args.FieldName);
-    [SubImage, CCDSEC, Center] = imUtil.image.partition_subimage(Image, [], 'SubSizeXY',Args.SubSizeXY, 'OverlapXY',Args.Overlap,...
+    [SubImage, CCDSEC, Center, ~, ~, Nxy] = imUtil.image.partition_subimage(Image, [], 'SubSizeXY',Args.SubSizeXY, 'OverlapXY',Args.Overlap,...
                                                                                'Output','struct', 'FieldName',Args.FieldName);
     
 %     [SubImage,CCDSEC,Center]=imUtil.image.partition_subimage(Image,[],...
 %                                 'SubSizeXY',Args.SubSizeXY,'OverlapXY',Args.OverlapXY,...
 %                                 'Output','struct','FieldName',FieldName);
 end
+
 
 
 % calc background for each sub image
@@ -132,36 +137,43 @@ for Isub=1:1:Nsub
 end
 
 
-% stitch the background image from the sub images
-SizeSub = size(SubImage);
 
-BackIm = reshape([SubImage.Back],SizeSub);
 
-if numel(BackIm)==1
-    Back = BackIm; % + zeros(size(Image));
-else
-    %X = reshape([SubImage.CenterX],SizeSub);
-    X = reshape(Center(:,1),SizeSub);
-    %Y = reshape([SubImage.CenterY],SizeSub);
-    Y = reshape(Center(:,2),SizeSub);
-    [Back] = imUtil.partition.interp_sparse2full(X,Y,BackIm,fliplr(size(Image)));
-end
+if Args.ExtendFull
+    % stitch the background image from the sub images
+    SizeSub = size(SubImage);
 
-if isempty(SubImage(1).Var) || nargout<2
-    Var = [];
-else
-    VarIm  = reshape([SubImage.Var],SizeSub);
-    if numel(VarIm)==1
-        Var = VarIm; % + zeros(size(Image));
+    BackIm = reshape([SubImage.Back],SizeSub);
+
+    if numel(BackIm)==1
+        Back = BackIm; % + zeros(size(Image));
     else
         %X = reshape([SubImage.CenterX],SizeSub);
         X = reshape(Center(:,1),SizeSub);
         %Y = reshape([SubImage.CenterY],SizeSub);
-        Y = reshape(Center(:,1),SizeSub);
-        [Var]  = imUtil.partition.interp_sparse2full(X,Y,VarIm,fliplr(size(Image)));
+        Y = reshape(Center(:,2),SizeSub);
+        [Back] = imUtil.partition.interp_sparse2full(X,Y,BackIm,fliplr(size(Image)));
     end
-end
 
+    if isempty(SubImage(1).Var) || nargout<2
+        Var = [];
+    else
+        VarIm  = reshape([SubImage.Var],SizeSub);
+        if numel(VarIm)==1
+            Var = VarIm; % + zeros(size(Image));
+        else
+            %X = reshape([SubImage.CenterX],SizeSub);
+            X = reshape(Center(:,1),SizeSub);
+            %Y = reshape([SubImage.CenterY],SizeSub);
+            Y = reshape(Center(:,1),SizeSub);
+            [Var]  = imUtil.partition.interp_sparse2full(X,Y,VarIm,fliplr(size(Image)));
+        end
+    end
+else
+    % do not interpolate/extrapolate sparse back/var to full image
+    Back = reshape([SubImage.Back],fliplr(Nxy));
+    Var  = reshape([SubImage.Var],fliplr(Nxy));
+end
 
 % switch lower(Args.StitchMethod)
 %     case {'scalar'}
