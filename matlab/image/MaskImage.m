@@ -50,6 +50,9 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %          - Bit name, or bit index (start from 0), to set.
             %          - Value to set (0 | 1). Default is 1.
             %          * ...,key,val,...
+            %            'DefBitDict' - Default bit dictionary if
+            %                   not exist. Default is
+            %                   BitDictionary('BitMask.Image.Default').
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
@@ -72,8 +75,9 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 Obj
                 Flag                         % matrix of logicals, or vector of indices
                 BitName                      % name or bit index (start with zero)
-                SetVal                 = 1;
-                Args.CreateNewObj      = [];
+                SetVal                            = 1;
+                Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
+                Args.CreateNewObj                 = [];
             end
             
             if isempty(Args.CreateNewObj)
@@ -100,6 +104,11 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 SizeImage = [];
             end
             for Iobj=1:1:Nobj
+                % check that BitDictionary is populated
+                if isempty(Obj(Iobj).Dict)
+                    Result(Iobj).Dict = Args.DefBitDict;
+                end
+                
                 if isnumeric(BitName)
                     BitInd = BitName + 1;
                 else
