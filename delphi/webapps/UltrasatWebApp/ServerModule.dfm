@@ -4,6 +4,7 @@ object UniServerModule: TUniServerModule
   Title = 'New Application'
   SuppressErrors = []
   Bindings = <>
+  MainFormDisplayMode = mfPage
   SSL.SSLOptions.RootCertFile = 'root.pem'
   SSL.SSLOptions.CertFile = 'cert.pem'
   SSL.SSLOptions.KeyFile = 'key.pem'

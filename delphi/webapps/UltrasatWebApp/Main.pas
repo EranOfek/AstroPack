@@ -5,10 +5,23 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
   Controls, Forms, uniGUITypes, uniGUIAbstractClasses,
-  uniGUIClasses, uniGUIRegClasses, uniGUIForm;
+  uniGUIClasses, uniGUIRegClasses, uniGUIForm, Vcl.Menus, uniMainMenu,
+  Vcl.Imaging.pngimage, uniGUIBaseClasses, uniImage,
+  SignalToNoiseCalc;
 
 type
   TMainForm = class(TUniForm)
+    UniMainMenu1: TUniMainMenu;
+    MIAbout: TUniMenuItem;
+    MIAboutUltrasatProject: TUniMenuItem;
+    MIAstroTools: TUniMenuItem;
+    MISignalToNoiseCalculator: TUniMenuItem;
+    MIDatabases: TUniMenuItem;
+    MIDbSources: TUniMenuItem;
+    MIDbRawImages: TUniMenuItem;
+    UniImageLogo: TUniImage;
+    MainMenu1: TMainMenu;
+    procedure MISignalToNoiseCalculatorClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -27,6 +40,13 @@ uses
 function MainForm: TMainForm;
 begin
   Result := TMainForm(UniMainModule.GetFormInstance(TMainForm));
+end;
+
+procedure TMainForm.MISignalToNoiseCalculatorClick(Sender: TObject);
+begin
+  //
+
+
 end;
 
 initialization
