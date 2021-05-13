@@ -11,22 +11,23 @@ class  Base:
         self.UserData = None
 
     # unitTest for Base class
-    def  unitTest():
+    @staticmethod
+    def unitTest():
 
-        io.msgLog(LogLevel.Test, 'Base test started');
+        io.msgLog(LogLevel.Test, 'Base test started')
 
         # Test copyObject()
-        a = Base();
-        a.UserData = 123;
-        b = a.copyObject();
-        assert(a.UserData == b.UserData);
-        b.UserData = 0;
-        assert(a.UserData ~= b.UserData);
+        a = Base()
+        a.UserData = 123
+        b = a.copyObject()
+        assert(a.UserData == b.UserData)
+        b.UserData = 0
+        assert(a.UserData != b.UserData)
 
         # Test copyProp()
-        c = Base();
-        a.copyProp(c, {'UserData'});
-        assert(a.UserData == c.UserData);
+        c = Base()
+        a.copyProp(c, {'UserData'})
+        assert(a.UserData == c.UserData)
 
-        io.msgLog(LogLevel.Test, 'Base test passed');
-        Result = true;
+        io.msgLog(LogLevel.Test, 'Base test passed')
+        return True

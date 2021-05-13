@@ -1,8 +1,10 @@
 # Top level gitignore
 
+# Temporary and backup files
 **/_unused/*
 **/_temp/*
 **/_bkp/*
 **/_backup/*
 
+# Log files
 *.log
