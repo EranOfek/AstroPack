@@ -4,7 +4,7 @@ unit LogPanel;
 interface
 
 uses
-    Classes, SysUtils, Windows, Graphics, Controls, StdCtrls, ExtCtrls, Forms;
+    Classes, SysUtils, Graphics, Controls, StdCtrls, ExtCtrls, Forms;
   
 type
   // TLogPanelMsg
@@ -382,7 +382,7 @@ begin
 
               // Fill background
               // @Todo: replace .Create with Rect() !!!!
-              ARect := TRect.Create(0, Y, PromptWidth - 1, Y+TextHeight);
+              ARect := Rect(0, Y, PromptWidth - 1, Y+TextHeight);
               FPaintBox.Canvas.FillRect(ARect);
 
               // Write text
@@ -394,7 +394,7 @@ begin
             FPaintBox.Canvas.Font.Color  := Msg.TextColor;
 
             // Fill background
-            ARect := TRect.Create(PromptWidth, Y, PromptWidth + TextWidth, Y+TextHeight);
+            ARect := Rect(PromptWidth, Y, PromptWidth + TextWidth, Y+TextHeight);
             FPaintBox.Canvas.FillRect(ARect);
 
             // Write text
@@ -410,7 +410,7 @@ begin
     FThreadList.UnlockList;
 
     // Fill bottom of window
-    ARect := Rect.Create(0, Y, FPaintBox.ClientWidth, FPaintBox.Height);
+    ARect := Rect(0, Y, FPaintBox.ClientWidth, FPaintBox.Height);
     FPaintBox.Canvas.Brush.Color := Color;
     FPaintBox.Canvas.FillRect(ARect);
 end;
