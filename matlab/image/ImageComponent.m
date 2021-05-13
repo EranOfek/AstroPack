@@ -662,8 +662,12 @@ classdef ImageComponent < Component
                 Back = background(Obj, varargin{:});
             end
             
-            if isnumeric(Back) || iscell(Back)
-                Back = ImageCompnent(Back);
+            if isnumeric(Back) 
+                Back = ImageComponent({Back});
+            elseif iscell(Back)
+                Back = ImageComponent(Back);
+            else
+                % do nothing
             end
             
             Nback = numel(Back);
@@ -678,7 +682,7 @@ classdef ImageComponent < Component
                 Iobj  = min(I, Nobj);
                 Iback = min(I, Nback);
                 
-                Obj(I).Data = Obj(Iobj).Data - Back(Iback).Data;
+                Obj(I).Data = Obj(Iobj).Image - Back(Iback).Image;
                 if isa(Obj(Iobj),'SciImage')
                     Obj(Iobj).IsBackSubtracted = true;
                 end
@@ -1175,7 +1179,7 @@ classdef ImageComponent < Component
             % resize image data using matlab imresize function
             % Input  : - An ImageComponent object
             %          - Rescaling factor or [rows, columns] in the ouput
-            %            image. If empty, then will attempt to atke this
+            %            image. If empty, then will attempt to take this
             %            parameter from the ImageComponent object Scale
             %            property, and if this is also empty, then will do
             %            nothing.

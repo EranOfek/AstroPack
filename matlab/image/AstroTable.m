@@ -1231,12 +1231,7 @@ classdef AstroTable < Component %ImageComponent
             AC = AstroTable(A,'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});
             AC=AstroTable('asu.fit','HDU',2); % read from FITS table
             
-            % colnameDict2ind
-            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
-            [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(AC(1),{'X','Y','a','Z'})
-            if ColInd~=1 || IndOfSelectedName~=3
-                error('Problem with colnameDict2ind');
-            end
+            
             
             % merge selected columns of AstroTable
             MAC = merge([AC,AC],{'DEJ2000'});
@@ -1261,6 +1256,14 @@ classdef AstroTable < Component %ImageComponent
             if ~all(Result == MAC.Catalog,'all')
                 error('Result should be identical');
             end
+            
+            % colnameDict2ind
+            AC1 = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(AC1(1),{'X','Y','a','Z'});
+            if ColInd~=1 || IndOfSelectedName~=3
+                error('Problem with colnameDict2ind');
+            end
+            
             
             % funUnary
             funUnary(AC(1),@sin);
