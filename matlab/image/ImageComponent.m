@@ -492,6 +492,8 @@ classdef ImageComponent < Component
             %                   will be operated. Default is 'Data'.
             % Output : - An array in which each element corresponds to the operator applied
             %            to an element in the ImageComponent object.
+            %            If operator returns empty, then this function will
+            %            return NaN.
             % Author : Eran Ofek (Apr 2021)
             % Example: IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
             %          R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'});
@@ -518,11 +520,16 @@ classdef ImageComponent < Component
             for Iobj=1:1:Nobj
                 
                 if isempty(Args.CCDSEC)
-                    Result(Iobj) = Operator(Obj(Iobj).(Args.DataPropIn), Args.OpArgs{:});
+                    Tmp = Operator(Obj(Iobj).(Args.DataPropIn), Args.OpArgs{:});
+                    if ~isempty(Tmp)
+                        Result(Iobj) = Tmp;
+                    end
                 else
                     Tmp = Operator(Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)), Args.OpArgs{:});
                     if numel(Tmp)==1
                         Result(Iobj) = Tmp;
+                    elseif numel(Tmp)==0
+                        % do nothing - already NaN
                     else
                         error('funUnaryScalar operator must return a scalar');
                     end

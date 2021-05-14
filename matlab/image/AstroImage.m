@@ -1024,6 +1024,8 @@ classdef AstroImage < Component
             %                   will be operated. Default is 'Data'.
             % Output : - An array in which each element corresponds to the operator applied
             %            to an element in the ImageComponent object.
+            %            If operator returns empty, then this function will
+            %            return NaN.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({randn(100,100), randn(100,100)},'Back',{randn(100,100), randn(100,100)});
             %          [A,B] = funUnaryScalar(AI, @mean, 'OpArgs',{'all'})
@@ -1046,7 +1048,7 @@ classdef AstroImage < Component
             varargout = cell(1,Nic);
             for Iic=1:1:Nic
                 Nim = numel(CellIC{Iic}); % number of images in each output arg
-                varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn{Iic});
+                varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn);
             end
         end
                 
