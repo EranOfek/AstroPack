@@ -1820,10 +1820,66 @@ classdef AstroImage < Component
                 
     end
     
-    
-    
 
     methods % specific functionality and overloads
+        function varargout = plus(Obj1, Obj2, varargin)
+            % Apply the plus operator between AstroImage objects.
+            %       This function utilize the funBinary method.
+            %       See funBinary for details and additional arguments.
+            % Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+            %          R = AI + AI
+            %          R = AI + 1
+            %          AI = AstroImage({ones(10,10), 2.*ones(10,10)});
+            %          R = AI + AI(1)
+            
+            [varargout{1:nargout}] = funBinary(Obj1, Obj2, @plus, varargin{:});
+            
+        end
+        
+        function varargout = minus(Obj1, Obj2, varargin)
+            % Apply the minus operator between AstroImage objects.
+            %       This function utilize the funBinary method.
+            %       See funBinary for details and additional arguments.
+            % Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+            %          R = AI - AI
+            %          R = AI - 1
+            %          AI = AstroImage({ones(10,10), 2.*ones(10,10)});
+            %          R = AI - AI(1)
+            
+            [varargout{1:nargout}] = funBinary(Obj1, Obj2, @minus, varargin{:});
+            
+        end
+        
+        function varargout = times(Obj1, Obj2, varargin)
+            % Apply the times operator between AstroImage objects.
+            %       This function utilize the funBinary method.
+            %       See funBinary for details and additional arguments.
+            % Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+            %          R = AI .* AI
+            %          R = AI .* 1
+            %          AI = AstroImage({ones(10,10), 2.*ones(10,10)});
+            %          R = AI .* AI(1)
+            
+            [varargout{1:nargout}] = funBinary(Obj1, Obj2, @times, varargin{:});
+            
+        end
+        
+        function varargout = rdivide(Obj1, Obj2, varargin)
+            % Apply the rdivide operator between AstroImage objects.
+            %       This function utilize the funBinary method.
+            %       See funBinary for details and additional arguments.
+            % Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+            %          R = AI ./ AI
+            %          R = AI ./ 2
+            %          AI = AstroImage({ones(10,10), 2.*ones(10,10)});
+            %          R = AI ./ AI(1)
+            
+            [varargout{1:nargout}] = funBinary(Obj1, Obj2, @rdivide, varargin{:});
+            
+        end
+        
+        % got here
+        
         function Result = conv(Obj, Args)
             % Convolve images with their PSF, or another PSF
             arguments
@@ -1953,22 +2009,6 @@ classdef AstroImage < Component
             %
         end
         
-        function NewObj = plus(Obj1, Obj2)
-            %
-        end
-        
-        function NewObj = minus(Obj1, Obj2)
-            %
-        end
-        
-        function NewObj = times(Obj1, Obj2)
-            %
-        end
-        
-        function NewObj = rdivide(Obj1, Obj2)
-            %
-        end
-        
     end
     
     methods (Static) % Unit-Test
@@ -2013,6 +2053,53 @@ classdef AstroImage < Component
             s=Result(1).MaskData.bitStat;
             s.BitSummary;
 
+            % overload operators
+            AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+            % perform: AI(1)+AI(1) and AI(2)+AI(2)
+            R = AI + AI;
+            % perform: AI(1)+2 to all elements
+            R = AI + 2;
+            if ~all(R(1).Image==3,'all')
+                error('Problem with plus operator');
+            end
+            % add 2 to all elements in AI
+            AI + 2;
+            if ~all(AI(1).Image==3,'all')
+                error('Problem with plus operator');
+            end
+            
+            AI = AstroImage({ones(10,10), 2.*ones(10,10)});
+            R = AI + AI;
+            R = AI + AI(1);
+            if ~all(R(2).Image==3)
+                error('Problem with plus operator');
+            end
+            
+            R = AI - AI;
+            R = AI - 3;
+            if ~all(R(2).Image==-1)
+                error('Problem with minus operator');
+            end
+            
+            R = AI.*AI;
+            R = AI.*3;
+            if ~all(R(2).Image==6)
+                error('Problem with mtimes operator');
+            end
+            
+            R = AI./AI;
+            R = AI./3;
+            if ~all(R(2).Image==2./3)
+                error('Problem with rdivide operator');
+            end
+            
+            
+            
+            
+            
+            
+            
+            
             
             
             
