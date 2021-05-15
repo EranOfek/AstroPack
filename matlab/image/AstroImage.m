@@ -663,6 +663,45 @@ classdef AstroImage < Component
             
         end
         
+        function Result = funHeaderScalar(Obj, Fun, varargin)
+            % Apply function that return a scalae on HeaderData properties in AstroImage array
+            % Input  : - AstroImage object
+            %          - An AstroHeader function handle.
+            %          * Additional arguments to pass to the function.
+            % Output : - An array in which each element corresponds to the
+            %            result of applying the function on a single element 
+            %            of the AStroImage object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AI = AstroImage({rand(10,10), rand(10,10)});
+            %          funHeaderScalar(AI,@julday)
+           
+            Nobj = numel(Obj);
+            Result = nan(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = Fun(Obj(Iobj).HeaderData, varargin{:});
+            end
+            
+        end
+        
+        function [JD, ExpTime] = julday(Obj, varargin)
+            % Return the Julian day for AstroImage object
+            % Input  : - An AstroImage object
+            %          * Arbitrary number of arguments to pass to the
+            %          AstroHeader/juday function.
+            % Output : - An array of JD (one per AstroImage element).
+            %          - An array of ExpTime.
+            % Author : Eran Ofek
+            % Example: AI=AstroImage('*.fits');
+            %          [JD,ET] = julday(AI(2:3));
+            
+            Nobj = numel(Obj);
+            JD      = nan(size(Obj));
+            ExpTime = nan(size(Obj));
+            for Iobj=1:1:Nobj
+                [JD(Iobj), ExpTime(Iobj)] = julday(Obj(Iobj).HeaderData, varargin{:});
+            end
+        end
+        
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
         end
@@ -729,6 +768,9 @@ classdef AstroImage < Component
             end
          
         end
+        
+        
+        
         
     end
     
@@ -2046,8 +2088,9 @@ classdef AstroImage < Component
             end
             
             
-            
-            
+            AI = AstroImage('*.fits');
+            [JD,ET] = julday(AI(2:3));
+            [JD,ET] = julday(AI(1));
             
             % image2subimages
             AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
