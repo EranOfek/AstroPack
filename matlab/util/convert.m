@@ -1021,6 +1021,7 @@ classdef convert
                 String = String.';
             end
             Time = regexp(String,'T|:|\s|-','split');
+            
             DateVec = cell2mat(cellfun(@str2double,Time,'UniformOutput',false));
 
         end % convert.str2date function
@@ -1181,6 +1182,9 @@ classdef convert
                 Date=convert.str2date(Date);
                 IsStr = true;
                 
+            end
+            if any(isnan(Date))
+                Date = nan(1,6);
             end
             
             if IsStr

@@ -1239,6 +1239,7 @@ classdef AstroHeader < Component
                 Obj
                 Args.ExpTimeKey                        = 'EXPTIME';
                 Args.FunTimeKeys cell                  = {};
+                %Args.TreatBug2000(1,1) logical                                  = true;
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
                 Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
@@ -1293,6 +1294,14 @@ classdef AstroHeader < Component
                             JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey})(T, ExpTime(Iobj));
                         end
                         if ~isnan(JD)
+%                             if Args.TreatBug2000
+%                                 if JD<celestial.time.julday([1 1 100])
+%                                     % assume that year is given with two
+%                                     % digits
+%                                     DD = celestial.time.jd2date(JD);
+%                                     JD = celestial.time.julday([DD(1) DD(2) DD(3)+1900]);
+%                                 end
+%                             end
                             MidJD(Iobj) = JD;
                         end
                     end

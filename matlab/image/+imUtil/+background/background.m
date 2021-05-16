@@ -75,6 +75,7 @@ arguments
     Args.SubSizeXY               = [128 128];
     Args.Overlap                 = 16;
     Args.ExtendFull(1,1) logical = true;
+    Args.ExtendMethod            = 'imresize';  % 'imresize' | 'interp_sparse2full'
     Args.FieldName               = 'Im';
 end
 
@@ -140,34 +141,57 @@ end
 
 
 if Args.ExtendFull
-    % stitch the background image from the sub images
-    SizeSub = size(SubImage);
+    %Args.ExtendMethod = 'interp_sparse2full'
+    switch lower(Args.ExtendMethod)
+        case 'imresize'
+            BackIm = reshape([SubImage.Back],Nxy);
+            if isempty(BackIm)
+                Back = [];
+            else
+                Back = imresize(BackIm,size(Image), 'lanczos3');
+            end
+            VarIm = reshape([SubImage.Var],Nxy);
+            if isempty(VarIm)
+                Var = [];
+            else
+                Var = imresize(VarIm,size(Image), 'lanczos3');
+            end
 
-    BackIm = reshape([SubImage.Back],SizeSub);
+            
+        case 'interp_sparse2full'
+    
+            % stitch the background image from the sub images
+            SizeSub = size(SubImage);
 
-    if numel(BackIm)==1
-        Back = BackIm; % + zeros(size(Image));
-    else
-        %X = reshape([SubImage.CenterX],SizeSub);
-        X = reshape(Center(:,1),SizeSub);
-        %Y = reshape([SubImage.CenterY],SizeSub);
-        Y = reshape(Center(:,2),SizeSub);
-        [Back] = imUtil.partition.interp_sparse2full(X,Y,BackIm,fliplr(size(Image)));
-    end
+            BackIm = reshape([SubImage.Back],SizeSub);
 
-    if isempty(SubImage(1).Var) || nargout<2
-        Var = [];
-    else
-        VarIm  = reshape([SubImage.Var],SizeSub);
-        if numel(VarIm)==1
-            Var = VarIm; % + zeros(size(Image));
-        else
-            %X = reshape([SubImage.CenterX],SizeSub);
-            X = reshape(Center(:,1),SizeSub);
-            %Y = reshape([SubImage.CenterY],SizeSub);
-            Y = reshape(Center(:,1),SizeSub);
-            [Var]  = imUtil.partition.interp_sparse2full(X,Y,VarIm,fliplr(size(Image)));
-        end
+            if numel(BackIm)==1
+                Back = BackIm; % + zeros(size(Image));
+            else
+                %X = reshape([SubImage.CenterX],SizeSub);
+                X = reshape(Center(:,1),SizeSub);
+                %Y = reshape([SubImage.CenterY],SizeSub);
+                Y = reshape(Center(:,2),SizeSub);
+                [Back] = imUtil.partition.interp_sparse2full(X,Y,BackIm,fliplr(size(Image)));
+            end
+
+            if isempty(SubImage(1).Var) || nargout<2
+                Var = [];
+            else
+                VarIm  = reshape([SubImage.Var],SizeSub);
+                if numel(VarIm)==1
+                    Var = VarIm; % + zeros(size(Image));
+                else
+                    %X = reshape([SubImage.CenterX],SizeSub);
+                    X = reshape(Center(:,1),SizeSub);
+                    %Y = reshape([SubImage.CenterY],SizeSub);
+                    Y = reshape(Center(:,2),SizeSub);
+                    [Var]  = imUtil.partition.interp_sparse2full(X,Y,VarIm,fliplr(size(Image)));
+                end
+            end
+        
+        otherwise
+            error('Unknown ExtendMethod option');
     end
 else
     % do not interpolate/extrapolate sparse back/var to full image

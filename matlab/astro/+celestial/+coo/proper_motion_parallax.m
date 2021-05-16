@@ -1,5 +1,5 @@
 function varargout=proper_motion_parallax(EpochOut,EpochInRA,EpochInDec,RA,Dec,PM_RA,PM_Dec,Parallax,RadVel)
-% Applay proper motion and parallaxto a catalog
+% Applay proper motion and parallax to a catalog
 % Package: celestial.coo
 % Description: Applay proper motion to a catalog
 % Input  : - Final epoch (days). Either a scalar or a vector.
