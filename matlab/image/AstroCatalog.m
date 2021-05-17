@@ -261,6 +261,11 @@ classdef AstroCatalog < AstroTable
             %         'ColLat' - A cell array of Lat column names. Will
             %               select the first exitsing column name.
             %               Default is Obj(1).DefNamesDec.
+            % Output : * If two argument are requested then these are RA and Dec.
+            %            If a single argument is
+            %            requested then this is a two column matrix of
+            %            [RA, Dec].
+            % Author : Eran Ofek (May 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
             %          [Lon,Lat] = getLonLat(AC);
             %          [Lon,Lat] = getLonLat(AC,'rad');
@@ -275,16 +280,21 @@ classdef AstroCatalog < AstroTable
             ColLon = colnameDict2ind(Obj, Args.ColLon);
             ColLat = colnameDict2ind(Obj, Args.ColLat);
             
-            [Lon, LonUnits] = getCol(Obj, ColLon);
-            [Lat, LatUnits] = getCol(Obj, ColLat);
-            
-            LonUnits = LonUnits{1};
-            LatUnits = LatUnits{1};
-            if ~isempty(LonUnits)
-                Lon = convert.angular(LonUnits, Units, Lon);
-            end
-            if ~isempty(LatUnits)
-                Lat = convert.angular(LatUnits, Units, Lat);
+            if isempty(ColLon) || isempty(ColLat)
+                Lon = [];
+                Lat = [];
+            else
+                [Lon, LonUnits] = getCol(Obj, ColLon);
+                [Lat, LatUnits] = getCol(Obj, ColLat);
+
+                LonUnits = LonUnits{1};
+                LatUnits = LatUnits{1};
+                if ~isempty(LonUnits)
+                    Lon = convert.angular(LonUnits, Units, Lon);
+                end
+                if ~isempty(LatUnits)
+                    Lat = convert.angular(LatUnits, Units, Lat);
+                end
             end
             
             if nargout>1
@@ -292,6 +302,52 @@ classdef AstroCatalog < AstroTable
                 varargout{2} = Lat;
             else
                 varargout{1} = [Lon, Lat];
+            end
+            
+            
+        end
+        
+        function [varargout] = getXY(Obj, Args)
+            % Get X/Y columns from AstroCatalog.
+            % Input - A single element AstroCatalog object.
+            %       * ...,key,val,...
+            %         'ColX' - A cell array of X column names. Will
+            %               select the first exitsing column name.
+            %               Default is Obj(1).DefNamesX.
+            %         'ColY' - A cell array of Y column names. Will
+            %               select the first exitsing column name.
+            %               Default is Obj(1).DefNamesY.
+            % Output : * If two argument are requested then these are X and Y.
+            %            If a single argument is
+            %            requested then this is a two column matrix of
+            %            [X, Y].
+            % Author : Eran Ofek (May 2021)
+            % Example:
+            % AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});
+            %          [X,Y] = getXY(AC);
+            
+            arguments
+                Obj(1,1)
+                Args.ColX      = Obj(1).DefNamesX;
+                Args.ColY      = Obj(1).DefNamesY;
+            end
+            
+            ColX = colnameDict2ind(Obj, Args.ColX);
+            ColY = colnameDict2ind(Obj, Args.ColY);
+            
+            if isempty(ColX) || isempty(ColY)
+                X = [];
+                Y = [];
+            else
+                X = getCol(Obj, ColX);
+                Y = getCol(Obj, ColY);
+            end
+            
+            if nargout>1
+                varargout{1} = X;
+                varargout{2} = Y;
+            else
+                varargout{1} = [X, Y];
             end
             
             
@@ -554,6 +610,9 @@ classdef AstroCatalog < AstroTable
             AC=AstroCatalog({'asu.fit'},'HDU',2);
             [Lon,Lat] = getLonLat(AC);
             [Lon,Lat] = getLonLat(AC,'rad');
+            
+            AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});
+            [X,Y] = getXY(AC);
 
             
 %             % TRANSFERED!!
