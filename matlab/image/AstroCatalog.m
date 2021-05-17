@@ -208,7 +208,7 @@ classdef AstroCatalog < AstroTable
             
         end
         
-        function [varargout]=getCoo(Obj, Units)
+        function [varargout] = getCoo(Obj, Units)
             % get coordinates columns from a single element AstroCatalog object
             % Input  : - A single element AstroCatalog object
             %          - Units of output coordinates (for no spherical
@@ -246,6 +246,54 @@ classdef AstroCatalog < AstroTable
             else
                 varargout{1} = [X, Y];
             end
+            
+        end
+        
+        function [varargout] = getLonLat(Obj, Units, Args)
+            % Get Lon/Lat columns from AstroCatalog.
+            % Input - A single element AstroCatalog object.
+            %       - Units of output Lon/Lat columns.
+            %         Default is 'deg'.
+            %       * ...,key,val,...
+            %         'ColLon' - A cell array of Lon column names. Will
+            %               select the first exitsing column name.
+            %               Default is Obj(1).DefNamesRA.
+            %         'ColLat' - A cell array of Lat column names. Will
+            %               select the first exitsing column name.
+            %               Default is Obj(1).DefNamesDec.
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [Lon,Lat] = getLonLat(AC);
+            %          [Lon,Lat] = getLonLat(AC,'rad');
+            
+            arguments
+                Obj(1,1)
+                Units            = 'deg';
+                Args.ColLon      = Obj(1).DefNamesRA;
+                Args.ColLat      = Obj(1).DefNamesDec;
+            end
+            
+            ColLon = colnameDict2ind(Obj, Args.ColLon);
+            ColLat = colnameDict2ind(Obj, Args.ColLat);
+            
+            [Lon, LonUnits] = getCol(Obj, ColLon);
+            [Lat, LatUnits] = getCol(Obj, ColLat);
+            
+            LonUnits = LonUnits{1};
+            LatUnits = LatUnits{1};
+            if ~isempty(LonUnits)
+                Lon = convert.angular(LonUnits, Units, Lon);
+            end
+            if ~isempty(LatUnits)
+                Lat = convert.angular(LatUnits, Units, Lat);
+            end
+            
+            if nargout>1
+                varargout{1} = Lon;
+                varargout{2} = Lat;
+            else
+                varargout{1} = [Lon, Lat];
+            end
+            
             
         end
         
@@ -302,7 +350,7 @@ classdef AstroCatalog < AstroTable
             
     end
     
-    methods % cut and transform
+    methods % cut, projection, and transform
         function Result = cropXY(Obj, CCDSEC, Args)
             % crop AstroCatalog object by X/Y coordinates.
             %       Including updateing the X/Y coordinates.
@@ -374,6 +422,33 @@ classdef AstroCatalog < AstroTable
                     end
                 end
             end
+        end
+        
+        function Result = projection(Obj, IsInv, Projection, Args)
+            %
+           
+%             arguments
+%                 Obj
+%                 IsInv(1,1) logical       = false;  % false - lon/lat->x,y
+%                 Projection               = 'tan';
+%                 Args
+%             end
+%             
+%             Nobj = numel(Obj);
+%             for Iobj=1:1:Nobj
+%                 if IsInv
+%                     % inverse projection
+%                     % get X/Y
+%                 
+%                 else
+%                     % regular projection
+%                     % get Long/Lat
+%                     
+%                 
+%                 
+%                 end
+%             end
+            
         end
     end
     
@@ -476,7 +551,10 @@ classdef AstroCatalog < AstroTable
             Result = cropXY(AC, [81 100 41 70],'AddX',{'Flux'});
             Result = cropXY(AC, [81 100 41 70; 1 50 1 50]); % multiple crops of a single catalog
 
-            
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            [Lon,Lat] = getLonLat(AC);
+            [Lon,Lat] = getLonLat(AC,'rad');
+
             
 %             % TRANSFERED!!
 %             % match (spherical)
