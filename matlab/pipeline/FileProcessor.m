@@ -1,6 +1,6 @@
 
-classdef FileListener < Component
-    % Top level Pipeline Manager
+classdef FileProcessor < Component
+    % Parent class for processing input files
     
     
     % Properties
@@ -16,16 +16,19 @@ classdef FileListener < Component
         OnputImageExt
         LogFile
         Config
+        
+        MoveProcessedFiles = 
+        KeepProcessFilesAge = 1
     end
     
     %-------------------------------------------------------- 
     methods  
                
         % Constructor    
-        function Obj = FileListener()
-            Obj.LogFile = TLogFile("PipelineManager.log");
-            Obj.Config = TConfig;
+        function Obj = FileProcessor()
+
         end
+        
         
         function init(Obj)
             Obj.Config.load('D:/Ultrasat/git/src/matlab/Pipeline/PipelineManager/pipeline.yml');
@@ -41,7 +44,14 @@ classdef FileListener < Component
         
         
         function processFile(Obj, FileName)
-            Obj.msgLog(LogLevel.Verbose, 'Processing image: ' + FileName);            
+            % 
+            Obj.msgLog(LogLevel.Verbose, 'Processing input file: ' + FileName);
+            
+            try
+                
+            catch
+            end
+            
             
         end
         
@@ -69,6 +79,23 @@ classdef FileListener < Component
         end
 
         
+        
+        function Result = deleteOldFiles(Obj, Path, Mask, DeleteBefore)
+            % Delete files before specified date
+            List = dir(fullfile(Path, Mask));
+            for i = 1:length(List)
+                if ~List(i).isdir
+                    FileName = fullfile(List(i).folder, List(i).name);
+                    if List(i).datenum < DeleteBefore
+                        Obj.msgLog(LogLevel.Verbose, 'deleteOldFiles: %s', FileName);
+                        delete(FileName)
+                    end
+                end
+            end            
+            Result = true;
+        end
+        
+        
         % Read file to lines
         function Result = pollInput(Obj)
             
@@ -84,8 +111,12 @@ classdef FileListener < Component
     % Unit test
     methods(Static)   
         function Result = unitTest()
-            fprintf("Started\n");
-            Result = true;
+            io.msgStyle(LogLevel.Test, '@start', 'FileProcessor test started\n');
+            
+            
+            % Done
+            io.msgStyle(LogLevel.Test, '@passed', 'FileProcessor test passed')
+            Result = true;            
         end
     end    
         
