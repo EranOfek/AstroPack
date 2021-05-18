@@ -57,7 +57,7 @@ function varargout = funCube(ImObj, Args)
         Args.DimIndex                      = 3;
     end
 
-    [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DataProp',{Args.DataProp}, 'DimIndex',Args.DimIndex);
+    [Cube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DataProp',{Args.DataProp}, 'DimIndex',Args.DimIndex);
 
     if ~iscell(Args.FunCube)
         Args.FunCube = {Args.FunCube};

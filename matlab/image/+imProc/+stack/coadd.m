@@ -145,7 +145,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
 
     Nim = numel(ImObj);
 
-    [ImageCube, BackCube, VarCube, MaskCube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
+    [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
      
     % subtract offset (only from image)
     if ~isempty(Args.Offset)

@@ -1,6 +1,6 @@
 function Result = findMeasureSources(Obj, Args)
     % Basic sources finder and measurments on AstroImage object.
-    %       This function uses the +imUtil.sources.find_sources function.
+    %   This function uses the +imUtil.sources.find_sources function.
     % Input  : - An AstroImage object (multi elements are supported).
     %            'ReFind' - A logical indicating if to find stars if the
     %                   catalog is already populated. Default is true.
@@ -121,7 +121,7 @@ function Result = findMeasureSources(Obj, Args)
     end
     
     % calculate background
-    imProc.image.background(Result, 'CreateNewObj',false, Args.BackPar{:});
+    imProc.background.background(Result, 'CreateNewObj',false, Args.BackPar{:});
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj

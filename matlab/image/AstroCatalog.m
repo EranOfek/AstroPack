@@ -565,6 +565,10 @@ classdef AstroCatalog < AstroTable
         function Result = unitTest
             % unitTest for the AstroCatalog class
             
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
             [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC);
             if AC(1).ColX~=AC(2).ColX
@@ -594,8 +598,7 @@ classdef AstroCatalog < AstroTable
             
             % bounding circle
             AC=AstroCatalog({'asu.fit'},'HDU',2);
-            M = imProc.cat.Match;
-            [Result] = M.coneSearch(AC, [1 1], 'Radius',3600.*10);
+            [Result] = imProc.match.coneSearch(AC, [1 1], 'Radius',3600.*10);
             [CircleX, CircleY, CircleRadius] = boundingCircle(Result);
             if abs(CircleX-1)>0.1 ||  abs(CircleY-1)>0.1 || abs(CircleRadius-10)>0.5
                 error('Problem with catalogBoundingCircle');
@@ -648,7 +651,7 @@ classdef AstroCatalog < AstroTable
             AC.getCooTypeAuto
             AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
 
-            
+            cd(PWD);
             Result = true;
         end
     end
