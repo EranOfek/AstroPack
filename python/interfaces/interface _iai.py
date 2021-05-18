@@ -1,9 +1,9 @@
 # IAI Interface
 
-import interfaces
+from interface_base import *
 
 
-class InterfaceIai(Interface):
+class InterfaceIai(InterfaceBase):
 
     # Constructor
     def __init__(self):
@@ -13,9 +13,6 @@ class InterfaceIai(Interface):
     def __del__(self):
         # Deleted
         pass
-
-
-
 
 
 
