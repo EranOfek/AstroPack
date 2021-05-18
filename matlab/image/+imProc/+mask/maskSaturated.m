@@ -46,9 +46,9 @@ function Result = maskSaturated(Obj, Args)
     %            saturated and non-linear pixels.
     % Author : Eran Ofek (May 2021)
     % Example: AI = AstroImage({rand(10,10).*1000});
-    %          Result = imProc.image.maskSaturated(AI, 'SatLevel',500)
-    %          Result = imProc.image.maskSaturated(AI, 'SatLevel',500, 'NonLinLeve',100)
-    %          Result = imProc.image.maskSaturated(AI, 'SatLevel',500, 'NonLinLeve',100,'MultLevelByGain',true,'Gain',5);
+    %          Result = imProc.mask.maskSaturated(AI, 'SatLevel',500)
+    %          Result = imProc.mask.maskSaturated(AI, 'SatLevel',500, 'NonLinLeve',100)
+    %          Result = imProc.mask.maskSaturated(AI, 'SatLevel',500, 'NonLinLeve',100,'MultLevelByGain',true,'Gain',5);
     
     arguments
         Obj AstroImage

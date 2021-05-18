@@ -1221,6 +1221,11 @@ classdef AstroTable < Component %ImageComponent
     methods (Static)  % Unit-Test
         function Result = unitTest()
             
+            
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
             % Create an empty AstroTable
             AC = AstroTable;
             AC = AstroTable([2 2]);
@@ -1301,11 +1306,11 @@ classdef AstroTable < Component %ImageComponent
             AT = AstroTable;
             AT.Catalog=rand(10,4);
             AT.ColNames={'a','b','c','d'};
-            AT.plotFun(@plot,{'a','c'},'o')
-            AT.plotFun(@plot,[1 2],'o','Color','b')
-            AT.plotFun(@hist,{'c'})
-            AT.plotFun(@hist,'d')
-            AT.plotFun(@plot3,[1 2 4],'o','Color','b')
+            AT.plotFun(@plot,{'a','c'},'o');
+            AT.plotFun(@plot,[1 2],'o','Color','b');
+            AT.plotFun(@hist,{'c'});
+            AT.plotFun(@hist,'d');
+            AT.plotFun(@plot3,[1 2 4],'o','Color','b');
             
             AT = AstroTable;
             AT.Catalog = [(1:1:10).',(1:1:10).', rand(10,1)];
@@ -1315,6 +1320,7 @@ classdef AstroTable < Component %ImageComponent
             AT.plot({'X','Y'},'o','MarkerFaceColor','r');
             
 
+            cd(PWD);
             Result = true;
         end
     end

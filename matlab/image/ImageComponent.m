@@ -1557,6 +1557,11 @@ classdef ImageComponent < Component
         function Result = unitTest
             % unitTest for ImageComponent
             
+            
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
             IC = ImageComponent; 
             IC.needMapKey();
             assert(~isempty(IC.MapKey));
@@ -1746,6 +1751,7 @@ classdef ImageComponent < Component
             Cube = cutouts(IC, XY,'Shift',true,'IsCircFilt',true);
             
             
+            cd(PWD);
             Result = true;            
             
         end        

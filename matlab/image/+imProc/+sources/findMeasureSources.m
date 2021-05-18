@@ -121,7 +121,7 @@ function Result = findMeasureSources(Obj, Args)
     end
     
     % calculate background
-    imProc.image.background(Result, 'CreateNewObj',false, Args.BackPar{:});
+    imProc.background.background(Result, 'CreateNewObj',false, Args.BackPar{:});
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj

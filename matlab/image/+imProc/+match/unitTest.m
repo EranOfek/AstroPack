@@ -1,6 +1,6 @@
 function Result = unitTest
     % unitTest for +imProc.match
-    % Example: imProc.cat.Match.unitTest
+    % Example: imProc.match.unitTest
 
     % coneSearch
     AC=AstroCatalog({'asu.fit'},'HDU',2);
@@ -20,7 +20,7 @@ function Result = unitTest
     AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]
     AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
     AC2.getCooTypeAuto
-    [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
+    [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
 
     % match against catsHTM
     AC=AstroCatalog({'asu.fit'},'HDU',2);
@@ -43,7 +43,7 @@ function Result = unitTest
     Cat      = sortrows(Cat,2);
     Flip     = [1 -1];
     Ref      = Ref.*Flip;
-    Result = imProc.register.matchPattern(Cat,Ref);
+    Result = imProc.match.matchPattern(Cat,Ref);
     
     if ~(Result.Sol.SN>30 && all(Result.Sol.Flip==Flip) && abs(Result.Sol.ShiftX-220)<3 && abs(Result.Sol.ShiftY-130)<3)
         error('Problem with matchPattern');
@@ -61,7 +61,7 @@ function Result = unitTest
     Tr = [35, 1, 120, 45, 1, -1];
     [NewX,NewY]=imUtil.cat.affine2d_transformation(Cat,Tr,'+');
     Cat = [NewX, NewY];
-    Result = imProc.register.matchPattern(Cat,Ref);
+    Result = imProc.match.matchPattern(Cat,Ref);
 
     % Shift rotation
     Ns = 5000;
@@ -83,7 +83,7 @@ function Result = unitTest
     [NewX,NewY]=imUtil.cat.affine2d_transformation(Cat,Tr,'+');
     Cat = [NewX, NewY];
     Cat = [Cat; rand(Nm,2).*1024];
-    Result = imProc.register.matchPattern(Cat,Ref);
+    Result = imProc.match.matchPattern(Cat,Ref);
 
 
     Result = true;

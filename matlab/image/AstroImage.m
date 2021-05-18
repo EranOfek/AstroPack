@@ -1803,8 +1803,14 @@ classdef AstroImage < Component
     
     methods (Static) % Unit-Test
         function Result = unitTest()
-            Astro = AstroImage;
+            % unitTest for AstroImage
+            % Example: AstroImage.unitTest
             
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
+            Astro = AstroImage;
             
             % funBinaryProp
             % funBinary for a single property / no error propagation
@@ -1840,7 +1846,7 @@ classdef AstroImage < Component
             
             % image2subimages
             AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
-            Result = image2subimages(AI,[256 256]);
+            Result = imProc.image.image2subimages(AI,[256 256]);
             s=Result(1).MaskData.bitStat;
             s.BitSummary;
 
@@ -1893,7 +1899,7 @@ classdef AstroImage < Component
             
             
             
-            
+            cd(PWD);
             Result = true;
         end
     end

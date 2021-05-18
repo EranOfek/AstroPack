@@ -1,9 +1,127 @@
 function Result = matchPattern(Obj1, Obj2, Args)
     % Match two catalogs using stars pattern and return approximate transformation
-    % Input  : -
-    % Output : -
+    % Description: Given two catalogs that coordinadte systems are related
+    %              by flip, scale, rotation and shift, search the the approximate
+    %              affine transformation
+    %              that is required in order to align the coordinate systems of
+    %              the two catalogs. The search is done by matching patterns in
+    %              one catalog to the other.
+    % Input  : - An AstroImage containing AstroCatalog or an AstroCatalog,
+    %            object, or a two column matrix with [X,Y] positions.
+    %          - A reference catalog (like the first input argument).
+    %            Both first and second arguments may be a single or
+    %            multiple element objects.
+    %          * Pairs of ...,key,val,... Possible keywords include:
+    %            'Scale' - The scale to apply to the referepnce catalog in order
+    %                   to convert it to the input catalog. If this is a
+    %                   scalar, then will not attempt to search for the best
+    %                   scaleing. If a two element vector, then these are the
+    %                   [min, max] scale range to search.
+    %            'HistDistEdgesRotScale' - [MinDist, MaxDist, NumberOf points] for
+    %                     distance histogram.
+    %                     Default is [10 600 300].
+    %            'HistRotEdges' - Edges for angle axis of the histogram.
+    %                     If a scalar is provided then this rotation will be
+    %                     assumed.
+    %                     Default is (-90:0.2:90).'.
+    %            'RangeX' - [Min Max] range of X shifts to test.
+    %                     If empty, then will select automaticall the maximal
+    %                     possible range.
+    %                     Alternatively, this can be a vector of X-axis
+    %                     histogram edges.
+    %                     Default is [-1000 1000].
+    %            'RangeY' - [Min Max] range of Y shifts to test.
+    %                     If empty, then will select automaticall the maximal
+    %                     possible range.
+    %                     Alternatively, this can be a vector of Y-axis
+    %                     histogram edges.
+    %                     Default is [-1000 1000].
+    %            'StepX' - X-axis step size for the histogram calculation.
+    %                     If empty, then will use RangeX as a vector of edges.
+    %                     Default is 3.
+    %            'StepY' - Y-axis step size for the histogram calculation.
+    %                     If empty, then will use RangeY as a vector of edges.
+    %                     Default is 3.
+    %            'Flip' - A two column matrix of all possible flips to test.
+    %                     Use 'all' to check all flips - i.e., [1 1; 1 -1;-1 -1; -1 1].
+    %                     Default is [1 1].
+    %            'SearchRadius' - Searchj radius for final source matching
+    %                     [pix]. Default is 4.
+    %            'MaxMethod' - he method by which the 2D histogram peaks will
+    %                     be selected. The following options are available:
+    %                     'thresh' - Select maxima larger than some threshold.
+    %                     'max1' - Select the highest maxima.
+    %                     'maxall' - Select all the maxima.
+    %                     'max_fracmax' - Select all the maxima above a
+    %                               fraction (given by FracOfMax) of the
+    %                               highest maximum.
+    %                     'thresh_fracmax' - Select all the maxima above the
+    %                               threshold and above a
+    %                               fraction (given by FracOfMax) of the
+    %                               highest maximum.
+    %                     Alternatively this can be a positive integer (N).
+    %                     In this case will return the N highest maxima.
+    %                     Default is 'thresh_fracmax'
+    %            'Threshold' - Detection threshold.
+    %                     If PeakMethod is 'sn' then this has units of S/N.
+    %                     Otherwise, this is the number of matches.
+    %                     Default is 8.
+    %            'Conn' - local maxima finding connectivity parameter.
+    %                     For details see imUtil.image.local_maxima.
+    %                     Default is 8.
+    %            'FracOfMax' - The parameter that that used in 'max1frac' and
+    %                     'sn' PeakMethod, for selecting peaks.
+    %                     Only peaks that above the maximal peak multiplied by
+    %                     this parameter will be returned.
+    %            'BackFun' - Used for 'sn' PeakMethod.
+    %                     For details see imUtil.background.background.
+    %                     Default is @nanmedian.
+    %            'BackFunPar' - Used for 'sn' PeakMethod.
+    %                     For details see imUtil.background.background.
+    %                     Default is {'all'}.
+    %            'VarFun' - Used for 'sn' PeakMethod.
+    %                     For details see imUtil.background.background.
+    %                     Default is @imUtil.background.rvar.
+    %            'VarFunPar' - Used for 'sn' PeakMethod.
+    %                     For details see imUtil.background.background.
+    %                     Default is {}.
+    %            'SubSizeXY' - Used for 'sn' PeakMethod.
+    %                     For details see imUtil.background.background.
+    %                     Default is [128 128].
+    %            'OverlapXY' - Used for 'sn' PeakMethod.
+    %                     For details see imUtil.background.background.
+    %                     Default is [16 16].
+    %            'MinVariance' - The minimum variance in in the 2D histogram,
+    %                     That is used to calculate the S/N.
+    %                     Default is 1.
+    % Output : - A structure of possible solutions for matching between the two
+    %            catalogs. Follwoing fields are available:
+    %            .SN
+    %            .MaxVal
+    %            .Flip
+    %            .Rot
+    %            .Scale
+    %            .ShiftX - The shift in X one need to add to Ref in order to
+    %                   get Cat.
+    %            .ShiftY - The shift in Y one need to add to Ref in order to
+    %                   get Cat.
+    %            .AffineTran - A cell array of affine matrix transformations
+    %               Apply this transformation to Ref using imUtil.cat.affine2d_transformation
+    %               In order to get Cat.
+    %               This is the rotation transformation for the reference frame
+    %               and not the reference coordinates.
+    %          - A structure of matching steps, including ResShift and ResRot.
+    %            ResShift is documented in
+    %            imUtil.patternMatch.find_shift_pairs, while ResRot in imUtil.patternMatch.find_rot_pairs
+    %            or imUtil.patternMatch.find_scalerot_pairs.
+    %          - A structure containing the matched sources for each solution.
+    %            The following fields are available:
+    %            'MatchedCat - [X,Y] of the sources in Cat matched to 
     % Author : Eran Ofek (May 2021)
-    % Example:
+    % Example: Result = matchPattern(Obj1, Obj2, Args)
+    
+    
+    
     
     arguments
         Obj1
