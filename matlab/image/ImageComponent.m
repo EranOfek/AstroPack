@@ -209,7 +209,7 @@ classdef ImageComponent < Component
     methods % function on images
         
         function Result = cast(Obj, NewClass, CreateNewObj)
-            % cast the image data in ImageComponent (transform to a new type)
+            % Cast the image data in ImageComponent (transform to a new type)
             %  Input  : - An ImageComponent object.
             %           - A char array containing the new type.
             %             Default is 'single'.
@@ -230,7 +230,7 @@ classdef ImageComponent < Component
             
             arguments
                 Obj
-                NewClass char   = 'single';
+                NewClass        = 'single';
                 CreateNewObj    = [];
             end
             

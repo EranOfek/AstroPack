@@ -604,6 +604,58 @@ classdef AstroImage < Component
     
     methods % functions on specific data properties
         
+        function Result = cast(Obj, NewClass, CreateNewObj, DataProp)
+            % Cast the image/back/var data in AstroImage (transform to a new type)
+            %  Input  : - An AstroImage object.
+            %           - A char array containing the new type.
+            %             Default is 'single'.
+            %           - Indicating if the output
+            %             is a new copy of the input (true), or an
+            %             handle of the input (false).
+            %             If empty (default), then this argument will
+            %             be set by the number of output args.
+            %             If 0, then false, otherwise true.
+            %             This means that IC.fun, will modify IC,
+            %             while IB=IC.fun will generate a new copy in
+            %             IB.
+            %          - A cell array of data properties which to transform
+            %            to the new class. Default is
+            %            {'ImageData','BackData','VarData'}.;
+            % Output : - An ImageComponent object in which the image 'Data'
+            %            is transformed into the new type.
+            % Author : Eran Ofek (May 2021)
+            % Example: AI = AstroImage({rand(10,10)},'Back',{rand(10,10)});
+            %          Res = cast(AI,'single');
+            
+            arguments
+                Obj
+                NewClass         = 'single';
+                CreateNewObj     = [];
+                DataProp cell    = {'ImageData','BackData','VarData'};
+            end
+            
+            if isempty(CreateNewObj)
+                if nargout==0
+                    CreateNewObj = false;
+                else
+                    CreateNewObj = true;
+                end
+            end
+            if CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            Nobj  = numel(Obj);
+            Nprop = numel(DataProp);
+            for Iobj=1:1:Nobj
+                for Iprop=1:1:Nprop
+                    Result(Iobj).(DataProp{Iprop}) = cast(Obj(Iobj).(DataProp{Iprop}), NewClass, CreateNewObj);
+                end
+            end
+                
+        end
         
         function Result = funCat(Obj, Fun, varargin)
             % Apply function of Cat properties in AstroImage array
@@ -1811,6 +1863,13 @@ classdef AstroImage < Component
             cd(DataSampleDir);
             
             Astro = AstroImage;
+            
+            % cast
+            AI = AstroImage({rand(10,10)},'Back',{rand(10,10)});
+            Res = cast(AI,'single');
+            if ~isa(Res.Back,'single')
+                error('Type casting failed');
+            end
             
             % funBinaryProp
             % funBinary for a single property / no error propagation
