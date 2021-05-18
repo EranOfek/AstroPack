@@ -1,6 +1,6 @@
 function Result = findMeasureSources(Obj, Args)
     % Basic sources finder and measurments on AstroImage object.
-    %   This function uses the +imUtil.sources.find_sources function.
+    %       This function uses the +imUtil.sources.find_sources function.
     % Input  : - An AstroImage object (multi elements are supported).
     %            'ReFind' - A logical indicating if to find stars if the
     %                   catalog is already populated. Default is true.
