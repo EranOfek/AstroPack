@@ -5,20 +5,17 @@ classdef FileProcessor < Component
     
     % Properties
     properties (SetAccess = public)
+              
+        % Folders
+        InputPath = ''              %
+        ProcessedPath = ''          %
+        OutputPath = ''             %
         
-        FileName        
-        Data
-        Lines
-        UserData
-      
-        InputImagePath
-        ProcessedFolder
-        OnputImageExt
-        LogFile
-        Config
-        
-        MoveProcessedFiles = 
-        KeepProcessFilesAge = 1
+        % 
+        KeepProcessedFiles = true   %
+        KeepOutputFiles = true      %
+        KeepProcessFilesAge = 7     %
+        KeepOutputFilesAge = 7      %
     end
     
     %-------------------------------------------------------- 
@@ -44,19 +41,24 @@ classdef FileProcessor < Component
         
         
         function processFile(Obj, FileName)
-            % 
+            % Process single input file
             Obj.msgLog(LogLevel.Verbose, 'Processing input file: ' + FileName);
             
+            % Call handler in derived class
             try
-                
+                Obj.doProcessFile(FileName)
             catch
             end
+            
+            % Move to procesed files folder
             
             
         end
         
         
-        function Result = pollLoop(Obj)
+        
+        function Result = processInputFolder(Obj)
+            % 
             while true
                 
                 List = dir(fullfile(Obj.InputImagePath, "*.fits"));
@@ -72,7 +74,32 @@ classdef FileProcessor < Component
                     end
                 end                
                 
-                pause(1);
+                pause(DelayMS);
+            end            
+            
+            Result = true;
+        end
+
+        
+        
+        function Result = inputLoop(Obj, DelayMS)
+            % 
+            while true
+                
+                List = dir(fullfile(Obj.InputImagePath, "*.fits"));
+                for i = 1:length(List)
+                    if ~List(i).isdir
+                        FileName = fullfile(List(i).folder, List(i).name);
+                        Obj.msgLog(LogLevel.Verbose, FileName);
+                        Obj.processFile(FileName);
+                                           
+                        ProcessedFileName = fullfile(Obj.ProcessedFolder, List(i).name);                        
+                        Obj.msglog("Moving image to processed folder: " + ProcessedFileName);
+                        movefile(FileName, ProcessedFileName, 'f');
+                    end
+                end                
+                
+                pause(DelayMS);
             end            
             
             Result = true;

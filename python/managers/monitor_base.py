@@ -1,9 +1,11 @@
 
-class MonitorData:
+class MonitorStatusData:
 
     # Constructor
     def __init__(self):
-        self.interface_name = ''
+        self.timestamp = None
+        self.status_code = 0
+        self.status_str = ''
 
 
     # Destructor
@@ -19,7 +21,10 @@ class MonitorBase(Component):
 
     # Constructor
     def __init__(self):
-        self.interface_name = ''
+        self.monitor_name = ''
+        self.database_name = ''
+        self.table_name = ''
+        self.data = None
 
 
     # Destructor
@@ -32,6 +37,15 @@ class MonitorBase(Component):
     def monitor(self):
         pass
 
+
+    # Clear current status
+    def clearStatus(self):
+        pass
+
+
+    # Set status
+    def setStatus(self, status):
+        pass
 
 
 
