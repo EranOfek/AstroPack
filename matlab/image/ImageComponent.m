@@ -207,7 +207,53 @@ classdef ImageComponent < Component
     end
     
     methods % function on images
-                
+        
+        function Result = cast(Obj, NewClass, CreateNewObj)
+            % cast the image data in ImageComponent (transform to a new type)
+            %  Input  : - An ImageComponent object.
+            %           - A char array containing the new type.
+            %             Default is 'single'.
+            %           - Indicating if the output
+            %             is a new copy of the input (true), or an
+            %             handle of the input (false).
+            %             If empty (default), then this argument will
+            %             be set by the number of output args.
+            %             If 0, then false, otherwise true.
+            %             This means that IC.fun, will modify IC,
+            %             while IB=IC.fun will generate a new copy in
+            %             IB.
+            % Output : - An ImageComponent object in which the image 'Data'
+            %            is transformed into the new type.
+            % Author : Eran Ofek (May 2021)
+            % Example: IC = ImageComponent({rand(10,10)});
+            %          cast(IC,'single')
+            
+            arguments
+                Obj
+                NewClass char   = 'single';
+                CreateNewObj    = [];
+            end
+            
+            if isempty(CreateNewObj)
+                if nargout==0
+                    CreateNewObj = false;
+                else
+                    CreateNewObj = true;
+                end
+            end
+            if CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj).Data = cast(Result(Iobj).Data,NewClass);
+            end
+            
+        end
+        
         function Result = funUnary(Obj, Operator, Args)
             % funUnary on ImageComponent
             %       Update CCDSEC accordingly.
@@ -612,7 +658,7 @@ classdef ImageComponent < Component
             end
             
         end
-        
+                
     end
     
     methods % background and variance
