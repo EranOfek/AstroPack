@@ -105,7 +105,7 @@ function Result = functionalResponse(ImObj, Args)
     Nim = numel(ImObj);
 
     % create a cube for each dataset
-    [Cube] = images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn);
+    [Cube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',Args.DataProp, 'DataPropIn',Args.DataPropIn);
 
     % obtain Gain from header
     if ischar(Args.Gain) || iscellstr(Args.Gain)
