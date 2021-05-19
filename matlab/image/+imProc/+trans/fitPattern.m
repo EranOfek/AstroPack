@@ -1,4 +1,4 @@
-function Result = matchPattern(Obj1, Obj2, Args)
+function Result = fitPattern(Obj1, Obj2, Args)
     % Match two catalogs using stars pattern and return approximate transformation
     % Description: Given two catalogs that coordinadte systems are related
     %              by flip, scale, rotation and shift, search the the approximate
@@ -118,7 +118,7 @@ function Result = matchPattern(Obj1, Obj2, Args)
     %            The following fields are available:
     %            'MatchedCat - [X,Y] of the sources in Cat matched to 
     % Author : Eran Ofek (May 2021)
-    % Example: Result = matchPattern(Obj1, Obj2, Args)
+    % Example: Result = fitPattern(Obj1, Obj2, Args)
     
     
     

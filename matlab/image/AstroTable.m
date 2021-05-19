@@ -424,7 +424,9 @@ classdef AstroTable < Component %ImageComponent
                 Obj(Iobj).IsSorted  = false;
             end
         end
-        
+    end
+    
+    methods % column names and exist
         function Result = isColumn(Obj,ColName)
             % Return true if a name is an existing column name in an AstroTable object
             % Example: Result = isColumn(Obj,'RA')
@@ -441,7 +443,7 @@ classdef AstroTable < Component %ImageComponent
             end
             
         end
-            
+        
         function ColInd = colname2ind(Obj, ColName, FillValue)
             % Convert column names to column indices
             % Input  : - A single element AstroTable object.

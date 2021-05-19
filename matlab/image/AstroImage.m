@@ -651,7 +651,8 @@ classdef AstroImage < Component
             Nprop = numel(DataProp);
             for Iobj=1:1:Nobj
                 for Iprop=1:1:Nprop
-                    Result(Iobj).(DataProp{Iprop}) = cast(Obj(Iobj).(DataProp{Iprop}), NewClass, CreateNewObj);
+                    % call cast overload of ImageComponent
+                    Result(Iobj).(DataProp{Iprop}) = Obj(Iobj).(DataProp{Iprop}).cast(NewClass, CreateNewObj);
                 end
             end
                 
@@ -1772,84 +1773,7 @@ classdef AstroImage < Component
                 Args.PSF
             end
         end
-        
-        function subtractBack(Obj, Args)
-            % subtract (and de-subtract) background from images
-        end
-        
-        
-        
-        
-        function coadd(Obj, Args)
-            %
-            
-        end
-        
-        function background(Obj, Args)
-            %
-            
-            arguments
-                Obj
-                Args.IsGlobal(1,1) logical            = false;
-                
-            end            
-        end
-        
-
-        
-        
-        % ARE THESE FUNS PER IMAGE OR FVER MULTIPLE IMAGES????
-        % possible solution: imFun.single.mean, imFun.stack.mean
-        
-        function NewObj = sum(Obj, Args)
-            %
-            
-            arguments
-                Obj
-                Args.IsOutObj(1,1) logical        = false;
-                Args.Dim                          = 'all';
-                Args.DataPropIn                   = {'Image'};
-                Args.DataPropOut                  = {'Image'};
-                Args.CreateNewObj(1,1) logical    = true;
-            end
-            
-        end
-        
-        function NewObj = mean(Obj)
-            %
-        end
-        
-        function NewObj = median(Obj)
-            %
-        end
-        
-        function NewObj = min(Obj)
-            %
-        end
-        
-        function NewObj = max(Obj)
-            %
-        end
-        
-        function NewObj = std(Obj)
-            %
-        end
-        
-        function NewObj = rstd(Obj)
-            %
-        end
-        
-        function NewObj = var(Obj)
-            %
-        end
-        
-        function NewObj = rvar(Obj)
-            %
-        end
-        
-        function NewObj = quantile(Obj)
-            %
-        end
+      
         
     end
     
