@@ -1,0 +1,10 @@
+.fslckout
+*.pyc
+*.swp
+a.py
+*.egg-info
+parser.out
+parsetab.py
+dist/
+build/
+runtime/
