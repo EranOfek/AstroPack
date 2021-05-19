@@ -1,10 +1,11 @@
 # General Interface Parent Class
 
-class MessageBase(Base):
+class MsgBase(Base):
 
     # Constructor
     def __init__(self):
         self.interface_name = ''
+        self.timestamp = None
 
 
     # Destructor
@@ -12,7 +13,8 @@ class MessageBase(Base):
         # Deleted
         pass
 
-
+    def init(self):
+        self.timestamp =
 
 class InterfaceBase(Component):
 
@@ -37,6 +39,7 @@ class InterfaceBase(Component):
         pass
 
 
+    # Send outgoing message to other party
     def sendMsg(self, msg):
         pass
 
