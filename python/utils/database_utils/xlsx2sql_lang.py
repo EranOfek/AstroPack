@@ -27,107 +27,6 @@ import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
 from sys import platform
 
-'''
-
-Matlab:
-
-class MyData < handle
-
-    properties (SetAccess = public)
-        myInt int
-    end
-
-    
-    methods  
-        % Constructor    
-        function Obj = MyData()
-            Obj.myInt = 0;
-        end
-    end
-    
-end
-
-
-Python:
-
-class MyData:
-
-    # Constructor
-    def __init__(self):
-        self.myInt = 0
-
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-
-C++
-
-class MyData {
-public:
-
-    int myInt;
-    
-    
-    // Constructor
-    MyData();
-    
-    // Destructor
-    ~MyData();
-
-};
-
-
-inline MyData::MyData()
-{
-    myInt = 0;
-}
-
-    
-inline MyData::~MyData 
-{
-}
-
-
-
-Pascal:
-
-interface
-
-
-type 
-  MyClass = class
-  public
-    //
-    constructor Create();
-
-    //   
-    destructor Destroy();
-      
-  public
-    myInt: Integer;
-     
-  end;
-  
-
-implementation
-
-  
-constructor MyClass.Create();
-begin
-  myInt := 0;
-end;  
-
-
-destructor MyClass.Destroy();
-begin
-end;
-   
-'''
-
-
 # Log message to file
 if platform == "win32":
     LOG_PATH = 'c:/temp/'
@@ -517,7 +416,7 @@ class DatabaseDef:
         log('load_table_csv done: ' + filename + ' - fields loaded: ' + str(field_count))
         log('')
 
-
+    #---------------------------------------------------------------- Postgres SQL
     # Create table from self.field_list
     def create_table_postgres(self):
 
@@ -586,7 +485,7 @@ class DatabaseDef:
         log('create_table done: ' + self.table_name)
         log('')
 
-
+    #---------------------------------------------------------------- Firebird SQL
     # Create table from self.field_list
     def create_table_firebird(self):
 
@@ -594,28 +493,122 @@ class DatabaseDef:
             return
 
 
+    #---------------------------------------------------------------- Python
     # Create python class from self.field_list
+    '''
+    class MyData:
+
+    # Constructor
+    def __init__(self):
+        self.myInt = 0
+
+
+    # Destructor
+    def __del__(self):
+        # Deleted
+        pass
+
+    '''
     def create_class_python(self, lang):
         log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
 
 
-    # Create python class from self.field_list
+    #---------------------------------------------------------------- Malab
+    # Create Matlab class from self.field_list
+    '''   
+    class MyData < handle
+    
+        properties (SetAccess = public)
+            myInt int
+        end
+    
+        
+        methods  
+            % Constructor    
+            function Obj = MyData()
+                Obj.myInt = 0;
+            end
+        end
+        
+    end    
+    '''
     def create_class_matlab(self, lang):
         log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
 
 
-    # Create python class from self.field_list
+    #---------------------------------------------------------------- C++
+    # Create C++ class from self.field_list
+    '''
+    class MyData {
+    public:
+    
+        int myInt;
+        
+        
+        // Constructor
+        MyData();
+        
+        // Destructor
+        ~MyData();
+    
+    };
+    
+    
+    inline MyData::MyData()
+    {
+        myInt = 0;
+    }
+    
+        
+    inline MyData::~MyData 
+    {
+    }
+
+    '''
     def create_class_cpp(self, lang):
         log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
 
 
-    # Create python class from self.field_list
+    #---------------------------------------------------------------- Delphi / Lazarus
+    # Create Delphi class from self.field_list
+    '''
+    interface
+
+    type 
+      MyClass = class
+      public
+        //
+        constructor Create();
+    
+        //   
+        destructor Destroy();
+          
+      public
+        myInt: Integer;
+         
+      end;
+      
+    
+    implementation
+    
+      
+    constructor MyClass.Create();
+    begin
+      myInt := 0;
+    end;  
+    
+    
+    destructor MyClass.Destroy();
+    begin
+    end;
+
+    '''
     def create_class_delphi(self, lang):
         log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
 
+    #---------------------------------------------------------------- 
 
-
-    # Create class/struct  from self.field_list
+    # Create  from self.field_list
     def create_class(self, lang):
 
         if len(self.field_list) == 0:
