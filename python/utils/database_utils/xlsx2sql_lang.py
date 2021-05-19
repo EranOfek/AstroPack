@@ -117,7 +117,16 @@ field_lang_dict = { \
 
     'string': {
         'postgres': 'VARCHAR',
-        'firebird': 'BOOLEAN',
+        'firebird': 'VARCHAR',
+        'python': 'string',
+        'cpp': 'string',
+        'delphi': 'String',
+        'matlab': 'string',
+    },
+
+    'uuid': {
+        'postgres': 'VARCHAR',
+        'firebird': 'VARCHAR',
         'python': 'string',
         'cpp': 'string',
         'delphi': 'String',
@@ -648,7 +657,7 @@ class DatabaseDef:
             ftype = get_field_type_lang(field.field_name, field.field_type, 'cpp')
             field_name = field.field_name
             field_value = 'None'
-            self.wrln('        {} {};'.format(ftype, field_name))
+            self.wrln('    {} {};'.format(ftype, field_name))
 
 
         #self.wrln('    // Constructor')
@@ -725,10 +734,10 @@ class DatabaseDef:
 
         for field in self.field_list:
 
-            ftype = get_field_type_lang(field.field_name, field.field_type, 'python')
+            ftype = get_field_type_lang(field.field_name, field.field_type, 'delphi')
             field_name = field.field_name
             #field_value = 'None'
-            self.wrln('        {}: {};'.format(field_name, ftype))
+            self.wrln('    {}: {};'.format(field_name, ftype))
 
         # myInt: Integer;
 
