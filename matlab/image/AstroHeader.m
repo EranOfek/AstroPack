@@ -1383,7 +1383,13 @@ classdef AstroHeader < Component
     methods(Static)
         function Result = unitTest()
             % unitTest for AstroHeader
+            % Example: Result = AstroHeader.unitTest
+
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
             
+
             % construct an empty AstroHeader
             A = AstroHeader([2 2]);
             % read headers to AstroHeader, on construction
@@ -1449,6 +1455,9 @@ classdef AstroHeader < Component
             H = AstroHeader('*.fits',1);
             Groups = groupByKeyVal([H,H],{'IMTYPE','FILTER1','EXPTIME'});
             
+            
+            cd(PWD);
+
             Result = true;
             
         end
