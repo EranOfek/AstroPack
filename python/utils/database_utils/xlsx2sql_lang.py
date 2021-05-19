@@ -169,6 +169,14 @@ def get_field_type(field_name, text):  #, lang
 
 def get_field_type_lang(field_name, text, lang):
     ftype = ''
+    if text == '':
+        text = 'double'
+
+    if text in field_lang_dict:
+        ld = field_lang_dict[text]
+        if lang in ld:
+            ftype = ld[lang]
+
     return ftype
 
 
@@ -209,6 +217,7 @@ def get_csv(row, column, _default = '', _strip = True):
     return value
 
 
+# Write SQL table definition or class/struct
 class DatabaseDef:
 
     #
@@ -218,9 +227,12 @@ class DatabaseDef:
         self.def_path = ''
         self.db_name = ''
         self.table_name = ''
+        self.class_name = ''
         self.source_filename = ''
         self.set_statistics = False
         self.set_owner = False
+        self.base_filename = ''
+        self.out_filename = ''
         self.sql_filename = ''
         self.outf = None
 
@@ -246,13 +258,16 @@ class DatabaseDef:
         prefix = tab_name[0].strip()
         if len(tab_name) > 1:
             self.table_name = tab_name[1].strip()
+            self.class_name = tab_name[1].strip()
         else:
             self.table_name = ''
+            self.class_name = ''
 
         log('table name: ' + self.table_name)
 
         # Prepare output SQL file name
-        self.sql_filename = os.path.join(path, '__' + self.db_name + '.sql')
+        self.base_filename = os.path.join(path, '__' + self.db_name)
+        self.sql_filename = self.base_filename + '.sql'
         log('sql output file: ' + self.sql_filename)
 
         # Field does not exist yet, need to add 'create database' commands
@@ -420,10 +435,10 @@ class DatabaseDef:
     # Create table from self.field_list
     def create_table_postgres(self):
 
+        log('create_table_postgres started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+
         if len(self.field_list) == 0:
             return
-
-        log('create_table started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
 
         self.write('--\n')
         self.write('-- Automatic Generated Table Definition\n')
@@ -482,15 +497,20 @@ class DatabaseDef:
             #self.write('ALTER TABLE public."{}"\n  OWNER TO postgres;\n'.format(self.table_name))
 
         self.outf.close()
-        log('create_table done: ' + self.table_name)
+        log('create_table_postgres done: ' + self.table_name)
         log('')
 
     #---------------------------------------------------------------- Firebird SQL
     # Create table from self.field_list
     def create_table_firebird(self):
 
+        log('create_table_firebird started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+
         if len(self.field_list) == 0:
             return
+
+        log('create_table_firebird done: ' + self.table_name)
+        log('')
 
 
     #---------------------------------------------------------------- Python
@@ -507,11 +527,35 @@ class DatabaseDef:
     def __del__(self):
         # Deleted
         pass
-
+        
     '''
-    def create_class_python(self, lang):
-        log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+    def create_class_python(self):
+        log('create_class_python started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
 
+        self.open_out('.py')
+
+        self.wrln('class {}:\n'.format(self.class_name))
+        #self.wrln('    # Constructor')
+        self.wrln('    def __init__(self):')
+
+
+        for field in self.field_list:
+
+            ftype = get_field_type_lang(field.field_name, field.field_type, 'python')
+            field_name = field.field_name
+            field_value = 'None'
+            self.wrln('        self.{} = {}  # {}'.format(field_name, field_value, ftype))
+
+
+            #self.myInt = 0
+
+        self.wrln('\n')
+        #self.wrln('    # Destructor')
+        self.wrln('    def __del__(self):')
+        self.wrln('        pass\n\n')
+
+        log('create_class_python done: ' + self.table_name)
+        log('')
 
     #---------------------------------------------------------------- Malab
     # Create Matlab class from self.field_list
@@ -531,10 +575,37 @@ class DatabaseDef:
         end
         
     end    
+    
     '''
-    def create_class_matlab(self, lang):
-        log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
 
+    def create_class_matlab(self):
+        log('create_class_matlab started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.open_out('.m')
+
+        self.wrln('class {} < handle'.format(self.class_name))
+        self.wrln('    properties (SetAccess = public)')
+
+        for field in self.field_list:
+
+            ftype = get_field_type_lang(field.field_name, field.field_type, 'matlab')
+            field_name = field.field_name
+            field_value = '[]'
+            self.wrln('        {} = {}  % {}'.format(field_name, field_value, ftype))
+
+
+        self.wrln('    end\n')
+
+        self.wrln('    methods ')
+        self.wrln('        function Obj = {}()'.format(self.class_name))
+        self.wrln('            % Constructor')
+        # self.wrln('            Obj.myInt = 0;')
+        self.wrln('        end')
+        self.wrln('    end')
+        self.wrln('end\n')
+
+        log('create_class_matlab done: ' + self.class_name)
+        log('')
 
     #---------------------------------------------------------------- C++
     # Create C++ class from self.field_list
@@ -563,10 +634,41 @@ class DatabaseDef:
     inline MyData::~MyData 
     {
     }
-
     '''
-    def create_class_cpp(self, lang):
-        log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+    def create_class_cpp(self):
+        log('create_class_cpp started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.open_out('.h')
+
+        self.wrln('class {} {{'.format(self.class_name))
+        self.wrln('public:')
+
+        for field in self.field_list:
+
+            ftype = get_field_type_lang(field.field_name, field.field_type, 'cpp')
+            field_name = field.field_name
+            field_value = 'None'
+            self.wrln('        {} {};'.format(ftype, field_name))
+
+
+        #self.wrln('    // Constructor')
+        self.wrln('    {}();'.format(self.class_name))
+
+        #self.wrln('    // Destructor')
+        self.wrln('    ~{}();'.format(self.class_name))
+        self.wrln('};\n')
+
+        self.wrln('inline {}::{}()'.format(self.class_name, self.class_name))
+        self.wrln('{')
+        # myInt = 0;')
+        self.wrln('}\n')
+
+        self.wrln('inline {}::~{}()'.format(self.class_name, self.class_name))
+        self.wrln('{')
+        self.wrln('}\n')
+
+        log('create_class_cpp done: ' + self.class_name)
+        log('')
 
 
     #---------------------------------------------------------------- Delphi / Lazarus
@@ -577,110 +679,114 @@ class DatabaseDef:
     type 
       MyClass = class
       public
-        //
+        // Constructor
         constructor Create();
     
-        //   
+        // Destructor   
         destructor Destroy();
           
-      public
+        // Data
         myInt: Integer;
          
-      end;
-      
-    
+    end;
+         
     implementation
     
       
     constructor MyClass.Create();
     begin
-      myInt := 0;
-    end;  
+      // Initialize data
+      
+    end; 
     
     
     destructor MyClass.Destroy();
     begin
     end;
-
+  
     '''
-    def create_class_delphi(self, lang):
-        log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+    def create_class_delphi(self):
+        log('create_class_delphi started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
 
-    #---------------------------------------------------------------- 
+        self.open_out('.pas')
 
-    # Create  from self.field_list
-    def create_class(self, lang):
+        self.wrln('interface\n')
 
-        if len(self.field_list) == 0:
-            return
+        self.wrln('type')
+        self.wrln('  {} = class'.format(self.class_name))
+        self.wrln('  public')
+        #self.wrln('  // Constructor')
+        self.wrln('    constructor Create();')
 
-        log('create_class started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+        #self.wrln('  // Destructor')
+        self.wrln('    destructor Destroy();\n')
 
-        self.write('--\n')
-        self.write('-- Automatic Generated Table Definition\n')
-        self.write('-- Source file: ' + self.source_filename + '\n')
-        self.write('--\n')
-        self.write('\n')
-
-        self.write('CREATE TABLE public.{} (\n'.format(self.table_name))
-        #self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
-
-        primary_key = []
+        self.wrln('    // Data')
 
         for field in self.field_list:
 
-            # Debug only
-            prefix = ''
-            #if field.is_common:
-            #    prefix = 'Common_'
+            ftype = get_field_type_lang(field.field_name, field.field_type, 'python')
+            field_name = field.field_name
+            #field_value = 'None'
+            self.wrln('        {}: {};'.format(field_name, ftype))
 
-            field_def = field.data_type
+        # myInt: Integer;
 
-            if field.primary_key:
-                primary_key.append(field.field_name)
-                field_def += ' NOT NULL'
+        self.wrln('  end;\n')
 
-            field_def += ','
+        self.wrln('implementation\n')
 
-            self.write('{}{} {}\n'.format(prefix, field.field_name, field_def))
-            #self.write('"{}{}" {}\n'.format(prefix, field.field_name, field_def))
+        self.wrln('constructor MyClass.Create();')
+        self.wrln('begin')
+        self.wrln('  // Initialize data')
+        self.wrln('end;\n');
 
+        self.wrln('destructor MyClass.Destroy();')
+        self.wrln('begin');
+        self.wrln('end;\n');
 
-        # Primary key
-        if len(primary_key) > 0:
-            log('primary key: ' + str(primary_key))
-            self.write('\nCONSTRAINT {} PRIMARY KEY({})\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
-            #self.write('\nCONSTRAINT {} PRIMARY KEY("{}")\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
-
-        self.write(');\n\n')
-
-        # SET STATISTICS 0
-        if self.set_statistics:
-            for field in self.field_list:
-                self.write('ALTER TABLE public.{}\n  ALTER COLUMN {} SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
-                #self.write('ALTER TABLE public."{}"\n  ALTER COLUMN "{}" SET STATISTICS 0;\n\n'.format(self.table_name, field.field_name))
-
-        # Index
-        for field in self.field_list:
-            if field.index:
-                index_name = self.table_name + '_idx_' + field.field_name
-                self.write('CREATE INDEX {} ON public.{}\n  USING {} ({});\n\n'.format(index_name, self.table_name, field.index_method, field.field_name))
-                #self.write('CREATE INDEX {} ON public."{}"\n  USING {} ("{}");\n\n'.format(index_name, self.table_name, field.index_method, field.field_name))
-
-        # OWNER
-        if self.set_owner:
-            self.write('ALTER TABLE public.{}\n  OWNER TO postgres;\n'.format(self.table_name))
-            #self.write('ALTER TABLE public."{}"\n  OWNER TO postgres;\n'.format(self.table_name))
-
-        self.outf.close()
-        log('create_table done: ' + self.table_name)
+        log('create_class_delphi done: ' + self.class_name)
         log('')
 
+    #----------------------------------------------------------------
+
+    # Create  from self.field_list
+    def create_classes(self):
+
+        self.class_name = self.table_to_class_name(self.table_name)
+        self.create_class_python()
+        self.create_class_matlab()
+        self.create_class_cpp()
+        self.create_class_delphi()
+
+
+    def table_to_class_name(self, tname):
+        cname = ''
+        words = tname.split('_')
+        for w in words:
+            cname = cname + w.title()
+        return cname
+
+
+    def open_out(self, ext):
+        self.out_filename = self.base_filename + ext
+        log('output file: ' + self.out_filename)
+
+        # Open file for append
+        self.outf = open(self.out_filename, 'a')
+        self.write('\n')
 
 
     def write(self, text):
         #print(text)
         self.outf.write(text)
+        self.outf.flush()
+
+
+    def wrln(self, text):
+        #print(text)
+        self.outf.write(text)
+        self.outf.write('\n')
         self.outf.flush()
 
 #============================================================================
@@ -756,7 +862,9 @@ def process_csv_file(filename):
         db.set_db(filename_lower)
         db.load_table_csv(filename_lower)
         if len(db.field_list) > 0:
-            db.create_table()
+            db.create_table_postgres()
+
+            db.create_classes()
 
 
 # Process folder with CSV database definition files
