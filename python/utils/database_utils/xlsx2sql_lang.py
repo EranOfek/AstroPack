@@ -46,28 +46,6 @@ def log(msg, dt = False):
         logfile.flush()
 
 
-'''
-CREATE TABLE public."table" (
-  "RawImageID" INTEGER NOT NULL,
-  "RA_Center" DOUBLE PRECISION,
-  str1 VARCHAR(250),
-  CONSTRAINT table_pkey PRIMARY KEY("RawImageID")
-) ;
-
-ALTER TABLE public."table"
-  ALTER COLUMN "RawImageID" SET STATISTICS 0;
-
-ALTER TABLE public."table"
-  ALTER COLUMN "RA_Center" SET STATISTICS 0;
-
-ALTER TABLE public."table"
-  ALTER COLUMN str1 SET STATISTICS 0;
-
-ALTER TABLE public."table"
-  OWNER TO postgres;
-
-'''
-
 # Field types
 field_lang_dict = { \
     'int': {
@@ -79,7 +57,16 @@ field_lang_dict = { \
         'matlab': 'int32',
     },
 
-    'int64': {
+    'uint': {
+        'postgres': 'INTEGER',
+        'firebird': 'INTEGER',
+        'python': 'int',
+        'cpp': 'int',
+        'delphi': 'Integer',
+        'matlab': 'uint32',
+    },
+
+    'bigint': {
         'postgres': 'BIGINT',
         'firebird': 'BIGINT',
         'python': 'int',
@@ -117,7 +104,7 @@ field_lang_dict = { \
 
     'string': {
         'postgres': 'VARCHAR',
-        'firebird': 'VARCHAR',
+        'firebird': 'VARCHAR(256)',
         'python': 'string',
         'cpp': 'string',
         'delphi': 'String',
@@ -142,6 +129,23 @@ field_lang_dict = { \
         'matlab': 'double',
     },
 
+    'blob': {
+        'postgres': 'BLOB',
+        'firebird': 'BLOB SEGMENT SIZE 1',
+        'python': '?',
+        'cpp': '?',
+        'delphi': '?',
+        'matlab': '?',
+    },
+
+    '#comment': {
+        'postgres': '--',
+        'firebird': '--',
+        'python': '#',
+        'cpp': '//',
+        'delphi': '//',
+        'matlab': '%',
+    },
     }
 
 
@@ -188,7 +192,9 @@ def get_field_type_lang(field_name, text, lang):
     elif text == 'int8' or text == 'int16' or text == 'int32':
         text = 'int'
     elif text == 'uint8' or text == 'uint16' or text == 'uint32':
-        text = 'int'
+        text = 'uint'
+    elif text == 'int64':
+        text = 'bigint'
     elif text == 'text' or text == 'uuid':
         text = 'string'
 
@@ -466,11 +472,7 @@ class DatabaseDef:
         if len(self.field_list) == 0:
             return
 
-        self.write('--\n')
-        self.write('-- Automatic Generated Table Definition\n')
-        self.write('-- Source file: ' + self.source_filename + '\n')
-        self.write('--\n')
-        self.write('\n')
+        self.write_file_header('postgres')
 
         self.write('CREATE TABLE public.{} (\n'.format(self.table_name))
         #self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
@@ -535,6 +537,48 @@ class DatabaseDef:
         if len(self.field_list) == 0:
             return
 
+
+        self.write_file_header('firebird')
+
+        self.write('CREATE TABLE {} (\n'.format(self.table_name))
+        #self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
+
+        primary_key = []
+
+        for field in self.field_list:
+
+            # Debug only
+            prefix = ''
+            #if field.is_common:
+            #    prefix = 'Common_'
+
+            field_def = field.data_type
+
+            if field.primary_key:
+                primary_key.append(field.field_name)
+                field_def += ' NOT NULL'
+
+            field_def += ','
+
+            self.write('{}{} {}\n'.format(prefix, field.field_name, field_def))
+            #self.write('"{}{}" {}\n'.format(prefix, field.field_name, field_def))
+
+
+        # Primary key
+        if len(primary_key) > 0:
+            log('primary key: ' + str(primary_key))
+            self.write('\nALTER TABLE {} ADD PRIMARY KEY({});\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
+
+        self.write(');\n\n')
+
+          # Index
+        for field in self.field_list:
+            if field.index:
+                index_name = self.table_name + '_idx_' + field.field_name
+                self.write('CREATE INDEX {} ON {}({});\n'.format(index_name, self.table_name, field.field_name))
+
+        self.outf.close()
+
         log('create_table_firebird done: ' + self.table_name)
         log('')
 
@@ -559,6 +603,7 @@ class DatabaseDef:
         log('create_class_python started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
 
         self.open_out('.py')
+        #self.write_file_header('python')
 
         self.wrln('class {}:\n'.format(self.class_name))
         #self.wrln('    # Constructor')
@@ -568,7 +613,8 @@ class DatabaseDef:
         for field in self.field_list:
             ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'python')
             field_name = field.field_name
-            self.wrln('        self.{} = {}  # {}'.format(field_name, field_value, ftype))
+            comment = '# ' + ftype
+            self.wrln('        self.{:20} = {:8} {}'.format(field_name, field_value, comment))
 
 
         self.wrln('\n')
@@ -604,6 +650,7 @@ class DatabaseDef:
         log('create_class_matlab started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
 
         self.open_out('.m')
+        # self.write_file_header('matlab')
 
         self.wrln('class {} < handle'.format(self.class_name))
         self.wrln('    properties (SetAccess = public)')
@@ -612,7 +659,8 @@ class DatabaseDef:
 
             ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'matlab')
             field_name = field.field_name
-            self.wrln('        {} = {}  % {}'.format(field_name, field_value, ftype))
+            comment = '% ' + ftype
+            self.wrln('        {:20} = {:8} {}'.format(field_name, field_value, comment))
 
         self.wrln('    end\n')
 
@@ -658,6 +706,7 @@ class DatabaseDef:
         log('create_class_cpp started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
 
         self.open_out('.h')
+        # self.write_file_header('cpp')
 
         self.wrln('class {} {{'.format(self.class_name))
         self.wrln('public:')
@@ -666,15 +715,17 @@ class DatabaseDef:
 
             ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
             field_name = field.field_name
-            self.wrln('    {} {};'.format(ftype, field_name))
+            comment = '//'
+            self.wrln('    {:9} {:30} {}'.format(ftype, field_name + ';', comment))
 
 
         #self.wrln('    // Constructor')
+        self.wrln('')
         self.wrln('    {}();'.format(self.class_name))
 
         #self.wrln('    // Destructor')
         self.wrln('    ~{}();'.format(self.class_name))
-        self.wrln('};\n')
+        self.wrln('};\n\n')
 
         self.wrln('inline {}::{}()'.format(self.class_name, self.class_name))
         self.wrln('{')
@@ -682,7 +733,7 @@ class DatabaseDef:
         for field in self.field_list:
             ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
             field_name = field.field_name
-            self.wrln('    {} = {};'.format(field_name, field_value))
+            self.wrln('    {:20} = {};'.format(field_name, field_value))
 
 
         self.wrln('}\n')
@@ -733,6 +784,7 @@ class DatabaseDef:
         log('create_class_delphi started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
 
         self.open_out('_ifc.pas')
+        # self.write_file_header('delphi')
 
         #self.wrln('interface\n')
 
@@ -751,13 +803,15 @@ class DatabaseDef:
 
             ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'delphi')
             field_name = field.field_name
-            self.wrln('    {}: {};'.format(field_name, ftype))
+            comment = '//'
+            self.wrln('    {:20}: {:30} {}'.format(field_name, ftype + ';', comment))
 
         # myInt: Integer;
 
         self.wrln('  end;\n')
 
         self.open_out('_imp.pas')
+        # self.write_file_header('delphi')
         #self.wrln('implementation\n')
 
         self.wrln('constructor {}.Create();'.format(self.class_name))
@@ -767,7 +821,7 @@ class DatabaseDef:
         for field in self.field_list:
             ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'delphi')
             field_name = field.field_name
-            self.wrln('    {} := {};'.format(field_name, field_value))
+            self.wrln('    {:20} := {};'.format(field_name, field_value))
 
 
         self.wrln('end;\n');
@@ -784,9 +838,12 @@ class DatabaseDef:
     def merge_delphi(self):
 
         self.open_out('.pas')
+        # self.write_file_header('delphi')
 
         # interface
         self.wrln('interface\n')
+        self.wrln('uses')
+        self.wrln('  Classes;\n')
         ifc_filename = self.base_filename + '_ifc.pas'
         with open(ifc_filename) as f:
             lines = f.read().splitlines()
@@ -796,6 +853,8 @@ class DatabaseDef:
 
         # implementation
         self.wrln('\nimplementation\n')
+        self.wrln('//uses')
+        self.wrln('//  Classes;\n')
         imp_filename = self.base_filename + '_imp.pas'
         with open(imp_filename) as f:
             lines = f.read().splitlines()
@@ -818,6 +877,14 @@ class DatabaseDef:
         self.create_class_matlab()
         self.create_class_cpp()
         self.create_class_delphi()
+
+    def write_file_header(self, lang):
+        comment, _ = get_field_type_lang('', '#comment', lang)
+        self.write(comment + '\n')
+        self.write(comment + ' Automatic Generated Table Definition\n')
+        self.write(comment + ' Source file: ' + self.source_filename + '\n')
+        self.write(comment + '\n')
+        self.write('\n')
 
 
     def table_to_class_name(self, tname):
@@ -927,6 +994,7 @@ def process_csv_file(filename):
         db.load_table_csv(filename_lower)
         if len(db.field_list) > 0:
             db.create_table_postgres()
+            #db.create_table_firebird()
             db.create_classes()
 
 
