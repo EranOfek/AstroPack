@@ -57,7 +57,16 @@ field_lang_dict = { \
         'matlab': 'int32',
     },
 
-    'int64': {
+    'uint': {
+        'postgres': 'INTEGER',
+        'firebird': 'INTEGER',
+        'python': 'int',
+        'cpp': 'int',
+        'delphi': 'Integer',
+        'matlab': 'uint32',
+    },
+
+    'bigint': {
         'postgres': 'BIGINT',
         'firebird': 'BIGINT',
         'python': 'int',
@@ -120,6 +129,15 @@ field_lang_dict = { \
         'matlab': 'double',
     },
 
+    'blob': {
+        'postgres': 'BLOB',
+        'firebird': 'BLOB SEGMENT SIZE 1',
+        'python': '?',
+        'cpp': '?',
+        'delphi': '?',
+        'matlab': '?',
+    },
+
     '#comment': {
         'postgres': '--',
         'firebird': '--',
@@ -174,7 +192,9 @@ def get_field_type_lang(field_name, text, lang):
     elif text == 'int8' or text == 'int16' or text == 'int32':
         text = 'int'
     elif text == 'uint8' or text == 'uint16' or text == 'uint32':
-        text = 'int'
+        text = 'uint'
+    elif text == 'int64':
+        text = 'bigint'
     elif text == 'text' or text == 'uuid':
         text = 'string'
 
@@ -822,6 +842,8 @@ class DatabaseDef:
 
         # interface
         self.wrln('interface\n')
+        self.wrln('uses')
+        self.wrln('  Classes;\n')
         ifc_filename = self.base_filename + '_ifc.pas'
         with open(ifc_filename) as f:
             lines = f.read().splitlines()
@@ -831,6 +853,8 @@ class DatabaseDef:
 
         # implementation
         self.wrln('\nimplementation\n')
+        self.wrln('//uses')
+        self.wrln('//  Classes;\n')
         imp_filename = self.base_filename + '_imp.pas'
         with open(imp_filename) as f:
             lines = f.read().splitlines()
