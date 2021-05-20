@@ -1349,6 +1349,8 @@ classdef ImageComponent < Component
             %            or [Xhalfsize, Yhalfsize] (Type = 'center').
             %          * ..., key, val,...
             %            'Type' - ['ccdsec'] | 'center'
+            %            'DataPropIn' - Data property on which to operate.
+            %                   Default is 'Data'.
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
@@ -1367,6 +1369,7 @@ classdef ImageComponent < Component
                 Obj
                 CCDSEC                  % [xmin xmax ymin ymax]
                 Args.Type char                   = 'ccdsec';
+                Args.DataPropIn char             = 'Data';
                 Args.CreateNewObj                = [];
             end
             
@@ -1376,6 +1379,11 @@ classdef ImageComponent < Component
                 else
                     Args.CreateNewObj = false;
                 end
+            end
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
             end
             
             Nobj = numel(Obj);
@@ -1391,7 +1399,7 @@ classdef ImageComponent < Component
                     Iobj = min(Imax, Nobj);
                     Isec = min(Imax, Nsec);
                     
-                    Result(Imax).Data   = imUtil.image.trim(Obj(Iobj).Data, CCDSEC(Isec,:), Args.Type);
+                    Result(Imax).Data   = imUtil.image.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type);
                     Result(Imax).CCDSEC = CCDSEC;
                 end
             else

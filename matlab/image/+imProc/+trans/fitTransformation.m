@@ -1,41 +1,71 @@
 function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
-    %
-    % Example: 
+    % Fit an exact transformation between two matched catalogs
+    %   The returned transformation is from the reference to the catalog.
+    % Input  : - Catalog in one of the following formats:
+    %            1. AstroImage object containing an AstroCatalog.
+    %            2. AstroCatalog object
+    %            3. A 3-column matrix [X,Y,Mag].
+    %            The fit is done one to many or many to many.
+    %          - Like catalog, but for the reference.
+    %          * ...,key,val,...
+    %            'Tran' - A Tran2D object containing the required
+    %                   transformation to fit. Defaut is Tran2D.
+    %            'MaxIter' - Maximum number of fitting iterations.
+    %                   In the second iteration, the observations are
+    %                   weighted by their mean residual as a function of
+    %                   magnitude. Defaut is 2.
+    %            'ErrPos' - The positional errors to be used per source
+    %                   in the first iteration [pixels]. In the second iteration,
+    %                   these errors will be added in quadrature to the
+    %                   mean residuals as a function of magnitude.
+    %                   Default is 1e-5.
+    %            'Norm'  - empty - do nothing, NaN - auto, or [centerX, RangeX, centerY, RangeY]
+    %                   Default is [].
+    %            'FitMethod' - Options are 'lscov' | '\'. Default is 'lscov'.
+    %            'Algo' - Options are 'orth' | 'chol'. Default is 'chol'.
+    %               resid_vs_mag:
+    %            'MagRange' - Mag range. If empty no limit. Default is [].
+    %            'MaxResid' - Maximum allowed residuals [pix]. Default is 1.
+    %            'BinMethod' - Binning method: 'bin'|'poly'. Default is 'bin'
+    %            'PolyDeg' - Poly order. Default is 3.
+    %            'BinSize' - Bin size [mag]. Default is 1.
+    %            'FunMean' - Function handle for mean in in bin.
+    %                   Defaut is @nanmedian
+    %            'FunStd' - Function handle for std in bin.
+    %                   Default is @imUtil.background.rstd
+    %            'InterpMethod' - Interpolation method. Default is 'linear'
+    %            'ThresholdSigma' - Threshold in sigmas. Default is 3.
+    %               column names:
+    %            'ColCatX  - X column name in Catalog. Default is AstroCatalog.DefNamesX
+    %            'ColCatY' - Y column name in Catalog. Default is AstroCatalog.DefNamesY
+    %            'ColCatM' - Mag column name in Catalog. Default is {'MAG','mag','MAG_PSF','MAG_CONV'}
+    %            'ColRefX' - X column name in Reference. Default is AstroCatalog.DefNamesX
+    %            'ColRefY' - Y column name in Reference. Default is AstroCatalog.DefNamesY
+    %            'ColRefM' - Mag column name in Reference. Default is {'MAG','mag','MAG_PSF','MAG_CONV'}
+    %            'ColRefC' - Color column name in Reference. Default is {'Color'}
+    %            'ColRefAM' - AirMass column name in Reference. Default is {'AIRMASS'}
+    %            'ColRefPA' - Par Ang. column name in Reference. Default is {'ParAng'}
+    %            'ColRefModX' - mod(X) column name in Reference. Default is {'ModX'}
+    %            'ColRefModY' - mod(Y) column name in Reference. Default is {'ModY'};
+    % Output : - A structure array of fitted parameters.
+    %          - A structure array of results.
+    % Example: Nsrc = 1000;
+    %          Cat = rand(Nsrc,3).*[1024 1024 10];
+    %          Ref = Cat + 0.1.*randn(Nsrc,3);
+    %          Ref = [Ref, rand(Nsrc,1).*2];
+    %          T   = Tran2D;
+    %          [Param, Res] = imProc.trans.fitTransformation(Cat, Ref, 'Tran',T);
+
    
     arguments
         ObjCat
         ObjRef
-        Args.Tran Tran2D                   % optional Tran2d object - override Fun... 
-%         Args.FunX         = {@(x,y,c,AM,PA) ones(size(x)),...
-%                              @(x,y,c,AM,PA) x,...
-%                              @(x,y,c,AM,PA) y,...
-%                              @(x,y,c,AM,PA) 2.*x.^2-1,...
-%                              @(x,y,c,AM,PA) 2.*y.^2-1,...
-%                              @(x,y,c,AM,PA) x.*y};
-%         Args.FunY         = {@(x,y,c,AM,PA) ones(size(x)),...
-%                              @(x,y,c,AM,PA) x,...
-%                              @(x,y,c,AM,PA) y,...
-%                              @(x,y,c,AM,PA) 2.*x.^2-1,...
-%                              @(x,y,c,AM,PA) 2.*y.^2-1,...
-%                              @(x,y,c,AM,PA) x.*y};
-%         Args.FunNX        = @(x,nx1,nx2) (x-nx1)./nx2;
-%         Args.FunNY        = @(y,ny1,ny2) (y-ny1)./ny2;
-        Args.MaxIter      = 0;
+        Args.Tran Tran2D    = Tran2D;      % optional Tran2d object - override Fun... 
+        Args.MaxIter      = 2;
         Args.ErrPos       = 1e-5;  % total error in one axis - all contributions
         Args.Norm         = NaN;   % empty - do nothing, NaN - auto, or [centerX, RangeX, centerY, RangeY]
         Args.FitMethod    = 'lscov'; % 'lscov' | '\'
         Args.Algo         = 'chol'; % 'orth' | 'chol'
-        Args.ColCatX      = AstroCatalog.DefNamesX;
-        Args.ColCatY      = AstroCatalog.DefNamesY;
-        Args.ColCatM      = {'MAG','mag','MAG_PSF','MAG_CONV'};
-        Args.ColRefX      = AstroCatalog.DefNamesX;
-        Args.ColRefY      = AstroCatalog.DefNamesY;
-        Args.ColRefM      = {'MAG','mag','MAG_PSF','MAG_CONV'};
-        Args.ColRefC      = {'Color'};
-        Args.ColRefAM     = {'AIRMASS'};
-        Args.ColRefPA     = {'ParAng'};
-        Args.ColRefModX   = {'ModX'};
-        Args.ColRefModY   = {'ModY'};
         
         % resid_vs_mag arguments
         Args.MagRange     = [];  % empty - no limit
@@ -48,6 +78,18 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
         Args.InterpMethod = 'linear';
         Args.ThresholdSigma = 3;
         
+        % columns
+        Args.ColCatX      = AstroCatalog.DefNamesX;
+        Args.ColCatY      = AstroCatalog.DefNamesY;
+        Args.ColCatM      = {'MAG','mag','MAG_PSF','MAG_CONV'};
+        Args.ColRefX      = AstroCatalog.DefNamesX;
+        Args.ColRefY      = AstroCatalog.DefNamesY;
+        Args.ColRefM      = {'MAG','mag','MAG_PSF','MAG_CONV'};
+        Args.ColRefC      = {'Color'};
+        Args.ColRefAM     = {'AIRMASS'};
+        Args.ColRefPA     = {'ParAng'};
+        Args.ColRefModX   = {'ModX'};
+        Args.ColRefModY   = {'ModY'};
         
     end
     DefColX = 'X';
@@ -63,7 +105,7 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
     else
         Nref = numel(ObjRef);
     end
-    Nmax = max(Mcat, Nref);
+    Nmax = max(Ncat, Nref);
     for Imax=1:1:Nmax
         %
         Icat = min(Imax, Ncat);
@@ -75,7 +117,7 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
             Cat = ObjCat(Icat);
         elseif isnumeric(ObjCat)
             Cat = AstroCatalog({ObjCat});
-            Cat.ColNames = {DefColX, DefColY};
+            Cat.ColNames = {DefColX, DefColY, 'MAG'};
         else
             error('ObjCat must be of AstroImage or AstroCatalog or numeric type');
         end
@@ -85,7 +127,7 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
             Ref = ObjRef(Iref);
         elseif isnumeric(ObjRef)
             Ref = AstroCatalog({ObjRef});
-            Ref.ColNames = {DefColX, DefColY};
+            Ref.ColNames = {DefColX, DefColY, 'MAG'};
         else
             error('ObjRef must be of AstroImage or AstroCatalog or numeric type');
         end
@@ -100,13 +142,13 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
         ColRefM = colnameDict2ind(Ref, Args.ColRefM);
         ColRefC = colnameDict2ind(Ref, Args.ColRefC);
         ColRefAM = colnameDict2ind(Ref, Args.ColRefAM);
-        ColRefPM = colnameDict2ind(Ref, Args.ColRefPM);
+        ColRefPA = colnameDict2ind(Ref, Args.ColRefPA);
         ColRefModX = colnameDict2ind(Ref, Args.ColRefModX);
         ColRefModY = colnameDict2ind(Ref, Args.ColRefModY);
         
         
         % fit the transformation
-        [Param(Imax), Res(Imax), ResLoop] = imUtil.patternMatch.fit_astrometric_tran(Cat, Ref, ...
+        [Param(Imax), Res(Imax), ResLoop] = imUtil.patternMatch.fit_astrometric_tran(Cat.Catalog, Ref.Catalog, ...
                                                                          'Tran',Args.Tran,...
                                                                          'MaxIter',Args.MaxIter,...
                                                                          'ErrPos',Args.ErrPos,...
@@ -115,7 +157,7 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
                                                                          'Algo',Args.Algo,...
                                                                          'ColCatX',ColCatX, 'ColCatY',ColCatY, 'ColCatM',ColCatM,...
                                                                          'ColRefX',ColRefX, 'ColRefY',ColRefY, 'ColRefM',ColRefM,...
-                                                                         'ColRefC',ColRefC, 'ColRefAM',ColRefAM, 'ColRefPM', ColRefPM,...
+                                                                         'ColRefC',ColRefC, 'ColRefAM',ColRefAM, 'ColRefPA', ColRefPA,...
                                                                          'ColRefModX',ColRefModX, 'ColRefModY',ColRefModY,...
                                                                          'MagRange',Args.MagRange,...
                                                                          'MaxResid',Args.MaxResid,...

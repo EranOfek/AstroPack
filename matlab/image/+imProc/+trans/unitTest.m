@@ -57,6 +57,14 @@ function Result = unitTest
     Cat = [Cat; rand(Nm,2).*1024];
     Result = imProc.trans.fitPattern(Cat,Ref);
 
+    
+    % fitTransformation
+    Nsrc = 1000;
+    Cat = rand(Nsrc,3).*[1024 1024 10];
+    Ref = Cat + 0.1.*randn(Nsrc,3);
+    Ref = [Ref, rand(Nsrc,1).*2];
+    T   = Tran2D;
+    [Param, Res] = imProc.trans.fitTransformation(Cat, Ref, 'Tran',T);
 
     Result = true;
 end

@@ -20,6 +20,7 @@ classdef AstroCatalog < AstroTable
         DefNamesDec cell                 = {'Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
         DefNamesPMRA cell                = {'PMRA'};
         DefNamesPMDec cell               = {'PMDec'};
+        DefNamesRV cell                  = {'RV'};
         DefNamesPlx cell                 = {'Plx'};
         DefNamesMag cell                 = {'Mag','PSF_MAG','MAG_PSF'};
     end
@@ -304,8 +305,66 @@ classdef AstroCatalog < AstroTable
                 varargout{1} = [Lon, Lat];
             end
             
+        end
+        
+        function [RA, Dec, PMRA, PMDec, Plx, RV] = getRADecPM(Obj, Args)
+            % get RA/Dec/PM/Plx/RV from astrometric catalog
+            % Input  : - A single element AstroCatalog object.
+            %          * ...,key,val,...
+            %            'OutCooUnits' - Output coo units. Default is 'rad'
+            %            'OutPMUnits' - Output PM units. Default is 'mas/yr'
+            %            'OutPlxUnits' - Output Plx units. Default is 'mas'
+            %            'OutRVUnits' - Output RV units. Default is 'km/s'
+            % Output : - RA
+            %          - Dec
+            %          - PM RA
+            %          - PM Dec
+            %          - Plx
+            %          - RV
+            % Author : Eran Ofek (May 2021)
+            % Example: C=catsHTM.cone_search('GAIADR2',1,1,100,'OutType','astrocatalog');
+            %          [RA, Dec, PM_RA, PM_Dec, Plx, RV] = getRADecPM(C)
+            
+            arguments
+                Obj(1,1)
+                Args.OutCooUnits     = 'rad';
+                Args.OutPMUnits      = 'mas/yr';
+                Args.OutPlxUnits     = 'mas';
+                Args.OutRVUnits      = 'km/s';
+            end
+            
+            % RA
+            ColInd_RA = colnameDict2ind(Obj, Obj.DefNamesRA);
+            [RA, Units]  = getCol(Obj, ColInd_RA);
+            RA = convert.angular(Units{1}, Args.OutCooUnits, RA);
+            
+            % Dec
+            ColInd_Dec = colnameDict2ind(Obj, Obj.DefNamesDec);
+            [Dec, Units]  = getCol(Obj, ColInd_Dec);
+            Dec = convert.angular(Units{1}, Args.OutCooUnits, Dec);
+            
+            % PM_RA
+            ColInd_PMRA = colnameDict2ind(Obj, Obj.DefNamesPMRA);
+            [PMRA, Units]  = getCol(Obj, ColInd_PMRA);
+            PMRA = convert.proper_motion(Units{1}, Args.OutPMUnits, PMRA);
+            
+            % PM_Dec
+            ColInd_PMDec = colnameDict2ind(Obj, Obj.DefNamesPMDec);
+            [PMDec, Units]  = getCol(Obj, ColInd_PMDec);
+            PMDec = convert.proper_motion(Units{1}, Args.OutPMUnits, PMDec);
+            
+            % Plx
+            ColInd_Plx = colnameDict2ind(Obj, Obj.DefNamesPlx);
+            [Plx, Units]  = getCol(Obj, ColInd_Plx);
+            Plx = convert.angular(Units{1}, Args.OutPlxUnits, Plx);
+            
+            % RV
+            ColInd_RV = colnameDict2ind(Obj, Obj.DefNamesRV);
+            [RV, Units]  = getCol(Obj, ColInd_RV);
+            RV = convert.velocity(Units{1}, Args.OutRVUnits, RV);
             
         end
+        
         
         function [varargout] = getXY(Obj, Args)
             % Get X/Y columns from AstroCatalog.
@@ -422,8 +481,8 @@ classdef AstroCatalog < AstroTable
             arguments
                 Obj
                 CCDSEC
-                Args.ColX                          = {'X','XWIN_IMAGE','XWIN','XPEAK','X_PEAK'};
-                Args.ColY                          = {'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
+                Args.ColX                          = Obj.DefNamesX; %{'X','XWIN_IMAGE','XWIN','XPEAK','X_PEAK'};
+                Args.ColY                          = Obj.DefNamesY; %{'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
                 Args.AddX                          = {};  % additional X-coo to update
                 Args.AddY                          = {};
                 Args.UpdateXY(1,1) logical         = true;
@@ -617,6 +676,10 @@ classdef AstroCatalog < AstroTable
             AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});
             [X,Y] = getXY(AC);
 
+            
+            C=catsHTM.cone_search('GAIADR2',1,1,100,'OutType','astrocatalog');
+            [RA, Dec, PM_RA, PM_Dec, Plx, RV] = getRADecPM(C)
+            
             
 %             % TRANSFERED!!
 %             % match (spherical)
