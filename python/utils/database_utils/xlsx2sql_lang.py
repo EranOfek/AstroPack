@@ -177,16 +177,33 @@ def get_field_type(field_name, text):  #, lang
 
 
 def get_field_type_lang(field_name, text, lang):
+    text = text.split(' ')[0]
+    text = text.replace('Enumeration:', '').strip().lower()
+
     ftype = ''
+    default_value = '0'
+
     if text == '':
         text = 'double'
+    elif text == 'int8' or text == 'int16' or text == 'int32':
+        text = 'int'
+    elif text == 'uint8' or text == 'uint16' or text == 'uint32':
+        text = 'int'
+    elif text == 'text' or text == 'uuid':
+        text = 'string'
 
     if text in field_lang_dict:
         ld = field_lang_dict[text]
         if lang in ld:
             ftype = ld[lang]
 
-    return ftype
+    if ftype.lower() == 'string':
+        if lang == 'cpp':
+            default_value = '""'
+        else:
+            default_value = "''"
+
+    return ftype, default_value
 
 
 def get_field_def_lang(field_name, text, lang):
@@ -549,14 +566,10 @@ class DatabaseDef:
 
 
         for field in self.field_list:
-
-            ftype = get_field_type_lang(field.field_name, field.field_type, 'python')
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'python')
             field_name = field.field_name
-            field_value = 'None'
             self.wrln('        self.{} = {}  # {}'.format(field_name, field_value, ftype))
 
-
-            #self.myInt = 0
 
         self.wrln('\n')
         #self.wrln('    # Destructor')
@@ -597,18 +610,15 @@ class DatabaseDef:
 
         for field in self.field_list:
 
-            ftype = get_field_type_lang(field.field_name, field.field_type, 'matlab')
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'matlab')
             field_name = field.field_name
-            field_value = '[]'
             self.wrln('        {} = {}  % {}'.format(field_name, field_value, ftype))
-
 
         self.wrln('    end\n')
 
         self.wrln('    methods ')
         self.wrln('        function Obj = {}()'.format(self.class_name))
         self.wrln('            % Constructor')
-        # self.wrln('            Obj.myInt = 0;')
         self.wrln('        end')
         self.wrln('    end')
         self.wrln('end\n')
@@ -654,9 +664,8 @@ class DatabaseDef:
 
         for field in self.field_list:
 
-            ftype = get_field_type_lang(field.field_name, field.field_type, 'cpp')
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
             field_name = field.field_name
-            field_value = 'None'
             self.wrln('    {} {};'.format(ftype, field_name))
 
 
@@ -669,7 +678,13 @@ class DatabaseDef:
 
         self.wrln('inline {}::{}()'.format(self.class_name, self.class_name))
         self.wrln('{')
-        # myInt = 0;')
+
+        for field in self.field_list:
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
+            field_name = field.field_name
+            self.wrln('    {} = {};'.format(field_name, field_value))
+
+
         self.wrln('}\n')
 
         self.wrln('inline {}::~{}()'.format(self.class_name, self.class_name))
@@ -717,9 +732,9 @@ class DatabaseDef:
     def create_class_delphi(self):
         log('create_class_delphi started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
 
-        self.open_out('.pas')
+        self.open_out('_ifc.pas')
 
-        self.wrln('interface\n')
+        #self.wrln('interface\n')
 
         self.wrln('type')
         self.wrln('  {} = class'.format(self.class_name))
@@ -734,28 +749,64 @@ class DatabaseDef:
 
         for field in self.field_list:
 
-            ftype = get_field_type_lang(field.field_name, field.field_type, 'delphi')
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'delphi')
             field_name = field.field_name
-            #field_value = 'None'
             self.wrln('    {}: {};'.format(field_name, ftype))
 
         # myInt: Integer;
 
         self.wrln('  end;\n')
 
-        self.wrln('implementation\n')
+        self.open_out('_imp.pas')
+        #self.wrln('implementation\n')
 
-        self.wrln('constructor MyClass.Create();')
+        self.wrln('constructor {}.Create();'.format(self.class_name))
         self.wrln('begin')
         self.wrln('  // Initialize data')
+
+        for field in self.field_list:
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'delphi')
+            field_name = field.field_name
+            self.wrln('    {} := {};'.format(field_name, field_value))
+
+
         self.wrln('end;\n');
 
-        self.wrln('destructor MyClass.Destroy();')
+        self.wrln('destructor {}.Destroy();'.format(self.class_name))
         self.wrln('begin');
         self.wrln('end;\n');
 
         log('create_class_delphi done: ' + self.class_name)
         log('')
+
+
+    #
+    def merge_delphi(self):
+
+        self.open_out('.pas')
+
+        # interface
+        self.wrln('interface\n')
+        ifc_filename = self.base_filename + '_ifc.pas'
+        with open(ifc_filename) as f:
+            lines = f.read().splitlines()
+
+        for line in lines:
+            self.wrln(line, False)
+
+        # implementation
+        self.wrln('\nimplementation\n')
+        imp_filename = self.base_filename + '_imp.pas'
+        with open(imp_filename) as f:
+            lines = f.read().splitlines()
+
+        for line in lines:
+            self.wrln(line, False)
+
+        self.wrln('\nend.\n')
+
+        os.remove(ifc_filename)
+        os.remove(imp_filename)
 
     #----------------------------------------------------------------
 
@@ -786,17 +837,21 @@ class DatabaseDef:
         self.write('\n')
 
 
-    def write(self, text):
+    def write(self, text, flush = True):
         #print(text)
         self.outf.write(text)
-        self.outf.flush()
+        if flush:
+            self.outf.flush()
 
 
-    def wrln(self, text):
+    def wrln(self, text, flush = True):
         #print(text)
         self.outf.write(text)
         self.outf.write('\n')
-        self.outf.flush()
+        if flush:
+            self.outf.flush()
+
+
 
 #============================================================================
 
@@ -872,7 +927,6 @@ def process_csv_file(filename):
         db.load_table_csv(filename_lower)
         if len(db.field_list) > 0:
             db.create_table_postgres()
-
             db.create_classes()
 
 
@@ -899,6 +953,8 @@ def process_folder(fpath, ext_list, subdirs = True):
                 elif ext == '.csv':
                     process_csv_file(filename)
 
+
+    #merge_delphi()
 
 #============================================================================
 
