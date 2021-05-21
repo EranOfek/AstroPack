@@ -47,6 +47,9 @@ else
     SameEpoch  = false;
 end
 
+% remove negative parallax and zero parallax
+Parallax(Parallax<Def.Parallax) = Def.Parallax;
+
 % Rdot [rad/day] , R [cosined unity vector]
 [Rdot,R] = pm2space_motion_rad(RA,Dec,PM_RA,PM_Dec,Parallax,RadVel);
 
