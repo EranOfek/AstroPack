@@ -452,7 +452,7 @@ classdef AstroImage < Component
         
     end
     
-    methods (Access=private)
+    methods (Access=private)  % private functions
         function [Obj2, Obj2IsCell] = prepOperand2(Obj1, Obj2)
             % Prepare the 2nd operand for binary operation
             
@@ -736,25 +736,6 @@ classdef AstroImage < Component
             
         end
         
-        function [JD, ExpTime] = julday(Obj, varargin)
-            % Return the Julian day for AstroImage object
-            % Input  : - An AstroImage object
-            %          * Arbitrary number of arguments to pass to the
-            %          AstroHeader/juday function.
-            % Output : - An array of JD (one per AstroImage element).
-            %          - An array of ExpTime.
-            % Author : Eran Ofek
-            % Example: AI=AstroImage('*.fits');
-            %          [JD,ET] = julday(AI(2:3));
-            
-            Nobj = numel(Obj);
-            JD      = nan(size(Obj));
-            ExpTime = nan(size(Obj));
-            for Iobj=1:1:Nobj
-                [JD(Iobj), ExpTime(Iobj)] = julday(Obj(Iobj).HeaderData, varargin{:});
-            end
-        end
-        
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
         end
@@ -822,9 +803,6 @@ classdef AstroImage < Component
          
         end
         
-        
-        
-        
     end
     
     methods % specific header functions
@@ -879,7 +857,24 @@ classdef AstroImage < Component
             
         end
         
-        
+        function [JD, ExpTime] = julday(Obj, varargin)
+            % Return the Julian day for AstroImage object
+            % Input  : - An AstroImage object
+            %          * Arbitrary number of arguments to pass to the
+            %          AstroHeader/juday function.
+            % Output : - An array of JD (one per AstroImage element).
+            %          - An array of ExpTime.
+            % Author : Eran Ofek
+            % Example: AI=AstroImage('*.fits');
+            %          [JD,ET] = julday(AI(2:3));
+            
+            Nobj = numel(Obj);
+            JD      = nan(size(Obj));
+            ExpTime = nan(size(Obj));
+            for Iobj=1:1:Nobj
+                [JD(Iobj), ExpTime(Iobj)] = julday(Obj(Iobj).HeaderData, varargin{:});
+            end
+        end
     end
     
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
@@ -1612,15 +1607,106 @@ classdef AstroImage < Component
             
         end
         
-        
+        function Result = crop(Obj, CCDSEC, Args)
+            % crop an AstroImage images and catalogs and update WCS
+            % Input  : - An AstroImage object.
+            %          - A CCDSEC [xmin, xmax, ymin, ymax]
+            %            or 'center' [Xcenter, Ycenter, Xhalfsize, Yhalfsize].
+            %            If multiple lines then each line corresponding to
+            %            an AstroImage element.
+            %          * ...,key,val,...
+            %            'Type' - ['ccdsec'] | 'center'
+            %            'DataProp' - A cell array of image data properties
+            %                   to crop. Default is {'ImageData','BackData','VarData','MaskData'}
+            %            'DataPropIn' - Data property on which to operate.
+            %                   Default is 'Image'.
+            %            'UpdateCat' - A logical indicating if to crop
+            %                   catalog by XY (using cropXY). Default is true.
+            %            'cropXYargs' - A cell array of arguments to pass
+            %                   to AstroCatalog/cropXY. Default is {}.
+            %            'UpdateHeader' - A logical indicating if to update
+            %                   the {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}
+            %                   header keywords. Default is true.
+            %            'UpdateWCS' - A logical indicating if to update
+            %                   the WCS. Default is true.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Example: AI = AstroImage({rand(100,100),rand(100,200)},'Back',{rand(100,100),rand(100,200)});
+            %          Res = crop(AI,[11 20 11 30])
 
-        
-        
-        % function crop(Obj, CCDSEC, Args)
-        
-        
-        
-        
+            arguments
+                Obj
+                CCDSEC
+                Args.Type                      = 'ccdsec'; % 'center' mat results in errors!
+                Args.DataProp cell             = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataPropIn                = 'Image';
+                Args.UpdateCat(1,1) logical    = true;
+                Args.cropXYargs cell           = {};
+                Args.UpdateHeader(1,1) logical = true;
+                Args.UpdateWCS(1,1) logical    = true;
+                Args.CreateNewObj              = [];
+            end
+
+            if isempty(Args.CreateNewObj)
+                if nargout==0
+                    Args.CreateNewObj = false;
+                else
+                    Args.CreateNewObj = true;
+                end
+            end
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+
+            KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}; %,'ORIGUSEC','UNIQSEC'};
+            KeyVals  = cell(size(KeyNames));
+
+            Nobj  = numel(Obj);
+            Nprop = numel(Args.DataProp);
+            Nsec  = size(CCDSEC,1);
+            for Iobj=1:1:Nobj
+                Isec = min(Iobj, Nsec);
+                for Iprop=1:1:Nprop
+                    Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
+                                                    'Type',Args.Type,...
+                                                    'DataPropIn',Args.DataPropIn,...
+                                                    'CreateNewObj',false);
+                end
+                % make sure CCDSEC is in 'ccdsec' format and not 'center'
+                NewCCDSEC = Result(Iobj).(Args.DataProp{1}).CCDSEC;
+                
+                if Args.UpdateCat
+                    Result(Iobj).CatData = cropXY(Result(Iobj).CatData, NewCCDSEC,...
+                                                  'CreateNewObj',Args.CreateNewObj,...
+                                                  Args.cropXYargs{:});
+                end
+                if Args.UpdateWCS
+                    % FFU
+                    warning('UpdateWCS in AstroImage/crop is not implemented');
+                end
+                if Args.UpdateHeader
+                    SizeIm = size(Result(Iobj).Image);
+                    KeyVals{1} = SizeIm(2);  % NAXIS1
+                    KeyVals{2} = SizeIm(1);  % NAXIS2
+                    KeyVals{3} = imUtil.ccdsec.ccdsec2str([1 SizeIm(2) 1 SizeIm(1)]);  % CCDSEC
+                    KeyVals{4} = imUtil.ccdsec.ccdsec2str(NewCCDSEC);   % ORIGSEC
+                    Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, KeyNames, KeyVals);
+                end
+
+
+            end
+        end
+
+
         
         function varargout = object2array(Obj,DataProp)
             % Convert an AstroImage object that contains scalars into an array
@@ -1720,19 +1806,62 @@ classdef AstroImage < Component
             [varargout{1:nargout}] = funBinary(Obj1, Obj2, @rdivide, varargin{:});
             
         end
-        
-        % got here
-        
-        function Result = conv(Obj, Args)
+                
+        function Result = conv(Obj, PSF, Args)
             % Convolve images with their PSF, or another PSF
+            % Input  : - An AstroImage object.
+            %          - PSF/kernel with which to convolve the input image.
+            %            This can be one of the following:
+            %            1. A matrix.
+            %            2. A function handle: Fun(Args.ArgsPSF{:})
+            %            3. AstroPSF object (multiple elements supported)
+            %            4. ImageComponent (multiple elements supported)
+            %            5. AstroImage object (multiple) use the .ImageData.Image field.
+            %            6. empty.
+            %            If empty, then will attempt to use the AstroPSF
+            %            object in the AstroImage object.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'ArgsPSF' - A cell array of arguments to pass to
+            %                   the getPSF function of AstroPSF or to the
+            %                   function_handle (if the PSF is a function).
+            %                   Default is {}.
+            %            'UseFFT' - A logical indicating if to use fft or direct
+            %                   convolution. If empty, use faster method
+            %                   for the specific image and kernel sizes.
+            %                   Default is [].
+            %            'DataProp' - A cell array of data properties on
+            %                   which to aplly the operator.
+            %                   Default is {'ImageData'}.
+            %            'DataPropIn' - Data property in the ImageComponent
+            %                   on which to apply the operator.
+            %                   Default is 'Image'.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An AstroImage object in which the operator applied
+            %            to the images.
+            % Author : Eran Ofek (May 2021)
+            % Example: AI = AstroImage({rand(100,100), rand(200,200)});
+            %          AI.conv(imUtil.kernel2.annulus);
+            %          Mat = zeros(30,30); Mat(15,15)=1;
+            %          AI = AstroImage({Mat});
+            %          Res = conv(AI, @imUtil.kernel2.gauss)
+            
             arguments
                 Obj
-                Args.PSF                         = [];
-                Args.ArgsPSF                     = {};
-                Args.DataPropIn                  = {'ImageData'}
-                Args.DataPropOut                 = {'Image'};
+                PSF                              = [];
+                Args.ArgsPSF cell                = {};
+                Args.UseFFT                      = [];
+                Args.DataProp cell               = {'ImageData'}
+                Args.DataPropIn                  = 'Image';
                 Args.CreateNewObj(1,1) logical   = true;
-                Args.IsOutObj(1,1) logical       = true;
             end
             
             if isempty(Args.CreateNewObj)   
@@ -1748,32 +1877,146 @@ classdef AstroImage < Component
                 Result = Obj;
             end
             
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                if isempty(Args.PSF)
-                    % take PSF from PSFData
-                    Args.PSF = Obj(Iobj).getPSF(Args.ArgsPSF);
-                end
-                if isa(Args.PSF,'AstroPSF')
-                    
-                end
+            Nobj  = numel(Obj);
+            Nprop = numel(Args.DataProp);
+            if isa(PSF,'AstroPSF') || isa(PSF,'AstroImage') || isa(PSF,'ImageComponent')
+                Nkernel = numel(PSF);
+            else
+                Nkernel = 1;
             end
-            
+            for Iobj=1:1:Nobj
+                Ikernel = min(Iobj, Nkernel);
+                if isempty(PSF)
+                    % take PSF from PSFData
+                    PSF = Obj(Iobj).getPSF(Args.ArgsPSF);
+                end
+                if isa(PSF,'AstroPSF')
+                    Kernel = PSF(Ikernel).getPSF(Args.ArgsPSF{:});
+                elseif isnumeric(PSF)
+                    Kernel = PSF;
+                elseif isa(PSF,'ImageComponent')
+                    Kernel = PSF(Ikernel).(Args.DataPropIn);
+                elseif isa(PSF,'AstroImage')
+                    Kernel = PSF(Ikernel).ImageData.Image;
+                elseif isa(PSF,'function_handle')
+                    Kernel = PSF(Args.ArgsPSF{:});
+                else
+                    error('Unknown PSF option');
+                end
                 
-            
-            
-            
+                for Iprop=1:1:Nprop
+                    Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = imUtil.filter.conv2_fast(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), Kernel, Args.UseFFT);
+                end
+                
+            end
             
         end
         
-        function xcorr(Obj, Args)
-            % cross correlate images with their PSF, or another PSF
+        function Result = filter(Obj, PSF, Args)
+            % Filter images with their PSF, or another PSF
+            % Input  : - An AstroImage object.
+            %          - PSF/kernel with which to filter (cross-corelate) the input image.
+            %            This can be one of the following:
+            %            1. A matrix.
+            %            2. A function handle: Fun(Args.ArgsPSF{:})
+            %            3. AstroPSF object (multiple elements supported)
+            %            4. ImageComponent (multiple elements supported)
+            %            5. AstroImage object (multiple) use the .ImageData.Image field.
+            %            6. empty.
+            %            If empty, then will attempt to use the AstroPSF
+            %            object in the AstroImage object.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'ArgsPSF' - A cell array of arguments to pass to
+            %                   the getPSF function of AstroPSF or to the
+            %                   function_handle (if the PSF is a function).
+            %                   Default is {}.
+            %            'UseFFT' - A logical indicating if to use fft or direct
+            %                   convolution. If empty, use faster method
+            %                   for the specific image and kernel sizes.
+            %                   Default is [].
+            %            'DataProp' - A cell array of data properties on
+            %                   which to aplly the operator.
+            %                   Default is {'ImageData'}.
+            %            'DataPropIn' - Data property in the ImageComponent
+            %                   on which to apply the operator.
+            %                   Default is 'Image'.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An AstroImage object in which the operator applied
+            %            to the images.
+            % Author : Eran Ofek (May 2021)
+            % Example: AI = AstroImage({rand(100,100), rand(200,200)});
+            %          AI.filter(imUtil.kernel2.annulus);
+            %          Mat = zeros(30,30); Mat(15,15)=1;
+            %          AI = AstroImage({Mat});
+            %          Res = filter(AI, @imUtil.kernel2.gauss)
+            
             arguments
                 Obj
-                Args.PSF
+                PSF                              = [];
+                Args.ArgsPSF cell                = {};
+                Args.UseFFT                      = [];
+                Args.DataProp cell               = {'ImageData'}
+                Args.DataPropIn                  = 'Image';
+                Args.CreateNewObj(1,1) logical   = true;
             end
+            
+            if isempty(Args.CreateNewObj)   
+                if nargout==0
+                    Args.CreateNewObj = false;
+                else
+                    Args.CreateNewObj = true;
+                end
+            end
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+             Nobj  = numel(Obj);
+            Nprop = numel(Args.DataProp);
+            if isa(PSF,'AstroPSF') || isa(PSF,'AstroImage') || isa(PSF,'ImageComponent')
+                Nkernel = numel(PSF);
+            else
+                Nkernel = 1;
+            end
+            for Iobj=1:1:Nobj
+                Ikernel = min(Iobj, Nkernel);
+                if isempty(PSF)
+                    % take PSF from PSFData
+                    PSF = Obj(Iobj).getPSF(Args.ArgsPSF);
+                end
+                if isa(PSF,'AstroPSF')
+                    Kernel = PSF(Ikernel).getPSF(Args.ArgsPSF{:});
+                elseif isnumeric(PSF)
+                    Kernel = PSF;
+                elseif isa(PSF,'ImageComponent')
+                    Kernel = PSF(Ikernel).(Args.DataPropIn);
+                elseif isa(PSF,'AstroImage')
+                    Kernel = PSF(Ikernel).ImageData.Image;
+                elseif isa(PSF,'function_handle')
+                    Kernel = PSF(Args.ArgsPSF{:});
+                else
+                    error('Unknown PSF option');
+                end
+                 
+                for Iprop=1:1:Nprop
+                    Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = imUtil.filter.filter2_fast(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), Kernel, Args.UseFFT);
+                end
+                
+            end
+            
         end
-      
+        
         
     end
     
@@ -1833,6 +2076,11 @@ classdef AstroImage < Component
             s=Result(1).MaskData.bitStat;
             s.BitSummary;
 
+            
+            AI = AstroImage({rand(100,100),rand(100,200)},'Back',{rand(100,100),rand(100,200)});
+            Res = crop(AI,[11 20 11 30])
+
+            
             % overload operators
             AI = AstroImage({ones(10,10), 2.*ones(20,20)});
             % perform: AI(1)+AI(1) and AI(2)+AI(2)
@@ -1873,11 +2121,21 @@ classdef AstroImage < Component
                 error('Problem with rdivide operator');
             end
             
-            
-            
-            
-            
-            
+            % conv
+            AI = AstroImage({rand(100,100), rand(200,200)});
+            AI.conv(imUtil.kernel2.annulus);
+            Mat = zeros(30,30); Mat(15,15)=1;
+            AI = AstroImage({Mat});
+            Res = conv(AI, @imUtil.kernel2.gauss);
+
+            % filter (cross-correlation)
+            AI = AstroImage({rand(100,100), rand(200,200)});
+            AI.filter(imUtil.kernel2.annulus);
+            Mat = zeros(30,30); Mat(15,15)=1;
+            AI = AstroImage({Mat});
+            Res = filter(AI, @imUtil.kernel2.gauss);
+
+
             
             
             

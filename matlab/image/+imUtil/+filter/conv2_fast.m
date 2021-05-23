@@ -1,4 +1,4 @@
-function Res=conv2_fast(Mat1,Mat2)
+function Res=conv2_fast(Mat1, Mat2, UseFFT)
 % convolve two 2-D matrices using either fft or conv, whichever faster.
 % Package: imUtil.filter
 % Description: Convolve two matrices in which the second matrix is smaller
@@ -9,6 +9,7 @@ function Res=conv2_fast(Mat1,Mat2)
 %              faster.
 % Input  : - A matrix.
 %          - A matrix.
+%          - UseFFT: [] - auto, otherwise logical. Default is [].
 % Output : - Convolution between the two matrices.
 % License: GNU general public license version 3
 % Tested : Matlab R2015b
@@ -18,8 +19,19 @@ function Res=conv2_fast(Mat1,Mat2)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+arguments
+    Mat1
+    Mat2
+    UseFFT    = [];
+end
+
 Threshold = 0.004;  % requires calibration
-if (numel(Mat2)./numel(Mat1))>Threshold
+if isempty(UseFFT)
+    % auto method
+    UseFFT = (numel(Mat2)./numel(Mat1))>Threshold;
+end
+
+if UseFFT
     % use fft
     Res = imUtil.filter.conv2_fft(Mat1,Mat2);
 else

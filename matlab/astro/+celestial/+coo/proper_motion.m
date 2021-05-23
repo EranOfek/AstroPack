@@ -47,6 +47,8 @@ else
     SameEpoch  = false;
 end
 
+% remove negative parallax and zero parallax
+Parallax(Parallax<Def.Parallax) = Def.Parallax;
 
 [Rdot,R] = celestial.coo.pm2space_motion(RA,Dec,PM_RA,PM_Dec,Parallax,RadVel);
 

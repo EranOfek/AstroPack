@@ -259,6 +259,227 @@ classdef convert
 
         end % convert.angular function
         
+        function Val = timeUnits(In, Out, Val)
+            % convert time units
+            % Input  : - In time units
+            %            's'|'min'|'hr'|'day'|'sday'|'week'|'jyr'|'jcy'
+            %          - Out Units (like input).
+            %          - Value to convert. Default is 1.
+            % Output : - Converted time
+            % Author : Eran Ofek (May 2021)
+            % Example: convert.timeUnits('jcy','min',1)
+           
+            arguments
+                In
+                Out
+                Val    = 1;
+            end
+            
+            % convert to [s]
+            switch lower(In)
+                case 's'
+                    % do nothing
+                case {'min'}
+                    Val = Val.*60;
+                case {'hr','hour'}
+                    Val = Val.*3600;
+                case {'day'}
+                    Val = Val.*86400;
+                case {'sday'}
+                    Val = Val.*86164.091;
+                case {'week'}
+                    Val = Val.*86400.*7;
+                case {'jyear','yr'}
+                    Val = Val.*86400.*365.25;
+                case {'jcy'}
+                    Val = Val.*86400.*365.25.*100;
+                otherwise
+                    error('Unknown time units');
+            end
+            
+            % convert from 's' to output
+            switch lower(Out)
+                case 's'
+                    % do nothing
+                case {'min'}
+                    Val = Val./60;
+                case {'hr','hour'}
+                    Val = Val./3600;
+                case {'day'}
+                    Val = Val./86400;
+                case {'sday'}
+                    Val = Val./86164.091;
+                case {'week'}
+                    Val = Val./(86400.*7);
+                case {'jyear','yr'}
+                    Val = Val./(86400.*365.25);
+                case {'jcy'}
+                    Val = Val./(86400.*365.25.*100);
+                otherwise
+                    error('Unknown time units');
+            end
+                    
+            
+        end
+        
+        function Val = length(In, Out, Val)
+            % Convert length units
+            % Input  : - Input units:
+            %            'cm'|'m'|'mm'|'ang'|...
+            %          - Output units (like input).
+            %          - Input value. Default is 1.
+            % Output : - Converted output value.
+            % AUthor : Eran Ofek (May 2021)
+            % Example: convert.length('yard','m')
+           
+            arguments
+                In
+                Out
+                Val    = 1;
+            end
+            
+            % convert to 'cm'
+            switch lower(In)
+                case 'cm'
+                    % do nothing
+                case 'm'
+                    Val = Val.*100;
+                case 'mm'
+                    Val = Val./10;
+                case 'micrometer'
+                    Val = Val.*1e-4;
+                case 'ang'
+                    Val = Val.*1e-8;
+                case 'km'
+                    Val = Val.*1e5;
+                case 'au'
+                    Val = Val.*constant.au;
+                case 'pc'
+                    Val = Val.*constant.pc;
+                case 'earthr'
+                    Val = Val.*constant.EarthR;
+                case 'sunr'
+                    Val = Val.*constant.SunR;
+                case 'inch'
+                    Val = Val.*2.54;
+                case 'mile'
+                    Val = Val.*1609.344.*100;
+                case 'nmile'
+                    Val = Val.*1852.*100;
+                case 'yard'
+                    Val = Val.*91.44;
+                case 'feet'
+                    Val = Val.*30.48;
+                otherwise
+                    error('Unknown length units');
+            end
+            
+              % convert to 'cm'
+            switch lower(Out)
+                case 'cm'
+                    % do nothing
+                case 'm'
+                    Val = Val./100;
+                case 'mm'
+                    Val = Val.*10;
+                case 'micrometer'
+                    Val = Val.*1e4;
+                case 'ang'
+                    Val = Val.*1e8;
+                case 'km'
+                    Val = Val.*1e-5;
+                case 'au'
+                    Val = Val./constant.au;
+                case 'pc'
+                    Val = Val./constant.pc;
+                case 'earthr'
+                    Val = Val./constant.EarthR;
+                case 'sunr'
+                    Val = Val./constant.SunR;
+                case 'inch'
+                    Val = Val./2.54;
+                case 'mile'
+                    Val = Val./(1609.344.*100);
+                case 'nmile'
+                    Val = Val./(1852.*100);
+                case 'yard'
+                    Val = Val./91.44;
+                case 'feet'
+                    Val = Val./30.48;
+                otherwise
+                    error('Unknown length units');
+            end
+            
+                        
+                    
+            
+            
+        end
+        
+        function Val = velocity(In, Out, Val)
+            % Convert velocity units of the form 'length/time'
+            % Input  : - Input velocity units.
+            %          - Output velocity units.
+            %          - Value to convert. Default is 1.
+            % Output : - Converted value.
+            % Author : Eran Ofek (May 2021)
+            % Example: convert.velocity('km/s','au/day',1)
+           
+            arguments
+                In
+                Out
+                Val    = 1;
+            end
+            
+            % identify length and time units
+            InSplit = regexp(In,'/','split');
+            if numel(InSplit)~=2
+                error('In units does not look like velocity');
+            end
+            OutSplit = regexp(Out,'/','split');
+            if numel(OutSplit)~=2
+                error('Out units does not look like velocity');
+            end
+            LengthFactor = convert.length(InSplit{1}, OutSplit{1}, 1);
+            TimeFactor   = convert.timeUnits(InSplit{2}, OutSplit{2}, 1);
+            
+            Val = Val.*LengthFactor./TimeFactor;
+            
+        end
+        
+        function Val = proper_motion(In, Out, Val)
+            % Convert proper motion units of the form 'angle/time'
+            % Input  : - Input velocity units.
+            %          - Output velocity units.
+            %          - Value to convert. Default is 1.
+            % Output : - Converted value.
+            % Author : Eran Ofek (May 2021)
+            % Example: convert.proper_motion('arcsec/yr','mas/yr',1)
+           
+            arguments
+                In
+                Out
+                Val    = 1;
+            end
+            
+            % identify length and time units
+            InSplit = regexp(In,'/','split');
+            if numel(InSplit)~=2
+                error('In units does not look like proper motion');
+            end
+            OutSplit = regexp(Out,'/','split');
+            if numel(OutSplit)~=2
+                error('Out units does not look like proper motion');
+            end
+            AngleFactor = convert.angular(InSplit{1}, OutSplit{1}, 1);
+            TimeFactor   = convert.timeUnits(InSplit{2}, OutSplit{2}, 1);
+            
+            Val = Val.*AngleFactor./TimeFactor;
+            
+        end
+        
+        
+        
         function Out=minusPi2Pi(In,Units)
             % convert angular units to -pi to pi range
             % Input  : - Angular values.
