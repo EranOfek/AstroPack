@@ -109,6 +109,8 @@ def prepare_windows():
 
     # Verify Python installation
 
+    # Lazarus (free Pascal)
+
     # Postgres
 
     # Utils
@@ -125,6 +127,8 @@ def prepare_linux():
     # Verify Matlab installation
 
     # Verify Python installation
+
+    # Lazarus (free Pascal)
 
     # Postgres
 

@@ -108,6 +108,8 @@ def install_windows():
 
     # Python
 
+    # Lazarus (free Pascal)
+
     # Postgres
 
     # Utils
@@ -124,6 +126,8 @@ def install_linux():
     #  Matlab
 
     # Python
+
+    # Lazarus (free Pascal)
 
     # Postgres
 
