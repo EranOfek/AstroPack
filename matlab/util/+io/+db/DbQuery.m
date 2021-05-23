@@ -413,6 +413,21 @@ classdef DbQuery < Component
             end
         end  
                     
+        
+        function Result = getFieldList(Obj)
+            % Get fields list as celarray
+            
+            % Loop over all columns in the row
+            Result = Obj.ColumnNames;
+        end
+        
+        
+        function Result = getFieldTable(Obj)
+            % Get fields as empty table
+            
+            Fields = Obj.getFieldList();
+            Result = table(Fields);
+        end
     end
     
     
@@ -481,10 +496,11 @@ classdef DbQuery < Component
             
             arguments
                 Obj
-                Args.MaxRecords = 0
+                Args.MaxRows = 0
             end
             
             FL_ = io.FuncLog('loadAll');
+            tic();
             
             % Initialize
             Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColumnCount);
@@ -504,15 +520,74 @@ classdef DbQuery < Component
                     break
                 end
                 
-                if Args.MaxRecords > 0 && RowIndex > Args.MaxRecords
+                if Args.MaxRows > 0 && RowIndex > Args.MaxRows
                     break
                 end
                 
                 RowIndex = RowIndex + 1;                
             end         
             
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, RowCount = %d', RowIndex);
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
         end
+        
+        
+        function Result = loadTable(Obj, Args)
+            % Load entire ResultSet to memory, might be time/memory consuming!
+            % @Todo?: add arg max row
+            % @Todo: load to Table (instead?)
+            
+            arguments
+                Obj
+                Args.MaxRows = 0
+            end
+            
+            FL_ = io.FuncLog('loadTable');
+            tic();
+            
+            % Initialize
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadTable, ColumnCount = %d', Obj.ColumnCount);
+            
+            % Create empty table
+            Fields = Obj.ColumnNames;
+            Result = table(Fields);
+            
+            % Loop over all ResultSet rows (records)
+            RowIndex = 1;
+            while ~Obj.Eof
+                
+                % Loop over all columns in the row
+                Record = {};
+                for ColIndex = 1 : Obj.ColumnCount
+                    Value = Obj.getField(ColIndex);
+                    Record{1, ColIndex} = Value;
+                end
+                
+                % Append row to table
+                Result = [Result;Record]
+                
+                if ~Obj.next()
+                    break
+                end
+                
+                if Args.MaxRows > 0 && RowIndex > Args.MaxRows
+                    break
+                end
+                
+                RowIndex = RowIndex + 1;                
+            end         
+            
+            Obj.Time = toc();
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadTable, RowCount = %d, Time: %.6f', RowIndex, Obj.Time);
+        end
+        
+        
+        
+        
+        function Result = createDatabase(Obj)
+            % Create database
+        end
+            
     end
 
     
@@ -558,20 +633,37 @@ classdef DbQuery < Component
             
                 Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
                 assert(Q.ColumnCount == 2);
-
+                
+                % Get fields list as celarray
+                fields = Q.getFieldList();
+                assert(all(size(fields)) > 0);
+                
+                % Get fields list as empty table
+                tab = Q.getFieldTable();
+                assert(all(size(tab)) > 0);
+                
                 % Get entire record (Note: Field names are lower-case only)
                 Rec = Q.getRecord();
                 assert(~isempty(Rec.recid));
                 assert(~isempty(Rec.fint));
 
                 % Load entire result set
+                Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
                 B = Q.loadAll();
                 assert(~isempty(B));
 
                 % Load entire result set to memory
+                Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
                 Data = Q.loadAll();
                 assert(size(Data, 2) == 2);
 
+                % Load as table
+                Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
+                Tab = Q.loadTable();
+                sz = size(Tab)
+                assert(sz(1) > 1);
+                assert(sz(2) > 1);
+                
                 % Select all fields from table, using LIMIT
                 Q.query(['SELECT * FROM master_table LIMIT 10']);
 
@@ -673,18 +765,11 @@ classdef DbQuery < Component
             Q.exec(sql);           
             count2 = Q.selectCount('master_table');
             assert(count2 == count);
-            
-            % ---------------------------------------------- Create and delete databaswe
-            
 
-            %assert(Rec.ColumnCount > 0);
             
-            
-            % Test: Create database and tables
-            
-            % Test: Write data to tables
-            
-            % Test: Query tables         
+            % ---------------------------------------------- Create and delete databaswe           
+       
+            %
             
  
             io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
