@@ -1,5 +1,8 @@
 
-class MonitorData:
+from monitor_base import MonitorBase, MonitorData
+
+
+class StorageMonitorData(MonitorData):
 
     # Constructor
     def __init__(self):

@@ -2,3 +2,8 @@
 #*.xlsx
 *.csv
 _*.sql
+
+*.py
+*.m
+*.h
+*.pas

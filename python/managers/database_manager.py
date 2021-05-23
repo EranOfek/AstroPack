@@ -2,6 +2,8 @@
 # 
 # Monitor storage
 
+from manager_base import ManagerBase
+
 
 class ServerManager(ManagerBase):
 

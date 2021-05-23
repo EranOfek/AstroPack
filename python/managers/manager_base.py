@@ -1,4 +1,7 @@
 
+from component import Component
+
+
 class AlertData:
 
     # Constructor

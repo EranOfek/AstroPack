@@ -1,6 +1,6 @@
 # IAI Interface
 
-from interface_base import *
+from interface_base import InterfaceBase
 
 
 class InterfaceLSST(InterfaceBase):

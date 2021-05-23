@@ -1,5 +1,7 @@
 # Cloud Storage Manager
 
+from manager_base import ManagerBase
+
 class CloudManager(ManagerBase):
 
     # Constructor

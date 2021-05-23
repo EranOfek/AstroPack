@@ -1,6 +1,5 @@
-# Alerts Manager
-# 
-# 
+
+from manager_base import ManagerBase
 
 
 # General Interface Parent Class

@@ -2,6 +2,8 @@
 #
 # Top-Level manager, above Postgres, lsyncd, cloud (TBD)
 
+from manager_base import ManagerBase
+
 
 class LsyncdManager(ManagerBase):
 
