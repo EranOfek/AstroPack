@@ -38,6 +38,8 @@ classdef AstroHeader < Component
         File                      = '';
         HDU                       = ''; % HDU or dataset
         
+        % The following dictionaries create a "matrix" structure as
+        % Key[i] -> Val[i] - Comment[i] Time[i]
         KeyDict Dictionary        % Initialization is done in constructor
         ValDict Dictionary        % Initialization is done in constructor
         CommentDict Dictionary    % Initialization is done in constructor
@@ -527,6 +529,7 @@ classdef AstroHeader < Component
             end
         end
               
+        
         function [Result ,ResultC, IK] = getStructKey(Obj,ExactKeys,Args)
             % Get multiple  keys from multiple headers and store in a structure array
             %       The keyword search can be exact (UseDict=false), or
@@ -862,6 +865,7 @@ classdef AstroHeader < Component
             end
                  
         end
+        
         
         function Obj = insertKey(Obj, KeyValComment, Pos)
             % Insert key/val/comment to headers
@@ -1385,6 +1389,8 @@ classdef AstroHeader < Component
             % unitTest for AstroHeader
             % Example: Result = AstroHeader.unitTest
 
+            io.msgStyle(LogLevel.Test, '@start', 'AstroHeader test started')
+            
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
             cd(DataSampleDir);
@@ -1392,11 +1398,13 @@ classdef AstroHeader < Component
 
             % construct an empty AstroHeader
             A = AstroHeader([2 2]);
+            
             % read headers to AstroHeader, on construction
             H = AstroHeader('*.fits',1);
-            H(1).Key.NAXIS
-            H(2).Key.DATE
+            assert(~isempty(H(1).Key.NAXIS));
+            assert(~isempty(H(2).Key.DATE));
             
+            % getVal()
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME');
             [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','IsInputAlt',true);
@@ -1405,20 +1413,24 @@ classdef AstroHeader < Component
             [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME','UseDict',false);
             [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','UseDict',false);
 
+            % getStructKey()
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [Result,C] = getStructKey(H, {'EXPTIME'});
             [Result,C] = getStructKey(H, {'EXPTIME','A'});
             [Result,C] = getStructKey(H, {'EXPTIME','A'},'UseDict',false);
 
+            % getCellKey
             H = AstroHeader('*.fits',1);
             [Result,C] = getStructKey(H, {'EXPTIME','A'});
             [Result,IK] = getCellKey(H, {'EXPTIME','bb'},'UseDict',false);
             [Result,IK] = getCellKey(H, {'EXPTIME','bb'});
             [Result,IK] = getCellKey(H, {'AEXPTIME','bb'});
 
+            % insertDefaultComments
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             insertDefaultComments(H);
             
+            % deleteKey
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             deleteKey(H,{'EXPTIME','A','COMMENT'});
             deleteKey(H,{'EXPTIME','A','SKYSUB\d'}); % use regexp
@@ -1426,6 +1438,7 @@ classdef AstroHeader < Component
                 error('Key value should be NaN');
             end
 
+            % insertKey
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             H.insertKey('stam');
             H.insertKey({'A','','';'B','',''},'end-1');
@@ -1456,8 +1469,9 @@ classdef AstroHeader < Component
             Groups = groupByKeyVal([H,H],{'IMTYPE','FILTER1','EXPTIME'});
             
             
-            cd(PWD);
+            cd(PWD);      
 
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroHeader test passed')
             Result = true;
             
         end

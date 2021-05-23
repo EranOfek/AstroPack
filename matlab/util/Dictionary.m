@@ -4,11 +4,13 @@
 % Example: D=Dictionary; D.unitTest
 
 classdef Dictionary < Component
+    
     properties (Dependent, SetAccess = private)
         NameParts 
         LastNamePart char         = '';
         FieldNames cell           = {};
     end
+    
     properties
         DictName char             = '';   % Dictionary name - e.g., 'HeaderKeySynonyms'
         %Family char               = '';   % Dictionary Family
@@ -16,6 +18,7 @@ classdef Dictionary < Component
         Conversion
     end
    
+    
     methods % constructor
         function Obj = Dictionary(Args)
             %
@@ -38,6 +41,7 @@ classdef Dictionary < Component
             end
         end
         
+        
         function delete(Obj)
             % destructor
             Obj.DictName = '';
@@ -56,16 +60,19 @@ classdef Dictionary < Component
             %Obj.Conversion = 
         end
         
+        
         function Result = get.NameParts(Obj)
             % getter for NameParts - split names by '.'
             Result = strsplit(Obj.DictName,'.');
         end
+        
         
         function Result = get.LastNamePart(Obj)
             % getter for the last name part in the name
             
             Result = Obj.NameParts{end};
         end
+        
         
         function Result = get.FieldNames(Obj)
             % Return field names for dictionary
@@ -120,7 +127,7 @@ classdef Dictionary < Component
                 AltConv = [];
             else
                 Alt = Obj.Dict.(FN{Ind});
-                if nargout>1
+                if nargout > 1
                     if isfield(Obj.Conversion,FN{Ind})
                         AltConv = Obj.Conversion.(FN{Ind});
                     else
@@ -129,9 +136,7 @@ classdef Dictionary < Component
                 end
                 
             end
-        end
-            
-            
+        end           
             
             
         function [Key,AltConv,AllAlt,FlagKey]=searchAlt(Obj,Alt,Args)
@@ -219,8 +224,10 @@ classdef Dictionary < Component
     end
     
     methods % unitTest
-        function unitTest(Obj)
+        function Result = unitTest(Obj)
             %
+            
+            io.msgStyle(LogLevel.Test, '@start', 'Dictionary test passed')
             
             St.EXPTIME = {'AEXPTIME','EXPTIME','EXPOSURE'};
             St.IMTYPE  = {'IMTYPE','TYPE','IMGTYPE','IMAGETYP'};
@@ -232,6 +239,9 @@ classdef Dictionary < Component
             [Alt,AltConv] = Obj.searchKey('EXPTIME')
             [Key,AltConv,AllAlt,FlagKey] = Obj.searchAlt('AEXPTIME')
             
+            
+            io.msgStyle(LogLevel.Test, '@passed', 'Dictionary test passed')
+            Result = true;
         end
    end
         

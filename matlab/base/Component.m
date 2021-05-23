@@ -29,7 +29,7 @@ classdef Component < Base
         MapKey = []                % Used with ComponentMap class
         Config Configuration       % Configuration, deafult is system configuration
         Log MsgLogger              % Logger, default is system logger
-        DebugMode = false          % DebugMode
+        DebugMode = true           % DebugMode
     end
     
     %-------------------------------------------------------- 
