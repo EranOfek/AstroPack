@@ -13,6 +13,7 @@ classdef DbQuery < Component
         % Connection details
         ConnectionStr = ''
         Conn = []
+        ConnName = ''
         
         % Current SQL statement data
         SqlText = ''        % SQL text
@@ -27,19 +28,32 @@ classdef DbQuery < Component
         IsOpen = false      % query() 
         ExecOk = false      % exec()
         Eof = true          %
-        
+        Toc = 0             %
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
         function Obj = DbQuery(varargin)
+            % Create new DbQuery obeject
             
             Obj.needUuid();
             Obj.msgLog(LogLevel.Debug, 'DbQuery created: %s', Obj.Uuid);
             
-            if numel(varargin) == 1
-                Conn = varargin{1};
+            %
+            if numel(varargin) == 1 
+                
+                % Connection object is specified
+                if strcmp(class(varargin{1}), 'io.db.DbConnection')                    
+                    Conn = varargin{1};
+                    
+                % Connection name is specified
+                elseif strcmp(class(varargin{1}), 'char') || strcmp(class(varargin{1}), 'string')
+                    Obj.ConnName = varargin{1};
+                    Conn = io.db.DbConnection.getDbConnection(Obj.ConnName);
+                end                
+                
+            % Use default connection
             elseif numel(varargin) == 0
                 Conn = io.db.DbConnection.getDbConnection('');
             else
@@ -115,8 +129,8 @@ classdef DbQuery < Component
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);                
             end           
             
-            Time = toc();            
-            Obj.msgLog(LogLevel.Info, 'DbQuery.query time: %.6f', Time);
+            Obj.Toc = toc();            
+            Obj.msgLog(LogLevel.Info, 'DbQuery.query time: %.6f', Obj.Toc);
         end
         
 
@@ -167,8 +181,8 @@ classdef DbQuery < Component
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);                
             end
             
-            Time = toc();
-            Obj.msgLog(LogLevel.Info, 'DbQuery.exec time: %.6f', Time);
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Info, 'DbQuery.exec time: %.6f', Obj.Toc);
         end
         
         
@@ -257,7 +271,7 @@ classdef DbQuery < Component
             end
             
             % Select
-            Obj.SqlText = sprintf('SELECT %s FROM %s', Fields, TableName);
+            Obj.SqlText = sprintf('SELECT %s FROM %s', Fields, TableName);  %.char;
             
             % Where
             if ~isempty(Args.Where)
@@ -281,7 +295,7 @@ classdef DbQuery < Component
         
         function selectWhere(Obj, Fields, TableName, Where)
             % Execute: SELECT Fields FROM TableName WHERE Where
-            Obj.SqlText = sprintf('%s FROM %s WHERE %s', Fields, TableName, Where);
+            Obj.SqlText = sprintf('%s FROM %s WHERE %s', Fields, TableName, Where).char;
             Obj.query();            
         end
         
@@ -289,7 +303,7 @@ classdef DbQuery < Component
         function Result = selectCount(Obj, TableName)
             Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s', TableName);
             Obj.query();            
-            Result = Q.getField('count');
+            Result = Obj.getField('count');
         end
         
             
@@ -652,13 +666,13 @@ classdef DbQuery < Component
             end            
             
             count2 = Q.selectCount('master_table');
-            assert(count2 == count);
+            assert(count2 == count+1);
             
             % ---------------------------------------------- Delete
             sql = sprintf("DELETE FROM master_table WHERE RecID='%s'", uuid);
             Q.exec(sql);           
             count2 = Q.selectCount('master_table');
-            assert(count2 == 0);
+            assert(count2 == count);
             
             % ---------------------------------------------- Create and delete databaswe
             
