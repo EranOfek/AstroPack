@@ -24,7 +24,8 @@ classdef DbQuery < Component
         ColumnCount = 0     %
         ColumnNames  = []   %
         ColumnType  = []    %
-        IsOpen = false      %
+        IsOpen = false      % query() 
+        ExecOk = false      % exec()
         Eof = true          %
         
     end
@@ -59,20 +60,23 @@ classdef DbQuery < Component
     
     methods % open, close
                                
-        function Result = open(Obj, varargin)
-            %
-            Obj.msgLog(LogLevel.Info, 'DbQuery: open');            
+        function Result = query(Obj, varargin)
+            % Run SELECT statement (using java calls)          
+            Obj.msgLog(LogLevel.Info, 'DbQuery: open');
+            Result = false;
+            
+            tic();
             
             % Need connection
             if isempty(Obj.Conn)
-                error('DbQuery.open: No connection');
+                error('DbQuery.query: No connection');
             end
                
             % Open connection
             if ~Obj.Conn.IsOpen
                 Obj.Conn.open();
                 if ~Obj.Conn.IsOpen
-                    error('DbQuery.open: Open connection failed');
+                    error('DbQuery.query: Open connection failed');
                 end
             end            
             
@@ -84,44 +88,124 @@ classdef DbQuery < Component
             % Set SQL text
             if numel(varargin) == 1
                 Obj.SqlText = varargin{1};
-            end
-                
+            end              
+        
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.open: %s', Obj.SqlText);
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.query: %s', Obj.SqlText);
             try
                 Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
             catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.open: prepareStatement failed: %s', Obj.SqlText);
+                Obj.msgLog(LogLevel.Error, 'DbQuery.query: prepareStatement failed: %s', Obj.SqlText);
             end
             
-            % Execute 
+            % Execute
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
             try
-                Obj.ResultSet = Obj.Statement.executeQuery();
+                Obj.ResultSet = Obj.Statement.executeQuery();                
+                Obj.IsOpen = true;                
+
+                % Get metadata (@Todo: Make it Optional?)
+                Obj.getMetadata();
+
+                % Get first result record
+                Obj.next();
+                Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);
+                Obj.IsOpen = false;
+                Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);                
+            end           
+            
+            Time = toc();            
+            Obj.msgLog(LogLevel.Info, 'DbQuery.query time: %.6f', Time);
+        end
+        
+
+        function Result = exec(Obj, varargin)
+            % Execute SQL statement (using java calls)
+            Obj.msgLog(LogLevel.Info, 'DbQuery: exec');            
+            Result = false;
+            tic();
+            
+            % Need connection
+            if isempty(Obj.Conn)
+                error('DbQuery.exec: No connection');
+            end
+               
+            % Open connection
+            if ~Obj.Conn.IsOpen
+                Obj.Conn.open();
+                if ~Obj.Conn.IsOpen
+                    error('DbQuery.exec: Open connection failed');
+                end
+            end            
+            
+            % Clear current query
+            if Obj.IsOpen
+                Obj.clear();
             end
             
-            % Get metadata (@Todo: Make it Optional?)
-            Obj.getMetadata();
+            % Set SQL text
+            if numel(varargin) == 1
+                Obj.SqlText = varargin{1};
+            end              
+        
+            % Prepare query
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.exec: %s', Obj.SqlText);
+            try
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.exec: prepareStatement failed: %s', Obj.SqlText);
+            end
             
-            %
-            Obj.next();
+            % Execute
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+            try
+                Obj.ResultSet = Obj.Statement.executeUpdate();                             
+                Obj.ExecOk = true;                
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);                
+            end
+            
+            Time = toc();
+            Obj.msgLog(LogLevel.Info, 'DbQuery.exec time: %.6f', Time);
         end
         
         
         function Result = clear(Obj)
+            % Clear current statement and resultset
             Obj.clearResultSet();
             if ~isempty(Obj.ResultSet)
                 Obj.ResultSet.close();
-                Obj.Statement.close();
-                Obj.clearResultSet();
                 Obj.IsOpen = false;
             end
+            
+            if ~isempty(Obj.Statement)
+                Obj.Statement.close();
+                Obj.Statement = [];
+                Obj.IsOpen = false;
+            end
+                                           
+            Obj.ExecOk = false;
             Result = ~Obj.IsOpen;
         end
         
         
+
+        function Result = clearResultSet(Obj)
+            % Clear current ResultSet            
+            Obj.ResultSet = [];
+            Obj.Record = [];
+            Obj.Metadata = [];        
+            Obj.ColumnCount = 0;
+            Obj.ColumnNames  = [];
+            Obj.ColumnType  = [];
+            Result = true;
+        end
+        
+        
         function Result = close(Obj)
+            % Close current query
             Result = Obj.clear();
         end
         
@@ -158,20 +242,7 @@ classdef DbQuery < Component
             end            
 
         end
-        
-
-        function Result = clearResultSet(Obj)
-            % Clear current ResultSet
-            
-            Obj.ResultSet = [];
-            Obj.Record = [];
-            Obj.Metadata = [];        
-            Obj.ColumnCount = 0;
-            Obj.ColumnNames  = [];
-            Obj.ColumnType  = [];
-            Result = true;
-        end
-        
+               
 
         function select(Obj, Fields, TableName, Args)
             % Execute: SELECT Fields FROM TableName
@@ -204,28 +275,24 @@ classdef DbQuery < Component
             end
             
             % Open
-            Obj.open();            
+            Obj.query();            
         end
         
         
         function selectWhere(Obj, Fields, TableName, Where)
             % Execute: SELECT Fields FROM TableName WHERE Where
             Obj.SqlText = sprintf('%s FROM %s WHERE %s', Fields, TableName, Where);
-            Obj.open();            
+            Obj.query();            
         end
         
-        function exec(Obj, QueryText)
-            % Execute query text
-            
-            Obj.SqlText = QueryText;
-            
-            Obj.Statement = Obj.Conn.prepareStatement(Obj.SqlText);
-            
-            Obj.ResultSet = Obj.Statement.executeQuery();
-            
-        end 
         
+        function Result = selectCount(Obj, TableName)
+            Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s', TableName);
+            Obj.query();            
+            Result = Q.getField('count');
+        end
         
+            
         function Result = next(Obj)
             Result = false;
             Obj.Eof = true;
@@ -256,7 +323,7 @@ classdef DbQuery < Component
             if isnumeric(FieldName)
                 ColIndex = FieldName;
             else
-                ColIndex = Obj.getFieldIndex(FieldName);
+                ColIndex = Obj.getFieldIndex(lower(FieldName));
             end
                 
             if ColIndex > 0
@@ -282,6 +349,8 @@ classdef DbQuery < Component
                 catch
                     Obj.msgLog(LogLevel.Error, 'getField failed: %s', string(FieldName).char);
                 end
+            else
+                Obj.msgLog(LogLevel.Error, 'getField failed: Field not found: %s', string(FieldName).char);
             end
         end
         
@@ -346,6 +415,8 @@ classdef DbQuery < Component
         
         function Result = getRecord(Obj)
             % Get current record from ResultSet as DbRecord
+            % NOTE: Field names are loaded in lower-case (because Postgres
+            % creates field names lower-cased)
             
             % Create new record object
             Rec = io.db.DbRecord(Obj);
@@ -440,7 +511,11 @@ classdef DbQuery < Component
     methods(Static)
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
+            io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
                
+            % ---------------------------------------------- Connect
+            % NOTE: Database 'unittest' should exist
+            
             % Create database connection
             %Conn = io.db.DbConnection;
             %Conn.DatabaseName = 'unittest';
@@ -448,54 +523,146 @@ classdef DbQuery < Component
 
             Conn = io.db.Db.getUnitTest();
             
-            % Query Postgres version
-            
-            %print('PostgreSQL database version:')
-            %cur.execute('SELECT version()')
-    
-            % Select two fields from table
+            % Query Postgres version, result should be similar to
+            % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
             Q = io.db.DbQuery(Conn);
-            Q.open('select RecId, FInt from master_table limit 5');
-            assert(Q.ColumnCount == 2);
+            Q.query('SELECT version()');
+            assert(Q.ColumnCount == 1);
+            pgver = Q.getField('version');
+            io.msgLog(LogLevel.Test, 'Version: %s', pgver);
+            assert(contains(pgver, 'PostgreSQL'));
+        
+            % ---------------------------------------------- Select
+            % NOTE: At this point, we assume that tables master_table and
+            % details_table exist and are not empty
+                       
+            % Select two fields from table, using LIMIT
+            Q = io.db.DbQuery(Conn);
+            Q.query('SELECT count(*) FROM master_table');
+            count = Q.getField('count');
+            if count > 0
             
-            %
-            Rec = Q.getRecord();
-            B = Q.loadAll();
-            
-            % Load entire result set to memory
-            Data = Q.loadAll();
-            assert(size(Data, 2) == 2);
-            
-            % Select all fields from table
-            Q.open(['select * from master_table limit 10']);
-            
-            % Load current record to memory
-            Rec = Q.getRecord();
-            
-            % Get all fields, show not throw exception as all these fields
-            % exist in table 'master_table'
-            RecID = Rec.recid;
-            InsertTime = Rec.inserttime;
-            UpdateTime = Rec.updatetime;
-            FInt = Rec.fint;
-            FBigInt = Rec.fbigint;
-            FBool = Rec.fbool;
-            FDouble = Rec.fdouble;
-            FTimestamp = Rec.ftimestamp;
-            FString = Rec.fstring;
+                Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
+                assert(Q.ColumnCount == 2);
 
-            % Test select function
-            % select RecId, FInt, FBigInt from master_table where recid != ''
-            Q.select('RecID, Fint', 'master_table', 'where', 'Fint > 0');
-            Rec = Q.getRecord();
-            
-            % Insert records            
-            % sql = 'INSERT INTO master_table(RecID, InsertTime, UpdateTime, FInt, FBigInt, FBool, FDouble, FTimestamp, FString) VALUES(%s,%s);'
-            for i = 1:100
+                % Get entire record (Note: Field names are lower-case only)
+                Rec = Q.getRecord();
+                assert(~isempty(Rec.recid));
+                assert(~isempty(Rec.fint));
+
+                % Load entire result set
+                B = Q.loadAll();
+                assert(~isempty(B));
+
+                % Load entire result set to memory
+                Data = Q.loadAll();
+                assert(size(Data, 2) == 2);
+
+                % Select all fields from table, using LIMIT
+                Q.query(['SELECT * FROM master_table LIMIT 10']);
+
+                % Load current record to memory
+                delete(Rec);
+                Rec = [];
+                assert(isempty(Rec));
+                Rec = Q.getRecord();
+                assert(~isempty(Rec));
+
+                % Get all fields (Note: Field names are lower-case only)
+                % All these fields should exist in table 'master_table'
+                RecID = Rec.recid;
+                assert(~isempty(Rec.recid));            
+                InsertTime = Rec.inserttime;
+                UpdateTime = Rec.updatetime;
+                FInt = Rec.fint;
+                FBigInt = Rec.fbigint;
+                FBool = Rec.fbool;
+                FDouble = Rec.fdouble;
+                FTimestamp = Rec.ftimestamp;
+                FString = Rec.fstring;
+
+                % Try to access undefined field
+                catched = false;
+                try
+                    temp = Rec.abcabcabcabc;
+                catch
+                    catched = true;
+                end
+                assert(catched);
+
+                % Test select() function
+                % select RecId, FInt, FBigInt from master_table where recid != ''
+                Q.select('RecID, Fint', 'master_table', 'where', 'Fint > 0');
+                Rec2 = Q.getRecord();
+                assert(~isempty(Rec2));  
+            else
+                io.msgStyle(LogLevel.Test, '@warn', 'Table master_table is empty, select tests are skipped');
             end
             
-
+            % ---------------------------------------------- Insert
             
+            % Insert records            
+            io.msgLog(LogLevel.Test, 'testing INSERT...');
+            InsertCount = 100;
+            for i = 1:InsertCount
+                % Prepare statement
+                uuid = Component.newUuid();
+                sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
+                Q.exec(sql);
+                assert(Q.ExecOk);
+            end           
+            
+            % Make sure all records were inserted
+            Q.query('SELECT count(*) FROM master_table');
+            count = Q.getField('count');
+            assert(count > InsertCount);
+
+            % Insert batch
+            % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
+            TestBatch = false;
+            if (TestBatch)
+                InsertCount = 0;
+                sql = '';
+                for i = 1:InsertCount
+                    % Prepare statement
+                    uuid = Component.newUuid();
+                    sql2 = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d);", uuid, i).char;
+                    sql = [sql sql2];
+                end           
+                Q.exec(sql);
+                assert(Q.ExecOk);            
+            end
+            
+            % Test insert() function
+            
+            % ---------------------------------------------- Update
+            io.msgLog(LogLevel.Test, 'testing UPDATE...');
+            UpdateCount = 100;
+            uuid = Component.newUuid();
+            sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+            Q.exec(sql);
+            for i = 1:UpdateCount
+                sql = sprintf("UPDATE master_table SET FInt=%d WHERE RecID='%s'", i, uuid);
+                Q.exec(sql);
+                
+                sql = sprintf("SELECT RecID,FInt from master_table where RecID='%s'", uuid).char;
+                Q.query(sql);
+                val = Q.getField('FInt');
+                assert(val == i);
+            end            
+            
+            count2 = Q.selectCount('master_table');
+            assert(count2 == count);
+            
+            % ---------------------------------------------- Delete
+            sql = sprintf("DELETE FROM master_table WHERE RecID='%s'", uuid);
+            Q.exec(sql);           
+            count2 = Q.selectCount('master_table');
+            assert(count2 == 0);
+            
+            % ---------------------------------------------- Create and delete databaswe
+            
+
             %assert(Rec.ColumnCount > 0);
             
             

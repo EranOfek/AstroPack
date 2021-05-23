@@ -63,7 +63,8 @@ classdef Base < handle
                 % @Chen @Todo: Generate unique UUID?
                 if isprop(Obj, 'Uuid')
                     
-                    % Generate new uuid
+                    % Generate new uuid, note that makeUuid() is a method
+                    % of the Component class
                     if ~isempty(Obj(1).Uuid)
                         NewObj.makeUuid();                        
                     end
