@@ -1,0 +1,13 @@
+# Windows Installation
+
+Required components:
+
+- Matlab R2020b or later
+- Python 3.8.5 (64-bit on Windows)
+- Git 2.30.2
+- Winrar
+
+
+
+
+
