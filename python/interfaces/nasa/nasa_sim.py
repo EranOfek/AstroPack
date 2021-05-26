@@ -3,7 +3,7 @@
 from interface_base import InterfaceBase
 
 
-class InterfaceIai(InterfaceBase):
+class InterfaceNASA(InterfaceBase):
 
     # Constructor
     def __init__(self):

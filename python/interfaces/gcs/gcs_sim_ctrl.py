@@ -1,4 +1,4 @@
-# Simulate IAI GSC image generation, by coping images to the target folder.
+# Simulate GSC image generation, by coping images to the target folder.
 
 import os, glob, time, json, argparse, random, shutil, yaml
 from datetime import datetime
