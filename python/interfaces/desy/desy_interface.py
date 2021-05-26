@@ -3,7 +3,7 @@
 from interface_base import InterfaceBase
 
 
-class InterfaceDesy(InterfaceBase):
+class DesyInterface(Component):
 
     # Constructor
     def __init__(self):

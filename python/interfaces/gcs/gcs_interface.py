@@ -1,9 +1,6 @@
-# IAI Interface
+# GCS Interface Manager
 
-from interface_base import InterfaceBase
-
-
-class GcsInterface(InterfaceBase):
+class GcsInterface(Component):
 
     # Constructor
     def __init__(self):

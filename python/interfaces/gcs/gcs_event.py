@@ -1,9 +1,11 @@
+# GCS Event Data
 
 class GcsEvent:
 
     # Constructor
     def __init__(self):
-        self.interface_name = ''
+        self.uuid = ''
+        self.time = 0
 
     # Destructor
     def __del__(self):

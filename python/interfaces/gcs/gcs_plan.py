@@ -1,5 +1,4 @@
-
-#--------------------------------------------------------------------------
+# GCS Observation Plan Data
 
 # Sky Coordination
 class SkyCoord:
@@ -17,8 +16,7 @@ class SkyTime:
         self.jtime = 0
 
 
-#--------------------------------------------------------------------------
-# Observation Point
+# single Observation Point
 class ObservationPoint:
 
     # Constructor
@@ -48,25 +46,17 @@ class ObservationPoint:
         pass
 
 
-
-#--------------------------------------------------------------------------
 # Observation Task
 class ObservationTask:
 
     # Constructor
     def __init__(self):
         self.task_uuid = ''
-        self.point_list = []
+        self.point_list = []        # List of ObservationPoint
 
 
     # Destructor
     def __del__(self):
         # Deleted
         pass
-
-
-#--------------------------------------------------------------------------
-
-
-
 

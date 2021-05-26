@@ -1,9 +1,9 @@
-# LSST Interface
+# IAI Interface
 
 from interface_base import InterfaceBase
 
 
-class LsstInterface(Component):
+class DesyMain(ProcessMain):
 
     # Constructor
     def __init__(self):

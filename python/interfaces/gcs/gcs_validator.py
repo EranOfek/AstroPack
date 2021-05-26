@@ -1,8 +1,8 @@
-# Observasion Plan Validator
+# GCS Observasion Plan Validator
 
 # Run IAI validator?
 
-class ObservaionValidator:
+class ObservaionValidator(Component):
 
     # Constructor
     def __init__(self):

@@ -1,9 +1,6 @@
-# IAI Interface
+# GCS Interface - Main
 
-from interface_base import InterfaceBase
-
-
-class GcsInterface(InterfaceBase):
+class GcsMain(Component):
 
     # Constructor
     def __init__(self):
@@ -13,9 +10,6 @@ class GcsInterface(InterfaceBase):
     def __del__(self):
         # Deleted
         pass
-
-
-
 
 
 #------------------------------- Main -------------------------------

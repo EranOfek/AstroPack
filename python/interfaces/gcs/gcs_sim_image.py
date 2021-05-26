@@ -1,3 +1,5 @@
+# GCS Simulator - Images
+
 # Simulate GSC image generation, by coping images to the target folder.
 
 import os, glob, time, json, argparse, random, shutil, yaml

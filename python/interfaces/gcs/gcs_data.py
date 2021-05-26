@@ -1,6 +1,4 @@
-# IAI Interface
-
-from interface_base import InterfaceBase
+# GCS Data Types
 
 
 class GcsInterface(InterfaceBase):

@@ -1,9 +1,6 @@
-# IAI Interface
+# LSST - Simulator
 
-from interface_base import InterfaceBase
-
-
-class InterfaceLSST(InterfaceBase):
+class LsstSimulator(Component):
 
     # Constructor
     def __init__(self):

@@ -1,6 +1,6 @@
-# IAI Interface
+# GCS Communication Manager
 
-class GcsComm:
+class GcsComm(Component):
 
     # Constructor
     def __init__(self):
@@ -10,7 +10,6 @@ class GcsComm:
     def __del__(self):
         # Deleted
         pass
-
 
     # Send message to GCS
     def send_msg(self, msg):

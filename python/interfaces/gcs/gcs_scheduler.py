@@ -1,5 +1,5 @@
+# GCS Observation Scheduler
 
-# GCS
 class GcsScheduler:
 
     # Constructor

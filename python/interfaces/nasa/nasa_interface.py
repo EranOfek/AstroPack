@@ -3,7 +3,7 @@
 from interface_base import InterfaceBase
 
 
-class InterfaceNASA(InterfaceBase):
+class NasaInterface(Component):
 
     # Constructor
     def __init__(self):
