@@ -2025,6 +2025,8 @@ classdef AstroImage < Component
             % unitTest for AstroImage
             % Example: AstroImage.unitTest
             
+            io.msgStyle(LogLevel.Test, '@start', 'AstroImage test started')
+            
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
             cd(DataSampleDir);
@@ -2134,13 +2136,11 @@ classdef AstroImage < Component
             Mat = zeros(30,30); Mat(15,15)=1;
             AI = AstroImage({Mat});
             Res = filter(AI, @imUtil.kernel2.gauss);
-
-
-            
-            
-            
+           
             
             cd(PWD);
+            
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroImage test passed')
             Result = true;
         end
     end
