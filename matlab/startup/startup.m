@@ -1,4 +1,14 @@
 % The default matlab startup script for AstroPack
+%
+% startup.m folder:
+%
+% Linux:
+%
+%
+% Windows: 
+%
+
+
 % edit(fullfile(userpath,'startup.m'))
 
 % display numbers format

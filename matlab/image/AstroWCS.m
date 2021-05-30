@@ -1074,18 +1074,18 @@ classdef AstroWCS < Component
 
 
         function [X,Y]=pix2interm(W,PX,PY)
-        % Convert pixel coordinates (P) to intermediate coordinates (X)
-        % Package: @wcsCl (transformations)
-        % Input  : - A single element wcsCl object
-        %          - A matrix of pixel X coordinate.
-        %            If next argument is not provided then this is a
-        %            two column matrix of [PX,PY].
-        %          - A matrix of pixel Y coordinate.
-        % Output : - A matrix of X intermediate coordinate.
-        %          - A matrix of Y intermediate coordinate.
-        %            The intermediate coordinates units are specified in
-        %            CUNIT.
-        % Example: [X,Y]=pix2interm(W,1,1)
+            % Convert pixel coordinates (P) to intermediate coordinates (X)
+            % Package: @wcsCl (transformations)
+            % Input  : - A single element wcsCl object
+            %          - A matrix of pixel X coordinate.
+            %            If next argument is not provided then this is a
+            %            two column matrix of [PX,PY].
+            %          - A matrix of pixel Y coordinate.
+            % Output : - A matrix of X intermediate coordinate.
+            %          - A matrix of Y intermediate coordinate.
+            %            The intermediate coordinates units are specified in
+            %            CUNIT.
+            % Example: [X,Y]=pix2interm(W,1,1)
 
             if numel(W)~=1
                 error('The wcsCl object input must contain a single element');
@@ -1134,7 +1134,7 @@ classdef AstroWCS < Component
         end
 
 
-        function PolyPV=polyPVdef
+        function PolyPV=polyPVdef()
             % return the TPV polynomial definition
             % Output : - A matrix of [term, Xi, Yi, r]
             % Example: PolyPV=wcsCl.polyPVdef
@@ -1191,7 +1191,7 @@ classdef AstroWCS < Component
         end
 
 
-        function W=pop_example
+        function W=pop_example()
             % populate an example in a wcsCl object
             % Package: @wcsCl (Static)
             % Example: W=wcsCl.pop_example
@@ -1422,9 +1422,6 @@ classdef AstroWCS < Component
             % Description: 
             % Input  : - A wcsCl object
             % Output : - W wcsCl object with the projection type and pole data populated.
-
-
-
 
             Def.LONPOLE = 0;
             Def.LATPOLE = 90;
@@ -1679,3 +1676,5 @@ classdef AstroWCS < Component
 end
     
 end
+
+
