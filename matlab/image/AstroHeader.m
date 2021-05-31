@@ -1391,18 +1391,20 @@ classdef AstroHeader < Component
 
             io.msgStyle(LogLevel.Test, '@start', 'AstroHeader test started')
             
+            % Change to data directory
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
-            cd(DataSampleDir);
-            
+            cd(DataSampleDir);           
 
             % construct an empty AstroHeader
             A = AstroHeader([2 2]);
             
             % read headers to AstroHeader, on construction
-            H = AstroHeader('*.fits',1);
+            H = AstroHeader('*.fits', 1);
             assert(~isempty(H(1).Key.NAXIS));
             assert(~isempty(H(2).Key.DATE));
+            
+            
             
             % getVal()
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
@@ -1478,5 +1480,4 @@ classdef AstroHeader < Component
     end    
         
 end
-
 

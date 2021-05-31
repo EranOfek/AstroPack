@@ -159,7 +159,7 @@ classdef DbQuery < Component
             end
             
             % Set SQL text
-            if numel(varargin) == 1
+            if numel(varargin) >= 1
                 Obj.SqlText = varargin{1};
             end              
         
@@ -170,6 +170,14 @@ classdef DbQuery < Component
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.exec: prepareStatement failed: %s', Obj.SqlText);
             end
+            
+            % See https://www.codota.com/code/java/methods/java.sql.PreparedStatement/setBigDecimal
+            if numel(varargin) >= 1
+                try
+                catch
+                end
+            end              
+            
             
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -330,7 +338,28 @@ classdef DbQuery < Component
             end                
         end        
         
+        
+        function Result = insert(Obj, TableName, Keys, Values)
+            % Insert new record to table, Keys and Values are celarray
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
+                        
+            SqlKeys = '';
+            SqlValues = '';
+            for i = 1:numel(Keys)
+                SqlKeys = [SqlKeys, string(SqlKeys).char];
+                SqlValues = [SqlValues, '?'];
+                if i < numel(Keys)
+                    SqlKeys = [SqlKeys ','];
+                    SqlValues = [SqlValues ','];
+                end
+            end
             
+            % Prepare statement
+            Sql = sprintf("INSERT INTO %s (%s) VALUES (%s)", TableName, SqlKeys, SqlValues);
+            Result = Obj.exec(Sql, Values);
+        end
+        
+        
         function Result = getField(Obj, FieldName)
             % Get string field
             
