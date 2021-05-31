@@ -1,4 +1,4 @@
-function [Cat,Ref,FlagCat,FlagRef]=prep_cat_for_astrometry(Cat,Ref,varargin)
+function [Cat,Ref,FlagCat,FlagRef]=prep_cat_for_astrometry(Cat, Ref, Args)
 % Clean two catalogs and equalize their surface density
 % Package: imUtil.patternMatch
 % Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs
@@ -70,33 +70,28 @@ function [Cat,Ref,FlagCat,FlagRef]=prep_cat_for_astrometry(Cat,Ref,varargin)
 % Reliable: 2
 
 
-InPar = inputParser;
-addOptional(InPar,'CatRemoveNaN',true);
-addOptional(InPar,'CatRemoveBadColRow',true);
-addOptional(InPar,'CatRemoveOverDense',true);
-addOptional(InPar,'RefRemoveNaN',false);
-addOptional(InPar,'RefRemoveBadColRow',false);
-addOptional(InPar,'RefRemoveOverDense',true);
-addOptional(InPar,'EqualizeDensity',true);
-addOptional(InPar,'DiluteThreshold',0.5);
-addOptional(InPar,'ColRowPar',{});
-addOptional(InPar,'OverdensePar',{});
-
-addOptional(InPar,'CatHalfSize',[]);
-addOptional(InPar,'RefHalfSize',[]);
-
-addOptional(InPar,'ColCatX',1);
-addOptional(InPar,'ColCatY',2);
-addOptional(InPar,'ColCatMag',3);
-addOptional(InPar,'ColRefX',1);
-addOptional(InPar,'ColRefY',2);
-addOptional(InPar,'ColRefMag',3);
-
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-
+arguments
+    Cat
+    Ref
+    Args.CatRemoveNaN(1,1) logical         = true;
+    Args.CatRemoveBadColRow(1,1) logical   = true;
+    Args.CatRemoveOverDense(1,1) logical   = true;
+    Args.RefRemoveNaN(1,1) logical         = false;
+    Args.RefRemoveBadColRow(1,1) logical   = false;
+    Args.RefRemoveOverDense(1,1) logical   = true;
+    Args.EqualizeDensity(1,1) logical      = true;
+    Args.DiluteThreshold                   = 0.5;
+    Args.ColRowPar cell                    = {};
+    Args.OverdensePar cell                 = {};
+    Args.CatHalfSize                       = [];
+    Args.RefHalfSize                       = [];
+    Args.ColCatX(1,1)                      = 1;
+    Args.ColCatY(1,1)                      = 2;
+    Args.ColCatMag(1,1)                    = 3;
+    Args.ColRefX(1,1)                      = 1;
+    Args.ColRefY(1,1)                      = 2;
+    Args.ColRefMag(1,1)                    = 3;
+end
 
 % clean catalog
 
@@ -106,33 +101,33 @@ FlagCat = true(NsrcCat,1);
 FlagRef = true(NsrcRef,1);
 
 % remove NaNs:
-if InPar.CatRemoveNaN
-    FlagCat = FlagCat & ~isnan(Cat(:,InPar.ColCatX));
+if Args.CatRemoveNaN
+    FlagCat = FlagCat & ~isnan(Cat(:,Args.ColCatX));
 end
-if InPar.RefRemoveNaN
-    FlagRef = FlagRef & ~isnan(Ref(:,InPar.ColRefX));
+if Args.RefRemoveNaN
+    FlagRef = FlagRef & ~isnan(Ref(:,Args.ColRefX));
 end
 
 % remove sources acculated on overdense bad column/rows
 
-if InPar.CatRemoveBadColRow
-    FlagCat = FlagCat & ~imUtil.cat.flag_overdense_colrow(Cat(:,[InPar.ColCatX,InPar.ColCatY]),InPar.ColRowPar{:},'Dim',1);
-    FlagCat = FlagCat & ~imUtil.cat.flag_overdense_colrow(Cat(:,[InPar.ColCatX,InPar.ColCatY]),InPar.ColRowPar{:},'Dim',2);
+if Args.CatRemoveBadColRow
+    FlagCat = FlagCat & ~imUtil.cat.flag_overdense_colrow(Cat(:,[Args.ColCatX,Args.ColCatY]),Args.ColRowPar{:},'Dim',1);
+    FlagCat = FlagCat & ~imUtil.cat.flag_overdense_colrow(Cat(:,[Args.ColCatX,Args.ColCatY]),Args.ColRowPar{:},'Dim',2);
 end
-if InPar.RefRemoveBadColRow
-    FlagRef = FlagRef & ~imUtil.cat.flag_overdense_colrow(Cat(:,[InPar.ColRefX,InPar.ColRefY]),InPar.ColRowPar{:},'Dim',1);
-    FlagRef = FlagRef & ~imUtil.cat.flag_overdense_colrow(Cat(:,[InPar.ColRefX,InPar.ColRefY]),InPar.ColRowPar{:},'Dim',2);
+if Args.RefRemoveBadColRow
+    FlagRef = FlagRef & ~imUtil.cat.flag_overdense_colrow(Cat(:,[Args.ColRefX,Args.ColRefY]),Args.ColRowPar{:},'Dim',1);
+    FlagRef = FlagRef & ~imUtil.cat.flag_overdense_colrow(Cat(:,[Args.ColRefX,Args.ColRefY]),Args.ColRowPar{:},'Dim',2);
 end
 
 
 % remove sources in overdense regions:
-if InPar.CatRemoveOverDense
-    FlagCat = FlagCat & ~imUtil.cat.flag_overdense(Cat(:,[InPar.ColCatX,InPar.ColCatY]),InPar.OverdensePar{:});
-    FlagCat = FlagCat & ~imUtil.cat.flag_overdense(Cat(:,[InPar.ColCatX,InPar.ColCatY]),InPar.OverdensePar{:});
+if Args.CatRemoveOverDense
+    FlagCat = FlagCat & ~imUtil.cat.flag_overdense(Cat(:,[Args.ColCatX,Args.ColCatY]),Args.OverdensePar{:});
+    FlagCat = FlagCat & ~imUtil.cat.flag_overdense(Cat(:,[Args.ColCatX,Args.ColCatY]),Args.OverdensePar{:});
 end
-if InPar.RefRemoveOverDense
-    FlagRef = FlagRef & ~imUtil.cat.flag_overdense(Ref(:,[InPar.ColRefX,InPar.ColRefY]),InPar.OverdensePar{:});
-    FlagRef = FlagRef & ~imUtil.cat.flag_overdense(Ref(:,[InPar.ColRefX,InPar.ColRefY]),InPar.OverdensePar{:});
+if Args.RefRemoveOverDense
+    FlagRef = FlagRef & ~imUtil.cat.flag_overdense(Ref(:,[Args.ColRefX,Args.ColRefY]),Args.OverdensePar{:});
+    FlagRef = FlagRef & ~imUtil.cat.flag_overdense(Ref(:,[Args.ColRefX,Args.ColRefY]),Args.OverdensePar{:});
 end
 
 
@@ -141,29 +136,29 @@ Cat = Cat(FlagCat,:);
 Ref = Ref(FlagRef,:);
 
 % dilute by magnitude
-if InPar.EqualizeDensity
+if Args.EqualizeDensity
     if ~isempty(Cat) && ~isempty(Ref)
 
 
-        [DensityCat,AreaCat] = imUtil.cat.surface_density(Cat(:,[InPar.ColCatX,InPar.ColCatY]) ,InPar.CatHalfSize);
-        [DensityRef,AreaRef] = imUtil.cat.surface_density(Ref(:,[InPar.ColRefX,InPar.ColRefY]) ,InPar.RefHalfSize);
+        [DensityCat,AreaCat] = imUtil.cat.surface_density(Cat(:,[Args.ColCatX,Args.ColCatY]) ,Args.CatHalfSize);
+        [DensityRef,AreaRef] = imUtil.cat.surface_density(Ref(:,[Args.ColRefX,Args.ColRefY]) ,Args.RefHalfSize);
  
         
         Ratio = abs(DensityRef - DensityCat)./DensityCat;
-        if Ratio>InPar.DiluteThreshold
+        if Ratio>Args.DiluteThreshold
             % difference in density between Cat and Ref is larger than the
             % threshold
 
             if DensityCat>DensityRef
                 % dilute Cat
-                FlagCatD = imUtil.cat.dilute_cat_by_mag(Cat,{},InPar.ColCatMag,DensityCat,DensityRef);
+                FlagCatD = imUtil.cat.dilute_cat_by_mag(Cat,{},Args.ColCatMag,DensityCat,DensityRef);
                 FlagCatT = true(size(FlagCat));
                 FlagCatT(FlagCat) = FlagCatD;
                 FlagCat = FlagCat & FlagCatT;
                 
                 Cat = Cat(FlagCatD);
             else
-                FlagRefD = imUtil.cat.dilute_cat_by_mag(Ref,{},InPar.ColRefMag,DensityRef,DensityCat);
+                FlagRefD = imUtil.cat.dilute_cat_by_mag(Ref,{},Args.ColRefMag,DensityRef,DensityCat);
                 FlagRefT = true(size(FlagRef));
                 FlagRefT(FlagRef) = FlagRefD;
                 FlagRef = FlagRef & FlagRefT;
