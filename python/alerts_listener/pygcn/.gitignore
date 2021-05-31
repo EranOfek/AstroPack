@@ -1,0 +1,15 @@
+*.db
+*.egg
+*.egg-info
+*.pyc
+*.pyo
+*~
+.cache
+.coverage.*
+._*
+.eggs
+.pytest_cache
+build
+dist
+htmlcov
+gcn/_version.py
