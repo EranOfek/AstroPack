@@ -30,16 +30,23 @@ classdef AstroImageDb < Component
             % Iterate headers
             for i=1:numel(Header)
                 FieldNames = Query.getFieldList();
-                Keys = Header(i).KeyDict.FieldNames;
+                HeaderData = Header(i).Data;
+                DataSize = size(HeaderData)
                 
-                % Iterate keys
+                % Prepare SQL statement
                 % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
                 SqlText = ['INSERT INTO ', string(TableName).char, ' ('];
                 SqlFields = '';
                 SqlValues = ' VALUES (';
-                for f=1:numel(Keys)
-                    Key = Keys{f};
+                              
+                % Iterate keys
+                for f=1:DataSize(1)
+                    Key = HeaderData{i, 1};
+                    
+                    % Check if there is a field matching the header key
                     if any(contains(FieldNames, Key))
+                        
+                        % 
                         if length(SqlFields) > 0:
                             SqlText = [SqlText ',' Key];
                             SqlValues = [SqlValues ',' Value];
@@ -52,6 +59,7 @@ classdef AstroImageDb < Component
                     
                 end
                 
+                % Now we have keys and values
             end
             
             
