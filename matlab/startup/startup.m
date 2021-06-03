@@ -1,15 +1,15 @@
 % The default matlab startup script for AstroPack
 %
+% Open with: edit(fullfile(userpath,'startup.m'))
+%
 % startup.m folder:
 %
-% Linux:
-%
-%
-% Windows: 
+% Linux:   /home/chent/Documents/MATLAB/startup.m
+% Windows: C:\Users\chen\Documents\MATLAB\startup.m
 %
 
-
-% edit(fullfile(userpath,'startup.m'))
+fprintf('AstroPack startup.m started: %s\n', mfilename('fullpath'));
+fprintf('Master startup.m file is located in AstroPack/matlab/startup\n');
 
 % display numbers format
 format short g
@@ -123,3 +123,9 @@ for Ifn=1:1:Nfn
         addpath(FullPath)
     end
 end
+
+
+
+cd(AstroPackPath);
+
+fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
