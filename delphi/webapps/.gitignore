@@ -6,3 +6,6 @@
 *.res
 *.dcu
 
+*.identcache
+
+
