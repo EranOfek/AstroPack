@@ -1,11 +1,79 @@
-function filterForAstrometry(ObjCat, OvjRef, Args)
-    %
-    % not good
+function [ResultCat, ResultRef] = filterForAstrometry(ObjCat, ObjRef, Args)
+    % Given two catalogs, match their surface density and filter sources.
+    % Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs
+    %              by removing NaN coordinates,
+    %              imUtil.cat.flag_overdense_colrow, imUtil.cat.flag_overdense,
+    %              estimate their density using imUtil.cat.surface_density, and
+    %              equalize their surface density by removing the faintest
+    %              sources in one of the catalogs using
+    %              imUtil.cat.dilute_cat_by_mag
+    % Input  : - A catalog with [X,Y,Mag] columns.
+    %            Either a matrix, or AstroCatalog or AstroImage object.
+    %          - A Ref catalog wiyh [X,Y,Mag] columns.
+    %            Either a matrix, or AstroCatalog or AstroImage object.
+    %          * Pairs of ...,key,val,... Possible keywords include:
+    %            'CatRemoveNaN' - A logical indicating if to remove NaN
+    %                   coordinates from the Cat. Default is true.
+    %            'CatRemoveBadColRow' - A logical indicating if to remove
+    %                   source in overdense columns/rows
+    %                   from the Cat. Default is true.
+    %            'CatRemoveOverDense' - A logical indicating if to remove
+    %                   source in overdense regions
+    %                   from the Cat. Default is true.
+    %            'RefRemoveNaN'  - A logical indicating if to remove NaN
+    %                   coordinates from the Ref. Default is false.
+    %            'RefRemoveBadColRow' - A logical indicating if to remove
+    %                   source in overdense columns/rows
+    %                   from the Ref. Default is true.
+    %            'RefRemoveOverDense' - A logical indicating if to remove
+    %                   source in overdense regions
+    %                   from the Ref. Default is false.
+    %            'EqualizeDensity' - A logical indicating if to equalize the
+    %                   surface density of the two catalogs.
+    %            'DiluteThreshold' - If the surface density of the Ref minus
+    %                   Cat divided by Cat (abs value) is larger than this
+    %                   factor then applay source diluation.
+    %                   Default is 0.5.
+    %            'ColRowPar' - A cell array of addotional parameters to pass to
+    %                   imUtil.cat.flag_overdense_colrow.
+    %                   Default is {}.
+    %            'OverdensePar' - A cell array of addotional parameters to pass to
+    %                   imUtil.cat.flag_overdense
+    %                   Default is {}.
+    %            'CatHalfSize' - Either radius, or [half width, half height] of
+    %                   the Cat catalog. If empty, then estimate area using
+    %                   convex hull. Default is empty.
+    %            'RefHalfSize' - Either radius, or [half width, half height] of
+    %                   the Ref catalog. If empty, then estimate area using
+    %                   convex hull. Default is empty.
+    %            'CreateNewObj' - Indicating if the output
+    %                   is a new copy of the input (true), or an
+    %                   handle of the input (false).
+    %                   If empty (default), then this argument will
+    %                   be set by the number of output args.
+    %                   If 0, then false, otherwise true.
+    %                   This means that IC.fun, will modify IC,
+    %                   while IB=IC.fun will generate a new copy in
+    %                   IB.
+    %            'ColCatX' - X coordinates column index/name in the Cat.
+    %                   Default is AstroCatalog.DefNamesX.
+    %            'ColCatY' - Y coordinates column index/name in the Cat.
+    %                   Default is AstroCatalog.DefNamesY.
+    %            'ColCatMag' - Mag column index/name in the Cat.
+    %                   Default is AstroCatalog.DefNamesMag.
+    %            'ColRefX' - X coordinates column index/name in the Ref.
+    %                   Default is AstroCatalog.DefNamesX.
+    %            'ColRefY' - Y coordinates column index/name in the Ref.
+    %                   Default is AstroCatalog.DefNamesY.
+    %            'ColRefMag' - Mag column index/name in the Ref.
+    %                   Default is AstroCatalog.DefNamesMag.
+    % Author : Eran Ofek (Jun 2021)
+    % Example: [Cat,Ref]=imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);
    
         
     arguments
-        Cat
-        Ref
+        ObjCat
+        ObjRef
         Args.CatRemoveNaN(1,1) logical         = true;
         Args.CatRemoveBadColRow(1,1) logical   = true;
         Args.CatRemoveOverDense(1,1) logical   = true;
@@ -19,6 +87,8 @@ function filterForAstrometry(ObjCat, OvjRef, Args)
         Args.CatHalfSize                       = [];
         Args.RefHalfSize                       = [];
         
+        Args.CreateNewObj                      = [];
+        
         Args.ColCatX                           = AstroCatalog.DefNamesX;
         Args.ColCatY                           = AstroCatalog.DefNamesY;
         Args.ColCatMag                         = AstroCatalog.DefNamesMag;
@@ -26,17 +96,39 @@ function filterForAstrometry(ObjCat, OvjRef, Args)
         Args.ColRefY                           = AstroCatalog.DefNamesY;
         Args.ColRefMag                         = AstroCatalog.DefNamesMag;
     end
-        
+    
+    % convert ObjCat/ObjRef to AstroCatalog (if numeric)
     if isnumeric(ObjCat)
-        Ncat = 1;
-    else
-        Ncat = numel(ObjCat);
+        Tmp = ObjCat;
+        ObjCat = AstroCatalog;
+        ObjCat.Catalog  = Tmp;
+        ObjCat.ColNames = {'X','Y','Mag'};
     end
     if isnumeric(ObjRef)
-        Nref = 1;
-    else
-        Nref = numel(ObjRef);
+        Tmp = ObjRef;
+        ObjRef = AstroCatalog;
+        ObjRef.Catalog  = Tmp;
+        ObjRef.ColNames = {'X','Y','Mag'};
     end
+        
+    if isempty(Args.CreateNewObj)
+        if nargout==0
+            Args.CreateNewObj = true;
+        else
+            Args.CreateNewObj = false;
+        end
+    end
+    if Args.CreateNewObj
+        ResultCat = ObjCat.copyObject;
+        ResultRef = ObjRef.copyObject;
+    else
+        ResultCat = ObjCat;
+        ResultRef = ObjRef;
+    end
+
+    % size of AstroCatalog/AstroImage
+    Ncat = numel(ObjCat);
+    Nref = numel(ObjRef);
     
     Nmax = max(Ncat, Nref);
     for Imax=1:1:Nmax
@@ -55,8 +147,6 @@ function filterForAstrometry(ObjCat, OvjRef, Args)
             [ColCatX]   = colnameDict2ind(ObjCat(Icat).CatData, Args.ColCatX);
             [ColCatY]   = colnameDict2ind(ObjCat(Icat).CatData, Args.ColCatY);
             [ColCatMag] = colnameDict2ind(ObjCat(Icat).CatData, Args.ColCatMag);
-        elseif isnumeric(ObjCat)
-            Cat = ObjCat;
         else
             error('Unknown ObjCat type');
         end
@@ -73,14 +163,12 @@ function filterForAstrometry(ObjCat, OvjRef, Args)
             [ColRefX]   = colnameDict2ind(ObjRef(Icat).CatData, Args.ColRefX);
             [ColRefY]   = colnameDict2ind(ObjRef(Icat).CatData, Args.ColRefY);
             [ColRefMag] = colnameDict2ind(ObjRef(Icat).CatData, Args.ColRefMag);
-        elseif isnumeric(ObjRef)
-            Ref = ObjRef;
         else
             error('Unknown ObjCat type');
         end
         
     
-        [Cat,Ref,FlagCat,FlagRef] = prep_cat_for_astrometry(Cat, Ref, 'CatRemoveNaN',Args.CatRemoveNaN,...
+        [Cat,Ref,FlagCat,FlagRef] = imUtil.patternMatch.prep_cat_for_astrometry(Cat, Ref, 'CatRemoveNaN',Args.CatRemoveNaN,...
                                                                       'CatRemoveBadColRow',Args.CatRemoveBadColRow,...
                                                                       'CatRemoveOverDense',Args.CatRemoveOverDense,...
                                                                       'RefRemoveNaN',Args.RefRemoveNaN,...
@@ -100,8 +188,24 @@ function filterForAstrometry(ObjCat, OvjRef, Args)
                                                                       'ColRefMag',ColRefMag);
                                                                       
   
-    % need to save the data in Cat/Ref
-    % what about CreateNewObj ?
+        % save the data in Cat/Ref
+        if isa(ObjCat, 'AstroCatalog')
+            ResultCat.Catalog = Cat;
+        elseif isa(ObjCat,'AstroImage')
+            ResultCat.CatData.Catalog = Cat;
+        else
+            error('Unknown ObjCat type');
+        end
+        
+        if isa(ObjRef, 'AstroCatalog')
+            ResultRef.Catalog = Ref;
+        elseif isa(ObjRef,'AstroImage')
+            ResultRef.CatData.Catalog = Ref;
+        else
+            error('Unknown ObjRef type');
+        end
+        
+    end
         
 end
     

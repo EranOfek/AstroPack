@@ -34,7 +34,8 @@ function Result = unitTest()
         error('Problem with apply PM in Dec')
     end
     
-    
+    % imProc.cat.filterForAstrometry
+    [Cat,Ref] = imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);
     
 end
     
