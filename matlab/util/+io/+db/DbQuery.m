@@ -22,9 +22,9 @@ classdef DbQuery < Component
         ResultSet = []      % Returned result-set
         Record = []         % Current record
         Metadata = []        
-        ColumnCount = 0     %
-        ColumnNames  = []   %
-        ColumnType  = []    %
+        ColCount = 0     %
+        ColNames  = []   %
+        ColType  = []    %
         IsOpen = false      % query() 
         ExecOk = false      % exec()
         Eof = true          %
@@ -522,10 +522,12 @@ classdef DbQuery < Component
             % Load entire ResultSet to memory, might be time/memory consuming!
             % @Todo?: add arg max row
             % @Todo: load to Table (instead?)
+            % 
             
             arguments
                 Obj
-                Args.MaxRows = 0
+                Args.MaxRows = Inf
+                Args.OutType = 'table'      % 'table', 'cell', 'struct', 'mat', 'AstroTable', 'AstroCatalog'
             end
             
             FL_ = io.FuncLog('loadAll');
@@ -549,7 +551,7 @@ classdef DbQuery < Component
                     break
                 end
                 
-                if Args.MaxRows > 0 && RowIndex > Args.MaxRows
+                if RowIndex > Args.MaxRows
                     break
                 end
                 
@@ -568,7 +570,7 @@ classdef DbQuery < Component
             
             arguments
                 Obj
-                Args.MaxRows = 0
+                Args.MaxRows = Inf
             end
             
             FL_ = io.FuncLog('loadTable');
@@ -593,13 +595,13 @@ classdef DbQuery < Component
                 end
                 
                 % Append row to table
-                Result = [Result;Record]
+                Result = [Result;Record];
                 
                 if ~Obj.next()
                     break
                 end
                 
-                if Args.MaxRows > 0 && RowIndex > Args.MaxRows
+                if RowIndex > Args.MaxRows
                     break
                 end
                 

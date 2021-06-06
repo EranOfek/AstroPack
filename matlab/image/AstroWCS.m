@@ -13,35 +13,13 @@ classdef AstroWCS < Component
     % UserData
     % Config
     
-    properties (Dependent) % Access image data directly        
-        Image 
-        Mask 
-        Back 
-        Var
-        Cat
-    end
     
-    properties (SetAccess = public)
-        Header AstroHeader
-        PSF AstroPSF
-        CatData AstroCatalog
-        WCS AstroWCS
-        
-        % Data
-        ImageData(1,1) BaseImage
-        MaskData(1,1) BaseImage
-        BackData(1,1) BaseImage
-        VarData(1,1) BaseImage
-    end
-    
-    
-    %======================================================================
-    
+    % Add comments
     properties (Access = public)
         Exist(1,1)   logical = false;
         NAXIS(1,1)   uint8  = 2;
-        WCSAXES(1,1) uint8  = 2
-        CTYPE(1,:)   cell   = {'',''};
+        WCSAXES(1,1) uint8  = 2;        
+        CTYPE(1,:)   cell   = {'',''};   % e.g., 'TAN', 'SIP', 'TPV', 'ZPN'
         CUNIT        cell   = {'deg','deg'};
         RADESYS      char   = 'ICRS';
         LONPOLE      double = 0; 
@@ -55,6 +33,8 @@ classdef AstroWCS < Component
         PV           cell   = {zeros(0,2),zeros(0,2)};
         SIP          cell   = {zeros(0,2),zeros(0,2)};
     end     
+    
+    
     properties (GetAccess = public)
         ProjType     char   = '';
         ProjClass    char   = '';
@@ -69,22 +49,21 @@ classdef AstroWCS < Component
         
     end
         
+    % Future
 %         WCS    % a structure with fields specified in Fields
 %         gridLon     % a cube: e.g., Long = [X,Y,Color]
 %         gridLat     % a cube: e.g., Lat  = [X,Y,Color]
 %         gridCoo     % a cell array of {X,Y,...} - column per axes 
 %         gridAxes = {'RA','Dec','Color'}
     
-    properties (Hidden)
-        UserData
-    end
+  
     
 %======================================================================    
     
     methods
        
-        function W=wcsCl(varargin)
-            % wcsCl class constructor
+        function Obj = AstroWCS(varargin)
+            % 
             % Package: @wcsCl
             % Input  : * Arbitrary number of number of elements in each
             %            dimension. Deafult is 1,1
@@ -108,74 +87,25 @@ classdef AstroWCS < Component
             Nel = prod(Dim);
             
             for I=1:1:Nel
-                W(I).UserData = [];
+                Obj(I).UserData = [];
             end
             
-            W=reshape(W,varargin{:});
+            Obj = reshape(Obj, varargin{:});
             
         end
 
     end
     
-    
-    % setters/getters
-    methods
-        
-        function set.CTYPE(W,Val)
-            % setter for wcsCl CTYPE property         
-            W.CTYPE    = Val;
-        end
-               
-    end
- 
-    
-    %======================================================================    
-    
-    
-    methods % Constructor
-       
-        function Obj = AstroWCS
-            
-            
-        end
-
-    end
- 
-
- 
-    methods % Setters/Getters
-        function Obj = set.Image(Obj, Data)
-            % setter for Image - store image in ImageData property
-            Obj.ImageData.Data = Data;
-        end
-        
-        function Data = get.Image(Obj)
-            % getter for Image - get image from ImageData property
-            Data = Obj.ImageData.Data;
-        end        
-    end
     
     methods (Static)  % static methods
        
     end
     
     
-    
-    methods % functionality
-        function Result = fun_unary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
-            %
-           
-            Nobj = numel(Obj)
-            
-            
-        end
-        
-    end
-    
 
     %======================================================================
     
-    methods
+    methods (Static)
         
         
         function [Phi,Theta]=alphadelta2phitheta(Alpha,Delta,PhiP,AlphaP,DeltaP,Units)
@@ -227,8 +157,6 @@ classdef AstroWCS < Component
             end
 
         end
-
-
 
         function [Phi,Theta]=celestial2native(W,Alpha,Delta,InUnits,OutUnits)
             % convert celestial coordinates to native coordinates
@@ -301,8 +229,6 @@ classdef AstroWCS < Component
 
         end
 
-
-
         function ProjClass=classify_projection(ProjType)
         % classify projection type
         % Package: @wcsCl (Static, utilities)
@@ -329,8 +255,7 @@ classdef AstroWCS < Component
 
         end
 
-
-
+        % change name to: sky2xy
         function varargout=coo2xy(W,Lon,Lat,Units)
             % convert celestial coordinates to pixel coordinates
             % Package: @wcsCl (transformation)
@@ -418,6 +343,9 @@ classdef AstroWCS < Component
         end
 
 
+    end
+    
+    methods
         function W=fill(W,Force)
             % Fill ProjType, ProjClass, Coo, AlphaP, DeltaP in wcsCl object
             % Package: @wcsCl (basic)
@@ -512,7 +440,6 @@ classdef AstroWCS < Component
 
         end
 
-
         function W=fill_PV(W)
             % fill missing values in the PV matrix with zeros
             % Package: @wcsCl (basic)
@@ -537,6 +464,7 @@ classdef AstroWCS < Component
         end
 
 
+        % FFU
         function [X,Y]     = grid_coo2xy(gridCoo,gridLon,gridLat,varargin)
 
             error('bug')
@@ -614,7 +542,7 @@ classdef AstroWCS < Component
 
         end
 
-
+        % FFU
         function [Lon,Lat] = grid_xy2coo(gridCoo,gridLon,gridLat,varargin)
             % convert XY coo to Long/Lat using a matrix grid
             % Package: @wcsCl (Static, basic mapping functions)
@@ -685,7 +613,6 @@ classdef AstroWCS < Component
             Lat = interpn(gridCoo{:},gridLat,varargin{1:Naxes},varargin{Naxes+1:end});
 
         end
-
 
 
         function [Phi,Theta]=interm2native(W,X,Y,InUnits,OutUnits)
@@ -858,6 +785,7 @@ classdef AstroWCS < Component
         end
  
         
+        % delete
         function Ans=iswcsCl(W)
         % Check if object is a wcsCl object 
         % Package: @wcsCl (basic)
@@ -1022,7 +950,7 @@ classdef AstroWCS < Component
         end
 
 
-
+        % static
         function [Alpha,Delta]=phitheta2alphadelta(Phi,Theta,PhiP,AlphaP,DeltaP,Units)
             % convert natve coordinates (Phi,Theta) to celestila (alpha,delta)
             % Package: @wcsCl (Static, transformations)
@@ -1506,6 +1434,7 @@ classdef AstroWCS < Component
         end
         
         
+        % static
         function [X,Y]=projection_TAN(Long,Lat,R,CenterVec)
             % Package: @wcsCl (Static, projection)
 
@@ -1669,6 +1598,13 @@ classdef AstroWCS < Component
 
             io.msgStyle(LogLevel.Test, '@start', 'AstroWCS test started')
             
+            %
+            
+            
+            %
+            
+            
+            %
             
             io.msgStyle(LogLevel.Test, '@passed', 'AstroWCS test passed')
             Result = true;            
