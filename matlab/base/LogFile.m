@@ -6,8 +6,9 @@ classdef LogFile < handle
     % Properties
     properties (SetAccess = public)
         FileName
+        Fid = []            % File handle
         UserData
-        LogPath = ''; %"C:\\_Ultrasat\\log";
+        LogPath = '';       %"C:\\_Ultrasat\\log";
     end
     
     %-------------------------------------------------------- 
@@ -17,12 +18,22 @@ classdef LogFile < handle
             % Constructor for LogFile
             
             arguments
-                FileName = 'Default';
+                FileName = 'default';
             end
             fn = sprintf('%s-%s.log', Obj.getFileNameTimestamp(), FileName);
             Obj.FileName = fullfile(Obj.LogPath, fn);
             Obj.write('=========================================== Started');
         end
+        
+        
+        function delete(Obj)
+            % Destructor - close file
+            if ~isempty(Obj.Fid)
+                fclose(Obj.Fid);
+                Obj.Fid = [];
+            end            
+        end
+        
     end
     
 
@@ -42,11 +53,20 @@ classdef LogFile < handle
                 Prompt = sprintf('%s > %s ', Obj.getTimestamp(), Title);
             end
             
-            Fid = fopen(Obj.FileName, 'at');
-            fprintf(Fid, Prompt);
-            fprintf(Fid, varargin{:});
-            fprintf(Fid, '\n');
-            fclose(Fid);
+            % Open file
+            if isempty(Obj.Fid)
+                Obj.Fid = fopen(Obj.FileName, 'at');
+            end
+            
+            % Write
+            % The default behavior of MATLAB File I/O commands FPRINTF 
+            % and FWRITE is to flush the buffer after every call when 
+            % writing to a file other than the special output streams 
+            % STDOUT and STDERR. There is, therefore, no need to 
+            % explicitly flush the output buffer in this case.
+            fprintf(Obj.Fid, Prompt);
+            fprintf(Obj.Fid, varargin{:});
+            fprintf(Obj.Fid, '\n');
             Result = true;
         end
         
@@ -59,7 +79,7 @@ classdef LogFile < handle
             % Return singleton object
             persistent PersObj
             if isempty(PersObj)
-                PersObj = LogFile('');
+                PersObj = LogFile();
             end
             Result = PersObj;
         end
