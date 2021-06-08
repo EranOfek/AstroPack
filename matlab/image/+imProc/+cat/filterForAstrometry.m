@@ -113,9 +113,9 @@ function [ResultCat, ResultRef] = filterForAstrometry(ObjCat, ObjRef, Args)
         
     if isempty(Args.CreateNewObj)
         if nargout==0
-            Args.CreateNewObj = true;
-        else
             Args.CreateNewObj = false;
+        else
+            Args.CreateNewObj = true;
         end
     end
     if Args.CreateNewObj
