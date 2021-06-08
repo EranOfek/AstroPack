@@ -66,5 +66,26 @@ function Result = unitTest
     T   = Tran2D;
     [Param, Res] = imProc.trans.fitTransformation(Cat, Ref, 'Tran',T);
 
+    % projection
+    Result = imProc.trans.projection(rand(100,2), 0.5, 0.5, 1, 'tan', 'Coo0Units','rad', 'ColUnits',{'rad','rad'});
+    Result = imProc.trans.projection(rand(100,2), 0.5, 0.5, 180./pi, 'tan', 'Coo0Units','deg', 'ColUnits',{'deg','deg'});
+    
+    % projectionInv
+    Long = 1;
+    Lat  = 1;
+    [X,Y]=celestial.proj.pr_gnomonic(Long, Lat, 1,[0.5 0.5]);
+    [Long1,Lat1]=celestial.proj.pr_ignomonic(X,Y,[0.5 0.5]);
+    if ~all(Long==Long1) || ~all(Lat==Lat1)
+        error('Problem with gnomonic projection');
+    end
+    Cat = rand(100,2);
+    % long/lat -> x/y
+    Result = imProc.trans.projection(Cat, 0.5, 0.5, 1, 'tan', 'Coo0Units','rad', 'ColUnits',{'rad','rad'});
+    % x/y -> long/lat
+    Res2   = imProc.trans.projectionInv(Result, 0.5, 0.5, 1, 'tan', 'Coo0Units','rad', 'AddNewCols',{});
+    if ~all(Res2.Catalog(:,1:2)==Cat,'all')
+        error('Problem with gnomonic projection');
+    end
+    
     Result = true;
 end
