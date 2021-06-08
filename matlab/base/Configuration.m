@@ -4,9 +4,12 @@
 %
 % Load all YML files in folder
 % Access each file as property of the Configuration object.
+%
+% Note: Since Configuration.getSingleton() uses persistant object,
+%       in order to load fresh configuration you need to do 'clear all'
 %--------------------------------------------------------------------------
 
-classdef Configuration < dynamicprops
+classdef Configuration < handle
     
     % Properties
     properties (SetAccess = public)
@@ -61,23 +64,36 @@ classdef Configuration < dynamicprops
         end
         
         
-        function loadFile(Obj, FileName)
+        function loadFile(Obj, FileName, Args)
             % Load specified file to property            
             
+            arguments
+                Obj
+                FileName
+                
+                % True to create new property in Obj.Data with the file
+                % name, otherwise YML is loaded directly into Data
+                Args.Field logical = true;
+            end
+        
             try
                 [~, name, ~] = fileparts(FileName);
                 PropName = name;
-                if isprop(Obj, PropName)
-                %if isfield(Obj.Data, PropName)
-                    io.msgLog(LogLevel.Warning, 'Property already exist: %s', PropName);
+                if isfield(Obj.Data, PropName)
+                    io.msgLog(LogLevel.Warning, 'Property already exist: Data.%s', PropName);
                 else
                     io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);                    
-                    %Obj.addprop(PropName);
                 end
-                Yml = Configuration.loadYaml(FileName);
+                
+                % Yml is used used below by eval()
+                Yml = Configuration.loadYaml(FileName); %#ok<NASGU>
                 
                 % When name contains dots, create tree of structs (i.e. 'x.y.z')
-                s = sprintf('Obj.Data.%s=Yml', name);
+                if Args.Field
+                    s = sprintf('Obj.Data.%s=Yml', name);
+                else
+                    s = sprintf('Obj.Data=Yml');
+                end
                 eval(s);
             catch
                 io.msgStyle(LogLevel.Error, '@error', 'loadFile: Exception: %s', FileName);
@@ -117,8 +133,8 @@ classdef Configuration < dynamicprops
         
         function Result = expandFolder(Obj, Path)
             % Expand Path with macros from Configuration.System.EnvFolders
-            if isprop(Obj, 'System') && isfield(Obj.System, 'EnvFolders')
-                Result = Configuration.unmacro(Path, Obj.System.EnvFolders);
+            if isfield(Obj.Data, 'System') && isfield(Obj.Data.System, 'EnvFolders')
+                Result = Configuration.unmacro(Path, Obj.Data.System.EnvFolders);
             else
                 Result = Path;
             end
@@ -222,7 +238,8 @@ classdef Configuration < dynamicprops
             
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'Configuration test started');
-            
+                      
+            % Initialize and get a singletone persistant object
             Conf = Configuration.init();
             assert(~isempty(Conf.Path));
             assert(~isempty(Conf.External));
@@ -234,6 +251,18 @@ classdef Configuration < dynamicprops
 
             ConfigPath = Conf.Path;
             ConfigFileName = fullfile(ConfigPath, 'UnitTest.yml');
+            
+            % Private configuration file, load directly to Data
+            PrivateConf = Configuration;
+            PrivateConf.loadFile(ConfigFileName, 'Field', false);            
+            assert(~isfield(PrivateConf.Data, 'UnitTest'));
+            assert(isfield(PrivateConf.Data, 'Key1'));            
+            
+            % Private configuration file, load to Data.UnitTest
+            PrivateConf2 = Configuration;
+            PrivateConf2.loadFile(ConfigFileName);
+            assert(isfield(PrivateConf2.Data, 'UnitTest'));
+            assert(isfield(PrivateConf2.Data.UnitTest, 'Key1'));
             
             % Test low level loading of Yaml struct
             io.msgLog(LogLevel.Test, 'Testing low level functions');

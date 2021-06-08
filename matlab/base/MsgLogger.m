@@ -13,16 +13,20 @@ classdef MsgLogger < handle
     
     % Properties
     properties (SetAccess = public)
-        CurLevel LogLevel   % Current level
-        LogF LogFile        % Log file
-        UserData            % Optional
+        Enabled logical
+        CurFileLevel LogLevel   % Current level for log file
+        CurDispLevel LogLevel   % Current level for display
+        LogF LogFile            % Log file
+        UserData                % Optional
     end
     
     %-------------------------------------------------------- 
     methods
         % Constructor    
         function Obj = MsgLogger()
-            Obj.CurLevel = LogLevel.All;
+            Obj.Enabled = true;
+            Obj.CurFileLevel = LogLevel.All;
+            Obj.CurDispLevel = LogLevel.All;
             Obj.LogF = LogFile.getSingleton();
         end
     end
@@ -33,33 +37,37 @@ classdef MsgLogger < handle
 		function msgLog(Obj, Level, varargin)
 
             % Do nothing if log is disabled
-            if Level == LogLevel.None
+            if ~Obj.Enabled || Level == LogLevel.None
                 return
             end
-            
-            % Ignore levels above CurLevel
-            if uint32(Level) > uint32(Obj.CurLevel)
-                return
-            end
-            
+                       
+            % Error - always usg msgStyle to print in color
             if Level == LogLevel.Error
                 Obj.msgStyle(Level, '@error', varargin{:});
                 return
             end
             
+            % Warning - always usg msgStyle to print in color
             if Level == LogLevel.Warning
                 Obj.msgStyle(Level, '@warn', varargin{:});
                 return
             end            
             
+            % Prepare prompt
             LevStr = getLevelStr(Obj, Level);
-            fprintf('[%s] ', LevStr);
-            fprintf(varargin{:});
-			fprintf('\n');
+            
+            % Log to display
+            if uint32(Level) <= uint32(Obj.CurDispLevel)
+                fprintf('[%s] ', LevStr);
+                fprintf(varargin{:});                   
+    			fprintf('\n');
+            end
             
             % Log to file            
-            if ~isempty(Obj.LogF)
-                Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+            if uint32(Level) <= uint32(Obj.CurFileLevel)
+                if ~isempty(Obj.LogF)
+                    Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                end
             end
             
         end        
@@ -68,23 +76,25 @@ classdef MsgLogger < handle
 		function msgStyle(Obj, Level, Style, varargin)
 
             % Do nothing if log is disabled
-            if Level == LogLevel.None
+            if ~Obj.Enabled || Level == LogLevel.None
                 return
             end
             
-            % Ignore levels above CurLevel
-            if uint32(Level) > uint32(Obj.CurLevel)
-                return
-            end
-            
+            % Prepare prompt                     
             LevStr = getLevelStr(Obj, Level);
-            cprintf(Style, '[%s] ', LevStr);
-            cprintf(Style, varargin{:});
-			fprintf('\n');
+            
+            % Log to display
+            if uint32(Level) <= uint32(Obj.CurDispLevel)
+                cprintf(Style, '[%s] ', LevStr);
+                cprintf(Style, varargin{:});
+                fprintf('\n');
+            end
             
             % Log to file            
-            if ~isempty(Obj.LogF)
-                Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+            if uint32(Level) <= uint32(Obj.CurFileLevel)
+                if ~isempty(Obj.LogF)
+                    Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                end
             end
             
         end        
@@ -152,18 +162,26 @@ classdef MsgLogger < handle
         end
         
         
-        function setLogLevel(Level)
+        function setLogLevel(Level, Args)
+            arguments
+                Level LogLevel
+                Args.type = 'all'
+            end
+            
             % Set global LogLevel
             m = MsgLogger.getSingleton();
-            m.CurLevel = Level;
-        end
+            
+            % Set file level
+            if strcmp(Args.type, 'all') || strcmp(Args.type, 'file')
+                m.CurFileLevel = Level;
+            end
+            
+            % Set disp level
+            if strcmp(Args.type, 'all') || strcmp(Args.type, 'disp')
+                m.CurDispLevel = Level;
+            end                                  
+        end     
         
-        
-        function Value = getLogLevel()
-            % Get global LogLevel
-            Value = MsgLogger.getSingleton().CurLevel;
-        end             
-
     end
     
     
@@ -189,9 +207,19 @@ classdef MsgLogger < handle
             cprintf('cyan',    'cyan ');
             cprintf('_green',  'underlined green\n');
             fprintf('cprintf test done\n');
-            
+
             % Test MsgLogger
             M = MsgLogger.getSingleton();            
+            
+            % Set specific log level
+            MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');            
+            MsgLogger.setLogLevel(LogLevel.Warning, 'type', 'disp');            
+            io.msgLog(LogLevel.Info, 'This should go to file only');            
+            io.msgLog(LogLevel.Warning, 'This should go to file and display');
+            MsgLogger.setLogLevel(LogLevel.Test, 'type', 'all');
+            io.msgLog(LogLevel.Test, 'Back to all');
+            
+            % Test MsgLogger            
             M.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
             M.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));
             M.msgLog(LogLevel.Info, 'Test: %d', uint32(LogLevel.Info));
