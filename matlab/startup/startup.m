@@ -46,7 +46,8 @@ end
 if (isempty(HomeDir))
     error('Can not find home directory environment variable - edit the startup.m file accordingly');
 end
-AstroPackPath = sprintf('%s%s%s%s%s',HomeDir,filesep,MatlabDir,filesep,AstroPackDir);
+
+AstroPackPath = fullfile(HomeDir,MatlabDir,AstroPackDir);
 
 % addpath for AstroPack
 % This is a cell array of cell arrays
