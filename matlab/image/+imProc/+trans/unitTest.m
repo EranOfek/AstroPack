@@ -87,5 +87,11 @@ function Result = unitTest
         error('Problem with gnomonic projection');
     end
     
+    % tranAffine
+    Cat = rand(100,2);
+    Result = imProc.trans.tranAffine(Cat, [1 1], true);
+    
+    
+    
     Result = true;
 end

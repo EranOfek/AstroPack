@@ -1,5 +1,6 @@
 function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
     %
+    % Example: Result = imProc.trans.tranAffine(rand(100,2), [1 1], true)
     
 
     arguments
@@ -10,7 +11,7 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
         Args.ColX               = AstroCatalog.DefNamesX;
         Args.ColY               = AstroCatalog.DefNamesY;
         
-        Args.CreateNewObj
+        Args.CreateNewObj       = [];
     end
     
     if isnumeric(Obj)
@@ -18,7 +19,7 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
         Obj = AstroCatalog;
         Obj.Catalog  = Tmp;
         Obj.ColNames = {'X','Y'};
-        Obj.ColUnits = Args.ColUnits;
+        %Obj.ColUnits = Args.ColUnits;
     end
     
     if isempty(Args.CreateNewObj)
@@ -49,12 +50,13 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
             
         [ColX]   = colnameDict2ind(Cat, Args.ColX);
         [ColY]   = colnameDict2ind(Cat, Args.ColY);
-        [X, ~] = getCol(Cat, ColX);
-        [Y, ~] = getCol(Cat, ColY);  
+        [X] = getCol(Cat, ColX);
+        [Y] = getCol(Cat, ColY);  
         
         % Perform Affine transformation
         if isa(AffineMatrix, 'affine2d')
             % do nothing - already a MATLAB affine2d object
+            AffineMatrix = AffineMatrix.T;
         else
             if all(size(AffineMatrix)==[3 3])
                 % Assume AffineTrans is a 3x3 matrix of forward affine
@@ -67,17 +69,26 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
                         % [ShiftX, ShiftY]
                         ShiftX = AffineMatrix(1);
                         ShiftY = AffineMatrix(2);
+                        Theta  = 0;
+                        Scale  = 1;
+                        FlipX  = 1;
+                        FlipY  = 1;
                     case 3
                         % [ShiftX, ShiftY, Rotation]
                         ShiftX = AffineMatrix(1);
                         ShiftY = AffineMatrix(2);
                         Theta  = AffineMatrix(3);
+                        Scale  = 1;
+                        FlipX  = 1;
+                        FlipY  = 1;
                     case 4
                         % [ShiftX, ShiftY, Rotation, Scale]
                         ShiftX = AffineMatrix(1);
                         ShiftY = AffineMatrix(2);
                         Theta  = AffineMatrix(3);
                         Scale  = AffineMatrix(4);
+                        FlipX  = 1;
+                        FlipY  = 1;
                     case 6
                         % [ShiftX, ShiftY, Rotation, Scale, FlipX, FlipY]
                         ShiftX = AffineMatrix(1);
@@ -91,16 +102,24 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
                 end
                 AffineMatrix = [FlipX.*Scale.*cos(Theta), -FlipY.*Scale.*sin(Theta), ShiftX; FlipX.*Scale.*sin(Theta),  FlipY.*Scale.*cos(Theta), ShiftY; 0  0  1];
             end
+            
         end
         
         % backward/forward transformation
         if ~IsForward
             AffineMatrix = AffineMatrix.';        
         end
-        % generate MATLAB affine2d object
-        AffineTrans = affine2d(AffineMatrix);
-    
         
+        N = size(X,1);
+        if N>0
+            Z = ones(N,1);
+
+            Coo    = [X,Y,Z];
+            NewCoo = [AffineMatrix * Coo.'].';
+            
+            Result = replaceCol(Result, NewCoo(:,1:2), [ColX, ColY]);
+            
+        end
     end
     
 end

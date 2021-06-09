@@ -115,6 +115,7 @@ end
 % add all DirList to path                 
 FN  = fieldnames(DirList);
 Nfn = numel(FN);
+warning off;
 for Ifn=1:1:Nfn
     Tmp = DirList.(FN{Ifn});
     Ndir = numel(Tmp);
@@ -123,7 +124,7 @@ for Ifn=1:1:Nfn
         addpath(FullPath)
     end
 end
-
+warning on;
 
 
 cd(AstroPackPath);
