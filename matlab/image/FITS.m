@@ -1140,6 +1140,11 @@ classdef FITS < handle
     methods (Static) % tests
         function unitTest(Obj)
             % unitTest for the FITS class
+            
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
             F = FITS('*.fits');
             
             % test static functions
@@ -1180,7 +1185,8 @@ classdef FITS < handle
                 error('write and read files are not identical');
             end
             
-
+            cd(PWD);
+            Result = true;
 
         end
     end

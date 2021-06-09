@@ -1,5 +1,6 @@
 function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
-    %
+    % Apply affine transformation to an AstroCatalog object
+    % Input  : - 
     % Example: Result = imProc.trans.tranAffine(rand(100,2), [1 1], true)
     
 

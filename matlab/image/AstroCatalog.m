@@ -539,32 +539,6 @@ classdef AstroCatalog < AstroTable
             end
         end
         
-        function Result = projection(Obj, IsInv, Projection, Args)
-            %
-           
-%             arguments
-%                 Obj
-%                 IsInv(1,1) logical       = false;  % false - lon/lat->x,y
-%                 Projection               = 'tan';
-%                 Args
-%             end
-%             
-%             Nobj = numel(Obj);
-%             for Iobj=1:1:Nobj
-%                 if IsInv
-%                     % inverse projection
-%                     % get X/Y
-%                 
-%                 else
-%                     % regular projection
-%                     % get Long/Lat
-%                     
-%                 
-%                 
-%                 end
-%             end
-            
-        end
     end
     
     methods % plotting

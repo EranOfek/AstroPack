@@ -373,7 +373,7 @@ classdef AstroPSF < Component
             
         end
         
-        function Result = fun_unary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
+        function Result = funUnary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
             %
            
             Nobj = numel(Obj)
