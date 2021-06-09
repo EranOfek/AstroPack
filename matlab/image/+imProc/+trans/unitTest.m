@@ -88,9 +88,16 @@ function Result = unitTest
     end
     
     % tranAffine
-    Cat = rand(100,2);
-    Result = imProc.trans.tranAffine(Cat, [1 1], true);
-    
+    Cat  = rand(100,2);
+    Tran = [1 1];
+    Result = imProc.trans.tranAffine(Cat, Tran, true);
+    if ~all(Results.Catalog-Cat==Tran)
+        error('Problem with tranAffine');
+    end
+    Result = imProc.trans.tranAffine(Cat, Tran, false);
+    if ~all(Results.Catalog-Cat==[0 0])
+        error('Problem with tranAffine');
+    end
     
     
     Result = true;
