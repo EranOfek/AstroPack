@@ -469,19 +469,27 @@ classdef ds9
             
             arguments
                 Images
-                Frame         = 1;
-                Args.Scale    = 'mode zscale';
-                Args.CMap     = [];
-                Args.Colorbar = 'no';
-                Args.Orient   = [];
-                Args.Rotate   = [];
-                Args.Zoom     = 1;
+                Frame                       = 1;
+                Args.KeepPars(1,1) logical  = false;
+                Args.Scale                  = 'mode zscale';
+                Args.CMap                   = [];
+                Args.Colorbar               = 'no';
+                Args.Orient                 = [];
+                Args.Rotate                 = [];
+                Args.Zoom                   = 1;
             end
             
             
             % open ds9
-            ds9.open;
+            if ds9.isopen
+                if Args.KeepPars
+                    % read parameters
                     
+                    % FFU
+                end
+            else
+                ds9.open;
+            end    
 
             ImageField = SIM.ImageField;
             IsFits = false;
