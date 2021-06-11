@@ -49,15 +49,127 @@ classdef MatchedSources < Component
         end
     end
     
-    methods (Static) % static
-        
+    methods (Static) % static read
+        function Obj = read(FileName, Args)
+            % read mat file or HDF5 file containing MatchedSources
+            % Input  : - A file name.
+            %          * ...,key,val,...
+            %            'Fields' - A field, or cell array of fields to
+            %                   read from an HDF5 file. In the case of a
+            %                   mat file, all fields are read.
+            %            'FileType' - One of the following:
+            %                   ['auto'] - will attempt to identify file type
+            %                           by its extension.
+            %                   'hdf5' - An HDF5 file, in which the
+            %                           datasets are the field names.
+            %                   'mat' - A mat file containing a structure
+            %                           or an MatchedSources object.
+            % Output : - A MatchedSources object.
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
+            %          MS.write('try.hdf5')
+            %          clear MS;
+            %          MS = MatchedSources.read('try.hdf5');
+            %          MS1 = MatchedSources.read('try.hdf5','Fields','FLUX');
+            %          delete('try.hdf5');
+            
+            arguments
+                FileName char
+                Args.Fields                  = [];  % read all fields
+                Args.FileType char           = 'auto';  % 'hdf5' | 'mat' | 'auto'
+            end
+           
+            switch lower(Args.FileType)
+                case 'auto'
+                    [~,~, Ext] = fileparts(FileName);
+                    Args.FileType = Ext(2:end);
+            end
+            
+            switch lower(Args.FileType)
+                case {'hdf5','h5','hd5'}
+                    if isempty(Args.Fields)
+                        % read all fields
+                        Info  = h5info(FileName);
+                        Ndata = numel(Info.Datasets);
+                        for Idata=1:1:Ndata
+                            DS   = sprintf('/%s',Info.Datasets(Idata).Name);
+                            Data = h5read(FileName, DS);
+                            Struct.(Info.Datasets(Idata).Name) = Data;
+                        end
+                    else
+                        if ischar(Args.Fields)
+                            Args.Fields = {Args.Fields};
+                        end
+                        Ndata = numel(Args.Fields);
+                        for Idata=1:1:Ndata
+                            Data = h5read(FileName, sprintf('/%s',Args.Fields{Idata}));
+                            Struct.(Args.Fields{Idata}) = Data;
+                        end
+                    end
+                        
+                case {'mat'}
+                    % read mat file
+                    % assume contains a structure
+                    Struct = io.files.load2(FileName);
+                    if isa(Struct, 'MatchedSources')
+                        Struct = Struct.Data;
+                    end
+                otherwise
+                    error('Unknown FileType');
+            end
+            Obj = MatchedSources;
+            Obj.addMatrix(Struct);
+            
+        end
     end
     
-    methods % read/write
-        
+    methods % write
+        function Result = write(Obj, FileName, Args)
+            % Write a MatchedSources object to HDF5 or mat file
+            % Input  : - A single element MatchedSources object.
+            %          - FileName to write.
+            %          * ...,key,val,...
+            %            'FileType' - Options are:
+            %                   ['hdf5'] - HDF5 file with dataset named like
+            %                       the field names.
+            %                   'mat' - Save the Data struct to a mat file.
+            %                   'matobj' - Save the entire MatchedSource object to
+            %                       a mat file.
+            % Output : - Return true if sucess.
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
+            %          MS.write('try.hdf5')
+            
+            arguments
+                Obj(1,1)
+                FileName
+                Args.FileType      = 'hdf5';
+            end
+           
+            switch lower(Args.FileType)
+                case {'h5','hdf5','hd5'}
+                    Ndata = numel(Obj.Fields);
+                    for Idata=1:1:Ndata
+                        h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
+                        h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
+                    end
+                case {'mat'}
+                    % save the Data structure
+                    save(FileName, Obj.Data, '-v7.3');
+                case {'matobj'}
+                    % save the MatchedSources as object
+                    save(FileName, Obj, '-v7.3');
+                otherwise
+                    error('Unknown FileType option');
+            end
+           
+            Result = true;
+        end
     end
     
-    methods  % functions
+    methods  % functions / get/set Data
         function Obj = addMatrix(Obj, Matrix, FieldName)
             % Add matrix into the MatchedSources Data
             % Obj = addMatrix(Obj, Matrix, FieldName)
@@ -171,6 +283,24 @@ classdef MatchedSources < Component
         function Result = unitTest()
             % unitTest for MatchedSources class
            
+            
+            % write
+            MS = MatchedSources;
+            MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
+            MS.write('try.hdf5')
+            delete('try.hdf5');
+            
+            % read
+            MS = MatchedSources;
+            MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
+            MS.write('try.hdf5')
+            clear MS;
+            % read all Fields
+            MS = MatchedSources.read('try.hdf5');
+            % read some fields
+            MS1 = MatchedSources.read('try.hdf5','Fields','FLUX');
+            delete('try.hdf5');
+
             % addMatrix
             MS = MatchedSources;
             MS.addMatrix(rand(100,200),'FLUX')
@@ -195,6 +325,7 @@ classdef MatchedSources < Component
             % run addMatrix with AstroCatalog input
             MS = MatchedSources;
             MS.addMatrix(MC,{'RA','Dec'});
+            
             
             
             Result = true;
