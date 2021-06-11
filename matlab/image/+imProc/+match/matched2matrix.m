@@ -30,28 +30,21 @@ function [Res, Summary, N_Ep] = matched2matrix(MatchedObj, Cols, IsEpochByInd)
     %          - Vector of length equal to the number of epochs. The value in
     %            each element is the number of stars that appears in exactly
     %            I epochs.
-    % License: GNU general public license version 3
-    % Tested : Matlab R2015b
-    %     By : Eran O. Ofek                    May 2016
-    %    URL : http://weizmann.ac.il/home/eofek/matlab/
-    % Example: 
-    %          FFU : MODIFY!!! and TEST!!!
-
-    %          M=match(Ref,AstC);
-    %          Res=astcat2matched_array(M,{'XWIN_IMAGE','YWIN_IMAGE','MAG_APER'});
-    %          % step by step application:
-    %          S=images2sim('PTF_2015*.fits');
-    %          S=gain_correct(S);
-    %          S=background(S,'Block',[64 64]);
-    %          S=mextractor(S);
-    %          [~,I]=max(sizecat(S)); 
-    %          Sref = S(I);
-    %          [M,UM]=match(S,Sref);
-    %          [Res,Summary]=astcat2matched_array(M,{'MAG_PSF'});
-    %          II=find(Summary.Nnn==Summary.Nepoch); % find sources that appears in all epochs
-    %          Res.MAG_PSF(:,II)
-    % Reliable: 2
-    %--------------------------------------------------------------------------
+    % Author : Eran O. Ofek (May 2016)
+    % Example: AC = AstroCatalog;
+    %          AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
+    %          AC.ColNames = {'RA','Dec'};
+    %          AC.ColUnits = {'rad','rad'};
+    %          AC.getCooTypeAuto
+    %          AC2 = AstroCatalog;
+    %          AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0];
+    %          AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
+    %          AC2.getCooTypeAuto
+    %          [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
+    %          [MC,UM,TUM] = imProc.match.match([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
+    %             
+    %          [Res, Summary, N_Ep] = imProc.match.matched2matrix(MC, 'RA')
+    %          
 
     arguments
         MatchedObj   % FFU:  what about AstroImage???
@@ -62,20 +55,20 @@ function [Res, Summary, N_Ep] = matched2matrix(MatchedObj, Cols, IsEpochByInd)
     CatField   = 'Catalog';
 
     Ncat        = numel(MatchedObj);
-    [CatRow,~]  = sizecat(MatchedObj);
+    [CatRow,~]  = sizeCatalog(MatchedObj);
     if all(CatRow(1)==CatRow)
         Nrow = CatRow(1);
     else
         error('Number of rows in all MatchedObj elemnts must be equal');
     end
 
-    if char(Cols)
+    if ischar(Cols)
         Cols = {Cols};
     end
 
     % get column names and indices
     ColInd  = colname2ind(MatchedObj(1),Cols);
-    ColName = ind2colname(MatchedObj(1),Cols);
+    ColName = colind2name(MatchedObj(1),Cols);
     Ncol    = numel(ColInd);
 
     % Initiate Res
