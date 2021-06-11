@@ -1222,6 +1222,15 @@ classdef AstroTable < Component %ImageComponent
 
     methods (Static)  % Unit-Test
         function Result = unitTest()
+            % Issues:
+            % -unitTest keeps showing unwanted images
+            % 
+            %To do:
+            % -Look into:
+            %    -colname2ind
+            %    -colind2name
+            % -Add output checks for:
+            %     -everything
             
             
             DataSampleDir = tools.os.getTestDataDir;
@@ -1251,7 +1260,7 @@ classdef AstroTable < Component %ImageComponent
             MAC = merge([AC,AC]);
             
             % Sort by second column
-            sortrows(MAC,'DEJ2000')
+            sortrows(MAC,'DEJ2000');
             ColIndDec = colname2ind(MAC,'DEJ2000');
             if ~(MAC.IsSorted && issorted(MAC.Catalog(:,ColIndDec)))
                 error('Problem with sort flagging');
@@ -1282,10 +1291,10 @@ classdef AstroTable < Component %ImageComponent
             funUnary(AC(1),@sin,'Columns','RAJ2000');
             
             AC=AstroTable('asu.fit','HDU',2);
-            min([AC;AC],{'mag1','mag2'})
-            max([AC;AC],{'mag1','mag2'})
-            max([AC;AC],[1 2])
-            max([AC;AC])
+            min([AC;AC],{'mag1','mag2'});
+            max([AC;AC],{'mag1','mag2'});
+            max([AC;AC],[1 2]);
+            max([AC;AC]);
             
             % insert columns
             
@@ -1321,7 +1330,114 @@ classdef AstroTable < Component %ImageComponent
             AT(2).ColNames = {'X','Y','Flux'};
             AT.plot({'X','Y'},'o','MarkerFaceColor','r');
             
+            % defaultColNames
+            AstroTable.defaultColNames(5);
+            
+            % compareColNames
+            AstroTable.compareColNames({'a','b'},{'a','b'})
+            
+            % insertColumn
+            AstroTable.insertColumn({'a','b','c'},{'d','e'},2);
+            AstroTable.insertColumn(ones(5,3),zeros(5,2),2);
+            TT=array2table(zeros(5,2));
+            TT.Properties.VariableNames={'a','b'};
+            AstroTable.insertColumn(array2table(ones(5,3)),TT,2);
+            
+            % searchSynonym
+            [Name, IndInCell, IndInSynonym] = AstroTable.searchSynonym({'Number','ra','dec','Flux','Color'},{'ALPHA_J2000','RAJ2000','RA','ALPHA'});
+            
+            % sizeCatalog
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            [Nrow,Ncol] = sizeCatalog(AC);
+            
+            % isemptyCatalog
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            isemptyCatalog(AC);
+            AC = AstroTable();
+            isemptyCatalog(AC);
+            
+            % deleteCatalog
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            deleteCatalog(AC)
+            
+            % isColumn
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            Res = isColumn(AC,'a');
+            
+            % colname2ind
+            AC = AstroTable({rand(10,2)},'ColNames',{'a','b'});
+            colname2ind(AC, {'a','b'})
+            % doesn't work for:
+            % AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            
+            % colind2name
+            AC = AstroTable({rand(10,2)},'ColNames',{'a','b'});
+            colind2name(AC,[2 1])
+            % doesn't work for:
+            % AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            
+            % col2struct
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            col2struct(AC);
+            
+            % isColIdentical
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            isColIdentical(AC,AC(1).ColNames);
+            isColIdentical(AC,{'b', 'c'});
+            
+            % table2array
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            Res = table2array(AC);
 
+            % array2table
+            AC = array2table(Res);
+            
+            % insertCol
+            A = AstroTable; 
+            A.Catalog=rand(10,3); 
+            A.ColNames={'a','b','c'}; 
+            insertCol(A,ones(10,2),'c');
+            
+            % replaceColNames
+            AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
+            AC.replaceColNames([1 2],{'RA','Dec'});
+            AC(1).ColNames;
+            
+            % replaceCol
+            AC = AstroTable;
+            AC(1).Catalog = rand(100,3);
+            AC(1).ColNames={'a','b','c'};
+            AC=AC.replaceCol(nan(100,2),{'a','b'});
+            
+            % deleteCol
+            AC.Catalog=array2table(rand(10,3));
+            AC.ColNames={'RA','Dec','flux'}; AC.deleteCol('Dec')
+            AC.Catalog=(rand(10,3));
+            AC.ColNames={'RA','Dec','flux'}; AC.deleteCol({'RA','Dec'})
+            
+            
+            % sortrows
+            AC=AstroTable; 
+            AC.Catalog = rand(100,3); 
+            AC=sortrows(AC,2);
+            
+            % flipud
+            AC=AstroTable; 
+            AC.Catalog = rand(100,3); 
+            flipud(AC)
+            
+            % min
+            AC=AstroTable('asu.fit','HDU',2);
+            AC.min;
+            AC.min({'mag1','mag2'});
+            min([AC;AC],{'mag1','mag2'});
+            
+            % max
+            AC=AstroTable('asu.fit','HDU',2);
+            AC.max;
+            AC.max({'mag1','mag2'});
+            max([AC;AC],{'mag1','mag2'});
+            
             cd(PWD);
             Result = true;
         end
