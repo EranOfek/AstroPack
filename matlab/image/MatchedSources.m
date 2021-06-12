@@ -1,4 +1,18 @@
-%
+% MatchedSources class - A container for matrices of matched sources
+% Properties:
+%   Data  - A structure, in which each field is a matrix of identical sizes
+%           containing Nepoch X Nsrc measurments of some property.
+%   Fields - A cell array of field names (Dependent)
+%   Nsrc   - Number of sources in each matrix.
+%   Nepoch - Number of epochs in each matrix.
+%   DimEpoch - Dim of epoch (constant) = 1
+%   DimSrc   - Dim of sources (constant) = 2
+% Methods:
+%   read (static) - Read a mat/hdf5 into MatchedSources
+%   write - Write a MatchedSources into mat/hdf5 file.
+%   addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data.
+%   getMatrix - Get matrix using field name.
+%   summary   - Summary of a specific field matrix in MatchedSources.
 
 classdef MatchedSources < Component
     properties
@@ -8,7 +22,7 @@ classdef MatchedSources < Component
     properties (Dependent)
         Fields cell
     end
-    properties
+    properties (Dependent)
         Nsrc(1,1)
         Nepoch(1,1)
     end
@@ -171,7 +185,7 @@ classdef MatchedSources < Component
     
     methods  % functions / get/set Data
         function Obj = addMatrix(Obj, Matrix, FieldName)
-            % Add matrix into the MatchedSources Data
+            % Add matrix/struct/matched AstroTable into the MatchedSources Data
             % Obj = addMatrix(Obj, Matrix, FieldName)
             % Input  : - A single element MatchedSources object.
             %          - One of the following inputs:
@@ -277,6 +291,40 @@ classdef MatchedSources < Component
             
             
         end
+        
+        function Result = summary(Obj, Field)
+            % Summary of a specific field matrix in MatchedSources
+            % Input  : - A single element MatchedSources object.
+            %          - A char array of field name. If empty, use the
+            %            first field. Default is ''.
+            % Output : - A structure of summary information
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS=MatchedSources;                
+            %          MS.addMatrix(rand(100,200),'FLUX');
+            %          MS.summary
+            %          MS.summary('FLUX')
+            
+            arguments
+                Obj(1,1)
+                Field char          = '';
+            end
+            
+            if isempty(Field)
+                % select first field
+                FN = fieldnames(Obj.Data);
+                Field = FN{1};
+            end
+            
+            Mat = Obj.Data.(Field);
+            % summary
+            Result.Nepoch = Obj.Nepoch;
+            Result.Nsrc   = Obj.Nsrc;
+            % Number of epoch in which each source appears
+            Result.NepochSrcAppear = sum(~isnan(Mat), Obj.DimEpoch);
+            % Number of sources apeear in each epoch
+            Result.NsrcInEpoch     = sum(~isnan(Mat), Obj.DimSrc);
+            
+        end
     end
     
     methods (Static) % unitTest
@@ -326,7 +374,11 @@ classdef MatchedSources < Component
             MS = MatchedSources;
             MS.addMatrix(MC,{'RA','Dec'});
             
-            
+            % summary
+            MS=MatchedSources;                
+            MS.addMatrix(rand(100,200),'FLUX');
+            MS.summary
+            MS.summary('FLUX')
             
             Result = true;
         end
