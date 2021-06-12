@@ -109,11 +109,11 @@ else
           ColYe       = varargin{I+1};
        case 'Marker'
           Marker      = varargin{I+1};
-       case 'MarkSize'
+       case {'MarkSize','MarkerSize'}
           MarkSize    = varargin{I+1};
-       case 'EdgeColor'
+       case {'EdgeColor','MarkerEdgeColor'}
           EdgeColor   = varargin{I+1};
-       case 'FaceColor'
+       case {'FaceColor','MarkerFaceColor'}
           FaceColor   = varargin{I+1};
        case 'ColorEB'
           ColorEB     = varargin{I+1};

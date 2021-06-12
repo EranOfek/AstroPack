@@ -2,6 +2,8 @@
 % Properties:
 %   Data  - A structure, in which each field is a matrix of identical sizes
 %           containing Nepoch X Nsrc measurments of some property.
+%   JD     - A vector of times per epoch. If not set by user default is a
+%            vector of 1..Nepoch.
 %   Fields - A cell array of field names (Dependent)
 %   Nsrc   - Number of sources in each matrix.
 %   Nepoch - Number of epochs in each matrix.
@@ -13,10 +15,12 @@
 %   addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data.
 %   getMatrix - Get matrix using field name.
 %   summary   - Summary of a specific field matrix in MatchedSources.
+%   plotRMS   - plot rms of mag vs. mag 
 
 classdef MatchedSources < Component
     properties
         Data(1,1) struct  % each field [Nepoch, Nsrc]
+        JD                % time per epoch
     end
     
     properties (Dependent)
@@ -37,6 +41,17 @@ classdef MatchedSources < Component
     end
     
     methods % setters/getters
+        function Result = get.JD(Obj)
+            % getter for JD (return 1..Nepoch) if doesnt exist
+            if isempty(Obj.JD)
+                Result = (1:1:Obj.Nepoch).';
+            else
+                Result = Obj.JD;
+            end
+            Obj.JD = Result;
+            
+        end
+        
         function Result = get.Nsrc(Obj)
             % getter for Nsrc
             FN = fieldnames(Obj.Data);
@@ -327,10 +342,106 @@ classdef MatchedSources < Component
         end
     end
     
+    methods % plot
+        function H = plotRMS(Obj, Args)
+            % plot rms of a propery (field) vs. its mean.
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldX' - A cell array of field names. Will chose
+            %                   the first field name that appears in the
+            %                   Data structure, and its content will be plotted.
+            %                   Default is {'MAG','MAG_PSF','MAG_APER'}.
+            %            'PlotSymbol' - A cell array of parameters to pass
+            %                   to the plot function.
+            %                   Default is
+            %                   {'k.','MarkerFaceColor','k','MarkerSize',3}.
+            %            'BinSize' - Bin size for plotting binned data
+            %                   points. If empty, do not plot binned data.
+            %                   Default is [].
+            %            'DivideErrBySqrtN' - Divide binned plot errors by
+            %                   sqrt(N). Default is true.
+            %            'BinMarker' - Default is 'o'.
+            %            'BinColor' - Default is 'k'.
+            %            'BinMarkerSize' - Default is 6.
+            %            'XScale' - Default is 'linear'.
+            %            'YScale' - Default is 'log'.
+            %            'MeanFun' - Default is @nanmedian.
+            %            'StdFun' - Default is @nanstd.
+            %            'Xlabel' - Default is 'Mean Mag'.
+            %            'Ylabel' - Default is 'RMS'.
+            %            'FontSize' - Default is 16.
+            %            'Interpreter' - Default is 'latex'
+            % Output : - Handle for data points plot.
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'MAG_PSF');
+            %          MS.plotRMS
+            %          MS.plotRMS('BinSize',0.1)
+           
+            arguments
+                Obj(1,1)
+                Args.FieldX cell              = {'MAG','MAG_PSF','MAG_APER'};
+                Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
+                Args.BinSize                  = [];
+                Args.DivideErrBySqrtN(1,1) logical = true;
+                Args.BinMarker                = 'o';
+                Args.BinColor                 = 'k';
+                Args.BinMarkerSize            = 6;
+                Args.XScale                   = 'linear';
+                Args.YScale                   = 'log';
+                Args.MeanFun function_handle  = @nanmedian
+                Args.StdFun  function_handle  = @nanstd
+                Args.Xlabel                   = 'Mean Mag';
+                Args.Ylabel                   = 'RMS';
+                Args.FontSize                 = 16;
+                Args.Interpreter              = 'latex';
+            end
+        
+            if ischar(Args.PlotSymbol)
+                Args.PlotSymbol = {Args.PlotSymbol};
+            end
+            FN = fieldnames(Obj.Data);
+            % search for the first FieldX that appears in FN
+            Ind = find(ismember(Args.FieldX, FN),1);
+            FieldX = Args.FieldX{Ind};
+            
+            Mat   = Obj.Data.(FieldX);
+            % axis x - e.g., mean mag
+            AxisX = Args.MeanFun(Mat, Obj.DimEpoch);
+            AxisY = Args.StdFun(Mat, [], Obj.DimEpoch);
+            
+            H = plot(AxisX, AxisY, Args.PlotSymbol{:});
+            Hgca = gca;
+            Hgca.XScale = Args.XScale;
+            Hgca.YScale = Args.YScale;
+            
+            if ~isempty(Args.BinSize)
+                % add bins to plot
+                hold on;
+                
+                B = timeseries.binning([AxisX(:), AxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @std, @numel});
+                if Args.DivideErrBySqrtN
+                    plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                else
+                    plot.errorxy([B(:,1), B(:,2), B(:,3)],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                end
+                
+                hold off;
+            end
+            
+            Hx = xlabel(Args.Xlabel);
+            Hx.FontSize = Args.FontSize;
+            Hx.Interpreter = Args.Interpreter;
+            Hy = ylabel(Args.Ylabel);
+            Hy.FontSize = Args.FontSize;
+            Hy.Interpreter = Args.Interpreter;
+            
+        end
+    end
+    
     methods (Static) % unitTest
         function Result = unitTest()
             % unitTest for MatchedSources class
-           
             
             % write
             MS = MatchedSources;
@@ -379,6 +490,12 @@ classdef MatchedSources < Component
             MS.addMatrix(rand(100,200),'FLUX');
             MS.summary
             MS.summary('FLUX')
+            
+            % plotRMS
+            MS = MatchedSources;
+            MS.addMatrix(rand(100,200),'MAG_PSF');
+            MS.plotRMS
+            MS.plotRMS('BinSize',0.1)
             
             Result = true;
         end
