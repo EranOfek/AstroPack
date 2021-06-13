@@ -9,6 +9,7 @@ classdef LogFile < handle
         Fid = []            % File handle
         UserData
         LogPath = '';       %"C:\\_Ultrasat\\log";
+        UseFlush = true;    % DO NOT CHANGE - It does not work without close (13/06/2021)
     end
     
     %-------------------------------------------------------- 
@@ -20,6 +21,16 @@ classdef LogFile < handle
             arguments
                 FileName = 'default';
             end
+            
+            if isempty(Obj.LogPath)
+                %if tools.os.iswindows()
+                if ~isunix
+                    Obj.LogPath = 'C:\\Temp';
+                else
+                    Obj.LogPath = '/tmp/';
+                end
+            end
+            
             fn = sprintf('%s-%s.log', Obj.getFileNameTimestamp(), FileName);
             Obj.FileName = fullfile(Obj.LogPath, fn);
             Obj.write('=========================================== Started');
@@ -67,6 +78,13 @@ classdef LogFile < handle
             fprintf(Obj.Fid, Prompt);
             fprintf(Obj.Fid, varargin{:});
             fprintf(Obj.Fid, '\n');
+            
+            % Close file, as fflush does not work well (why?)
+            if Obj.UseFlush
+                fclose(Obj.Fid);
+                Obj.Fid = [];
+            end
+            
             Result = true;
         end
         
@@ -91,7 +109,7 @@ classdef LogFile < handle
         end
         
         function Result = getFileNameTimestamp()
-            Result = datestr(now, 'yyyy-mm-dd');
+            Result = datestr(now, 'yyyy-mm-dd__HH-MM-SS');
         end
     end
     
