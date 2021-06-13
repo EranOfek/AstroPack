@@ -64,7 +64,7 @@ arguments
     Args.StackMethod                            = 'mean';
     Args.StackArgs cell                         = {};
     Args.EmpiricalVarFun function_handle        = @var;
-    Args.EmpiricalVarFunArgs                    = {[],3,'omitnan'};
+    Args.EmpiricalVarFunArgs cell               = {[],3,'omitnan'};
     Args.VarCube                                = [];
     Args.MedianVarCorrForEmpirical(1,1) logical = false;
     Args.DivideEmpiricalByN(1,1) logical        = false;

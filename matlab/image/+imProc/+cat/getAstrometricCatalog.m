@@ -37,7 +37,7 @@ function Result = getAstrometricCatalog(RA, Dec, Args)
         RA
         Dec
         Args.CatName char             = 'GAIAEDR3';
-        Args.CatOrigin                = 'catsHTM'
+        Args.CatOrigin                = 'catsHTM';
         Args.Radius                   = 1000;
         Args.RadiusUnits              = 'arcsec';
         Args.CooUnits                 = 'deg';

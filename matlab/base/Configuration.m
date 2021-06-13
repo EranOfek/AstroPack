@@ -264,6 +264,8 @@ classdef Configuration < handle
             
             % Private configuration file, load directly to Data
             PrivateConf = Configuration;
+            % Field = false will load only the ConfigFileName into the Data
+            % without the full struct
             PrivateConf.loadFile(ConfigFileName, 'Field', false);
             assert(~isfield(PrivateConf.Data, 'UnitTest'));
             assert(isfield(PrivateConf.Data, 'Key1'));            
