@@ -387,10 +387,14 @@ classdef FunImage < Component
         end
     end
     
-    
-    % 
-    methods
-        
+       
+    methods (Static)  % unitTest
+        function Result = unitTest
+            % unitTest for 
+            
+            Result = true;
+            
+        end
     end
     
 end

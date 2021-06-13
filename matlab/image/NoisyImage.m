@@ -215,10 +215,8 @@ classdef NoisyImage < Component
         end
     end
      
-
     
-    
-    methods % Unit-Test
+    methods (Static) % Unit-Test
         function Result = unitTest()
             % unitTest for NoistImage class
             

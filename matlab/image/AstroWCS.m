@@ -1593,7 +1593,7 @@ classdef AstroWCS < Component
     
     %======================================================================    
     
-    methods % Unit-Test
+    methods (Static) % Unit-Test
         function Result = unitTest()
 
             io.msgStyle(LogLevel.Test, '@start', 'AstroWCS test started')

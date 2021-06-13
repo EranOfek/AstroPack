@@ -284,7 +284,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     end
     
 
-    methods % Unit-Test
+    methods (Static) % Unit-Test
         function Result = unitTest()
             M = MaskImage;
             

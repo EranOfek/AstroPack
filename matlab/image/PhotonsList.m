@@ -131,7 +131,15 @@ classdef PhotonsList < Component
         end
         
     end
-        
+       
+    
+    methods (Static) % Unit-Test
+        function Result = unitTest()
+
+            Result = true;
+        end
+    end
+    
     
 end
             

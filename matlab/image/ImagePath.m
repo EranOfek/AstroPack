@@ -327,8 +327,8 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
     
-            p = ImagePath;
-            fn = p.FullName;
+            %p = ImagePath;
+            %fn = p.FullName;
             
             % Done
             io.msgStyle(LogLevel.Test, '@passed', 'ImagePath test passed')

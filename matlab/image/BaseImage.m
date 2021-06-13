@@ -80,16 +80,16 @@ classdef BaseImage < ImageComponent
             end                
         end
     end
+  
     
     methods (Static) % static methods
        
     end
-     
-
+   
     
-    
-    methods % Unit-Test
+    methods (Static) % Unit-Test
         function Result = unitTest()
+            
             Result = true;
         end
     end

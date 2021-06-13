@@ -147,10 +147,7 @@ classdef UnitTester < handle
             else
                 Obj.msgLog(LogLevel.Test, '\nSkipped Database testing\n');
             end
-            
-            % Images            
-            Obj.runTest('VirtImage');
-            Obj.runTest('ImageComponent');
+           
             
             Obj.msgLog(LogLevel.Test, '\nUnitTester.testCore done');
             Result = true;
@@ -160,13 +157,51 @@ classdef UnitTester < handle
         function Result = testImage(Obj)
             Obj.msgLog(LogLevel.Test, 'UnitTester.testImage started\n');
             Result = false;
+          
+            Obj.runTest('VirtImage');
+            Obj.runTest('VirtImageManager');
+            Obj.runTest('ImageComponent');
+            Obj.runTest('Dictionary');
+            Obj.runTest('BitDictionary');
             
-            Obj.runTest('AstroImage');
-            
+            Obj.runTest('AstroHeader');
+            Obj.runTest('AstroCatalog');
+            Obj.runTest('AstroTable');
+            Obj.runTest('AstroImage');            
+            Obj.runTest('AstroPSF');
+            Obj.runTest('AstroWCS');            
+            Obj.runTest('Trans2D');
+            Obj.runTest('VarImage');        
+            Obj.runTest('BackImage');
+            Obj.runTest('BaseAlgo');
+            Obj.runTest('BaseImage');
+            Obj.runTest('CatAlgo');
+            Obj.runTest('DbInfo');
+            Obj.runTest('ds9');
+            Obj.runTest('FITS');
+            Obj.runTest('FunImage');
+            Obj.runTest('ImageAlgo');
+            Obj.runTest('ImageComponent');
+            Obj.runTest('ImageIO');
+            Obj.runTest('ImagePath');
+            Obj.runTest('ImageProc');
+            Obj.runTest('MaskImage');
+            Obj.runTest('MatchedSources');
+            Obj.runTest('NoisyImage');
+            Obj.runTest('PhotonsList');
+            Obj.runTest('Rect');
+            Obj.runTest('SciImage');
+
+            TestDb = false;
+            if TestDb
+                Obj.runTest('AstroCatalogDb');
+                Obj.runTest('AstroImageDb');
+            end
+
             Obj.msgLog(LogLevel.Test, '\nUnitTester.testImage done');
             Result = true;
         end
-        
+              
         
         function Result = runTest(Obj, Target)
             % Run single unit test
@@ -349,6 +384,17 @@ classdef UnitTester < handle
         end
         
 
+        function Result = isTested(Obj, Target)
+            % Check if already tested
+            
+            if any(strcmp(Obj.TestList, Target))                
+                Result = true;
+            else
+                Result = false;
+            end
+        end
+
+            
         function msgLog(Obj, Level, varargin)  
             % Write message to log
             io.msgLog(Level, varargin{:});

@@ -79,6 +79,7 @@ classdef DbInfo < Component
         function Result = unitTest()
             Astro = AstroImage;
             
+            Result = true;
         end
     end
     

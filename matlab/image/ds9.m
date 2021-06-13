@@ -15,7 +15,8 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef ds9
+classdef ds9 < handle
+    
     % A static class
     
     % Constructor method (display)
@@ -3083,6 +3084,15 @@ classdef ds9
             end
         end
         
+    end
+
+    
+    methods (Static) % Unit-Test
+        function Result = unitTest()
+            % unitTest for ds9
+           
+            Result = true;
+        end
     end
     
     

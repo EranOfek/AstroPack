@@ -1138,7 +1138,7 @@ classdef FITS < handle
     end
     
     methods (Static) % tests
-        function unitTest(Obj)
+        function Result = unitTest(Obj)
             % unitTest for the FITS class
             
             DataSampleDir = tools.os.getTestDataDir;

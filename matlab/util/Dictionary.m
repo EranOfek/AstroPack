@@ -223,9 +223,10 @@ classdef Dictionary < Component
         
     end
     
-    methods % unitTest
+    
+    methods(Static) % unitTest
         function Result = unitTest(Obj)
-            %
+            % Dictionary unit test
             
             io.msgStyle(LogLevel.Test, '@start', 'Dictionary test passed')
             
