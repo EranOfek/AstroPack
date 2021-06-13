@@ -131,3 +131,6 @@ warning on;
 cd(AstroPackPath);
 
 fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
+
+%
+clear AstroPackDir DirList HomeDir MatlabDir RAD AstroPackPath FN Idir Ndir Tmp CatsHTMDir FullPath Ifn Nfn
