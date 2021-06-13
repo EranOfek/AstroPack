@@ -64,7 +64,7 @@ classdef Configuration < handle
         end
         
         
-        function loadFile(Obj, FileName, Args)
+        function Result = loadFile(Obj, FileName, Args)
             % Load specified file to property            
             
             arguments
@@ -76,6 +76,7 @@ classdef Configuration < handle
                 Args.Field logical = true;
             end
         
+            Result = false;
             try
                 [~, name, ~] = fileparts(FileName);
                 PropName = name;
@@ -86,7 +87,13 @@ classdef Configuration < handle
                 end
                 
                 % Yml is used used below by eval()
-                Yml = Configuration.loadYaml(FileName); %#ok<NASGU>
+                try
+                    Yml = Configuration.loadYaml(FileName); %#ok<NASGU>
+                    Result = true;
+                catch
+                    io.msgLog(LogLevel.Error, 'Configuration.loadYaml failed: %s', FileName);                    
+                    Yml = struct; %#ok<NASGU>
+                end
                 
                 % When name contains dots, create tree of structs (i.e. 'x.y.z')
                 if Args.Field
@@ -94,7 +101,7 @@ classdef Configuration < handle
                 else
                     s = sprintf('Obj.Data=Yml');
                 end
-                eval(s);
+                eval(s);                
             catch
                 io.msgStyle(LogLevel.Error, '@error', 'loadFile: Exception: %s', FileName);
             end
@@ -238,7 +245,10 @@ classdef Configuration < handle
             
         function Result = unitTest()
             io.msgLog(LogLevel.Test, 'Configuration test started');
-                      
+            
+            % Clear java to avoid failure of yaml.ReadYaml()
+            clear java;
+            
             % Initialize and get a singletone persistant object
             Conf = Configuration.init();
             assert(~isempty(Conf.Path));
@@ -254,13 +264,13 @@ classdef Configuration < handle
             
             % Private configuration file, load directly to Data
             PrivateConf = Configuration;
-            PrivateConf.loadFile(ConfigFileName, 'Field', false);            
+            PrivateConf.loadFile(ConfigFileName, 'Field', false);
             assert(~isfield(PrivateConf.Data, 'UnitTest'));
             assert(isfield(PrivateConf.Data, 'Key1'));            
             
             % Private configuration file, load to Data.UnitTest
             PrivateConf2 = Configuration;
-            PrivateConf2.loadFile(ConfigFileName);
+            PrivateConf2.loadFile(ConfigFileName);          
             assert(isfield(PrivateConf2.Data, 'UnitTest'));
             assert(isfield(PrivateConf2.Data.UnitTest, 'Key1'));
             

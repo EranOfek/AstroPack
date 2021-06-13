@@ -1610,7 +1610,7 @@ classdef ImageComponent < Component
     methods (Static)  % unitTest
         function Result = unitTest
             % unitTest for ImageComponent
-            
+            io.msgStyle(LogLevel.Test, '@start', 'ImageComponent test started')
             
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
@@ -1653,6 +1653,7 @@ classdef ImageComponent < Component
             assert(all(Res == [1, 0]));
             
             % funUnary
+            io.msgLog(LogLevel.Test, 'ImageComponent funUnary')
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
             R = IC.funUnary(@sin);
             
@@ -1727,16 +1728,18 @@ classdef ImageComponent < Component
             R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
             
             % images2cube
+            io.msgLog(LogLevel.Test, 'testing ImageComponent images2cube');
             IC=ImageComponent({ones(5,5),2.*ones(5,5),3.*ones(5,5)});
             Cube = images2cube(IC);
             images2cube(IC,'CCDSEC',[1 2 2 4]);
             IC=ImageComponent({ones(5,5),2.*ones(7,7),3.*ones(8,8)},'Scale',5);
             Cube = images2cube(IC,'CCDSEC',[1 2 2 4]);
             
-            % shift and stack using the CCDSEC atgument
+            % shift and stack using the CCDSEC atgument            
             images2cube(IC,'CCDSEC',[1 2 2 4; 1 2 2 4; 2 3 3 5]);            
             
-            % funStack
+            % funStack - @Todo @Eran - FAILS
+            io.msgLog(LogLevel.Test, 'testing ImageComponent funStack');
             IC = ImageComponent({2.*randn(100,100), 2.*randn(100,100), 2.*randn(100,100)});
             Var = ImageComponent({4.*ones(100,100), 4.*ones(100,100), 4.*ones(100,100)});
             [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = funStack(IC);
@@ -1806,6 +1809,8 @@ classdef ImageComponent < Component
             
             
             cd(PWD);
+            
+            io.msgStyle(LogLevel.Test, '@passed', 'ImageComponent test passed')
             Result = true;            
             
         end        

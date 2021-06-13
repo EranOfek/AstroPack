@@ -9,6 +9,7 @@ classdef LogFile < handle
         Fid = []            % File handle
         UserData
         LogPath = '';       %"C:\\_Ultrasat\\log";
+        Timestamp = ''
         UseFlush = true;    % DO NOT CHANGE - It does not work without close (13/06/2021)
     end
     
@@ -22,16 +23,24 @@ classdef LogFile < handle
                 FileName = 'default';
             end
             
-            if isempty(Obj.LogPath)
-                %if tools.os.iswindows()
-                if ~isunix
-                    Obj.LogPath = 'C:\\Temp';
-                else
-                    Obj.LogPath = '/tmp/';
+            if contains(FileName, '/') || contains(FileName, '\\')
+                [Obj.LogPath, FileName, Ext] = fileparts(FileName);
+                FileName = [FileName, Ext];
+            else
+                
+                if isempty(Obj.LogPath)
+                    %if tools.os.iswindows()
+                    if ~isunix
+                        Obj.LogPath = 'C:\\Temp';
+                    else
+                        Obj.LogPath = '/tmp/';
+                    end
                 end
             end
             
-            fn = sprintf('%s-%s.log', Obj.getFileNameTimestamp(), FileName);
+            % Prepare file name
+            Obj.Timestamp = Obj.getFileNameTimestamp();
+            fn = sprintf('%s-%s.log', Obj.Timestamp, FileName);
             Obj.FileName = fullfile(Obj.LogPath, fn);
             Obj.write('=========================================== Started');
         end
@@ -108,8 +117,16 @@ classdef LogFile < handle
             Result = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
         end
         
+        
         function Result = getFileNameTimestamp()
             Result = datestr(now, 'yyyy-mm-dd__HH-MM-SS');
+        end
+        
+        
+        function Result = getFileName(SubName)
+            Obj = LogFile.getSingleton();
+            fn = sprintf('%s-%s.log', Obj.Timestamp, SubName);
+            Result = fullfile(Obj.LogPath, fn);
         end
     end
     

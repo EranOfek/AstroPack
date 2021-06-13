@@ -122,7 +122,7 @@ classdef DbDriver < Component
         function Result = close(Obj)
             % Disconnect from database
             
-            Obj.msgLog('DbDriver: close');
+            Obj.msgLog(LogLevel.Info, 'DbDriver: close');
             try
                 Obj.Driver = [];
                 Obj.IsOpen = false;

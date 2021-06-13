@@ -2034,6 +2034,7 @@ classdef AstroImage < Component
             Astro = AstroImage;
             
             % cast
+            io.msgLog(LogLevel.Test, 'testing AstroImage cast');
             AI = AstroImage({rand(10,10)},'Back',{rand(10,10)});
             Res = cast(AI,'single');
             if ~isa(Res.Back,'single')
@@ -2067,12 +2068,13 @@ classdef AstroImage < Component
                 error('funBinaryProp failed');
             end
             
-            
+            io.msgLog(LogLevel.Test, 'testing AstroImage julday');
             AI = AstroImage('*.fits');
             [JD,ET] = julday(AI(2:3));
             [JD,ET] = julday(AI(1));
             
             % image2subimages
+            io.msgLog(LogLevel.Test, 'testing AstroImage image2subimages');
             AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
             Result = imProc.image.image2subimages(AI,[256 256]);
             s=Result(1).MaskData.bitStat;
@@ -2124,6 +2126,7 @@ classdef AstroImage < Component
             end
             
             % conv
+            io.msgLog(LogLevel.Test, 'testing AstroImage conv');
             AI = AstroImage({rand(100,100), rand(200,200)});
             AI.conv(imUtil.kernel2.annulus);
             Mat = zeros(30,30); Mat(15,15)=1;

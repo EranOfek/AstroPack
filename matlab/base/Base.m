@@ -65,13 +65,17 @@ classdef Base < handle
                     
                     % Generate new uuid, note that makeUuid() is a method
                     % of the Component class
-                    if ~isempty(Obj(1).Uuid)
-                        NewObj.makeUuid();                        
+                    for i=1:1:numel(NewObj)
+                        if ~isempty(Obj(1).Uuid)
+                            NewObj(i).makeUuid();                        
+                        end
                     end
                     
                     % Set MapKey
-                    if ~isempty(Obj(1).MapKey)
-                        NewObj.MapKey = NewObj.Uuid;
+                    for i=1:1:numel(NewObj)                    
+                        if ~isempty(Obj(1).MapKey)
+                            NewObj(i).MapKey = NewObj(i).Uuid;
+                        end
                     end
                 end
                     

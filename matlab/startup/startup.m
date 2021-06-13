@@ -10,6 +10,13 @@
 
 fprintf('AstroPack startup.m started: %s\n', mfilename('fullpath'));
 fprintf('Master startup.m file is located in AstroPack/matlab/startup\n');
+doStartup();
+fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
+
+
+function doStartup()
+
+fprintf('AstroPack doStartup() started: %s\n', mfilename('fullpath'));
 
 % display numbers format
 format short g
@@ -34,20 +41,31 @@ assignin('base','RAD',180./pi);    % Radian
 % BaseDir
 MatlabDir    = 'matlab';          %%% <--- EDIT IF NEEDED
 AstroPackDir = 'AstroPack';       %%% <--- EDIT IF NEEDED
-CatsHTMDir   = '/euler/catsHTM';  %%% <--- EDIT IF NEEDED - use '', if no catsHTM
+CatsHTMDir   = '/euler/catsHTM';  %%% <--- EDIT IF NEEDED - use '', if no catsHTM - Add Windows support!
 
 if (ismac || isunix)
-    % mac / unix
+    % Linux / Mac
     HomeDir = getenv('HOME');
+    AstroPackPath = getenv('ASTROPACK_PATH');
+    if isempty(AstroPackPath)    
+        AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
+    end
 else
-    % windows
+    % Windows
     HomeDir = getenv('HOMEPATH');
+    AstroPackPath = getenv('ASTROPACK_PATH');    
+    if isempty(AstroPackPath)
+        AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
+    end    
 end
+
 if (isempty(HomeDir))
     error('Can not find home directory environment variable - edit the startup.m file accordingly');
 end
 
-AstroPackPath = fullfile(HomeDir,MatlabDir,AstroPackDir);
+if (isempty(AstroPackPath))
+    error('Can not find AstroPack directory, set ASTROPACK_PATH - edit the startup.m file accordingly');
+end
 
 % addpath for AstroPack
 % This is a cell array of cell arrays
@@ -117,17 +135,25 @@ end
 FN  = fieldnames(DirList);
 Nfn = numel(FN);
 warning off;
+PathCount = 0;
 for Ifn=1:1:Nfn
     Tmp = DirList.(FN{Ifn});
     Ndir = numel(Tmp);
     for Idir=1:1:Ndir
         FullPath = sprintf('%s%s%s%s%s%s%s',fullfile(Tmp{Idir}{:}));
-        addpath(FullPath)
+        fprintf('AstroPack doStartup() addpath: %s\n', FullPath);
+        addpath(FullPath);
+        PathCount = PathCount + 1;
     end
 end
+fprintf('AstroPack doStartup() addpath count: %d\n', PathCount);
 warning on;
 
-
+fprintf('AstroPack doStartup() cd: %s\n', AstroPackPath);
 cd(AstroPackPath);
 
-fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
+fprintf('AstroPack doStartup() done: %s\n', mfilename('fullpath'));
+
+end
+
+

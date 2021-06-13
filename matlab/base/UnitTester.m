@@ -11,17 +11,44 @@ classdef UnitTester < handle
         FailCount = 0
         TestList = {}
         TestResult = {} 
+        MyFileName = ''
+        SourcePath = ''
     end
     
     %-------------------------------------------------------- 
     methods % Constructor            
         function Obj = UnitTester()
+            Obj.setup();
         end
     end
 
     
     methods % Main functions
                
+        function Result = setup(Obj)
+            
+            % Clear all persistent objecst and java spaces
+            clear all;
+            clear java;
+            
+            % Get full path and name of the file in which the call occurs, 
+            % not including the filename extension
+            Obj.MyFileName = mfilename('fullpath');       
+            [MyPath, ~, ~] = fileparts(Obj.MyFileName);            
+            Obj.SourcePath = fullfile(MyPath, '..');
+           
+            % @Todo: Fix path
+            if tools.os.iswindows()
+                Obj.SourcePath = 'D:\Ultrasat\AstroPack.git\matlab\';
+            else
+                Obj.SourcePath = '/home/eran/matlab/AstroPack/matlab/';
+            end
+            
+            io.msgLog(LogLevel.Test, 'SourcePath: %s', Obj.SourcePath);
+            
+            Result = true;
+        end
+        
         
         function Result = doTest(Obj)
             Obj.msgLog(LogLevel.Test, 'Started\n');
@@ -33,8 +60,13 @@ classdef UnitTester < handle
                 Obj.msgStyle(LogLevel.Error, '@error', 'unitTest: Exception');
             end
             
+            Obj.report();
             Obj.msgLog(LogLevel.Test, 'Done\n');
             
+        end
+        
+        
+        function Result = report(Obj)
             
             Obj.msgLog(LogLevel.Test, 'Test list:\n');            
             for i = 1:numel(Obj.TestList)
@@ -48,33 +80,44 @@ classdef UnitTester < handle
             
             Obj.msgLog(LogLevel.Test, 'Passed: %d', Obj.PassCount);
             Obj.msgLog(LogLevel.Test, 'Failed: %d', Obj.FailCount);
+            Result = true;
         end
  
 
-        function Result = testAll(Obj)
-            
-            % Get full path and name of the file in which the call occurs, 
-            % not including the filename extension
-            MyFileName = mfilename('fullpath');       
-            [MyPath, ~, ~] = fileparts(MyFileName);            
-            SourcePath = fullfile(MyPath, '..');
+        function Result = doBeforePush(Obj)
+            % Call before Push
             
             Result = Obj.testCore();
             
-            % @Todo: Fix path
-            if tools.os.iswindows()
-                SourcePath = 'D:\Ultrasat\AstroPack.git\matlab\';
-            else
-                SourcePath = '/home/eran/matlab/AstroPack/matlab/';
-            end
+            Result = Obj.testImage();
             
-            Result = Obj.runFolder(SourcePath);
+            Obj.report();
+            
+            if Obj.FailCount == 0
+                Obj.msgStyle(LogLevel.Test, '@pass', 'BeforePush passed, ready to git push');
+            else
+                Obj.msgStyle(LogLevel.Test, '@failed', 'BeforePush FAILED - DO NOT PUSH !!!');
+            end
+        end
+        
+    end
+    
+    
+    methods % Test functions
+        
+        function Result = testAll(Obj)
+  
+            Result = Obj.testCore();
+            
+            Result = Obj.runFolder(Obj.SourcePath);
+            
+            Obj.report();
         end
             
         
         function Result = testCore(Obj)
             
-            Obj.msgLog('UnitTester.testCore started\n');
+            Obj.msgLog(LogLevel.Test, 'UnitTester.testCore started\n');
             Result = false;
             
             % Set maximum log level
@@ -95,20 +138,36 @@ classdef UnitTester < handle
             Obj.runTest('Component');          
             
             % Database
-            Obj.runTest('io.db.DbDriver');
-            Obj.runTest('io.db.DbConnection');
-            Obj.runTest('io.db.DbRecord');
-            Obj.runTest('io.db.DbQuery');
+            TestDb = false;
+            if TestDb
+                Obj.runTest('io.db.DbDriver');
+                Obj.runTest('io.db.DbConnection');
+                Obj.runTest('io.db.DbRecord');
+                Obj.runTest('io.db.DbQuery');
+            else
+                Obj.msgLog(LogLevel.Test, '\nSkipped Database testing\n');
+            end
             
             % Images            
             Obj.runTest('VirtImage');
             Obj.runTest('ImageComponent');
             
-            Obj.msgLog('\nUnitTester.testCore done');
+            Obj.msgLog(LogLevel.Test, '\nUnitTester.testCore done');
             Result = true;
         end
 
     
+        function Result = testImage(Obj)
+            Obj.msgLog(LogLevel.Test, 'UnitTester.testImage started\n');
+            Result = false;
+            
+            Obj.runTest('AstroImage');
+            
+            Obj.msgLog(LogLevel.Test, '\nUnitTester.testImage done');
+            Result = true;
+        end
+        
+        
         function Result = runTest(Obj, Target)
             % Run single unit test
             
@@ -120,6 +179,9 @@ classdef UnitTester < handle
             
             Result = false;
 
+            % Save current dir
+            PWD = pwd;            
+            
             try
                 UnitTestFunc = [Target, '.unitTest()'];
                 Obj.msgStyle(LogLevel.Info, 'blue', 'runTest: %s', UnitTestFunc);
@@ -133,9 +195,14 @@ classdef UnitTester < handle
             
             if Result
                 Obj.PassCount = Obj.PassCount + 1;
+                Obj.msgStyle(LogLevel.Test, '@passed', 'runTest PASSED: %s', UnitTestFunc);
             else
+                Obj.msgStyle(LogLevel.Error, '@error', 'runTest FAILED: %s', UnitTestFunc);
                 Obj.FailCount = Obj.FailCount + 1;
             end
+            
+            % Restore current dir
+            cd(PWD);
         end
         
         
@@ -301,6 +368,13 @@ classdef UnitTester < handle
         function Result = test()
             Tester = UnitTester;
             Result = Tester.doTest();
+        end
+        
+        
+        function Result = beforePush()
+            % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
+            Tester = UnitTester;
+            Result = Tester.doBeforePush();            
         end
     end
         

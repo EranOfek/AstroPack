@@ -306,7 +306,7 @@ function [underlineFlag,boldFlag,style,debugFlag] = processStyleInfo(style)
       elseif strcmp(style, '@stop') || strcmp(style, '@end') || strcmp(style, '@done') 
           style = 'cyan';          
       elseif strcmp(style, '@passed')
-          style = 'green';
+          style = 'magenta'; % @Todo - Green is too light 'green';
       elseif strcmp(style, '@failed')
           style = 'red';
       elseif strcmp(style, '@error')
