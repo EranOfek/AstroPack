@@ -99,7 +99,7 @@ InPar = InPar.Results;
 if nargin==0
     % simulation mode
     PWD = pwd;
-    cd /home/eran/matlab/images
+    cd /home/yossi/matlab/images
     IC = imCl.fits2imCl('PTF*.fits');
     IC = IC(1);
     
