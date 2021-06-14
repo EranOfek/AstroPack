@@ -34,7 +34,7 @@ classdef AstroWCS < Component
         SIP          cell   = {zeros(0,2),zeros(0,2)};
     end     
     
-    
+    % Yossi - Where are these from?
     properties (GetAccess = public)
         ProjType     char   = '';
         ProjClass    char   = '';
