@@ -1,4 +1,4 @@
-function Result = getAstrometricCatalog(RA, Dec, Args)
+function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     % Get Astrometric catalog from local/external database
     %   and optionally apply proper motion, parallax and units conversions.
     % Input  : - J2000.0 R.A. [rad, deg, [H M S], or sexagesimal string]
@@ -25,10 +25,12 @@ function Result = getAstrometricCatalog(RA, Dec, Args)
     %                   Default is [].
     %            'EpochIn' - If given, then will override catalog epoch.
     %                   Default units are 'JD'.
-    %            'parsProperMotion' - A cell array of additional arguments
+    %            'argsProperMotion' - A cell array of additional arguments
     %                   to pass to imProc.cat.applyProperMotion.
     %                   Default is {}.
     % Output : - An AstroCatalog object with the astrometric catalog.
+    %          - The input RA in [rad].
+    %          - The input Dec in [rad].
     % Author : Eran Ofek (Jun 2021)
     % Example: Result = imProc.cat.getAstrometricCatalog(1,1);
     
@@ -47,7 +49,7 @@ function Result = getAstrometricCatalog(RA, Dec, Args)
         Args.UseIndex(1,1) logical    = false;
         Args.EpochOut                 = [];  % if empty - don't apply proper motion
         Args.EpochIn                  = [];  % if given - don't use catalog Epoch
-        Args.parsProperMotion cell    = {};
+        Args.argsProperMotion cell    = {};
     end
     
     % convert RA/Dec to radians (if in degrees)
@@ -78,7 +80,7 @@ function Result = getAstrometricCatalog(RA, Dec, Args)
                     EpochIn = Args.EpochIn;
                     EpochInUnits = 'jd';
                 end
-                Result = imProc.cat.applyProperMotion(Obj, EpochIn, Args.EpochOut, Args.parsProperMotion{:},'EpochInUnits',EpochInUnits);
+                Result = imProc.cat.applyProperMotion(Obj, EpochIn, Args.EpochOut, Args.argsProperMotion{:},'EpochInUnits',EpochInUnits);
             end
             
             % coordinates are in radians

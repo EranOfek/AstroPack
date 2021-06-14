@@ -16,7 +16,7 @@ function Result = projection(Obj, Lon0, Lat0, Scale, Projection, Args)
     %            'AddNewCols' - A cell array of column names to add with
     %                   the projected X/Y coordinates. If empty, then the
     %                   projected coordinates will be stored in the Lon/Lat
-    %                   input coordinates.
+    %                   input coordinates. Default is {'X','Y'}.
     %            'Pos' - Position of new columns. Default is Inf.
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an

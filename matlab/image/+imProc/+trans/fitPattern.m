@@ -118,7 +118,7 @@ function Result = fitPattern(Obj1, Obj2, Args)
     %            The following fields are available:
     %            'MatchedCat - [X,Y] of the sources in Cat matched to 
     % Author : Eran Ofek (May 2021)
-    % Example: Result = fitPattern(Obj1, Obj2, Args)
+    % Example: Result = imProc.trans.fitPattern(Obj1, Obj2, Args)
     
     
     
@@ -126,8 +126,8 @@ function Result = fitPattern(Obj1, Obj2, Args)
     arguments
         Obj1
         Obj2
-        Args.ColNamesX               = {'X','x','XWIN_IMAGE','X_IMAGE'};
-        Args.ColNamesY               = {'Y','y','YWIN_IMAGE','Y_IMAGE'};
+        Args.ColNamesX               = AstroCatalog.DefNamesX;
+        Args.ColNamesY               = AstroCatalog.DefNamesY;
         
         Args.Scale                   = 1.0; % scale or [min max] range that require to ?
         Args.HistDistEdgesRotScale   = [10 600 300];
