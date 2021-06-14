@@ -19,7 +19,7 @@ classdef AstroWCS < Component
         Exist(1,1)   logical = false;
         NAXIS(1,1)   uint8  = 2;
         WCSAXES(1,1) uint8  = 2;        
-        CTYPE(1,:)   cell   = {'',''};   % e.g., 'TAN', 'SIP', 'TPV', 'ZPN'
+        CTYPE(1,:)   cell   = {'',''};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
         CUNIT        cell   = {'deg','deg'};
         RADESYS      char   = 'ICRS';
         LONPOLE      double = 0; 
@@ -39,6 +39,7 @@ classdef AstroWCS < Component
         ProjType     char   = '';
         ProjClass    char   = '';
         CooName(1,:) cell   = {'',''};
+        
         AlphaP(1,1)  double = NaN;
         DeltaP(1,1)  double = NaN;
         Alpha0(1,1)  double = NaN;
@@ -46,6 +47,8 @@ classdef AstroWCS < Component
         Phi0(1,1)    double = NaN;
         Theta0(1,1)  double = NaN;
         PhiP(1,1)    double = NaN;
+        
+        Tran2D(1,1) Tran2D              %= Tran2D;
         
     end
         
@@ -61,36 +64,10 @@ classdef AstroWCS < Component
 %======================================================================    
     
     methods
-       
+        % Constructor  
         function Obj = AstroWCS(varargin)
-            % 
-            % Package: @wcsCl
-            % Input  : * Arbitrary number of number of elements in each
-            %            dimension. Deafult is 1,1
-            % Output : - An wcsCl object of the requested size.
+            % TODO
 
-            if (numel(varargin)==0)
-                varargin{1} = 1;
-                varargin{2} = 1;
-            elseif (numel(varargin)==1)
-                
-                if numel(varargin{1})>1
-                    varargin = num2cell(varargin{1});
-                else
-                    varargin{2} = 1;
-                end
-            else
-                % do nothing
-            end
-            Dim = cell2mat(varargin);
-            
-            Nel = prod(Dim);
-            
-            for I=1:1:Nel
-                Obj(I).UserData = [];
-            end
-            
-            Obj = reshape(Obj, varargin{:});
             
         end
 
@@ -99,9 +76,246 @@ classdef AstroWCS < Component
     
     methods (Static)  % static methods
        
+        function Obj = header2wcs(Header)
+            
+        end
+        
     end
     
-    
+    methods
+        function Obj=fill(Obj,Force)
+            % Fill ProjType, ProjClass, Coo, AlphaP, DeltaP in wcsCl object
+            % Package: @wcsCl (basic)
+            % Input  : - A wcsCl object
+            %          - A logical indicating if to re-fill the values even
+            %            if exist. Default is true.
+            % Output : - A wcsCl object
+            % Example: Obj.fill
+
+            if nargin<2
+                Force = true;
+            end
+
+            Nw = numel(Obj);
+            for Iw=1:1:Nw
+                if Force || isempty(Obj(Iw).ProjType) || isempty(Obj(Iw).ProjClass) || isnan(Obj(Iw).AlphaP) || isnan(Obj(Iw).DeltaP)
+                    % fill missing values
+
+                    N = numel(Obj(Iw).CTYPE);
+                    Coo  = cell(1,N);
+                    Proj = cell(1,N);
+                    for I=1:1:N
+                        if isempty(Obj(Iw).CTYPE{I})
+                            Proj{I} = 'none';
+                            Coo{I}  = 'unknown';
+                        else
+
+                            Coo{I} = strrep(Obj(Iw).CTYPE{I}(1:4),'-','');
+                            if numel(Obj(Iw).CTYPE{I})<5
+                                Proj{I} = 'none';
+                            else
+                                Proj{I} = strrep(Obj(Iw).CTYPE{I}(5:end),'-','');
+                            end
+
+                            if I>1
+                                if ~(strcmp(Proj{I},Proj{1}) || strcmp(Proj{I},'none'))
+                                    error('Projection of all axes must be the same unless none');
+                                end
+                            end
+                        end
+                    end
+
+                    Obj(Iw).ProjType  = Proj{1};
+                    Obj(Iw).CooName   = Coo;
+                    Obj(Iw).ProjClass = wcsCl.classify_projection(Proj{1});
+
+
+        %                     if ~(strcmp(Obj(Iw).CTYPE{1}(1:2),'RA') || strcmp(Obj(Iw).CTYPE{1}(3:4),'LON'))
+        %                         error('Support only cases in which CTYPE1 contains longitudes');
+        %                     end
+        %                     if ~(strcmp(Obj(Iw).CTYPE{2}(1:3),'DEC') || strcmp(Obj(Iw).CTYPE{2}(3:4),'LAT'))
+        %                         error('Support only cases in which CTYPE2 contains latitude');
+        %                     end
+
+                     switch lower(Obj(Iw).ProjClass)
+                        case 'none'
+                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
+                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
+                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
+                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
+
+                            Obj(Iw).Phi0   = NaN;
+                            Obj(Iw).Theta0 = NaN;
+                            Obj(Iw).PhiP   = NaN;
+
+                        case 'zenithal'
+
+                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
+                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
+                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
+                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
+
+                            Units = strtrim(Obj(Iw).CUNIT{1});
+                            ConvFactor = convert.angular('deg',Units);
+
+                            Obj(Iw).Phi0   = 0.*ConvFactor;
+                            Obj(Iw).Theta0 = 90.*ConvFactor;
+
+                            if Obj(Iw).Delta0>=Obj(Iw).Theta0
+                                Obj(Iw).PhiP = 0.*ConvFactor;
+                            else
+                                Obj(Iw).PhiP = 180.*ConvFactor;
+                            end
+
+                        otherwise
+                            error('Unsupported projection class (%s)',Obj(Iw).ProjClass);
+                     end
+
+                end
+
+            end
+
+        end
+
+        function Obj=fill_PV(Obj)
+            % fill missing values in the PV matrix with zeros
+            % Package: @wcsCl (basic)
+            % Input  : - A wcsCl object
+            % Output : - A wcsCl object
+            % Example: Obj=wcsCl.pop_exampl; Obj.fill Obj.fill_PV;
+
+            Nw = numel(Obj);
+            for Iw=1:1:Nw
+                N  = numel(Obj(Iw).PV);
+                for I=1:1:N
+                    Ind  = Obj(Iw).PV{I}(:,1);
+                    Coef = Obj(Iw).PV{I}(:,2);
+
+                    FullInd = (0:1:max(Ind))';
+                    IsM = ismember(FullInd,Ind);
+                    FullCoef = zeros(size(FullInd));
+                    FullCoef(IsM) = Coef;
+                    Obj(Iw).PV{I} = [FullInd, FullCoef];
+                end
+            end
+        end   
+        
+        function ProjClass=classify_projection(ProjType)
+        % classify projection type
+        % Package: @wcsCl (Static, utilities)
+        % Example: ProjClass=wcsCl.classify_projection('TAN')
+
+            switch lower(ProjType)
+                case {'none','',char(zeros(1,0))}
+                    ProjClass = 'none';
+                case {'tan','tpv','tan-sip','sin','ncp','azp','szp','stg','arc','zpn','zea','air'}
+                    ProjClass = 'zenithal';
+                case {'cyp','cea','car','mer'}
+                    ProjClass = 'cylindrical';
+                case {'sfl','par','mol','ait'}
+                    ProjClass = 'pseudocylindrical';
+                case {'cop','coe','cod','coo'}
+                    ProjClass = 'conic';
+                case {'bon','pco'}
+                    ProjClass = 'polyconic';  % and pseudoconic
+                case {'tsc','csc','qsc'}
+                    ProjClass = 'quadcube';
+                otherwise
+                    error('Unknown ProjType option (%s)',ProjType);
+            end
+
+        end
+        
+        function Obj=populate_projMeta(Obj)
+            % populate projection and pole information in a wcsCl object
+            % Package: @wcsCl
+            % Description: 
+            % Input  : - A wcsCl object
+            % Output : - Obj wcsCl object with the projection type and pole data populated.
+
+            Def.LONPOLE = 0;
+            Def.LATPOLE = 90;
+
+            N = numel(Obj);
+            for I=1:1:N
+
+                ProjAlgo  = Obj(I).CTYPE{1}(6:end);
+                ProjClass = wcsCl.classify_projection(ProjAlgo);
+                Obj(I).ProjType  = ProjAlgo;
+                Obj(I).ProjClass = ProjClass;
+                switch lower(ProjClass)
+                    case 'zenithal'
+
+                        Alpha0 = Obj(I).CRVAL(1);
+                        Delta0 = Obj(I).CRVAL(2);
+                        AlphaP = Obj(I).CRVAL(1);
+                        DeltaP = Obj(I).CRVAL(2);
+
+                        Phi0   = 0;
+                        Theta0 = 90;
+
+                        if Delta0>=Theta0
+                            PhiP = 0;
+                        else
+                            PhiP = 180;
+                        end
+
+                        Obj(I).Alpha0 = Alpha0;
+                        Obj(I).Delta0 = Delta0;
+                        Obj(I).AlphaP = AlphaP;
+                        Obj(I).DeltaP = DeltaP;
+                        Obj(I).Phi0   = Phi0;
+                        Obj(I).Theta0 = Theta0;
+                        Obj(I).PhiP   = PhiP;
+                    otherwise
+                        error('Unsupported projection class (%s)',ProjClass);
+                end
+
+
+
+                switch lower(ProjAlgo)
+                    case {'tan'}
+
+                        % treat LONPOLE
+                        if isempty(Obj(I).LONPOLE)
+                            % check if LONPOLE is in PV1_3
+                            if isempty(Obj(I).PV)
+                                % set to default value
+                                Obj(I).LONPOLE = Def.LONPOLE;
+                            else
+                                if numel(Obj(I).PV{1})>=3
+                                    Obj(I).LONPOLE = Obj(I).PV{1}{3};
+                                else
+                                    % set to default value
+                                    Obj(I).LONPOLE = Def.LONPOLE;
+                                end
+                            end
+                        end
+
+                        % treat LATPOLE
+                        if isempty(Obj(I).LATPOLE)
+                            % check if LATPOLE is in PV1_4
+                            if isempty(Obj(I).PV)
+                                % set to default value
+                                Obj(I).LATPOLE = Def.LATPOLE;
+                            else
+                                if numel(Obj(I).PV{1})>=4
+                                    Obj(I).LATPOLE = InPar.PV{1}{4};
+                                else
+                                    % set to default value
+                                    Obj(I).LATPOLE = Def.LATPOLE;
+                                end
+                            end
+                        end
+
+                    case 'tpv'
+
+                    otherwise
+                end
+            end
+        end
+        
+    end
 
     %======================================================================
     
@@ -229,31 +443,7 @@ classdef AstroWCS < Component
 
         end
 
-        function ProjClass=classify_projection(ProjType)
-        % classify projection type
-        % Package: @wcsCl (Static, utilities)
-        % Example: ProjClass=wcsCl.classify_projection('TAN')
 
-            switch lower(ProjType)
-                case {'none','',char(zeros(1,0))}
-                    ProjClass = 'none';
-                case {'tan','tpv','tan-sip','sin','ncp','azp','szp','stg','arc','zpn','zea','air'}
-                    ProjClass = 'zenithal';
-                case {'cyp','cea','car','mer'}
-                    ProjClass = 'cylindrical';
-                case {'sfl','par','mol','ait'}
-                    ProjClass = 'pseudocylindrical';
-                case {'cop','coe','cod','coo'}
-                    ProjClass = 'conic';
-                case {'bon','pco'}
-                    ProjClass = 'polyconic';  % and pseudoconic
-                case {'tsc','csc','qsc'}
-                    ProjClass = 'quadcube';
-                otherwise
-                    error('Unknown ProjType option (%s)',ProjType);
-            end
-
-        end
 
         % change name to: sky2xy
         function varargout=coo2xy(Obj,Lon,Lat,Units)
@@ -346,122 +536,7 @@ classdef AstroWCS < Component
     end
     
     methods
-        function Obj=fill(Obj,Force)
-            % Fill ProjType, ProjClass, Coo, AlphaP, DeltaP in wcsCl object
-            % Package: @wcsCl (basic)
-            % Input  : - A wcsCl object
-            %          - A logical indicating if to re-fill the values even
-            %            if exist. Default is true.
-            % Output : - A wcsCl object
-            % Example: Obj.fill
 
-            if nargin<2
-                Force = true;
-            end
-
-            Nw = numel(Obj);
-            for Iw=1:1:Nw
-                if Force || isempty(Obj(Iw).ProjType) || isempty(Obj(Iw).ProjClass) || isnan(Obj(Iw).AlphaP) || isnan(Obj(Iw).DeltaP)
-                    % fill missing values
-
-                    N = numel(Obj(Iw).CTYPE);
-                    Coo  = cell(1,N);
-                    Proj = cell(1,N);
-                    for I=1:1:N
-                        if isempty(Obj(Iw).CTYPE{I})
-                            Proj{I} = 'none';
-                            Coo{I}  = 'unknown';
-                        else
-
-                            Coo{I} = strrep(Obj(Iw).CTYPE{I}(1:4),'-','');
-                            if numel(Obj(Iw).CTYPE{I})<5
-                                Proj{I} = 'none';
-                            else
-                                Proj{I} = strrep(Obj(Iw).CTYPE{I}(5:end),'-','');
-                            end
-
-                            if I>1
-                                if ~(strcmp(Proj{I},Proj{1}) || strcmp(Proj{I},'none'))
-                                    error('Projection of all axes must be the same unless none');
-                                end
-                            end
-                        end
-                    end
-
-                    Obj(Iw).ProjType  = Proj{1};
-                    Obj(Iw).CooName   = Coo;
-                    Obj(Iw).ProjClass = wcsCl.classify_projection(Proj{1});
-
-
-        %                     if ~(strcmp(Obj(Iw).CTYPE{1}(1:2),'RA') || strcmp(Obj(Iw).CTYPE{1}(3:4),'LON'))
-        %                         error('Support only cases in which CTYPE1 contains longitudes');
-        %                     end
-        %                     if ~(strcmp(Obj(Iw).CTYPE{2}(1:3),'DEC') || strcmp(Obj(Iw).CTYPE{2}(3:4),'LAT'))
-        %                         error('Support only cases in which CTYPE2 contains latitude');
-        %                     end
-
-                     switch lower(Obj(Iw).ProjClass)
-                        case 'none'
-                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
-                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
-                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
-                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
-
-                            Obj(Iw).Phi0   = NaN;
-                            Obj(Iw).Theta0 = NaN;
-                            Obj(Iw).PhiP   = NaN;
-
-                        case 'zenithal'
-
-                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
-                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
-                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
-                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
-
-                            Units = strtrim(Obj(Iw).CUNIT{1});
-                            ConvFactor = convert.angular('deg',Units);
-
-                            Obj(Iw).Phi0   = 0.*ConvFactor;
-                            Obj(Iw).Theta0 = 90.*ConvFactor;
-
-                            if Obj(Iw).Delta0>=Obj(Iw).Theta0
-                                Obj(Iw).PhiP = 0.*ConvFactor;
-                            else
-                                Obj(Iw).PhiP = 180.*ConvFactor;
-                            end
-
-                        otherwise
-                            error('Unsupported projection class (%s)',Obj(Iw).ProjClass);
-                     end
-
-                end
-
-            end
-
-        end
-
-        function Obj=fill_PV(Obj)
-            % fill missing values in the PV matrix with zeros
-            % Package: @wcsCl (basic)
-            % Input  : - A wcsCl object
-            % Output : - A wcsCl object
-            % Example: Obj=wcsCl.pop_exampl; Obj.fill Obj.fill_PV;
-
-            Nw = numel(Obj);
-            for Iw=1:1:Nw
-                N  = numel(Obj(Iw).PV);
-                for I=1:1:N
-                    Ind  = Obj(Iw).PV{I}(:,1);
-                    Coef = Obj(Iw).PV{I}(:,2);
-
-                    FullInd = (0:1:max(Ind))';
-                    IsM = ismember(FullInd,Ind);
-                    FullCoef = zeros(size(FullInd));
-                    FullCoef(IsM) = Coef;
-                    Obj(Iw).PV{I} = [FullInd, FullCoef];
-                end
-            end
-        end
 
 
         % FFU
@@ -1344,94 +1419,7 @@ classdef AstroWCS < Component
 
         end
 
-        function Obj=populate_projMeta(Obj)
-            % populate projection and pole information in a wcsCl object
-            % Package: @wcsCl
-            % Description: 
-            % Input  : - A wcsCl object
-            % Output : - Obj wcsCl object with the projection type and pole data populated.
-
-            Def.LONPOLE = 0;
-            Def.LATPOLE = 90;
-
-            N = numel(Obj);
-            for I=1:1:N
-
-                ProjAlgo  = Obj(I).CTYPE{1}(6:end);
-                ProjClass = wcsCl.classify_projection(ProjAlgo);
-                Obj(I).ProjType  = ProjAlgo;
-                Obj(I).ProjClass = ProjClass;
-                switch lower(ProjClass)
-                    case 'zenithal'
-
-                        Alpha0 = Obj(I).CRVAL(1);
-                        Delta0 = Obj(I).CRVAL(2);
-                        AlphaP = Obj(I).CRVAL(1);
-                        DeltaP = Obj(I).CRVAL(2);
-
-                        Phi0   = 0;
-                        Theta0 = 90;
-
-                        if Delta0>=Theta0
-                            PhiP = 0;
-                        else
-                            PhiP = 180;
-                        end
-
-                        Obj(I).Alpha0 = Alpha0;
-                        Obj(I).Delta0 = Delta0;
-                        Obj(I).AlphaP = AlphaP;
-                        Obj(I).DeltaP = DeltaP;
-                        Obj(I).Phi0   = Phi0;
-                        Obj(I).Theta0 = Theta0;
-                        Obj(I).PhiP   = PhiP;
-                    otherwise
-                        error('Unsupported projection class (%s)',ProjClass);
-                end
-
-
-
-                switch lower(ProjAlgo)
-                    case {'tan'}
-
-                        % treat LONPOLE
-                        if isempty(Obj(I).LONPOLE)
-                            % check if LONPOLE is in PV1_3
-                            if isempty(Obj(I).PV)
-                                % set to default value
-                                Obj(I).LONPOLE = Def.LONPOLE;
-                            else
-                                if numel(Obj(I).PV{1})>=3
-                                    Obj(I).LONPOLE = Obj(I).PV{1}{3};
-                                else
-                                    % set to default value
-                                    Obj(I).LONPOLE = Def.LONPOLE;
-                                end
-                            end
-                        end
-
-                        % treat LATPOLE
-                        if isempty(Obj(I).LATPOLE)
-                            % check if LATPOLE is in PV1_4
-                            if isempty(Obj(I).PV)
-                                % set to default value
-                                Obj(I).LATPOLE = Def.LATPOLE;
-                            else
-                                if numel(Obj(I).PV{1})>=4
-                                    Obj(I).LATPOLE = InPar.PV{1}{4};
-                                else
-                                    % set to default value
-                                    Obj(I).LATPOLE = Def.LATPOLE;
-                                end
-                            end
-                        end
-
-                    case 'tpv'
-
-                    otherwise
-                end
-            end
-        end
+  
         
         
         % static
@@ -1598,13 +1586,20 @@ classdef AstroWCS < Component
 
             io.msgStyle(LogLevel.Test, '@start', 'AstroWCS test started')
             
+            % Change to data directory
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);  
+            
+            % construct an empty AstroWCS
+            W = AstroWCS([2 2]);
+            
             %
             
             
             %
             
-            
-            %
+            cd(PWD);   
             
             io.msgStyle(LogLevel.Test, '@passed', 'AstroWCS test passed')
             Result = true;            
