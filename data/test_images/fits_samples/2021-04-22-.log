@@ -1,6 +1,31 @@
-2021-04-22 15:51:56.648 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local
-2021-04-22 15:51:56.660 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local/local
-2021-04-22 15:52:15.465 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local/local
-2021-04-22 15:52:15.468 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local/local/local
-2021-04-22 18:20:12.390 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local
-2021-04-22 18:20:12.421 > [INF] loadFolder: /home/eran/matlab/AstroPack/matlab/base/../../config/local/local
+2021-04-22 21:29:05.886 > =========================================== Started
+2021-04-22 21:29:05.975 > [INF] loadFolder: /home/yossi/matlab/AstroPack/matlab/base/../../config
+2021-04-22 21:29:05.998 > [INF] Adding property: A.b
+2021-04-22 21:29:06.005 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/A.b.yml
+2021-04-22 21:29:06.199 > [INF] Adding property: BitMask.Image.Default
+2021-04-22 21:29:06.210 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-22 21:29:06.229 > [ERR] loadYaml: Exception loading file: /home/yossi/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-22 21:29:06.230 > [ERR] loadFile: Exception: /home/yossi/matlab/AstroPack/config/BitMask.Image.Default.yml
+2021-04-22 21:29:06.232 > [INF] Adding property: Header.Comments.Default
+2021-04-22 21:29:06.233 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/Header.Comments.Default.yml
+2021-04-22 21:29:06.338 > [INF] Adding property: Header.KeyNames.Default
+2021-04-22 21:29:06.339 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/Header.KeyNames.Default.yml
+2021-04-22 21:29:06.448 > [INF] Adding property: Header.Synonyms.KeyNames
+2021-04-22 21:29:06.449 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/Header.Synonyms.KeyNames.yml
+2021-04-22 21:29:06.493 > [INF] Adding property: Header.Synonyms.KeyVal.IMTYPE
+2021-04-22 21:29:06.493 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/Header.Synonyms.KeyVal.IMTYPE.yml
+2021-04-22 21:29:06.514 > [INF] Adding property: Header.Time.KeyNames
+2021-04-22 21:29:06.514 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/Header.Time.KeyNames.yml
+2021-04-22 21:29:06.524 > [ERR] loadYaml: Exception loading file: /home/yossi/matlab/AstroPack/config/Header.Time.KeyNames.yml
+2021-04-22 21:29:06.526 > [ERR] loadFile: Exception: /home/yossi/matlab/AstroPack/config/Header.Time.KeyNames.yml
+2021-04-22 21:29:06.527 > [INF] Adding property: header
+2021-04-22 21:29:06.528 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/header.yml
+2021-04-22 21:29:06.536 > [ERR] loadYaml: Exception loading file: /home/yossi/matlab/AstroPack/config/header.yml
+2021-04-22 21:29:06.537 > [ERR] loadFile: Exception: /home/yossi/matlab/AstroPack/config/header.yml
+2021-04-22 21:29:06.538 > [INF] Adding property: pipeline
+2021-04-22 21:29:06.539 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/pipeline.yml
+2021-04-22 21:29:06.569 > [INF] Adding property: system
+2021-04-22 21:29:06.570 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/system.yml
+2021-04-22 21:29:06.594 > [INF] Adding property: unittest
+2021-04-22 21:29:06.595 > [INF] loadYaml: Loading file: /home/yossi/matlab/AstroPack/config/unittest.yml
+2021-04-22 21:29:06.644 > [INF] loadFolder: /home/yossi/matlab/AstroPack/matlab/base/../../config/local

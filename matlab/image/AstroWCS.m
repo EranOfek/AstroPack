@@ -34,7 +34,7 @@ classdef AstroWCS < Component
         SIP          cell   = {zeros(0,2),zeros(0,2)};
     end     
     
-    
+    % Yossi - Where are these from?
     properties (GetAccess = public)
         ProjType     char   = '';
         ProjClass    char   = '';
@@ -158,7 +158,7 @@ classdef AstroWCS < Component
 
         end
 
-        function [Phi,Theta]=celestial2native(W,Alpha,Delta,InUnits,OutUnits)
+        function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,InUnits,OutUnits)
             % convert celestial coordinates to native coordinates
             % Package: @wcsCl (transformations)
             % Description: Convert sphericall celestial coordinates
@@ -191,11 +191,11 @@ classdef AstroWCS < Component
                 end
             end
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
             end
 
-            Units = W.CUNIT{1}; % units of properties in the wcsCl class
+            Units = Obj.CUNIT{1}; % units of properties in the wcsCl class
             if isempty(Delta)
                 if size(Alpha,2)==3
                     % cosine direction
@@ -212,7 +212,7 @@ classdef AstroWCS < Component
             end
 
             % input/output units
-            if ~strcmp(W.CUNIT{1},W.CUNIT{2})
+            if ~strcmp(Obj.CUNIT{1},Obj.CUNIT{2})
                 error('CUNIT of longitude and latitude must be the same');
             end
 
@@ -221,7 +221,7 @@ classdef AstroWCS < Component
             ConvFactorIn = convert.angular(InUnits,'rad');
 
             [Phi,Theta] = wcsCl.alphadelta2phitheta(Alpha.*ConvFactorIn,Delta.*ConvFactorIn,...
-                                    W.PhiP.*ConvFactorW, W.AlphaP.*ConvFactorW, W.DeltaP.*ConvFactorW, 'rad');
+                                    Obj.PhiP.*ConvFactorW, Obj.AlphaP.*ConvFactorW, Obj.DeltaP.*ConvFactorW, 'rad');
 
             ConvFactor = convert.angular('rad',OutUnits);
             Phi   = Phi.*ConvFactor;
@@ -256,7 +256,7 @@ classdef AstroWCS < Component
         end
 
         % change name to: sky2xy
-        function varargout=coo2xy(W,Lon,Lat,Units)
+        function varargout=coo2xy(Obj,Lon,Lat,Units)
             % convert celestial coordinates to pixel coordinates
             % Package: @wcsCl (transformation)
             % Description: Convertt celestial coordinates that are in the
@@ -277,13 +277,13 @@ classdef AstroWCS < Component
             %            is a two column matrix of pixel coordinates [X,Y].
             %            If two arguments, then these are X and Y,
             %            respectively.
-            % Example: [X,Y] = coo2xy(W,100,10,'deg')
+            % Example: [X,Y] = coo2xy(Obj,100,10,'deg')
 
             if nargin<4
                 Units = 'deg';
             end
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
             end
 
@@ -300,11 +300,11 @@ classdef AstroWCS < Component
 
 
             % celestial to native
-            [Phi,Theta] = celestial2native(W,[Lon(:),Lat(:)],[],Units,'deg');
+            [Phi,Theta] = celestial2native(Obj,[Lon(:),Lat(:)],[],Units,'deg');
             % native to intermediate
-            [X,Y] = native2interm(W,[Phi, Theta],[],'deg');
+            [X,Y] = native2interm(Obj,[Phi, Theta],[],'deg');
             % inverse distorsion for TPV and SIP
-            switch lower(W.ProjType)
+            switch lower(Obj.ProjType)
                 case 'tpv'
                     % for TPV, invert numerically, iteratively, hopefully
                     %  converging
@@ -313,7 +313,7 @@ classdef AstroWCS < Component
                     X0=X;
                     Y0=Y;
                     while niter<10 && err > 1e-6 % arbitrary iteration stop
-                       [X1,Y1] = interm2TPVdistortedInterm(W,X0,Y0);
+                       [X1,Y1] = interm2TPVdistortedInterm(Obj,X0,Y0);
                        X0=X0-X1+X;
                        Y0=Y0-Y1+Y;
                        err=sqrt(sum((X1(:)-X(:)).^2 + (Y1(:)-Y(:)).^2));
@@ -328,7 +328,7 @@ classdef AstroWCS < Component
             end
 
             % Intermediate to pixel
-            [PX,PY] = interm2pix(W,[X,Y],[]);
+            [PX,PY] = interm2pix(Obj,[X,Y],[]);
 
             PX = reshape(PX,size(Lon));
             PY = reshape(PY,size(Lat));
@@ -346,38 +346,38 @@ classdef AstroWCS < Component
     end
     
     methods
-        function W=fill(W,Force)
+        function Obj=fill(Obj,Force)
             % Fill ProjType, ProjClass, Coo, AlphaP, DeltaP in wcsCl object
             % Package: @wcsCl (basic)
             % Input  : - A wcsCl object
             %          - A logical indicating if to re-fill the values even
             %            if exist. Default is true.
             % Output : - A wcsCl object
-            % Example: W.fill
+            % Example: Obj.fill
 
             if nargin<2
                 Force = true;
             end
 
-            Nw = numel(W);
+            Nw = numel(Obj);
             for Iw=1:1:Nw
-                if Force || isempty(W(Iw).ProjType) || isempty(W(Iw).ProjClass) || isnan(W(Iw).AlphaP) || isnan(W(Iw).DeltaP)
+                if Force || isempty(Obj(Iw).ProjType) || isempty(Obj(Iw).ProjClass) || isnan(Obj(Iw).AlphaP) || isnan(Obj(Iw).DeltaP)
                     % fill missing values
 
-                    N = numel(W(Iw).CTYPE);
+                    N = numel(Obj(Iw).CTYPE);
                     Coo  = cell(1,N);
                     Proj = cell(1,N);
                     for I=1:1:N
-                        if isempty(W(Iw).CTYPE{I})
+                        if isempty(Obj(Iw).CTYPE{I})
                             Proj{I} = 'none';
                             Coo{I}  = 'unknown';
                         else
 
-                            Coo{I} = strrep(W(Iw).CTYPE{I}(1:4),'-','');
-                            if numel(W(Iw).CTYPE{I})<5
+                            Coo{I} = strrep(Obj(Iw).CTYPE{I}(1:4),'-','');
+                            if numel(Obj(Iw).CTYPE{I})<5
                                 Proj{I} = 'none';
                             else
-                                Proj{I} = strrep(W(Iw).CTYPE{I}(5:end),'-','');
+                                Proj{I} = strrep(Obj(Iw).CTYPE{I}(5:end),'-','');
                             end
 
                             if I>1
@@ -388,50 +388,50 @@ classdef AstroWCS < Component
                         end
                     end
 
-                    W(Iw).ProjType  = Proj{1};
-                    W(Iw).CooName   = Coo;
-                    W(Iw).ProjClass = wcsCl.classify_projection(Proj{1});
+                    Obj(Iw).ProjType  = Proj{1};
+                    Obj(Iw).CooName   = Coo;
+                    Obj(Iw).ProjClass = wcsCl.classify_projection(Proj{1});
 
 
-        %                     if ~(strcmp(W(Iw).CTYPE{1}(1:2),'RA') || strcmp(W(Iw).CTYPE{1}(3:4),'LON'))
+        %                     if ~(strcmp(Obj(Iw).CTYPE{1}(1:2),'RA') || strcmp(Obj(Iw).CTYPE{1}(3:4),'LON'))
         %                         error('Support only cases in which CTYPE1 contains longitudes');
         %                     end
-        %                     if ~(strcmp(W(Iw).CTYPE{2}(1:3),'DEC') || strcmp(W(Iw).CTYPE{2}(3:4),'LAT'))
+        %                     if ~(strcmp(Obj(Iw).CTYPE{2}(1:3),'DEC') || strcmp(Obj(Iw).CTYPE{2}(3:4),'LAT'))
         %                         error('Support only cases in which CTYPE2 contains latitude');
         %                     end
 
-                     switch lower(W(Iw).ProjClass)
+                     switch lower(Obj(Iw).ProjClass)
                         case 'none'
-                            W(Iw).Alpha0 = W(Iw).CRVAL(1);
-                            W(Iw).Delta0 = W(Iw).CRVAL(2);
-                            W(Iw).AlphaP = W(Iw).CRVAL(1);
-                            W(Iw).DeltaP = W(Iw).CRVAL(2);
+                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
+                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
+                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
+                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
 
-                            W(Iw).Phi0   = NaN;
-                            W(Iw).Theta0 = NaN;
-                            W(Iw).PhiP   = NaN;
+                            Obj(Iw).Phi0   = NaN;
+                            Obj(Iw).Theta0 = NaN;
+                            Obj(Iw).PhiP   = NaN;
 
                         case 'zenithal'
 
-                            W(Iw).Alpha0 = W(Iw).CRVAL(1);
-                            W(Iw).Delta0 = W(Iw).CRVAL(2);
-                            W(Iw).AlphaP = W(Iw).CRVAL(1);
-                            W(Iw).DeltaP = W(Iw).CRVAL(2);
+                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
+                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
+                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
+                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
 
-                            Units = strtrim(W(Iw).CUNIT{1});
+                            Units = strtrim(Obj(Iw).CUNIT{1});
                             ConvFactor = convert.angular('deg',Units);
 
-                            W(Iw).Phi0   = 0.*ConvFactor;
-                            W(Iw).Theta0 = 90.*ConvFactor;
+                            Obj(Iw).Phi0   = 0.*ConvFactor;
+                            Obj(Iw).Theta0 = 90.*ConvFactor;
 
-                            if W(Iw).Delta0>=W(Iw).Theta0
-                                W(Iw).PhiP = 0.*ConvFactor;
+                            if Obj(Iw).Delta0>=Obj(Iw).Theta0
+                                Obj(Iw).PhiP = 0.*ConvFactor;
                             else
-                                W(Iw).PhiP = 180.*ConvFactor;
+                                Obj(Iw).PhiP = 180.*ConvFactor;
                             end
 
                         otherwise
-                            error('Unsupported projection class (%s)',W(Iw).ProjClass);
+                            error('Unsupported projection class (%s)',Obj(Iw).ProjClass);
                      end
 
                 end
@@ -440,25 +440,25 @@ classdef AstroWCS < Component
 
         end
 
-        function W=fill_PV(W)
+        function Obj=fill_PV(Obj)
             % fill missing values in the PV matrix with zeros
             % Package: @wcsCl (basic)
             % Input  : - A wcsCl object
             % Output : - A wcsCl object
-            % Example: W=wcsCl.pop_exampl; W.fill W.fill_PV;
+            % Example: Obj=wcsCl.pop_exampl; Obj.fill Obj.fill_PV;
 
-            Nw = numel(W);
+            Nw = numel(Obj);
             for Iw=1:1:Nw
-                N  = numel(W(Iw).PV);
+                N  = numel(Obj(Iw).PV);
                 for I=1:1:N
-                    Ind  = W(Iw).PV{I}(:,1);
-                    Coef = W(Iw).PV{I}(:,2);
+                    Ind  = Obj(Iw).PV{I}(:,1);
+                    Coef = Obj(Iw).PV{I}(:,2);
 
                     FullInd = (0:1:max(Ind))';
                     IsM = ismember(FullInd,Ind);
                     FullCoef = zeros(size(FullInd));
                     FullCoef(IsM) = Coef;
-                    W(Iw).PV{I} = [FullInd, FullCoef];
+                    Obj(Iw).PV{I} = [FullInd, FullCoef];
                 end
             end
         end
@@ -615,7 +615,7 @@ classdef AstroWCS < Component
         end
 
 
-        function [Phi,Theta]=interm2native(W,X,Y,InUnits,OutUnits)
+        function [Phi,Theta]=interm2native(Obj,X,Y,InUnits,OutUnits)
             % project coordinates: intermediate to native
             % Package: @wcsCl (transformations)
             % Input  : - A wcsCl object
@@ -628,7 +628,7 @@ classdef AstroWCS < Component
             %          - Output native coordinates units. Default is 'deg'.
             % Output : - A matrix of native Phi coordinate.
             %          - A matrix of native Theta coordinate.
-            % Example: [Phi,Theta]=interm2native(W,100,100)
+            % Example: [Phi,Theta]=interm2native(Obj,100,100)
 
             if nargin<5
                 OutUnits = 'deg';
@@ -640,7 +640,7 @@ classdef AstroWCS < Component
                 end
             end
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('Works on a single element wcsCl object');
             end
 
@@ -655,10 +655,10 @@ classdef AstroWCS < Component
             Y   = Y.*ConvFactor;
 
 
-            switch lower(W.ProjClass)
+            switch lower(Obj.ProjClass)
                 case 'zenithal'
 
-                    switch lower(W.ProjType)
+                    switch lower(Obj.ProjType)
                         case 'tan'
                             Rtheta = sqrt(X.^2 + Y.^2);        % deg
                             Theta  = atan(180./(pi.*Rtheta));  % rad
@@ -677,7 +677,7 @@ classdef AstroWCS < Component
                     end
 
                 otherwise
-                    error('Unsupported projection class (%s)',W.ProjClass);
+                    error('Unsupported projection class (%s)',Obj.ProjClass);
             end
 
             ConvFactor = convert.angular('rad',OutUnits);
@@ -688,7 +688,7 @@ classdef AstroWCS < Component
         end
 
 
-        function [PX,PY]=interm2pix(W,X,Y)
+        function [PX,PY]=interm2pix(Obj,X,Y)
             % Convert intermediate pixel coordinates to pixel coordinates
             % Package: @wcsCl (transformations)
             % Input  : - A single element wcsCl object.
@@ -698,13 +698,13 @@ classdef AstroWCS < Component
             %          - A matrix of Y intermeditae pixel coordinate.
             % Output : - A matrix of X pixel coordinate.
             %          - A matrix of Y pixel coordinate.
-            % Example: [P1,P2]=interm2pix(W,1,1)
+            % Example: [P1,P2]=interm2pix(Obj,1,1)
 
-             if numel(W)~=1
+             if numel(Obj)~=1
                 error('The wcsCl object input must contain a single element');
             end
 
-            if W.NAXIS~=size(W.CD,1) && W.NAXIS~=size(W.CD,2)
+            if Obj.NAXIS~=size(Obj.CD,1) && Obj.NAXIS~=size(Obj.CD,2)
                 error('Number of coordinates must be consistent with number of axss and CD matrix');
             end
 
@@ -716,18 +716,18 @@ classdef AstroWCS < Component
                 X = X(:,1);
             end
 
-            % X = W.WCS.CD*[P - W.WCS.CRPIX(:)];
+            % X = Obj.WCS.CD*[P - Obj.WCS.CRPIX(:)];
             % X = CD*P - CD*CRPIX
             % CD^-1 X = I*P - I*CRPIX
             % P = CRPIX + CD^T X
 
-            %P = (W.CRPIX(:) + inv(W.CD) * XY.').';
+            %P = (Obj.CRPIX(:) + inv(Obj.CD) * XY.').';
 
             XY = [X(:), Y(:)];
-            P = [inv(W.CD) * XY.' + W.CRPIX(:)].';
+            P = [inv(Obj.CD) * XY.' + Obj.CRPIX(:)].';
 
-            %[inv(W(Iw).(WCSField).CD) * XY.' + W(Iw).(WCSField).CRPIX(:)].';
-            %X = W.WCS.CD.'*XY.'; % - W.WCS.CRPIX(:)];
+            %[inv(Obj(Iw).(WCSField).CD) * XY.' + Obj(Iw).(WCSField).CRPIX(:)].';
+            %X = Obj.WCS.CD.'*XY.'; % - Obj.WCS.CRPIX(:)];
 
             PX = reshape(P(:,1),size(X));
             PY = reshape(P(:,2),size(Y));
@@ -736,7 +736,7 @@ classdef AstroWCS < Component
 
 
 
-        function [Xi,Yi]=interm2TPVdistortedInterm(W,X,Y)
+        function [Xi,Yi]=interm2TPVdistortedInterm(Obj,X,Y)
         % Apply TPV distortion to intermediate pixel position
         % Package: @wcsCl (transformations)
         % Input  : - A single element wcsCl object
@@ -744,28 +744,28 @@ classdef AstroWCS < Component
         %          - A matrix of intermediate pixel position Y.
         % Output : - A matrix of the distorted intermediate pixel position X.
         %          - A matrix of the distorted intermediate pixel position Y.
-        % Example: [Xi,Yi]=interm2TPVdistortedInterm(W,1,1)
+        % Example: [Xi,Yi]=interm2TPVdistortedInterm(Obj,1,1)
 
             % polynomial mapping: term Xi  Yi r
             PolyPV = wcsCl.polyPVdef;
 
 
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('Input must be a single element wcsCl object');
             end
 
             R = sqrt(X.^2 + Y.^2);
 
-            Np = numel(W.PV);
+            Np = numel(Obj.PV);
             if Np~=2
                 error('A TPV distortion should contain two columns');
             end
 
-            Nc     = size(W.PV{1},1);
+            Nc     = size(Obj.PV{1},1);
 
-            CoefX  = W.PV{1}(:,2);
-            CoefY  = W.PV{2}(:,2);
+            CoefX  = Obj.PV{1}(:,2);
+            CoefY  = Obj.PV{2}(:,2);
 
             PolyPV = PolyPV(1:Nc,:);
 
@@ -777,54 +777,54 @@ classdef AstroWCS < Component
         end
 
 
-        function Ans=isPopulated(W)
+        function Ans=isPopulated(Obj)
             % Check if wcsCl object Exist field is false (i.e., no WCS in object)
             % Package: @wcsCl (basic)
             
-            Ans = [W.Exist];
+            Ans = [Obj.Exist];
         end
  
         
         % delete
-        function Ans=iswcsCl(W)
+        function Ans=iswcsCl(Obj)
         % Check if object is a wcsCl object 
         % Package: @wcsCl (basic)
-            Ans = isa(W,'wcsCl');
+            Ans = isa(Obj,'wcsCl');
         end
 
 
-        function [Flag,W]=iswcsOk(W)
+        function [Flag,Obj]=iswcsOk(Obj)
             % check minimal content of wcsCl object and update Exist property
             % Package: @wcsCl (Static)
             % Input  : - A wcsCl object.
             % Output : - An array of logical flags for each wcsCl element indicating if
             %            the wcsCl is likely valid.
             %          - A wcsCl object with the Exist property updated.
-            % Example: [Flag,W]=wcsCl.iswcsOk(W)
+            % Example: [Flag,Obj]=wcsCl.iswcsOk(Obj)
 
-            N = numel(W);
-            Flag = false(size(W));
+            N = numel(Obj);
+            Flag = false(size(Obj));
             for I=1:1:N
-                Flag(I) = ~isempty(W(I).NAXIS) && ~isnan(W(I).NAXIS);
-                Ntype = numel(W(I).CTYPE);
+                Flag(I) = ~isempty(Obj(I).NAXIS) && ~isnan(Obj(I).NAXIS);
+                Ntype = numel(Obj(I).CTYPE);
                 for Itype=1:1:Ntype
-                    if numel(W(I).CTYPE{Itype})>=5
+                    if numel(Obj(I).CTYPE{Itype})>=5
                         Flag(I) = Flag(I);
                     else
                         Flag(I) = false(I);
                     end
                 end
 
-                Flag(I) = Flag(I) && all(~isempty(W(I).CRPIX)) && all(~isnan(W(I).CRPIX));
-                Flag(I) = Flag(I) && all(~isempty(W(I).CRVAL)) && all(~isnan(W(I).CRVAL));
-                Flag(I) = Flag(I) && all(~isempty(W(I).CD(:))) && all(~isnan(W(I).CD(:)));
+                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRPIX)) && all(~isnan(Obj(I).CRPIX));
+                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRVAL)) && all(~isnan(Obj(I).CRVAL));
+                Flag(I) = Flag(I) && all(~isempty(Obj(I).CD(:))) && all(~isnan(Obj(I).CD(:)));
 
-                W(I).Exist = Flag(I);
+                Obj(I).Exist = Flag(I);
             end
         end
         
 
-        function [Alpha,Delta]=native2celestial(W,Phi,Theta,InUnits,OutUnits)
+        function [Alpha,Delta]=native2celestial(Obj,Phi,Theta,InUnits,OutUnits)
             % convert native coordinates to celestial coordinates
             % Package: @wcsCl (transformations)
             % Description: Convert spherical native coordinates
@@ -841,7 +841,7 @@ classdef AstroWCS < Component
             %            Default is 'deg'.
             % Output : - A matrix of celestial (Alpha) coordinates.
             %          - A matrix of celestial (Delta) coordinates.
-            % Example: [Alpha,Delta]=native2celestial(W,[1 1],[2 2])
+            % Example: [Alpha,Delta]=native2celestial(Obj,[1 1],[2 2])
 
             if nargin<5
                 OutUnits = 'deg';
@@ -853,7 +853,7 @@ classdef AstroWCS < Component
                 end
             end
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
             end
 
@@ -862,10 +862,10 @@ classdef AstroWCS < Component
                 Phi   = Phi(:,1);
             end
 
-            Units = W.CUNIT{1};
+            Units = Obj.CUNIT{1};
 
             % input/output units
-            if ~strcmp(W.CUNIT{1},W.CUNIT{2})
+            if ~strcmp(Obj.CUNIT{1},Obj.CUNIT{2})
                 error('CUNIT of longitude and latitude must be the same');
             end
 
@@ -873,7 +873,7 @@ classdef AstroWCS < Component
             ConvFactorIn = convert.angular(InUnits,'rad');
 
             [Alpha,Delta]=wcsCl.phitheta2alphadelta(Phi.*ConvFactorIn,Theta.*ConvFactorIn,...
-                                W.PhiP.*ConvFactorW,W.AlphaP.*ConvFactorW,W.DeltaP.*ConvFactorW,'rad');
+                                Obj.PhiP.*ConvFactorW,Obj.AlphaP.*ConvFactorW,Obj.DeltaP.*ConvFactorW,'rad');
 
             ConvFactor = convert.angular('rad',OutUnits);
             Alpha = Alpha.*ConvFactor;
@@ -883,7 +883,7 @@ classdef AstroWCS < Component
         end
 
 
-        function [X,Y]=native2interm(W,Phi,Theta,InUnits)
+        function [X,Y]=native2interm(Obj,Phi,Theta,InUnits)
             % project coordinates: native to intermediate
             % Package: @wcsCl (transformations)
             % Input  : - A wcsCl object
@@ -896,7 +896,7 @@ classdef AstroWCS < Component
             %            Default is 'deg'.
             % Output : - A matrix of X intermediate pixel coordinate.
             %          - A matrix of Y intermediate pixel coordinate.
-            % Example: [X,Y]=native2interm(W,100,100)
+            % Example: [X,Y]=native2interm(Obj,100,100)
 
             if nargin<4
                 InUnits = 'deg';
@@ -905,7 +905,7 @@ classdef AstroWCS < Component
                 end
             end
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('Works on a single element wcsCl object');
             end
 
@@ -922,10 +922,10 @@ classdef AstroWCS < Component
 
             % phi,theta -> X,Y
 
-            switch lower(W.ProjClass)
+            switch lower(Obj.ProjClass)
                 case 'zenithal'
 
-                    switch lower(W.ProjType)
+                    switch lower(Obj.ProjType)
                         case 'tan'
                             Rtheta = 180./pi .* cot(Theta);    % deg
                             X      = Rtheta.*sin(Phi);
@@ -944,7 +944,7 @@ classdef AstroWCS < Component
                     end
 
                 otherwise
-                    error('Unsupported projection class (%s)',W.ProjClass);
+                    error('Unsupported projection class (%s)',Obj.ProjClass);
             end
 
         end
@@ -1001,7 +1001,7 @@ classdef AstroWCS < Component
         end
 
 
-        function [X,Y]=pix2interm(W,PX,PY)
+        function [X,Y]=pix2interm(Obj,PX,PY)
             % Convert pixel coordinates (P) to intermediate coordinates (X)
             % Package: @wcsCl (transformations)
             % Input  : - A single element wcsCl object
@@ -1013,9 +1013,9 @@ classdef AstroWCS < Component
             %          - A matrix of Y intermediate coordinate.
             %            The intermediate coordinates units are specified in
             %            CUNIT.
-            % Example: [X,Y]=pix2interm(W,1,1)
+            % Example: [X,Y]=pix2interm(Obj,1,1)
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('The wcsCl object input must contain a single element');
             end
 
@@ -1030,11 +1030,11 @@ classdef AstroWCS < Component
 
             P = [PX(:), PY(:)].';
 
-            if W.NAXIS~=size(P,2) && W.NAXIS~=size(W.CD,1) && W.NAXIS~=size(W.CD,2)
+            if Obj.NAXIS~=size(P,2) && Obj.NAXIS~=size(Obj.CD,1) && Obj.NAXIS~=size(Obj.CD,2)
                 error('Number of coordinates must be consistent with number of axes and CD matrix');
             end
 
-            XY = (W.CD*(P - W.CRPIX(:))).';
+            XY = (Obj.CD*(P - Obj.CRPIX(:))).';
 
             X = reshape(XY(:,1),size(PX));
             Y = reshape(XY(:,2),size(PY));
@@ -1119,27 +1119,27 @@ classdef AstroWCS < Component
         end
 
 
-        function W=pop_example()
+        function Obj=pop_example()
             % populate an example in a wcsCl object
             % Package: @wcsCl (Static)
-            % Example: W=wcsCl.pop_example
+            % Example: Obj=wcsCl.pop_example
 
             % taken from PTF image:
             % PTF_201211213689_i_p_scie_t085110_u014664936_f02_p100037_c02.fits
 
-            W = wcsCl;
-            W.Exist   = true;
-            W.NAXIS   = 2;
-            W.WCSAXES = 2;
-            W.CTYPE   = {'RA--TPV','DEC-TPV'};
-            W.CUNIT   = {'deg','deg'};
-            W.RADESYS = 'ICRS';
-            W.EQUINOX = 2000;
-            W.CD      = [0.000281213122191427, 6.60586568794139E-06; 6.75167063981288E-06, -0.000281077673400925];
-            W.CRVAL   = [148.750256715202, 69.4980616019507];
-            W.CRPIX   = [586.994, 1882.221];
-            W.LONPOLE = 180;
-            W.LATPOLE = 0;
+            Obj = wcsCl;
+            Obj.Exist   = true;
+            Obj.NAXIS   = 2;
+            Obj.WCSAXES = 2;
+            Obj.CTYPE   = {'RA--TPV','DEC-TPV'};
+            Obj.CUNIT   = {'deg','deg'};
+            Obj.RADESYS = 'ICRS';
+            Obj.EQUINOX = 2000;
+            Obj.CD      = [0.000281213122191427, 6.60586568794139E-06; 6.75167063981288E-06, -0.000281077673400925];
+            Obj.CRVAL   = [148.750256715202, 69.4980616019507];
+            Obj.CRPIX   = [586.994, 1882.221];
+            Obj.LONPOLE = 180;
+            Obj.LATPOLE = 0;
 
             PV1 = [0             0
                    1             1
@@ -1173,17 +1173,17 @@ classdef AstroWCS < Component
                    15    0.00021697
                    16     0.0028449];
 
-            W.PV = {PV1, PV2};
+            Obj.PV = {PV1, PV2};
 
-            W.fill;
-            W.fill_PV;
+            Obj.fill;
+            Obj.fill_PV;
 
         end
 
 
 
 
-        function W=populate(varargin)
+        function Obj=populate(varargin)
             % Package: @wcsCl (basic)
             % Input  : * An arbitrary number of key,val, arguments that will
             %            populate the wcsCl object.
@@ -1237,7 +1237,7 @@ classdef AstroWCS < Component
                 InPar.CD = InPar.PC.*InPar.CDELT(:);
             end
 
-            W = wcsCl(1);
+            Obj = wcsCl(1);
 
             if ~strcmp(InPar.CTYPE{1}(5:7),InPar.CTYPE{2}(5:7))
                 error('Projection algorithm must be equal to longitude and latitude');
@@ -1324,7 +1324,7 @@ classdef AstroWCS < Component
                 error('PV must be a cell array');
             end
 
-            W.WCS       = struct('RADESYS',InPar.RADESYS,...
+            Obj.WCS       = struct('RADESYS',InPar.RADESYS,...
                                  'EQUINOX',InPar.EQUINOX,...
                                  'NAXIS',  InPar.NAXIS,...
                                  'WCSAXES',InPar.WCSAXES,...
@@ -1344,30 +1344,30 @@ classdef AstroWCS < Component
 
         end
 
-        function W=populate_projMeta(W)
+        function Obj=populate_projMeta(Obj)
             % populate projection and pole information in a wcsCl object
             % Package: @wcsCl
             % Description: 
             % Input  : - A wcsCl object
-            % Output : - W wcsCl object with the projection type and pole data populated.
+            % Output : - Obj wcsCl object with the projection type and pole data populated.
 
             Def.LONPOLE = 0;
             Def.LATPOLE = 90;
 
-            N = numel(W);
+            N = numel(Obj);
             for I=1:1:N
 
-                ProjAlgo  = W(I).CTYPE{1}(6:end);
+                ProjAlgo  = Obj(I).CTYPE{1}(6:end);
                 ProjClass = wcsCl.classify_projection(ProjAlgo);
-                W(I).ProjType  = ProjAlgo;
-                W(I).ProjClass = ProjClass;
+                Obj(I).ProjType  = ProjAlgo;
+                Obj(I).ProjClass = ProjClass;
                 switch lower(ProjClass)
                     case 'zenithal'
 
-                        Alpha0 = W(I).CRVAL(1);
-                        Delta0 = W(I).CRVAL(2);
-                        AlphaP = W(I).CRVAL(1);
-                        DeltaP = W(I).CRVAL(2);
+                        Alpha0 = Obj(I).CRVAL(1);
+                        Delta0 = Obj(I).CRVAL(2);
+                        AlphaP = Obj(I).CRVAL(1);
+                        DeltaP = Obj(I).CRVAL(2);
 
                         Phi0   = 0;
                         Theta0 = 90;
@@ -1378,13 +1378,13 @@ classdef AstroWCS < Component
                             PhiP = 180;
                         end
 
-                        W(I).Alpha0 = Alpha0;
-                        W(I).Delta0 = Delta0;
-                        W(I).AlphaP = AlphaP;
-                        W(I).DeltaP = DeltaP;
-                        W(I).Phi0   = Phi0;
-                        W(I).Theta0 = Theta0;
-                        W(I).PhiP   = PhiP;
+                        Obj(I).Alpha0 = Alpha0;
+                        Obj(I).Delta0 = Delta0;
+                        Obj(I).AlphaP = AlphaP;
+                        Obj(I).DeltaP = DeltaP;
+                        Obj(I).Phi0   = Phi0;
+                        Obj(I).Theta0 = Theta0;
+                        Obj(I).PhiP   = PhiP;
                     otherwise
                         error('Unsupported projection class (%s)',ProjClass);
                 end
@@ -1395,33 +1395,33 @@ classdef AstroWCS < Component
                     case {'tan'}
 
                         % treat LONPOLE
-                        if isempty(W(I).LONPOLE)
+                        if isempty(Obj(I).LONPOLE)
                             % check if LONPOLE is in PV1_3
-                            if isempty(W(I).PV)
+                            if isempty(Obj(I).PV)
                                 % set to default value
-                                W(I).LONPOLE = Def.LONPOLE;
+                                Obj(I).LONPOLE = Def.LONPOLE;
                             else
-                                if numel(W(I).PV{1})>=3
-                                    W(I).LONPOLE = W(I).PV{1}{3};
+                                if numel(Obj(I).PV{1})>=3
+                                    Obj(I).LONPOLE = Obj(I).PV{1}{3};
                                 else
                                     % set to default value
-                                    W(I).LONPOLE = Def.LONPOLE;
+                                    Obj(I).LONPOLE = Def.LONPOLE;
                                 end
                             end
                         end
 
                         % treat LATPOLE
-                        if isempty(W(I).LATPOLE)
+                        if isempty(Obj(I).LATPOLE)
                             % check if LATPOLE is in PV1_4
-                            if isempty(W(I).PV)
+                            if isempty(Obj(I).PV)
                                 % set to default value
-                                W(I).LATPOLE = Def.LATPOLE;
+                                Obj(I).LATPOLE = Def.LATPOLE;
                             else
-                                if numel(W(I).PV{1})>=4
-                                    W(I).LATPOLE = InPar.PV{1}{4};
+                                if numel(Obj(I).PV{1})>=4
+                                    Obj(I).LATPOLE = InPar.PV{1}{4};
                                 else
                                     % set to default value
-                                    W(I).LATPOLE = Def.LATPOLE;
+                                    Obj(I).LATPOLE = Def.LATPOLE;
                                 end
                             end
                         end
@@ -1528,7 +1528,7 @@ classdef AstroWCS < Component
         end
 
 
-        function varargout=xy2coo(W,PX,PY,OutUnits)
+        function varargout=xy2coo(Obj,PX,PY,OutUnits)
             % Convert X/Y pixel coordinates to celestial coordinates
             % Package: @wcsCl (transformations)
             % Description: Convert X/Y pixel coordinates to celestial
@@ -1543,8 +1543,8 @@ classdef AstroWCS < Component
             %          - A matrix of Dec coordinates.
             %            If not asked for, then the first output will be a
             %            two column matrix.
-            % Example: W=wcsCl.pop_example;
-            %          [RA,Dec]=xy2coo(W,1,1)
+            % Example: Obj=wcsCl.pop_example;
+            %          [RA,Dec]=xy2coo(Obj,1,1)
 
             if nargin<4
                 OutUnits = 'deg';
@@ -1553,7 +1553,7 @@ classdef AstroWCS < Component
                 end
             end
 
-            if numel(W)~=1
+            if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
             end
 
@@ -1563,11 +1563,11 @@ classdef AstroWCS < Component
             end
 
             % pixel to intermediate (in units of CUNIT)
-            [X,Y] = pix2interm(W,PX,PY);
+            [X,Y] = pix2interm(Obj,PX,PY);
             % interm pixel coordinates TPV distortion
-            switch lower(W.ProjType)
+            switch lower(Obj.ProjType)
                 case 'tpv'
-                    [X,Y] = interm2TPVdistortedInterm(W,X,Y);
+                    [X,Y] = interm2TPVdistortedInterm(Obj,X,Y);
                 case 'tan-sip'
                     'not implemented yet'
                 otherwise
@@ -1575,9 +1575,9 @@ classdef AstroWCS < Component
             end
 
             % intermediate to native
-            [Phi,Theta] = interm2native(W,X,Y,W.CUNIT{1},'rad');
+            [Phi,Theta] = interm2native(Obj,X,Y,Obj.CUNIT{1},'rad');
             % native to celestial 
-            [Alpha, Delta] = native2celestial(W,Phi,Theta,'rad',OutUnits);
+            [Alpha, Delta] = native2celestial(Obj,Phi,Theta,'rad',OutUnits);
 
             if nargout<2
                 varargout{1} = [Alpha, Delta];
