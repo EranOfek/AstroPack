@@ -1,6 +1,40 @@
 function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
     % Apply affine transformation to an AstroCatalog object
-    % Input  : - 
+    % Input  : - An AstroCatalog or AstroImage (with a catalog) object or
+    %            a matrix. 
+    %            If a matrix, then assumes that it contains two columns of
+    %            [x, y] coordinates.
+    %          - An affine transformation in one of the following formats:
+    %            1. A 3x3 affine transformation matrix.
+    %            2. An affine2d class.
+    %            3. [ShiftX, ShiftY]
+    %            4. [ShiftX, ShiftY, Rotation]
+    %            5. [ShiftX, ShiftY, Rotation, Scale]
+    %            6. [ShiftX, ShiftY, Rotation, Scale, FlipX, FlipY]
+    %          - A logical indicating if to perform a forward
+    %            transformation (true) or backward (false).
+    %            Default is true (forward transformation).
+    %          * ...,key,val,...
+    %            'RotUnits' - Units for the rotation angle (if provided).
+    %                   Default is 'rad'.
+    %            'ColX' - A cell array of column nnames for the X
+    %                   coordinates. Will choose the first to appear.
+    %                   Default is AstroCatalog.DefNamesX.
+    %            'ColY' - A cell array of column nnames for the Y
+    %                   coordinates. Will choose the first to appear.
+    %                   Default is AstroCatalog.DefNamesY.
+    %            'CreateNewObj' - - Indicating if the output
+    %                   is a new copy of the input (true), or an
+    %                   handle of the input (false).
+    %                   If empty (default), then this argument will
+    %                   be set by the number of output args.
+    %                   If 0, then false, otherwise true.
+    %                   This means that IC.fun, will modify IC,
+    %                   while IB=IC.fun will generate a new copy in
+    %                   IB.
+    % Output : - An AstroCatalog object in which the coordinates are
+    %            transformed.
+    % Author : Eran Ofek (Jun 2021)
     % Example: Result = imProc.trans.tranAffine(rand(100,2), [1 1], true)
     
 
@@ -9,6 +43,7 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
         AffineMatrix
         IsForward(1,1) logical  = true;
         
+        Args.RotUnits           = 'rad';
         Args.ColX               = AstroCatalog.DefNamesX;
         Args.ColY               = AstroCatalog.DefNamesY;
         
@@ -101,6 +136,7 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
                     otherwise
                         error('Unknown Addine Transformation option');
                 end
+                Theta        = convert.angular(Args.RotUnits, 'rad', Theta);
                 AffineMatrix = [FlipX.*Scale.*cos(Theta), -FlipY.*Scale.*sin(Theta), ShiftX; FlipX.*Scale.*sin(Theta),  FlipY.*Scale.*cos(Theta), ShiftY; 0  0  1];
             end
             

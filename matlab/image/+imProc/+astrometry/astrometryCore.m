@@ -54,6 +54,7 @@ function Result = astrometryCore(Obj, Args)
                                                                          'argsProperMotion',Args.argsProperMotion{:});
                                                                      
     % Addtitional constraints on astrometric catalog
+    % mag and parallax constraints
     AstrometricCat = queryRange(AstrometricCat, Args.MagColName, Args.MagRange,...
                                                 Args.PlxColName, Args.PlxRange);
    
@@ -76,9 +77,11 @@ function Result = astrometryCore(Obj, Args)
                                                                       'Flip',Args.Flip,...
                                                                       'SearchRadius',Args.SearchRadius);
                                                                       
-        
-    % Fit transformation
+    % Apply affine transformation to Reference
+    Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
     
+    % Fit transformation
+    [Param, Res] = imProc.trans.fitTransformation(FilteredCat, FilteredProjAstCat, 'Tran',T);
     
     
     % Calculate WCS
