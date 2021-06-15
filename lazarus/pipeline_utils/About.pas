@@ -21,6 +21,7 @@ type
     Panel1: TPanel;
     procedure BtnCloseClick(Sender: TObject);
     procedure ImageLogoClick(Sender: TObject);
+    procedure LabelVersionClick(Sender: TObject);
   private
 
   public
@@ -42,6 +43,11 @@ begin
 end;
 
 procedure TAboutForm.ImageLogoClick(Sender: TObject);
+begin
+
+end;
+
+procedure TAboutForm.LabelVersionClick(Sender: TObject);
 begin
 
 end;

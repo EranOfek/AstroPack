@@ -3,7 +3,7 @@ object MainForm: TMainForm
   Height = 396
   Top = 147
   Width = 859
-  Caption = 'ULTRASAT Pipeline'
+  Caption = 'ULTRASAT Pipeline Utils'
   ClientHeight = 376
   ClientWidth = 859
   Menu = MainMenu

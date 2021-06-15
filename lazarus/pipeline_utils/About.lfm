@@ -25,8 +25,9 @@ object AboutForm: TAboutForm
       Width = 360
       Alignment = taCenter
       AutoSize = False
-      Caption = 'Version 0.1, 12/05/2021'
+      Caption = 'Version 1.00, 14/06/2021'
       ParentColor = False
+      OnClick = LabelVersionClick
     end
     object LabelTitle: TLabel
       Left = 8
@@ -53,7 +54,7 @@ object AboutForm: TAboutForm
       Width = 360
       Alignment = taCenter
       AutoSize = False
-      Caption = '(C) Weizmann Institute of Science, ISRAEL'
+      Caption = '(C) Weizmann Institute of Science'
       Font.CharSet = ANSI_CHARSET
       Font.Color = clBlack
       Font.Height = -12

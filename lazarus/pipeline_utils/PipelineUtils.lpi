@@ -30,7 +30,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="PipelineUtils.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -53,6 +53,13 @@
         <Filename Value="..\packages\vcllazarus\LogPanel.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="dbbrowser.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="DbBrowserForm"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="DbBrowser"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

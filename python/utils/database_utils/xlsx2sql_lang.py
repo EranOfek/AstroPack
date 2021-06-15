@@ -27,6 +27,14 @@ import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
 from sys import platform
 
+GEN_POSTGRES = True
+GEN_FIREBIRD = False
+GEN_PYTHON = False
+GEN_MATLAB = False
+GEN_CPP = False
+GEN_DELPHI = False
+
+
 # Log message to file
 if platform == "win32":
     LOG_PATH = 'c:/temp/'
@@ -395,7 +403,7 @@ class DatabaseDef:
                     continue
 
                 # Skip comment rows
-                if field.field_name.startswith('#') or field.field_name.startswith('%'):
+                if field.field_name.startswith('#') or field.field_name.startswith('%') or field.field_name.startswith(';'):
                     continue
 
                 # Parse meta data
@@ -873,10 +881,19 @@ class DatabaseDef:
     def create_classes(self):
 
         self.class_name = self.table_to_class_name(self.table_name)
-        self.create_class_python()
-        self.create_class_matlab()
-        self.create_class_cpp()
-        self.create_class_delphi()
+
+        if GEN_PYTHON:
+            self.create_class_python()
+
+        if GEN_MATLAB:
+            self.create_class_matlab()
+
+        if GEN_CPP:
+            self.create_class_cpp()
+
+        if GEN_DELPHI:
+            self.create_class_delphi()
+
 
     def write_file_header(self, lang):
         comment, _ = get_field_type_lang('', '#comment', lang)
@@ -993,8 +1010,12 @@ def process_csv_file(filename):
         db.set_db(filename_lower)
         db.load_table_csv(filename_lower)
         if len(db.field_list) > 0:
-            db.create_table_postgres()
-            #db.create_table_firebird()
+            if GEN_POSTGRES:
+                db.create_table_postgres()
+
+            if GEN_FIREBIRD:
+                db.create_table_firebird()
+
             db.create_classes()
 
 
@@ -1022,7 +1043,9 @@ def process_folder(fpath, ext_list, subdirs = True):
                     process_csv_file(filename)
 
 
-    #merge_delphi()
+    if GEN_DELPHI:
+        #merge_delphi()
+        pass
 
 #============================================================================
 
