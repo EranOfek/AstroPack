@@ -38,14 +38,14 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     arguments
         RA
         Dec
-        Args.CatName char             = 'GAIAEDR3';
+        Args.CatName char             = 'GAIAEDR3';   % or AstroCatalog
         Args.CatOrigin                = 'catsHTM';
-        Args.Radius                   = 1000;
+        Args.Radius(1,1)              = 1000;
         Args.RadiusUnits              = 'arcsec';
         Args.CooUnits                 = 'deg';
         Args.Shape
         Args.OutUnits                 = 'deg';
-        Args.Con                      = {};
+        Args.Con cell                 = {};
         Args.UseIndex(1,1) logical    = false;
         Args.EpochOut                 = [];  % if empty - don't apply proper motion
         Args.EpochIn                  = [];  % if given - don't use catalog Epoch
@@ -60,37 +60,49 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Dec = convert.angular(Args.CooUnits, 'rad', Dec);
     end        
     
-    switch lower(Args.CatOrigin)
-        case 'catshtm'
-            % use catsHTM
-            Result = catsHTM.cone_search(Args.CatName, RA, Dec, Args.Radius, 'Con', Args.Con,...
-                                                                             'RadiusUnits',Args.RadiusUnits,...
-                                                                             'UseIndex',Args.UseIndex,...
-                                                                             'OnlyCone',true,...
-                                                                             'OutType','astrocatalog');
-                                                                
-            % apply proper motion
-            if ~isempty(Args.EpochOut)
-                if isempty(Args.EpochIn)
-                    % use EpochIn from catalog
-                    EpochIn = getCol(Result, 'Epoch');
-                    EpochInUnits = 'j';
-                else
-                    % override catalog Epoch
-                    EpochIn = Args.EpochIn;
-                    EpochInUnits = 'jd';
+    if ischar(Args.CatName)
+        switch lower(Args.CatOrigin)
+            case 'catshtm'
+                % use catsHTM
+                Result = catsHTM.cone_search(Args.CatName, RA, Dec, Args.Radius, 'Con', Args.Con,...
+                                                                                 'RadiusUnits',Args.RadiusUnits,...
+                                                                                 'UseIndex',Args.UseIndex,...
+                                                                                 'OnlyCone',true,...
+                                                                                 'OutType','astrocatalog');
+
+                % apply proper motion
+                if ~isempty(Args.EpochOut)
+                    if isempty(Args.EpochIn)
+                        % use EpochIn from catalog
+                        EpochIn = getCol(Result, 'Epoch');
+                        EpochInUnits = 'j';
+                    else
+                        % override catalog Epoch
+                        EpochIn = Args.EpochIn;
+                        EpochInUnits = 'jd';
+                    end
+                    Result = imProc.cat.applyProperMotion(Obj, EpochIn, Args.EpochOut, Args.argsProperMotion{:},'EpochInUnits',EpochInUnits);
                 end
-                Result = imProc.cat.applyProperMotion(Obj, EpochIn, Args.EpochOut, Args.argsProperMotion{:},'EpochInUnits',EpochInUnits);
-            end
-            
-            % coordinates are in radians
-            % convert to OutUnits
-            Result.convertCooUnits(Args.OutUnits);
-            
-        otherwise
-            error('Unsupported CatOrigin option');
+
+                % coordinates are in radians
+                % convert to OutUnits
+                Result.convertCooUnits(Args.OutUnits);
+
+            otherwise
+                error('Unsupported CatOrigin option');
+        end
+    else
+        % assume CatName contains an actual catalog
+        AstrometricCat = CatName;
+        % FFU: add treatment for sexagesimal coordinates
+        if numel(RA)>1
+            error('FFU: Current version treat only RA/Dec deg/rad when CatName is AstroCatalog');
+        end
+        ConvFactor  = convert.angular(Args.CooUnits, 'rad');
+        RA          = ConvFactor .* Args.RA;
+        Dec         = ConvFactor .* Args.Dec;
+        
     end
-    
     
 end
 
