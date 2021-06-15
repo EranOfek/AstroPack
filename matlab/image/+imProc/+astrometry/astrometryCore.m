@@ -54,19 +54,9 @@ function Result = astrometryCore(Obj, Args)
                                                                          'argsProperMotion',Args.argsProperMotion{:});
                                                                      
     % Addtitional constraints on astrometric catalog
-    % magnitude range
-    [ColIndMag] = colnameDict2ind(AstrometricCat, Args.MagColName);
-    Mag         = getCol(AstrometricCat, ColIndMag, false, false);
-    FlagMag     = Mag>min(Args.MagRange) & Mag<max(Args.MagRange);
-    % large Plx
-    [ColIndPlx] = colnameDict2ind(AstrometricCat, Args.PlxColName);
-    Plx         = getCol(AstrometricCat, ColIndPlx, false, false);
-    FlagPlx     = Plx>min(Args.PlxRange) & Plx<max(Args.PlxRange);
-    % combine all flags
-    FlagAll     = FlagMag && FlagPlx;
-    
-    AstrometricCat.Catalog = AstrometricCat.Catalog(FlagAll,:);
-    
+    AstrometricCat = queryRange(AstrometricCat, Args.MagColName, Args.MagRange,...
+                                                Args.PlxColName, Args.PlxRange);
+   
     % Project astrometric catalog
     ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                                   'AddNewCols',{'X','Y'},...
@@ -88,6 +78,8 @@ function Result = astrometryCore(Obj, Args)
                                                                       
         
     % Fit transformation
+    
+    
     
     % Calculate WCS
     

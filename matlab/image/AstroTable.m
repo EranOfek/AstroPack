@@ -1042,7 +1042,7 @@ classdef AstroTable < Component %ImageComponent
             end
         end
         
-        function [Result,Flag] = query(Obj, QueryStringUser, Args)
+        function [Result, Flag] = query(Obj, QueryStringUser, Args)
             % Query an AstroTable object
             % Input  : - An AstroTable object.
             %          - A query string with operators on column names
@@ -1123,6 +1123,61 @@ classdef AstroTable < Component %ImageComponent
                 Result(Iobj).SortByCol = Obj(Iobj).SortByCol;
                 Result(Iobj).IsSorted  = Obj(Iobj).IsSorted;
                 
+            end
+            
+        end
+        
+        function [Result, Flag] = queryRange(Obj, varargin)
+            % Query catalog by columns in range (without using eval).
+            %   See also query
+            % Input  : - An AstroTable object.
+            %          * ...,key,val,... of column name and column range.
+            %            Column name may be a cell array of column names
+            %            from which the first to appear will be selected
+            %            (dictionary), or a single column name.
+            %            Column range may be a range of one or two numbers,
+            %            and only values within the range (>=, <=) will be
+            %            selected.
+            % Output : - An AstroTable object, with the selected rows.
+            %            If nargout>0, then a new copy is created, if
+            %            nargout=0, the original object is modified.
+            %          - A vector of logical of the selected rows, for the
+            %          last element of the AstroTable input.
+            % Author : Eran Ofek (Jun 2021)
+            % Example: AT=AstroTable({rand(100,2)},'ColNames',{'x','y'});
+            %          [Result, Flag] = queryRange(AT, 'x',[0.2 0.3],'y',[0.0 0.5])
+            %          [Result, Flag] = queryRange(AT, {'x_win','x'},[0.2 0.3],'y',[0.0 1])
+           
+            % CreateNewObj treatment
+            if nargout==0
+                CreateNewObj = false;
+            else
+                CreateNewObj = true;
+            end
+            
+            if CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+            Narg = numel(varargin);
+            if mod(Narg,2)~=0
+                error('Must supply pairs of col name and range');
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Ikey = 0;
+                Flag = true(1,1);
+                for Iarg=1:2:Narg-1
+                    Ikey = Ikey + 1;
+                    ColInd = colnameDict2ind(Obj(Iobj), varargin{Iarg});
+                    Val    = getCol(Obj(Iobj), ColInd, false, false);
+                    Flag   = Flag & (Val>=min(varargin{Iarg+1}) & Val<=max(varargin{Iarg+1}));
+                end
+                
+                Result(Iobj).Catalog = Result(Iobj).Catalog(Flag,:);
             end
             
         end
@@ -1312,6 +1367,11 @@ classdef AstroTable < Component %ImageComponent
             BC=query([AC;AC],'mag1>8 & mag2<10');
             AC=array2table(AC);
             BC=query(AC,'mag1>8 & mag2<10');
+            
+            % queryRange
+            AT = AstroTable({rand(100,2)},'ColNames',{'x','y'});
+            [Result, Flag] = queryRange(AT, 'x',[0.2 0.3],'y',[0.0 0.5]);
+            [Result, Flag] = queryRange(AT, {'x_win','x'},[0.2 0.3],'y',[0.0 1])  
             
             % plot
             AT = AstroTable;
