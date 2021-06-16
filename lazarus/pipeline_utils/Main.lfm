@@ -1,9 +1,9 @@
 object MainForm: TMainForm
-  Left = 204
+  Left = 188
   Height = 396
-  Top = 147
+  Top = 237
   Width = 859
-  Caption = 'ULTRASAT Pipeline Utils'
+  Caption = 'ULTRASAT Pipeline Utilities, v1.01'
   ClientHeight = 376
   ClientWidth = 859
   Menu = MainMenu
@@ -11174,6 +11174,17 @@ object MainForm: TMainForm
       object MIExit: TMenuItem
         Caption = 'Exit'
         OnClick = MIExitClick
+      end
+    end
+    object MIDatabase: TMenuItem
+      Caption = 'Database'
+      object MIDbXlsxToSql: TMenuItem
+        Caption = 'Convert XLSX file to SQL'
+        OnClick = MIDbXlsxToSqlClick
+      end
+      object MIDbCreateDbFromSql: TMenuItem
+        Caption = 'Create Postgres Database from SQL File'
+        OnClick = MIDbCreateDbFromSqlClick
       end
     end
     object MIHelp: TMenuItem

@@ -19,8 +19,8 @@ classdef AstroWCS < Component
 %        Exist(1,1)   logical = false;
         NAXIS(1,1)   uint8  = 2;
         WCSAXES(1,1) uint8  = 2;        
-        CTYPE(1,:)   cell   = {NaN,NaN};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
-        CUNIT        cell   = {'deg','deg'};
+        CTYPE(1,:)   cell   = {'',''};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
+        CUNIT        cell   = {'',''};
         RADESYS      char   = 'ICRS';
         LONPOLE      double = 0; 
         LATPOLE      double = 90;
@@ -34,7 +34,6 @@ classdef AstroWCS < Component
         SIP          cell   = {zeros(0,2),zeros(0,2)};
     end     
     
-    % Yossi - Where are these from?
     properties (GetAccess = public)
         ProjType     char   = '';
         ProjClass    char   = '';
@@ -93,6 +92,40 @@ classdef AstroWCS < Component
             
         end
 
+        
+        function Obj = read_ctype(Obj)
+            % Use Obj.CTYPE to fill the fields ProjType, ProjClass,
+            % CooName, and CUNIT (if empty)
+            
+            ctype = Obj.CTYPE;
+            
+            projtype = cell(size(ctype));
+            cooname  = cell(size(ctype));
+            dist    = cell(size(ctype)); % what is this? Eran - TODO
+            
+            for I = 1:1:numel(ctype)
+                Split    = regexp(ctype{I},'-','split');
+                Pair     = Split(~tools.cell.isempty_cell(Split));
+                cooname{I}  = Pair{1};
+                projtype{I} = Pair{2};
+                if (numel(Pair)>2)
+                    dist{I} = Pair{3};
+                end                
+            end
+            
+            if all(strcmp(projtype{1},projtype))
+                Obj.ProjType = projtype{1};
+                %Obj.ProjClass = somehow use dictronary with projtype
+            else 
+                error(' Not all Axis are with the same projection');
+            end
+            
+            Obj.CooName = cooname;
+            %Obj.CUNIT = somehow use dictronary with CooName % Should check
+            %if CUNIT already exist or NaN
+            
+        end
+        
     end
     
     
@@ -106,9 +139,9 @@ classdef AstroWCS < Component
             
             % Read number of axes
             % if WCSAXES is not available use NAXIS as default
-            Obj.NAXIS = getVal(AH, 'NAXIS');
-            Obj.WCSAXES = getVal(AH, 'WCSAXES');
-            if (isnan(Obj.WCSAXES))
+            Obj.NAXIS = AH.getVal('NAXIS');
+            Obj.WCSAXES = AH.getVal('WCSAXES');
+            if (Obj.WCSAXES==0)
                 Obj.WCSAXES = Obj.NAXIS;
             end
 
@@ -118,15 +151,43 @@ classdef AstroWCS < Component
             end                
             
             % Get CTYPE and transalte to projection information (ProjType,
-            % ProjClass) and CooName
-            Obj.CTYPE = getCellKey(AH, {'CTYPE1','CTYPE2'});
+            % ProjClass) and CooName and CUNIT
+            Obj.CTYPE = AH.getCellKey({'CTYPE1','CTYPE2'});
+            Obj.CUNIT = AH.getCellKey({'CUNIT','CUNIT'});
+            Obj = read_ctype(Obj);
             
+            % Get base WCS info
+            if AH.isKeyExist('RADECSYS')
+                Obj.RADECSYS = AH.getVal('RADECSYS');
+            end
+            if AH.isKeyExist('LONPOLE')
+                Obj.LONPOLE = AH.getVal('LONPOLE');
+            end
+            if AH.isKeyExist('LATPOLE')
+                Obj.LATPOLE = AH.getVal('LATPOLE');
+            end            
+            if AH.isKeyExist('EQUINOX')
+                Obj.LATPOLE = AH.getVal('LATPOLE');
+            end    
+
+            KeysN      = {'CRPIX','CRVAL','CDELT'};
             
         end
         
+
         
         
-               function W=populate(Header) 
+        
+        
+        
+        
+        
+        
+        
+        
+   
+        
+               function W=Wpopulate(Header) 
             Default.CUNIT = 'deg';
             Default.CTYPE1 = 'RA---TAN';
             Default.CTYPE2 = 'DEC--TAN';

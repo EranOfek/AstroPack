@@ -17,6 +17,9 @@ type
     Button2: TButton;
     ImageLogo: TImage;
     MainMenu: TMainMenu;
+    MIDbCreateDbFromSql: TMenuItem;
+    MIDbXlsxToSql: TMenuItem;
+    MIDatabase: TMenuItem;
     MIFile: TMenuItem;
     MIExit: TMenuItem;
     MIAbout: TMenuItem;
@@ -28,6 +31,8 @@ type
     procedure Button2Click(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure MIAboutClick(Sender: TObject);
+    procedure MIDbCreateDbFromSqlClick(Sender: TObject);
+    procedure MIDbXlsxToSqlClick(Sender: TObject);
     procedure MIExitClick(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
   private
@@ -71,6 +76,8 @@ begin
 
 end;
 
+// Menu Events
+
 procedure TMainForm.MIAboutClick(Sender: TObject);
 begin
   if AboutForm = nil then
@@ -79,10 +86,22 @@ begin
   AboutForm.Show();
 end;
 
+procedure TMainForm.MIDbCreateDbFromSqlClick(Sender: TObject);
+begin
+  //
+end;
+
+procedure TMainForm.MIDbXlsxToSqlClick(Sender: TObject);
+begin
+  //
+end;
+
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
      CanClose := Application.Terminated;
 end;
+
+// Buttons Events
 
 procedure TMainForm.Button1Click(Sender: TObject);
 begin

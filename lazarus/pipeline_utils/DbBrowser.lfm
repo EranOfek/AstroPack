@@ -1,0 +1,560 @@
+object DbBrowserForm: TDbBrowserForm
+  Left = 39
+  Height = 743
+  Top = 35
+  Width = 1097
+  Caption = 'DB Browser'
+  ClientHeight = 743
+  ClientWidth = 1097
+  OnCreate = FormCreate
+  LCLVersion = '2.0.12.0'
+  object Panel1: TPanel
+    Left = 0
+    Height = 70
+    Top = 0
+    Width = 1097
+    Align = alTop
+    Caption = 'Panel1'
+    TabOrder = 0
+  end
+  object Panel2: TPanel
+    Left = 0
+    Height = 580
+    Top = 70
+    Width = 210
+    Align = alLeft
+    Caption = 'Panel2'
+    ClientHeight = 580
+    ClientWidth = 210
+    TabOrder = 1
+    object Panel5: TPanel
+      Left = 8
+      Height = 50
+      Top = 32
+      Width = 170
+      Caption = 'Panel5'
+      TabOrder = 0
+    end
+    object Panel6: TPanel
+      Left = 8
+      Height = 312
+      Top = 120
+      Width = 170
+      Caption = 'Panel6'
+      ClientHeight = 312
+      ClientWidth = 170
+      TabOrder = 1
+      object ListBox1: TListBox
+        Left = 17
+        Height = 273
+        Top = 15
+        Width = 135
+        ItemHeight = 0
+        TabOrder = 0
+      end
+    end
+  end
+  object Panel3: TPanel
+    Left = 0
+    Height = 70
+    Top = 650
+    Width = 1097
+    Align = alBottom
+    Caption = 'Panel3'
+    TabOrder = 2
+  end
+  object Panel4: TPanel
+    Left = 210
+    Height = 580
+    Top = 70
+    Width = 887
+    Align = alClient
+    BorderWidth = 4
+    Caption = 'Panel4'
+    ClientHeight = 580
+    ClientWidth = 887
+    TabOrder = 3
+    object PageControl1: TPageControl
+      Left = 5
+      Height = 570
+      Top = 5
+      Width = 877
+      ActivePage = TabSheetXlsxToSQL
+      Align = alClient
+      TabIndex = 1
+      TabOrder = 0
+      object TabSheetDbBrowser: TTabSheet
+        Caption = 'Database Browser'
+        ClientHeight = 455
+        ClientWidth = 929
+        object DBGrid1: TDBGrid
+          Left = 0
+          Height = 455
+          Top = 0
+          Width = 929
+          Align = alClient
+          Color = clWindow
+          Columns = <>
+          DataSource = DataSource1
+          TabOrder = 0
+        end
+      end
+      object TabSheetXlsxToSQL: TTabSheet
+        Caption = 'Convert XLSX to SQL'
+        ClientHeight = 542
+        ClientWidth = 869
+        object Panel8: TPanel
+          Left = 0
+          Height = 366
+          Top = 176
+          Width = 869
+          Align = alClient
+          BorderWidth = 4
+          Caption = 'Panel8'
+          ClientHeight = 366
+          ClientWidth = 869
+          TabOrder = 0
+          object Memo1: TMemo
+            Left = 5
+            Height = 356
+            Top = 5
+            Width = 859
+            Align = alClient
+            Font.CharSet = OEM_CHARSET
+            Font.Color = clBlack
+            Font.Height = -12
+            Font.Name = 'Terminal'
+            Font.Pitch = fpFixed
+            Font.Quality = fqDraft
+            ParentFont = False
+            TabOrder = 0
+          end
+        end
+        object Panel9: TPanel
+          Left = 0
+          Height = 176
+          Top = 0
+          Width = 869
+          Align = alTop
+          ClientHeight = 176
+          ClientWidth = 869
+          TabOrder = 1
+          object Label3: TLabel
+            Left = 37
+            Height = 15
+            Top = 24
+            Width = 80
+            Caption = 'Intput XLSX file'
+            ParentColor = False
+          end
+          object Label4: TLabel
+            Left = 37
+            Height = 15
+            Top = 87
+            Width = 72
+            Caption = 'Output folder'
+            ParentColor = False
+          end
+          object Label5: TLabel
+            Left = 38
+            Height = 15
+            Top = 48
+            Width = 207
+            Caption = 'Export Google Sheet document as XLSX'
+            Color = clBtnFace
+            Font.Color = clBlue
+            ParentColor = False
+            ParentFont = False
+            Transparent = False
+          end
+          object ComboXlsFile: TComboBox
+            Left = 160
+            Height = 23
+            Top = 21
+            Width = 408
+            ItemHeight = 15
+            TabOrder = 0
+            Text = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest__tables.xlsx'
+          end
+          object ComboOutputSqlFolder: TComboBox
+            Left = 160
+            Height = 23
+            Top = 87
+            Width = 408
+            ItemHeight = 15
+            TabOrder = 1
+            Text = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\output'
+          end
+          object BtnSelectXlsxFile: TBitBtn
+            Left = 592
+            Height = 30
+            Top = 21
+            Width = 75
+            Caption = 'Select'
+            OnClick = BtnSelectXlsxFileClick
+            TabOrder = 2
+          end
+          object BtnSelectOutputSqlFolder: TBitBtn
+            Left = 592
+            Height = 30
+            Top = 80
+            Width = 75
+            Caption = 'Select'
+            OnClick = BtnSelectOutputSqlFolderClick
+            TabOrder = 3
+          end
+          object BtnConvertXlsToSql: TBitBtn
+            Left = 42
+            Height = 30
+            Top = 128
+            Width = 75
+            Caption = 'Convert'
+            OnClick = BtnConvertXlsToSqlClick
+            TabOrder = 4
+          end
+          object BtnCreateDb: TBitBtn
+            Left = 152
+            Height = 30
+            Top = 128
+            Width = 75
+            Caption = 'Create'
+            OnClick = BtnCreateDbClick
+            TabOrder = 5
+          end
+        end
+      end
+      object TabSheetCreateDb: TTabSheet
+        Caption = 'Create Database'
+        ClientHeight = 511
+        ClientWidth = 929
+        object Panel7: TPanel
+          Left = 8
+          Height = 312
+          Top = 32
+          Width = 650
+          ClientHeight = 312
+          ClientWidth = 650
+          TabOrder = 0
+          object Label1: TLabel
+            Left = 37
+            Height = 15
+            Top = 0
+            Width = 34
+            Caption = 'Label1'
+            ParentColor = False
+          end
+          object Label2: TLabel
+            Left = 37
+            Height = 15
+            Top = 42
+            Width = 34
+            Caption = 'Label2'
+            ParentColor = False
+          end
+        end
+      end
+    end
+  end
+  object StatusBar1: TStatusBar
+    Left = 0
+    Height = 23
+    Top = 720
+    Width = 1097
+    Panels = <    
+      item
+        Width = 200
+      end    
+      item
+        Width = 50
+      end    
+      item
+        Width = 50
+      end>
+    SimplePanel = False
+  end
+  object DataSource1: TDataSource
+    DataSet = SQLQuery1
+    Left = 232
+    Top = 16
+  end
+  object PQConnection1: TPQConnection
+    Connected = True
+    LoginPrompt = False
+    DatabaseName = 'pipeline'
+    KeepConnection = False
+    Password = 'pass'
+    Transaction = SQLTransaction1
+    UserName = 'postgres'
+    HostName = 'localhost'
+    Left = 80
+    Top = 17
+  end
+  object SQLQuery1: TSQLQuery
+    IndexName = 'DEFAULT_ORDER'
+    MaxIndexesCount = 4
+    FieldDefs = <    
+      item
+        Name = 'imageid'
+        DataType = ftString
+        Precision = -1
+        Size = 8192
+      end    
+      item
+        Name = 'ra_center'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_center'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'htm_id'
+        DataType = ftString
+        Precision = -1
+        Size = 8192
+      end    
+      item
+        Name = 'quadrant'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'subimageid'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'exptime'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'jd'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'fyear'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'fmonth'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'fday'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'version'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'jd_insertion'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'rollangle'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_tl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_tr'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_bl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_br'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_tl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_tr'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_bl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_br'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'rotation'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'scale'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'median'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'mean'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'fstd'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'background'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'fvariance'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'nsrc'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'ncr'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'nstreak'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'nsaturated'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'psf_fwhm'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'psf_fwhm_colorterm'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'zp'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'colorterm'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'istherepsf'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'isthereback'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'isthereavariance'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'istheremask'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'istheresubd'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'istheresubpsf'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'imagetype'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'sundist'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'earthdist'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'moondist'
+        DataType = ftFloat
+        Precision = -1
+      end>
+    Active = True
+    Database = PQConnection1
+    Transaction = SQLTransaction1
+    SQL.Strings = (
+      'select * from raw_images'
+    )
+    Params = <>
+    Left = 168
+    Top = 17
+  end
+  object SQLTransaction1: TSQLTransaction
+    Active = True
+    Database = PQConnection1
+    Left = 296
+    Top = 17
+  end
+  object SelectDirectoryDialogOutputSql: TSelectDirectoryDialog
+    InitialDir = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\output'
+    Left = 1000
+    Top = 112
+  end
+  object OpenDialogXls: TOpenDialog
+    FileName = 'unittest__tables.xlsx'
+    InitialDir = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db'
+    Left = 920
+    Top = 112
+  end
+end
