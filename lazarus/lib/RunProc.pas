@@ -36,6 +36,7 @@ implementation
 
 constructor TRunProc.Create;
 begin
+    LinPartial := false;
 end;
 
 
@@ -57,13 +58,13 @@ begin
   proc.LineDelimSend := LDS_LF;
   {$endif}
 
+
 end;
 
 procedure TRunProc.Run(Cmd: String);
 begin
   Proc.Open(Cmd, '');
 end;
-
 
 procedure TRunProc.procChangeState(State: string; pFinal: TPoint);
 begin

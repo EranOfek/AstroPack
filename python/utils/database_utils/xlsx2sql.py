@@ -27,6 +27,14 @@ import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
 from sys import platform
 
+GEN_POSTGRES = True
+GEN_FIREBIRD = False
+GEN_PYTHON = False
+GEN_MATLAB = False
+GEN_CPP = False
+GEN_DELPHI = False
+
+
 # Log message to file
 if platform == "win32":
     LOG_PATH = 'c:/temp/'
@@ -46,30 +54,111 @@ def log(msg, dt = False):
         logfile.flush()
 
 
-'''
-CREATE TABLE public."table" (
-  "RawImageID" INTEGER NOT NULL,
-  "RA_Center" DOUBLE PRECISION,
-  str1 VARCHAR(250),
-  CONSTRAINT table_pkey PRIMARY KEY("RawImageID")
-) ;
+# Field types
+field_lang_dict = { \
+    'int': {
+        'postgres': 'INTEGER',
+        'firebird': 'INTEGER',
+        'python': 'int',
+        'cpp': 'int',
+        'delphi': 'Integer',
+        'matlab': 'int32',
+    },
 
-ALTER TABLE public."table"
-  ALTER COLUMN "RawImageID" SET STATISTICS 0;
+    'uint': {
+        'postgres': 'INTEGER',
+        'firebird': 'INTEGER',
+        'python': 'int',
+        'cpp': 'int',
+        'delphi': 'Integer',
+        'matlab': 'uint32',
+    },
 
-ALTER TABLE public."table"
-  ALTER COLUMN "RA_Center" SET STATISTICS 0;
+    'bigint': {
+        'postgres': 'BIGINT',
+        'firebird': 'BIGINT',
+        'python': 'int',
+        'cpp': 'int64',
+        'delphi': 'LongInt',
+        'matlab': 'int64',
+    },
 
-ALTER TABLE public."table"
-  ALTER COLUMN str1 SET STATISTICS 0;
+    'single': {
+        'postgres': 'DOUBLE PRECISION',
+        'firebird': 'FLOAT',
+        'python': 'float',
+        'cpp': 'float',
+        'delphi': 'Single',
+        'matlab': 'single',
+    },
 
-ALTER TABLE public."table"
-  OWNER TO postgres;
+    'double': {
+        'postgres': 'DOUBLE PRECISION',
+        'firebird': 'DOUBLE PRECISION',
+        'python': 'float',
+        'cpp': 'double',
+        'delphi': 'Double',
+        'matlab': 'double',
+    },
 
-'''
+    'bool': {
+        'postgres': 'BOOLEAN',
+        'firebird': 'BOOLEAN',
+        'python': 'bool',
+        'cpp': 'bool',
+        'delphi': 'Boolean',
+        'matlab': 'bool',
+    },
+
+    'string': {
+        'postgres': 'VARCHAR',
+        'firebird': 'VARCHAR(256)',
+        'python': 'string',
+        'cpp': 'string',
+        'delphi': 'String',
+        'matlab': 'string',
+    },
+
+    'uuid': {
+        'postgres': 'VARCHAR',
+        'firebird': 'VARCHAR',
+        'python': 'string',
+        'cpp': 'string',
+        'delphi': 'String',
+        'matlab': 'string',
+    },
+
+    'timestamp': {
+        'postgres': 'TIMESTAMP',
+        'firebird': 'TIMESTAMP',
+        'python': 'float',
+        'cpp': 'double',
+        'delphi': 'Double',
+        'matlab': 'double',
+    },
+
+    'blob': {
+        'postgres': 'BLOB',
+        'firebird': 'BLOB SEGMENT SIZE 1',
+        'python': '?',
+        'cpp': '?',
+        'delphi': '?',
+        'matlab': '?',
+    },
+
+    '#comment': {
+        'postgres': '--',
+        'firebird': '--',
+        'python': '#',
+        'cpp': '//',
+        'delphi': '//',
+        'matlab': '%',
+    },
+    }
 
 
-def get_field_type(field_name, text):
+#
+def get_field_type(field_name, text):  #, lang
     ftype = ''
     text = text.split(' ')[0]
     text = text.replace('Enumeration:', '').strip().lower()
@@ -81,14 +170,10 @@ def get_field_type(field_name, text):
         ftype = 'DOUBLE PRECISION'
     elif text == 'bool':
         ftype = 'BOOLEAN'
-    elif text == 'string' or text == 'text':
+    elif text == 'string' or text == 'text' or text == 'uuid':
         ftype = 'VARCHAR'
     elif text == 'timestamp' or text == 'date' or text == 'time':
         ftype = 'TIMESTAMP'
-
-    # Special field: UUID
-    elif text == 'uuid':
-        ftype = 'VARCHAR'
     else:
 
         # Special case: Hierarchical Triangular Mesh
@@ -101,6 +186,43 @@ def get_field_type(field_name, text):
         log('Unknown field type, using default DOUBLE: ' + text)
 
     return ftype
+
+
+def get_field_type_lang(field_name, text, lang):
+    text = text.split(' ')[0]
+    text = text.replace('Enumeration:', '').strip().lower()
+
+    ftype = ''
+    default_value = '0'
+
+    if text == '':
+        text = 'double'
+    elif text == 'int8' or text == 'int16' or text == 'int32':
+        text = 'int'
+    elif text == 'uint8' or text == 'uint16' or text == 'uint32':
+        text = 'uint'
+    elif text == 'int64':
+        text = 'bigint'
+    elif text == 'text' or text == 'uuid':
+        text = 'string'
+
+    if text in field_lang_dict:
+        ld = field_lang_dict[text]
+        if lang in ld:
+            ftype = ld[lang]
+
+    if ftype.lower() == 'string':
+        if lang == 'cpp':
+            default_value = '""'
+        else:
+            default_value = "''"
+
+    return ftype, default_value
+
+
+def get_field_def_lang(field_name, text, lang):
+    fdef = ''
+    return fdef
 
 
 class Field:
@@ -135,6 +257,7 @@ def get_csv(row, column, _default = '', _strip = True):
     return value
 
 
+# Write SQL table definition or class/struct
 class DatabaseDef:
 
     #
@@ -144,9 +267,12 @@ class DatabaseDef:
         self.def_path = ''
         self.db_name = ''
         self.table_name = ''
+        self.class_name = ''
         self.source_filename = ''
         self.set_statistics = False
         self.set_owner = False
+        self.base_filename = ''
+        self.out_filename = ''
         self.sql_filename = ''
         self.outf = None
 
@@ -172,13 +298,16 @@ class DatabaseDef:
         prefix = tab_name[0].strip()
         if len(tab_name) > 1:
             self.table_name = tab_name[1].strip()
+            self.class_name = tab_name[1].strip()
         else:
             self.table_name = ''
+            self.class_name = ''
 
         log('table name: ' + self.table_name)
 
         # Prepare output SQL file name
-        self.sql_filename = os.path.join(path, '__' + self.db_name + '.sql')
+        self.base_filename = os.path.join(path, '__' + self.db_name)
+        self.sql_filename = self.base_filename + '.sql'
         log('sql output file: ' + self.sql_filename)
 
         # Field does not exist yet, need to add 'create database' commands
@@ -274,7 +403,7 @@ class DatabaseDef:
                     continue
 
                 # Skip comment rows
-                if field.field_name.startswith('#') or field.field_name.startswith('%'):
+                if field.field_name.startswith('#') or field.field_name.startswith('%') or field.field_name.startswith(';'):
                     continue
 
                 # Parse meta data
@@ -342,20 +471,16 @@ class DatabaseDef:
         log('load_table_csv done: ' + filename + ' - fields loaded: ' + str(field_count))
         log('')
 
-
+    #---------------------------------------------------------------- Postgres SQL
     # Create table from self.field_list
-    def create_table(self):
+    def create_table_postgres(self):
+
+        log('create_table_postgres started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
 
         if len(self.field_list) == 0:
             return
 
-        log('create_table started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
-
-        self.write('--\n')
-        self.write('-- Automatic Generated Table Definition\n')
-        self.write('-- Source file: ' + self.source_filename + '\n')
-        self.write('--\n')
-        self.write('\n')
+        self.write_file_header('postgres')
 
         self.write('CREATE TABLE public.{} (\n'.format(self.table_name))
         #self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
@@ -408,14 +533,409 @@ class DatabaseDef:
             #self.write('ALTER TABLE public."{}"\n  OWNER TO postgres;\n'.format(self.table_name))
 
         self.outf.close()
-        log('create_table done: ' + self.table_name)
+        log('create_table_postgres done: ' + self.table_name)
+        log('')
+
+    #---------------------------------------------------------------- Firebird SQL
+    # Create table from self.field_list
+    def create_table_firebird(self):
+
+        log('create_table_firebird started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+
+        if len(self.field_list) == 0:
+            return
+
+
+        self.write_file_header('firebird')
+
+        self.write('CREATE TABLE {} (\n'.format(self.table_name))
+        #self.write('CREATE TABLE public."{}" (\n'.format(self.table_name))
+
+        primary_key = []
+
+        for field in self.field_list:
+
+            # Debug only
+            prefix = ''
+            #if field.is_common:
+            #    prefix = 'Common_'
+
+            field_def = field.data_type
+
+            if field.primary_key:
+                primary_key.append(field.field_name)
+                field_def += ' NOT NULL'
+
+            field_def += ','
+
+            self.write('{}{} {}\n'.format(prefix, field.field_name, field_def))
+            #self.write('"{}{}" {}\n'.format(prefix, field.field_name, field_def))
+
+
+        # Primary key
+        if len(primary_key) > 0:
+            log('primary key: ' + str(primary_key))
+            self.write('\nALTER TABLE {} ADD PRIMARY KEY({});\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
+
+        self.write(');\n\n')
+
+          # Index
+        for field in self.field_list:
+            if field.index:
+                index_name = self.table_name + '_idx_' + field.field_name
+                self.write('CREATE INDEX {} ON {}({});\n'.format(index_name, self.table_name, field.field_name))
+
+        self.outf.close()
+
+        log('create_table_firebird done: ' + self.table_name)
         log('')
 
 
-    def write(self, text):
+    #---------------------------------------------------------------- Python
+    # Create python class from self.field_list
+    '''
+    class MyData:
+
+    # Constructor
+    def __init__(self):
+        self.myInt = 0
+
+
+    # Destructor
+    def __del__(self):
+        # Deleted
+        pass
+        
+    '''
+    def create_class_python(self):
+        log('create_class_python started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.open_out('.py')
+        #self.write_file_header('python')
+
+        self.wrln('class {}:\n'.format(self.class_name))
+        #self.wrln('    # Constructor')
+        self.wrln('    def __init__(self):')
+
+
+        for field in self.field_list:
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'python')
+            field_name = field.field_name
+            comment = '# ' + ftype
+            self.wrln('        self.{:20} = {:8} {}'.format(field_name, field_value, comment))
+
+
+        self.wrln('\n')
+        #self.wrln('    # Destructor')
+        self.wrln('    def __del__(self):')
+        self.wrln('        pass\n\n')
+
+        log('create_class_python done: ' + self.table_name)
+        log('')
+
+    #---------------------------------------------------------------- Malab
+    # Create Matlab class from self.field_list
+    '''   
+    class MyData < handle
+    
+        properties (SetAccess = public)
+            myInt int
+        end
+    
+        
+        methods  
+            % Constructor    
+            function Obj = MyData()
+                Obj.myInt = 0;
+            end
+        end
+        
+    end    
+    
+    '''
+
+    def create_class_matlab(self):
+        log('create_class_matlab started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.open_out('.m')
+        # self.write_file_header('matlab')
+
+        self.wrln('class {} < handle'.format(self.class_name))
+        self.wrln('    properties (SetAccess = public)')
+
+        for field in self.field_list:
+
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'matlab')
+            field_name = field.field_name
+            comment = '% ' + ftype
+            self.wrln('        {:20} = {:8} {}'.format(field_name, field_value, comment))
+
+        self.wrln('    end\n')
+
+        self.wrln('    methods ')
+        self.wrln('        function Obj = {}()'.format(self.class_name))
+        self.wrln('            % Constructor')
+        self.wrln('        end')
+        self.wrln('    end')
+        self.wrln('end\n')
+
+        log('create_class_matlab done: ' + self.class_name)
+        log('')
+
+    #---------------------------------------------------------------- C++
+    # Create C++ class from self.field_list
+    '''
+    class MyData {
+    public:
+    
+        int myInt;
+        
+        
+        // Constructor
+        MyData();
+        
+        // Destructor
+        ~MyData();
+    
+    };
+    
+    
+    inline MyData::MyData()
+    {
+        myInt = 0;
+    }
+    
+        
+    inline MyData::~MyData 
+    {
+    }
+    '''
+    def create_class_cpp(self):
+        log('create_class_cpp started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.open_out('.h')
+        # self.write_file_header('cpp')
+
+        self.wrln('class {} {{'.format(self.class_name))
+        self.wrln('public:')
+
+        for field in self.field_list:
+
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
+            field_name = field.field_name
+            comment = '//'
+            self.wrln('    {:9} {:30} {}'.format(ftype, field_name + ';', comment))
+
+
+        #self.wrln('    // Constructor')
+        self.wrln('')
+        self.wrln('    {}();'.format(self.class_name))
+
+        #self.wrln('    // Destructor')
+        self.wrln('    ~{}();'.format(self.class_name))
+        self.wrln('};\n\n')
+
+        self.wrln('inline {}::{}()'.format(self.class_name, self.class_name))
+        self.wrln('{')
+
+        for field in self.field_list:
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
+            field_name = field.field_name
+            self.wrln('    {:20} = {};'.format(field_name, field_value))
+
+
+        self.wrln('}\n')
+
+        self.wrln('inline {}::~{}()'.format(self.class_name, self.class_name))
+        self.wrln('{')
+        self.wrln('}\n')
+
+        log('create_class_cpp done: ' + self.class_name)
+        log('')
+
+
+    #---------------------------------------------------------------- Delphi / Lazarus
+    # Create Delphi class from self.field_list
+    '''
+    interface
+
+    type 
+      MyClass = class
+      public
+        // Constructor
+        constructor Create();
+    
+        // Destructor   
+        destructor Destroy();
+          
+        // Data
+        myInt: Integer;
+         
+    end;
+         
+    implementation
+    
+      
+    constructor MyClass.Create();
+    begin
+      // Initialize data
+      
+    end; 
+    
+    
+    destructor MyClass.Destroy();
+    begin
+    end;
+  
+    '''
+    def create_class_delphi(self):
+        log('create_class_delphi started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.open_out('_ifc.pas')
+        # self.write_file_header('delphi')
+
+        #self.wrln('interface\n')
+
+        self.wrln('type')
+        self.wrln('  {} = class'.format(self.class_name))
+        self.wrln('  public')
+        #self.wrln('  // Constructor')
+        self.wrln('    constructor Create();')
+
+        #self.wrln('  // Destructor')
+        self.wrln('    destructor Destroy();\n')
+
+        self.wrln('    // Data')
+
+        for field in self.field_list:
+
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'delphi')
+            field_name = field.field_name
+            comment = '//'
+            self.wrln('    {:20}: {:30} {}'.format(field_name, ftype + ';', comment))
+
+        # myInt: Integer;
+
+        self.wrln('  end;\n')
+
+        self.open_out('_imp.pas')
+        # self.write_file_header('delphi')
+        #self.wrln('implementation\n')
+
+        self.wrln('constructor {}.Create();'.format(self.class_name))
+        self.wrln('begin')
+        self.wrln('  // Initialize data')
+
+        for field in self.field_list:
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'delphi')
+            field_name = field.field_name
+            self.wrln('    {:20} := {};'.format(field_name, field_value))
+
+
+        self.wrln('end;\n');
+
+        self.wrln('destructor {}.Destroy();'.format(self.class_name))
+        self.wrln('begin');
+        self.wrln('end;\n');
+
+        log('create_class_delphi done: ' + self.class_name)
+        log('')
+
+
+    #
+    def merge_delphi(self):
+
+        self.open_out('.pas')
+        # self.write_file_header('delphi')
+
+        # interface
+        self.wrln('interface\n')
+        self.wrln('uses')
+        self.wrln('  Classes;\n')
+        ifc_filename = self.base_filename + '_ifc.pas'
+        with open(ifc_filename) as f:
+            lines = f.read().splitlines()
+
+        for line in lines:
+            self.wrln(line, False)
+
+        # implementation
+        self.wrln('\nimplementation\n')
+        self.wrln('//uses')
+        self.wrln('//  Classes;\n')
+        imp_filename = self.base_filename + '_imp.pas'
+        with open(imp_filename) as f:
+            lines = f.read().splitlines()
+
+        for line in lines:
+            self.wrln(line, False)
+
+        self.wrln('\nend.\n')
+
+        os.remove(ifc_filename)
+        os.remove(imp_filename)
+
+    #----------------------------------------------------------------
+
+    # Create  from self.field_list
+    def create_classes(self):
+
+        self.class_name = self.table_to_class_name(self.table_name)
+
+        if GEN_PYTHON:
+            self.create_class_python()
+
+        if GEN_MATLAB:
+            self.create_class_matlab()
+
+        if GEN_CPP:
+            self.create_class_cpp()
+
+        if GEN_DELPHI:
+            self.create_class_delphi()
+
+
+    def write_file_header(self, lang):
+        comment, _ = get_field_type_lang('', '#comment', lang)
+        self.write(comment + '\n')
+        self.write(comment + ' Automatic Generated Table Definition\n')
+        self.write(comment + ' Source file: ' + self.source_filename + '\n')
+        self.write(comment + '\n')
+        self.write('\n')
+
+
+    def table_to_class_name(self, tname):
+        cname = ''
+        words = tname.split('_')
+        for w in words:
+            cname = cname + w.title()
+        return cname
+
+
+    def open_out(self, ext):
+        self.out_filename = self.base_filename + ext
+        log('output file: ' + self.out_filename)
+
+        # Open file for append
+        self.outf = open(self.out_filename, 'a')
+        self.write('\n')
+
+
+    def write(self, text, flush = True):
         #print(text)
         self.outf.write(text)
-        self.outf.flush()
+        if flush:
+            self.outf.flush()
+
+
+    def wrln(self, text, flush = True):
+        #print(text)
+        self.outf.write(text)
+        self.outf.write('\n')
+        if flush:
+            self.outf.flush()
+
+
 
 #============================================================================
 
@@ -490,7 +1010,13 @@ def process_csv_file(filename):
         db.set_db(filename_lower)
         db.load_table_csv(filename_lower)
         if len(db.field_list) > 0:
-            db.create_table()
+            if GEN_POSTGRES:
+                db.create_table_postgres()
+
+            if GEN_FIREBIRD:
+                db.create_table_firebird()
+
+            db.create_classes()
 
 
 # Process folder with CSV database definition files
@@ -516,6 +1042,10 @@ def process_folder(fpath, ext_list, subdirs = True):
                 elif ext == '.csv':
                     process_csv_file(filename)
 
+
+    if GEN_DELPHI:
+        #merge_delphi()
+        pass
 
 #============================================================================
 

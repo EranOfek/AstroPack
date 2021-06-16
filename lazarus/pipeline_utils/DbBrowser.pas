@@ -7,7 +7,6 @@ interface
 uses
   Classes, SysUtils, DB, PQConnection, SQLDB, Forms, Controls, Graphics,
   Dialogs, ExtCtrls, DBGrids, StdCtrls, ComCtrls, Buttons,
-  PythonEngine, Lcl.PythonGUIInputOutput,
   RunProc;
 
 type
@@ -16,10 +15,11 @@ type
 
   TDbBrowserForm = class(TForm)
     BtnConvertXlsToSql: TBitBtn;
-    BtnSelectXlsxFile: TBitBtn;
+    BtnCreateDb: TBitBtn;
     BtnSelectOutputSqlFolder: TBitBtn;
-    ComboXlsFile: TComboBox;
+    BtnSelectXlsxFile: TBitBtn;
     ComboOutputSqlFolder: TComboBox;
+    ComboXlsFile: TComboBox;
     DataSource1: TDataSource;
     DBGrid1: TDBGrid;
     Label1: TLabel;
@@ -29,6 +29,8 @@ type
     Label5: TLabel;
     ListBox1: TListBox;
     Memo1: TMemo;
+    Panel9: TPanel;
+    StatusBar1: TStatusBar;
     OpenDialogXls: TOpenDialog;
     PageControl1: TPageControl;
     Panel1: TPanel;
@@ -47,8 +49,10 @@ type
     TabSheetCreateDb: TTabSheet;
     TabSheetXlsxToSQL: TTabSheet;
     procedure BtnConvertXlsToSqlClick(Sender: TObject);
+    procedure BtnCreateDbClick(Sender: TObject);
     procedure BtnSelectOutputSqlFolderClick(Sender: TObject);
     procedure BtnSelectXlsxFileClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
 
   public
@@ -61,6 +65,9 @@ var
 implementation
 
 {$R *.lfm}
+
+var
+    Proc: TRunProc;
 
 { TDbBrowserForm }
 
@@ -78,6 +85,14 @@ begin
 
 end;
 
+procedure TDbBrowserForm.FormCreate(Sender: TObject);
+begin
+  Proc := TRunProc.Create;
+  Proc.Init;
+  Proc.Memo1 := Memo1;
+  Proc.StatusBar1 := StatusBar1;
+end;
+
 procedure TDbBrowserForm.BtnSelectOutputSqlFolderClick(Sender: TObject);
 begin
   //
@@ -93,19 +108,15 @@ var
   Lines: TStringList;
   ScriptFileName: String;
   Params: String;
-  Proc: TRunProc;
   Cmd: String;
 begin
 
-  ScriptFileName := 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\xlsx2sql_lang.py';
-  Params := 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest__tables.xlsx';
+  ScriptFileName := 'python3 D:\Ultrasat\AstroPack.git\python\utils\database_utils\xlsx2sql.py';
+  Params := '-f D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest__tables.xlsx';
   Cmd := ScriptFileName + ' ' + Params;
 
-  Proc := TRunProc.Create;
-  Proc.Init;
-  Proc.Memo1 := Memo1;
   Proc.Run(Cmd);
-  Proc.Destroy();
+  //Proc.Destroy();
   {
   Lines := TStringList.Create;
   try
@@ -116,6 +127,14 @@ begin
     Lines.free;
   end;}
 
+end;
+
+procedure TDbBrowserForm.BtnCreateDbClick(Sender: TObject);
+var
+  Cmd: String;
+begin
+  Cmd := 'psql -U postgres -f D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest\t2.sql';
+  Proc.Run(Cmd);
 end;
 
 
