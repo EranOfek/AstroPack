@@ -71,7 +71,7 @@ function Result = astrometryCore(Obj, Args)
     [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(Obj, ProjAstCat, Args.argsFilterForAstrometry{:});
     
     % Match pattern catalog to projected astrometric catalog
-    ResPattern = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
+    [ResPattern, Matched] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
                                                                       'Scale',Args.Scale,...
                                                                       'HistRotEdges',RotationEdges,...
                                                                       'RangeX',Args.RangeX,...
@@ -83,7 +83,7 @@ function Result = astrometryCore(Obj, Args)
     
     % go over possible solutions:
     
-    AffineMatrix = ResPattern.Sol.AffineTran{1}
+    %AffineMatrix = ResPattern.Sol.AffineTran{1}
     
     % Apply affine transformation to Reference
     % No need because this is also done in imProc.trans.fitPattern
@@ -91,7 +91,9 @@ function Result = astrometryCore(Obj, Args)
     
     % Fit transformation
     %[Param, Res] = imProc.trans.fitTransformation(TransformedCat, FilteredProjAstCat, 'Tran',Args.Tran);
-    [Param, Res] = imProc.trans.fitTransformation(ResPattern.Matched.MatchedCat, ResPattern.Matched.Ref, 'Tran',Args.Tran);
+    % MatchedRef has the same number of lines as in Ref,
+    % but it is affine transformed to the coordinate system of Cat
+    [Param, Res] = imProc.trans.fitTransformation(Matched.MatchedCat, Matched.MatchedRef, 'Tran',Args.Tran);
     
     
     % Calculate WCS

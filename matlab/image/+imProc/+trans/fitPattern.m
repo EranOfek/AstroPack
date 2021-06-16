@@ -242,7 +242,18 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
                                                                                        
         if nargout>1                                                                           
             Result(Imax).Sol  = OutputArgs{1};
-            Matched(Imax).Matched = OutputArgs{3};
+            %Matched(Imax).Matched = OutputArgs{3};
+            MatchedCat = AstroCatalog;
+            MatchedCat.Catalog  = OutputArgs{3}.MatchedCat;
+            MatchedCat.ColNames = Obj1(Iobj1).ColNames;
+            MatchedCat.ColUnits = Obj1(Iobj1).ColUnits;
+            MatchedRef          = Obj2(Iobj2);
+            % update the coordinate in Ref (by the affine transformation)
+            MatchedRef.replaceCol(OutputArgs{3}.Ref, [RefColX, RefColY]);
+            Matched(Imax).MatchedCat = MatchedCat;
+            Matched(Imax).MatchedRef = MatchedRef;
+            
+            Matched(Imax).ResM       = OutputArgs{3}.ResM;
         else
             Result(Imax).Sol  = OutputArgs{1};
         end

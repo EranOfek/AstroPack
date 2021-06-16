@@ -232,7 +232,7 @@ else
         RefX = (RefX - CenterX)./(RangeX.*0.5);
         RefY = (RefY - CenterY)./(RangeY.*0.5);
     else
-        % use use specified normaliaztion
+        % use specified normaliaztion
         CenterX = InPar.Norm(1);
         CenterY = InPar.Norm(3);
         RangeX  = InPar.Norm(2);
