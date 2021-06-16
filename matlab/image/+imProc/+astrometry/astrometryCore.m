@@ -1,12 +1,13 @@
 function Result = astrometryCore(Obj, Args)
     %
+    % Example: 
    
     arguments
         Obj(1,1) AstroCatalog
         Args.RA
         Args.Dec
         Args.CooUnits                     = 'deg';
-        Args.CatName                      = 'GAIAEDR3';
+        Args.CatName                      = 'GAIAEDR3';  % or AstroCatalog
         Args.CatOrigin                    = 'catsHTM';
         Args.CatRadius                    = 1800;
         Args.CatRadiusUnits               = 'arcsec'
@@ -24,7 +25,7 @@ function Result = astrometryCore(Obj, Args)
         
         Args.ProjType                     = 'TAN';
         
-        Args.Scale
+        Args.Scale                        = 1.0;      % range or value [arcsec/pix]
         Args.RotationRange(1,2)           = [-90, 90];
         Args.RotationStep(1,1)            = 0.2;
         
@@ -34,26 +35,27 @@ function Result = astrometryCore(Obj, Args)
         Args.StepY(1,1)                   = 4;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1];
         Args.SearchRadius(1,1)            = 4;
-        
-        Args.
-        
+                
     end
     
     RotationEdges = (Args.RotationRange(1):Args.RotationStep:Args.RotationRange(2));
+    % mean value of projection scale:
+    ProjectionScale = 180./pi .* 3600 ./ mean(Args.Scale);
     
     % Get astrometric catalog / incluidng proper motion
     % RA and Dec output are in radians
     [AstrometricCat, RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
-                                                                         'CatOrigin',Args.CatOrigin,...
-                                                                         'Radius',Args.CatRadius,...
-                                                                         'RadiusUnits',Args.CatRadiusUnits,...
-                                                                         'CooUnits',Args.CooUnits,...
-                                                                         'OutUnits','rad',...
-                                                                         'Con',Args.Con,...
-                                                                         'EpochOut',Args.EpochOut,...
-                                                                         'argsProperMotion',Args.argsProperMotion{:});
-                                                                     
+                                                                                    'CatOrigin',Args.CatOrigin,...
+                                                                                    'Radius',Args.CatRadius,...
+                                                                                    'RadiusUnits',Args.CatRadiusUnits,...
+                                                                                    'CooUnits',Args.CooUnits,...
+                                                                                    'OutUnits','rad',...
+                                                                                    'Con',Args.Con,...
+                                                                                    'EpochOut',Args.EpochOut,...
+                                                                                    'argsProperMotion',Args.argsProperMotion);
+        
     % Addtitional constraints on astrometric catalog
+    % mag and parallax constraints
     AstrometricCat = queryRange(AstrometricCat, Args.MagColName, Args.MagRange,...
                                                 Args.PlxColName, Args.PlxRange);
    
@@ -61,7 +63,8 @@ function Result = astrometryCore(Obj, Args)
     ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                                   'AddNewCols',{'X','Y'},...
                                                                                                   'CreateNewObj',false);
-                                                                                             
+    % ProjAstCat.plot({'X','Y'},'.')   
+    
     % filter astrometric catalog
     [FilteredCat, FilteredProjAstCat]=imProc.cat.filterForAstrometry(Obj, ProjAstCat, Args.argsFilterForAstrometry{:});
     
@@ -76,9 +79,11 @@ function Result = astrometryCore(Obj, Args)
                                                                       'Flip',Args.Flip,...
                                                                       'SearchRadius',Args.SearchRadius);
                                                                       
-        
-    % Fit transformation
+    % Apply affine transformation to Reference
+    Result = tranAffine(Obj, AffineMatrix, true, 'RotUnits','deg'); 
     
+    % Fit transformation
+    [Param, Res] = imProc.trans.fitTransformation(FilteredCat, FilteredProjAstCat, 'Tran',T);
     
     
     % Calculate WCS
