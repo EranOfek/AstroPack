@@ -7,7 +7,7 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, About, Main, LogPanel, DbBrowser
+  Forms, About, Main, LogPanel, DbBrowser, RunProc
   { you can add units after this };
 
 {$R *.res}
@@ -16,7 +16,6 @@ begin
   RequireDerivedFormResource:=True;
   Application.Scaled:=True;
   Application.Initialize;
-  Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TDbBrowserForm, DbBrowserForm);
   Application.Run;
 end.

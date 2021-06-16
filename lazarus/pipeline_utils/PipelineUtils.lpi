@@ -25,12 +25,18 @@
       <FormatVersion Value="2"/>
       <Modes Count="0"/>
     </RunParams>
-    <RequiredPackages Count="1">
+    <RequiredPackages Count="3">
       <Item1>
-        <PackageName Value="LCL"/>
+        <PackageName Value="P4DLaz"/>
       </Item1>
+      <Item2>
+        <PackageName Value="FCL"/>
+      </Item2>
+      <Item3>
+        <PackageName Value="LCL"/>
+      </Item3>
     </RequiredPackages>
-    <Units Count="5">
+    <Units Count="6">
       <Unit0>
         <Filename Value="PipelineUtils.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -54,12 +60,16 @@
         <IsPartOfProject Value="True"/>
       </Unit3>
       <Unit4>
-        <Filename Value="dbbrowser.pas"/>
+        <Filename Value="DbBrowser.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DbBrowserForm"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="DbBrowser"/>
       </Unit4>
+      <Unit5>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -70,7 +80,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..\packages\vcllazarus"/>
+      <OtherUnitFiles Value="..\packages\vcllazarus;..\lib"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>

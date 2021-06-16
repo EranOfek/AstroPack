@@ -4,14 +4,13 @@
     <PathDelim Value="\"/>
     <Version Value="11"/>
     <BuildModes Active="Default"/>
-    <Units Count="14">
+    <Units Count="21">
       <Unit0>
         <Filename Value="PipelineUtils.lpr"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <CursorPos X="45" Y="23"/>
-        <UsageCount Value="34"/>
+        <CursorPos X="53" Y="15"/>
+        <UsageCount Value="40"/>
       </Unit0>
       <Unit1>
         <Filename Value="About.pas"/>
@@ -22,7 +21,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="27"/>
         <CursorPos X="3" Y="52"/>
-        <UsageCount Value="34"/>
+        <UsageCount Value="40"/>
       </Unit1>
       <Unit2>
         <Filename Value="Main.pas"/>
@@ -31,9 +30,9 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="37"/>
-        <CursorPos X="58" Y="50"/>
-        <UsageCount Value="34"/>
+        <TopLine Value="33"/>
+        <CursorPos X="18" Y="128"/>
+        <UsageCount Value="40"/>
       </Unit2>
       <Unit3>
         <Filename Value="..\packages\vcllazarus\LogPanel.pas"/>
@@ -41,9 +40,31 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="448"/>
         <CursorPos X="40" Y="472"/>
-        <UsageCount Value="32"/>
+        <UsageCount Value="38"/>
       </Unit3>
       <Unit4>
+        <Filename Value="DbBrowser.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="DbBrowserForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <TopLine Value="83"/>
+        <CursorPos Y="123"/>
+        <UsageCount Value="26"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="49"/>
+        <CursorPos X="84" Y="67"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit5>
+      <Unit6>
         <Filename Value="Main.lfm"/>
         <EditorIndex Value="-1"/>
         <WindowIndex Value="-1"/>
@@ -51,78 +72,188 @@
         <CursorPos X="-1" Y="-1"/>
         <UsageCount Value="18"/>
         <DefaultSyntaxHighlighter Value="LFM"/>
-      </Unit4>
-      <Unit5>
+      </Unit6>
+      <Unit7>
         <Filename Value="C:\Bin\Lazarus\lcl\graphics.pp"/>
         <UnitName Value="Graphics"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="55"/>
         <CursorPos X="13" Y="57"/>
         <UsageCount Value="14"/>
-      </Unit5>
-      <Unit6>
+      </Unit7>
+      <Unit8>
         <Filename Value="C:\Bin\Lazarus\components\lazutils\graphtype.pp"/>
         <UnitName Value="GraphType"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="24"/>
         <CursorPos X="3" Y="35"/>
         <UsageCount Value="14"/>
-      </Unit6>
-      <Unit7>
+      </Unit8>
+      <Unit9>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win\wininc\struct.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="210"/>
         <CursorPos X="6" Y="223"/>
         <UsageCount Value="14"/>
-      </Unit7>
-      <Unit8>
+      </Unit9>
+      <Unit10>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\inc\systemh.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="467"/>
         <CursorPos X="3" Y="479"/>
         <UsageCount Value="14"/>
-      </Unit8>
-      <Unit9>
+      </Unit10>
+      <Unit11>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win64\classes.pp"/>
         <UnitName Value="Classes"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="14"/>
-      </Unit9>
-      <Unit10>
+      </Unit11>
+      <Unit12>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\inc\typshrdh.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="130"/>
         <CursorPos X="3" Y="101"/>
         <UsageCount Value="14"/>
-      </Unit10>
-      <Unit11>
+      </Unit12>
+      <Unit13>
         <Filename Value="C:\Bin\Lazarus\lcl\include\canvas.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="1796"/>
         <CursorPos Y="1810"/>
         <UsageCount Value="13"/>
-      </Unit11>
-      <Unit12>
+      </Unit13>
+      <Unit14>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win\sysutils.pp"/>
         <UnitName Value="SysUtils"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="13"/>
-      </Unit12>
-      <Unit13>
-        <Filename Value="dbbrowser.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="DbBrowserForm"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="DbBrowser"/>
-        <IsVisibleTab Value="True"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="C:\Bin\python4lazarus\Source\PythonEngine.pas"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="20"/>
-      </Unit13>
+        <TopLine Value="2628"/>
+        <CursorPos X="64" Y="2636"/>
+        <UsageCount Value="10"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="D:\Lazarus\UnTerminal-1.0\UnTerminal-1.0\UnTerminal.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="152"/>
+        <CursorPos X="55" Y="179"/>
+        <UsageCount Value="10"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\packages\fcl-process\src\process.pp"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="19"/>
+        <CursorPos X="12" Y="58"/>
+        <UsageCount Value="10"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\packages\fcl-process\src\processbody.inc"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="5"/>
+        <UsageCount Value="10"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="..\lib\UnTerminal.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="7"/>
+        <CursorPos X="99" Y="21"/>
+        <UsageCount Value="10"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="C:\Bin\Lazarus\lcl\include\control.inc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="3925"/>
+        <CursorPos X="40" Y="3951"/>
+        <UsageCount Value="10"/>
+      </Unit20>
     </Units>
-    <General>
-      <ActiveWindowIndexAtStart Value="-1"/>
-    </General>
-    <JumpHistory HistoryIndex="-1"/>
+    <JumpHistory Count="20" HistoryIndex="19">
+      <Position1>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="78" Column="22" TopLine="66"/>
+      </Position1>
+      <Position2>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="49" Column="56" TopLine="33"/>
+      </Position2>
+      <Position3>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="26" Column="30" TopLine="18"/>
+      </Position3>
+      <Position4>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="70" TopLine="34"/>
+      </Position4>
+      <Position5>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="26"/>
+      </Position5>
+      <Position6>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="52" Column="28" TopLine="41"/>
+      </Position6>
+      <Position7>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="105" Column="22" TopLine="73"/>
+      </Position7>
+      <Position8>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="95" TopLine="75"/>
+      </Position8>
+      <Position9>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="11" Column="10"/>
+      </Position9>
+      <Position10>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="11" Column="5"/>
+      </Position10>
+      <Position11>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="13" Column="7"/>
+      </Position11>
+      <Position12>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="8" Column="32"/>
+      </Position12>
+      <Position13>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="15" Column="31"/>
+      </Position13>
+      <Position14>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="31" Column="15"/>
+      </Position14>
+      <Position15>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="8" Column="40"/>
+      </Position15>
+      <Position16>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="94" Column="13" TopLine="80"/>
+      </Position16>
+      <Position17>
+        <Filename Value="..\lib\RunProc.pas"/>
+        <Caret Line="37" Column="22" TopLine="13"/>
+      </Position17>
+      <Position18>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="92" Column="43" TopLine="83"/>
+      </Position18>
+      <Position19>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="97" Column="67" TopLine="83"/>
+      </Position19>
+      <Position20>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="123" TopLine="83"/>
+      </Position20>
+    </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>
       <Modes Count="0" ActiveMode=""/>
