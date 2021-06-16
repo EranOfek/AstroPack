@@ -127,6 +127,9 @@ function Result = projection(Obj, Lon0, Lat0, Scale, Projection, Args)
         if isempty(Args.AddNewCols)
             % write X/Y over Lon/Lat
             Cat = replaceCol(Cat, [X, Y], [ColLon, ColLat]);
+            % in this case, make sure that CooType is not 'sphere'
+            Cat.CooType  = '';
+            Cat.CooUnits = '';
         else
             Cat = insertCol(Cat, [X, Y], Args.Pos, Args.AddNewCols, {'',''});
         end

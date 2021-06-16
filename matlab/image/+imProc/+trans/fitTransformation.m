@@ -81,10 +81,10 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
         % columns
         Args.ColCatX      = AstroCatalog.DefNamesX;
         Args.ColCatY      = AstroCatalog.DefNamesY;
-        Args.ColCatM      = {'MAG','mag','MAG_PSF','MAG_CONV'};
+        Args.ColCatM      = AstroCatalog.DefNamesMag; %{'MAG','mag','MAG_PSF','MAG_CONV'};
         Args.ColRefX      = AstroCatalog.DefNamesX;
         Args.ColRefY      = AstroCatalog.DefNamesY;
-        Args.ColRefM      = {'MAG','mag','MAG_PSF','MAG_CONV'};
+        Args.ColRefM      = AstroCatalog.DefNamesMag; %{'MAG','mag','MAG_PSF','MAG_CONV'};
         Args.ColRefC      = {'Color'};
         Args.ColRefAM     = {'AIRMASS'};
         Args.ColRefPA     = {'ParAng'};
