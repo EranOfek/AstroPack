@@ -1,4 +1,4 @@
-function [ResultCat, ResultRef] = filterForAstrometry(ObjCat, ObjRef, Args)
+function [ResultCat, ResultRef, Summary] = filterForAstrometry(ObjCat, ObjRef, Args)
     % Given two catalogs, match their surface density and filter sources.
     % Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs
     %              by removing NaN coordinates,
@@ -67,6 +67,9 @@ function [ResultCat, ResultRef] = filterForAstrometry(ObjCat, ObjRef, Args)
     %                   Default is AstroCatalog.DefNamesY.
     %            'ColRefMag' - Mag column index/name in the Ref.
     %                   Default is AstroCatalog.DefNamesMag.
+    % Output : - Cleaned Cat.
+    %          - Cleaned Ref.
+    %          - Summary of number of sources survived after each step.
     % Author : Eran Ofek (Jun 2021)
     % Example: [Cat,Ref]=imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);
    
@@ -168,7 +171,7 @@ function [ResultCat, ResultRef] = filterForAstrometry(ObjCat, ObjRef, Args)
         end
         
     
-        [Cat,Ref,FlagCat,FlagRef] = imUtil.patternMatch.prep_cat_for_astrometry(Cat, Ref, 'CatRemoveNaN',Args.CatRemoveNaN,...
+        [Cat,Ref,FlagCat,FlagRef, Summary(Imax)] = imUtil.patternMatch.prep_cat_for_astrometry(Cat, Ref, 'CatRemoveNaN',Args.CatRemoveNaN,...
                                                                       'CatRemoveBadColRow',Args.CatRemoveBadColRow,...
                                                                       'CatRemoveOverDense',Args.CatRemoveOverDense,...
                                                                       'RefRemoveNaN',Args.RefRemoveNaN,...
@@ -190,17 +193,17 @@ function [ResultCat, ResultRef] = filterForAstrometry(ObjCat, ObjRef, Args)
   
         % save the data in Cat/Ref
         if isa(ObjCat, 'AstroCatalog')
-            ResultCat.Catalog = Cat;
+            ResultCat(Icat).Catalog = Cat;
         elseif isa(ObjCat,'AstroImage')
-            ResultCat.CatData.Catalog = Cat;
+            ResultCat(Icat).CatData.Catalog = Cat;
         else
             error('Unknown ObjCat type');
         end
         
         if isa(ObjRef, 'AstroCatalog')
-            ResultRef.Catalog = Ref;
+            ResultRef(Iref).Catalog = Ref;
         elseif isa(ObjRef,'AstroImage')
-            ResultRef.CatData.Catalog = Ref;
+            ResultRef(Iref).CatData.Catalog = Ref;
         else
             error('Unknown ObjRef type');
         end

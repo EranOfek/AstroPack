@@ -142,6 +142,9 @@ addOptional(InPar,'ThresholdSigma',3);
 parse(InPar,varargin{:});
 InPar = InPar.Results;
 
+if size(Cat,1)~=size(Ref,1)
+    error('Cat and Ref maust be matched catalogs with the same number of lines');
+end
 
 % clean Cat and Ref from NaN's
 FlagGood = ~isnan(sum(Cat,2)) & ~isnan(sum(Ref,2));

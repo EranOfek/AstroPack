@@ -1,4 +1,4 @@
-function Result = fitPattern(Obj1, Obj2, Args)
+function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
     % Match two catalogs using stars pattern and return approximate transformation
     % Description: Given two catalogs that coordinadte systems are related
     %              by flip, scale, rotation and shift, search the the approximate
@@ -203,11 +203,20 @@ function Result = fitPattern(Obj1, Obj2, Args)
         RefColX = colnameDict2ind(Obj2(Iobj2), Args.ColNamesX);
         RefColY = colnameDict2ind(Obj2(Iobj2), Args.ColNamesY);
 
-        Cat = getCol(Obj1(Iobj1), [CatColX, CatColY]);
-        Ref = getCol(Obj2(Iobj2), [RefColX, RefColY]);
+        %Cat = getCol(Obj1(Iobj1)); %, [CatColX, CatColY]);  if using this modify CatCol to 1,2...
+        %Ref = getCol(Obj2(Iobj2)); %, [RefColX, RefColY]);
+        
         
         % match catalogs
-        [Sol, PrevStep, Matched] = imUtil.patternMatch.match_scale_rot_shift(Cat, Ref, 'CatColX',CatColX, 'CatColY',CatColY,...
+        if nargout>1
+            OutputArgs = cell(1,3);
+            Nargs = 3;
+        else
+            OutputArgs = cell(1,1);
+            Nargs = 1;
+        end
+        % Sol, PrevStep, Matched                                                                              
+        [OutputArgs{1:Nargs}] = imUtil.patternMatch.match_scale_rot_shift(Obj1(Iobj1).Catalog, Obj2(Iobj2).Catalog, 'CatColX',CatColX, 'CatColY',CatColY,...
                                                                                        'RefColX',RefColX, 'RefColY',RefColY,...
                                                                                        'Scale',Args.Scale,...
                                                                                        'HistDistEdgesRotScale',Args.HistDistEdgesRotScale,...
@@ -231,11 +240,16 @@ function Result = fitPattern(Obj1, Obj2, Args)
                                                                                        'Overlap',Args.Overlap,...
                                                                                        'MinVariance',Args.MinVariance);
                                                                                        
-                                                                                       
-                                                                                       
+        if nargout>1                                                                           
+            Result(Imax).Sol  = OutputArgs{1};
+            Matched(Imax).Matched = OutputArgs{3};
+        else
+            Result(Imax).Sol  = OutputArgs{1};
+        end
+         
         % populate the Result
-        Result(Imax).Sol     = Sol;
-        Result(Imax).Matched = Matched;
+        %Result(Imax).Sol     = Sol;
+        %Result(Imax).Matched = Matched;
         
         
          

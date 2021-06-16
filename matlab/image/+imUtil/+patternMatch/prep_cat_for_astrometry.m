@@ -1,4 +1,4 @@
-function [Cat,Ref,FlagCat,FlagRef]=prep_cat_for_astrometry(Cat, Ref, Args)
+function [Cat,Ref,FlagCat,FlagRef,Summary]=prep_cat_for_astrometry(Cat, Ref, Args)
 % Clean two catalogs and equalize their surface density
 % Package: imUtil.patternMatch
 % Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs
@@ -61,6 +61,7 @@ function [Cat,Ref,FlagCat,FlagRef]=prep_cat_for_astrometry(Cat, Ref, Args)
 %          - A new clean/diluted Ref catalog.
 %          - A vector of logicals indicating the selected sources in Cat.
 %          - A vector of logicals indicating the selected sources in Ref.
+%          - Summary of number of sources survived after each step.
 % License: GNU general public license version 3
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Apr 2016
@@ -100,6 +101,9 @@ NsrcRef = size(Ref,1);
 FlagCat = true(NsrcCat,1);
 FlagRef = true(NsrcRef,1);
 
+Summary.Cat.Start = NsrcCat;
+Summary.Ref.Start = NsrcRef;
+
 % remove NaNs:
 if Args.CatRemoveNaN
     FlagCat = FlagCat & ~isnan(Cat(:,Args.ColCatX));
@@ -107,6 +111,9 @@ end
 if Args.RefRemoveNaN
     FlagRef = FlagRef & ~isnan(Ref(:,Args.ColRefX));
 end
+Summary.Cat.RemoveNaN = sum(FlagCat);
+Summary.Ref.RemoveNaN = sum(FlagRef);
+
 
 % remove sources acculated on overdense bad column/rows
 
@@ -118,6 +125,8 @@ if Args.RefRemoveBadColRow
     FlagRef = FlagRef & ~imUtil.cat.flag_overdense_colrow(Cat(:,[Args.ColRefX,Args.ColRefY]),Args.ColRowPar{:},'Dim',1);
     FlagRef = FlagRef & ~imUtil.cat.flag_overdense_colrow(Cat(:,[Args.ColRefX,Args.ColRefY]),Args.ColRowPar{:},'Dim',2);
 end
+Summary.Cat.RemoveBadColRow = sum(FlagCat);
+Summary.Ref.RemoveBadColRow = sum(FlagRef);
 
 
 % remove sources in overdense regions:
@@ -129,8 +138,8 @@ if Args.RefRemoveOverDense
     FlagRef = FlagRef & ~imUtil.cat.flag_overdense(Ref(:,[Args.ColRefX,Args.ColRefY]),Args.OverdensePar{:});
     FlagRef = FlagRef & ~imUtil.cat.flag_overdense(Ref(:,[Args.ColRefX,Args.ColRefY]),Args.OverdensePar{:});
 end
-
-
+Summary.Cat.RemoveOverDense = sum(FlagCat);
+Summary.Ref.RemoveOverDense = sum(FlagRef);
 
 Cat = Cat(FlagCat,:);
 Ref = Ref(FlagRef,:);
@@ -156,20 +165,27 @@ if Args.EqualizeDensity
                 FlagCatT(FlagCat) = FlagCatD;
                 FlagCat = FlagCat & FlagCatT;
                 
-                Cat = Cat(FlagCatD);
+                Cat = Cat(FlagCatD,:);
             else
                 FlagRefD = imUtil.cat.dilute_cat_by_mag(Ref,{},Args.ColRefMag,DensityRef,DensityCat);
                 FlagRefT = true(size(FlagRef));
                 FlagRefT(FlagRef) = FlagRefD;
                 FlagRef = FlagRef & FlagRefT;
                 
-                Ref = Ref(FlagRefD);
+                Ref = Ref(FlagRefD,:);
             end
         end
-    end
+        
+        Summary.Cat.EqualizeDensity = sum(FlagCat);
+        Summary.Ref.EqualizeDensity = sum(FlagRef);  
+        Summary.AreaCat = AreaCat;
+        Summary.AreaRef = AreaRef;
+        Summary.DensityDEviation   = Ratio;   % 0 means equal density
+
+    end    
 end
     
-    
+
     
     
 

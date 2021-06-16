@@ -35,12 +35,14 @@ function Result = astrometryCore(Obj, Args)
         Args.StepY(1,1)                   = 4;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1];
         Args.SearchRadius(1,1)            = 4;
+        
+        Args.Tran                         = Tran2D;
                 
     end
     
     RotationEdges = (Args.RotationRange(1):Args.RotationStep:Args.RotationRange(2));
     % mean value of projection scale:
-    ProjectionScale = 180./pi .* 3600 ./ mean(Args.Scale);
+    ProjectionScale = (180./pi) .* 3600 ./ mean(Args.Scale);
     
     % Get astrometric catalog / incluidng proper motion
     % RA and Dec output are in radians
@@ -66,7 +68,7 @@ function Result = astrometryCore(Obj, Args)
     % ProjAstCat.plot({'X','Y'},'.')   
     
     % filter astrometric catalog
-    [FilteredCat, FilteredProjAstCat]=imProc.cat.filterForAstrometry(Obj, ProjAstCat, Args.argsFilterForAstrometry{:});
+    [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(Obj, ProjAstCat, Args.argsFilterForAstrometry{:});
     
     % Match pattern catalog to projected astrometric catalog
     ResPattern = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
@@ -78,12 +80,18 @@ function Result = astrometryCore(Obj, Args)
                                                                       'StepY',Args.StepY,...
                                                                       'Flip',Args.Flip,...
                                                                       'SearchRadius',Args.SearchRadius);
-                                                                      
+    
+    % go over possible solutions:
+    
+    AffineMatrix = ResPattern.Sol.AffineTran{1}
+    
     % Apply affine transformation to Reference
-    Result = tranAffine(Obj, AffineMatrix, true, 'RotUnits','deg'); 
+    % No need because this is also done in imProc.trans.fitPattern
+    % TransformedCat = imProc.trans.tranAffine(Obj, AffineMatrix, true, 'RotUnits','deg'); 
     
     % Fit transformation
-    [Param, Res] = imProc.trans.fitTransformation(FilteredCat, FilteredProjAstCat, 'Tran',T);
+    %[Param, Res] = imProc.trans.fitTransformation(TransformedCat, FilteredProjAstCat, 'Tran',Args.Tran);
+    [Param, Res] = imProc.trans.fitTransformation(ResPattern.Matched.MatchedCat, ResPattern.Matched.Ref, 'Tran',Args.Tran);
     
     
     % Calculate WCS
