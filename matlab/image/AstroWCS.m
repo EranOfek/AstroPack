@@ -16,10 +16,10 @@ classdef AstroWCS < Component
     
     % Add comments
     properties (Access = public)
-        Exist(1,1)   logical = false;
+%        Exist(1,1)   logical = false;
         NAXIS(1,1)   uint8  = 2;
         WCSAXES(1,1) uint8  = 2;        
-        CTYPE(1,:)   cell   = {'',''};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
+        CTYPE(1,:)   cell   = {NaN,NaN};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
         CUNIT        cell   = {'deg','deg'};
         RADESYS      char   = 'ICRS';
         LONPOLE      double = 0; 
@@ -65,9 +65,31 @@ classdef AstroWCS < Component
     
     methods
         % Constructor  
-        function Obj = AstroWCS(varargin)
-            % TODO
+        function Obj = AstroWCS(Headers)
+            % Construct AstroWCS object and populate it with headers
+            % Input  : - Either a vector of the the size of the empty
+            %            AstroWCS object (e.g., [2 2]).
+            %            OR a cell array of AstrHeaders.
+            % Output : - An AstroWCS object with populated fields.
+            % Author : Yossi Shvartzvald (June 2021)
+            % Example: 
+            
+            arguments
+                Headers      = 1;   % name or array size
+            end
+            
+            if isnumeric(Headers)
+                % create an empty AstroWCS object
+                List = cell(Headers);
+            elseif iscell(Headers)
+                List = Headers;
+            end
 
+            Nh = numel(List);
+            for Ih=1:1:Nh
+                Obj(Ih).ProjType = ''; % TODO change
+            end            
+            Obj = reshape(Obj,size(List));
             
         end
 
@@ -77,6 +99,247 @@ classdef AstroWCS < Component
     methods (Static)  % static methods
        
         function Obj = header2wcs(Header)
+            % Create and populate an AstroWCS object from an AstroHeader object
+
+            Obj = AstroWCS(1);
+            AH = Header;
+            
+            % Read number of axes
+            % if WCSAXES is not available use NAXIS as default
+            Obj.NAXIS = getVal(AH, 'NAXIS');
+            Obj.WCSAXES = getVal(AH, 'WCSAXES');
+            if (isnan(Obj.WCSAXES))
+                Obj.WCSAXES = Obj.NAXIS;
+            end
+
+            % currently assume only two columns - TO REMOVE
+            if ~(Obj.WCSAXES==2)
+                error('Currently supports only WCSAXES=2');
+            end                
+            
+            % Get CTYPE and transalte to projection information (ProjType,
+            % ProjClass) and CooName
+            Obj.CTYPE = getCellKey(AH, {'CTYPE1','CTYPE2'});
+            
+            
+        end
+        
+        
+        
+               function W=populate(Header) 
+            Default.CUNIT = 'deg';
+            Default.CTYPE1 = 'RA---TAN';
+            Default.CTYPE2 = 'DEC--TAN';
+            
+            HeaderField = HEAD.HeaderField;
+            WCSField    = 'WCS';
+            
+            if (iscell(Header))
+                H = HEAD;
+                H.(HeaderField) = Header;
+            else
+                H = Header;
+            end
+            Nh = numel(H);
+            W  = ClassWCS(Nh,1);
+            
+            KeysSingle = {'RADECSYS','LONPOLE','LATPOLE','EQUINOX'};
+            Nsin       = numel(KeysSingle);
+            KeysN      = {'CTYPE','CUNIT','CRPIX','CRVAL','CDELT'};
+            Nn         = numel(KeysN);
+            
+            
+            for Ih=1:1:Nh
+                % for each header
+                % Read number of axes
+                % if WCSAXES is not available use NAXES as default
+                Naxes = getkey(H(Ih),'WCSAXES');
+                if (isempty(Naxes))
+                    Naxes = getkey(H(Ih),'NAXIS');
+                else
+                    if (isnan(Naxes{1}))
+                        Naxes = getkey(H(Ih),'NAXIS');
+                    end
+                end
+                Naxes = Naxes{1};
+                
+                % read keywords from the KeysSingle list
+                ValSingle = mgetkey(H(Ih),KeysSingle);
+              
+                TmpCtype = getkey(H(Ih),'CTYPE1');
+                
+                % concat
+                KeyNames = {'WCSAXES', KeysSingle{:}};
+                KeyVal   = {Naxes, ValSingle{:}};
+                
+                W(Ih).(WCSField) = cell2struct(KeyVal,KeyNames,2);
+                
+              
+%<<<<<<< HEAD
+                if isnan(Naxes) || isnan(TmpCtype{1}(1))
+                    % deal with missing WCS keywords
+                    W(Ih).(WCSField).Status = false;
+                    W(Ih).(WCSField).CD = nan(2,2);
+                    W(Ih).(WCSField).CRPIX = nan(1,2);
+                    W(Ih).(WCSField).CRVAL = nan(1,2);
+                    W(Ih).(WCSField).CDELT = nan(1,2);
+                    W(Ih).(WCSField).CTYPE = {'RA---TPV','DEC--TPV'};
+                    W(Ih).(WCSField).CUNIT = {'deg','deg'};
+                else
+                    W(Ih).(WCSField).Status = true;
+                    
+                    % read Keywords from the KeysN list
+                    KeyNname = cell(1,Nn.*Naxes);
+                    K = 0;
+                    for In=1:1:Nn
+                        for Iaxis=1:1:Naxes
+                            K = K + 1;
+                            KeyNname{K} = sprintf('%s%d',KeysN{In},Iaxis);
+                        end
+%=======
+                    end
+                %end
+                
+                    % read Keywords from the KeysN list
+                    KeyNname = cell(1,Nn.*Naxes);
+                    K = 0;
+                    for In=1:1:Nn
+                        for Iaxis=1:1:Naxes
+                            K = K + 1;
+                            KeyNname{K} = sprintf('%s%d',KeysN{In},Iaxis);
+                        end
+                    end
+                    ValN = mgetkey(H(Ih),KeyNname);
+                    ValN = reshape(ValN,2,Nn);
+                    for In=1:1:Nn
+                        % fixing a bug found by Na'ama
+                        switch lower(KeysN{In})
+                            case 'cunit'
+                                if (any(isnan(ValN{1,In})))
+                                    % CUNIT is not populated in header
+                                    % set to default
+                                    ValN{1,In} = Default.CUNIT;
+                                    ValN{2,In} = Default.CUNIT;
+                                end
+
+                            case 'ctype'
+                                if (any(isnan(ValN{1,In})))
+                                    % CUNIT is not populated in header
+                                    % set to default
+                                    ValN{1,In} = Default.CTYPE1;
+                                    ValN{2,In} = Default.CTYPE2;
+                                end
+                        end
+
+                        if (iscellstr(ValN(:,In)))
+                            W(Ih).(WCSField).(KeysN{In}) = ValN(:,In).';
+                        else
+                            W(Ih).(WCSField).(KeysN{In}) = cell2mat(ValN(:,In)).';
+    %>>>>>>> d3d1fd3e53a5851582211798c8cdcd679ba36ecd
+                        end
+                        ValN = mgetkey(H(Ih),KeyNname);
+                        ValN = reshape(ValN,2,Nn);
+                        for In=1:1:Nn
+                            % fixing a bug found by Na'ama
+                            switch lower(KeysN{In})
+                                case 'cunit'
+                                    if (any(isnan(ValN{1,In})))
+                                        % CUNIT is not popuklated in header
+                                        % set to degault
+                                        ValN{1,In} = Default.CUNIT;
+                                        ValN{2,In} = Default.CUNIT;
+                                    end
+                            end
+
+                            if (iscellstr(ValN(:,In)))
+                                W(Ih).(WCSField).(KeysN{In}) = ValN(:,In).';
+                            else
+                                W(Ih).(WCSField).(KeysN{In}) = cell2mat(ValN(:,In)).';
+                            end
+
+                        end
+
+
+                        % Read The CD/PC matrix
+                        KeysCD = cell(1,Naxes.^2);
+                        KeysPC = cell(1,Naxes.^2);
+                        K = 0;
+                        for Iaxes1=1:1:Naxes
+                            for Iaxes2=1:1:Naxes
+                                K = K + 1;
+                                KeysCD{K} = sprintf('CD%d_%d',Iaxes1,Iaxes2);
+                                KeysPC{K} = sprintf('PC%d_%d',Iaxes1,Iaxes2);
+                            end
+                        end
+
+                        ValCD = mgetkey(H(Ih),KeysCD);
+                        K = 0;
+                        CD = nan(Naxes,Naxes);
+                        for Iaxes1=1:1:Naxes
+                            for Iaxes2=1:1:Naxes
+                                K = K + 1;
+                                CD(Iaxes1,Iaxes2) = ValCD{K};
+                            end
+                        end
+
+                        % bug fix - treat cases in whic not all CD keywords are
+                        % provided - assume no rotation.
+                        if (any(isnan(CD(:))) && ~all(isnan(CD(:))))
+                            CD(isnan(CD)) = 0;
+                        end
+                        
+                        % treat cases in which only CDELT is provided
+                        if all(isnan(CD(:)))
+                            CD = diag(W(Ih).WCS.CDELT);
+                            
+                        end
+
+
+
+                        if (any(isnan(CD(:))) || isempty(CD))
+                            % CD is empty try to read PC
+                            ValCD = mgetkey(H(Ih),KeysPC);
+                            K = 0;
+                            ScaleName = sprintf('CDELT');
+                            for Iaxes1=1:1:Naxes
+                                %ScaleName = sprintf('CDELT%d',Iaxes1);
+                                for Iaxes2=1:1:Naxes
+                                    K = K + 1;
+                                    CD(Iaxes1,1) = ValCD{K}.*W(Ih).(WCSField).(ScaleName)(Iaxes1);
+                                end
+                            end
+
+                        end
+                        W(Ih).(WCSField).CD = CD;
+
+
+                        % Read distortions
+
+                        % look for PV coeficients
+                        FlagMatchPV = ~Util.cell.isempty_cell(regexp(H(Ih).(HeaderField)(:,1),'PV\d+\_\d+','match'));
+
+
+                        Names  =regexp(H(Ih).(HeaderField)(FlagMatchPV,1), 'PV(?<D1>\d+)\_(?<D2>\d+)','names');
+                        Nnames = numel(Names);
+                        PV_Ind = zeros(Nnames,2);
+                        for Inames=1:1:Nnames
+                            PV_Ind(Inames,:) = [str2double(Names{Inames}.D1), str2double(Names{Inames}.D2)];
+                        end
+
+                        W(Ih).(WCSField).PV.Ind     = PV_Ind;
+                        W(Ih).(WCSField).PV.KeyVal  = H(Ih).(HeaderField)(FlagMatchPV,2);
+                        W(Ih).(WCSField).PV.KeyName = H(Ih).(HeaderField)(FlagMatchPV,1);
+
+                        % look for SIP coeficients
+                        % TBD
+                    end
+                    
+                end
+
+            end
+                
+    
+            
             
         end
         
@@ -1592,10 +1855,10 @@ classdef AstroWCS < Component
             cd(DataSampleDir);  
             
             % construct an empty AstroWCS
-            W = AstroWCS([2 2]);
+            AW = AstroWCS([2 2]);
             
-            %
-            
+            % construct a AstroWCS from an AstroHeader with TAN projection
+            AH = AstroHeader('FOCx38i0101t_c0f.fits');
             
             %
             
