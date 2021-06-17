@@ -97,10 +97,14 @@ classdef AstroWCS < Component
             % Use Obj.CTYPE to fill the fields ProjType, ProjClass,
             % CooName, and CUNIT (if empty)
             
+            ProjTypeDict = Dictionary('DictName','WCS.ProjType');
+            CunitDict = Dictionary('DictName','WCS.CUNIT');            
+            
             ctype = Obj.CTYPE;
             
             projtype = cell(size(ctype));
             cooname  = cell(size(ctype));
+            coounit  = cell(size(ctype));
             dist    = cell(size(ctype)); % what is this? Eran - TODO
             
             for I = 1:1:numel(ctype)
@@ -108,21 +112,23 @@ classdef AstroWCS < Component
                 Pair     = Split(~tools.cell.isempty_cell(Split));
                 cooname{I}  = Pair{1};
                 projtype{I} = Pair{2};
-                if (numel(Pair)>2)
+                if (numel(Pair)>2)   % what is this? Eran - TODO
                     dist{I} = Pair{3};
                 end                
+                coounit{I} = CunitDict.searchAlt(cooname{I});
             end
             
             if all(strcmp(projtype{1},projtype))
                 Obj.ProjType = projtype{1};
-                %Obj.ProjClass = somehow use dictronary with projtype
+                Obj.ProjClass = ProjTypeDict.searchAlt(Obj.ProjType);
             else 
                 error(' Not all Axis are with the same projection');
             end
             
             Obj.CooName = cooname;
-            %Obj.CUNIT = somehow use dictronary with CooName % Should check
-            %if CUNIT already exist or NaN
+            
+            Funit = tools.cell.isnan_cell(Obj.CUNIT);
+            Obj.CUNIT(Funit) = coounit(Funit);
             
         end
         
@@ -144,16 +150,37 @@ classdef AstroWCS < Component
             if (Obj.WCSAXES==0)
                 Obj.WCSAXES = Obj.NAXIS;
             end
+            
+            Naxis = Obj.WCSAXES;
 
-            % currently assume only two columns - TO REMOVE
-            if ~(Obj.WCSAXES==2)
-                error('Currently supports only WCSAXES=2');
-            end                
+            % prepare mutli axis keys
+            KeyCtype = cell(1,Naxis);
+            KeyCunit = cell(1,Naxis);
+            KeyCrpix = cell(1,Naxis);
+            KeyCrval = cell(1,Naxis);
+            KeyCdelt = cell(1,Naxis);
+            KeysCD = cell(1,Naxis.^2);
+%             KeysPC = cell(1,Naxis.^2);
+            K = 0;
+            for Iaxis1 = 1:1:Naxis
+                KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
+                KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1);
+                KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
+                KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
+                KeyCdelt{Iaxis1} = sprintf('CDELT%d',Iaxis1);
+                for Iaxis2=1:1:Naxis
+                    K = K + 1;
+                    KeysCD{K} = sprintf('CD%d_%d',Iaxis1,Iaxis2);
+%                     KeysPC{K} = sprintf('PC%d_%d',Iaxis1,Iaxis2);
+                end                    
+                    
+            end
+            
             
             % Get CTYPE and transalte to projection information (ProjType,
             % ProjClass) and CooName and CUNIT
-            Obj.CTYPE = AH.getCellKey({'CTYPE1','CTYPE2'});
-            Obj.CUNIT = AH.getCellKey({'CUNIT','CUNIT'});
+            Obj.CTYPE = AH.getCellKey(KeyCtype);
+            Obj.CUNIT = AH.getCellKey(KeyCunit);
             Obj = read_ctype(Obj);
             
             % Get base WCS info
@@ -167,11 +194,55 @@ classdef AstroWCS < Component
                 Obj.LATPOLE = AH.getVal('LATPOLE');
             end            
             if AH.isKeyExist('EQUINOX')
-                Obj.LATPOLE = AH.getVal('LATPOLE');
+                Obj.EQUINOX = AH.getVal('EQUINOX');
             end    
 
-            KeysN      = {'CRPIX','CRVAL','CDELT'};
+            Obj.CRPIX = cell2mat(AH.getCellKey(KeyCrpix));
+            Obj.CRVAL = cell2mat(AH.getCellKey(KeyCrval));
+            Obj.CDELT = cell2mat(AH.getCellKey(KeyCdelt));
             
+            
+            % Read The CD/PC matrix
+            ValCD = AH.getCellKey(KeysCD);
+            K = 0;
+            CD = nan(Naxis,Naxis);
+            for Iaxis1=1:1:Naxis
+                for Iaxis2=1:1:Naxis
+                    K = K + 1;
+                    CD(Iaxis1,Iaxis2) = ValCD{K};
+                end
+            end
+
+            % treat cases in which not all CD keywords are provided -
+            % assume no rotation.
+            if (any(isnan(CD(:))) && ~all(isnan(CD(:))))
+                CD(isnan(CD)) = 0;
+            end
+
+%             % treat cases in which only CDELT is provided
+%             if all(isnan(CD(:)))
+%                 CD = diag(Obj.CDELT);
+%             end
+%             
+% 
+%             if (any(isnan(CD(:))) || isempty(CD))
+%                 % CD is empty try to read PC
+%                 ValCD = AH.getCellKey(KeysPC);
+%                 K = 0;
+%                 ScaleName = sprintf('CDELT');
+%                 for Iaxes1=1:1:Naxes
+%                     %ScaleName = sprintf('CDELT%d',Iaxes1);
+%                     for Iaxes2=1:1:Naxes
+%                         K = K + 1;
+%                         CD(Iaxes1,1) = ValCD{K}.*W(Ih).(WCSField).(ScaleName)(Iaxes1);
+%                     end
+%                 end
+% 
+%             end
+            Obj.CD = CD;
+            
+            
+            % Read distortions            
         end
         
 
@@ -1920,7 +1991,7 @@ classdef AstroWCS < Component
             
             % construct a AstroWCS from an AstroHeader with TAN projection
             AH = AstroHeader('FOCx38i0101t_c0f.fits');
-            
+            AW = AstroWCS.header2wcs(AH);
             %
             
             cd(PWD);   
