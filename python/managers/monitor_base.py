@@ -37,9 +37,14 @@ class MonitorBase(Component):
 
 
     # Monitor
-    def monitor(self):
+    def monitor_loop(self):
+
         pass
 
+
+    def do_monitor(self):
+        # To be implemented by derived classes
+        pass
 
     # Clear current status
     def clearStatus(self):

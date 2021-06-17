@@ -33,6 +33,7 @@ GEN_PYTHON = False
 GEN_MATLAB = False
 GEN_CPP = False
 GEN_DELPHI = False
+GEN_DART = False
 
 
 # Log message to file
@@ -875,6 +876,77 @@ class DatabaseDef:
         os.remove(ifc_filename)
         os.remove(imp_filename)
 
+    # ---------------------------------------------------------------- Dart (Flutter)
+    # Create C++ class from self.field_list
+    '''
+    class Spacecraft {
+        String name;
+        DateTime? launchDate;
+        
+        int? get launchYear => launchDate?.year; // read-only non-final property
+        
+        // Constructor, with syntactic sugar for assignment to members.
+        Spacecraft(this.name, this.launchDate) {
+        // Initialization code goes here.
+        }
+        
+        // Named constructor that forwards to the default one.
+        Spacecraft.unlaunched(String name) : this(name, null);
+        
+        // Method.
+        void describe() {
+        print('Spacecraft: $name');
+        var launchDate = this.launchDate; // Type promotion doesn't work on getters.
+        if (launchDate != null) {
+          int years = DateTime.now().difference(launchDate).inDays ~/ 365;
+          print('Launched: $launchYear ($years years ago)');
+        } else {
+          print('Unlaunched');
+        }
+    }
+    }
+    '''
+
+    def create_class_dart(self):
+        log('create_class_dart started: ' + self.class_name + ' - fields: ' + str(len(self.field_list)))
+
+        self.open_out('.h')
+        # self.write_file_header('cpp')
+
+        self.wrln('class {} {{'.format(self.class_name))
+        self.wrln('public:')
+
+        for field in self.field_list:
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
+            field_name = field.field_name
+            comment = '//'
+            self.wrln('    {:9} {:30} {}'.format(ftype, field_name + ';', comment))
+
+        # self.wrln('    // Constructor')
+        self.wrln('')
+        self.wrln('    {}();'.format(self.class_name))
+
+        # self.wrln('    // Destructor')
+        self.wrln('    ~{}();'.format(self.class_name))
+        self.wrln('};\n\n')
+
+        self.wrln('inline {}::{}()'.format(self.class_name, self.class_name))
+        self.wrln('{')
+
+        for field in self.field_list:
+            ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'cpp')
+            field_name = field.field_name
+            self.wrln('    {:20} = {};'.format(field_name, field_value))
+
+        self.wrln('}\n')
+
+        self.wrln('inline {}::~{}()'.format(self.class_name, self.class_name))
+        self.wrln('{')
+        self.wrln('}\n')
+
+        log('create_class_dart done: ' + self.class_name)
+        log('')
+
     #----------------------------------------------------------------
 
     # Create  from self.field_list
@@ -893,6 +965,10 @@ class DatabaseDef:
 
         if GEN_DELPHI:
             self.create_class_delphi()
+
+        if GEN_DART:
+            self.create_class_dart()
+
 
 
     def write_file_header(self, lang):
