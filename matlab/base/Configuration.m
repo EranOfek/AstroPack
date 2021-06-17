@@ -152,9 +152,15 @@ classdef Configuration < handle
     %----------------------------------------------------------------------   
     methods(Static) % Static functions
                 
-        function Result = init()
+        function Result = init(varargin)
             % Return singleton Configuration object
             persistent Conf
+            
+            % Clear configuration
+            if numel(varargin) > 0
+                Conf = [];
+            end
+            
             if isempty(Conf)
                 Conf = Configuration;
             end

@@ -1,21 +1,27 @@
 
 classdef FileProcessor < Component
-    % Parent class for processing input files
+    % Parent class for file based processing
+    %
+    % Polll input folder for new files:
+    %   Call derived processFileImpl() function 
+    %   Delete or move the processed file to archive folder
+    %   Clean archive folder after specified numberof days
     
     
     % Properties
     properties (SetAccess = public)
               
         % Folders
-        InputPath = ''              %
-        ProcessedPath = ''          %
-        OutputPath = ''             %
+        InputPath = ''              % Input files folder
+        ProcessedPath = ''          % Optional archived input files folder
+        OutputPath = ''             % Optional output folder  (response/result of input files)
+        InputFileMask = '*.*'       % 
         
         % 
-        KeepProcessedFiles = true   %
-        KeepOutputFiles = true      %
-        KeepProcessFilesAge = 7     %
-        KeepOutputFilesAge = 7      %
+        KeepProcessedFiles = true   % true to keep the processed files in ProcessedPath, otherwise deleted after processing
+        KeepOutputFiles = true      % 
+        ProcessFilesMaxAge = 7      % Number of days to keep processed files in Processed Path
+        OutputFilesMaxAge = 7       % Number of days to keep output files in Output path
     end
     
     %-------------------------------------------------------- 
@@ -23,20 +29,83 @@ classdef FileProcessor < Component
                
         % Constructor    
         function Obj = FileProcessor()
-
+            Obj.Name = 'FileProcessor';
         end
         
         
-        function init(Obj)
-            Obj.Config.load('D:/Ultrasat/git/src/matlab/Pipeline/PipelineManager/pipeline.yml');
-            Obj.InputImagePath = Obj.Config.Yaml.GcsInterface.InputImagePath;
-            Obj.ProcessedFolder = Obj.Config.Yaml.GcsInterface.ProcessedImagePath;            
+        function init(Obj, Args)
+            % Initialize with default settings
+            
+            arguments
+                Obj
+                Args.Conf = []
+            end
+            
+            if ~isempty(Args.Conf)
+                Obj.InputImagePath = Conf.InputPath;
+                Obj.ProcessedFolder = fullfile(Obj.InputImagePath, 'processed');
+            end
+            
+            % Create folder
+            if ~isfolder(Obj.ProcessedFolder)
+                mkdir(Obj.ProcessedFolder);
+            end
+            
+            ReadExt = false;
+            if ReadExt && ~isempty(Args.Conf)
+                Obj.ProcessedFolder = Conf.ProcessedPath;
+                Obj.OutputPath = Conf.OutputPath;
+                Obj.ProcessFilesMaxAge = Conf.ProcessFilesMaxAge;
+                Obj.OutputFilesMaxAge = Conf.OutputFilesMaxAge;
+            end
+            
+            %Obj.Config.load('D:/Ultrasat/git/src/matlab/Pipeline/PipelineManager/pipeline.yml');
+            %Obj.InputImagePath = Obj.Config.Yaml.GcsInterface.InputImagePath;
+            %Obj.ProcessedFolder = Obj.Config.Yaml.GcsInterface.ProcessedImagePath;            
         end
+              
         
-        
-        function main(Obj)
-            Obj.init();
-            Obj.run();
+       
+        function Result = inputLoop(Obj, DelayMS)
+            % Poll input folder with specified delay, perform single step
+            % in DelayMS == -1
+            
+            Obj.msglog(LogLevel.Debug, "inputLoop: " + Obj.InputImagePath);                            
+            while true
+                
+                % Get sorted list of all files in input folder
+                List = dir(fullfile(Obj.InputImagePath, Obj.InputFileMask));
+                List = sort(List);
+                
+                for i = 1:length(List)
+                    if ~List(i).isdir
+                        FileName = fullfile(List(i).folder, List(i).name);
+                        Obj.msgLog(LogLevel.Verbose, FileName);
+                        Obj.processFile(FileName);
+                                           
+                        if ~isempty(Obj.ProcessedFolder)
+                            ProcessedFileName = fullfile(Obj.ProcessedFolder, List(i).name);                        
+                            Obj.msglog(LogLevel.Debug, "Moving input file to processed folder: " + ProcessedFileName);                            
+                            movefile(FileName, ProcessedFileName, 'f');
+                        end
+                    end
+                end                
+                
+                
+                if DelayMS < 0
+                    break;
+                end
+                
+                pause(DelayMS);
+            end            
+            
+            % Clean old files
+            if ~isempty(Obj.ProcessedPath) && Obj.ProcessFilesMaxAge > 0
+                Obj.deleteOldFiles(Obj.ProcessedPath, '*', now - Obj.ProcessFilesMaxAge);
+            end
+                
+            Obj.msglog(LogLevel.Debug, "inputLoop done: " + Obj.InputImagePath);                            
+            Result = true;
         end
         
         
@@ -46,7 +115,7 @@ classdef FileProcessor < Component
             
             % Call handler in derived class
             try
-                Obj.doProcessFile(FileName)
+                Obj.processFileImpl(FileName)
             catch
             end
             
@@ -56,55 +125,10 @@ classdef FileProcessor < Component
         end
         
         
-        
-        function Result = processInputFolder(Obj)
-            % 
-            while true
-                
-                List = dir(fullfile(Obj.InputImagePath, "*.fits"));
-                for i = 1:length(List)
-                    if ~List(i).isdir
-                        FileName = fullfile(List(i).folder, List(i).name);
-                        Obj.msgLog(LogLevel.Verbose, FileName);
-                        Obj.processFile(FileName);
-                                           
-                        ProcessedFileName = fullfile(Obj.ProcessedFolder, List(i).name);                        
-                        Obj.msglog("Moving image to processed folder: " + ProcessedFileName);
-                        movefile(FileName, ProcessedFileName, 'f');
-                    end
-                end                
-                
-                pause(DelayMS);
-            end            
-            
-            Result = true;
+        function Result = processFileImpl(Obj, FileName)
+            % Derived function, Process single input file
+            Result = 0;
         end
-
-        
-        
-        function Result = inputLoop(Obj, DelayMS)
-            % 
-            while true
-                
-                List = dir(fullfile(Obj.InputImagePath, "*.fits"));
-                for i = 1:length(List)
-                    if ~List(i).isdir
-                        FileName = fullfile(List(i).folder, List(i).name);
-                        Obj.msgLog(LogLevel.Verbose, FileName);
-                        Obj.processFile(FileName);
-                                           
-                        ProcessedFileName = fullfile(Obj.ProcessedFolder, List(i).name);                        
-                        Obj.msglog("Moving image to processed folder: " + ProcessedFileName);
-                        movefile(FileName, ProcessedFileName, 'f');
-                    end
-                end                
-                
-                pause(DelayMS);
-            end            
-            
-            Result = true;
-        end
-
         
         
         function Result = deleteOldFiles(Obj, Path, Mask, DeleteBefore)
@@ -114,21 +138,11 @@ classdef FileProcessor < Component
                 if ~List(i).isdir
                     FileName = fullfile(List(i).folder, List(i).name);
                     if List(i).datenum < DeleteBefore
-                        Obj.msgLog(LogLevel.Verbose, 'deleteOldFiles: %s', FileName);
+                        Obj.msgLog(LogLevel.Debug, 'deleteOldFiles: %s', FileName);
                         delete(FileName)
                     end
                 end
             end            
-            Result = true;
-        end
-        
-        
-        % Read file to lines
-        function Result = pollInput(Obj)
-            
-            Obj.FileName = fullfile(Obj.ConfigPath, fname);
-            Obj.Data = fileread(Obj.filename);
-            Obj.Lines = strsplit(Obj.data);
             Result = true;
         end
         
@@ -140,6 +154,8 @@ classdef FileProcessor < Component
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'FileProcessor test started\n');
             
+            Proc = FileProcessor;
+            Proc.inputLoop(100);
             
             % Done
             io.msgStyle(LogLevel.Test, '@passed', 'FileProcessor test passed')
