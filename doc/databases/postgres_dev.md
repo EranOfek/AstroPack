@@ -20,7 +20,7 @@ You have four choices regarding the password prompt:
 
 	
 	
-set PGPASSWORD=pass	
+set PGPASSWORD=pass
 	
 # Postgres - Windows
 
