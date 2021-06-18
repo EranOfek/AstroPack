@@ -1074,7 +1074,7 @@ def extract_xlsx(filename):
     path, fname = os.path.split(filename)
     fn, ext = os.path.splitext(fname)
 
-    db = fn.split('__')[0]
+    db = fn.split('__')[0].lower()
     out_path = os.path.join(path, db)
     log('output folder: ' + out_path)
     if not os.path.exists(out_path):
@@ -1090,7 +1090,7 @@ def extract_xlsx(filename):
     csv_count = 0
     for i, sheet_name in enumerate(wb.sheetnames):
         sheet = wb.worksheets[i]
-        csv_fname = os.path.join(out_path, db + ' - ' + sheet_name + '.csv')
+        csv_fname = os.path.join(out_path, db + ' - ' + sheet_name.lower() + '.csv')
         log('write csv file: ' + csv_fname)
         with open(csv_fname, 'w', newline="") as f:
             c = csv.writer(f)
@@ -1115,8 +1115,7 @@ def process_xlsx_file(filename):
     # Extract all sheets from xlsx file to output folder
     global XLSX_FILENAME
     XLSX_FILENAME = filename
-    filename_lower = filename.lower()
-    out_path = extract_xlsx(filename_lower)
+    out_path = extract_xlsx(filename)
 
     # Process all sheets in folder
     process_folder(out_path, ['.csv'], False)
