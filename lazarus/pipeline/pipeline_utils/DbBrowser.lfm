@@ -1,38 +1,36 @@
 object DbBrowserForm: TDbBrowserForm
-  Left = 218
-  Height = 525
-  Top = 88
-  Width = 909
+  Left = 128
+  Height = 702
+  Top = 91
+  Width = 1154
   Caption = 'DB Browser'
-  ClientHeight = 525
-  ClientWidth = 909
+  ClientHeight = 702
+  ClientWidth = 1154
   OnCreate = FormCreate
   LCLVersion = '1.8.2.0'
   object Panel1: TPanel
     Left = 0
     Height = 70
     Top = 0
-    Width = 909
+    Width = 1154
     Align = alTop
-    Caption = 'Panel1'
     TabOrder = 0
   end
   object Panel2: TPanel
     Left = 0
-    Height = 364
+    Height = 541
     Top = 70
     Width = 210
     Align = alLeft
     Caption = 'Panel2'
-    ClientHeight = 364
+    ClientHeight = 541
     ClientWidth = 210
     TabOrder = 1
     object Panel5: TPanel
       Left = 8
-      Height = 50
+      Height = 80
       Top = 32
       Width = 170
-      Caption = 'Panel5'
       TabOrder = 0
     end
     object Panel6: TPanel
@@ -40,7 +38,6 @@ object DbBrowserForm: TDbBrowserForm
       Height = 312
       Top = 120
       Width = 170
-      Caption = 'Panel6'
       ClientHeight = 312
       ClientWidth = 170
       TabOrder = 1
@@ -59,41 +56,40 @@ object DbBrowserForm: TDbBrowserForm
   object Panel3: TPanel
     Left = 0
     Height = 70
-    Top = 434
-    Width = 909
+    Top = 611
+    Width = 1154
     Align = alBottom
-    Caption = 'Panel3'
     TabOrder = 2
   end
   object Panel4: TPanel
     Left = 210
-    Height = 364
+    Height = 541
     Top = 70
-    Width = 699
+    Width = 944
     Align = alClient
     BorderWidth = 4
     Caption = 'Panel4'
-    ClientHeight = 364
-    ClientWidth = 699
+    ClientHeight = 541
+    ClientWidth = 944
     TabOrder = 3
     object PageControl1: TPageControl
       Left = 5
-      Height = 354
+      Height = 531
       Top = 5
-      Width = 689
+      Width = 934
       ActivePage = TabSheetXlsxToSQL
       Align = alClient
       TabIndex = 1
       TabOrder = 0
       object TabSheetDbBrowser: TTabSheet
         Caption = 'Database Browser'
-        ClientHeight = 323
-        ClientWidth = 685
+        ClientHeight = 500
+        ClientWidth = 930
         object DBGrid1: TDBGrid
           Left = 0
-          Height = 578
+          Height = 427
           Top = 0
-          Width = 1083
+          Width = 828
           Align = alClient
           Color = clWindow
           Columns = <>
@@ -103,25 +99,25 @@ object DbBrowserForm: TDbBrowserForm
       end
       object TabSheetXlsxToSQL: TTabSheet
         Caption = 'Convert XLSX to SQL'
-        ClientHeight = 323
-        ClientWidth = 685
+        ClientHeight = 500
+        ClientWidth = 930
         object Panel8: TPanel
           Left = 0
-          Height = 147
-          Top = 176
-          Width = 685
+          Height = 356
+          Top = 144
+          Width = 930
           Align = alClient
           BorderWidth = 4
           Caption = 'Panel8'
-          ClientHeight = 147
-          ClientWidth = 685
+          ClientHeight = 356
+          ClientWidth = 930
           ParentColor = False
           TabOrder = 0
           object Memo1: TMemo
             Left = 5
-            Height = 137
+            Height = 346
             Top = 5
-            Width = 675
+            Width = 920
             Align = alClient
             Font.CharSet = OEM_CHARSET
             Font.Color = clBlack
@@ -130,17 +126,18 @@ object DbBrowserForm: TDbBrowserForm
             Font.Pitch = fpFixed
             Font.Quality = fqDraft
             ParentFont = False
+            ScrollBars = ssAutoBoth
             TabOrder = 0
           end
         end
         object Panel9: TPanel
           Left = 0
-          Height = 176
+          Height = 144
           Top = 0
-          Width = 685
+          Width = 930
           Align = alTop
-          ClientHeight = 176
-          ClientWidth = 685
+          ClientHeight = 144
+          ClientWidth = 930
           TabOrder = 1
           object Label3: TLabel
             Left = 37
@@ -229,8 +226,8 @@ object DbBrowserForm: TDbBrowserForm
       end
       object TabSheetCreateDb: TTabSheet
         Caption = 'Create Database'
-        ClientHeight = 323
-        ClientWidth = 685
+        ClientHeight = 500
+        ClientWidth = 930
         object Panel7: TPanel
           Left = 8
           Height = 312
@@ -241,17 +238,17 @@ object DbBrowserForm: TDbBrowserForm
           TabOrder = 0
           object Label1: TLabel
             Left = 37
-            Height = 15
+            Height = 17
             Top = 0
-            Width = 34
+            Width = 45
             Caption = 'Label1'
             ParentColor = False
           end
           object Label2: TLabel
             Left = 37
-            Height = 15
+            Height = 17
             Top = 42
-            Width = 34
+            Width = 45
             Caption = 'Label2'
             ParentColor = False
           end
@@ -262,8 +259,8 @@ object DbBrowserForm: TDbBrowserForm
   object StatusBar1: TStatusBar
     Left = 0
     Height = 21
-    Top = 504
-    Width = 909
+    Top = 681
+    Width = 1154
     Panels = <    
       item
         Width = 200
