@@ -233,12 +233,11 @@ classdef Dictionary < Component
             St.EXPTIME = {'AEXPTIME','EXPTIME','EXPOSURE'};
             St.IMTYPE  = {'IMTYPE','TYPE','IMGTYPE','IMAGETYP'};
             Conv.EXPTIME = {@(x) x, @(x) x, @(x) x};
-            Obj.Dict = St;
-            Obj.Conversion = Conv;
+            D = Dictionary;
+            D.Dict = St;
             
-            
-            [Alt,AltConv] = Obj.searchKey('EXPTIME')
-            [Key,AltConv,AllAlt,FlagKey] = Obj.searchAlt('AEXPTIME')
+            [Alt,AltConv] = D.searchKey('EXPTIME')
+            [Key,AltConv,AllAlt,FlagKey] = D.searchAlt('AEXPTIME')
             
             
             io.msgStyle(LogLevel.Test, '@passed', 'Dictionary test passed')

@@ -17,5 +17,6 @@ function Result = unitTest()
     AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
     Result = imProc.image.image2subimages(AI,[256 256]);
 
+    Result = true;
     
 end
