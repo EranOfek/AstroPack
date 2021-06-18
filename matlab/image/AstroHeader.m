@@ -1388,6 +1388,10 @@ classdef AstroHeader < Component
         function Result = unitTest()
             % unitTest for AstroHeader
             % Example: Result = AstroHeader.unitTest
+            %
+            % To do:
+            % -Add output checks for:
+            %     -everything
 
             io.msgStyle(LogLevel.Test, '@start', 'AstroHeader test started')
             
@@ -1397,16 +1401,17 @@ classdef AstroHeader < Component
             cd(DataSampleDir);           
 
             % construct an empty AstroHeader
+            io.msgLog(LogLevel.Test, 'testing AstroHeader constructor 1/2')
             A = AstroHeader([2 2]);
             
             % read headers to AstroHeader, on construction
+            io.msgLog(LogLevel.Test, 'testing AstroHeader constructor 2/2')
             H = AstroHeader('*.fits', 1);
             assert(~isempty(H(1).Key.NAXIS));
             assert(~isempty(H(2).Key.DATE));
             
-            
-            
             % getVal()
+            io.msgLog(LogLevel.Test, 'testing AstroHeader getVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME');
             [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','IsInputAlt',true);
@@ -1416,12 +1421,14 @@ classdef AstroHeader < Component
             [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','UseDict',false);
 
             % getStructKey()
+            io.msgLog(LogLevel.Test, 'testing AstroHeader getStructKey')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [Result,C] = getStructKey(H, {'EXPTIME'});
             [Result,C] = getStructKey(H, {'EXPTIME','A'});
             [Result,C] = getStructKey(H, {'EXPTIME','A'},'UseDict',false);
 
             % getCellKey
+            io.msgLog(LogLevel.Test, 'testing AstroHeader getCellKey')
             H = AstroHeader('*.fits',1);
             [Result,C] = getStructKey(H, {'EXPTIME','A'});
             [Result,IK] = getCellKey(H, {'EXPTIME','bb'},'UseDict',false);
@@ -1429,10 +1436,12 @@ classdef AstroHeader < Component
             [Result,IK] = getCellKey(H, {'AEXPTIME','bb'});
 
             % insertDefaultComments
+            io.msgLog(LogLevel.Test, 'testing AstroHeader insertDefaultComments')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             insertDefaultComments(H);
             
             % deleteKey
+            io.msgLog(LogLevel.Test, 'testing AstroHeader deleteKey')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             deleteKey(H,{'EXPTIME','A','COMMENT'});
             deleteKey(H,{'EXPTIME','A','SKYSUB\d'}); % use regexp
@@ -1441,35 +1450,67 @@ classdef AstroHeader < Component
             end
 
             % insertKey
+            io.msgLog(LogLevel.Test, 'testing AstroHeader insertKey')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             H.insertKey('stam');
             H.insertKey({'A','','';'B','',''},'end-1');
             show(H);
             
+            % replaceVal
+            io.msgLog(LogLevel.Test, 'testing AstroHeader replaceVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             H.replaceVal({'COMMENT'},{''});
             
+            % isKeyVal
+            io.msgLog(LogLevel.Test, 'testing AstroHeader isKeyVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             isKeyVal([H, H],'EXPTIME',300);
             isKeyVal([H;H], 'KSPOTS','off');
             isKeyVal([H;H], 'KSPOTS','off','ValCaseSens',true);
 
+            % isKeyExist
+            io.msgLog(LogLevel.Test, 'testing AstroHeader isKeyExist')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             isKeyExist([H, H],'EXPTIME');
             isKeyExist([H, H],'AEXPTIME');
             isKeyExist([H; H],'AEXPTIME','IsInputAlt',true);
             isKeyExist([H, H],'aaa');
             
+            % julday
+            io.msgLog(LogLevel.Test, 'testing AstroHeader julday')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [JD,ET] = julday(H);
             [JD,ET] = julday([H;H]);
 
+            % groupByKeyVal
+            io.msgLog(LogLevel.Test, 'testing AstroHeader groupByKeyVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             Groups = groupByKeyVal([H,H],{'IMTYPE','FILTER1','EXPTIME'});
             
             H = AstroHeader('*.fits',1);
             Groups = groupByKeyVal([H,H],{'IMTYPE','FILTER1','EXPTIME'});
             
+            % show
+            io.msgLog(LogLevel.Test, 'testing AstroHeader show')
+            H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            H.show();
+            
+            % createBasicHeader
+            io.msgLog(LogLevel.Test, 'testing AstroHeader createBasicHeader')
+            H = AstroHeader.createBasicHeader;
+            H = AstroHeader.createBasicHeader(1,{'WINDDIR',11;'M_STAT','ok';'NEW',1});
+            H = AstroHeader.createBasicHeader(1,{'WINDDIR',11,'aa';'M_STAT','ok','jj'});
+            H = AstroHeader.createBasicHeader([1 2],'WINDDIR',11,'M_STAT','ok','NEW',1); 
+            
+            % funUnary -- usage unclear
+            io.msgLog(LogLevel.Test, 'testing AstroHeader funUnary')
+            H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            funUnary(H,@sin);
+            
+            % isImType
+            io.msgLog(LogLevel.Test, 'testing AstroHeader isImType')
+            H=AstroHeader('*.fits');
+            Ans = isImType(H, 'bias');            
             
             cd(PWD);      
 
