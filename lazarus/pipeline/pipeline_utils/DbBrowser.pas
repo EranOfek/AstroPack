@@ -68,8 +68,22 @@ implementation
 
 var
     Proc: TRunProc;
+    AstroPath: String;
 
 { TDbBrowserForm }
+
+procedure TDbBrowserForm.FormCreate(Sender: TObject);
+begin
+  Proc := TRunProc.Create;
+  Proc.Init;
+  Proc.Memo1 := Memo1;
+  Proc.StatusBar1 := StatusBar1;
+
+  ComboXlsFile.Text := OpenDialogXls.InitialDir + PathDelim + OpenDialogXls.FileName;
+
+  AstroPath := GetEnvironmentVariable('ASTROPACKPATH');
+end;
+
 
 procedure TDbBrowserForm.BtnSelectXlsxFileClick(Sender: TObject);
 begin
@@ -85,14 +99,6 @@ begin
 
 end;
 
-procedure TDbBrowserForm.FormCreate(Sender: TObject);
-begin
-  Proc := TRunProc.Create;
-  Proc.Init;
-  Proc.Memo1 := Memo1;
-  Proc.StatusBar1 := StatusBar1;
-end;
-
 procedure TDbBrowserForm.BtnSelectOutputSqlFolderClick(Sender: TObject);
 begin
   //
@@ -106,16 +112,14 @@ end;
 procedure TDbBrowserForm.BtnConvertXlsToSqlClick(Sender: TObject);
 var
   Lines: TStringList;
-  ScriptFileName: String;
-  Params: String;
-  Cmd: String;
+  ScriptFileName, Params, Cmd: String;
 begin
-
-  ScriptFileName := 'python3 D:\Ultrasat\AstroPack.git\python\utils\database_utils\xlsx2sql.py';
-  Params := '-f D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest__tables.xlsx';
-  Cmd := ScriptFileName + ' ' + Params;
-
+  ScriptFileName := AstroPath + PathDelim + 'python\utils\database_utils\xlsx2sql.py';
+  Params := '-f ' + ComboXlsFile.Text;
+  Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
   Proc.Run(Cmd);
+
+
   //Proc.Destroy();
   {
   Lines := TStringList.Create;
@@ -131,9 +135,14 @@ end;
 
 procedure TDbBrowserForm.BtnCreateDbClick(Sender: TObject);
 var
-  Cmd: String;
+  ScriptFileName, Params, Cmd: String;
 begin
-  Cmd := 'psql -U postgres -f D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest\t2.sql';
+    ScriptFileName := AstroPath + PathDelim + 'python\utils\database_utils\create_db.py';
+    Params := '-f ' + ComboXlsFile.Text;
+    Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
+    Proc.Run(Cmd);
+
+  //Cmd := 'psql -U postgres -f D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest\t2.sql';
   Proc.Run(Cmd);
 end;
 
