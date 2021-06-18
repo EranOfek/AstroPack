@@ -56,18 +56,18 @@
         <ResourceBaseClass Value="Form"/>
       </Unit2>
       <Unit3>
-        <Filename Value="..\packages\vcllazarus\LogPanel.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit3>
-      <Unit4>
         <Filename Value="DbBrowser.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DbBrowserForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="..\..\packages\utils\LogPanel.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="..\lib\RunProc.pas"/>
+        <Filename Value="..\..\packages\utils\RunProc.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit5>
     </Units>
@@ -80,7 +80,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..\packages\vcllazarus;..\lib"/>
+      <OtherUnitFiles Value="..\packages\vcllazarus;..\..\packages\utils"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
