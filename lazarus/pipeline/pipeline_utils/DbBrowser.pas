@@ -70,6 +70,15 @@ var
     Proc: TRunProc;
     AstroPath: String;
 
+function AstroFile(FileName: String) : String;
+begin
+  FileName := StringReplace(FileName, '/', PathDelim, [rfReplaceAll]);
+  FileName := StringReplace(FileName, '\', PathDelim, [rfReplaceAll]);
+  FileName := AstroPath + PathDelim + FileName;
+  Result := FileName;
+end;
+
+
 { TDbBrowserForm }
 
 procedure TDbBrowserForm.FormCreate(Sender: TObject);
@@ -112,11 +121,18 @@ end;
 procedure TDbBrowserForm.BtnConvertXlsToSqlClick(Sender: TObject);
 var
   Lines: TStringList;
-  ScriptFileName, Params, Cmd: String;
+  ScriptFileName, FileName, Params, Cmd: String;
 begin
-  ScriptFileName := AstroPath + PathDelim + 'python\utils\database_utils\xlsx2sql.py';
-  Params := '-f ' + ComboXlsFile.Text;
+  ScriptFileName := AstroFile('python/utils/database_utils/xlsx2sql.py');
+  //Params := '-f ' + ComboXlsFile.Text;
+
+  FileName := AstroFile('python/utils/database_utils/db/lastdb__tables.xlsx');
+  Params := '-f ' + FileName;
   Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
+
+  //Cmd := 'ls /etc/';
+  Memo1.Lines.Add(Cmd);
+
   Proc.Run(Cmd);
 
 
@@ -137,6 +153,9 @@ procedure TDbBrowserForm.BtnCreateDbClick(Sender: TObject);
 var
   ScriptFileName, Params, Cmd: String;
 begin
+  //Memo1.VertScrollBar.Position:=1000;
+  //Exit;
+
     ScriptFileName := AstroPath + PathDelim + 'python\utils\database_utils\create_db.py';
     Params := '-f ' + ComboXlsFile.Text;
     Cmd := 'python3 ' + ScriptFileName + ' ' + Params;

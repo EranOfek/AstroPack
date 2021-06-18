@@ -2,15 +2,15 @@
 <CONFIG>
   <ProjectSession>
     <PathDelim Value="\"/>
-    <Version Value="11"/>
+    <Version Value="10"/>
     <BuildModes Active="Default"/>
-    <Units Count="25">
+    <Units Count="26">
       <Unit0>
         <Filename Value="PipelineUtils.lpr"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="53" Y="15"/>
-        <UsageCount Value="43"/>
+        <UsageCount Value="46"/>
       </Unit0>
       <Unit1>
         <Filename Value="About.pas"/>
@@ -21,7 +21,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="27"/>
         <CursorPos X="3" Y="52"/>
-        <UsageCount Value="43"/>
+        <UsageCount Value="46"/>
       </Unit1>
       <Unit2>
         <Filename Value="Main.pas"/>
@@ -32,33 +32,49 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="33"/>
         <CursorPos X="18" Y="128"/>
-        <UsageCount Value="43"/>
+        <UsageCount Value="46"/>
       </Unit2>
       <Unit3>
-        <Filename Value="..\packages\vcllazarus\LogPanel.pas"/>
-        <EditorIndex Value="-1"/>
-        <UsageCount Value="39"/>
-      </Unit3>
-      <Unit4>
         <Filename Value="DbBrowser.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DbBrowserForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <TopLine Value="103"/>
-        <CursorPos X="53" Y="112"/>
-        <UsageCount Value="29"/>
+        <IsVisibleTab Value="True"/>
+        <TopLine Value="136"/>
+        <CursorPos X="18" Y="156"/>
+        <UsageCount Value="32"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="..\..\packages\utils\LogPanel.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="25"/>
       </Unit4>
       <Unit5>
+        <Filename Value="..\..\packages\utils\RunProc.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="46"/>
+        <CursorPos Y="59"/>
+        <UsageCount Value="25"/>
+        <Loaded Value="True"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="..\packages\vcllazarus\LogPanel.pas"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="39"/>
+      </Unit6>
+      <Unit7>
         <Filename Value="..\lib\RunProc.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="55"/>
         <CursorPos X="139" Y="72"/>
         <UsageCount Value="22"/>
-      </Unit5>
-      <Unit6>
+      </Unit7>
+      <Unit8>
         <Filename Value="Main.lfm"/>
         <EditorIndex Value="-1"/>
         <WindowIndex Value="-1"/>
@@ -66,265 +82,252 @@
         <CursorPos X="-1" Y="-1"/>
         <UsageCount Value="18"/>
         <DefaultSyntaxHighlighter Value="LFM"/>
-      </Unit6>
-      <Unit7>
+      </Unit8>
+      <Unit9>
         <Filename Value="C:\Bin\Lazarus\lcl\graphics.pp"/>
         <UnitName Value="Graphics"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="55"/>
         <CursorPos X="13" Y="57"/>
         <UsageCount Value="14"/>
-      </Unit7>
-      <Unit8>
+      </Unit9>
+      <Unit10>
         <Filename Value="C:\Bin\Lazarus\components\lazutils\graphtype.pp"/>
         <UnitName Value="GraphType"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="24"/>
         <CursorPos X="3" Y="35"/>
         <UsageCount Value="14"/>
-      </Unit8>
-      <Unit9>
+      </Unit10>
+      <Unit11>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win\wininc\struct.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="210"/>
         <CursorPos X="6" Y="223"/>
         <UsageCount Value="14"/>
-      </Unit9>
-      <Unit10>
+      </Unit11>
+      <Unit12>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\inc\systemh.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="467"/>
         <CursorPos X="3" Y="479"/>
         <UsageCount Value="14"/>
-      </Unit10>
-      <Unit11>
+      </Unit12>
+      <Unit13>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win64\classes.pp"/>
         <UnitName Value="Classes"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="14"/>
-      </Unit11>
-      <Unit12>
+      </Unit13>
+      <Unit14>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\inc\typshrdh.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="130"/>
         <CursorPos X="3" Y="101"/>
         <UsageCount Value="14"/>
-      </Unit12>
-      <Unit13>
+      </Unit14>
+      <Unit15>
         <Filename Value="C:\Bin\Lazarus\lcl\include\canvas.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="1796"/>
         <CursorPos Y="1810"/>
         <UsageCount Value="13"/>
-      </Unit13>
-      <Unit14>
+      </Unit15>
+      <Unit16>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win\sysutils.pp"/>
         <UnitName Value="SysUtils"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="41" Y="12"/>
         <UsageCount Value="13"/>
-      </Unit14>
-      <Unit15>
+      </Unit16>
+      <Unit17>
         <Filename Value="C:\Bin\python4lazarus\Source\PythonEngine.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="2628"/>
         <CursorPos X="35" Y="2636"/>
         <UsageCount Value="10"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit15>
-      <Unit16>
+      </Unit17>
+      <Unit18>
         <Filename Value="D:\Lazarus\UnTerminal-1.0\UnTerminal-1.0\UnTerminal.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="152"/>
         <CursorPos X="55" Y="179"/>
         <UsageCount Value="10"/>
-      </Unit16>
-      <Unit17>
+      </Unit18>
+      <Unit19>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\packages\fcl-process\src\process.pp"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="19"/>
         <CursorPos X="12" Y="58"/>
         <UsageCount Value="10"/>
-      </Unit17>
-      <Unit18>
+      </Unit19>
+      <Unit20>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\packages\fcl-process\src\processbody.inc"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="5"/>
         <UsageCount Value="10"/>
-      </Unit18>
-      <Unit19>
+      </Unit20>
+      <Unit21>
         <Filename Value="..\lib\UnTerminal.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="7"/>
         <CursorPos X="99" Y="21"/>
         <UsageCount Value="10"/>
-      </Unit19>
-      <Unit20>
+      </Unit21>
+      <Unit22>
         <Filename Value="C:\Bin\Lazarus\lcl\include\control.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="3925"/>
         <CursorPos Y="3945"/>
         <UsageCount Value="10"/>
-      </Unit20>
-      <Unit21>
+      </Unit22>
+      <Unit23>
         <Filename Value="DbBrowser.lfm"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="45"/>
         <CursorPos X="32" Y="66"/>
         <UsageCount Value="10"/>
         <DefaultSyntaxHighlighter Value="LFM"/>
-      </Unit21>
-      <Unit22>
-        <Filename Value="..\..\packages\utils\LogPanel.pas"/>
-        <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <UsageCount Value="22"/>
-      </Unit22>
-      <Unit23>
-        <Filename Value="..\..\packages\utils\RunProc.pas"/>
-        <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="1"/>
-        <TopLine Value="46"/>
-        <CursorPos X="73" Y="52"/>
-        <UsageCount Value="22"/>
-        <Loaded Value="True"/>
       </Unit23>
       <Unit24>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\objpas\sysutils\sysutilh.inc"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="266"/>
         <CursorPos X="3" Y="281"/>
         <UsageCount Value="11"/>
-        <Loaded Value="True"/>
       </Unit24>
+      <Unit25>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="287"/>
+        <CursorPos X="32" Y="296"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit25>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="99" Column="18" TopLine="91"/>
+        <Caret Line="131" Column="14" TopLine="114"/>
       </Position1>
       <Position2>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="101" Column="18" TopLine="93"/>
+        <Caret Line="134" Column="46" TopLine="114"/>
       </Position2>
       <Position3>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="118" Column="113" TopLine="100"/>
+        <Caret Line="130" TopLine="114"/>
       </Position3>
       <Position4>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="119" Column="113" TopLine="101"/>
+        <Caret Line="125" Column="14" TopLine="102"/>
       </Position4>
       <Position5>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="118" Column="113" TopLine="100"/>
+        <Caret Line="78" Column="33" TopLine="58"/>
       </Position5>
       <Position6>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="119" Column="113" TopLine="101"/>
+        <Caret Line="126" Column="37" TopLine="116"/>
       </Position6>
       <Position7>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="118" Column="113" TopLine="100"/>
+        <Caret Line="131" TopLine="116"/>
       </Position7>
       <Position8>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="117" Column="113" TopLine="99"/>
+        <Caret Line="133" Column="29" TopLine="110"/>
       </Position8>
       <Position9>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="116" Column="113" TopLine="98"/>
+        <Caret Line="132" Column="11" TopLine="110"/>
       </Position9>
       <Position10>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="115" Column="113" TopLine="97"/>
+        <Caret Line="133" Column="21" TopLine="110"/>
       </Position10>
       <Position11>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="114" Column="113" TopLine="96"/>
+        <Caret Line="135" TopLine="111"/>
       </Position11>
       <Position12>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="113" Column="113" TopLine="95"/>
+        <Filename Value="..\..\packages\utils\RunProc.pas"/>
+        <Caret Line="58" TopLine="46"/>
       </Position12>
       <Position13>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="112" Column="113" TopLine="94"/>
+        <Filename Value="..\..\packages\utils\RunProc.pas"/>
+        <Caret Line="59" TopLine="46"/>
       </Position13>
       <Position14>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="111" Column="113" TopLine="93"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="303" TopLine="288"/>
       </Position14>
       <Position15>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="110" Column="113" TopLine="92"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="304" TopLine="288"/>
       </Position15>
       <Position16>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="119" Column="113" TopLine="101"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="305" TopLine="288"/>
       </Position16>
       <Position17>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="126" Column="80" TopLine="109"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="307" TopLine="288"/>
       </Position17>
       <Position18>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="8" Column="15" TopLine="6"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="308" TopLine="288"/>
       </Position18>
       <Position19>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="17" Column="41" TopLine="6"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="310" TopLine="288"/>
       </Position19>
       <Position20>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="81" Column="55" TopLine="66"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="316" TopLine="292"/>
       </Position20>
       <Position21>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="8" Column="12"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="317" TopLine="293"/>
       </Position21>
       <Position22>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="81" Column="51" TopLine="66"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="282" TopLine="268"/>
       </Position22>
       <Position23>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="114" Column="42" TopLine="102"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="284" TopLine="268"/>
       </Position23>
       <Position24>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="112" Column="56" TopLine="102"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="285" TopLine="268"/>
       </Position24>
       <Position25>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="117" Column="14" TopLine="102"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="286" TopLine="268"/>
       </Position25>
       <Position26>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="116" Column="18" TopLine="102"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="287" TopLine="268"/>
       </Position26>
       <Position27>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="121" Column="26" TopLine="102"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="289" TopLine="268"/>
       </Position27>
       <Position28>
-        <Filename Value="DbBrowser.pas"/>
-        <Caret Line="72" Column="5" TopLine="66"/>
+        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
+        <Caret Line="290" TopLine="268"/>
       </Position28>
       <Position29>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="125" TopLine="112"/>
+        <Caret Line="129" Column="50" TopLine="111"/>
       </Position29>
       <Position30>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="140" Column="85" TopLine="122"/>
+        <Caret Line="136" Column="19" TopLine="121"/>
       </Position30>
     </JumpHistory>
-    <RunParams>
-      <FormatVersion Value="2"/>
-      <Modes Count="0" ActiveMode=""/>
-    </RunParams>
   </ProjectSession>
   <Debugging>
     <BreakPoints Count="3">

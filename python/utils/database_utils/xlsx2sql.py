@@ -13,8 +13,11 @@
 #
 # Requirements:
 #
-#       sudo apt install python3-pip
-#       pip3 install pyyaml openpyxl psycopg2
+#   Ubutnu:
+# 	sudo apt-get install libpq-dev
+# 	sudo pip3 install Psycopg2
+
+#   pip3 install pyyaml openpyxl psycopg2
 #
 # psql -V
 # psql -U postgres -f __unittest.sql
@@ -1071,7 +1074,7 @@ def extract_xlsx(filename):
     path, fname = os.path.split(filename)
     fn, ext = os.path.splitext(fname)
 
-    db = fn.split('__')[0]
+    db = fn.split('__')[0].lower()
     out_path = os.path.join(path, db)
     log('output folder: ' + out_path)
     if not os.path.exists(out_path):
@@ -1087,7 +1090,7 @@ def extract_xlsx(filename):
     csv_count = 0
     for i, sheet_name in enumerate(wb.sheetnames):
         sheet = wb.worksheets[i]
-        csv_fname = os.path.join(out_path, db + ' - ' + sheet_name + '.csv')
+        csv_fname = os.path.join(out_path, db + ' - ' + sheet_name.lower() + '.csv')
         log('write csv file: ' + csv_fname)
         with open(csv_fname, 'w', newline="") as f:
             c = csv.writer(f)
@@ -1112,8 +1115,7 @@ def process_xlsx_file(filename):
     # Extract all sheets from xlsx file to output folder
     global XLSX_FILENAME
     XLSX_FILENAME = filename
-    filename_lower = filename.lower()
-    out_path = extract_xlsx(filename_lower)
+    out_path = extract_xlsx(filename)
 
     # Process all sheets in folder
     process_folder(out_path, ['.csv'], False)
@@ -1127,8 +1129,7 @@ def process_csv_file(filename):
         log('file not found: ' + filename)
         return
 
-    filename_lower = filename.lower()
-    path, fname = os.path.split(filename_lower)
+    path, fname = os.path.split(filename)
 
     # Skip [common fields csv files]
     if fname.find('(') > -1:
@@ -1139,8 +1140,8 @@ def process_csv_file(filename):
         log('')
         db = DatabaseDef()
         db.origin_filename = XLSX_FILENAME
-        db.set_db(filename_lower)
-        db.load_table_csv(filename_lower)
+        db.set_db(filename)
+        db.load_table_csv(filename)
         if len(db.field_list) > 0:
 
             if GEN_POSTGRES:
@@ -1164,13 +1165,10 @@ def process_folder(fpath, ext_list, subdirs = True):
 
     # Step 1:
     for filename in flist:
-        filename_lower = filename.lower()
-        path, fname = os.path.split(filename_lower)
 
         # Prepare list of common fields
         for ext in ext_list:
-            ext = ext.lower()
-            if filename_lower.endswith(ext):
+            if filename.lower().endswith(ext.lower()):
 
                 if ext == '.xlsx':
                     process_xlsx_file(filename)

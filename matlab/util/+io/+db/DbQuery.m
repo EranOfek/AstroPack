@@ -219,9 +219,9 @@ classdef DbQuery < Component
             Obj.ResultSet = [];
             Obj.Record = [];
             Obj.Metadata = [];        
-            Obj.ColumnCount = 0;
-            Obj.ColumnNames  = [];
-            Obj.ColumnType  = [];
+            Obj.ColCount = 0;
+            Obj.ColNames  = [];
+            Obj.ColType  = [];
             Result = true;
         end
         
@@ -234,9 +234,9 @@ classdef DbQuery < Component
         
         function Result = getMetadata(Obj)
             %
-            Obj.ColumnCount = 0;
-            Obj.ColumnNames = {};
-            Obj.ColumnType = {};
+            Obj.ColCount = 0;
+            Obj.ColNames = {};
+            Obj.ColType = {};
             
             Result = false;
             try
@@ -247,16 +247,16 @@ classdef DbQuery < Component
 
             try
                 % http://docs.oracle.com/javase/7/docs/api/java/sql/Types.html
-                Obj.ColumnCount = Obj.Metadata.getColumnCount();
-                Obj.msgLog(LogLevel.Debug, 'DbQuery.getMetadata: ColumnCount = %d', Obj.ColumnCount);
-                %data = cell(0, Obj.ColumnCount);
-                for ColIndex = Obj.ColumnCount : -1 : 1
-                    Obj.ColumnNames{ColIndex} = char(Obj.Metadata.getColumnLabel(ColIndex));
-                    Obj.ColumnType{ColIndex}  = char(Obj.Metadata.getColumnClassName(ColIndex));  
+                Obj.ColCount = Obj.Metadata.getColumnCount();
+                Obj.msgLog(LogLevel.Debug, 'DbQuery.getMetadata: ColumnCount = %d', Obj.ColCount);
+                %data = cell(0, Obj.ColCount);
+                for ColIndex = Obj.ColCount : -1 : 1
+                    Obj.ColNames{ColIndex} = char(Obj.Metadata.getColumnLabel(ColIndex));
+                    Obj.ColType{ColIndex}  = char(Obj.Metadata.getColumnClassName(ColIndex));  
                 end
                 
                 % Remove 'java.lang.' frm field types, leave 'Double' etc.
-                Obj.ColumnType = regexprep(Obj.ColumnType, '.*\.',''); 
+                Obj.ColType = regexprep(Obj.ColType, '.*\.',''); 
                 Result = true;
 
             catch
@@ -371,7 +371,7 @@ classdef DbQuery < Component
                 
             if ColIndex > 0
                 try 
-                    Type = Obj.ColumnType{ColIndex};
+                    Type = Obj.ColType{ColIndex};
                     
                     switch Type
                         case { 'Float', 'Double' }
@@ -421,9 +421,9 @@ classdef DbQuery < Component
         
         
         function Result = getFieldIndex(Obj, FieldName)
-            % Get field index in ColumnNames{}
+            % Get field index in ColNames{}
             
-            Result = find(strcmp(Obj.ColumnNames, FieldName));
+            Result = find(strcmp(Obj.ColNames, FieldName));
         end
          
         
@@ -437,7 +437,7 @@ classdef DbQuery < Component
             end
                 
             if Index > 0                
-                Result = Obj.ColumnType{Index};
+                Result = Obj.ColType{Index};
             else
             end
         end  
@@ -447,7 +447,7 @@ classdef DbQuery < Component
             % Get fields list as celarray
             
             % Loop over all columns in the row
-            Result = Obj.ColumnNames;
+            Result = Obj.ColNames;
         end
         
         
@@ -480,9 +480,9 @@ classdef DbQuery < Component
             Rec = io.db.DbRecord(Obj);
             
             % Loop over all columns in the row
-            for ColIndex = 1 : Obj.ColumnCount
+            for ColIndex = 1 : Obj.ColCount
                 
-                FieldName = Obj.ColumnNames{ColIndex};
+                FieldName = Obj.ColNames{ColIndex};
                 Value = Obj.getField(ColIndex);                           
                 addprop(Rec, FieldName);
                 Rec.(FieldName) = Value;
@@ -534,15 +534,15 @@ classdef DbQuery < Component
             tic();
             
             % Initialize
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColumnCount);
-            Result = cell(0, Obj.ColumnCount);
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, ColumnCount = %d', Obj.ColCount);
+            Result = cell(0, Obj.ColCount);
             
             % Loop over all ResultSet rows (records)
             RowIndex = 1;
             while ~Obj.Eof
                 
                 % Loop over all columns in the row
-                for ColIndex = 1 : Obj.ColumnCount
+                for ColIndex = 1 : Obj.ColCount
                     Value = Obj.getField(ColIndex);
                     Result{RowIndex, ColIndex} = Value;
                 end
@@ -577,10 +577,10 @@ classdef DbQuery < Component
             tic();
             
             % Initialize
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadTable, ColumnCount = %d', Obj.ColumnCount);
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadTable, ColCount = %d', Obj.ColCount);
             
             % Create empty table
-            Fields = Obj.ColumnNames;
+            Fields = Obj.ColNames;
             Result = table(Fields);
             
             % Loop over all ResultSet rows (records)
@@ -589,7 +589,7 @@ classdef DbQuery < Component
                 
                 % Loop over all columns in the row
                 Record = {};
-                for ColIndex = 1 : Obj.ColumnCount
+                for ColIndex = 1 : Obj.ColCount
                     Value = Obj.getField(ColIndex);
                     Record{1, ColIndex} = Value;
                 end
@@ -647,7 +647,7 @@ classdef DbQuery < Component
             % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
             Q = io.db.DbQuery(Conn);
             Q.query('SELECT version()');
-            assert(Q.ColumnCount == 1);
+            assert(Q.ColCount == 1);
             pgver = Q.getField('version');
             io.msgLog(LogLevel.Test, 'Version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));
@@ -663,7 +663,7 @@ classdef DbQuery < Component
             if count > 0
             
                 Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
-                assert(Q.ColumnCount == 2);
+                assert(Q.ColCount == 2);
                 
                 % Get fields list as celarray
                 fields = Q.getFieldList();
@@ -688,12 +688,12 @@ classdef DbQuery < Component
                 Data = Q.loadAll();
                 assert(size(Data, 2) == 2);
 
-                % Load as table
-                Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
-                Tab = Q.loadTable();
-                sz = size(Tab)
-                assert(sz(1) > 1);
-                assert(sz(2) > 1);
+%                 % Load as table
+%                 Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
+%                 Tab = Q.loadTable();
+%                 sz = size(Tab)
+%                 assert(sz(1) > 1);
+%                 assert(sz(2) > 1);
                 
                 % Select all fields from table, using LIMIT
                 Q.query(['SELECT * FROM master_table LIMIT 10']);

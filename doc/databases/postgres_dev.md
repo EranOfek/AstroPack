@@ -60,3 +60,20 @@ https://www.mathworks.com/help/database/ug/database.html
 
 pgAdmin4 password: pass
 
+
+
+### Install psycopg2 on Ubuntu
+
+https://www.codevoila.com/post/2/python3-connect-postgresql-with-psycopg2-on-ubuntu
+
+	sudo apt-get install libpq-dev
+	sudo pip3 install Psycopg2
+
+
+
+	
+	
+### Create database/ug/database
+
+psql -U postgres -f __lastdb_postgres.sql	
+
