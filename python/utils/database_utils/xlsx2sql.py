@@ -1168,7 +1168,7 @@ def process_folder(fpath, ext_list, subdirs = True):
 
         # Prepare list of common fields
         for ext in ext_list:
-            if filename.lower.endswith(ext.lower()):
+            if filename.lower().endswith(ext.lower()):
 
                 if ext == '.xlsx':
                     process_xlsx_file(filename)
