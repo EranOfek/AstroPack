@@ -1614,6 +1614,7 @@ classdef AstroImage < Component
             %            or 'center' [Xcenter, Ycenter, Xhalfsize, Yhalfsize].
             %            If multiple lines then each line corresponding to
             %            an AstroImage element.
+            %            If empty, then do not crop.
             %          * ...,key,val,...
             %            'Type' - ['ccdsec'] | 'center'
             %            'DataProp' - A cell array of image data properties
@@ -1667,42 +1668,45 @@ classdef AstroImage < Component
                 Result = Obj;
             end
 
-            KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}; %,'ORIGUSEC','UNIQSEC'};
-            KeyVals  = cell(size(KeyNames));
+            if isempty(CCDSEC)
+                % do nothing - no crop
+            else
+                % crop
+                KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}; %,'ORIGUSEC','UNIQSEC'};
+                KeyVals  = cell(size(KeyNames));
 
-            Nobj  = numel(Obj);
-            Nprop = numel(Args.DataProp);
-            Nsec  = size(CCDSEC,1);
-            for Iobj=1:1:Nobj
-                Isec = min(Iobj, Nsec);
-                for Iprop=1:1:Nprop
-                    Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
-                                                    'Type',Args.Type,...
-                                                    'DataPropIn',Args.DataPropIn,...
-                                                    'CreateNewObj',false);
-                end
-                % make sure CCDSEC is in 'ccdsec' format and not 'center'
-                NewCCDSEC = Result(Iobj).(Args.DataProp{1}).CCDSEC;
-                
-                if Args.UpdateCat
-                    Result(Iobj).CatData = cropXY(Result(Iobj).CatData, NewCCDSEC,...
-                                                  'CreateNewObj',Args.CreateNewObj,...
-                                                  Args.cropXYargs{:});
-                end
-                if Args.UpdateWCS
-                    % FFU
-                    warning('UpdateWCS in AstroImage/crop is not implemented');
-                end
-                if Args.UpdateHeader
-                    SizeIm = size(Result(Iobj).Image);
-                    KeyVals{1} = SizeIm(2);  % NAXIS1
-                    KeyVals{2} = SizeIm(1);  % NAXIS2
-                    KeyVals{3} = imUtil.ccdsec.ccdsec2str([1 SizeIm(2) 1 SizeIm(1)]);  % CCDSEC
-                    KeyVals{4} = imUtil.ccdsec.ccdsec2str(NewCCDSEC);   % ORIGSEC
-                    Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, KeyNames, KeyVals);
-                end
+                Nobj  = numel(Obj);
+                Nprop = numel(Args.DataProp);
+                Nsec  = size(CCDSEC,1);
+                for Iobj=1:1:Nobj
+                    Isec = min(Iobj, Nsec);
+                    for Iprop=1:1:Nprop
+                        Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
+                                                        'Type',Args.Type,...
+                                                        'DataPropIn',Args.DataPropIn,...
+                                                        'CreateNewObj',false);
+                    end
+                    % make sure CCDSEC is in 'ccdsec' format and not 'center'
+                    NewCCDSEC = Result(Iobj).(Args.DataProp{1}).CCDSEC;
 
-
+                    if Args.UpdateCat
+                        Result(Iobj).CatData = cropXY(Result(Iobj).CatData, NewCCDSEC,...
+                                                      'CreateNewObj',Args.CreateNewObj,...
+                                                      Args.cropXYargs{:});
+                    end
+                    if Args.UpdateWCS
+                        % FFU
+                        warning('UpdateWCS in AstroImage/crop is not implemented');
+                    end
+                    if Args.UpdateHeader
+                        SizeIm = size(Result(Iobj).Image);
+                        KeyVals{1} = SizeIm(2);  % NAXIS1
+                        KeyVals{2} = SizeIm(1);  % NAXIS2
+                        KeyVals{3} = imUtil.ccdsec.ccdsec2str([1 SizeIm(2) 1 SizeIm(1)]);  % CCDSEC
+                        KeyVals{4} = imUtil.ccdsec.ccdsec2str(NewCCDSEC);   % ORIGSEC
+                        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, KeyNames, KeyVals);
+                    end
+                end
             end
         end
 
