@@ -1129,8 +1129,7 @@ def process_csv_file(filename):
         log('file not found: ' + filename)
         return
 
-    filename_lower = filename.lower()
-    path, fname = os.path.split(filename_lower)
+    path, fname = os.path.split(filename)
 
     # Skip [common fields csv files]
     if fname.find('(') > -1:
@@ -1141,8 +1140,8 @@ def process_csv_file(filename):
         log('')
         db = DatabaseDef()
         db.origin_filename = XLSX_FILENAME
-        db.set_db(filename_lower)
-        db.load_table_csv(filename_lower)
+        db.set_db(filename)
+        db.load_table_csv(filename)
         if len(db.field_list) > 0:
 
             if GEN_POSTGRES:
@@ -1166,13 +1165,10 @@ def process_folder(fpath, ext_list, subdirs = True):
 
     # Step 1:
     for filename in flist:
-        filename_lower = filename.lower()
-        path, fname = os.path.split(filename_lower)
 
         # Prepare list of common fields
         for ext in ext_list:
-            ext = ext.lower()
-            if filename_lower.endswith(ext):
+            if filename.lower.endswith(ext.lower()):
 
                 if ext == '.xlsx':
                     process_xlsx_file(filename)
