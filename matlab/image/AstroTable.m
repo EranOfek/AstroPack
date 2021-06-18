@@ -625,7 +625,9 @@ classdef AstroTable < Component %ImageComponent
                 if OutputIsTable
                     Result = array2table(Obj.Catalog(:,ColInd));
                     Result.Properties.VariableNames = Obj.ColNames(ColInd);
-                    Result.Properties.VariableUnits = Obj.ColUnits(ColInd);
+                    if ~isempty(Obj.ColUnits)
+                        Result.Properties.VariableUnits = Obj.ColUnits(ColInd);
+                    end
                 else
                     Result = Obj.Catalog(:,ColInd);
                 end
