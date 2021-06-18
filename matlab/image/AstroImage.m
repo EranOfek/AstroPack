@@ -2026,7 +2026,7 @@ classdef AstroImage < Component
             % Example: AstroImage.unitTest
             %
             % Issues:
-            % -conv returns NaN
+            % -funHeaderScalar returns NaN
             %
             % To do:
             % -Add tests for:
