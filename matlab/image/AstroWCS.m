@@ -27,9 +27,9 @@ classdef AstroWCS < Component
         EQUINOX             = 2000;
         CRPIX(1,:)   double = [0 0];
         CRVAL(1,:)   double = [1 1];
-        CDELT(1,:)   double = [1 1];
         CD           double = [1 0;0 1];
-        PC           double = [];
+%        CDELT(1,:)   double = [1 1];   % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
+%        PC           double = [];      % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
         PV           cell   = {zeros(0,2),zeros(0,2)};
         SIP          cell   = {zeros(0,2),zeros(0,2)};
     end     
@@ -100,7 +100,8 @@ classdef AstroWCS < Component
             ProjTypeDict = Dictionary('DictName','WCS.ProjType');
             CunitDict = Dictionary('DictName','WCS.CUNIT');            
             
-            ctype = Obj.CTYPE;
+      
+           ctype = Obj.CTYPE;
             
             projtype = cell(size(ctype));
             cooname  = cell(size(ctype));
@@ -127,6 +128,8 @@ classdef AstroWCS < Component
             
             Obj.CooName = cooname;
             
+            
+
             Funit = tools.cell.isnan_cell(Obj.CUNIT);
             Obj.CUNIT(Funit) = coounit(Funit);
             
@@ -136,7 +139,8 @@ classdef AstroWCS < Component
     
     
     methods (Static)  % static methods
-       
+
+      
         function Obj = header2wcs(Header)
             % Create and populate an AstroWCS object from an AstroHeader object
 
@@ -158,29 +162,17 @@ classdef AstroWCS < Component
             KeyCunit = cell(1,Naxis);
             KeyCrpix = cell(1,Naxis);
             KeyCrval = cell(1,Naxis);
-            KeyCdelt = cell(1,Naxis);
-            KeysCD = cell(1,Naxis.^2);
-%             KeysPC = cell(1,Naxis.^2);
-            K = 0;
             for Iaxis1 = 1:1:Naxis
                 KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
-                KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1);
+                KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1); 
                 KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
                 KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
-                KeyCdelt{Iaxis1} = sprintf('CDELT%d',Iaxis1);
-                for Iaxis2=1:1:Naxis
-                    K = K + 1;
-                    KeysCD{K} = sprintf('CD%d_%d',Iaxis1,Iaxis2);
-%                     KeysPC{K} = sprintf('PC%d_%d',Iaxis1,Iaxis2);
-                end                    
-                    
             end
-            
-            
+
             % Get CTYPE and transalte to projection information (ProjType,
             % ProjClass) and CooName and CUNIT
             Obj.CTYPE = AH.getCellKey(KeyCtype);
-            Obj.CUNIT = AH.getCellKey(KeyCunit);
+            Obj.CUNIT = AH.getCellKey(KeyCunit);                
             Obj = read_ctype(Obj);
             
             % Get base WCS info
@@ -196,13 +188,35 @@ classdef AstroWCS < Component
             if AH.isKeyExist('EQUINOX')
                 Obj.EQUINOX = AH.getVal('EQUINOX');
             end    
-
+            
             Obj.CRPIX = cell2mat(AH.getCellKey(KeyCrpix));
             Obj.CRVAL = cell2mat(AH.getCellKey(KeyCrval));
-            Obj.CDELT = cell2mat(AH.getCellKey(KeyCdelt));
+            
+            Obj.CD = Obj.readCD(AH,Naxis);
             
             
-            % Read The CD/PC matrix
+            % Read distortions            
+        end
+        
+        function CD = readCD(Header,Naxis)
+            % Read The CD matrix, or PC+CDELT, or CDELT
+            
+            AH = Header;
+            
+            KeysCD = cell(1,Naxis.^2);
+            KeyCdelt = cell(1,Naxis);
+            KeysPC = cell(1,Naxis.^2);
+            K = 0;
+            for Iaxis1 = 1:1:Naxis
+               KeyCdelt{Iaxis1} = sprintf('CDELT%d',Iaxis1);
+               for Iaxis2=1:1:Naxis
+                   K = K + 1;
+                   KeysCD{K} = sprintf('CD%d_%d',Iaxis1,Iaxis2);
+                   KeysPC{K} = sprintf('PC%d_%d',Iaxis1,Iaxis2);
+               end 
+            end
+            
+            % try to get CD matrix
             ValCD = AH.getCellKey(KeysCD);
             K = 0;
             CD = nan(Naxis,Naxis);
@@ -214,40 +228,37 @@ classdef AstroWCS < Component
             end
 
             % treat cases in which not all CD keywords are provided -
-            % assume no rotation.
+            % fill with zeros.
             if (any(isnan(CD(:))) && ~all(isnan(CD(:))))
                 CD(isnan(CD)) = 0;
             end
-
-%             % treat cases in which only CDELT is provided
-%             if all(isnan(CD(:)))
-%                 CD = diag(Obj.CDELT);
-%             end
-%             
-% 
-%             if (any(isnan(CD(:))) || isempty(CD))
-%                 % CD is empty try to read PC
-%                 ValCD = AH.getCellKey(KeysPC);
-%                 K = 0;
-%                 ScaleName = sprintf('CDELT');
-%                 for Iaxes1=1:1:Naxes
-%                     %ScaleName = sprintf('CDELT%d',Iaxes1);
-%                     for Iaxes2=1:1:Naxes
-%                         K = K + 1;
-%                         CD(Iaxes1,1) = ValCD{K}.*W(Ih).(WCSField).(ScaleName)(Iaxes1);
-%                     end
-%                 end
-% 
-%             end
-            Obj.CD = CD;
             
+            % treat cases in which CD matrix is not provided
+            if all(isnan(CD(:)))
+                ValCdelt = cell2mat(AH.getCellKey(KeyCdelt));
+                ValPC = cell2mat(AH.getCellKey(KeysPC));
+                
+                if ~all(isnan(ValPC))  && ~any(isnan(ValCdelt))   % Both PC and CDELT are provided
+                    
+                    ValPC(isnan(ValPC)) = 0; % treat cases in which not all PC keywords are provided - fill with zeros  
+                    K = 0;
+                    for Iaxis1=1:1:Naxis
+                        for Iaxis2=1:1:Naxis
+                            K = K + 1;
+                            CD(Iaxis1,Iaxis2) = ValPC(K) * ValCdelt(Iaxis1);
+                        end
+                    end           
+                                   
+                elseif   ~any(isnan(ValCdelt)) % only CDELT is provided 
+                    CD = diag(ValCdelt);
+                    
+                else                      
+                    error('no info for CD matrix');
+                end
+            end
             
-            % Read distortions            
         end
-        
 
-        
-        
         
         
         
@@ -595,31 +606,6 @@ classdef AstroWCS < Component
             end
         end   
         
-        function ProjClass=classify_projection(ProjType)
-        % classify projection type
-        % Package: @wcsCl (Static, utilities)
-        % Example: ProjClass=wcsCl.classify_projection('TAN')
-
-            switch lower(ProjType)
-                case {'none','',char(zeros(1,0))}
-                    ProjClass = 'none';
-                case {'tan','tpv','tan-sip','sin','ncp','azp','szp','stg','arc','zpn','zea','air'}
-                    ProjClass = 'zenithal';
-                case {'cyp','cea','car','mer'}
-                    ProjClass = 'cylindrical';
-                case {'sfl','par','mol','ait'}
-                    ProjClass = 'pseudocylindrical';
-                case {'cop','coe','cod','coo'}
-                    ProjClass = 'conic';
-                case {'bon','pco'}
-                    ProjClass = 'polyconic';  % and pseudoconic
-                case {'tsc','csc','qsc'}
-                    ProjClass = 'quadcube';
-                otherwise
-                    error('Unknown ProjType option (%s)',ProjType);
-            end
-
-        end
         
         function Obj=populate_projMeta(Obj)
             % populate projection and pole information in a wcsCl object
@@ -1989,12 +1975,28 @@ classdef AstroWCS < Component
             % construct an empty AstroWCS
             AW = AstroWCS([2 2]);
             
-            % construct a AstroWCS from an AstroHeader with TAN projection
+            % construct a AstroWCS from an AstroHeader with full TAN projection
             AH = AstroHeader('FOCx38i0101t_c0f.fits');
             AW = AstroWCS.header2wcs(AH);
-            %
             
+            % Test for header without some: CD matrix missing, no CD matrix,  partial PC matrix, no PC matrix
+            ValCD = cell2mat(AH.getCellKey({'CD1_1','CD1_2','CD2_1','CD2_2'}));
+            
+            AH.deleteKey({'CD1_2','CD2_2'});
+            AW = AstroWCS.header2wcs(AH); % should fill with zeros
+            
+            AH.deleteKey({'CD1_1','CD2_1'});
+            AH.insertKey({'CDELT1',ValCD(1);'CDELT2',ValCD(4)}); 
+            AW = AstroWCS.header2wcs(AH); % should give diagonal CD with CDELT
+            
+            AH.insertKey({'PC1_1',1;'PC2_2',1});
+            AW = AstroWCS.header2wcs(AH); % should give diagonal CD using PC and filling with zeros
+            
+            AH.insertKey({'PC1_2',ValCD(2)/ValCD(1);'PC2_1',ValCD(3)/ValCD(4)});
+            AW = AstroWCS.header2wcs(AH); % using CDELT and PC should give identical CD to original
             cd(PWD);   
+            
+            % test other things
             
             io.msgStyle(LogLevel.Test, '@passed', 'AstroWCS test passed')
             Result = true;            

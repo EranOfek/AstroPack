@@ -141,7 +141,7 @@ for Ifn=1:1:Nfn
     Ndir = numel(Tmp);
     for Idir=1:1:Ndir
         FullPath = sprintf('%s%s%s%s%s%s%s',fullfile(Tmp{Idir}{:}));
-        fprintf('AstroPack doStartup() addpath: %s\n', FullPath);
+        % fprintf('AstroPack doStartup() addpath: %s\n', FullPath);
         addpath(FullPath);
         PathCount = PathCount + 1;
     end
