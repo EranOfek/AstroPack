@@ -1614,6 +1614,7 @@ classdef AstroImage < Component
             %            or 'center' [Xcenter, Ycenter, Xhalfsize, Yhalfsize].
             %            If multiple lines then each line corresponding to
             %            an AstroImage element.
+            %            If empty, then do not crop.
             %          * ...,key,val,...
             %            'Type' - ['ccdsec'] | 'center'
             %            'DataProp' - A cell array of image data properties
@@ -1667,42 +1668,45 @@ classdef AstroImage < Component
                 Result = Obj;
             end
 
-            KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}; %,'ORIGUSEC','UNIQSEC'};
-            KeyVals  = cell(size(KeyNames));
+            if isempty(CCDSEC)
+                % do nothing - no crop
+            else
+                % crop
+                KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}; %,'ORIGUSEC','UNIQSEC'};
+                KeyVals  = cell(size(KeyNames));
 
-            Nobj  = numel(Obj);
-            Nprop = numel(Args.DataProp);
-            Nsec  = size(CCDSEC,1);
-            for Iobj=1:1:Nobj
-                Isec = min(Iobj, Nsec);
-                for Iprop=1:1:Nprop
-                    Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
-                                                    'Type',Args.Type,...
-                                                    'DataPropIn',Args.DataPropIn,...
-                                                    'CreateNewObj',false);
-                end
-                % make sure CCDSEC is in 'ccdsec' format and not 'center'
-                NewCCDSEC = Result(Iobj).(Args.DataProp{1}).CCDSEC;
-                
-                if Args.UpdateCat
-                    Result(Iobj).CatData = cropXY(Result(Iobj).CatData, NewCCDSEC,...
-                                                  'CreateNewObj',Args.CreateNewObj,...
-                                                  Args.cropXYargs{:});
-                end
-                if Args.UpdateWCS
-                    % FFU
-                    warning('UpdateWCS in AstroImage/crop is not implemented');
-                end
-                if Args.UpdateHeader
-                    SizeIm = size(Result(Iobj).Image);
-                    KeyVals{1} = SizeIm(2);  % NAXIS1
-                    KeyVals{2} = SizeIm(1);  % NAXIS2
-                    KeyVals{3} = imUtil.ccdsec.ccdsec2str([1 SizeIm(2) 1 SizeIm(1)]);  % CCDSEC
-                    KeyVals{4} = imUtil.ccdsec.ccdsec2str(NewCCDSEC);   % ORIGSEC
-                    Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, KeyNames, KeyVals);
-                end
+                Nobj  = numel(Obj);
+                Nprop = numel(Args.DataProp);
+                Nsec  = size(CCDSEC,1);
+                for Iobj=1:1:Nobj
+                    Isec = min(Iobj, Nsec);
+                    for Iprop=1:1:Nprop
+                        Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
+                                                        'Type',Args.Type,...
+                                                        'DataPropIn',Args.DataPropIn,...
+                                                        'CreateNewObj',false);
+                    end
+                    % make sure CCDSEC is in 'ccdsec' format and not 'center'
+                    NewCCDSEC = Result(Iobj).(Args.DataProp{1}).CCDSEC;
 
-
+                    if Args.UpdateCat
+                        Result(Iobj).CatData = cropXY(Result(Iobj).CatData, NewCCDSEC,...
+                                                      'CreateNewObj',Args.CreateNewObj,...
+                                                      Args.cropXYargs{:});
+                    end
+                    if Args.UpdateWCS
+                        % FFU
+                        warning('UpdateWCS in AstroImage/crop is not implemented');
+                    end
+                    if Args.UpdateHeader
+                        SizeIm = size(Result(Iobj).Image);
+                        KeyVals{1} = SizeIm(2);  % NAXIS1
+                        KeyVals{2} = SizeIm(1);  % NAXIS2
+                        KeyVals{3} = imUtil.ccdsec.ccdsec2str([1 SizeIm(2) 1 SizeIm(1)]);  % CCDSEC
+                        KeyVals{4} = imUtil.ccdsec.ccdsec2str(NewCCDSEC);   % ORIGSEC
+                        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, KeyNames, KeyVals);
+                    end
+                end
             end
         end
 
@@ -2024,6 +2028,28 @@ classdef AstroImage < Component
         function Result = unitTest()
             % unitTest for AstroImage
             % Example: AstroImage.unitTest
+            %
+            % Issues:
+            % -funHeaderScalar returns NaN
+            %
+            % To do:
+            % -Add tests for:
+            %     -object2array
+            % -Add output checks for:
+            %     -imageIO2AstroImage
+            %     -readImages2AstroImage
+            %     -isemptyImage
+            %     -funCat
+            %     -funHeader
+            %     -funHeaderScalar
+            %     -maskSet
+            %     -isImType
+            %     -funUnaary
+            %     -funUnaryScalar
+            %     -funBinaryProp
+            %     -image2subimages
+            %     -conv
+            %     -filter
             
             io.msgStyle(LogLevel.Test, '@start', 'AstroImage test started')
             
@@ -2086,6 +2112,7 @@ classdef AstroImage < Component
 
             
             % overload operators
+            io.msgLog(LogLevel.Test, 'testing AstroImage operators')
             AI = AstroImage({ones(10,10), 2.*ones(20,20)});
             % perform: AI(1)+AI(1) and AI(2)+AI(2)
             R = AI + AI;
@@ -2134,12 +2161,104 @@ classdef AstroImage < Component
             Res = conv(AI, @imUtil.kernel2.gauss);
 
             % filter (cross-correlation)
+            io.msgLog(LogLevel.Test, 'testing AstroImage filter')
             AI = AstroImage({rand(100,100), rand(200,200)});
             AI.filter(imUtil.kernel2.annulus);
             Mat = zeros(30,30); Mat(15,15)=1;
             AI = AstroImage({Mat});
             Res = filter(AI, @imUtil.kernel2.gauss);
            
+            % object2array
+            % ???
+            % No idea how to use this
+            
+            % imageIO2AstroImage
+            io.msgLog(LogLevel.Test, 'testing imageIO2AstroImage')
+            I = ImageIO('WFPC2ASSNu5780205bx.fits','ReadHeader',1);
+            AI = AstroImage.imageIO2AstroImage(I, 'ImageData', [], true);
+            if (~prod(reshape((I.Data == AI.Image).',1,[])))
+                error('problem with IO2AstroImage')
+            end
+            AI = AstroImage.imageIO2AstroImage(I, 'BackData', 2, true);
+            
+            % readImages2AstroImage
+            io.msgLog(LogLevel.Test, 'testing readImages2AstroImage')
+            AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'ImageData');
+            AI=AstroImage.readImages2AstroImage([]);
+            AI=AstroImage.readImages2AstroImage([1 2]);
+            AI=AstroImage.readImages2AstroImage({rand(10,10), rand(5,5)});
+            AI=AstroImage.readImages2AstroImage({rand(10,10), rand(5,5)},'DataProp','VarData');
+            AI=AstroImage.readImages2AstroImage({rand(10,10), rand(20,20)},'DataProp','ImageData');
+            AI=AstroImage.readImages2AstroImage({rand(10,10), rand(20,20)},'DataProp','BackData','Obj',AI);
+            AI=AstroImage.readImages2AstroImage({rand(5,5), rand(10,10)},'DataProp','VarData','Obj',AI,'Scale',2);
+            
+            % isemptyImage
+            io.msgLog(LogLevel.Test, 'testing AstroImage isemptyImage')
+            AI=AstroImage.readImages2AstroImage([]);
+            [a,b]=AI.isemptyImage({'Image','Back'});
+            AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'ImageData');
+            [a,b]=AI.isemptyImage({'Image','Back'});
+            AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'BackData');
+            [a,b]=AI.isemptyImage({'Image','Back'});
+            
+            % sizeImage
+            io.msgLog(LogLevel.Test, 'testing AstroImage sizeImage')
+            AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'ImageData');
+            [Ny, Nx] = AI.sizeImage;
+            AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'BackData');
+            [Ny, Nx] = AI.sizeImage('Back');
+            
+            % funCat
+            io.msgLog(LogLevel.Test, 'testing AstroImage funCat')
+            AI = AstroImage({rand(10,10), rand(10,10)});
+            AI(1).CatData.Catalog=rand(10,2);
+            AI(2).CatData.Catalog=rand(10,2);
+            funCat(AI,@sortrows,1);
+            
+            % funHeader
+            io.msgLog(LogLevel.Test, 'testing AstroImage funHeader')
+            AI = AstroImage({rand(10,10), rand(10,10)});
+            funHeader(AI,@insertKey,{'GAIN',2,''});
+            
+            % funHeaderScalar
+            io.msgLog(LogLevel.Test, 'testing AstroImage funHeaderScalar')
+            AI = AstroImage({rand(10,10), rand(10,10)});
+            funHeaderScalar(AI,@julday)
+            
+            % maskSet
+            io.msgLog(LogLevel.Test, 'testing AstroImage maskSet')
+            AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))});
+            AI.MaskData.Dict=BitDictionary('BitMask.Image.Default')
+            Flag = false(3,3); Flag(1,2)=true;
+            Res = AI.maskSet(Flag,'Saturated');
+            Res = AI.maskSet(Flag,'Streak');
+            
+            % isImType
+            io.msgLog(LogLevel.Test, 'testing AstroImage isImType')
+            AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))})
+            Res = isImType(AI, 'bias');
+            
+            % funUnary
+            io.msgLog(LogLevel.Test, 'testing AstroImage funUnary')
+            AI = AstroImage({10.*ones(10,10)},'Back',{ones(5,5)},'BackScale',2,'var',{ones(5,5)},'VarScale',2);
+            B=AI.funUnary(@sin,'CreateNewObj',true);
+            B=AI.funUnary(@mean,'OpArgs',{'all'}); 
+            AI.PropagateErr=true; B=AI.funUnary(@mean,'OpArgs',{'all'});
+            % B=AI.funUnary(@median,'OpArgs',{'all'}); % must result in error
+            B=AI.funUnary(@median,'OpArgs',{'all'},'PropagateErr',false,'OperateOnVar',true);
+            
+            % funUnaryScalar
+            io.msgLog(LogLevel.Test, 'testing AstroImage funUnaryScalar')
+            AI = AstroImage({randn(100,100), randn(100,100)},'Back',{randn(100,100), randn(100,100)});
+            [A,B] = funUnaryScalar(AI, @mean, 'OpArgs',{'all'});
+            [A,B] = funUnaryScalar(AI, @std, 'OpArgs',{[],'all'});
+            
+            % funBinaryImVar
+            io.msgLog(LogLevel.Test, 'testing AstroImage funBinaryImVar')
+            AI = AstroImage({ones(3,3)},'Var',{ones(3,3)});
+            Res = funBinaryImVar(AI,AI,@plus);
+            Res = funBinaryImVar(AI,AI,@minus);
+            Res = funBinaryImVar(AI,3,@times);
             
             cd(PWD);
             
