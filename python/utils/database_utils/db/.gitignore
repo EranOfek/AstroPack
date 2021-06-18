@@ -7,3 +7,4 @@ _*.sql
 *.m
 *.h
 *.pas
+*.dart
