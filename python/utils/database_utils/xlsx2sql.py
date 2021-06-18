@@ -13,8 +13,11 @@
 #
 # Requirements:
 #
-#       sudo apt install python3-pip
-#       pip3 install pyyaml openpyxl psycopg2
+#   Ubutnu:
+# 	sudo apt-get install libpq-dev
+# 	sudo pip3 install Psycopg2
+
+#   pip3 install pyyaml openpyxl psycopg2
 #
 # psql -V
 # psql -U postgres -f __unittest.sql

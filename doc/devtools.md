@@ -8,3 +8,12 @@
 - PostgresSQL 13
 
 
+
+
+Linux
+
+nano ~/.profile
+
+export ASTROPACKPATH="$HOME/dev/AstroPack"
+
+	
