@@ -70,3 +70,10 @@ https://www.codevoila.com/post/2/python3-connect-postgresql-with-psycopg2-on-ubu
 	sudo pip3 install Psycopg2
 
 
+
+	
+	
+### Create database/ug/database
+
+psql -U postgres -f __lastdb_postgres.sql	
+
