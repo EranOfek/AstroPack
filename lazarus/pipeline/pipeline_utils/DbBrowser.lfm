@@ -1,30 +1,30 @@
 object DbBrowserForm: TDbBrowserForm
-  Left = 23
-  Height = 779
-  Top = 17
-  Width = 1311
+  Left = 218
+  Height = 525
+  Top = 88
+  Width = 909
   Caption = 'DB Browser'
-  ClientHeight = 779
-  ClientWidth = 1311
+  ClientHeight = 525
+  ClientWidth = 909
   OnCreate = FormCreate
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '1.8.2.0'
   object Panel1: TPanel
     Left = 0
     Height = 70
     Top = 0
-    Width = 1311
+    Width = 909
     Align = alTop
     Caption = 'Panel1'
     TabOrder = 0
   end
   object Panel2: TPanel
     Left = 0
-    Height = 616
+    Height = 364
     Top = 70
     Width = 210
     Align = alLeft
     Caption = 'Panel2'
-    ClientHeight = 616
+    ClientHeight = 364
     ClientWidth = 210
     TabOrder = 1
     object Panel5: TPanel
@@ -50,43 +50,45 @@ object DbBrowserForm: TDbBrowserForm
         Top = 15
         Width = 135
         ItemHeight = 0
+        ScrollWidth = 133
         TabOrder = 0
+        TopIndex = -1
       end
     end
   end
   object Panel3: TPanel
     Left = 0
     Height = 70
-    Top = 686
-    Width = 1311
+    Top = 434
+    Width = 909
     Align = alBottom
     Caption = 'Panel3'
     TabOrder = 2
   end
   object Panel4: TPanel
     Left = 210
-    Height = 616
+    Height = 364
     Top = 70
-    Width = 1101
+    Width = 699
     Align = alClient
     BorderWidth = 4
     Caption = 'Panel4'
-    ClientHeight = 616
-    ClientWidth = 1101
+    ClientHeight = 364
+    ClientWidth = 699
     TabOrder = 3
     object PageControl1: TPageControl
       Left = 5
-      Height = 606
+      Height = 354
       Top = 5
-      Width = 1091
+      Width = 689
       ActivePage = TabSheetXlsxToSQL
       Align = alClient
       TabIndex = 1
       TabOrder = 0
       object TabSheetDbBrowser: TTabSheet
         Caption = 'Database Browser'
-        ClientHeight = 578
-        ClientWidth = 1083
+        ClientHeight = 323
+        ClientWidth = 685
         object DBGrid1: TDBGrid
           Left = 0
           Height = 578
@@ -101,25 +103,25 @@ object DbBrowserForm: TDbBrowserForm
       end
       object TabSheetXlsxToSQL: TTabSheet
         Caption = 'Convert XLSX to SQL'
-        ClientHeight = 578
-        ClientWidth = 1083
+        ClientHeight = 323
+        ClientWidth = 685
         object Panel8: TPanel
           Left = 0
-          Height = 402
+          Height = 147
           Top = 176
-          Width = 1083
+          Width = 685
           Align = alClient
           BorderWidth = 4
           Caption = 'Panel8'
-          ClientHeight = 402
-          ClientWidth = 1083
+          ClientHeight = 147
+          ClientWidth = 685
           ParentColor = False
           TabOrder = 0
           object Memo1: TMemo
             Left = 5
-            Height = 392
+            Height = 137
             Top = 5
-            Width = 1073
+            Width = 675
             Align = alClient
             Font.CharSet = OEM_CHARSET
             Font.Color = clBlack
@@ -135,33 +137,33 @@ object DbBrowserForm: TDbBrowserForm
           Left = 0
           Height = 176
           Top = 0
-          Width = 1083
+          Width = 685
           Align = alTop
           ClientHeight = 176
-          ClientWidth = 1083
+          ClientWidth = 685
           TabOrder = 1
           object Label3: TLabel
             Left = 37
-            Height = 15
+            Height = 17
             Top = 24
-            Width = 80
+            Width = 102
             Caption = 'Intput XLSX file'
             ParentColor = False
           end
           object Label4: TLabel
             Left = 37
-            Height = 15
+            Height = 17
             Top = 69
-            Width = 72
+            Width = 93
             Caption = 'Output folder'
             ParentColor = False
             Visible = False
           end
           object Label5: TLabel
             Left = 38
-            Height = 15
+            Height = 17
             Top = 48
-            Width = 207
+            Width = 264
             Caption = 'Export Google Sheet document as XLSX'
             Color = clBtnFace
             Font.Color = clBlue
@@ -171,18 +173,18 @@ object DbBrowserForm: TDbBrowserForm
           end
           object ComboXlsFile: TComboBox
             Left = 168
-            Height = 23
+            Height = 29
             Top = 20
             Width = 712
-            ItemHeight = 15
+            ItemHeight = 0
             TabOrder = 0
           end
           object ComboOutputSqlFolder: TComboBox
             Left = 168
-            Height = 23
+            Height = 29
             Top = 69
             Width = 712
-            ItemHeight = 15
+            ItemHeight = 0
             TabOrder = 1
             Visible = False
           end
@@ -227,8 +229,8 @@ object DbBrowserForm: TDbBrowserForm
       end
       object TabSheetCreateDb: TTabSheet
         Caption = 'Create Database'
-        ClientHeight = 511
-        ClientWidth = 929
+        ClientHeight = 323
+        ClientWidth = 685
         object Panel7: TPanel
           Left = 8
           Height = 312
@@ -259,9 +261,9 @@ object DbBrowserForm: TDbBrowserForm
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Height = 23
-    Top = 756
-    Width = 1311
+    Height = 21
+    Top = 504
+    Width = 909
     Panels = <    
       item
         Width = 200
@@ -276,11 +278,11 @@ object DbBrowserForm: TDbBrowserForm
   end
   object DataSource1: TDataSource
     DataSet = SQLQuery1
-    Left = 232
-    Top = 16
+    left = 232
+    top = 16
   end
   object PQConnection1: TPQConnection
-    Connected = True
+    Connected = False
     LoginPrompt = False
     DatabaseName = 'pipeline'
     KeepConnection = False
@@ -288,11 +290,10 @@ object DbBrowserForm: TDbBrowserForm
     Transaction = SQLTransaction1
     UserName = 'postgres'
     HostName = 'localhost'
-    Left = 80
-    Top = 17
+    left = 80
+    top = 17
   end
   object SQLQuery1: TSQLQuery
-    IndexName = 'DEFAULT_ORDER'
     MaxIndexesCount = 4
     FieldDefs = <    
       item
@@ -532,31 +533,30 @@ object DbBrowserForm: TDbBrowserForm
         DataType = ftFloat
         Precision = -1
       end>
-    Active = True
     Database = PQConnection1
     Transaction = SQLTransaction1
     SQL.Strings = (
       'select * from raw_images'
     )
     Params = <>
-    Left = 168
-    Top = 17
+    left = 168
+    top = 17
   end
   object SQLTransaction1: TSQLTransaction
-    Active = True
+    Active = False
     Database = PQConnection1
-    Left = 296
-    Top = 17
+    left = 296
+    top = 17
   end
   object SelectDirectoryDialogOutputSql: TSelectDirectoryDialog
     InitialDir = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\output'
-    Left = 976
-    Top = 16
+    left = 976
+    top = 16
   end
   object OpenDialogXls: TOpenDialog
     FileName = 'lastdb__tables.xlsx'
     InitialDir = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db'
-    Left = 808
-    Top = 16
+    left = 808
+    top = 16
   end
 end
