@@ -52,13 +52,6 @@ begin
   proc.OnLineCompleted:=@procLineCompleted;
   proc.OnReadData:=@procReadData;
   proc.OnChangeState:=@procChangeState;
-  {$ifdef linux}
-  txtProcess.Text:= 'bash';
-  txtCommand.Text := 'ls';
-  proc.LineDelimSend := LDS_LF;
-  {$endif}
-
-
 end;
 
 procedure TRunProc.Run(Cmd: String);
