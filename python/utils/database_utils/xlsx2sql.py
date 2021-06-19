@@ -43,6 +43,7 @@ GEN_DART = False
 
 #
 GEN_DESTRUCTOR = False
+OUTPUT_PATH = ''
 
 if DEBUG:
     GEN_FIREBIRD, GEN_PYTHON, GEN_MATLAB, GEN_CPP, GEN_DELPHI, GEN_DART = True, True, True, True, True, True
@@ -303,7 +304,7 @@ class DatabaseDef:
 
 
     # Set database name
-    def set_db(self, filename):
+    def set_db(self, filename, db_name):
 
         # Split file name to database name and table name, i.e.
         # 'image_tables - processed_cropped_images.csv'
@@ -315,7 +316,11 @@ class DatabaseDef:
         self.def_path = path
 
         # Get database name from last part of folder name
-        self.db_name = os.path.split(path)[1]
+        if db_name != '':
+            self.db_name = db_name
+        else:
+            self.db_name = os.path.split(path)[1]
+
         log('database name from filename: ' + self.db_name)
 
         # Get table name from tab name
@@ -331,7 +336,11 @@ class DatabaseDef:
         log('table name: ' + self.table_name)
 
         # Prepare output SQL file name
-        self.base_filename = os.path.join(path, '__' + self.db_name)
+        if OUTPUT_PATH != '':
+            self.base_filename = os.path.join(OUTPUT_PATH, self.db_name)
+        else:
+            self.base_filename = os.path.join(path, self.db_name)
+
         log('output file base name: ' + self.base_filename)
 
 
@@ -482,7 +491,7 @@ class DatabaseDef:
         if len(self.field_list) == 0:
             return
 
-        self.open_out('_postgres.sql')
+        self.open_out('.sql')
         if self.write_file_header('postgres'):
             self.create_db('postgres')
 
@@ -1073,9 +1082,10 @@ def extract_xlsx(filename):
     log('extract_csv started: ' + filename)
     path, fname = os.path.split(filename)
     fn, ext = os.path.splitext(fname)
-
-    db = fn.split('__')[0].lower()
-    out_path = os.path.join(path, db)
+    db_name = fn.split('__')[0].lower()
+    out_path = os.path.join(path, db_name, 'csv')
+    global OUTPUT_PATH
+    OUTPUT_PATH = os.path.join(path, db_name)
     log('output folder: ' + out_path)
     if not os.path.exists(out_path):
         log('creating folder: ' + out_path)
@@ -1090,7 +1100,7 @@ def extract_xlsx(filename):
     csv_count = 0
     for i, sheet_name in enumerate(wb.sheetnames):
         sheet = wb.worksheets[i]
-        csv_fname = os.path.join(out_path, db + ' - ' + sheet_name.lower() + '.csv')
+        csv_fname = os.path.join(out_path, db_name + ' - ' + sheet_name.lower() + '.csv')
         log('write csv file: ' + csv_fname)
         with open(csv_fname, 'w', newline="") as f:
             c = csv.writer(f)
@@ -1102,7 +1112,7 @@ def extract_xlsx(filename):
     log('extract_csv done: ' + filename)
     log('csv files created: ' + str(csv_count))
 
-    return out_path
+    return out_path, db_name
 
 
 # Process XLSX file with database definitions
@@ -1115,15 +1125,15 @@ def process_xlsx_file(filename):
     # Extract all sheets from xlsx file to output folder
     global XLSX_FILENAME
     XLSX_FILENAME = filename
-    out_path = extract_xlsx(filename)
+    csv_path, db_name = extract_xlsx(filename)
 
     # Process all sheets in folder
-    process_folder(out_path, ['.csv'], False)
+    process_folder(csv_path, ['.csv'], db_name, False)
     log('process_xlsx_file done: ' + filename)
 
 
 # Process CSV file with database definitions
-def process_csv_file(filename):
+def process_csv_file(filename, db_name):
     log('processing csv: ' + filename)
     if not os.path.exists(filename):
         log('file not found: ' + filename)
@@ -1140,7 +1150,7 @@ def process_csv_file(filename):
         log('')
         db = DatabaseDef()
         db.origin_filename = XLSX_FILENAME
-        db.set_db(filename)
+        db.set_db(filename, db_name)
         db.load_table_csv(filename)
         if len(db.field_list) > 0:
 
@@ -1155,7 +1165,7 @@ def process_csv_file(filename):
 
 
 # Process folder with CSV database definition files
-def process_folder(fpath, ext_list, subdirs = True):
+def process_folder(fpath, ext_list, db_name, subdirs = True):
 
     # Get list of files in folder
     if subdirs:
@@ -1174,7 +1184,7 @@ def process_folder(fpath, ext_list, subdirs = True):
                     process_xlsx_file(filename)
 
                 elif ext == '.csv':
-                    process_csv_file(filename)
+                    process_csv_file(filename, db_name)
 
 
 #============================================================================
@@ -1185,16 +1195,22 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-f', dest='xlsx',      default=None,           help='input xlsx file')
-    parser.add_argument('-d', dest='dir',       default=None,           help='input folder, all .xlsx files will be processed')
-    parser.add_argument('-s', dest='subdirs',   action='store_true',    default=False,   help='Process xlsx files in subfolders')
+    parser.add_argument('-f', dest='xlsx',      default='unittest.xlsx', help='input xlsx file')
+    parser.add_argument('-d', dest='dir',       default=None,            help='input folder, all .xlsx files will be processed')
+    parser.add_argument('-s', dest='subdirs',   action='store_true',     default=False,   help='Process xlsx files in subfolders')
     args = parser.parse_args()
 
+    astro_path = os.getenv('ASTROPACKPATH')
     if args.dir:
         process_folder(args.dir, ['.xlsx'], args.subdirs)
 
     elif args.xlsx:
-        process_xlsx_file(args.xlsx)
+        filename = args.xlsx
+        path, fname = os.path.split(filename)
+        if path == '':
+            filename = os.path.join(astro_path, 'database', 'xlsx', fname)
+
+        process_xlsx_file(filename)
 
     else:
         print('No input operation specified')

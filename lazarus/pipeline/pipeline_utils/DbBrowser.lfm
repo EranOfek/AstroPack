@@ -7,8 +7,8 @@ object DbBrowserForm: TDbBrowserForm
   ClientHeight = 702
   ClientWidth = 1154
   OnCreate = FormCreate
-  LCLVersion = '1.8.2.0'
-  object Panel1: TPanel
+  LCLVersion = '2.0.12.0'
+  object PanelTop: TPanel
     Left = 0
     Height = 70
     Top = 0
@@ -16,108 +16,166 @@ object DbBrowserForm: TDbBrowserForm
     Align = alTop
     TabOrder = 0
   end
-  object Panel2: TPanel
+  object PanelLeft: TPanel
     Left = 0
-    Height = 541
+    Height = 539
     Top = 70
-    Width = 210
+    Width = 64
     Align = alLeft
-    Caption = 'Panel2'
-    ClientHeight = 541
-    ClientWidth = 210
     TabOrder = 1
-    object Panel5: TPanel
-      Left = 8
-      Height = 80
-      Top = 32
-      Width = 170
-      TabOrder = 0
-    end
-    object Panel6: TPanel
-      Left = 8
-      Height = 312
-      Top = 120
-      Width = 170
-      ClientHeight = 312
-      ClientWidth = 170
-      TabOrder = 1
-      object ListBox1: TListBox
-        Left = 17
-        Height = 273
-        Top = 15
-        Width = 135
-        ItemHeight = 0
-        ScrollWidth = 133
-        TabOrder = 0
-        TopIndex = -1
-      end
-    end
   end
-  object Panel3: TPanel
+  object PanelBottom: TPanel
     Left = 0
     Height = 70
-    Top = 611
+    Top = 609
     Width = 1154
     Align = alBottom
     TabOrder = 2
   end
   object Panel4: TPanel
-    Left = 210
-    Height = 541
+    Left = 64
+    Height = 539
     Top = 70
-    Width = 944
+    Width = 1090
     Align = alClient
     BorderWidth = 4
     Caption = 'Panel4'
-    ClientHeight = 541
-    ClientWidth = 944
+    ClientHeight = 539
+    ClientWidth = 1090
     TabOrder = 3
     object PageControl1: TPageControl
       Left = 5
-      Height = 531
+      Height = 529
       Top = 5
-      Width = 934
+      Width = 1080
       ActivePage = TabSheetXlsxToSQL
       Align = alClient
       TabIndex = 1
       TabOrder = 0
       object TabSheetDbBrowser: TTabSheet
         Caption = 'Database Browser'
-        ClientHeight = 500
-        ClientWidth = 930
-        object DBGrid1: TDBGrid
+        ClientHeight = 501
+        ClientWidth = 1072
+        object Panel10: TPanel
           Left = 0
-          Height = 427
+          Height = 501
           Top = 0
-          Width = 828
-          Align = alClient
-          Color = clWindow
-          Columns = <>
-          DataSource = DataSource1
+          Width = 210
+          Align = alLeft
+          BorderWidth = 4
+          Caption = 'Panel10'
+          ClientHeight = 501
+          ClientWidth = 210
           TabOrder = 0
+          object Panel11: TPanel
+            Left = 5
+            Height = 147
+            Top = 5
+            Width = 200
+            Align = alTop
+            ClientHeight = 147
+            ClientWidth = 200
+            TabOrder = 0
+            object ComboBoxDbName: TComboBox
+              Left = 8
+              Height = 23
+              Top = 40
+              Width = 172
+              ItemHeight = 15
+              TabOrder = 0
+              Text = 'ComboBoxDbName'
+            end
+            object Label1: TLabel
+              Left = 8
+              Height = 15
+              Top = 16
+              Width = 81
+              Caption = 'Database name'
+              ParentColor = False
+            end
+          end
+          object Panel12: TPanel
+            Left = 5
+            Height = 344
+            Top = 152
+            Width = 200
+            Align = alClient
+            BorderWidth = 4
+            ClientHeight = 344
+            ClientWidth = 200
+            TabOrder = 1
+            object ListBox2: TListBox
+              Left = 5
+              Height = 299
+              Top = 40
+              Width = 190
+              Align = alClient
+              ItemHeight = 0
+              ScrollWidth = 133
+              TabOrder = 0
+            end
+            object Panel15: TPanel
+              Left = 5
+              Height = 35
+              Top = 5
+              Width = 190
+              Align = alTop
+              Caption = 'Tables'
+              TabOrder = 1
+            end
+          end
+        end
+        object Panel13: TPanel
+          Left = 210
+          Height = 501
+          Top = 0
+          Width = 862
+          Align = alClient
+          ClientHeight = 501
+          ClientWidth = 862
+          TabOrder = 1
+          object Panel14: TPanel
+            Left = 1
+            Height = 63
+            Top = 1
+            Width = 860
+            Align = alTop
+            TabOrder = 0
+          end
+          object DBGrid1: TDBGrid
+            Left = 1
+            Height = 436
+            Top = 64
+            Width = 860
+            Align = alClient
+            Color = clWindow
+            Columns = <>
+            DataSource = DataSource1
+            TabOrder = 1
+          end
         end
       end
       object TabSheetXlsxToSQL: TTabSheet
         Caption = 'Convert XLSX to SQL'
-        ClientHeight = 500
-        ClientWidth = 930
+        ClientHeight = 501
+        ClientWidth = 1072
         object Panel8: TPanel
           Left = 0
-          Height = 356
+          Height = 357
           Top = 144
-          Width = 930
+          Width = 1072
           Align = alClient
           BorderWidth = 4
           Caption = 'Panel8'
-          ClientHeight = 356
-          ClientWidth = 930
+          ClientHeight = 357
+          ClientWidth = 1072
           ParentColor = False
           TabOrder = 0
           object Memo1: TMemo
             Left = 5
-            Height = 346
+            Height = 347
             Top = 5
-            Width = 920
+            Width = 1062
             Align = alClient
             Font.CharSet = OEM_CHARSET
             Font.Color = clBlack
@@ -134,33 +192,24 @@ object DbBrowserForm: TDbBrowserForm
           Left = 0
           Height = 144
           Top = 0
-          Width = 930
+          Width = 1072
           Align = alTop
           ClientHeight = 144
-          ClientWidth = 930
+          ClientWidth = 1072
           TabOrder = 1
           object Label3: TLabel
             Left = 37
-            Height = 17
-            Top = 24
-            Width = 102
+            Height = 15
+            Top = 42
+            Width = 80
             Caption = 'Intput XLSX file'
             ParentColor = False
           end
-          object Label4: TLabel
-            Left = 37
-            Height = 17
-            Top = 69
-            Width = 93
-            Caption = 'Output folder'
-            ParentColor = False
-            Visible = False
-          end
           object Label5: TLabel
             Left = 38
-            Height = 17
-            Top = 48
-            Width = 264
+            Height = 15
+            Top = 66
+            Width = 207
             Caption = 'Export Google Sheet document as XLSX'
             Color = clBtnFace
             Font.Color = clBlue
@@ -170,96 +219,96 @@ object DbBrowserForm: TDbBrowserForm
           end
           object ComboXlsFile: TComboBox
             Left = 168
-            Height = 29
-            Top = 20
+            Height = 23
+            Top = 38
             Width = 712
-            ItemHeight = 0
+            ItemHeight = 15
             TabOrder = 0
-          end
-          object ComboOutputSqlFolder: TComboBox
-            Left = 168
-            Height = 29
-            Top = 69
-            Width = 712
-            ItemHeight = 0
-            TabOrder = 1
-            Visible = False
           end
           object BtnSelectXlsxFile: TBitBtn
             Left = 128
             Height = 22
-            Top = 21
+            Top = 39
             Width = 32
             Caption = '...'
             OnClick = BtnSelectXlsxFileClick
-            TabOrder = 2
-          end
-          object BtnSelectOutputSqlFolder: TBitBtn
-            Left = 128
-            Height = 22
-            Top = 70
-            Width = 32
-            Caption = '...'
-            OnClick = BtnSelectOutputSqlFolderClick
-            TabOrder = 3
-            Visible = False
+            TabOrder = 1
           end
           object BtnConvertXlsToSql: TBitBtn
-            Left = 42
+            Left = 168
             Height = 30
-            Top = 105
-            Width = 75
-            Caption = 'Convert'
+            Top = 90
+            Width = 115
+            Caption = 'Convert XLSX'
             OnClick = BtnConvertXlsToSqlClick
-            TabOrder = 4
+            TabOrder = 2
           end
           object BtnCreateDb: TBitBtn
-            Left = 152
+            Left = 304
             Height = 30
-            Top = 105
-            Width = 75
-            Caption = 'Create'
+            Top = 90
+            Width = 112
+            Caption = 'Create Database'
             OnClick = BtnCreateDbClick
-            TabOrder = 5
+            TabOrder = 3
+          end
+          object Label6: TLabel
+            Left = 40
+            Height = 15
+            Top = 16
+            Width = 33
+            Caption = 'Folder'
+            ParentColor = False
+          end
+          object ComboXlsFolder: TComboBox
+            Left = 168
+            Height = 23
+            Top = 8
+            Width = 712
+            ItemHeight = 15
+            TabOrder = 4
           end
         end
       end
       object TabSheetCreateDb: TTabSheet
-        Caption = 'Create Database'
-        ClientHeight = 500
-        ClientWidth = 930
-        object Panel7: TPanel
-          Left = 8
-          Height = 312
-          Top = 32
-          Width = 650
-          ClientHeight = 312
-          ClientWidth = 650
+        Caption = 'New Page'
+        ClientHeight = 501
+        ClientWidth = 1072
+        object Label4: TLabel
+          Left = 37
+          Height = 15
+          Top = 69
+          Width = 72
+          Caption = 'Output folder'
+          ParentColor = False
+          Visible = False
+        end
+        object BtnSelectOutputSqlFolder: TBitBtn
+          Left = 128
+          Height = 22
+          Top = 70
+          Width = 32
+          Caption = '...'
+          OnClick = BtnSelectOutputSqlFolderClick
           TabOrder = 0
-          object Label1: TLabel
-            Left = 37
-            Height = 17
-            Top = 0
-            Width = 45
-            Caption = 'Label1'
-            ParentColor = False
-          end
-          object Label2: TLabel
-            Left = 37
-            Height = 17
-            Top = 42
-            Width = 45
-            Caption = 'Label2'
-            ParentColor = False
-          end
+          Visible = False
+        end
+        object ComboOutputSqlFolder: TComboBox
+          Left = 168
+          Height = 23
+          Top = 69
+          Width = 712
+          ItemHeight = 15
+          TabOrder = 1
+          Visible = False
         end
       end
     end
   end
-  object StatusBar1: TStatusBar
+  object StatusBar: TStatusBar
     Left = 0
-    Height = 21
-    Top = 681
+    Height = 23
+    Top = 679
     Width = 1154
     Panels = <    
       item
@@ -275,8 +324,8 @@ object DbBrowserForm: TDbBrowserForm
   end
   object DataSource1: TDataSource
     DataSet = SQLQuery1
-    left = 232
-    top = 16
+    Left = 232
+    Top = 16
   end
   object PQConnection1: TPQConnection
     Connected = False
@@ -287,8 +336,8 @@ object DbBrowserForm: TDbBrowserForm
     Transaction = SQLTransaction1
     UserName = 'postgres'
     HostName = 'localhost'
-    left = 80
-    top = 17
+    Left = 80
+    Top = 17
   end
   object SQLQuery1: TSQLQuery
     MaxIndexesCount = 4
@@ -536,24 +585,24 @@ object DbBrowserForm: TDbBrowserForm
       'select * from raw_images'
     )
     Params = <>
-    left = 168
-    top = 17
+    Left = 168
+    Top = 17
   end
   object SQLTransaction1: TSQLTransaction
     Active = False
     Database = PQConnection1
-    left = 296
-    top = 17
+    Left = 296
+    Top = 17
   end
   object SelectDirectoryDialogOutputSql: TSelectDirectoryDialog
     InitialDir = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\output'
-    left = 976
-    top = 16
+    Left = 976
+    Top = 16
   end
   object OpenDialogXls: TOpenDialog
     FileName = 'lastdb__tables.xlsx'
     InitialDir = 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\db'
-    left = 808
-    top = 16
+    Left = 808
+    Top = 16
   end
 end

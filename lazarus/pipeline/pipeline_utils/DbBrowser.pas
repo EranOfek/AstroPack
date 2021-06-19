@@ -18,28 +18,33 @@ type
     BtnCreateDb: TBitBtn;
     BtnSelectOutputSqlFolder: TBitBtn;
     BtnSelectXlsxFile: TBitBtn;
+    ComboBoxDbName: TComboBox;
     ComboOutputSqlFolder: TComboBox;
     ComboXlsFile: TComboBox;
+    ComboXlsFolder: TComboBox;
     DataSource1: TDataSource;
     DBGrid1: TDBGrid;
     Label1: TLabel;
-    Label2: TLabel;
     Label3: TLabel;
     Label4: TLabel;
     Label5: TLabel;
-    ListBox1: TListBox;
+    Label6: TLabel;
+    ListBox2: TListBox;
     Memo1: TMemo;
+    Panel10: TPanel;
+    Panel11: TPanel;
+    Panel12: TPanel;
+    Panel13: TPanel;
+    Panel14: TPanel;
+    Panel15: TPanel;
     Panel9: TPanel;
-    StatusBar1: TStatusBar;
+    StatusBar: TStatusBar;
     OpenDialogXls: TOpenDialog;
     PageControl1: TPageControl;
-    Panel1: TPanel;
-    Panel2: TPanel;
-    Panel3: TPanel;
+    PanelTop: TPanel;
+    PanelLeft: TPanel;
+    PanelBottom: TPanel;
     Panel4: TPanel;
-    Panel5: TPanel;
-    Panel6: TPanel;
-    Panel7: TPanel;
     Panel8: TPanel;
     PQConnection1: TPQConnection;
     SelectDirectoryDialogOutputSql: TSelectDirectoryDialog;
@@ -70,6 +75,7 @@ var
     Proc: TRunProc;
     AstroPath: String;
 
+
 function AstroFile(FileName: String) : String;
 begin
   FileName := StringReplace(FileName, '/', PathDelim, [rfReplaceAll]);
@@ -86,11 +92,13 @@ begin
   Proc := TRunProc.Create;
   Proc.Init;
   Proc.Memo1 := Memo1;
-  Proc.StatusBar1 := StatusBar1;
+  Proc.StatusBar1 := StatusBar;
 
-  ComboXlsFile.Text := OpenDialogXls.InitialDir + PathDelim + OpenDialogXls.FileName;
+  ComboXlsFile.Text := 'unittest.xlsx';  //OpenDialogXls.InitialDir + PathDelim + OpenDialogXls.FileName;
 
   AstroPath := GetEnvironmentVariable('ASTROPACKPATH');
+
+  ComboXlsFolder.Text := AstroPath + PathDelim + String('database') + PathDelim + String('xlsx');
 end;
 
 
@@ -126,7 +134,8 @@ begin
   ScriptFileName := AstroFile('python/utils/database_utils/xlsx2sql.py');
   //Params := '-f ' + ComboXlsFile.Text;
 
-  FileName := AstroFile('python/utils/database_utils/db/lastdb__tables.xlsx');
+  //FileName := AstroFile('python/utils/database_utils/db/lastdb__tables.xlsx');
+  FileName := ComboXlsFolder.Text + PathDelim + ComboXlsFile.Text;
   Params := '-f ' + FileName;
   Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
 
