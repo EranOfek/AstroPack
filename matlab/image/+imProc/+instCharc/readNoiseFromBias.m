@@ -38,6 +38,7 @@ function Result = readNoiseFromBias(Obj, Args)
     %            For the 'pix' method, return a single element with the
     %            following fields:
     %                'ReadNoise' - An image of read noise per pixel.
+    %                   Read noise is returned in native units.
     % Author : Eran Ofek (Jun 2021)
     % Example: AI = AstroImage({randn(1000,1000)+100, randn(1000,1000)+100, randn(1000,1000)+100, randn(1000,1000)+100, randn(1000,1000)+100});
     %          Result = imProc.instCharc.readNoiseFromBias(AI)
