@@ -26,6 +26,13 @@ function Result = unitTest
         error('Problem with gainFromFlat pix method');
     end
     
+    Im = ones(500,500);
+    AI = AstroImage({poissrnd(Im.*1e3), poissrnd(Im*3e3), poissrnd(Im.*1e4), poissrnd(Im.*1e4), poissrnd(Im.*2e4)});
+    AI(1).HeaderData.insertKey({'EXPTIME',1}); AI(2).HeaderData.insertKey({'EXPTIME',3}); AI(3).HeaderData.insertKey({'EXPTIME',10});
+    AI(4).HeaderData.insertKey({'EXPTIME',10}); AI(5).HeaderData.insertKey({'EXPTIME',20});
+    Result = imProc.instCharc.linearity(AI);
+
+    
     Result = true;
     
 end

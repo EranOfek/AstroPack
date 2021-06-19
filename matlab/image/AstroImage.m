@@ -736,6 +736,53 @@ classdef AstroImage < Component
             
         end
         
+        function Result = getStructKey(Obj, Key, varargin)
+            % Get multiple  keys from headers in multiple AstroImage and store in a structure array
+            %       The keyword search can be exact (UseDict=false), or
+            %       using a keywords dictionary (UseDict=true).
+            % Input  : - An AstroImage object (multiple elements supported)
+            %          - A cell array of keyword names. These are exact
+            %            keyword names without a dictionary interpretation.
+            %          * ...,key,val,...
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'Fill' - Fill value for the keyword Val, in case that the
+            %                   key is not found. Default is NaN (comment will be
+            %                   '').
+            %            'Val2Num' - Attempt to convert the value to numeric.
+            %                   Default is true.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            % Output : - A structure array, where number of elements equal
+            %            to the number of elements in the AstroImage.
+            %            For each requested keyword name there is a
+            %            corresponding field name, which value is the
+            %            keyword value.
+            % Author: Eran Ofek  (Jun 2021)
+            % Example: Im = ones(500,500);
+            %          AI = AstroImage({poissrnd(Im.*1e3), poissrnd(Im*3e3), poissrnd(Im.*1e4), poissrnd(Im.*1e4), poissrnd(Im.*2e4)});
+            %          AI(1).HeaderData.insertKey({'EXPTIME',1}); AI(2).HeaderData.insertKey({'EXPTIME',3}); AI(3).HeaderData.insertKey({'EXPTIME',10});
+            %          AI(4).HeaderData.insertKey({'EXPTIME',10}); AI(5).HeaderData.insertKey({'EXPTIME',20});
+            %          [Result] = getStructKey(AI, {'EXPTIME'})
+            
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj) = getStructKey(Obj(Iobj).HeaderData, Key, varargin{:});
+            end
+        end
+        
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
         end
@@ -2224,6 +2271,14 @@ classdef AstroImage < Component
             io.msgLog(LogLevel.Test, 'testing AstroImage funHeaderScalar')
             AI = AstroImage({rand(10,10), rand(10,10)});
             funHeaderScalar(AI,@julday)
+            
+            % getStructKey
+            Im = ones(500,500);
+            AI = AstroImage({poissrnd(Im.*1e3), poissrnd(Im*3e3), poissrnd(Im.*1e4), poissrnd(Im.*1e4), poissrnd(Im.*2e4)});
+            AI(1).HeaderData.insertKey({'EXPTIME',1}); AI(2).HeaderData.insertKey({'EXPTIME',3}); AI(3).HeaderData.insertKey({'EXPTIME',10});
+            AI(4).HeaderData.insertKey({'EXPTIME',10}); AI(5).HeaderData.insertKey({'EXPTIME',20});
+            [Result] = getStructKey(AI, {'EXPTIME'});
+
             
             % maskSet
             io.msgLog(LogLevel.Test, 'testing AstroImage maskSet')

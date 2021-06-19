@@ -28,7 +28,7 @@ function Res=pixel_flat_response(Cube,varargin)
 %                   handle that will operate on each image in the cube in
 %                   order to calculate its mean value.
 %                   Default is @nanmedian.
-%            'MeanFunPar' - A cella array of additional parameters to pass
+%            'MeanFunPar' - A cell array of additional parameters to pass
 %                   to the 'MeanFun' function handle.
 %            'Intensity' - A vector if intensities for each image in the
 %                   cube. This can be the mean intensity of each image
