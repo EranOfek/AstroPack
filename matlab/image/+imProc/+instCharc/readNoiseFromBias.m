@@ -42,7 +42,7 @@ function Result = readNoiseFromBias(Obj, Args)
     % Author : Eran Ofek (Jun 2021)
     % Example: AI = AstroImage({randn(1000,1000)+100, randn(1000,1000)+100, randn(1000,1000)+100, randn(1000,1000)+100, randn(1000,1000)+100});
     %          Result = imProc.instCharc.readNoiseFromBias(AI)
-    %          Result = imProc.instCharc.readNoiseFromBias(AI, 'Method''pix')
+    %          Result = imProc.instCharc.readNoiseFromBias(AI, 'Method','pix')
     
     arguments
         Obj AstroImage
