@@ -35,8 +35,8 @@ function Result = measureFocus(Obj, Args)
     %            'AnnulusR' - Like previous parameter, but in [arcsec].
     % Author : Eran Ofek
     % Example: problems...
-    %          AI = AstroImage({imUtil.kernel2.annulus([100 300],[1000 1000]) + randn(1000,1000).*0.0000001});
-    %          AI = AstroImage({imUtil.kernel2.gauss(4,[1000 1000]) + randn(1000,1000).*0.0000001});
+    %          AI = AstroImage({imUtil.kernel2.annulus([10 30],[1000 1000]).*1000 + randn(1000,1000).*0.0000001});
+    %          AI = AstroImage({imUtil.kernel2.annulus([30 100],[1000 1000]).*1000 + randn(1000,1000).*0.0000001});
     %          Result = imProc.sources.measureFocus(AI)       
     
     arguments
@@ -92,7 +92,7 @@ function Result = measureFocus(Obj, Args)
                     AnnulusPar = [Args.AnnulusRadVec(:).*Args.OuterInnerRatio(:), Args.AnnulusRadVec(:)];
                     SN = imUtil.filter.filter2_snBank(CroppedObj(Iobj).Image,[],[],@imUtil.kernel2.annulus, AnnulusPar);
                     [BW,Pos,MaxIsn]=imUtil.image.local_maxima(SN,1,5);
-
+                    Result(Iobj).NpeaksAnnulus = size(Pos,1);
                     if isempty(Pos)
                         Result(Iobj).AnnulusRpix    = NaN;
                         Result(Iobj).AnnulusR       = NaN;
@@ -100,8 +100,8 @@ function Result = measureFocus(Obj, Args)
                         % instead one can check if the SN improves...
                         % search for most common template
                         MostCommonInd = mode(Pos(Pos(:,3)>50,4),'all');
-                        Result(Iobj).AnnulusRpix = 2.35.*Args.SigmaVec(MostCommonInd);
-                        Result(Iobj).AnnulusR    = Result(Iobj).FWHMpix.*Args.PixScale;
+                        Result(Iobj).AnnulusRpix = Args.AnnulusRadVec(MostCommonInd);
+                        Result(Iobj).AnnulusR    = Result(Iobj).AnnulusRpix.*Args.PixScale;
                     end
 
                 else
