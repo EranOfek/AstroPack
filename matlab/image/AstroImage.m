@@ -1,12 +1,60 @@
-% BaseImage handle class - all images inherits from this class
-% Package: @BaseImage
-% Description: 
-% Tested : Matlab R2018a
-% Author : Eran O. Ofek (Mar 2021)
-% Dependencies: @convert, @celestial
-% Example : 
-% Reliable: 2
-%--------------------------------------------------------------------------
+% Astronomical images container class
+%       This class provides a container for images and images meta data, as
+%       well as basic functionality for image manipulation.
+% Properties (Dependent):
+%       Image
+%       Back
+%       Var
+%       Mask
+%       Header
+%       Key
+%       Cat
+%       PSF
+% Properties:
+%       ImageData
+%       BackData
+%       VarData
+%       MaskData
+%       HeaderData
+%       CatData
+%       PSFData
+%       WCS
+%       PropagateErr
+% Functionality:
+%       AstroImage - Constructor and image reader for AstroImage class
+%       isemptyImage - Check if data images in AstroImage object are empty
+%       sizeImage - Return the size of images in AstroImage object.
+%       astroImage2ImageComponent - Convert an AstroImage data into SciImage, BackImage, etc. objects.
+%       astroImage2AstroCatalog - Convert the CataData in AstroImage object into an AstroCatalog object array.
+%       cast - Cast the image/back/var data in AstroImage (transform to a new type)
+%       funCat - Apply function of Cat properties in AstroImage array.
+%       funHeader - Apply function of HeaderData properties in AstroImage array.
+%       funHeaderScalar - Apply function that return a scalae on HeaderData properties in AstroImage array
+%       getStructKey - Get multiple  keys from headers in multiple AstroImage and store in a structure array
+%       funWCS - Apply function of WCS properties in AstroImage array
+%       funPSF - Apply function of PSF properties in AstroImage array
+%       maskSet - Set the value of a bit in a bit mask (Maskdata) in AstroImage
+%       isImType - Check if header IMTYPE keyword value equal some type
+%       julday - Return the Julian day for AstroImage object
+%       funUnary - Apply an unary function on AstroImage object.
+%       funUnaryScalar - Apply a unary operator that return scalar on AstroImage and return an numeric array
+%       funBinaryProp - Apply binary function on a single property of AstroImage
+%       funBinaryImVar - Apply a binary operator with error propagation to the
+%       funBinary - Apply a binary operator to AstroImage
+%       crop - crop an AstroImage images and catalogs and update WCS
+%       object2array - Convert an AstroImage object that contains scalars into an array
+%       plus - Apply the plus operator between AstroImage objects.
+%       minus - Apply the minus operator between AstroImage objects.
+%       times - Apply the times operator between AstroImage objects.
+%       rdivide - Apply the rdivide operator between AstroImage objects.
+%       conv - Convolve images with their PSF, or another PSF
+%       filter - Filter images with their PSF, or another PSF
+%       
+% Functionality (Static):
+%       imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
+%       readImages2AstroImage - Create AstroImage object and read images into a specific property.
+%       unitTest - unitTest for AstroImage
+
 
 classdef AstroImage < Component
     % Component should contain:
