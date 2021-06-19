@@ -492,8 +492,73 @@ classdef DbQuery < Component
                         
         end
         
+
+        function Result = insertStruct(Obj, TableName, Struct)
+            % Insert struct, use all fields that exist in the table
+            % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
+            Result = false;
+            
+            % Prepare SQL statement
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+            SqlText = ['INSERT INTO ', string(TableName).char, ' ('];
+            SqlFields = '';
+            SqlValues = ' VALUES (';
+
+            % Iterate struct fields
+            fn = fieldnames(Struct);
+            disp(fn);
+            
+            for i = 1:numel(fn)
+                f = fn{i};
+                if isa(Struct.(f), 'integer')
+                    Obj.msgLog(LogLevel.Debug, 'integer: %s', f);
+                elseif isa(Struct.(f), 'uint64')
+                    Obj.msgLog(LogLevel.Debug, 'uint64: %s', f);
+                elseif isa(Struct.(f), 'float')
+                    Obj.msgLog(LogLevel.Debug, 'float: %s', f);
+                elseif isa(Struct.(f), 'double')
+                    Obj.msgLog(LogLevel.Debug, 'double: %s', f);
+                elseif isa(Struct.(f), 'single')
+                    Obj.msgLog(LogLevel.Debug, 'single: %s', f);
+                elseif isa(Struct.(f), 'char')
+                    Obj.msgLog(LogLevel.Debug, 'char: %s', f);
+                else
+                    % Other not supported (yet?)
+                    Obj.msgLog(LogLevel.Debug, 'other - not supported: %s', f);
+                end
+            end           
+                  
+            Result = true;
+        end
         
-        function Result = insertRecord(Obj, Rec)
+
+            
+                
+%                 
+%                 % Iterate keys
+%                 for f=1:DataSize(1)
+%                     Key = HeaderData{i, 1};
+%                     
+%                     % Check if there is a field matching the header key
+%                     if any(contains(FieldNames, Key))
+%                         
+%                         % 
+%                         if numel(SqlFields) > 0:
+%                             SqlText = [SqlText ',' Key];
+%                             SqlValues = [SqlValues ',' Value];
+%                         else
+%                             SqlText = [SqlText Key];
+%                             SqlValues = [SqlValues Value];
+%                         end
+%                     else
+%                     end
+%                     
+%                 end
+%                 
+                % Now we have keys and values
+    
+                
+        function Result = insertRecord(Obj, TableName, Rec)
             % Insert new record
             Result = false;
             
@@ -798,14 +863,33 @@ classdef DbQuery < Component
             assert(count2 == count);
 
             
-            % ---------------------------------------------- Create and delete databaswe           
-       
+            % ---------------------------------------------- Create and delete database       
             %
             
  
             io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
             Result = true;
         end
+        
+        
+        function Result = unitTest2()
+            
+            % Create struct with different types of fields
+            s = struct;            
+            s.int1 = int32(1);
+            s.uint1 = int32(2);
+            s.bigint1 = int64(3);
+            s.single1 = single(4);
+            s.double1 = double(5);
+            s.char1 = 'abcd';
+            
+            Q = io.db.DbQuery;
+            
+            Q.insertStruct('MasterTable', s);
+            
+            Result = true;
+        end
+                
     end    
         
     

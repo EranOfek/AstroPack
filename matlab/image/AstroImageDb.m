@@ -47,7 +47,7 @@ classdef AstroImageDb < Component
                     if any(contains(FieldNames, Key))
                         
                         % 
-                        if length(SqlFields) > 0:
+                        if numel(SqlFields) > 0:
                             SqlText = [SqlText ',' Key];
                             SqlValues = [SqlValues ',' Value];
                         else
