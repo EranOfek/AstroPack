@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectSession>
     <PathDelim Value="\"/>
-    <Version Value="10"/>
+    <Version Value="11"/>
     <BuildModes Active="Default"/>
     <Units Count="26">
       <Unit0>
@@ -10,7 +10,7 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="53" Y="15"/>
-        <UsageCount Value="46"/>
+        <UsageCount Value="47"/>
       </Unit0>
       <Unit1>
         <Filename Value="About.pas"/>
@@ -21,7 +21,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="27"/>
         <CursorPos X="3" Y="52"/>
-        <UsageCount Value="46"/>
+        <UsageCount Value="47"/>
       </Unit1>
       <Unit2>
         <Filename Value="Main.pas"/>
@@ -32,7 +32,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="33"/>
         <CursorPos X="18" Y="128"/>
-        <UsageCount Value="46"/>
+        <UsageCount Value="47"/>
       </Unit2>
       <Unit3>
         <Filename Value="DbBrowser.pas"/>
@@ -41,9 +41,9 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="136"/>
-        <CursorPos X="18" Y="156"/>
-        <UsageCount Value="32"/>
+        <TopLine Value="118"/>
+        <CursorPos X="66" Y="138"/>
+        <UsageCount Value="33"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit3>
@@ -51,7 +51,7 @@
         <Filename Value="..\..\packages\utils\LogPanel.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="25"/>
+        <UsageCount Value="26"/>
       </Unit4>
       <Unit5>
         <Filename Value="..\..\packages\utils\RunProc.pas"/>
@@ -59,7 +59,7 @@
         <EditorIndex Value="1"/>
         <TopLine Value="46"/>
         <CursorPos Y="59"/>
-        <UsageCount Value="25"/>
+        <UsageCount Value="26"/>
         <Loaded Value="True"/>
       </Unit5>
       <Unit6>
@@ -209,125 +209,129 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="131" Column="14" TopLine="114"/>
+        <Caret Line="146" Column="56" TopLine="130"/>
       </Position1>
       <Position2>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="134" Column="46" TopLine="114"/>
+        <Caret Line="66" Column="45" TopLine="52"/>
       </Position2>
       <Position3>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="130" TopLine="114"/>
+        <Caret Line="70" Column="45" TopLine="56"/>
       </Position3>
       <Position4>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="125" Column="14" TopLine="102"/>
+        <Caret Line="71" Column="45" TopLine="57"/>
       </Position4>
       <Position5>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="78" Column="33" TopLine="58"/>
+        <Caret Line="72" Column="45" TopLine="58"/>
       </Position5>
       <Position6>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="126" Column="37" TopLine="116"/>
+        <Caret Line="71" Column="45" TopLine="57"/>
       </Position6>
       <Position7>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="131" TopLine="116"/>
+        <Caret Line="72" Column="45" TopLine="58"/>
       </Position7>
       <Position8>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="133" Column="29" TopLine="110"/>
+        <Caret Line="71" Column="45" TopLine="57"/>
       </Position8>
       <Position9>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="132" Column="11" TopLine="110"/>
+        <Caret Line="72" Column="45" TopLine="58"/>
       </Position9>
       <Position10>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="133" Column="21" TopLine="110"/>
+        <Caret Line="71" Column="45" TopLine="57"/>
       </Position10>
       <Position11>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="135" TopLine="111"/>
+        <Caret Line="70" Column="45" TopLine="56"/>
       </Position11>
       <Position12>
-        <Filename Value="..\..\packages\utils\RunProc.pas"/>
-        <Caret Line="58" TopLine="46"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="69" Column="45" TopLine="55"/>
       </Position12>
       <Position13>
-        <Filename Value="..\..\packages\utils\RunProc.pas"/>
-        <Caret Line="59" TopLine="46"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="68" Column="45" TopLine="54"/>
       </Position13>
       <Position14>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="303" TopLine="288"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="67" Column="45" TopLine="53"/>
       </Position14>
       <Position15>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="304" TopLine="288"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="66" Column="45" TopLine="52"/>
       </Position15>
       <Position16>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="305" TopLine="288"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="67" Column="45" TopLine="53"/>
       </Position16>
       <Position17>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="307" TopLine="288"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="68" Column="45" TopLine="54"/>
       </Position17>
       <Position18>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="308" TopLine="288"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="69" Column="45" TopLine="55"/>
       </Position18>
       <Position19>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="310" TopLine="288"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="162" Column="43" TopLine="134"/>
       </Position19>
       <Position20>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="316" TopLine="292"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="161" Column="43" TopLine="133"/>
       </Position20>
       <Position21>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="317" TopLine="293"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="160" Column="43" TopLine="132"/>
       </Position21>
       <Position22>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="282" TopLine="268"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="159" Column="43" TopLine="131"/>
       </Position22>
       <Position23>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="284" TopLine="268"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="162" Column="43" TopLine="134"/>
       </Position23>
       <Position24>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="285" TopLine="268"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="163" Column="43" TopLine="135"/>
       </Position24>
       <Position25>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="286" TopLine="268"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="164" Column="43" TopLine="136"/>
       </Position25>
       <Position26>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="287" TopLine="268"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="97" Column="44" TopLine="76"/>
       </Position26>
       <Position27>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="289" TopLine="268"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="140" Column="57" TopLine="114"/>
       </Position27>
       <Position28>
-        <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
-        <Caret Line="290" TopLine="268"/>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="101" Column="96" TopLine="81"/>
       </Position28>
       <Position29>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="129" Column="50" TopLine="111"/>
+        <Caret Line="138" Column="34" TopLine="118"/>
       </Position29>
       <Position30>
         <Filename Value="DbBrowser.pas"/>
-        <Caret Line="136" Column="19" TopLine="121"/>
+        <Caret Line="101" Column="24" TopLine="81"/>
       </Position30>
     </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes Count="0" ActiveMode="default"/>
+    </RunParams>
   </ProjectSession>
   <Debugging>
     <BreakPoints Count="3">
