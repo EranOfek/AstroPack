@@ -1,7 +1,0 @@
-# Databases - SOC SQL databases
-
-
-
-
-
-
