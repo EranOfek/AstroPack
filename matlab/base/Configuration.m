@@ -36,9 +36,12 @@ classdef Configuration < handle
             % Replace it with env? move to startup.m?
             Obj.External = fullfile(MyPath, '..', 'external');
             
-            fprintf('Configuration Path: %s\n', Obj.Path);
-            fprintf('Configuration External: %s\n', Obj.External);
-            fprintf('Master Configuration files are located in AstroPack/config\n');            
+            % commented out by Enrico. Obtrusive. If there is really a
+            %  value in these messages, make them conditioned to when I'm
+            %  not using the class
+            % fprintf('Configuration Path: %s\n', Obj.Path);
+            % fprintf('Configuration External: %s\n', Obj.External);
+            % fprintf('Master Configuration files are located in AstroPack/config\n');            
             
             % Validate                      
             assert(~isempty(Obj.Path));
@@ -97,9 +100,9 @@ classdef Configuration < handle
                 
                 % When name contains dots, create tree of structs (i.e. 'x.y.z')
                 if Args.Field
-                    s = sprintf('Obj.Data.%s=Yml', name);
+                    s = sprintf('Obj.Data.%s=Yml;', name);
                 else
-                    s = sprintf('Obj.Data=Yml');
+                    s = sprintf('Obj.Data=Yml;');
                 end
                 eval(s);                
             catch
