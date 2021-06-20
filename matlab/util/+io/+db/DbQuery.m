@@ -73,31 +73,38 @@ classdef DbQuery < Component
     
     
     methods % open, close
-                               
+                         
+        function Result = openConn(Obj)
+            % Open connection, throw exception on failure
+            Result = false; 
+            if isempty(Obj.Conn)
+                error('DbQuery.query: No connection');
+            end
+            
+            if ~Obj.Conn.IsOpen
+                Obj.Conn.open();
+                if Obj.Conn.IsOpen
+                    Result = true;
+                else
+                    error('DbQuery.openConn: Open connection failed');
+                end
+            end
+        end
+
+            
         function Result = query(Obj, varargin)
+            % Run SELECT query
+            % @Todo: Replace varargin with arguments block
+            
             % Run SELECT statement (using java calls)          
             Obj.msgLog(LogLevel.Info, 'DbQuery: open');
             Result = false;
             
             tic();
             
-            % Need connection
-            if isempty(Obj.Conn)
-                error('DbQuery.query: No connection');
-            end
-               
-            % Open connection
-            if ~Obj.Conn.IsOpen
-                Obj.Conn.open();
-                if ~Obj.Conn.IsOpen
-                    error('DbQuery.query: Open connection failed');
-                end
-            end            
-            
-            % Clear current query
-            if Obj.IsOpen
-                Obj.clear();
-            end
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
             
             % Set SQL text
             if numel(varargin) == 1
@@ -140,23 +147,9 @@ classdef DbQuery < Component
             Result = false;
             tic();
             
-            % Need connection
-            if isempty(Obj.Conn)
-                error('DbQuery.exec: No connection');
-            end
-               
-            % Open connection
-            if ~Obj.Conn.IsOpen
-                Obj.Conn.open();
-                if ~Obj.Conn.IsOpen
-                    error('DbQuery.exec: Open connection failed');
-                end
-            end            
-            
-            % Clear current query
-            if Obj.IsOpen
-                Obj.clear();
-            end
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
             
             % Set SQL text
             if numel(varargin) >= 1
@@ -232,15 +225,24 @@ classdef DbQuery < Component
         end
         
         
-        function Result = getMetadata(Obj)
-            %
+        function Result = getMetadata(Obj, varargin)
+            % Get metadata of current result-set or of specified table 
             Obj.ColCount = 0;
             Obj.ColNames = {};
             Obj.ColType = {};
+            TableName = '';
             
             Result = false;
             try
-                Obj.Metadata = Obj.Statement.getMetaData();
+                if numel(varargin) == 1
+                    TableName = varargin{1};
+                    Obj.Metadata = Obj.Conn.Conn.getMetaData();
+                    
+                    null = libpointer;
+                    Obj.ResultSet = Obj.Metadata.getColumns(null, null, TableName, null);                    
+                else
+                    Obj.Metadata = Obj.Statement.getMetaData();
+                end
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
             end            
@@ -457,6 +459,23 @@ classdef DbQuery < Component
             Fields = Obj.getFieldList();
             Result = table(Fields);
         end
+        
+
+        function Result = getTableFieldList(Obj, TableName)
+            % Get fields list as celarray
+
+            % Select single record from table
+            % @Todo: Check how to get it without slect
+            Text = ['SELECT * from ', TableName, ' LIMIT 1'];
+            Obj.query(Text);
+            
+            % This still does not work @Todo
+            % Obj.getMetadata(TableName);
+            
+            % Loop over all columns in the row
+            Result = Obj.ColNames;
+        end
+        
     end
     
     
@@ -493,40 +512,100 @@ classdef DbQuery < Component
         end
         
 
-        function Result = insertStruct(Obj, TableName, Struct)
+        function Result = insertStruct(Obj, TableName, Struct) %, Args)
+            arguments
+                Obj
+                TableName
+                Struct
+                %Args
+            end
+            
             % Insert struct, use all fields that exist in the table
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             Result = false;
+                       
+            % Execute SQL statement (using java calls)
+            Obj.msgLog(LogLevel.Info, 'DbQuery: insertStruct');            
+            tic();
             
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
+                                                      
             % Prepare SQL statement
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-            SqlText = ['INSERT INTO ', string(TableName).char, ' ('];
             SqlFields = '';
-            SqlValues = ' VALUES (';
+            SqlValues = '';
 
             % Iterate struct fields
-            fn = fieldnames(Struct);
-            disp(fn);
+            FieldNames = fieldnames(Struct);
+            disp(FieldNames);
             
-            for i = 1:numel(fn)
-                f = fn{i};
+            for i = 1:numel(FieldNames)
+                FieldName = FieldNames{i};
+            
+                % 
+                if numel(SqlFields) > 0
+                    SqlFields = [SqlFields ',' FieldName];
+                    SqlValues = [SqlValues ',?'];
+                else
+                    SqlFields = [SqlFields FieldName];
+                    SqlValues = [SqlValues '?'];
+                end
+            end
+            
+            % 
+            Obj.SqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ')'];
+                        
+            % Prepare query
+            Obj.msgLog(LogLevel.Debug, 'DbQuery.exec: %s', Obj.SqlText);
+            try
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.exec: prepareStatement failed: %s', Obj.SqlText);
+            end
+                      
+            % Iterate struct fields
+            % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
+            for i = 1:numel(FieldNames)
+                f = FieldNames{i};
+                val = Struct.(f);
+                
                 if isa(Struct.(f), 'integer')
                     Obj.msgLog(LogLevel.Debug, 'integer: %s', f);
+                    Obj.Statement.setInt(i, val);
                 elseif isa(Struct.(f), 'uint64')
                     Obj.msgLog(LogLevel.Debug, 'uint64: %s', f);
+                    
                 elseif isa(Struct.(f), 'float')
                     Obj.msgLog(LogLevel.Debug, 'float: %s', f);
                 elseif isa(Struct.(f), 'double')
                     Obj.msgLog(LogLevel.Debug, 'double: %s', f);
+                    Obj.Statement.setDouble(i, val);
                 elseif isa(Struct.(f), 'single')
                     Obj.msgLog(LogLevel.Debug, 'single: %s', f);
+                    Obj.Statement.setSingle(i, val);
                 elseif isa(Struct.(f), 'char')
                     Obj.msgLog(LogLevel.Debug, 'char: %s', f);
+                    Obj.Statement.setString(i, val);
                 else
                     % Other not supported (yet?)
                     Obj.msgLog(LogLevel.Debug, 'other - not supported: %s', f);
                 end
             end           
+             
+            % Execute
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+            try
+                Obj.ResultSet = Obj.Statement.executeUpdate();                             
+                Obj.ExecOk = true;                
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);                
+            end
+            
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Info, 'DbQuery.exec time: %.6f', Obj.Toc);  
                   
             Result = true;
         end
@@ -557,6 +636,7 @@ classdef DbQuery < Component
 %                 
                 % Now we have keys and values
     
+                
                 
         function Result = insertRecord(Obj, TableName, Rec)
             % Insert new record
@@ -717,6 +797,34 @@ classdef DbQuery < Component
             io.msgLog(LogLevel.Test, 'Version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));
         
+
+            
+            
+            % ---------------------------------------------- insertStruct             
+            
+            % Create struct with different types of fields
+            s = struct;            
+            s.recid = Component.newUuid();
+            s.fint = int32(1);
+            
+%             s.int1 = int32(1);
+%             s.uint1 = int32(2);
+%             s.bigint1 = int64(3);
+%             s.single1 = single(4);
+%             s.double1 = double(5);
+%             s.char1 = 'abcd';
+            
+            Q = io.db.DbQuery;
+            
+            Q.insertStruct('master_table', s);            
+            
+            
+            
+            % ---------------------------------------------- getTableFieldList 
+            Q = io.db.DbQuery(Conn);
+            Fields = Q.getTableFieldList('master_table');
+            disp(Fields);
+            
             % ---------------------------------------------- Select
             % NOTE: At this point, we assume that tables master_table and
             % details_table exist and are not empty
@@ -872,26 +980,5 @@ classdef DbQuery < Component
         end
         
         
-        function Result = unitTest2()
-            
-            % Create struct with different types of fields
-            s = struct;            
-            s.int1 = int32(1);
-            s.uint1 = int32(2);
-            s.bigint1 = int64(3);
-            s.single1 = single(4);
-            s.double1 = double(5);
-            s.char1 = 'abcd';
-            
-            Q = io.db.DbQuery;
-            
-            Q.insertStruct('MasterTable', s);
-            
-            Result = true;
-        end
-                
-    end    
-        
-    
+    end                
 end
-

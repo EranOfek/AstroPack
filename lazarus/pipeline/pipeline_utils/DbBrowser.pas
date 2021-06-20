@@ -6,8 +6,8 @@ interface
 
 uses
   Classes, SysUtils, DB, PQConnection, SQLDB, Forms, Controls, Graphics,
-  Dialogs, ExtCtrls, DBGrids, StdCtrls, ComCtrls, Buttons,
-  RunProc;
+  Dialogs, ExtCtrls, DBGrids, StdCtrls, ComCtrls, Buttons, Menus,
+  RunProc, DataModu, About;
 
 type
 
@@ -24,13 +24,22 @@ type
     ComboXlsFolder: TComboBox;
     DataSource1: TDataSource;
     DBGrid1: TDBGrid;
+    ImageLogo: TImage;
     Label1: TLabel;
     Label3: TLabel;
     Label4: TLabel;
     Label5: TLabel;
     Label6: TLabel;
     ListBox2: TListBox;
+    MainMenu: TMainMenu;
     Memo1: TMemo;
+    MIAbout: TMenuItem;
+    MIDatabase: TMenuItem;
+    MIDbCreateDbFromSql: TMenuItem;
+    MIDbXlsxToSql: TMenuItem;
+    MIExit: TMenuItem;
+    MIFile: TMenuItem;
+    MIHelp: TMenuItem;
     Panel10: TPanel;
     Panel11: TPanel;
     Panel12: TPanel;
@@ -38,6 +47,7 @@ type
     Panel14: TPanel;
     Panel15: TPanel;
     Panel9: TPanel;
+    PanelLogo: TPanel;
     StatusBar: TStatusBar;
     OpenDialogXls: TOpenDialog;
     PageControl1: TPageControl;
@@ -58,9 +68,12 @@ type
     procedure BtnSelectOutputSqlFolderClick(Sender: TObject);
     procedure BtnSelectXlsxFileClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure MIAboutClick(Sender: TObject);
   private
+    Proc: TRunProc;
 
   public
+
 
   end;
 
@@ -71,18 +84,7 @@ implementation
 
 {$R *.lfm}
 
-var
-    Proc: TRunProc;
-    AstroPath: String;
 
-
-function AstroFile(FileName: String) : String;
-begin
-  FileName := StringReplace(FileName, '/', PathDelim, [rfReplaceAll]);
-  FileName := StringReplace(FileName, '\', PathDelim, [rfReplaceAll]);
-  FileName := AstroPath + PathDelim + FileName;
-  Result := FileName;
-end;
 
 
 { TDbBrowserForm }
@@ -96,9 +98,12 @@ begin
 
   ComboXlsFile.Text := 'unittest.xlsx';  //OpenDialogXls.InitialDir + PathDelim + OpenDialogXls.FileName;
 
-  AstroPath := GetEnvironmentVariable('ASTROPACKPATH');
+  ComboXlsFolder.Text := DataMod.AstroFile('database' + PathDelim + 'xlsx');
+end;
 
-  ComboXlsFolder.Text := AstroPath + PathDelim + String('database') + PathDelim + String('xlsx');
+procedure TDbBrowserForm.MIAboutClick(Sender: TObject);
+begin
+  AboutForm.Show;
 end;
 
 
@@ -131,7 +136,7 @@ var
   Lines: TStringList;
   ScriptFileName, FileName, Params, Cmd: String;
 begin
-  ScriptFileName := AstroFile('python/utils/database_utils/xlsx2sql.py');
+  ScriptFileName := DataMod.AstroFile('python/utils/database_utils/xlsx2sql.py');
   //Params := '-f ' + ComboXlsFile.Text;
 
   //FileName := AstroFile('python/utils/database_utils/db/lastdb__tables.xlsx');
@@ -165,7 +170,7 @@ begin
   //Memo1.VertScrollBar.Position:=1000;
   //Exit;
 
-    ScriptFileName := AstroPath + PathDelim + 'python\utils\database_utils\create_db.py';
+    ScriptFileName := DataMod.AstroFile('python\utils\database_utils\create_db.py');
     Params := '-f ' + ComboXlsFile.Text;
     Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
     Proc.Run(Cmd);

@@ -1,0 +1,8 @@
+object DataMod: TDataMod
+  OnCreate = DataModuleCreate
+  OldCreateOrder = False
+  Height = 317
+  HorizontalOffset = 250
+  VerticalOffset = 126
+  Width = 293
+end
