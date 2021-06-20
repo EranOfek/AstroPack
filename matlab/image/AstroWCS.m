@@ -21,7 +21,7 @@ classdef AstroWCS < Component
         WCSAXES(1,1) uint8  = 2;        
         CTYPE(1,:)   cell   = {'',''};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
         CUNIT        cell   = {'',''};
-        RADESYS      char   = 'ICRS';
+        RADECSYS      char   = 'ICRS';
         LONPOLE      double = 0; 
         LATPOLE      double = 90;
         EQUINOX             = 2000;
@@ -30,13 +30,13 @@ classdef AstroWCS < Component
         CD           double = [1 0;0 1];
 %        CDELT(1,:)   double = [1 1];   % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
 %        PC           double = [];      % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
-        PV           cell   = {zeros(0,2),zeros(0,2)};
+        PV           double   = [];  % Changes to double from Cell
         SIP          cell   = {zeros(0,2),zeros(0,2)};
     end     
     
     properties (GetAccess = public)
-        ProjType     char   = '';
-        ProjClass    char   = '';
+        ProjType     char   = 'none';
+        ProjClass    char   = 'none';
         CooName(1,:) cell   = {'',''};
         
         AlphaP(1,1)  double = NaN;
@@ -101,12 +101,11 @@ classdef AstroWCS < Component
             CunitDict = Dictionary('DictName','WCS.CUNIT');            
             
       
-           ctype = Obj.CTYPE;
+            ctype = Obj.CTYPE;
             
             projtype = cell(size(ctype));
             cooname  = cell(size(ctype));
             coounit  = cell(size(ctype));
-%            dist    = cell(size(ctype)); % what is this? Eran - TODO
             
             for I = 1:1:numel(ctype)
                 Split    = regexp(ctype{I},'-','split');
@@ -114,9 +113,9 @@ classdef AstroWCS < Component
                 cooname{I}  = Pair{1};
                 if (numel(Pair)>1) 
                     projtype{I} = Pair{2};
-%                    if (numel(Pair)>2)   % what is this? Eran - TODO
-%                        dist{I} = Pair{3};
-%                    end    
+                    if (numel(Pair)>2)   % For e.g., TAN-SIP. Combine both
+                        projtype{I} = [Pair{2} '-' Pair{3}];
+                    end    
                 end
                 coounit{I} = CunitDict.searchAlt(cooname{I});
             end
@@ -124,7 +123,10 @@ classdef AstroWCS < Component
             % remove cells with no projtype, e.g. velocity
             projtype = projtype(~tools.cell.isempty_cell(projtype)); 
             
-            if all(strcmp(projtype{1},projtype))
+            if isempty(projtype)                        % No projection given
+                Obj.ProjType  = 'none';
+                Obj.ProjClass = 'none';
+            elseif all(strcmp(projtype{1},projtype))
                 Obj.ProjType = projtype{1};
                 Obj.ProjClass = ProjTypeDict.searchAlt(Obj.ProjType);
             else 
@@ -138,6 +140,42 @@ classdef AstroWCS < Component
             Funit = tools.cell.isnan_cell(Obj.CUNIT);
             Obj.CUNIT(Funit) = coounit(Funit);
             
+        end
+        
+        function Obj = populate_projMeta(Obj)
+            
+             switch lower(Obj.ProjClass)
+                case 'none'
+                    Obj.Alpha0 = Obj.CRVAL(1);
+                    Obj.Delta0 = Obj.CRVAL(2);
+                    Obj.AlphaP = Obj.CRVAL(1);
+                    Obj.DeltaP = Obj.CRVAL(2);
+
+                    Obj.Phi0   = NaN;
+                    Obj.Theta0 = NaN;
+                    Obj.PhiP   = NaN;
+
+                case 'zenithal'
+
+                    Obj.Alpha0 = Obj.CRVAL(1);
+                    Obj.Delta0 = Obj.CRVAL(2);
+                    Obj.AlphaP = Obj.CRVAL(1);
+                    Obj.DeltaP = Obj.CRVAL(2);
+
+                    ConvFactor = convert.angular('deg',Obj.CUNIT{1});
+
+                    Obj.Phi0   = 0.*ConvFactor;
+                    Obj.Theta0 = 90.*ConvFactor;
+
+                    if Obj.Delta0>=Obj.Theta0
+                        Obj.PhiP = 0.*ConvFactor;
+                    else
+                        Obj.PhiP = 180.*ConvFactor;
+                    end
+
+                otherwise
+                    error('Unsupported projection class (%s)',Obj.ProjClass);
+             end            
         end
         
     end
@@ -178,10 +216,10 @@ classdef AstroWCS < Component
             % ProjClass) and CooName and CUNIT
             Obj.CTYPE = AH.getCellKey(KeyCtype);
             Obj.CUNIT = AH.getCellKey(KeyCunit);                
-            Obj = read_ctype(Obj);
+            Obj.read_ctype;
             
             % Get base WCS info
-            if AH.isKeyExist('RADECSYS')
+            if AH.isKeyExist('RADECSYS')   % CHECK IF RADECSYS or RADESYS - TODO
                 Obj.RADECSYS = AH.getVal('RADECSYS');
             end
             if AH.isKeyExist('LONPOLE')
@@ -197,13 +235,19 @@ classdef AstroWCS < Component
             Obj.CRPIX = cell2mat(AH.getCellKey(KeyCrpix));
             Obj.CRVAL = cell2mat(AH.getCellKey(KeyCrval));
             
-            Obj.CD = Obj.readCD(AH,Naxis);
+            Obj.CD = Obj.build_CD(AH,Naxis);
             
+            % Read distortions   
             
-            % Read distortions            
+            % look for PV coeficients
+            Obj.PV = Obj.build_PV(AH,Obj.ProjType);
+
+
+             % populate proj Meta
+            Obj.populate_projMeta;
         end
         
-        function CD = readCD(Header,Naxis)
+        function CD = build_CD(Header,Naxis)
             % Read The CD matrix, or PC+CDELT, or CDELT
             
             AH = Header;
@@ -262,236 +306,243 @@ classdef AstroWCS < Component
                 end
             end
             
+        end        
+        
+        function PV = build_PV(Header,ProjType)
+            % Read PV coefficients, if any
+            
+             switch lower(ProjType)
+                case 'none'
+                    PV = [];
+                case 'tan'
+                    PV = [];
+                case 'tpv'
+                    PV = AstroWCS.build_TPV(Header);
+                case 'tan-sip'                    
+                    PV = AstroWCS.build_TANSIP(Header);
+                case 'zpn'                    
+                    error('Need to add ZPN - TODO');  
+                otherwise
+                    error('Unsupported projection type (%s)',ProjType);
+             end 
+            
         end
+        
+        function PV = build_TPV(Header)
+            
+            AH = Header;
+           
+            PolyTPVtable = AstroWCS.polyTPVdef();
+            
+            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'PV1_\d+','match'));
+            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'PV2_\d+','match'));
+            
+            NPV1 = sum(FlagMatchPV1);
+            NPV2 = sum(FlagMatchPV2);
+            
+            if  NPV1 || NPV2
+                
+                PV = zeros(2,max(NPV1,NPV2),4);
+                
+                PV1_Names = AH.Data(FlagMatchPV1,1);
+                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
+                
+                for I1 = 1:1:NPV1
+                    currPV = PolyTPVtable(PV1_Names(I1),:);
+                    if ~currPV.Axis==1
+                        error('wrong axis');
+                    end
+                    PV(currPV.Axis,I1,1:4) = [PV1_Vals(I1) currPV.xi_power currPV.eta_power currPV.r_power];
+                end
+                
+                PV2_Names = AH.Data(FlagMatchPV2,1);
+                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
+                
+                for I2 = 1:1:NPV2
+                    currPV = PolyTPVtable(PV2_Names(I2),:);
+                    if ~currPV.Axis==2
+                        error('wrong axis');
+                    end
+                    PV(currPV.Axis,I2,1:4) = [PV2_Vals(I2) currPV.xi_power currPV.eta_power currPV.r_power];
+                end
+                
+                % if no r_power poly, trancate last level
+                if sum(sum(PV(:,:,4)))==0
+                    PV = PV(:,:,1:3);
+                end
 
-        
-        
-        
-        
-        
-        
-        
-        
-   
-        
-               function W=Wpopulate(Header) 
-            Default.CUNIT = 'deg';
-            Default.CTYPE1 = 'RA---TAN';
-            Default.CTYPE2 = 'DEC--TAN';
-            
-            HeaderField = HEAD.HeaderField;
-            WCSField    = 'WCS';
-            
-            if (iscell(Header))
-                H = HEAD;
-                H.(HeaderField) = Header;
             else
-                H = Header;
-            end
-            Nh = numel(H);
-            W  = ClassWCS(Nh,1);
-            
-            KeysSingle = {'RADECSYS','LONPOLE','LATPOLE','EQUINOX'};
-            Nsin       = numel(KeysSingle);
-            KeysN      = {'CTYPE','CUNIT','CRPIX','CRVAL','CDELT'};
-            Nn         = numel(KeysN);
-            
-            
-            for Ih=1:1:Nh
-                % for each header
-                % Read number of axes
-                % if WCSAXES is not available use NAXES as default
-                Naxes = getkey(H(Ih),'WCSAXES');
-                if (isempty(Naxes))
-                    Naxes = getkey(H(Ih),'NAXIS');
-                else
-                    if (isnan(Naxes{1}))
-                        Naxes = getkey(H(Ih),'NAXIS');
-                    end
-                end
-                Naxes = Naxes{1};
-                
-                % read keywords from the KeysSingle list
-                ValSingle = mgetkey(H(Ih),KeysSingle);
-              
-                TmpCtype = getkey(H(Ih),'CTYPE1');
-                
-                % concat
-                KeyNames = {'WCSAXES', KeysSingle{:}};
-                KeyVal   = {Naxes, ValSingle{:}};
-                
-                W(Ih).(WCSField) = cell2struct(KeyVal,KeyNames,2);
-                
-              
-%<<<<<<< HEAD
-                if isnan(Naxes) || isnan(TmpCtype{1}(1))
-                    % deal with missing WCS keywords
-                    W(Ih).(WCSField).Status = false;
-                    W(Ih).(WCSField).CD = nan(2,2);
-                    W(Ih).(WCSField).CRPIX = nan(1,2);
-                    W(Ih).(WCSField).CRVAL = nan(1,2);
-                    W(Ih).(WCSField).CDELT = nan(1,2);
-                    W(Ih).(WCSField).CTYPE = {'RA---TPV','DEC--TPV'};
-                    W(Ih).(WCSField).CUNIT = {'deg','deg'};
-                else
-                    W(Ih).(WCSField).Status = true;
-                    
-                    % read Keywords from the KeysN list
-                    KeyNname = cell(1,Nn.*Naxes);
-                    K = 0;
-                    for In=1:1:Nn
-                        for Iaxis=1:1:Naxes
-                            K = K + 1;
-                            KeyNname{K} = sprintf('%s%d',KeysN{In},Iaxis);
-                        end
-%=======
-                    end
-                %end
-                
-                    % read Keywords from the KeysN list
-                    KeyNname = cell(1,Nn.*Naxes);
-                    K = 0;
-                    for In=1:1:Nn
-                        for Iaxis=1:1:Naxes
-                            K = K + 1;
-                            KeyNname{K} = sprintf('%s%d',KeysN{In},Iaxis);
-                        end
-                    end
-                    ValN = mgetkey(H(Ih),KeyNname);
-                    ValN = reshape(ValN,2,Nn);
-                    for In=1:1:Nn
-                        % fixing a bug found by Na'ama
-                        switch lower(KeysN{In})
-                            case 'cunit'
-                                if (any(isnan(ValN{1,In})))
-                                    % CUNIT is not populated in header
-                                    % set to default
-                                    ValN{1,In} = Default.CUNIT;
-                                    ValN{2,In} = Default.CUNIT;
-                                end
-
-                            case 'ctype'
-                                if (any(isnan(ValN{1,In})))
-                                    % CUNIT is not populated in header
-                                    % set to default
-                                    ValN{1,In} = Default.CTYPE1;
-                                    ValN{2,In} = Default.CTYPE2;
-                                end
-                        end
-
-                        if (iscellstr(ValN(:,In)))
-                            W(Ih).(WCSField).(KeysN{In}) = ValN(:,In).';
-                        else
-                            W(Ih).(WCSField).(KeysN{In}) = cell2mat(ValN(:,In)).';
-    %>>>>>>> d3d1fd3e53a5851582211798c8cdcd679ba36ecd
-                        end
-                        ValN = mgetkey(H(Ih),KeyNname);
-                        ValN = reshape(ValN,2,Nn);
-                        for In=1:1:Nn
-                            % fixing a bug found by Na'ama
-                            switch lower(KeysN{In})
-                                case 'cunit'
-                                    if (any(isnan(ValN{1,In})))
-                                        % CUNIT is not popuklated in header
-                                        % set to degault
-                                        ValN{1,In} = Default.CUNIT;
-                                        ValN{2,In} = Default.CUNIT;
-                                    end
-                            end
-
-                            if (iscellstr(ValN(:,In)))
-                                W(Ih).(WCSField).(KeysN{In}) = ValN(:,In).';
-                            else
-                                W(Ih).(WCSField).(KeysN{In}) = cell2mat(ValN(:,In)).';
-                            end
-
-                        end
-
-
-                        % Read The CD/PC matrix
-                        KeysCD = cell(1,Naxes.^2);
-                        KeysPC = cell(1,Naxes.^2);
-                        K = 0;
-                        for Iaxes1=1:1:Naxes
-                            for Iaxes2=1:1:Naxes
-                                K = K + 1;
-                                KeysCD{K} = sprintf('CD%d_%d',Iaxes1,Iaxes2);
-                                KeysPC{K} = sprintf('PC%d_%d',Iaxes1,Iaxes2);
-                            end
-                        end
-
-                        ValCD = mgetkey(H(Ih),KeysCD);
-                        K = 0;
-                        CD = nan(Naxes,Naxes);
-                        for Iaxes1=1:1:Naxes
-                            for Iaxes2=1:1:Naxes
-                                K = K + 1;
-                                CD(Iaxes1,Iaxes2) = ValCD{K};
-                            end
-                        end
-
-                        % bug fix - treat cases in whic not all CD keywords are
-                        % provided - assume no rotation.
-                        if (any(isnan(CD(:))) && ~all(isnan(CD(:))))
-                            CD(isnan(CD)) = 0;
-                        end
-                        
-                        % treat cases in which only CDELT is provided
-                        if all(isnan(CD(:)))
-                            CD = diag(W(Ih).WCS.CDELT);
-                            
-                        end
-
-
-
-                        if (any(isnan(CD(:))) || isempty(CD))
-                            % CD is empty try to read PC
-                            ValCD = mgetkey(H(Ih),KeysPC);
-                            K = 0;
-                            ScaleName = sprintf('CDELT');
-                            for Iaxes1=1:1:Naxes
-                                %ScaleName = sprintf('CDELT%d',Iaxes1);
-                                for Iaxes2=1:1:Naxes
-                                    K = K + 1;
-                                    CD(Iaxes1,1) = ValCD{K}.*W(Ih).(WCSField).(ScaleName)(Iaxes1);
-                                end
-                            end
-
-                        end
-                        W(Ih).(WCSField).CD = CD;
-
-
-                        % Read distortions
-
-                        % look for PV coeficients
-                        FlagMatchPV = ~Util.cell.isempty_cell(regexp(H(Ih).(HeaderField)(:,1),'PV\d+\_\d+','match'));
-
-
-                        Names  =regexp(H(Ih).(HeaderField)(FlagMatchPV,1), 'PV(?<D1>\d+)\_(?<D2>\d+)','names');
-                        Nnames = numel(Names);
-                        PV_Ind = zeros(Nnames,2);
-                        for Inames=1:1:Nnames
-                            PV_Ind(Inames,:) = [str2double(Names{Inames}.D1), str2double(Names{Inames}.D2)];
-                        end
-
-                        W(Ih).(WCSField).PV.Ind     = PV_Ind;
-                        W(Ih).(WCSField).PV.KeyVal  = H(Ih).(HeaderField)(FlagMatchPV,2);
-                        W(Ih).(WCSField).PV.KeyName = H(Ih).(HeaderField)(FlagMatchPV,1);
-
-                        % look for SIP coeficients
-                        % TBD
-                    end
-                    
-                end
-
-            end
-                
-    
-            
+                PV = [];
+            end            
             
         end
+        
+        function PolyTPVtable=polyTPVdef()
+            % return a table TPV polynomial definition
+            % Output : - A matrix of [Axis, Term, xi_power, eta_power, r_power]
+
+            ColNames = {'Axis' 'Term' 'xi_power' 'eta_power' 'r_power'};
+            PolyNames ={'PV1_0' 'PV1_1' 'PV1_2' 'PV1_3' 'PV1_4' 'PV1_5' ...
+                        'PV1_6' 'PV1_7' 'PV1_8' 'PV1_9' 'PV1_10' 'PV1_11'...
+                        'PV1_12' 'PV1_13' 'PV1_14' 'PV1_15' 'PV1_16'...
+                        'PV1_17' 'PV1_18' 'PV1_19' 'PV1_20' 'PV1_21'...
+                        'PV1_22' 'PV1_23' 'PV1_24' 'PV1_25' 'PV1_26'...
+                        'PV1_27' 'PV1_28' 'PV1_29' 'PV1_30' 'PV1_31'...
+                        'PV1_32' 'PV1_33' 'PV1_34' 'PV1_35' 'PV1_36'...
+                        'PV1_37' 'PV1_38' 'PV1_39'...
+                        'PV2_0' 'PV2_1' 'PV2_2' 'PV2_3' 'PV2_4' 'PV2_5' ...
+                        'PV2_6' 'PV2_7' 'PV2_8' 'PV2_9' 'PV2_10' 'PV2_11'...
+                        'PV2_12' 'PV2_13' 'PV2_14' 'PV2_15' 'PV2_16'...
+                        'PV2_17' 'PV2_18' 'PV2_19' 'PV2_20' 'PV2_21'...
+                        'PV2_22' 'PV2_23' 'PV2_24' 'PV2_25' 'PV2_26'...
+                        'PV2_27' 'PV2_28' 'PV2_29' 'PV2_30' 'PV2_31'...
+                        'PV2_32' 'PV2_33' 'PV2_34' 'PV2_35' 'PV2_36'...
+                        'PV2_37' 'PV2_38' 'PV2_39'};
+            
+            % polynomial mapping: [Axis, Term, xi_power, eta_power, r_power]
+            PolyTPV =  [1   0     0   0  0;...
+                %
+                        1   1     1   0  0;...
+                        1   2     0   1  0;...
+                        1   3     0   0  1;...
+                %
+                        1   4     2   0  0;...
+                        1   5     1   1  0;...
+                        1   6     0   2  0;...
+                %
+                        1   7     3   0  0;...
+                        1   8     2   1  0;...
+                        1   9     1   2  0;...
+                        1   10    0   3  0;...
+                        1   11    0   0  3;...
+                %
+                        1   12    4   0  0;...
+                        1   13    3   1  0;...
+                        1   14    2   2  0;...
+                        1   15    1   3  0;...
+                        1   16    0   4  0;...
+                %
+                        1   17    5   0  0;...
+                        1   18    4   1  0;...
+                        1   19    3   2  0;...
+                        1   20    2   3  0;...
+                        1   21    1   4  0;...
+                        1   22    0   5  0;...
+                        1   23    0   0  5;...
+                %
+                        1   24    6   0  0;...
+                        1   25    5   1  0;...
+                        1   26    4   2  0;...
+                        1   27    3   3  0;...
+                        1   28    2   4  0;...
+                        1   29    1   5  0;...
+                        1   30    0   6  0;...
+                %
+                        1   31    7   0  0;...
+                        1   32    6   1  0;...
+                        1   33    5   2  0;...
+                        1   34    4   3  0;...
+                        1   35    3   4  0;...
+                        1   36    2   5  0;...
+                        1   37    1   6  0;...
+                        1   38    0   7  0;...
+                        1   39    0   0  7;...
+                    
+                        2   0     0   0  0;...
+                %
+                        2   1     0   1  0;...
+                        2   2     1   0  0;...
+                        2   3     0   0  1;...
+                %
+                        2   4     0   2  0;...
+                        2   5     1   1  0;...
+                        2   6     2   0  0;...
+                %
+                        2   7     0   3  0;...
+                        2   8     1   2  0;...
+                        2   9     2   1  0;...
+                        2   10    3   0  0;...
+                        2   11    0   0  3;...
+                %
+                        2   12    0   4  0;...
+                        2   13    1   3  0;...
+                        2   14    2   2  0;...
+                        2   15    3   1  0;...
+                        2   16    4   0  0;...
+                %
+                        2   17    0   5  0;...
+                        2   18    1   4  0;...
+                        2   19    2   3  0;...
+                        2   20    3   2  0;...
+                        2   21    4   1  0;...
+                        2   22    5   0  0;...
+                        2   23    0   0  5;...
+                %
+                        2   24    0   6  0;...
+                        2   25    1   5  0;...
+                        2   26    2   4  0;...
+                        2   27    3   3  0;...
+                        2   28    4   2  0;...
+                        2   29    5   1  0;...
+                        2   30    6   0  0;...
+                %
+                        2   31    0   7  0;...
+                        2   32    1   6  0;...
+                        2   33    2   5  0;...
+                        2   34    3   4  0;...
+                        2   35    4   3  0;...
+                        2   36    5   2  0;...
+                        2   37    6   1  0;...
+                        2   38    7   0  0;...
+                        2   39    0   0  7];
+                    
+                 PolyTPVtable = array2table(PolyTPV,'VariableNames',ColNames,'RowNames',PolyNames);
+
+        end
+ 
+        function PV = build_TANSIP(Header)
+            
+            AH = Header;
+            
+            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'A_\d+_\d+','match'));
+            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'B_\d+_\d+','match'));
+            
+            NPV1 = sum(FlagMatchPV1);
+            NPV2 = sum(FlagMatchPV2);
+            
+            if  NPV1 || NPV2
+                
+                PV = zeros(2,max(NPV1,NPV2),3);
+                
+                PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), 'A_(?<u_power>\d+)\_(?<v_power>\d+)','names');
+                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
+                
+                for I1 = 1:1:NPV1
+                    PV(1,I1,1:3) = [PV1_Vals(I1) str2double(PV1_Powers{I1}.u_power) str2double(PV1_Powers{I1}.v_power)];
+                end
+                
+                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), 'B_(?<u_power>\d+)\_(?<v_power>\d+)','names');
+                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
+                
+                for I2 = 1:1:NPV2
+                    PV(2,I2,1:3) = [PV2_Vals(I2) str2double(PV2_Powers{I2}.u_power) str2double(PV2_Powers{I2}.v_power)];
+                end
+               
+            else
+                PV = [];
+            end            
+            
+        end
+                
+        
+
         
     end
+    
+    
+   %==================OLD FUNCTIONS=================================
+       
+    
     
     methods
         function Obj=fill(Obj,Force)
@@ -588,31 +639,8 @@ classdef AstroWCS < Component
 
         end
 
-        function Obj=fill_PV(Obj)
-            % fill missing values in the PV matrix with zeros
-            % Package: @wcsCl (basic)
-            % Input  : - A wcsCl object
-            % Output : - A wcsCl object
-            % Example: Obj=wcsCl.pop_exampl; Obj.fill Obj.fill_PV;
-
-            Nw = numel(Obj);
-            for Iw=1:1:Nw
-                N  = numel(Obj(Iw).PV);
-                for I=1:1:N
-                    Ind  = Obj(Iw).PV{I}(:,1);
-                    Coef = Obj(Iw).PV{I}(:,2);
-
-                    FullInd = (0:1:max(Ind))';
-                    IsM = ismember(FullInd,Ind);
-                    FullCoef = zeros(size(FullInd));
-                    FullCoef(IsM) = Coef;
-                    Obj(Iw).PV{I} = [FullInd, FullCoef];
-                end
-            end
-        end   
         
-        
-        function Obj=populate_projMeta(Obj)
+        function Obj=OLD_populate_projMeta(Obj)
             % populate projection and pole information in a wcsCl object
             % Package: @wcsCl
             % Description: 
@@ -1237,7 +1265,7 @@ classdef AstroWCS < Component
             Yi=reshape(Yi,size(Y));
         end
 
-
+        % delete
         function Ans=isPopulated(Obj)
             % Check if wcsCl object Exist field is false (i.e., no WCS in object)
             % Package: @wcsCl (basic)
@@ -1501,147 +1529,6 @@ classdef AstroWCS < Component
             Y = reshape(XY(:,2),size(PY));
 
         end
-
-
-        function [Ind,PolyPV]=poly2tpvInd(Poly_Xdeg,Poly_Ydeg,Poly_Rdeg)
-            %
-            % Example: [Ind,PolyPV]=wcsCl.poly2tpvInd(T.PolyRep.PolyX_Xdeg,T.PolyRep.PolyX_Ydeg)
-
-            if nargout<3
-                Poly_Rdeg = zeros(size(Poly_Xdeg));
-            end
-
-
-            PolyPV = wcsCl.polyPVdef;
-
-            N = numel(Poly_Xdeg);
-            Ind = nan(N,1);
-            for I=1:1:N
-                Flag   = PolyPV(:,2)==Poly_Xdeg(I) & PolyPV(:,3)==Poly_Ydeg(I) & PolyPV(:,4)==Poly_Rdeg(I);
-                Ind(I) = PolyPV(Flag,1);
-            end
-        end
-
-
-        function PolyPV=polyPVdef()
-            % return the TPV polynomial definition
-            % Output : - A matrix of [term, Xi, Yi, r]
-            % Example: PolyPV=wcsCl.polyPVdef
-
-            % polynomial mapping: term Xi  Yi r
-            PolyPV =   [0     0   0  0;...
-                %
-                        1     1   0  0;...
-                        2     0   1  0;...
-                        3     0   0  1;...
-                %
-                        4     2   0  0;...
-                        5     1   1  0;...
-                        6     0   2  0;...
-                %
-                        7     3   0  0;...
-                        8     2   1  0;...
-                        9     1   2  0;...
-                        10    0   3  0;...
-                        11    0   0  3;...
-                %
-                        12    4   0  0;...
-                        13    3   1  0;...
-                        14    2   2  0;...
-                        15    1   3  0;...
-                        16    0   4  0;...
-                %
-                        17    5   0  0;...
-                        18    4   1  0;...
-                        19    3   2  0;...
-                        20    2   3  0;...
-                        21    1   4  0;...
-                        22    0   5  0;...
-                        23    0   0  5;...
-                %
-                        24    6   0  0;...
-                        25    5   1  0;...
-                        26    4   2  0;...
-                        27    3   3  0;...
-                        28    2   4  0;...
-                        29    1   5  0;...
-                        30    0   6  0;...
-                %
-                        31    7   0  0;...
-                        32    6   1  0;...
-                        33    5   2  0;...
-                        34    4   3  0;...
-                        35    3   4  0;...
-                        36    2   5  0;...
-                        37    1   6  0;...
-                        38    0   7  0;...
-                        39    0   0  7];
-
-        end
-
-
-        function Obj=pop_example()
-            % populate an example in a wcsCl object
-            % Package: @wcsCl (Static)
-            % Example: Obj=wcsCl.pop_example
-
-            % taken from PTF image:
-            % PTF_201211213689_i_p_scie_t085110_u014664936_f02_p100037_c02.fits
-
-            Obj = wcsCl;
-            Obj.Exist   = true;
-            Obj.NAXIS   = 2;
-            Obj.WCSAXES = 2;
-            Obj.CTYPE   = {'RA--TPV','DEC-TPV'};
-            Obj.CUNIT   = {'deg','deg'};
-            Obj.RADESYS = 'ICRS';
-            Obj.EQUINOX = 2000;
-            Obj.CD      = [0.000281213122191427, 6.60586568794139E-06; 6.75167063981288E-06, -0.000281077673400925];
-            Obj.CRVAL   = [148.750256715202, 69.4980616019507];
-            Obj.CRPIX   = [586.994, 1882.221];
-            Obj.LONPOLE = 180;
-            Obj.LATPOLE = 0;
-
-            PV1 = [0             0
-                   1             1
-                   2             0
-                   4    0.00078642
-                   5   -0.00065487
-                   6    0.00012021
-                   7   -0.00045983
-                   8    0.00017232
-                   9    -0.0002152
-                   10   -0.00016153
-                   12    -0.0011808
-                   13   -0.00021634
-                   14    0.00036701
-                   15    0.00028443
-                   16    4.0954e-05];
-
-            PV2 = [0             0
-                   1             1
-                   2             0
-                   4   -0.00078711
-                   5    0.00036965
-                   6    0.00011267
-                   7   -0.00022865
-                   8    0.00011075
-                   9    0.00012075
-                   10    -0.0019171
-                   12     0.0001629
-                   13    1.7579e-06
-                   14    0.00029664
-                   15    0.00021697
-                   16     0.0028449];
-
-            Obj.PV = {PV1, PV2};
-
-            Obj.fill;
-            Obj.fill_PV;
-
-        end
-
-
 
 
         function Obj=populate(varargin)
@@ -1980,7 +1867,7 @@ classdef AstroWCS < Component
             % construct an empty AstroWCS
             AW = AstroWCS([2 2]);
             
-            % construct a AstroWCS from an AstroHeader with full TAN projection
+            % construct a AstroWCS from AstroHeader with full TAN projection
             AH = AstroHeader('FOCx38i0101t_c0f.fits');
             AW = AstroWCS.header2wcs(AH);
             
@@ -2001,9 +1888,21 @@ classdef AstroWCS < Component
             AW = AstroWCS.header2wcs(AH); % using CDELT and PC should give identical CD to original
             cd(PWD);   
             
-            % construct a AstroWCS from Header with Naxis=3, and empty projtype in CTYPE3
+            % Test with no projection (fill ProjType=ProjClass='none')
+            AH.replaceVal({'CTYPE1','CTYPE2'},{'RA','DEC'});
+            AW = AstroWCS.header2wcs(AH);
+            
+            % construct a AstroWCS from AstroHeader with Naxis=3, and empty projtype in CTYPE3
             AH = AstroHeader('WFPC2u5780205r_c0fx.fits');
             AW = AstroWCS.header2wcs(AH);
+
+            % construct a AstroWCS from Header with TPV projection
+            AH = AstroHeader('tpv.fits');
+            AW = AstroWCS.header2wcs(AH);
+
+            % construct a AstroWCS from Header with TAN-SIP projection
+            AH = AstroHeader('SPITZER_I1_70576896_0000_0000_1_bcd.fits');
+            AW = AstroWCS.header2wcs(AH);            
             
             % test other things
             
