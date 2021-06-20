@@ -106,18 +106,23 @@ classdef AstroWCS < Component
             projtype = cell(size(ctype));
             cooname  = cell(size(ctype));
             coounit  = cell(size(ctype));
-            dist    = cell(size(ctype)); % what is this? Eran - TODO
+%            dist    = cell(size(ctype)); % what is this? Eran - TODO
             
             for I = 1:1:numel(ctype)
                 Split    = regexp(ctype{I},'-','split');
                 Pair     = Split(~tools.cell.isempty_cell(Split));
                 cooname{I}  = Pair{1};
-                projtype{I} = Pair{2};
-                if (numel(Pair)>2)   % what is this? Eran - TODO
-                    dist{I} = Pair{3};
-                end                
+                if (numel(Pair)>1) 
+                    projtype{I} = Pair{2};
+%                    if (numel(Pair)>2)   % what is this? Eran - TODO
+%                        dist{I} = Pair{3};
+%                    end    
+                end
                 coounit{I} = CunitDict.searchAlt(cooname{I});
             end
+            
+            % remove cells with no projtype, e.g. velocity
+            projtype = projtype(~tools.cell.isempty_cell(projtype)); 
             
             if all(strcmp(projtype{1},projtype))
                 Obj.ProjType = projtype{1};
@@ -129,7 +134,7 @@ classdef AstroWCS < Component
             Obj.CooName = cooname;
             
             
-
+            % if CUNIT is not given in the header, fill from dictionary
             Funit = tools.cell.isnan_cell(Obj.CUNIT);
             Obj.CUNIT(Funit) = coounit(Funit);
             
@@ -1995,6 +2000,10 @@ classdef AstroWCS < Component
             AH.insertKey({'PC1_2',ValCD(2)/ValCD(1);'PC2_1',ValCD(3)/ValCD(4)});
             AW = AstroWCS.header2wcs(AH); % using CDELT and PC should give identical CD to original
             cd(PWD);   
+            
+            % construct a AstroWCS from Header with Naxis=3, and empty projtype in CTYPE3
+            AH = AstroHeader('WFPC2u5780205r_c0fx.fits');
+            AW = AstroWCS.header2wcs(AH);
             
             % test other things
             
