@@ -46,9 +46,9 @@ classdef DbConnection < Component
     methods
         % Constructor    
         function Obj = DbConnection(varargin)
-            
+            Obj.setName('DbConnection');
             Obj.needUuid();
-            Obj.msgLog(LogLevel.Debug, 'DbConnection created: %s', Obj.Uuid);
+            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
             
             if numel(varargin) > 0
                 
@@ -58,7 +58,7 @@ classdef DbConnection < Component
         
         % Destructor
         function delete(Obj)
-            Obj.msgLog(LogLevel.Debug, 'DbConnection deleted: %s', Obj.Uuid);
+            Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end                
     end
     
@@ -68,11 +68,11 @@ classdef DbConnection < Component
         function Result = open(Obj)          
             % Connect to database specified by Host:Port:Database as UserName/Password
             f_ = io.FuncLog('DbConnection.open');
-            Obj.msgLog(LogLevel.Info, 'DbConnection.open');
+            Obj.msgLog(LogLevel.Info, 'open');
             
             % Already open            
             if Obj.IsOpen
-                Obj.msgLog(LogLevel.Info, 'DbConnection.open: already open');
+                Obj.msgLog(LogLevel.Info, 'open: already open');
                 return
             end
                
@@ -88,34 +88,34 @@ classdef DbConnection < Component
 
             % Prepare username and password
             try                
-                Obj.msgLog(LogLevel.Debug, 'DbConnection.open: setProperty: %s/%s', Obj.UserName, Obj.Password);
+                Obj.msgLog(LogLevel.Debug, 'open: setProperty: %s/%s', Obj.UserName, Obj.Password);
                 props = java.util.Properties;
                 props.setProperty('user', Obj.UserName);
                 props.setProperty('password', Obj.Password);
             catch
-                Obj.msgLog(LogLevel.Error, 'DbConnection.open: setProperty failed');
+                Obj.msgLog(LogLevel.Error, 'open: setProperty failed');
             end
      
             % Connect
             try
                 Obj.Url = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
-                Obj.msgLog(LogLevel.Info, 'DbConnection.open: Url: %s', Obj.Url);
+                Obj.msgLog(LogLevel.Info, 'open: Url: %s', Obj.Url);
                 Obj.Conn = Obj.Driver.Driver.connect(Obj.Url, props);
                 Obj.IsOpen = true;
-                Obj.msgLog(LogLevel.Info, 'DbConnection.open: connect OK: %s', Obj.Url);
+                Obj.msgLog(LogLevel.Info, 'open: connect OK: %s', Obj.Url);
             catch
             end
 
             % Get metadata
             try
-                Obj.msgLog(LogLevel.Debug, 'DbConnection.open: calling getMetaData');
+                Obj.msgLog(LogLevel.Debug, 'open: calling getMetaData');
                 Obj.Metadata = Obj.Conn.getMetaData();   
             catch
-                Obj.msgLog(LogLevel.Error, 'DbConnection.open: getMetaData failed');
+                Obj.msgLog(LogLevel.Error, 'open: getMetaData failed');
             end         
             
             Result = Obj.IsOpen;
-            Obj.msgLog(LogLevel.Info, 'DbConnection.open finished');
+            Obj.msgLog(LogLevel.Info, 'open finished');
         end
         
         
@@ -123,7 +123,7 @@ classdef DbConnection < Component
         function Result = close(Obj)
             % Disconnect from database
             
-            Obj.msgLog(LogLevel.Info, 'DbConnection.close');
+            Obj.msgLog(LogLevel.Info, 'close');
             try
                 Obj.IsOpen = false;
             catch

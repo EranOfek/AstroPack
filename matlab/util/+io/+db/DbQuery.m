@@ -37,8 +37,9 @@ classdef DbQuery < Component
         function Obj = DbQuery(varargin)
             % Create new DbQuery obeject
             
+            Obj.setName('DbQuery');
             Obj.needUuid();
-            Obj.msgLog(LogLevel.Debug, 'DbQuery created: %s', Obj.Uuid);
+            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
             
             %
             if numel(varargin) == 1 
@@ -67,7 +68,7 @@ classdef DbQuery < Component
         
         % Destructor
         function delete(Obj)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery deleted: %s', Obj.Uuid);
+            Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end                        
     end
     
@@ -97,7 +98,7 @@ classdef DbQuery < Component
             % @Todo: Replace varargin with arguments block
             
             % Run SELECT statement (using java calls)          
-            Obj.msgLog(LogLevel.Info, 'DbQuery: open');
+            Obj.msgLog(LogLevel.Info, 'query');
             Result = false;
             
             tic();
@@ -112,11 +113,11 @@ classdef DbQuery < Component
             end              
         
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.query: %s', Obj.SqlText);
+            Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
             try
                 Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
             catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.query: prepareStatement failed: %s', Obj.SqlText);
+                Obj.msgLog(LogLevel.Error, 'query: prepareStatement failed: %s', Obj.SqlText);
             end
             
             % Execute
@@ -133,17 +134,17 @@ classdef DbQuery < Component
                 Result = true;
             catch
                 Obj.IsOpen = false;
-                Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);                
+                Obj.msgLog(LogLevel.Error, 'query: executeQuery failed: %s', Obj.SqlText);                
             end           
             
             Obj.Toc = toc();            
-            Obj.msgLog(LogLevel.Info, 'DbQuery.query time: %.6f', Obj.Toc);
+            Obj.msgLog(LogLevel.Info, 'query time: %.6f', Obj.Toc);
         end
         
 
         function Result = exec(Obj, varargin)
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Info, 'DbQuery: exec');            
+            Obj.msgLog(LogLevel.Info, 'exec');            
             Result = false;
             tic();
             
@@ -157,11 +158,11 @@ classdef DbQuery < Component
             end              
         
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.exec: %s', Obj.SqlText);
+            Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
             try
                 Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
             catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.exec: prepareStatement failed: %s', Obj.SqlText);
+                Obj.msgLog(LogLevel.Error, 'exec: prepareStatement failed: %s', Obj.SqlText);
             end
             
             % See https://www.codota.com/code/java/methods/java.sql.PreparedStatement/setBigDecimal
@@ -179,11 +180,11 @@ classdef DbQuery < Component
                 Obj.ExecOk = true;                
                 Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.open: executeQuery failed: %s', Obj.SqlText);                
+                Obj.msgLog(LogLevel.Error, 'exec: executeQuery failed: %s', Obj.SqlText);                
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'DbQuery.exec time: %.6f', Obj.Toc);
+            Obj.msgLog(LogLevel.Info, 'exec time: %.6f', Obj.Toc);
         end
         
         

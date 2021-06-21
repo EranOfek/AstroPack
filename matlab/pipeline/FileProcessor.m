@@ -29,7 +29,7 @@ classdef FileProcessor < Component
                
         % Constructor    
         function Obj = FileProcessor()
-            Obj.Name = 'FileProcessor';
+            Obj.setName('FileProcessor');
         end
         
         

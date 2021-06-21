@@ -41,14 +41,15 @@ classdef DbDriver < Component
     methods
         % Constructor    
         function Obj = DbDriver()
+            Obj.setName('DbDriver');
             Obj.needUuid();
-            Obj.msgLog(LogLevel.Debug, 'DbDriver created: %s', Obj.Uuid);
+            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
         end
         
         
         % Destructor
         function delete(Obj)
-            Obj.msgLog(LogLevel.Debug, 'DbDriver deleted: %s', Obj.Uuid);
+            Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end        
     end
     
@@ -57,11 +58,11 @@ classdef DbDriver < Component
                         
         function Result = open(Obj)          
             %
-            Obj.msgLog(LogLevel.Info, 'DbDriver: open');
+            Obj.msgLog(LogLevel.Info, 'open');
             
             % Already open
             if Obj.IsOpen
-                Obj.msgLog(LogLevel.Info, 'DbDriver.open: already open');                
+                Obj.msgLog(LogLevel.Info, 'open: already open');                
                 Result = true;
                 return
             end
@@ -74,11 +75,11 @@ classdef DbDriver < Component
                         Obj.Driver = org.postgresql.Driver;
                         Obj.IsOpen = true;
                     catch
-                        Obj.msgLog(LogLevel.Error, 'DbDriver.open: Failed to get org.postgresql.Driver');
+                        Obj.msgLog(LogLevel.Error, 'open: Failed to get org.postgresql.Driver');
                     end
                 end
             else
-                Obj.msgLog(LogLevel.Error, 'DbDriver.open: Database type not supported: %s', Obj.DatabaseType);
+                Obj.msgLog(LogLevel.Error, 'open: Database type not supported: %s', Obj.DatabaseType);
             end
             
             Result = Obj.IsOpen;
@@ -100,20 +101,20 @@ classdef DbDriver < Component
                 Obj.TargetJarFile = fullfile('/tmp', FileName);
             end
             
-            Obj.msgLog(LogLevel.Info, 'DbDriver: Copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
+            Obj.msgLog(LogLevel.Info, 'copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
             if copyfile(Obj.SourceJarFile, Obj.TargetJarFile)
             else
-                Obj.msgLog(LogLevel.Error, 'DbDriver: Cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
+                Obj.msgLog(LogLevel.Error, 'cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
             end
             
             % Add jar file to classpath (ensure it is present in your current dir)
             % Do we need this? javaclasspath('postgresql-9.0-801.jdbc4.jar');
             try
                 javaclasspath(Obj.TargetJarFile);
-                Obj.msgLog(LogLevel.Info, 'DbDriver: driver OK');
+                Obj.msgLog(LogLevel.Info, 'driver OK');
                 Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'DbDriver: javaclasspath failed: %s', Obj.TargetJarFile);                
+                Obj.msgLog(LogLevel.Error, 'javaclasspath failed: %s', Obj.TargetJarFile);                
             end
             
         end
@@ -122,7 +123,7 @@ classdef DbDriver < Component
         function Result = close(Obj)
             % Disconnect from database
             
-            Obj.msgLog(LogLevel.Info, 'DbDriver: close');
+            Obj.msgLog(LogLevel.Info, 'close');
             try
                 Obj.Driver = [];
                 Obj.IsOpen = false;
