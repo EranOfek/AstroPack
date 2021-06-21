@@ -1,5 +1,6 @@
 function [Result, Surface] = fitSurface(Obj, Args)
     % Fit a surface to a 2D image, with sigma clipping
+    %   The X/Y coordinates are normalized prior to fitting.
     % Input  : - An AstroImage or ImageComponent object.
     %          * ...,key,val,...
     %            'DataProp' - data property on which to operate.
@@ -13,9 +14,14 @@ function [Result, Surface] = fitSurface(Obj, Args)
     % Output : - A structure array of the results including
     %            the functionals (Fun), the fitted parameters (Par), and
     %            the RMS.
+    %            The parameters are for the coeficients of the functionals
+    %            after coordinate normalization.
     %          - An ImageComponent of surface values.
     % Author : Eran Ofek (Jun 2021)
-    % Example: NOT TESTED
+    % Example: [MatX, MatY] = meshgrid( (1:1:1000), (1:1:1000) );
+    %          Z = 2+MatX +MatY + MatX.*MatY;
+    %          AI = AstroImage({Z});
+    %          [Result, Surface] = imProc.background.fitSurface(AI)
     
     arguments
         Obj                                 % AstroImage or ImageComponent
@@ -34,7 +40,7 @@ function [Result, Surface] = fitSurface(Obj, Args)
     for Iobj=1:1:Nobj
         % for each image
         
-        Image = Obj(Iobj).(DataProp);
+        Image = Obj(Iobj).(Args.DataProp);
         
         % fit
         SizeIJ       = size(Image);
@@ -86,9 +92,17 @@ function [Result, Surface] = fitSurface(Obj, Args)
         
         end
            
-        Result(Iobj).FunX = FunX;
+        Result(Iobj).Fun  = Args.Fun;
         Result(Iobj).Par  = Par;
         Result(Iobj).RMS  = RMS;
+        Result(Iobj).MinX = MinX;
+        Result(Iobj).MaxX = MaxX;
+        Result(Iobj).MidX = MidX;
+        Result(Iobj).RangeX = RangeX;
+        Result(Iobj).MinY = MinY;
+        Result(Iobj).MaxY = MaxY;
+        Result(Iobj).MidY = MidY;
+        Result(Iobj).RangeY = RangeY;
         
         if nargout>1
             SizeIJ       = size(Image);
@@ -98,7 +112,7 @@ function [Result, Surface] = fitSurface(Obj, Args)
             
             Surface(Iobj).Image = zeros(SizeIJ);
             for If=1:1:Nf
-                Surface(Iobj).Image = Surface(Iobj).Image + Args.Fun(MatXN, MatYN);
+                Surface(Iobj).Image = Surface(Iobj).Image + Result.Par(If).*Args.Fun{If}(MatXN, MatYN);
             end
         end
         

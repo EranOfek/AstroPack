@@ -25,5 +25,13 @@ function Result = unitTest()
         error('Background was not subtracted correctly');
     end
     
+    [MatX, MatY] = meshgrid( (1:1:1000), (1:1:1000) );
+    Z = 2+MatX +MatY + MatX.*MatY;
+    AI = AstroImage({Z});
+    [Result, Surface] = imProc.background.fitSurface(AI);
+    if max(abs(Surface.Image - Z),[],'all')>1e-6
+        error('Problem with fitSurface');
+    end
+
     Result = true;
 end
