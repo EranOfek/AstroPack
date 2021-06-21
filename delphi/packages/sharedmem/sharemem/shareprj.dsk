@@ -1,0 +1,44 @@
+[MainWindow]
+Create=1
+Visible=1
+State=0
+Left=0
+Top=0
+Width=800
+Height=106
+
+[ProjectManager]
+Column0Width=75
+Column1Width=125
+Column2Width=125
+
+[PropertyInspector]
+Create=1
+Visible=1
+State=0
+Left=0
+Top=108
+Width=190
+Height=306
+SplitPos=76
+
+[Closed Files]
+File_0=E:\DELPHI\ARTHUR\sharemem\mainform.pas,1,1,23,7
+File_1=e:\delphi\source32\LblEffct.pas,1,767,1,770
+File_2=e:\delphi\arthur\winlib\sharedmm.pas,1,1,13,84
+File_3=D:\Programme\Borland\Delphi 2.0\source\vcl\StdCtrls.pas,3,1,45,16
+File_4=D:\Programme\Borland\Delphi 2.0\source\vcl\Controls.pas,1,437,21,446
+
+[Modules]
+Module0=E:\DELPHI\ARTHUR\sharemem\shareprj.dpr
+Count=1
+EditWindowCount=0
+
+[Form0]
+FormState=0
+
+[Watches]
+Count=0
+
+[Breakpoints]
+Count=0

@@ -1,0 +1,38 @@
+----------------------------------------------------------------------------------
+ Name      : TfisSharedMemory
+ Files     : TfisSharedMemory.cpp TfisSharedMemeory.h TfisSharedMemory.dcr
+ Purpose   : Allows a process to share (named) memory with other processes
+             and instances
+ Status    : Freeware
+ Version   : 1.00, 20th June 2000
+ Copyright : First Internet Software House 2000
+ Contact   : http://www.fishouse.com (email: support@fishouse.com)
+----------------------------------------------------------------------------------
+		
+With this component you can share memory between other processes and instances. By
+using File Mapping, but without a file underneath, this component allows you to
+allocate memory and allow other processes to use it. By naming the memory, using the
+ShareName property, any other process can quickly determine whether the memory is
+available, read from it and write to it. The component also has built-in ownership
+functions, RequestOwnership and ReleaseOwnership, so that you can synchronize the
+access to the memory and therefore make it thread-safe.
+
+To use the component, drop it onto a form. The ShareName by default is the name of the 
+component but you can change it. Set the size property to the amount of memory you want 
+to allocate. Set the ownership timeout value. A value of -1 will wait indefinitely for
+ownership. This value is in milliseconds. If you set the ReadOnly property to true, the
+pointer returned from the MapMemory function cannot be written to. 
+
+To create the memory use the CreateMemory function. This will allocate the memory with
+the ShareName property and also open it. To use the memory in another process use the
+OpenMemory function. To get a pointer to the memory call the MapMemory function. Once
+you have finished using the pointer, call the UnMapMemory function. To destroy the
+handle to the memory, call the CloseMemory function. 
+
+The memory will be deallocated when no handles to the memory remain open.
+
+The handle to the SharedMemory and the Ownership Mutex can be retrieved by the
+read-only, non-published properties Handle and Mutex respectively.
+
+----------------------------------------------------------------------------------
+
