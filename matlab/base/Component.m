@@ -35,8 +35,15 @@ classdef Component < Base
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function Obj = Component()
+        function Obj = Component(varargin)
             % By default use system log and configuration
+            
+            % Set owner component
+            if numel(varargin) > 0
+                Obj.Owner = varargin{1};
+            end
+                
+            % Use default log and configuration
             Obj.Log = MsgLogger.getSingleton();
             Obj.Config = Configuration.getSingleton();
         end
