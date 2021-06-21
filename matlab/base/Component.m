@@ -45,6 +45,12 @@ classdef Component < Base
     
     methods
         
+        function setName(Obj, Name)
+            % Set component name
+            Obj.Name = Name;
+        end
+        
+        
         function Result = makeUuid(Obj)
             % (re)Generate unique ID for each element in object
             for i = 1:numel(Obj)                
@@ -93,12 +99,24 @@ classdef Component < Base
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
+            
+            % Add name to log 
+            if ~isempty(Obj.Name)
+                varargin{1} = [Obj.Name, ': ' , varargin{1}];
+            end
+            
             Obj(1).Log.msgLog(Level, varargin{:});
         end
         
 
         function msgStyle(Obj, Level, Style, varargin)  
             % Set msg style
+            
+            % Add name to log 
+            if ~isempty(Obj.Name)
+                varargin{1} = [Obj.Name, ': ', varargin{1}];
+            end
+            
             Obj(1).Log.msgStyle(Level, Style, varargin{:});
         end        
     end
