@@ -272,6 +272,10 @@ else
     end
 end
 
+% Flag = ~any(isnan(Hx),2) & ~any(isnan(Hy),2) & ~isnan(CatX) & ~isnan(CatY);
+
+
+
 
 % fitting
 Iter = 0;
