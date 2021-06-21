@@ -18,7 +18,10 @@ classdef AstroImageDb < Component
     
     
     methods
+        
+        
         function Result = insertAstroHeader(Obj, Header, Query, TableName, Args)
+            % Insert AstroHeader object to the specified database table
             arguments
                 Obj
                 Header AstroHeader
@@ -27,11 +30,14 @@ classdef AstroImageDb < Component
                 Args.Fields = {};       % As
             end
             
-            % Iterate headers
+            % Get list of table's fields 
+            FieldNames = Query.getTableFieldList(TableName);
+            
+            % Iterate all headers in array, treat each one as independent data
             for i=1:numel(Header)
-                FieldNames = Query.getFieldList();
+                
                 HeaderData = Header(i).Data;
-                DataSize = size(HeaderData)
+                DataSize = size(HeaderData);
                 
                 % Prepare SQL statement
                 % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
