@@ -796,29 +796,7 @@ classdef DbQuery < Component
             pgver = Q.getField('version');
             io.msgLog(LogLevel.Test, 'Version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));
-        
-
-            
-            
-            % ---------------------------------------------- insertStruct             
-            
-            % Create struct with different types of fields
-            s = struct;            
-            s.recid = Component.newUuid();
-            s.fint = int32(1);
-            
-%             s.int1 = int32(1);
-%             s.uint1 = int32(2);
-%             s.bigint1 = int64(3);
-%             s.single1 = single(4);
-%             s.double1 = double(5);
-%             s.char1 = 'abcd';
-            
-            Q = io.db.DbQuery;
-            
-            Q.insertStruct('master_table', s);            
-            
-            
+       
             
             % ---------------------------------------------- getTableFieldList 
             Q = io.db.DbQuery(Conn);
@@ -908,6 +886,30 @@ classdef DbQuery < Component
             else
                 io.msgStyle(LogLevel.Test, '@warn', 'Table master_table is empty, select tests are skipped');
             end
+            
+            
+            
+            % ---------------------------------------------- insertStruct             
+            
+            % Create struct with different types of fields
+            s = struct;            
+            s.recid = Component.newUuid();
+            s.fint = int32(1);
+            
+%             s.int1 = int32(1);
+%             s.uint1 = int32(2);
+%             s.bigint1 = int64(3);
+%             s.single1 = single(4);
+%             s.double1 = double(5);
+%             s.char1 = 'abcd';
+            
+            Q = io.db.DbQuery;
+            
+            %Q.insertStruct('master_table', s);            
+            
+            
+
+            
             
             % ---------------------------------------------- Insert
             

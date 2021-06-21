@@ -5,9 +5,17 @@
 *.obj
 *.exe
 *.res
+*.or
+*.a
+
 *.compiled
 **/lib/
 **/x86_64-win64/
 
 # Auto backup files
 **/backup/
+
+
+*.lrs
+*.ppu
+
