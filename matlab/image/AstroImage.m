@@ -105,9 +105,36 @@ classdef AstroImage < Component
        
         function Obj = AstroImage(FileNames, Args)
             % Constructor and image reader for AstroImage class
-            %
-            % Under development
-            %
+            % Input  : - A file name, files, or cell of matrices.
+            %          * ...,key,val,...
+            %            'HDU' - HDU number. Default is 1.
+            %            'Scale' - Image scale. Default is [].
+            %            'ReadHeder' - A logical indicating if to read
+            %                   header. Default is true.
+            %            'Back' - The same as the file name argument, but
+            %                   for a background image. Default is [].
+            %            'BackHDU' - The same as HDU, but for the
+            %                   background image. Default is [].
+            %            'BackScale' - The same as scale, but for the
+            %                   background image. Default is [].
+            %            'Var' - The same as the file name argument, but
+            %                   for a variance image. Default is [].
+            %            'VarHDU' - The same as HDU, but for the
+            %                   variance image. Default is [].
+            %            'VarScale' - The same as scale, but for the
+            %                   variance image. Default is [].
+            %            'Mask' - The same as the file name argument, but
+            %                   for a mask image. Default is [].
+            %            'MaskHDU' - The same as HDU, but for the
+            %                   mask image. Default is [].
+            %            'MaskScale' - The same as scale, but for the
+            %                   mask image. Default is [].
+            %            'FileType' - If empty, use auto detection.
+            %                   Default is [].
+            %            'UseRegExp' - Ues regexp for file name
+            %                   interpretation. Default is false.
+            % Output : - An AstroImage object.
+            % Author : Eran Ofek (Jun 2021)
             % Example:
             %          AI = AstroImage([2 2]);
             %          AI = AstroImage(FileNames,'HDU',1);
