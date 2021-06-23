@@ -74,6 +74,8 @@ function Result = astrometryCore(Obj, Args)
     % with the center of Cat.
     % Therefore, we should shift Cat to its own center. ??
     
+    % Apply shift transformation on:
+    FilteredProjAstCat
     
     
     % Match pattern catalog to projected astrometric catalog
@@ -99,7 +101,13 @@ function Result = astrometryCore(Obj, Args)
     %[Param, Res] = imProc.trans.fitTransformation(TransformedCat, FilteredProjAstCat, 'Tran',Args.Tran);
     % MatchedRef has the same number of lines as in Ref,
     % but it is affine transformed to the coordinate system of Cat
-    [Param, Res] = imProc.trans.fitTransformation(Matched.MatchedCat, Matched.MatchedRef, 'Tran',Args.Tran);
+    
+    
+    %bug in fitPattern
+    %Matched.MatchedCat.ColNames has 32 columsn, while only 2 in the Catalog
+    
+    [Param, Res] = imProc.trans.fitTransformation(Matched.MatchedCat, Matched.MatchedRef,...
+                                                  'Tran',Args.Tran);
     
     
     % Calculate WCS
