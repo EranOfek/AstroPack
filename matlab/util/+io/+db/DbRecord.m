@@ -6,10 +6,11 @@ classdef DbRecord < dynamicprops
     
     % Properties
     properties (SetAccess = public)
-        Query_       = []        % Linked DbQuery
-        KeyField_    = ''        % Key field(s)
-        Uuid_        = ''        % Used when UseUuid is true
-        UseUuid_     = false;    % 
+        Name_        = 'DbRecord';
+        Query_       = []           % Linked DbQuery
+        KeyField_    = ''           % Key field(s)
+        Uuid_        = ''           % Used when UseUuid is true
+        UseUuid_     = false;       % 
     end
     
     %-------------------------------------------------------- 

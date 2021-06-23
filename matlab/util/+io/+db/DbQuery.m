@@ -50,7 +50,7 @@ classdef DbQuery < Component
                     Conn = varargin{1};
                     
                 % Connection name is specified
-                elseif strcmp(class(varargin{1}), 'char') || strcmp(class(varargin{1}), 'string')
+                elseif ischar(varargin{1}) || isa(varargin{1}, 'string')
                     Obj.ConnName = varargin{1};
                     Conn = io.db.DbConnection.getDbConnection(Obj.ConnName);
                 end                
@@ -334,6 +334,7 @@ classdef DbQuery < Component
             end
         end
         
+        
         function Result = getRecord(Obj)
             % Get current record from ResultSet as DbRecord
             % NOTE: Field names are loaded in lower-case (because Postgres
@@ -429,8 +430,7 @@ classdef DbQuery < Component
             Obj.query();            
             Result = Obj.getField('count');
         end
-
-        
+       
         
         function Result = loadAll(Obj, Args)
             % Load entire ResultSet to memory, might be time/memory consuming!
@@ -491,7 +491,7 @@ classdef DbQuery < Component
             tic();
             
             % Initialize
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadTable, ColCount = %d', Obj.ColCount);
+            Obj.msgLog(LogLevel.Debug, 'loadTable, ColCount = %d', Obj.ColCount);
             
             % Create empty table
             Fields = Obj.ColNames;
@@ -523,10 +523,9 @@ classdef DbQuery < Component
             end         
             
             Obj.Time = toc();
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadTable, RowCount = %d, Time: %.6f', RowIndex, Obj.Time);
+            Obj.msgLog(LogLevel.Debug, 'loadTable, RowCount = %d, Time: %.6f', RowIndex, Obj.Time);
         end
-        
-                            
+                                    
     end % Select
     
     
@@ -553,8 +552,7 @@ classdef DbQuery < Component
             Result = Obj.exec(Sql, Values);
         end
         
-        
-        
+                
         function Result = getFieldTable(Obj)
             % Get fields as empty table
             
@@ -574,21 +572,21 @@ classdef DbQuery < Component
         end
         
 
-        function Result = insertStruct(Obj, TableName, Rec, Args)
+        function Result = insertRecord(Obj, TableName, Rec, Args)
             % Insert DbRecord or struct fields to specified table
             arguments
                 Obj
                 TableName
-                Rec
+                Rec                     % DbRecord or struct
                 Args.FieldMap = []      % Optional field map
             end
             
-            % Insert struct, use all fields that exist in the table
+            % Use all fields that exist in the table
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             Result = false;
                        
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Info, 'DbQuery: insertStruct');            
+            Obj.msgLog(LogLevel.Info, 'DbQuery: insertRecord');            
             tic();
             
             % Need connection, clear current query
@@ -603,14 +601,14 @@ classdef DbQuery < Component
             
             % 
             Obj.SqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ')'];
-            Obj.msgLog(LogLevel.Debug, 'insertStruct: SqlText: %s', Obj.SqlText);
+            Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', Obj.SqlText);
             
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.exec: %s', Obj.SqlText);
+            Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
             try
                 Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText, Args.FieldMap);            
             catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.exec: prepareStatement failed: %s', Obj.SqlText);
+                Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
             end
                       
             % Iterate struct fields
@@ -623,37 +621,25 @@ classdef DbQuery < Component
                 Obj.ExecOk = true;                
                 Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.insert: executeQuery failed: %s', Obj.SqlText);                
+                Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);                
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'DbQuery.exec time: %.6f', Obj.Toc);  
+            Obj.msgLog(LogLevel.Info, 'insertRecord time: %.6f', Obj.Toc);  
                   
             Result = true;
         end
                      
-                        
-        function Result = insertRecord(Obj, TableName, Rec)
-            % Insert new record
-            Result = false;
-            
-            %
-%             x = 1;
-% 
-%             for i=1:10
-%                 pk = ['pk_', string(i).char];
-%                 sql = 'INSERT INTO raw_images(ImageID, RA_Center) VALUES(%s,%s);'
-% 
-%                 Obj.Statement = Obj.Conn.prepareStatement(sql);            
-%                 Obj.ResultSet = Obj.Statement.executeQuery();                
-%             end
-            
-            
-        end
         
-        
-        function Result = updateRecord(Obj, Rec)
+        function Result = updateRecord(Obj, TableName, Rec, Args)
             % Update record
+            arguments
+                Obj
+                TableName
+                Rec                     % DbRecord or struct
+                Args.FieldMap = []      % Optional field map
+            end
+            
             Result = false;
         end        
         
@@ -662,13 +648,19 @@ classdef DbQuery < Component
     %----------------------------------------------------------------------
     methods
         
-        function Result = createDatabase(Obj)
+        function Result = createDatabase(Obj, DbName, Args)
             % Create database
+            arguments
+                Obj
+                DbName              %
+                Args.Fields = []    %
+            end
+            
         end
     end
     
     %======================================================================
-    %                       Internal Functions
+    %                         Internal Functions
     %======================================================================
     
     methods
@@ -846,9 +838,10 @@ classdef DbQuery < Component
         
     end
 
+        
+    %======================================================================
     
-    
-    %----------------------------------------------------------------------
+    %======================================================================
     % Unit test
     methods(Static)
         function Result = unitTest()
@@ -966,20 +959,19 @@ classdef DbQuery < Component
             
             % @Todo - fails on changes of 22/06/2021 !!!
             Result = true;
-            return;
             
-            % ---------------------------------------------- Insert struct             
+            % ---------------------------------------------- insertRecord
             
             % Create struct with different types of fields
             s = struct;            
             s.recid = Component.newUuid();
             s.fint = int32(1);
-            Q.insertStruct('master_table', s);            
+            Q.insertRecord('master_table', s);            
             
             s = struct;            
             s.recid = Component.newUuid();
             s.fint = int32(2);
-            Q.insertStruct('master_table', s);
+            Q.insertRecord('master_table', s);
             
 %             s.int1 = int32(1);
 %             s.uint1 = int32(2);
@@ -1002,7 +994,7 @@ classdef DbQuery < Component
             r = io.db.DbRecord;
             r.addProp('recid', Component.newUuid());
             r.addProp('fint', 3);
-            Q.insertStruct('master_table', r);
+            Q.insertRecord('master_table', r);
             
             % ---------------------------------------------- Insert
             
@@ -1065,7 +1057,7 @@ classdef DbQuery < Component
             count2 = Q.selectCount('master_table');
             assert(count2 == count);
             
-            % ---------------------------------------------- Create and delete database
+            % ---------------------------------------------- Create database
             %
  
             io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
