@@ -13,7 +13,8 @@ function Result = unitTest()
     Cat    = imProc.trans.projection(Ref, RA, Dec, Scale, 'TAN', 'Coo0Units','rad');
     Cat = queryRange(Cat, AstroCatalog.DefNamesMag, [11 19]);
     % plot(Cat.Catalog(:,31),Cat.Catalog(:,32),'.')
-    
+    Cat.Catalog(:,31) = Cat.Catalog(:,31) + 10;
+    Cat.Catalog(:,32) = Cat.Catalog(:,32) + 20;
     
     Result = imProc.astrometry.astrometryCore(Cat, 'RA', RA, 'Dec', Dec, 'CooUnits','rad');
     

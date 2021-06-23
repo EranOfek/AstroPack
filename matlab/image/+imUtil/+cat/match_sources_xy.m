@@ -1,4 +1,4 @@
-function [ResM,MatchedCat,Ref]=match_sources_xy(Cat,Ref,varargin)
+function [ResM, MatchedCat, Ref]=match_sources_xy(Cat, Ref, Args)
 % Match sources between Cat and Ref catalogs using their X/Y (planar) coordinates.
 % Package: +imUtil.cat
 % Description: Matched the sources in Cat to sources in Ref by planar X/Y
@@ -23,26 +23,27 @@ function [ResM,MatchedCat,Ref]=match_sources_xy(Cat,Ref,varargin)
 %          Cat=Ref(1:1000,:) + randn(1000,2).*0.5; Cat=[Cat;rand(500,2).*1024];
 %          [ResM,MatchedCat,Ref] = imUtil.cat.match_sources_xy(Cat,Ref)
 
-
-
-InPar = inputParser;
-addOptional(InPar,'SearchRadius',3);
-addOptional(InPar,'IsCatSorted',false);
-addOptional(InPar,'CatColX',1);
-addOptional(InPar,'CatColY',2);
-addOptional(InPar,'RefColX',1);
-addOptional(InPar,'RefColY',2);
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
+arguments
+    Cat
+    Ref
+    Args.SearchRadius              = 3;
+    Args.IsCatSorted(1,1) logical  = false;
+    Args.CatColX(1,1)              = 1;
+    Args.CatColY(1,1)              = 2;
+    Args.RefColX(1,1)              = 1;
+    Args.RefColY(1,1)              = 2;
+end
 
 
 % sort Cat
-if ~InPar.IsCatSorted
-    Cat = sortrows(Cat,InPar.CatColY);
+if ~Args.IsCatSorted
+    Cat = sortrows(Cat, Args.CatColY);
 end
 
-[ResM.Ind,~,ResM.MatchedInd] = VO.search.search_sortedY_multi(Cat,Ref(:,InPar.RefColX),Ref(:,InPar.RefColY),InPar.SearchRadius);
+% select coo columns from Cat
+Cat = Cat(:,[Args.CatColX, Args.CatColY]);
+
+[ResM.Ind,~,ResM.MatchedInd] = VO.search.search_sortedY_multi(Cat,Ref(:,Args.RefColX),Ref(:,Args.RefColY),Args.SearchRadius);
 % NatchedInd contains: [Index in Cat, Dist between nearest match, DeltaX, DeltaY].
 
 % matched statistics
