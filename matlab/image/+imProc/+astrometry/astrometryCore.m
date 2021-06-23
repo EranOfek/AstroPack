@@ -70,6 +70,12 @@ function Result = astrometryCore(Obj, Args)
     % filter astrometric catalog
     [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(Obj, ProjAstCat, Args.argsFilterForAstrometry{:});
     
+    % The Ref catalog is projected around some center that should coincide
+    % with the center of Cat.
+    % Therefore, we should shift Cat to its own center. ??
+    
+    
+    
     % Match pattern catalog to projected astrometric catalog
     [ResPattern, Matched] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
                                                                       'Scale',Args.Scale,...

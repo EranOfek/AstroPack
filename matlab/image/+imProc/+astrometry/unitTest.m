@@ -15,7 +15,7 @@ function Result = unitTest()
     % plot(Cat.Catalog(:,31),Cat.Catalog(:,32),'.')
     
     
-    Result = imProc.astrometry.astrometryCore(Cat, 'RA', RA, 'Dec', Dec, 'CooUnits','rad')
+    Result = imProc.astrometry.astrometryCore(Cat, 'RA', RA, 'Dec', Dec, 'CooUnits','rad');
     
 end
    

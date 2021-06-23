@@ -136,7 +136,6 @@ if (nargin<2)
     [NewX,NewY]=imUtil.cat.affine2d_transformation(Cat,Tr,'+');
     Cat = [NewX, NewY];
     
-    
 end
 
 
