@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% TODO next- RADESYS+Equinox convension. Distortion correction is xy2sky
+% TODO next-  Distortion correction is xy2sky
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -26,7 +26,7 @@ classdef AstroWCS < Component
         RADESYS      char   = 'ICRS';
         LONPOLE      double = 0; 
         LATPOLE      double = 90;
-        EQUINOX      double = []; % Changed to empty, as ICRS cannot go with an equinox
+        EQUINOX      double = 2000.0;
         CRPIX(1,:)   double = [0 0];
         CRVAL(1,:)   double = [1 1];
         CD           double = [1 0;0 1];
@@ -455,13 +455,9 @@ classdef AstroWCS < Component
             Obj.CUNIT = AH.getCellKey(KeyCunit);                
             Obj.read_ctype;
             
+            [Obj.RADESYS,Obj.EQUINOX] = Obj.read_radesys_equinox(AH);
             % Get base WCS info
-            if AH.isKeyExist('EQUINOX')
-                Obj.EQUINOX = AH.getVal('EQUINOX');
-            end    
-            if AH.isKeyExist({'RADESYS','RADECSYS'})
-                Obj.RADESYS = AH.getVal({'RADESYS','RADECSYS'});
-            end
+
             if AH.isKeyExist('LONPOLE')
                 Obj.LONPOLE = AH.getVal('LONPOLE');
             end
@@ -484,6 +480,43 @@ classdef AstroWCS < Component
              % populate proj Meta
             Obj.populate_projMeta;
         end
+        
+        function [radesys,equinox] =read_radesys_equinox(Header)
+            
+            AH = Header;
+            
+            radesys = AH.getVal({'RADESYS','RADECSYS'});
+            equinox = AH.getVal('EQUINOX');
+            
+            % cases where radesys or equinox are not given
+            if any(isnan(radesys)) && ~isnan(equinox) % no radesys
+                
+                if equinox < 1984.0
+                    radesys ='FK4';
+                else
+                    radesys ='FK5';
+                end
+                
+            elseif ~any(isnan(radesys)) && isnan(equinox) % no equinox
+                
+                switch radesys
+                    case{'FK4','FK4-NO-E'}
+                        equinox = 1950.0;
+                    case 'FK5'
+                        equinox = 2000.0;
+                    otherwise
+                        equinox = [];
+                end
+                             
+            elseif any(isnan(radesys)) && isnan(equinox) % no radesys nor equinox
+                radesys = 'ICRS';
+                equinox = 2000.0;
+                
+            end
+               
+            
+        end
+
         
         function CD = build_CD(Header,Naxis)
             % Read The CD matrix, or PC+CDELT, or CDELT
@@ -1915,6 +1948,14 @@ classdef AstroWCS < Component
             
             % Test with no projection (fill ProjType=ProjClass='none')
             AH.replaceVal({'CTYPE1','CTYPE2'},{'RA','DEC'});
+            AW = AstroWCS.header2wcs(AH);
+            
+            % Test with no radesys info
+            AH.deleteKey('EQUINOX');
+            AW = AstroWCS.header2wcs(AH);
+            
+            % Test with only radesys (no equinox)
+            AH.insertKey({'RADESYS','FK5'});
             AW = AstroWCS.header2wcs(AH);
             
             % construct a AstroWCS from AstroHeader with Naxis=3, and empty projtype in CTYPE3
