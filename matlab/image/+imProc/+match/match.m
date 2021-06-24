@@ -83,8 +83,16 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
         Args.AddNmatchCol(1,1) logical   = true;
         Args.NmatchColPos                = Inf;
         Args.NmatchColName char          = 'Nmatch';
-    end
-
+        
+        % if given will override ColX/ColY
+        Args.CooType char                = '';  % pix' | 'sphere'
+        Args.ColCatX                     = [];
+        Args.ColCatY                     = [];
+        Args.ColRefX                     = [];
+        Args.ColRefY                     = [];
+        
+    end    
+    
     % convert AstroImage to AstroCatalog: Obj1
     if isa(Obj1,'AstroImage')
         Obj1 = astroImage2AstroCatalog(Obj1,'CreateNewObj',Args.CreateNewObj);
@@ -110,6 +118,24 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     Nobj1 = numel(Obj1);
     Nobj2 = numel(Obj2);
     Nmax  = max(Nobj1, Nobj2);
+    
+    if ~isempty(Args.CooType)
+        % override ColX/ColY
+        [Obj1(1:1:Nobj1).CooType] = deal(Args.CooType);
+        if isnumeric(Args.ColCatX)
+            [Obj1(1:1:Nobj1).ColX] = deal(Args.ColCatX);
+        else
+            % assume char/cell
+            
+            
+        end
+        
+    end
+        
+
+    
+    
+    
     MatchedObj         = AstroCatalog([Nmax,1]);
     UnMatchedObj       = AstroCatalog([Nmax,1]);
     TruelyUnMatchedObj = AstroCatalog([Nmax,1]);

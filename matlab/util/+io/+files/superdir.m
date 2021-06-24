@@ -1,6 +1,6 @@
 function Dir=superdir(MatchStr)
 % A 'dir'-like function that can deal with more types of wild cards
-% Package: Util.files
+% Package: io.files
 % Description: A version of the matlab 'dir' function that can deal with
 %              more sophisticated types of wild cards.
 %              For example searching for: 'l*00[19-21].fits'.
@@ -34,9 +34,9 @@ if (Nib1==0 && Nib2==0)
    
    if (verLessThan('matlab','R2016b'))
        % use this for old MATALB versions:
-       Dir  = Util.struct.struct_def({'name','date','bytes','isdir','datenum'},N1,1);
+       Dir  = tools.struct.struct_def({'name','date','bytes','isdir','datenum'},N1,1);
    else
-       Dir  = Util.struct.struct_def({'name','folder','date','bytes','isdir','datenum'},N1,1);
+       Dir  = tools.struct.struct_def({'name','folder','date','bytes','isdir','datenum'},N1,1);
    end
    
    for I1=1:1:N1

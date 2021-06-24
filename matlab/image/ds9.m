@@ -1811,6 +1811,37 @@ classdef ds9 < handle
 
         end
         
+        function [RA,Dec]=xy2coo(X,Y,CooType)
+            % Convert RA/Dec to X/Y (image) using ds9 tools
+            % Package: @ds9
+            % Input  : - X
+            %          - Y
+            %          - Output coordinate type: {'fk4'|'fk5'|'icrs'}.
+            %            Default is 'icrs.
+            % Output : - RA [deg].
+            %          - Dec [deg].
+           
+            if (nargin<3)
+                CooType = 'icrs';
+            end
+            N    = numel(X);
+            RA = zeros(N,1);
+            Dec = zeros(N,1);
+            for I=1:1:N
+                %--- set coordinates of crosshair ---
+                ds9.system(sprintf('xpaset -p ds9 crosshair %f %f image',X(I),Y(I)));
+                %--- get Coordinates of crosshair ---
+                CooIm = ds9.system(sprintf('xpaget ds9 crosshair wcs %s deg',CooType));
+                %[CooX(I), CooY(I)] = strread(CooIm,'%f %f',1); %,'headerlines',4);
+                Cell = textscan(CooIm,'%f %f'); %,'headerlines',4);
+                RA(I) = Cell{1};
+                Dec(I) = Cell{2};
+            end
+            ds9.system(sprintf('xpaset -p ds9 mode pointer'));
+
+        end
+        
+        
     end 
     
     % Interactive control and information (mouse)

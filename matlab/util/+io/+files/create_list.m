@@ -1,6 +1,6 @@
 function [ListFileName,ListCell,Exist]=create_list(List,OutputFile,Verify)
 % Create a file and a ell array containing a list of files.
-% Package: Util.files
+% Package: io.files
 % Description: Create a file and a cell array containing a list of files.
 %              The list is created from a cell array, or file name
 %              with wildcards.
@@ -119,7 +119,7 @@ else
             end
       
             %LS = dir(List);
-            LS = Util.files.superdir(List);
+            LS = io.files.superdir(List);
             [ListCell{1:1:length(LS)}] = deal(LS.name);
             if (isempty(LS) && isempty(strfind(List,'*'))==1 && isempty(strfind(List,'?'))==1)
                % single - file not exist
@@ -160,7 +160,7 @@ else
       if (~isnan(OutputFile))
          Iex = find(Exist==1);
          SelectedListCell = {ListCell{Iex}};
-         Util.IO.fprintf_cell(ListFileName,'%s\n',SelectedListCell);
+         io.files.fprintf_cell(ListFileName,'%s\n',SelectedListCell);
       end
       
       switch lower(Verify)

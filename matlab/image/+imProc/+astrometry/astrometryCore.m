@@ -74,12 +74,11 @@ function Result = astrometryCore(Obj, Args)
     % with the center of Cat.
     % Therefore, we should shift Cat to its own center. ??
     
-    % Apply shift transformation on:
-    FilteredProjAstCat
+   
     
     
     % Match pattern catalog to projected astrometric catalog
-    [ResPattern, Matched] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
+    [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
                                                                       'Scale',Args.Scale,...
                                                                       'HistRotEdges',RotationEdges,...
                                                                       'RangeX',Args.RangeX,...
@@ -90,12 +89,23 @@ function Result = astrometryCore(Obj, Args)
                                                                       'SearchRadius',Args.SearchRadius);
     
     % go over possible solutions:
-    
-    %AffineMatrix = ResPattern.Sol.AffineTran{1}
-    
+            
     % Apply affine transformation to Reference
-    % No need because this is also done in imProc.trans.fitPattern
-    % TransformedCat = imProc.trans.tranAffine(Obj, AffineMatrix, true, 'RotUnits','deg'); 
+    TransformedProjAstCat = imProc.trans.tranAffine(FilteredProjAstCat, ResPattern.Sol.AffineTran{1}, true);
+    
+    % match sources based on X/Y positions:
+    FilteredCat.CooType             = 'pix';
+    %FilteredCat.CooUnits            = [];
+    [~, FilteredCat.ColX]           = AstroTable.searchSynonym(FilteredCat.ColNames, AstroCatalog.DefNamesX);
+    [~, FilteredCat.ColY]           = AstroTable.searchSynonym(FilteredCat.ColNames, AstroCatalog.DefNamesY);
+    
+    TransformedProjAstCat.CooType   = 'pix';
+    %TransformedProjAstCat.CooUnits  = [];
+    [~, TransformedProjAstCat.ColX] = AstroTable.searchSynonym(TransformedProjAstCat.ColNames, AstroCatalog.DefNamesX);
+    [~, TransformedProjAstCat.ColY] = AstroTable.searchSynonym(TransformedProjAstCat.ColNames, AstroCatalog.DefNamesY);
+    
+    
+    [MC,UM,TUM] = imProc.match.match(FilteredCat, TransformedProjAstCat, 'Radius',Args.SearchRadius)
     
     % Fit transformation
     %[Param, Res] = imProc.trans.fitTransformation(TransformedCat, FilteredProjAstCat, 'Tran',Args.Tran);
