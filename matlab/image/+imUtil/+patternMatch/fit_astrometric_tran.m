@@ -214,8 +214,8 @@ if isempty(InPar.Norm)
     % no normalization to Ref coordinates
     CenterX = 0;
     CenterY = 0;
-    RangeX  = 1;
-    RangeY  = 1;
+    RangeX  = 2;
+    RangeY  = 2;
         
 else
     if isnan(InPar.Norm)

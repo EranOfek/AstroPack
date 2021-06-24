@@ -45,6 +45,15 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %            'DistColPos' - Position of Distance column in
     %                   output catalog. Default is Inf (i.e., last
     %                   column).
+    %            'CooType' - CooType (i.e., 'pix','sphere'). If not empty
+    %                   this will override the AstroCatalog.CooType
+    %                   property. Default is empty.
+    %            'ColCatX' - If CooType is not empty, this is the coluymn
+    %                   names/index from which to select the catalog X
+    %                   coordinate. Default is [].
+    %            'ColCatY' - Like 'ColCatX', but for the Y coordinate.
+    %            'ColRefX' - Like 'ColCatX', but for te ref catalog.
+    %            'ColRefY' - Like 'ColRefX', but for the Y coordinate.
     % Output : - An AstroCatalog object of matched sources.
     %            Numeber of sources equal to that of the number
     %            of sources in the second object (Obj2).
@@ -120,14 +129,44 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     Nmax  = max(Nobj1, Nobj2);
     
     if ~isempty(Args.CooType)
-        % override ColX/ColY
+        % override Obj1/ColX
         [Obj1(1:1:Nobj1).CooType] = deal(Args.CooType);
         if isnumeric(Args.ColCatX)
             [Obj1(1:1:Nobj1).ColX] = deal(Args.ColCatX);
         else
             % assume char/cell
-            
-            
+            for Iobj1=1:1:Nobj1
+                [~, Obj1(Iobj1).ColX] = AstroTable.searchSynonym(Obj1(Iobj1).ColNames, Args.ColCatX);
+            end
+        end
+        % override Obj1/ColY
+        if isnumeric(Args.ColCatY)
+            [Obj1(1:1:Nobj1).ColY] = deal(Args.ColCatY);
+        else
+            % assume char/cell
+            for Iobj1=1:1:Nobj1
+                [~, Obj1(Iobj1).ColY] = AstroTable.searchSynonym(Obj1(Iobj1).ColNames, Args.ColCatY);
+            end
+        end
+        
+        % override Obj2/ColX
+        [Obj2(1:1:Nobj2).CooType] = deal(Args.CooType);
+        if isnumeric(Args.ColCatX)
+            [Obj2(1:1:Nobj2).ColX] = deal(Args.ColCatX);
+        else
+            % assume char/cell
+            for Iobj2=1:1:Nobj2
+                [~, Obj2(Iobj2).ColX] = AstroTable.searchSynonym(Obj2(Iobj2).ColNames, Args.ColCatX);
+            end
+        end
+        % override Obj2/ColY
+        if isnumeric(Args.ColCatY)
+            [Obj2(1:1:Nobj2).ColY] = deal(Args.ColCatY);
+        else
+            % assume char/cell
+            for Iobj2=1:1:Nobj2
+                [~, Obj2(Iobj2).ColY] = AstroTable.searchSynonym(Obj2(Iobj2).ColNames, Args.ColCatY);
+            end
         end
         
     end

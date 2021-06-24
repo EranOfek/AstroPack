@@ -37,8 +37,13 @@ function Result = astrometryCore(Obj, Args)
         Args.SearchRadius(1,1)            = 4;
         
         Args.Tran                         = Tran2D;
-                
+        
+        Args.ColNamesX                    = AstroCatalog.DefNamesX;
+        Args.ColNamesY                    = AstroCatalog.DefNamesY;
+        
     end
+    ColRefNameX = 'X';
+    ColRefNameY = 'Y';
     
     RotationEdges = (Args.RotationRange(1):Args.RotationStep:Args.RotationRange(2));
     % mean value of projection scale:
@@ -63,8 +68,8 @@ function Result = astrometryCore(Obj, Args)
    
     % Project astrometric catalog
     ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
-                                                                                                  'AddNewCols',{'X','Y'},...
-                                                                                                  'CreateNewObj',false);
+                                                                                   'AddNewCols',{ColRefNameX,ColRefNameY},...
+                                                                                   'CreateNewObj',false);
     % ProjAstCat.plot({'X','Y'},'.')   
     
     % filter astrometric catalog
@@ -94,30 +99,29 @@ function Result = astrometryCore(Obj, Args)
     TransformedProjAstCat = imProc.trans.tranAffine(FilteredProjAstCat, ResPattern.Sol.AffineTran{1}, true);
     
     % match sources based on X/Y positions:
-    FilteredCat.CooType             = 'pix';
-    %FilteredCat.CooUnits            = [];
-    [~, FilteredCat.ColX]           = AstroTable.searchSynonym(FilteredCat.ColNames, AstroCatalog.DefNamesX);
-    [~, FilteredCat.ColY]           = AstroTable.searchSynonym(FilteredCat.ColNames, AstroCatalog.DefNamesY);
-    
-    TransformedProjAstCat.CooType   = 'pix';
-    %TransformedProjAstCat.CooUnits  = [];
-    [~, TransformedProjAstCat.ColX] = AstroTable.searchSynonym(TransformedProjAstCat.ColNames, AstroCatalog.DefNamesX);
-    [~, TransformedProjAstCat.ColY] = AstroTable.searchSynonym(TransformedProjAstCat.ColNames, AstroCatalog.DefNamesY);
-    
-    
-    [MC,UM,TUM] = imProc.match.match(FilteredCat, TransformedProjAstCat, 'Radius',Args.SearchRadius)
+    [MatchedCat,UM,TUM] = imProc.match.match(FilteredCat, TransformedProjAstCat,...
+                                     'Radius',Args.SearchRadius,...
+                                     'CooType','pix',...
+                                     'ColCatX',Args.ColNamesX,...
+                                     'ColCatY',Args.ColNamesY,...
+                                     'ColRefX',ColRefNameX,...
+                                     'ColRefY',ColRefNameY);
+                                     
     
     % Fit transformation
     %[Param, Res] = imProc.trans.fitTransformation(TransformedCat, FilteredProjAstCat, 'Tran',Args.Tran);
     % MatchedRef has the same number of lines as in Ref,
     % but it is affine transformed to the coordinate system of Cat
     
-    
-    %bug in fitPattern
-    %Matched.MatchedCat.ColNames has 32 columsn, while only 2 in the Catalog
-    
-    [Param, Res] = imProc.trans.fitTransformation(Matched.MatchedCat, Matched.MatchedRef,...
-                                                  'Tran',Args.Tran);
+    % note that the matching is against the FilteredProjAstCat
+    % and not the TransformedProjAstCat
+    [Param, Res] = imProc.trans.fitTransformation(MatchedCat, FilteredProjAstCat,...
+                                                  'Tran',Args.Tran,...
+                                                  'Norm',NaN,...
+                                                  'ColCatX',Args.ColNamesX,...
+                                                  'ColCatY',Args.ColNamesY,...
+                                                  'ColRefX',ColRefNameX,...
+                                                  'ColRefY',ColRefNameY);
     
     
     % Calculate WCS
