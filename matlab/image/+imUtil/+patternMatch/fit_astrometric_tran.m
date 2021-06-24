@@ -406,7 +406,7 @@ Res.ResResid = ResResid;
 % populate a tran2dCl object
 if nargout>3
     if isempty(InPar.Tran)
-        Tran = tran2dCl;
+        Tran = Tran2D;
         Tran.FunX  = Param.FunX;
         Tran.FunY  = Param.FunY;
         Tran.FunNX = Param.FunNX;

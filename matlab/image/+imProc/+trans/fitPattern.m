@@ -12,8 +12,12 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
     %            Both first and second arguments may be a single or
     %            multiple element objects.
     %          * Pairs of ...,key,val,... Possible keywords include:
-    %            'ColNamesX' - 
-    %            'ColNamesY' - 
+    %            'ColNamesX' - Cell array of dictioray for X column names
+    %                   for both catalogs.
+    %                   Default is AstroCatalog.DefNamesX
+    %            'ColNamesY' - Cell array of dictioray for Y column names
+    %                   for both catalogs.
+    %                   Default is AstroCatalog.DefNamesY
     %            'Scale' - The scale to apply to the referepnce catalog in order
     %                   to convert it to the input catalog. If this is a
     %                   scalar, then will not attempt to search for the best

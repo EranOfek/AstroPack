@@ -1,4 +1,4 @@
-function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
+function [Param, Res, Tran] = fitTransformation(ObjCat, ObjRef, Args)
     % Fit an exact transformation between two matched catalogs
     %   The returned transformation is from the reference to the catalog.
     % Input  : - Catalog in one of the following formats:
@@ -49,6 +49,7 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
     %            'ColRefModY' - mod(Y) column name in Reference. Default is {'ModY'};
     % Output : - A structure array of fitted parameters.
     %          - A structure array of results.
+    %          - A Tran2D object for each image.
     % Example: Nsrc = 1000;
     %          Cat = rand(Nsrc,3).*[1024 1024 10];
     %          Ref = Cat + 0.1.*randn(Nsrc,3);
@@ -148,7 +149,7 @@ function [Param, Res] = fitTransformation(ObjCat, ObjRef, Args)
         
         
         % fit the transformation
-        [Param(Imax), Res(Imax), ResLoop] = imUtil.patternMatch.fit_astrometric_tran(Cat.Catalog, Ref.Catalog, ...
+        [Param(Imax), Res(Imax), ResLoop, Tran(Imax)] = imUtil.patternMatch.fit_astrometric_tran(Cat.Catalog, Ref.Catalog, ...
                                                                          'Tran',Args.Tran,...
                                                                          'MaxIter',Args.MaxIter,...
                                                                          'ErrPos',Args.ErrPos,...
