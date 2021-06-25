@@ -2004,8 +2004,8 @@ classdef AstroWCS < Component
             AW = AstroWCS.header2wcs(AH);
             
             % xy2sky tests
-            PX = rand(1,50)*1000;
-            PY = rand(1,50)*1000;
+            PX = rand(1,500)*1000;
+            PY = rand(1,500)*1000;
             RAD = 180./pi;
             
             % get [alpha, delta] for TAN projection
@@ -2024,7 +2024,7 @@ classdef AstroWCS < Component
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
             
             ds9('tpv.fits');
-            [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,'FK5');
+            [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
             disp(sprintf('Max distance for TPV projection is %.1f [mas]',max(d_mas)));
 
