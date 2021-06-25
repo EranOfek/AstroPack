@@ -553,7 +553,7 @@ classdef ds9 < handle
                         % FFU - need to fix header?
                         FITS.write(Images(Iim).(Args.ImageField), TmpName, 'Header',Images(Iim).Header);
                         
-                    elseif isa(Images,'ImageComponent)
+                    elseif isa(Images,'ImageComponent')
                         % no header
                         FITS.write(Images(Iim).(Args.ImageField), TmpName);
                         
