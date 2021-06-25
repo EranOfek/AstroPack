@@ -17,6 +17,7 @@
 
 classdef ds9 < handle
     
+    
     % A static class
     
     % Constructor method (display)
@@ -88,11 +89,11 @@ classdef ds9 < handle
                [Status,Answer]=system(String);
             end
             if (Status~=0)
-                if (strfind(Answer,'not found'))
+                if contains(Answer,'not found')
                     % It is possible that xpa is not installed
-                    fprintf('\n It seems that xpa and or ds9 are not installed\n');
+                    fprintf('\n It seems that xpa and/or ds9 are not installed\n');
                     fprintf('ds9 instellation: http://ds9.si.edu/site/Download.html\n');
-                    fprintf('xpa instellation: http://ds9.si.edu/site/XPA.html\n');
+                    fprintf('xpa instellation: http://hea-www.harvard.edu/RD/xpa/index.html\n');
                 end
                 error('Command: %s failed - Answer: %s',String,Answer);
                 
@@ -205,7 +206,7 @@ classdef ds9 < handle
                 % do nothing - already open
                 fprintf('ds9 is already open\n');
             else
-                Status=system('ds9&');
+                Status = system('ds9&');
                 if (Status~=0)
                     warning('Can not open ds9');
                 else
@@ -375,15 +376,17 @@ classdef ds9 < handle
             %            Default is 'next'.
             % Output : - Current frame number
             %          - Current fits file name
-            % Reliable: 2
-            if (nargin==1)
+            % Author : Eran Ofek
+            
+            arguments
+                FitsFile
                 FrameNumber = 'next';
             end
             
             Frame = ds9.frame(FrameNumber);
             
             % check if file name contains directory seperator
-            if (~isempty(strfind(FitsFile,filesep)))
+            if contains(FitsFile, filesep)
                 % file name contains directory seperator
                 % Assume that FitsFile is a full path
                 % do nothing
@@ -410,11 +413,11 @@ classdef ds9 < handle
             % Output : - Current frame number
             %          - Current fits file name
             % Reliable: 2
-            [Frame,CurFile] = ds9.load(FitsFile,1);
+            [Frame,CurFile] = ds9.load(FitsFile, 1);
             
         end
         
-        function Frame=url(URL,FrameNumber)
+        function Frame=url(URL, FrameNumber)
             % Load FITS file from a URL
             % Package: @ds9
             % Description: Load FITS file from a URL.
@@ -425,16 +428,17 @@ classdef ds9 < handle
             % Example: ds9.url(URL);
             % Reliable: 2
             
-            if (nargin==1)
+            arguments
+                URL
                 FrameNumber = 'next';
             end
-            
+           
             Frame = ds9.frame(FrameNumber);
             ds9.system('xpaset -p ds9 url %s',URL);
         end
         
         % display images in all formats
-        function disp(Images,Frame,Args)
+        function disp(Images, Frame, Args)
             % Display images in ds9 (use ds9 for short cut)
             % Package: @ds9
             % Description: Display images in ds9 
@@ -478,21 +482,22 @@ classdef ds9 < handle
                 Args.Orient                 = [];
                 Args.Rotate                 = [];
                 Args.Zoom                   = 1;
+                Args.ImageField             = 'Image'; % 'Im' for SIM
             end
-            
+            ImageField = SIM.ImageField;
             
             % open ds9
             if ds9.isopen
-                if Args.KeepPars
+                if Args.KeepPars && isempty(Args.Zoom)
                     % read parameters
-                    
-                    % FFU
+                    % FFU - add additional parameters
+                    Args.Zoom = ds9.zoom;
                 end
             else
                 ds9.open;
             end    
 
-            ImageField = SIM.ImageField;
+            
             IsFits = false;
             
             % prepare cell array of string (FITS images)
@@ -506,13 +511,12 @@ classdef ds9 < handle
             if (isnumeric(Images))
                 List   = {Images};
                 IsFits = false;
-                Nim = numel(List);
+                Nim    = numel(List);
             end
             
-            if (SIM.issim(Images))
-                %List   = Images;  %.(ImageField);
+            if isa(Images,'SIM') || isa(Images,'AstroImage') || isa(Images,'ImageComponent')
                 IsFits = false;
-                Nim = numel(Images);
+                Nim    = numel(Images);
             end
             
 %             if (imCl.isimCl(Images))
@@ -532,7 +536,7 @@ classdef ds9 < handle
                     TmpName = sprintf('%s.fits',tempname);
                     % create FITS files
                     %fitswrite_my(List{Iim},TmpName);
-                    if (SIM.issim(Images))
+                    if isa(Images,'SIM')
                         % to fix a problem - delete the PCOUNT and GCOUNT
                         % header keywords
                         %Images(Iim) = delete_key(Images(Iim),{'PCOUNT','GCOUNT','PSCALET1','PSCALET2'});
@@ -545,6 +549,14 @@ classdef ds9 < handle
                         [Bl{1:Nkey}] = deal(' ');
                         Images(Iim).Header = [Images(Iim).Header(:,1:2),  Bl];
                         FITS.write(Images(Iim).(ImageField),TmpName,'Header',Images(Iim).Header);
+                    elseif isa(Images,'AstroImage')
+                        % FFU - need to fix header?
+                        FITS.write(Images(Iim).(Args.ImageField), TmpName, 'Header',Images(Iim).Header);
+                        
+                    elseif isa(Images,'ImageComponent)
+                        % no header
+                        FITS.write(Images(Iim).(Args.ImageField), TmpName);
+                        
                     else
                         FITS.write(List{Iim},TmpName);
                     end
@@ -787,32 +799,39 @@ classdef ds9 < handle
         end
         
         % Set image zoom
-        function zoom(varargin)
+        function Val = zoom(varargin)
             % Set the zoom of an image in ds9
             % Package: @ds9
             % Description: Set the zoom of an image in ds9
             % Input  : * Arbitrary number of arguments to pass to the ds9
             %            zoom command. If the first argument is a number
             %            than the word "to" will be added (absolute zoom).
-            %            Default is 'to to 1'.
-            % Output : null
+            %            Default is 'to to 1', unless nargin>0, and in this
+            %            case will only return the zoom value.
+            % Output : - Zoom vale.
             % Example: ds9.zoom(2,4)
             %          ds9.zoom('in')
             % Reliable: 2
-            if (nargin==0)
-                Mode = 'to 1';
+            
+            if nargout>0 && nargin==0
+                % return the zoom value
+                Val = ds9.system('xpaget ds9 zoom');
             else
-                if (isnumeric(varargin{1}))
-                    Mode = 'to ';
+                if (nargin==0)
+                    Mode = 'to 1';
                 else
-                    Mode = '';
+                    if (isnumeric(varargin{1}))
+                        Mode = 'to ';
+                    else
+                        Mode = '';
+                    end
                 end
+
+
+                Mode = ds9.construct_command(Mode,varargin{:});
+                ds9.system('xpaset -p ds9 zoom %s',Mode);
+                pause(0.2);
             end
-            
-            
-            Mode = ds9.construct_command(Mode,varargin{:});
-            ds9.system('xpaset -p ds9 zoom %s',Mode);
-            pause(0.2);
             
         end
         
@@ -1875,7 +1894,7 @@ classdef ds9 < handle
             %          - Pixel value.
             %          - Cell array of string of clicked events.
             %            '<1>' for mouse left click.
-            % Required: XPA - http://hea-www.harvard.edu/saord/xpa/
+            % Required: XPA - http://hea-www.harvard.edu/RD/xpa/index.html
             % Tested : Matlab 7.0
             %     By : Eran O. Ofek                    Feb 2007
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
