@@ -150,8 +150,8 @@ end
 fprintf('AstroPack doStartup() addpath count: %d\n', PathCount);
 warning on;
 
-fprintf('AstroPack doStartup() cd: %s\n', AstroPackPath);
-cd(AstroPackPath);
+% fprintf('AstroPack doStartup() cd: %s\n', AstroPackPath);
+% cd(AstroPackPath);
 
 fprintf('AstroPack doStartup() done: %s\n', mfilename('fullpath'));
 
