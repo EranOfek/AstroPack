@@ -85,7 +85,9 @@ classdef AstroHeader < Component
             %                   or wild cards (false). Default is false.
             % Output : - An AstroHeader object with populated headers.
             % Author : Eran Ofek (Mar 2021)
-            % Example: 
+            % Example: H = AstroHeader('*.fits', 1);
+            %          H = AstroHeader('WFPC2ASSNu5780205bx.fits');
+            %          H = AstroHeader;
             
             arguments
                 FileNames      = 1;   % name or array size
@@ -1152,6 +1154,7 @@ classdef AstroHeader < Component
             % Author : Eran Ofek (Apr 2021)
             % Example: H=AstroHeader('*.fits');
             %          Ans = isImType(H, 'bias')
+            %          Ans = isImType(H, 'bias','CaseSens',false,'IsInputAlt',false)
             
             arguments
                 Obj
@@ -1511,6 +1514,7 @@ classdef AstroHeader < Component
             io.msgLog(LogLevel.Test, 'testing AstroHeader isImType')
             H=AstroHeader('*.fits');
             Ans = isImType(H, 'bias');            
+            Ans = isImType(H, 'bias','CaseSens',false,'IsInputAlt',false);
             
             cd(PWD);      
 
