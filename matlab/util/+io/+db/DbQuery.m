@@ -606,7 +606,7 @@ classdef DbQuery < Component
             % Prepare query
             Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
             try
-                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText, Args.FieldMap);            
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
             catch
                 Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
             end
@@ -643,6 +643,22 @@ classdef DbQuery < Component
             Result = false;
         end        
         
+              
+        function Result = deleteRecord(Obj, TableName, Rec, Args)
+            % Delete by 
+            arguments
+                Obj
+                TableName
+                Rec                     % DbRecord or struct
+                Args.FieldMap = []      % Optional field map
+            end
+            
+            % Update record        
+            % ---------------------------------------------- Delete
+            sql = sprintf("DELETE FROM master_table WHERE RecID='%s'", uuid);
+            Q.exec(sql);           
+            count2 = Q.selectCount('master_table');
+            assert(count2 == count);        
     end
 
     %----------------------------------------------------------------------
@@ -794,6 +810,40 @@ classdef DbQuery < Component
         end      
             
         
+        
+        function SqlFields = makeWhereFieldsText(Obj, FieldNames, Operand, FieldMap)                   
+            % Prepare SQL text from cell array 
+            % "WHERE RecID=? AND FInt=?..."
+            arguments
+                Obj
+                FieldNames
+                Operand         % 'AND' / 'OR'
+                FieldMap
+            end
+            
+            SqlFields = '';
+
+            % Iterate struct fields
+            disp(FieldNames);
+            
+            for i = 1:numel(FieldNames)
+                FieldName = FieldNames{i};
+            
+                % Optionally replace field name from mapping
+                if ~isempty(FieldMap) && isfield(FieldMap, FieldName)
+                    FieldName = FieldMap.(FieldName);
+                end
+                
+                % 
+                if numel(SqlFields) > 0
+                    SqlFields = [SqlFields, ' ', Operand, ' ', FieldName, '=?']; %#ok<AGROW>
+                else
+                    SqlFields = [SqlFields, FieldName, '=?']; %#ok<AGROW>
+                end
+            end
+        end      
+            
+        
         function Result = setStatementValues(Obj, FieldNames, Rec, FieldMap)
             % Set statement values from specified DbRecord or struct
             
@@ -803,28 +853,23 @@ classdef DbQuery < Component
             for i = 1:numel(FieldNames)
                 f = FieldNames{i};
                 
-                % Optionally replace field name from mapping
-                if ~isempty(f) && isfield(FieldMap, f)
-                    f = FieldMap.(f);
-                end
-
                 % Get value
                 val = Rec.(f);
                 
-                if isa(val, 'integer')
+                if isa(val, 'int8') || isa(val, 'uint8') || ...
+                   isa(val, 'int16') || isa(val, 'uint16') || ...
+                   isa(val, 'int32') || isa(val, 'uint32')
                     Obj.msgLog(LogLevel.Debug, 'integer: %s = %d', f, val);
                     Obj.Statement.setInt(i, val);
                 elseif isa(val, 'int64') || isa(val, 'uint64')
                     Obj.msgLog(LogLevel.Debug, 'int64: %s = %d', f, val);
-                    Obj.Statement.setBigInteger(i, val);
-                elseif isa(val, 'float')
-                    Obj.msgLog(LogLevel.Debug, 'float: %s = %f', f, val);
-                elseif isa(val, 'double')
+                    Obj.Statement.setLong(i, val);
+                elseif isa(val, 'logical')
+                    Obj.msgLog(LogLevel.Debug, 'bool: %s = %d', f, val);
+                    Obj.Statement.setBoolean(i, val);
+                elseif isa(val, 'float') || isa(val, 'single') || isa(val, 'double')
                     Obj.msgLog(LogLevel.Debug, 'double: %s = %f', f, val);
                     Obj.Statement.setDouble(i, val);
-                elseif isa(val, 'single')
-                    Obj.msgLog(LogLevel.Debug, 'single: %s = %f', f, val);
-                    Obj.Statement.setSingle(i, val);
                 elseif isa(val, 'char')
                     Obj.msgLog(LogLevel.Debug, 'char: %s = %s', f, val);
                     Obj.Statement.setString(i, val);
@@ -845,6 +890,9 @@ classdef DbQuery < Component
     % Unit test
     methods(Static)
         function Result = unitTest()
+            % Unit-Test
+            % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+            % On Linux, use DataGrip by JetBrains 
             io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
             io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
                
@@ -960,43 +1008,58 @@ classdef DbQuery < Component
             % @Todo - fails on changes of 22/06/2021 !!!
             Result = true;
             
-            % ---------------------------------------------- insertRecord
-            
+            % ---------------------------------------------- insertRecord: struct
+                                 
             % Create struct with different types of fields
+            s = struct;            
+            s.recid = Component.newUuid();
+            Q.insertRecord('master_table', s);            
+                       
+            % int32
             s = struct;            
             s.recid = Component.newUuid();
             s.fint = int32(1);
             Q.insertRecord('master_table', s);            
             
+            % bool
             s = struct;            
             s.recid = Component.newUuid();
-            s.fint = int32(2);
-            Q.insertRecord('master_table', s);
+            s.fbool = true;
+            Q.insertRecord('master_table', s);             
             
-%             s.int1 = int32(1);
-%             s.uint1 = int32(2);
-%             s.bigint1 = int64(3);
-%             s.single1 = single(4);
-%             s.double1 = double(5);
-%             s.char1 = 'abcd';
-                                                          
-            % With mapping
+            % bigint            
+            s = struct;            
+            s.recid = Component.newUuid();            
+            s.fbigint = int64(3);
+            Q.insertRecord('master_table', s);             
+            
+            % double
+            s = struct;            
+            s.recid = Component.newUuid();            
+            s.fdouble = double(5);
+            Q.insertRecord('master_table', s);                         
+            
+            % string
+            s = struct;            
+            s.recid = Component.newUuid();                        
+            s.fstring = 'abcd';
+            Q.insertRecord('master_table', s);             
+                       
+            % Insert struct with field mapping
             s = struct;            
             s.recid = Component.newUuid();
-            s.fintTest = int32(1);            
+            s.fintTest = int32(1);
             map = struct;
-            map.fintTest = 'fint';
-            % @Todo - Why does it fail after DbRecord change???
-            %Q.insertStruct('master_table', s, 'FieldMap', map);
+            map.fintTest = 'fint';            
+            Q.insertRecord('master_table', s, 'FieldMap', map);
             
-
-            % DbRecord
+            % ---------------------------------------------- insertRecord: DbRecord
             r = io.db.DbRecord;
             r.addProp('recid', Component.newUuid());
             r.addProp('fint', 3);
             Q.insertRecord('master_table', r);
             
-            % ---------------------------------------------- Insert
+            % ---------------------------------------------- Insert with plain SQL text
             
             % Insert records            
             io.msgLog(LogLevel.Test, 'testing INSERT...');
@@ -1033,6 +1096,18 @@ classdef DbQuery < Component
             % Test insert() function
             
             % ---------------------------------------------- Update
+            
+            % string
+            s = struct;            
+            s.recid = Component.newUuid();                        
+            s.fstring = 'Original Text';
+            Q.insertRecord('master_table', s);             
+            
+            s.fstring = 'My new TEXT';
+            Q.updateRecord('master_table', s);                         
+            
+            
+            
             io.msgLog(LogLevel.Test, 'testing UPDATE...');
             UpdateCount = 100;
             uuid = Component.newUuid();
