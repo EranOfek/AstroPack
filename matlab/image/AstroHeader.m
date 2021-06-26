@@ -1386,6 +1386,16 @@ classdef AstroHeader < Component
     end
     
     
+    methods (Static)  % help and documentation
+        function help
+            % show manuals.AstroHeader
+            
+            open manuals.AstroHeader
+        end
+        
+    end
+    
+    
     % Unit test
     methods(Static)
         function Result = unitTest()
