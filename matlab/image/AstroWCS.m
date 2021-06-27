@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% TODO next-  Distortion correction is xy2sky
+% TODO next-  TAN-SIP Distortion correction is sky2xy
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -266,23 +266,10 @@ classdef AstroWCS < Component
                 
                 relPX = relP(1,:);
                 relPY = relP(2,:);
-
-                CoefX    = Obj.PV(1,:,1);
-                X_Xpower = Obj.PV(1,:,2);
-                X_Ypower = Obj.PV(1,:,3);
                 
-                CoefY    = Obj.PV(2,:,1);
-                Y_Xpower = Obj.PV(2,:,2);
-                Y_Ypower = Obj.PV(2,:,3);
+                [relPX,relPY]  = AstroWCS.forwardDistortion(Obj.PV,relPX,relPY);
                 
-
-                relPXd = (relPX(:).') + sum(CoefX(:) .* ((relPX(:).').^X_Xpower(:) ) .* ((relPY(:).').^X_Ypower(:)) );
-                relPYd = (relPY(:).') + sum(CoefY(:) .* ((relPX(:).').^Y_Xpower(:) ) .* ((relPY(:).').^Y_Ypower(:)));                
-                
-                relPX=reshape(relPXd,size(relPX));
-                relPY=reshape(relPYd,size(relPY));   
-                
-                relP = [relPX;relPY];
+                relP = [relPX ; relPY]; % this is already u+g(u,v) and v+g(u,v)
             end
 
             
@@ -297,32 +284,10 @@ classdef AstroWCS < Component
             
             % distorion for TPV
             if strcmpi(Obj.ProjType,'tpv')
-                R = sqrt(X.^2 + Y.^2);
-
-                CoefX    = Obj.PV(1,:,1);
-                X_Xpower = Obj.PV(1,:,2);
-                X_Ypower = Obj.PV(1,:,3);
-                if (size(Obj.PV,3)) > 3
-                    X_Rpower = Obj.PV(1,:,4);
-                else
-                    X_Rpower = 0;
-                end
-
-                CoefY    = Obj.PV(2,:,1);
-                Y_Xpower = Obj.PV(2,:,2);
-                Y_Ypower = Obj.PV(2,:,3);
-                if (size(Obj.PV,3)) > 3
-                    Y_Rpower = Obj.PV(2,:,4);
-                else
-                    Y_Rpower = 0;
-                end                        
-
-
-                Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)) );
-                Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((R(:).').^Y_Rpower(:)) );                
                 
-                X=reshape(Xd,size(X));
-                Y=reshape(Yd,size(Y));
+                R = sqrt(X.^2 + Y.^2);
+                [X,Y]  = AstroWCS.forwardDistortion(Obj.PV,X,Y,R);
+
             end
 
         end
@@ -378,7 +343,7 @@ classdef AstroWCS < Component
 
                         otherwise
 
-                            error('Unsupported projection option (%s)',ProjAlgo);
+                            error('Unsupported projection option (%s)',Obj.ProjType);
                     end
 
                 otherwise
@@ -448,7 +413,289 @@ classdef AstroWCS < Component
             Delta = Delta.*ConvFactor;
 
 
-        end        
+        end    
+        
+        
+   %======== Functions for related to sky2xy =========   
+   
+        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,InUnits)
+            % convert celestial coordinates to pixel coordinates
+            % Description: Convert celestial coordinates that are in the
+            %              reference frmae of CTYPE, RADESYS and EQUNOX,
+            %              to pixel [X,Y] coordinates.
+            % Input  : - A single element wcsCl object
+            %          - Either longitude, or a two column matrix of
+            %            [Lognitude, Latitude].
+            %            This can also be a sexagesimal string or a cell
+            %            array of longitude strings.
+            %          - Either latitude, or empty. If empty, then assume
+            %            that the previous argument contains [Long,Lat].
+            %            This can also be a string or cell arraey of
+            %            latitude sexagesimals.
+            %          - Input coordinates units {'rad'|'deg'}
+            %            Default is 'deg'
+            % Output : * Pixel coordinates. If one input argument then this
+            %            is a two column matrix of pixel coordinates [X,Y].
+            %            If two arguments, then these are X and Y,
+            %            respectively.
+            % Example: [X,Y] = coo2xy(Obj,100,10,'deg')
+
+            if nargin<4
+                InUnits = 'deg';
+            end
+
+            if numel(Obj)~=1
+                error('Works only on a single element wcsCl object');
+            end
+
+            if isempty(Alpha)
+                Alpha = Delta(:,2);
+                Delta = Delta(:,1);
+            end
+
+            if (iscell(Delta) || ischar(Delta)) && (iscell(Alpha) || ischar(Alpha))
+                Delta = celestial.coo.convertdms(Delta,'gH','r');
+                Alpha = celestial.coo.convertdms(Alpha,'gD','R');
+                InUnits = 'rad';
+            end
+
+
+            % celestial to native
+            [Phi,Theta] = Obj.celestial2native(Alpha(:),Delta(:),InUnits,'rad');
+            
+            % native to intermediate
+            [X,Y] = Obj.native2interm(Phi, Theta,'rad',Obj.CUNIT{1});
+            
+%             % inverse distorsion for TPV and SIP
+%             switch lower(Obj.ProjType)
+%                 case 'tpv'
+%                     % for TPV, invert numerically, iteratively, hopefully
+%                     %  converging
+%                     
+%                     err_thresh = 1e-6;
+%                     max_iters = 10;
+%                     
+%                     [X,Y]  = AstroWCS.backwardDistortion(Obj.PV,X,Y,err_thresh,max_iters);
+%                     
+%                 case 'tan-sip'
+%                     'not implemented yet'
+%                 otherwise
+%                     % do nothing
+%             end
+
+            % Intermediate to pixel
+            [PX,PY] = Obj.interm2pix(X,Y);
+
+            PX = reshape(PX,size(Delta));
+            PY = reshape(PY,size(Alpha));
+        end      
+        
+        function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,InUnits,OutUnits)
+            % convert celestial coordinates to native coordinates
+            % Description: Convert sphericall celestial coordinates
+            %              (alpha, delta) or cosine directions to native
+            %              spherical coordinates.
+            % Input  : - A single element AstroWCS object.
+            %          - A matrix of longiudes (Alpha).
+            %            If the next input argument (matrix of latitude)
+            %            is empty, then this can be a two column matrix of
+            %            [alpha,delta] coordinates
+            %            or a three column matrix of cosine directions.
+            %          - A matrix of latitudes (Delta).
+            %          - Input celestial coordinate units {'rad'|'deg'}
+            %            Default is 'deg'.
+            %            If input coordinates are in cosine direction, then
+            %            this argument is ignored.
+            %          - Output native coordinate units {'rad'|'deg'}
+            %            Default is 'deg'.
+            % Output : - A matrix of native Phi coordinate.
+            %          - A matrix of native Theta coordinate.
+            % Example: [Phi,Theta]=celestial2native(W,[1 1],[2 2])
+
+            if nargin<5
+                OutUnits = 'deg';
+                if nargin<4
+                    InUnits = 'deg';
+                    if nargin<3
+                        Delta = [];
+                    end
+                end
+            end
+
+            if numel(Obj)~=1
+                error('Works only on a single element wcsCl object');
+            end
+
+            Units = Obj.CUNIT{1}; % units of properties in the wcsCl class
+            if isempty(Delta)
+                if size(Alpha,2)==3
+                    % cosine direction
+                    [Alpha, Delta] = celestial.coo.cosined2coo(Alpha(:,1),Alpha(:,2),Alpha(:,3));
+                    % output is radians - override InUnits
+                    InUnits = 'rad';
+                elseif size(Alpha,2)==2
+                    % do nothing
+                    Delta = Alpha(:,2);
+                    Alpha = Alpha(:,1);
+                else
+                    error('Celestial coordinates matrix must have 2 or 3 columns');
+                end
+            end
+
+            % input/output units
+            if ~strcmp(Obj.CUNIT{1},Obj.CUNIT{2})
+                error('CUNIT of longitude and latitude must be the same');
+            end
+
+            % convert to radians
+            ConvFactorW  = convert.angular(Units,'rad');
+            ConvFactorIn = convert.angular(InUnits,'rad');
+
+            [Phi,Theta] = AstroWCS.alphadelta2phitheta(Alpha.*ConvFactorIn,Delta.*ConvFactorIn,...
+                                    Obj.PhiP.*ConvFactorW, Obj.AlphaP.*ConvFactorW, Obj.DeltaP.*ConvFactorW, 'rad');
+
+            ConvFactor = convert.angular('rad',OutUnits);
+            Phi   = Phi.*ConvFactor;
+            Theta = Theta.*ConvFactor;
+
+        end
+   
+        function [X,Y]=native2interm(Obj,Phi,Theta,InUnits,OutUnits)
+            % project coordinates: native to intermediate
+            % Input  : - A AstroWCS object
+            %          - A matrix of native Phi coordinate.
+            %            If the next input argument (Theta) is not provided
+            %            then this is a two column matrix of [Phi,Theta]
+            %            native coordinates.
+            %          - A matrix of native Theta coordinate.
+            %          - Input native coordinates units {'rad'|'deg'}.
+            %            Default is 'deg'.
+            % Output : - A matrix of X intermediate pixel coordinate.
+            %          - A matrix of Y intermediate pixel coordinate.
+            % Example: [X,Y]=native2interm(Obj,100,100)
+
+            
+            if nargin<5
+                OutUnits = 'deg';
+                if nargin<4
+                    InUnits = 'deg';
+                    if nargin<3
+                        Theta = [];
+                    end
+                end
+            end
+
+            if numel(Obj)~=1
+                error('Works on a single element wcsCl object');
+            end
+
+            if isempty(Theta)
+                Theta = Phi(:,2);
+                Phi   = Phi(:,1);
+            end
+
+            % convert native coordinates to radians
+            ConvFactor = convert.angular(InUnits,'rad');
+            Phi   = Phi.*ConvFactor;
+            Theta = Theta.*ConvFactor;
+
+
+            % phi,theta -> X,Y
+
+            switch lower(Obj.ProjClass)
+                case 'zenithal'
+
+                    switch lower(Obj.ProjType)
+                        case {'tan','tpv','tan-sip'}
+                            Rtheta = 180./pi .* cot(Theta);    % deg
+                            X      = Rtheta.*sin(Phi);
+                            Y      = -Rtheta.*cos(Phi);
+
+                        otherwise
+
+                            %Rtheta = 180./pi .* (Mu + 1).*cos(Theta)./(Mu + sin(Theta);
+
+                            error('Unsupported projection option (%s)',Obj.ProjType);
+                    end
+
+                otherwise
+                    error('Unsupported projection class (%s)',Obj.ProjClass);
+            end
+            
+            
+            ConvFactor = convert.angular('deg',OutUnits);
+            X   = X.*ConvFactor;
+            Y   = Y.*ConvFactor;
+            
+
+        end    
+        
+        function [PX,PY]=interm2pix(Obj,X,Y)
+            % Convert intermediate pixel coordinates to pixel coordinates
+            % Input  : - A single element AstroWCS object.
+            %          - A matrix of X intermediate pixel coordinate.
+            %            If next argument (Y) is not provided then this is
+            %            a two column matrix of [X,Y].
+            %          - A matrix of Y intermeditae pixel coordinate.
+            % Output : - A matrix of X pixel coordinate.
+            %          - A matrix of Y pixel coordinate.
+            % Example: [P1,P2]=interm2pix(Obj,1,1)
+
+             if numel(Obj)~=1
+                error('The wcsCl object input must contain a single element');
+            end
+
+            if Obj.NAXIS~=size(Obj.CD,1) && Obj.NAXIS~=size(Obj.CD,2)
+                error('Number of coordinates must be consistent with number of axss and CD matrix');
+            end
+
+            if nargin<3
+                Y = [];
+            end
+            if isempty(Y)
+                Y = X(:,2);
+                X = X(:,1);
+            end
+            
+            % inverse distorion for TPV
+            if strcmpi(Obj.ProjType,'tpv')
+                
+                err_thresh = 1e-6;
+                max_iters = 10;
+                    
+                [X,Y]  = AstroWCS.backwardDistortion(Obj.PV,X,Y,err_thresh,max_iters);
+            end
+      
+            
+            XY = [X(:), Y(:)];
+            
+            relP = (Obj.CD) \ XY.';
+            
+            % inverse distorion for TAN-SIP
+            if strcmpi(Obj.ProjType,'tan-sip')
+                
+                err_thresh = 1e-9;
+                max_iters = 10;
+                
+                relPX = relP(1,:);
+                relPY = relP(2,:);
+                
+                [relPX,relPY]  = AstroWCS.backwardDistortion(Obj.PV,relPX,relPY,err_thresh,max_iters);
+                
+                relP = [relPX ; relPY]; % this is including u+g(u,v) and v+g(u,v)
+            end            
+            
+
+            
+            P = (relP + Obj.CRPIX(:)).';            
+            
+            
+
+            PX = reshape(P(:,1),size(X));
+            PY = reshape(P(:,2),size(Y));
+
+        end
+
         
     end
     
@@ -819,7 +1066,7 @@ classdef AstroWCS < Component
             
             if  NPV1 || NPV2
                 
-                PV = zeros(2,max(NPV1,NPV2),3);
+                PV = zeros(2,(1+max(NPV1,NPV2)),3); % to add x and y, as SIP is u+f(u,v), v+g(uv)
                 
                 PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), 'A_(?<u_power>\d+)\_(?<v_power>\d+)','names');
                 PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
@@ -828,12 +1075,16 @@ classdef AstroWCS < Component
                     PV(1,I1,1:3) = [PV1_Vals(I1) str2double(PV1_Powers{I1}.u_power) str2double(PV1_Powers{I1}.v_power)];
                 end
                 
+                PV(1,(NPV1+1),1:3) = [1, 1, 0]; %  add x as SIP is u+f(u,v)
+                
                 PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), 'B_(?<u_power>\d+)\_(?<v_power>\d+)','names');
                 PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
                 
                 for I2 = 1:1:NPV2
                     PV(2,I2,1:3) = [PV2_Vals(I2) str2double(PV2_Powers{I2}.u_power) str2double(PV2_Powers{I2}.v_power)];
                 end
+                
+                PV(2,(NPV2+1),1:3) = [1, 0, 1]; % add y as SIP is v+g(u,v)
                
             else
                 PV = [];
@@ -890,9 +1141,133 @@ classdef AstroWCS < Component
             end
 
         end
-                
         
+        function [Xd,Yd]  = forwardDistortion(PV,X,Y,R)
+           % use PV matrix to calcualte polynomial distortion
+           % PV matrix is [Naxis,n,vals]. NAxis should be 2.
+           % Third axis is [Coeff, X_power, Y_Power, R_Power (optional)]
+           
+            if nargin<4
+                R = 1;
+            end
+            
+            if (size(PV,1) < 2) || (size(PV,3)<2)
+                error('PV matrix too small');
+            end
 
+            CoefX    = PV(1,:,1);
+            X_Xpower = PV(1,:,2);
+            X_Ypower = PV(1,:,3);
+            if (size(PV,3)) > 3
+                X_Rpower = PV(1,:,4);
+            else
+                X_Rpower = 0;
+            end
+
+            CoefY    = PV(2,:,1);
+            Y_Xpower = PV(2,:,2);
+            Y_Ypower = PV(2,:,3);
+            if (size(PV,3)) > 3
+                Y_Rpower = PV(2,:,4);
+            else
+                Y_Rpower = 0;
+            end                        
+
+
+            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)) );
+            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((R(:).').^Y_Rpower(:)) );                
+
+            Xd=reshape(Xd,size(X));
+            Yd=reshape(Yd,size(Y));
+
+        end
+        
+        
+   %======== Functions for related to sky2xy =========           
+        
+        function [Phi,Theta]=alphadelta2phitheta(Alpha,Delta,PhiP,AlphaP,DeltaP,Units)
+            % Convert celestial coordinates to native coordinates
+            % Input  : - Celestial longitude.
+            %          - Celestial latitude.
+            %          - Native longitude of the celestial pole.
+            %          - Celestial longitude of the native pole.
+            %          - Celestial latitude of the native pole.
+            %          - Units of the input and output coordinates
+            %            {'deg'|'rad'}. Default is 'deg'.
+            % Output : - Native longitude
+            %          - Native latitude
+            % Example: [Phi,Theta]=AדארםWCS.alphadelta2phitheta(Alpha,Delta,PhiP,AlphaP,DeltaP)
+
+
+            RAD = 180./pi;
+            if nargin<6
+                Units = 'deg';
+            end
+
+            % convert to radians
+            switch lower(Units)
+                case 'deg'
+                    Alpha  = Alpha./RAD;
+                    Delta  = Delta./RAD;
+                    PhiP   = PhiP./RAD;
+                    AlphaP = AlphaP./RAD;
+                    DeltaP = DeltaP./RAD;
+                case 'rad'
+                    % do nothing
+                otherwise
+                    error('Unknown Units option');
+            end
+
+            % note that the arg(x,y) function in Calabretta et al. is
+            % equivalent to atan2(y,x)
+            Phi = PhiP + atan2(-cos(Delta).*sin(Alpha - AlphaP),...
+                               sin(Delta).*cos(DeltaP) - cos(Delta).*sin(DeltaP).*cos(Alpha - AlphaP));
+            % Note that this is 90-angular distance...
+            Theta = asin(sin(Delta).*sin(DeltaP) + cos(Delta).*cos(DeltaP).*cos(Alpha - AlphaP));
+
+            % convert radians to units
+            switch lower(Units)
+                case 'deg'
+                    Phi   = Phi.*RAD;
+                    Theta = Theta.*RAD;
+            end
+
+        end
+        
+        function [X,Y]  = backwardDistortion(PV,Xd,Yd,err_thresh,max_iters)
+            % iterativly calculate [X,Y} from [Xd,Yd] using PV
+    
+            if nargin<5
+                max_iters = 100;
+                if nargin < 4
+                    err_thresh = 1e-7;
+                end    
+            end
+            
+            niter=0;
+            err=Inf;
+            X0=Xd;
+            Y0=Yd;
+            while (niter < max_iters) && (err > err_thresh) % arbitrary iteration stop
+                if size(PV,3)>2
+                    R = sqrt(X0.^2 + Y0.^2); % TODO - change to arbitrary function f(x,y)
+                else
+                    R=1;
+                end
+                    
+                
+                [X1,Y1] = AstroWCS.forwardDistortion(PV,X0,Y0,R);
+                X0= (X0-X1) +Xd;
+                Y0= (Y0-Y1) +Yd;
+                err=sqrt(sum((X1(:)-Xd(:)).^2 + (Y1(:)-Yd(:)).^2));
+                niter=niter+1;
+            end
+            X=X0;
+            Y=Y0;
+
+
+        end
+         
         
     end
     
@@ -1233,238 +1608,12 @@ classdef AstroWCS < Component
         
         
         
-        function [Phi,Theta]=alphadelta2phitheta(Alpha,Delta,PhiP,AlphaP,DeltaP,Units)
-            % Convert celestial coordinates to native coordinates
-            % Package: @wcsCl (Static, transformations)
-            % Input  : - Celestial longitude.
-            %          - Celestial latitude.
-            %          - Native longitude of the celestial pole.
-            %          - Celestial longitude of the native pole.
-            %          - Celestial latitude of the native pole.
-            %          - Units of the input and output coordinates
-            %            {'deg'|'rad'}. Default is 'deg'.
-            % Output : - Native longitude
-            %          - Native latitude
-            % Example: [Phi,Theta]=wcsCl.alphadelta2phitheta(Alpha,Delta,PhiP,AlphaP,DeltaP)
 
 
-            RAD = 180./pi;
-            if nargin<6
-                Units = 'deg';
-            end
-
-            % convert to radians
-            switch lower(Units)
-                case 'deg'
-                    Alpha  = Alpha./RAD;
-                    Delta  = Delta./RAD;
-                    PhiP   = PhiP./RAD;
-                    AlphaP = AlphaP./RAD;
-                    DeltaP = DeltaP./RAD;
-                case 'rad'
-                    % do nothing
-                otherwise
-                    error('Unknown Units option');
-            end
-
-            % note that the arg(x,y) function in Calabretta et al. is
-            % equivalent to atan2(y,x)
-            Phi = PhiP + atan2(-cos(Delta).*sin(Alpha - AlphaP),...
-                               sin(Delta).*cos(DeltaP) - cos(Delta).*sin(DeltaP).*cos(Alpha - AlphaP));
-            % Note that this is 90-angular distance...
-            Theta = asin(sin(Delta).*sin(DeltaP) + cos(Delta).*cos(DeltaP).*cos(Alpha - AlphaP));
-
-            % convert radians to units
-            switch lower(Units)
-                case 'deg'
-                    Phi   = Phi.*RAD;
-                    Theta = Theta.*RAD;
-            end
-
-        end
-
-        function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,InUnits,OutUnits)
-            % convert celestial coordinates to native coordinates
-            % Package: @wcsCl (transformations)
-            % Description: Convert sphericall celestial coordinates
-            %              (alpha, delta) or cosine directions to native
-            %              spherical coordinates.
-            % Input  : - A single element wcsCl object.
-            %          - A matrix of longiudes (Alpha).
-            %            If the next input argument (matrix of latitude)
-            %            is empty, then this can be a two column matrix of
-            %            [alpha,delta] coordinates
-            %            or a three column matrix of cosine directions.
-            %          - A matrix of latitudes (Delta).
-            %          - Input celestial coordinate units {'rad'|'deg'}
-            %            Default is 'deg'.
-            %            If input coordinates are in cosine direction, then
-            %            this argument is ignored.
-            %          - Output celestial coordinate units {'rad'|'deg'}
-            %            Default is 'deg'.
-            % Output : - A matrix of native Phi coordinate.
-            %          - A matrix of native Theta coordinate.
-            % Example: [Phi,Theta]=celestial2native(W,[1 1],[2 2])
-
-            if nargin<5
-                OutUnits = 'deg';
-                if nargin<4
-                    InUnits = 'deg';
-                    if nargin<3
-                        Delta = [];
-                    end
-                end
-            end
-
-            if numel(Obj)~=1
-                error('Works only on a single element wcsCl object');
-            end
-
-            Units = Obj.CUNIT{1}; % units of properties in the wcsCl class
-            if isempty(Delta)
-                if size(Alpha,2)==3
-                    % cosine direction
-                    [Alpha, Delta] = celestial.coo.cosined2coo(Alpha(:,1),Alpha(:,2),Alpha(:,3));
-                    % output is radians - override InUnits
-                    InUnits = 'rad';
-                elseif size(Alpha,2)==2
-                    % do nothing
-                    Delta = Alpha(:,2);
-                    Alpha = Alpha(:,1);
-                else
-                    error('Celestial coordinates matrix must have 2 or 3 columns');
-                end
-            end
-
-            % input/output units
-            if ~strcmp(Obj.CUNIT{1},Obj.CUNIT{2})
-                error('CUNIT of longitude and latitude must be the same');
-            end
-
-            % convert to radians
-            ConvFactorW  = convert.angular(Units,'rad');
-            ConvFactorIn = convert.angular(InUnits,'rad');
-
-            [Phi,Theta] = wcsCl.alphadelta2phitheta(Alpha.*ConvFactorIn,Delta.*ConvFactorIn,...
-                                    Obj.PhiP.*ConvFactorW, Obj.AlphaP.*ConvFactorW, Obj.DeltaP.*ConvFactorW, 'rad');
-
-            ConvFactor = convert.angular('rad',OutUnits);
-            Phi   = Phi.*ConvFactor;
-            Theta = Theta.*ConvFactor;
-
-        end
+ 
         
-        function [X,Y]=native2interm(Obj,Phi,Theta,InUnits)
-            % project coordinates: native to intermediate
-            % Package: @wcsCl (transformations)
-            % Input  : - A wcsCl object
-            %          - A matrix of native Phi coordinate.
-            %            If the next input argument (Theta) is not provided
-            %            then this is a two column matrix of [Phi,Theta]
-            %            native coordinates.
-            %          - A matrix of native Theta coordinate.
-            %          - Input native coordinates units {'rad'|'deg'}.
-            %            Default is 'deg'.
-            % Output : - A matrix of X intermediate pixel coordinate.
-            %          - A matrix of Y intermediate pixel coordinate.
-            % Example: [X,Y]=native2interm(Obj,100,100)
+    
 
-            if nargin<4
-                InUnits = 'deg';
-                if nargin<3
-                    Theta = [];
-                end
-            end
-
-            if numel(Obj)~=1
-                error('Works on a single element wcsCl object');
-            end
-
-            if isempty(Theta)
-                Theta = Phi(:,2);
-                Phi   = Phi(:,1);
-            end
-
-            % convert native coordinates to radians
-            ConvFactor = convert.angular(InUnits,'rad');
-            Phi   = Phi.*ConvFactor;
-            Theta = Theta.*ConvFactor;
-
-
-            % phi,theta -> X,Y
-
-            switch lower(Obj.ProjClass)
-                case 'zenithal'
-
-                    switch lower(Obj.ProjType)
-                        case 'tan'
-                            Rtheta = 180./pi .* cot(Theta);    % deg
-                            X      = Rtheta.*sin(Phi);
-                            Y      = -Rtheta.*cos(Phi);
-
-                        case 'tpv'
-                            Rtheta = 180./pi .* cot(Theta);    % deg
-                            X      = Rtheta.*sin(Phi);
-                            Y      = -Rtheta.*cos(Phi);
-
-                        otherwise
-
-                            %Rtheta = 180./pi .* (Mu + 1).*cos(Theta)./(Mu + sin(Theta);
-
-                            error('Unsupported projection option (%s)',ProjAlgo);
-                    end
-
-                otherwise
-                    error('Unsupported projection class (%s)',Obj.ProjClass);
-            end
-
-        end        
-
-        function [PX,PY]=interm2pix(Obj,X,Y)
-            % Convert intermediate pixel coordinates to pixel coordinates
-            % Package: @wcsCl (transformations)
-            % Input  : - A single element wcsCl object.
-            %          - A matrix of X intermediate pixel coordinate.
-            %            If next argument (Y) is not provided then this is
-            %            a two column matrix of [X,Y].
-            %          - A matrix of Y intermeditae pixel coordinate.
-            % Output : - A matrix of X pixel coordinate.
-            %          - A matrix of Y pixel coordinate.
-            % Example: [P1,P2]=interm2pix(Obj,1,1)
-
-             if numel(Obj)~=1
-                error('The wcsCl object input must contain a single element');
-            end
-
-            if Obj.NAXIS~=size(Obj.CD,1) && Obj.NAXIS~=size(Obj.CD,2)
-                error('Number of coordinates must be consistent with number of axss and CD matrix');
-            end
-
-            if nargin<3
-                Y = [];
-            end
-            if isempty(Y)
-                Y = X(:,2);
-                X = X(:,1);
-            end
-
-            % X = Obj.WCS.CD*[P - Obj.WCS.CRPIX(:)];
-            % X = CD*P - CD*CRPIX
-            % CD^-1 X = I*P - I*CRPIX
-            % P = CRPIX + CD^T X
-
-            %P = (Obj.CRPIX(:) + inv(Obj.CD) * XY.').';
-
-            XY = [X(:), Y(:)];
-            P = [inv(Obj.CD) * XY.' + Obj.CRPIX(:)].';
-
-            %[inv(Obj(Iw).(WCSField).CD) * XY.' + Obj(Iw).(WCSField).CRPIX(:)].';
-            %X = Obj.WCS.CD.'*XY.'; % - Obj.WCS.CRPIX(:)];
-
-            PX = reshape(P(:,1),size(X));
-            PY = reshape(P(:,2),size(Y));
-
-        end
 
 
 
@@ -2016,7 +2165,17 @@ classdef AstroWCS < Component
             ds9('FOCx38i0101t_c0f.fits');
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN projection is %.1f [mas]',max(d_mas)));
+            disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            
+            % test sky2xy for TAN. 
+            % First compare to xy2sky and then compared to ds9
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
+            d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
+            disp(sprintf('Max distance for TAN projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));
+            
+            [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
+            d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
+            disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));
             
             % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
             AH = AstroHeader('tpv.fits');
@@ -2026,8 +2185,19 @@ classdef AstroWCS < Component
             ds9('tpv.fits');
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TPV projection is %.1f [mas]',max(d_mas)));
+            disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            
+            % test sky2xy for TPV. 
+            % First compare to xy2sky and then compared to ds9
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
+            d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
+            disp(sprintf('Max distance for TPV projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
 
+            [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
+            d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
+            disp(sprintf('Max distance for TPV projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));            
+            
+            
             % construct a AstroWCS from Header with TAN-SIP projection  and get [alpha, delta]
             AH = AstroHeader('SPITZER_I1_70576896_0000_0000_1_bcd.fits');
             AW = AstroWCS.header2wcs(AH); 
@@ -2036,7 +2206,18 @@ classdef AstroWCS < Component
             ds9('SPITZER_I1_70576896_0000_0000_1_bcd.fits');
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN-SIP projection is %.1f [mas]',max(d_mas)));
+            disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            
+            % test sky2xy for  TAN-SIP. 
+            % First compare to xy2sky and then compared to ds9
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
+            d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
+            disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
+
+            [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
+            d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
+            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));               
+            
             
             % construct a AstroWCS from AstroHeader with Naxis=3, and empty
             % projtype in CTYPE3 and get [alpha, delta]
