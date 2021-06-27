@@ -75,7 +75,7 @@ arguments
     Args.SubSizeXY               = [128 128];
     Args.Overlap                 = 16;
     Args.ExtendFull(1,1) logical = true;
-    Args.ExtendMethod            = 'imresize';  % 'imresize' | 'interp_sparse2full'
+    Args.ExtendMethod            = 'interp_sparse2full'; %'imresize';  % 'imresize' | 'interp_sparse2full'
     Args.FieldName               = 'Im';
 end
 

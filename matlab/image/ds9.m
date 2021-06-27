@@ -901,7 +901,7 @@ classdef ds9 < handle
     % (write_region, load_region, delete_region, save_region, plot, text)
     methods (Static)
         % construct a region file
-        function FileName=write_region(Cat,varargin)
+        function FileName=write_region(Cat, Args)
             % Write a regions file for a list of coordinates and properties
             % Package: @ds9
             % Description: Write a regions file for a list of coordinates
@@ -982,39 +982,40 @@ classdef ds9 < handle
             %          write_region([X,Y],'Marker','s','Color','cyan')
             % Reliable: 2
             
-            DefV.FileName        = tempname;  % use temp file name
-            DefV.Append          = false;
-            DefV.Coo             = 'image';   % 'image'|'fk5'
-            DefV.Units           = 'deg';     % for 'image' this is always pix!
-            DefV.Marker          = 'circle';  % 'circle'|'box'|...
-            DefV.Color           = 'red';
-            DefV.Width           = 1;
-            DefV.Size            = 10;
-            DefV.Text            = '';
-            DefV.Font            = 'helvetica';  %'helvetica 16 normal'
-            DefV.FontSize        = 16;
-            DefV.FontStyle       = 'normal';
-            DefV.ColNameX        = {'XWIN_IMAGE','X','X_IMAGE'};
-            DefV.ColNameY        = {'YWIN_IMAGE','Y','Y_IMAGE'};
-            DefV.ColNameRA       = {'ALPHAWIN_J2000','RA'};
-            DefV.ColNameDec      = {'DELTAWIN_J2000','Dec'};
+            arguments
+                Cat
+                Args.FileName        = tempname;  % use temp file name
+                Args.Append          = false;
+                Args.Coo             = 'image';   % 'image'|'fk5'
+                Args.Units           = 'deg';     % for 'image' this is always pix!
+                Args.Marker          = 'circle';  % 'circle'|'box'|...
+                Args.Color           = 'red';
+                Args.Width           = 1;
+                Args.Size            = 10;
+                Args.Text            = '';
+                Args.Font            = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize        = 16;
+                Args.FontStyle       = 'normal';
+                Args.ColNameX        = {'XWIN_IMAGE','X','X_IMAGE'};
+                Args.ColNameY        = {'YWIN_IMAGE','Y','Y_IMAGE'};
+                Args.ColNameRA       = {'ALPHAWIN_J2000','RA'};
+                Args.ColNameDec      = {'DELTAWIN_J2000','Dec'};
+            end
             
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
-
             % check if region file exist
-            if (exist(InPar.FileName,'file')==0)
-               if (InPar.Append)
+            if (exist(Args.FileName,'file')==0)
+               if (Args.Append)
                    error('User requested to append region file, but file doesnt exist');
                end
             end
             
             
             IsXY = false;
-            switch lower(InPar.Coo)
+            switch lower(Args.Coo)
              case 'image'
                 CooUnits    = '';
                 IsXY        = true;
-                InPar.Units = 'pix';
+                Args.Units = 'pix';
              case 'fk5'
                 CooUnits = '"';
              otherwise
@@ -1025,11 +1026,11 @@ classdef ds9 < handle
             if (AstCat.isastcat(Cat))
                 % read the coordinates from an AstCat object
                 if (IsXY)
-                    ColNameX   = select_exist_colnames(Cat,InPar.ColNameX(:));
-                    ColNameY   = select_exist_colnames(Cat,InPar.ColNameY(:));
+                    ColNameX   = select_exist_colnames(Cat,Args.ColNameX(:));
+                    ColNameY   = select_exist_colnames(Cat,Args.ColNameY(:));
                 else
-                    ColNameX   = select_exist_colnames(Cat,InPar.ColNameRA(:));
-                    ColNameY   = select_exist_colnames(Cat,InPar.ColNameDec(:));
+                    ColNameX   = select_exist_colnames(Cat,Args.ColNameRA(:));
+                    ColNameY   = select_exist_colnames(Cat,Args.ColNameDec(:));
                 end
                 
                 X = col_get(Cat,ColNameX);
@@ -1042,7 +1043,7 @@ classdef ds9 < handle
             
             % In case of spherical coordinates - convert to deg
             if (~IsXY)
-                Factor = convert.angular(InPar.Units,'deg');
+                Factor = convert.angular(Args.Units,'deg');
                 X      = X.*Factor;
                 Y      = Y.*Factor;
             end
@@ -1051,83 +1052,83 @@ classdef ds9 < handle
             % Number of regions to plot
             Nreg    = numel(X);
             % Prep properties
-            if (~iscell(InPar.Marker))
-                InPar.Marker = {InPar.Marker};
+            if (~iscell(Args.Marker))
+                Args.Marker = {Args.Marker};
             end
-            Nmarker = numel(InPar.Marker);
-            if (~iscell(InPar.Color))
-                InPar.Color = {InPar.Color};
+            Nmarker = numel(Args.Marker);
+            if (~iscell(Args.Color))
+                Args.Color = {Args.Color};
             end
-            Ncolor = numel(InPar.Color);
-            Nwidth = numel(InPar.Width);
-            Nsize  = size(InPar.Size,1);
-            if (~iscell(InPar.Text))
-                InPar.Text = {InPar.Text};
+            Ncolor = numel(Args.Color);
+            Nwidth = numel(Args.Width);
+            Nsize  = size(Args.Size,1);
+            if (~iscell(Args.Text))
+                Args.Text = {Args.Text};
             end
-            Ntext = numel(InPar.Text);
-            if (~iscell(InPar.Font))
-                InPar.Font = {InPar.Font};
+            Ntext = numel(Args.Text);
+            if (~iscell(Args.Font))
+                Args.Font = {Args.Font};
             end
-            Nfont = numel(InPar.Font);
-            Nfontsize = numel(InPar.FontSize);
-            if (~iscell(InPar.FontStyle))
-                InPar.FontStyle = {InPar.FontStyle};
+            Nfont = numel(Args.Font);
+            Nfontsize = numel(Args.FontSize);
+            if (~iscell(Args.FontStyle))
+                Args.FontStyle = {Args.FontStyle};
             end
-            Nfontstyle = numel(InPar.FontStyle);
+            Nfontstyle = numel(Args.FontStyle);
             
             % Open file
-            if (InPar.Append)
+            if (Args.Append)
                 % append header to an existing region file
-                FID = fopen(InPar.FileName,'a');
+                FID = fopen(Args.FileName,'a');
             else
-                FID = fopen(InPar.FileName,'w');
+                FID = fopen(Args.FileName,'w');
                 fprintf(FID,'# Region file format: DS9 version 4.1\n');
                 fprintf(FID,'# Written by Eran Ofek via ds9.write_region.m\n');
                 fprintf(FID,'global color=green dashlist=8 3 width=1 font="helvetica 10 normal" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n');
-                fprintf(FID,'%s\n',InPar.Coo);
+                fprintf(FID,'%s\n',Args.Coo);
             end
 
             % for each coordinate (refion)
             for Ireg=1:1:Nreg
                 
-                switch lower(InPar.Marker{min(Ireg,Nmarker)})
+                switch lower(Args.Marker{min(Ireg,Nmarker)})
                     case {'circle','circ','o'}
                         fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s)',... 
                                     'circle', X(Ireg), Y(Ireg),...
-                                    InPar.Size(min(Ireg,Nsize)),CooUnits);
+                                    Args.Size(min(Ireg,Nsize)),CooUnits);
                     case {'box','b','s'}
-                        if (numel(InPar.Size)==1)
+                        if (numel(Args.Size)==1)
                             fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',... 
                                         'box',X(Ireg),Y(Ireg),...
-                                        InPar.Size(min(Ireg,Nsize),1),CooUnits,...
-                                        InPar.Size(min(Ireg,Nsize),1),CooUnits,...
+                                        Args.Size(min(Ireg,Nsize),1),CooUnits,...
+                                        Args.Size(min(Ireg,Nsize),1),CooUnits,...
                                         0);
                         else
                             fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',... 
                                         'box',X(Ireg),Y(Ireg),...
-                                        InPar.Size(min(Ireg,Nsize),1),CooUnits,...
-                                        InPar.Size(min(Ireg,Nsize),2),CooUnits,...
-                                        InPar.Size(min(Ireg,Nsize),3));
+                                        Args.Size(min(Ireg,Nsize),1),CooUnits,...
+                                        Args.Size(min(Ireg,Nsize),2),CooUnits,...
+                                        Args.Size(min(Ireg,Nsize),3));
                         end
                     case {'ellipse','e'}
                         fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',... 
                                     'ellipse',X(Ireg),Y(Ireg),...
-                                    InPar.Size(min(Ireg,Nsize),1),CooUnits,...
-                                    InPar.Size(min(Ireg,Nsize),2),CooUnits,...
-                                    InPar.Size(min(Ireg,Nsize),3));
+                                    Args.Size(min(Ireg,Nsize),1),CooUnits,...
+                                    Args.Size(min(Ireg,Nsize),2),CooUnits,...
+                                    Args.Size(min(Ireg,Nsize),3));
                     case {'vector','v'}
                         fprintf(FID,'# %s(%15.8f,%15.8f,%15.8f%s,%9.5f)',... 
                                     'vector',X(Ireg),Y(Ireg),...
-                                    InPar.Size(min(Ireg,Nsize),1),CooUnits,...
-                                    InPar.Size(min(Ireg,Nsize),2));
+                                    Args.Size(min(Ireg,Nsize),1),CooUnits,...
+                                    Args.Size(min(Ireg,Nsize),2));
     
                     case {'line','l'}
                         fprintf(FID,'%s(%15.8f,%15.8f,%15.8f,%15.8f)',... 
                                     'line',...
-                                    InPar.Size(min(Ireg,Nsize),1),...
-                                    InPar.Size(min(Ireg,Nsize),2),...
-                                    InPar.Size(min(Ireg,Nsize),3),...
-                                    InPar.Size(min(Ireg,Nsize),4));
+                                    Args.Size(min(Ireg,Nsize),1),...
+                                    Args.Size(min(Ireg,Nsize),2),...
+                                    Args.Size(min(Ireg,Nsize),3),...
+                                    Args.Size(min(Ireg,Nsize),4));
                                 
                     case {'polygon','p'}
                         if (Ireg==1)
@@ -1143,17 +1144,17 @@ classdef ds9 < handle
                 
                 % additional properties
                 fprintf(FID,'# color=%s width=%d font="%s %d %s" text={%s}\n',...
-                            InPar.Color{min(Ireg,Ncolor)},...
-                            InPar.Width(min(Ireg,Nwidth)),...
-                            InPar.Font{min(Ireg,Nfont)},...
-                            InPar.FontSize(min(Ireg,Nfontsize)),...
-                            InPar.FontStyle{min(Ireg,Nfontstyle)},...
-                            InPar.Text{min(Ireg,Ntext)});
+                            Args.Color{min(Ireg,Ncolor)},...
+                            Args.Width(min(Ireg,Nwidth)),...
+                            Args.Font{min(Ireg,Nfont)},...
+                            Args.FontSize(min(Ireg,Nfontsize)),...
+                            Args.FontStyle{min(Ireg,Nfontstyle)},...
+                            Args.Text{min(Ireg,Ntext)});
                         
             end
             fclose(FID); % close region file
 
-            FileName = InPar.FileName;
+            FileName = Args.FileName;
             pause(0.2);
             
         end
