@@ -631,34 +631,127 @@ classdef DbQuery < Component
         end
                      
         
-        function Result = updateRecord(Obj, TableName, Rec, Args)
+        function Result = updateRecord(Obj, TableName, Rec, WhereRec, Args)
             % Update record
             arguments
                 Obj
                 TableName
                 Rec                     % DbRecord or struct
+                WhereRec
                 Args.FieldMap = []      % Optional field map
             end
             
+            % Use all fields that exist in the table
+            % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             Result = false;
+                       
+            % Execute SQL statement (using java calls)
+            Obj.msgLog(LogLevel.Info, 'DbQuery: updateRecord');            
+            tic();
+            
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
+                                                      
+            % Prepare SQL statement
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+            FieldNames = Obj.getFieldNames(Rec);
+            WhereFieldNames = Obj.getFieldNames(WhereRec);
+            disp(FieldNames);          
+            SqlFields = Obj.makeUpdateFieldsText(FieldNames, Args.FieldMap);
+            WhereFields = Obj.getFieldNames(WhereRec);
+            Where = Obj.makeWhereFieldsText(WhereFieldNames, ' AND ', Args.FieldMap);
+            
+            % 
+            Obj.SqlText = ['UPDATE ', string(TableName).char, ' SET ', SqlFields, ' WHERE ', Where];
+            Obj.msgLog(LogLevel.Debug, 'updateRecord: SqlText: %s', Obj.SqlText);
+            
+            % Prepare query
+            Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
+            try
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
+            catch
+                Obj.msgLog(LogLevel.Error, 'updateRecord: prepareStatement failed: %s', Obj.SqlText);
+            end
+                      
+            % Iterate struct fields
+            Obj.setStatementValues(FieldNames, Rec, Args.FieldMap);
+            Obj.setStatementValues(WhereFieldNames, WhereRec, Args.FieldMap, 'FieldIndex', numel(FieldNames)+1);
+             
+            % Execute
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+            try
+                Obj.ResultSet = Obj.Statement.executeUpdate();                             
+                Obj.ExecOk = true;                
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'updateRecord: executeQuery failed: %s', Obj.SqlText);                
+            end
+            
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Info, 'updateRecord time: %.6f', Obj.Toc);  
+                  
+            Result = true;
         end        
         
               
         function Result = deleteRecord(Obj, TableName, Rec, Args)
-            % Delete by 
+            % Delete record by fields specified in Rec
             arguments
                 Obj
                 TableName
                 Rec                     % DbRecord or struct
                 Args.FieldMap = []      % Optional field map
+            end                        
+            
+            % Use all fields that exist in the table
+            % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
+            Result = false;
+                       
+            % Execute SQL statement (using java calls)
+            Obj.msgLog(LogLevel.Info, 'DbQuery: insertRecord');            
+            tic();
+            
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
+                                                      
+            % Prepare SQL statement
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+            FieldNames = Obj.getFieldNames(Rec);
+            FieldMap = struct;
+            Where = Obj.makeWhereFieldsText(FieldNames, 'AND', FieldMap);
+            
+            % 
+            Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];
+            Obj.msgLog(LogLevel.Debug, 'deleteRecord: SqlText: %s', Obj.SqlText);
+            
+            % Prepare query
+            Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
+            try
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
+            catch
+                Obj.msgLog(LogLevel.Error, 'deleteRecord: prepareStatement failed: %s', Obj.SqlText);
+            end
+                      
+            % Iterate struct fields
+            Obj.setStatementValues(FieldNames, Rec, FieldMap);
+             
+            % Execute
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+            try
+                Obj.ResultSet = Obj.Statement.executeUpdate();                             
+                Obj.ExecOk = true;                
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'deleteRecord: executeQuery failed: %s', Obj.SqlText);                
             end
             
-            % Update record        
-            % ---------------------------------------------- Delete
-            sql = sprintf("DELETE FROM master_table WHERE RecID='%s'", uuid);
-            Q.exec(sql);           
-            count2 = Q.selectCount('master_table');
-            assert(count2 == count);        
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Info, 'deleteRecord time: %.6f', Obj.Toc);  
+                  
+            Result = true;            
+        end
     end
 
     %----------------------------------------------------------------------
@@ -781,6 +874,8 @@ classdef DbQuery < Component
                     SqlValues = [SqlValues, '?']; %#ok<AGROW>
                 end
             end
+            
+            Obj.msgLog(LogLevel.Debug, 'makeInsertFieldsText: %s', SqlFields);
         end      
                     
         
@@ -807,6 +902,8 @@ classdef DbQuery < Component
                     SqlFields = [SqlFields, FieldName, '=?']; %#ok<AGROW>
                 end
             end
+            
+            Obj.msgLog(LogLevel.Debug, 'makeUpdateFieldsText: %s', SqlFields);
         end      
             
         
@@ -841,15 +938,26 @@ classdef DbQuery < Component
                     SqlFields = [SqlFields, FieldName, '=?']; %#ok<AGROW>
                 end
             end
+            
+            Obj.msgLog(LogLevel.Debug, 'makeWhereFieldsText: %s', SqlFields);
         end      
             
         
-        function Result = setStatementValues(Obj, FieldNames, Rec, FieldMap)
+        function Result = setStatementValues(Obj, FieldNames, Rec, FieldMap, Args)
             % Set statement values from specified DbRecord or struct
+            arguments
+                Obj
+                FieldNames
+                Rec
+                FieldMap
+                Args.FieldIndex = 1
+            end
+            
             
             % Iterate struct fields
             % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
             Obj.msgLog(LogLevel.Debug, 'setStatementValues: setting values');
+            Index = Args.FieldIndex;
             for i = 1:numel(FieldNames)
                 f = FieldNames{i};
                 
@@ -860,23 +968,24 @@ classdef DbQuery < Component
                    isa(val, 'int16') || isa(val, 'uint16') || ...
                    isa(val, 'int32') || isa(val, 'uint32')
                     Obj.msgLog(LogLevel.Debug, 'integer: %s = %d', f, val);
-                    Obj.Statement.setInt(i, val);
+                    Obj.Statement.setInt(Index, val);
                 elseif isa(val, 'int64') || isa(val, 'uint64')
                     Obj.msgLog(LogLevel.Debug, 'int64: %s = %d', f, val);
-                    Obj.Statement.setLong(i, val);
+                    Obj.Statement.setLong(Index, val);
                 elseif isa(val, 'logical')
                     Obj.msgLog(LogLevel.Debug, 'bool: %s = %d', f, val);
-                    Obj.Statement.setBoolean(i, val);
+                    Obj.Statement.setBoolean(Index, val);
                 elseif isa(val, 'float') || isa(val, 'single') || isa(val, 'double')
                     Obj.msgLog(LogLevel.Debug, 'double: %s = %f', f, val);
-                    Obj.Statement.setDouble(i, val);
+                    Obj.Statement.setDouble(Index, val);
                 elseif isa(val, 'char')
                     Obj.msgLog(LogLevel.Debug, 'char: %s = %s', f, val);
-                    Obj.Statement.setString(i, val);
+                    Obj.Statement.setString(Index, val);
                 else
                     % Other not supported (yet?)
                     Obj.msgLog(LogLevel.Debug, 'setStatementValues: ERROR: other type - not supported: %s', f);
                 end
+                Index = Index+1;
             end           
             Result = true;
         end
@@ -1063,7 +1172,7 @@ classdef DbQuery < Component
             
             % Insert records            
             io.msgLog(LogLevel.Test, 'testing INSERT...');
-            InsertCount = 100;
+            InsertCount = 1;
             for i = 1:InsertCount
                 % Prepare statement
                 uuid = Component.newUuid();
@@ -1081,7 +1190,7 @@ classdef DbQuery < Component
             % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
             TestBatch = false;
             if (TestBatch)
-                InsertCount = 0;
+                InsertCount = 1;
                 sql = '';
                 for i = 1:InsertCount
                     % Prepare statement
@@ -1103,10 +1212,14 @@ classdef DbQuery < Component
             s.fstring = 'Original Text';
             Q.insertRecord('master_table', s);             
             
-            s.fstring = 'My new TEXT';
-            Q.updateRecord('master_table', s);                         
+            u = struct;
+            u.fstring = 'My new TEXT';
+            where = struct;
+            where.recid = s.recid;
+            Q.updateRecord('master_table', u, where);                         
+            %function Result = updateRecord(Obj, TableName, Rec, WhereRec, Args)
             
-            
+            Q.deleteRecord('master_table', where);
             
             io.msgLog(LogLevel.Test, 'testing UPDATE...');
             UpdateCount = 100;
