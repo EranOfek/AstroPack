@@ -1,42 +1,34 @@
-function [Back,Var]=annulus_filter(Image) 
-%
+function [FiltImAnn, AreaAnnulus] = annulus_filter(Image, Annulus) 
+% Apply annului filters to an image
 % Package: @imUtil.background
-% Input  : - An array.
-%          - Vector of dimensions over which to calculate the robust
-%            variance. Default is [1 2].
-% Output : - The robust median calculated using the scaled iqr
-%      By: Eran O. Ofek                       Apr 2020             
-% Example: imUtil.background.rvar(randn(1000,1000))
+% Input  : - A 2D image.
+%          - A two column matrix of [Inner, Outer] radii of annulus.
+%            Default is [10 15; 20 23; 40 41.6].
+% Output : - A 3D matrix in which the 3rd dim is the image index (equal to
+%            the number of filters). And the first 2D are the filtered
+%            images.
+%          - A vector of annuli area.
+% Author: Eran Ofek (Jun 2021)
+% Example: [F,A] = imUtil.background.annulus_filter(100+randn(1000,1000));
 
 arguments
     Image
-    Radius
+    Annulus            = [10 15; 20 23; 40 41.6];
 end
 
-% InPar = inputParser;
-% addOptional(InPar,'BackFunOut',{'back','var'});  % back, var, std
-% parse(InPar,varargin{:});
-% InPar = InPar.Results;
+MaxRadius = ceil(max(Annulus(:)));
+%FilterCirc = imUtil.kernel2.circ(Annulus(:,1), [2.*MaxRadius+1, 2.*MaxRadius+1]);
+FilterAnn  = imUtil.kernel2.annulus(Annulus, [2.*MaxRadius+1, 2.*MaxRadius+1]);
 
+AreaAnnulus = pi.*(Annulus(:,2).^2 - Annulus(:,1).^2);
 
-% construct 3 roughly equal area filters: 1 circular and 2 annular
-Radius   = 11;
-Annulus1 = 15;
-Annulus1 = [Annulus1, ceil(sqrt(Radius.^2 + Annulus1.^2))];
-Annulus2 = 25;
-Annulus2 = [Annulus2, ceil(sqrt(Radius.^2 + Annulus2.^2))];
-
-% construct unit-normalized filter
-Filt1 = Kernel2.aper(Radius,2.*Radius+1,2.*Radius+1);
-Filt2 = Kernel2.annulus(Annulus1(1), Annulus1(2), 2.*Annulus1(2)+1, 2.*Annulus1(2)+1);
-Filt3 = Kernel2.annulus(Annulus2(1), Annulus2(2), 2.*Annulus2(2)+1, 2.*Annulus2(2)+1);
-
-AreaFilt1 = sum(Filt1(:)>0);
-AreaFilt2 = sum(Filt2(:)>0);
-AreaFilt3 = sum(Filt3(:)>0);
-
-ImFilt1 = imUtil.filter.conv2_fast(Image,Filt1);
-ImFilt2 = imUtil.filter.conv2_fast(Image,Filt2);
-ImFilt3 = imUtil.filter.conv2_fast(Image,Filt3);
+Nann = size(Annulus, 1);
+SizeIm    = size(Image);
+FiltImAnn = zeros(SizeIm(1), SizeIm(2), Nann);
+for Iann=1:1:Nann
+    %FiltImCirc = imUtil.filter.conv2_fast(Image, FilterCirc(:,:,Iann));
+    FiltImAnn(:,:,Iann)  = imUtil.filter.conv2_fast(Image, FilterAnn(:,:,Iann));
+end
+    
 
 
