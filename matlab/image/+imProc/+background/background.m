@@ -66,11 +66,11 @@ function Result = background(Obj, Args)
         
         Args.BackFun                     = @imUtil.background.mode; %@median;
         Args.BackFunPar cell             = {true}; %{[1 2]};
-        Args.VarFun                      = []; %@imUtil.background.rvar;
+        Args.VarFun                      = []; %@imUtil.background.rvar; % [];
         Args.VarFunPar cell              = {};
         Args.SubSizeXY                   = [256 256];
         Args.Overlap                     = 16;
-        Args.ExtendFull(1,1) logical     = false;
+        Args.ExtendFull(1,1) logical     = false; %true; %false;
 
         Args.SubBack(1,1) logical        = false;
         
