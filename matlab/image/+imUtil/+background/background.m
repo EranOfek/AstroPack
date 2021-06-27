@@ -38,6 +38,7 @@ function [Back,Var]=background(Image,Args)
 %                   to the VarFun function.
 %                   Default is {}.
 %            'SubSizeXY' - The [X,Y] size of the partitioned sub images.
+%                   If 'full' or empty use full image.
 %                   Default is [128 128].
 %            'Overlap' - The [X,Y] additional overlaping buffer between
 %                   sub images to add to each sub image.
@@ -90,6 +91,9 @@ if ~isempty(Args.VarFun)
 end
 
 % partition the image into sub images
+if isempty(Args.SubSizeXY)
+    Args.SubSizeXY = 'full';
+end
 if ischar(Args.SubSizeXY)
     switch lower(Args.SubSizeXY)
         case 'full'

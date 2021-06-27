@@ -32,6 +32,14 @@ function Result = unitTest()
     if max(abs(Surface.Image - Z),[],'all')>1e-6
         error('Problem with fitSurface');
     end
+    
+    VecX = (11:10:990).';
+    VecY = VecX;
+    [MatX, MatY] = meshgrid( VecX, VecY);
+    Z = 2+MatX +MatY + MatX.*MatY;
+    AI = AstroImage({Z});
+    [Result, Surface] = imProc.background.fitSurface(AI, 'SizeIJ',[1000 1000], 'VecX',VecX, 'VecY',VecY);
+    
 
     Result = true;
 end

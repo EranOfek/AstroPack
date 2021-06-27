@@ -12,6 +12,9 @@ classdef ImageComponent < Component
         Data                                    % e.g., usually Image matrix
         Scale {mustBeNumeric(Scale)} = [];      %
         ScaleMethod = 'lanczos3';               %
+        VecX                         = [];      % specify the X ordinates of the image in Data. If empty, use scale.
+        VecY                         = [];
+        SizeIJ                       = [];
         
         CCDSEC                       = [];      % [Xmin, Xmax, Ymin, Ymax] from previous image. [] - unknown or full
         
@@ -104,7 +107,13 @@ classdef ImageComponent < Component
         function Result = get.Image(Obj)
             % getter for Image (rescale Data)
             
-            Result = imresize(Obj, [], 'UpdateObj', false, 'Method', Obj.ScaleMethod);
+            if isempty(Obj.VecX) || isempty(Obj.VecY) || isempty(Obj.SizeIJ)
+                Result = imresize(Obj, [], 'UpdateObj', false, 'Method', Obj.ScaleMethod);
+            else
+                % use a different method for rescaling
+                % FFU
+                error('Rescaling with VecX/VecY/SizeIJ is not yet implemented');
+            end
         end
         
         function set.Image(Obj, ImageData)

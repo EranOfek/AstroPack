@@ -5,6 +5,14 @@ function [Result, Surface] = fitSurface(Obj, Args)
     %          * ...,key,val,...
     %            'DataProp' - data property on which to operate.
     %                   Default is 'Image'.
+    %            'VecX' - Vector of X positions of the pixels in the image.
+    %                   If empty, then use (1:StepXY:SizeIJ(2)).
+    %                   Default is empty.
+    %            'VecY' - Vector of Y positions of the pixels in the image.
+    %                   If empty, then use (1:StepXY:SizeIJ(1)).
+    %                   Default is empty.
+    %            'SizeIJ' - [I, J] size of full image. If empty, then use
+    %                   size(Image). Default is empty.
     %            'StepXY' - Steps on values to fit. Default is 1.
     %            'Fun' - A cell array of 2D functionals to fit:
     %                   Default is { @(x,y)ones(size(x)), @(x,y)x, @(x,y)y, @(x,y)2.*x.^2-1, @(x,y)2.*y.^2-1, @(x,y)x.*y }
@@ -22,10 +30,20 @@ function [Result, Surface] = fitSurface(Obj, Args)
     %          Z = 2+MatX +MatY + MatX.*MatY;
     %          AI = AstroImage({Z});
     %          [Result, Surface] = imProc.background.fitSurface(AI)
+    %          VecX = (11:10:990).';
+    %          VecY = VecX;
+    %          [MatX, MatY] = meshgrid( VecX, VecY);
+    %          Z = 2+MatX +MatY + MatX.*MatY;
+    %          AI = AstroImage({Z});
+    %          [Result, Surface] = imProc.background.fitSurface(AI, 'SizeIJ',[1000 1000], 'VecX',VecX, 'VecY',VecY);
     
+
     arguments
         Obj                                 % AstroImage or ImageComponent
         Args.DataProp         = 'Image';
+        Args.VecX             = [];
+        Args.VecY             = [];
+        Args.SizeIJ           = [];
         Args.StepXY           = 1;
         Args.Fun cell         = { @(x,y)ones(size(x)), @(x,y)x, @(x,y)y, @(x,y)2.*x.^2-1, @(x,y)2.*y.^2-1, @(x,y)x.*y };
         Args.Niter            = 2;
@@ -43,11 +61,24 @@ function [Result, Surface] = fitSurface(Obj, Args)
         Image = Obj(Iobj).(Args.DataProp);
         
         % fit
-        SizeIJ       = size(Image);
-        [MatX, MatY] = meshgrid( (1:Args.StepXY:SizeIJ(2)), (1:Args.StepXY:SizeIJ(1)) );
-        XX           = MatX(:);
-        YY           = MatY(:);
-        Ind          = imUtil.image.sub2ind_fast(SizeIJ, YY, XX);
+        if isempty(Args.SizeIJ)
+            SizeIJ       = size(Image);
+        else
+            SizeIJ = Args.SizeIJ;
+        end
+            
+        if ~isempty(Args.VecX) && ~isempty(Args.VecY)
+            [MatX, MatY] = meshgrid( Args.VecX, Args.VecY);
+            XX           = MatX(:);
+            YY           = MatY(:);
+            Ind          = (1:1:prod(size(Image))).';
+        else
+            [MatX, MatY] = meshgrid( (1:Args.StepXY:SizeIJ(2)), (1:Args.StepXY:SizeIJ(1)) );
+            XX           = MatX(:);
+            YY           = MatY(:);
+            Ind          = imUtil.image.sub2ind_fast(SizeIJ, YY, XX);
+        end
+        
         
         % normalizing X to -1 to 1
         MinX   = 1;
@@ -105,7 +136,7 @@ function [Result, Surface] = fitSurface(Obj, Args)
         Result(Iobj).RangeY = RangeY;
         
         if nargout>1
-            SizeIJ       = size(Image);
+            %SizeIJ       = size(Image);
             [MatX, MatY] = meshgrid( (1:Args.StepXY:SizeIJ(2)), (1:Args.StepXY:SizeIJ(1)) );
             MatXN        = 2.*(MatX - MidX)./RangeX;
             MatYN        = 2.*(MatY - MidY)./RangeY;
