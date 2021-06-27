@@ -30,7 +30,7 @@ type
     Label4: TLabel;
     Label5: TLabel;
     Label6: TLabel;
-    ListBox2: TListBox;
+    ListBoxDbTables: TListBox;
     MainMenu: TMainMenu;
     Memo1: TMemo;
     MIAbout: TMenuItem;
@@ -67,13 +67,15 @@ type
     procedure BtnCreateDbClick(Sender: TObject);
     procedure BtnSelectOutputSqlFolderClick(Sender: TObject);
     procedure BtnSelectXlsxFileClick(Sender: TObject);
+    procedure ComboBoxDbNameChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure ListBoxDbTablesClick(Sender: TObject);
     procedure MIAboutClick(Sender: TObject);
   private
     Proc: TRunProc;
 
   public
-
+    DbName : String;
 
   end;
 
@@ -83,8 +85,6 @@ var
 implementation
 
 {$R *.lfm}
-
-
 
 
 { TDbBrowserForm }
@@ -101,11 +101,15 @@ begin
   ComboXlsFolder.Text := DataMod.AstroFile('database' + PathDelim + 'xlsx');
 end;
 
+procedure TDbBrowserForm.ListBoxDbTablesClick(Sender: TObject);
+begin
+  //
+end;
+
 procedure TDbBrowserForm.MIAboutClick(Sender: TObject);
 begin
   AboutForm.Show;
 end;
-
 
 procedure TDbBrowserForm.BtnSelectXlsxFileClick(Sender: TObject);
 begin
@@ -119,6 +123,13 @@ begin
   else
     ShowMessage('No file selected');
 
+end;
+
+procedure TDbBrowserForm.ComboBoxDbNameChange(Sender: TObject);
+begin
+  //
+  DbName := ComboBoxDbName.Text;
+  ListBoxDbTables.Items.Assign(DataModu.GetDbTablesList(DbName);
 end;
 
 procedure TDbBrowserForm.BtnSelectOutputSqlFolderClick(Sender: TObject);
@@ -136,30 +147,15 @@ var
   Lines: TStringList;
   ScriptFileName, FileName, Params, Cmd: String;
 begin
+  // Prepare python command
   ScriptFileName := DataMod.AstroFile('python/utils/database_utils/xlsx2sql.py');
-  //Params := '-f ' + ComboXlsFile.Text;
-
-  //FileName := AstroFile('python/utils/database_utils/db/lastdb__tables.xlsx');
   FileName := ComboXlsFolder.Text + PathDelim + ComboXlsFile.Text;
   Params := '-f ' + FileName;
   Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
 
-  //Cmd := 'ls /etc/';
+  // Run
   Memo1.Lines.Add(Cmd);
-
   Proc.Run(Cmd);
-
-
-  //Proc.Destroy();
-  {
-  Lines := TStringList.Create;
-  try
-    ScriptFileName := 'D:\Ultrasat\AstroPack.git\python\utils\database_utils\xlsx2sql_lang.py';
-    Lines.LoadFromFile(ScriptFileName);
-    PythonEngine1.ExecStrings(Lines);
-  finally
-    Lines.free;
-  end;}
 
 end;
 
@@ -167,15 +163,17 @@ procedure TDbBrowserForm.BtnCreateDbClick(Sender: TObject);
 var
   ScriptFileName, Params, Cmd: String;
 begin
-  //Memo1.VertScrollBar.Position:=1000;
-  //Exit;
-
-    ScriptFileName := DataMod.AstroFile('python\utils\database_utils\create_db.py');
-    Params := '-f ' + ComboXlsFile.Text;
-    Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
-    Proc.Run(Cmd);
-
+  // Prepare python command (@Todo: psql does not have redirected output, why? also to python!)
+  ScriptFileName := DataMod.AstroFile('python\utils\database_utils\create_db.py');
+  Params := '-f ' + ComboXlsFile.Text;
+  Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
   //Cmd := 'psql -U postgres -f D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest\t2.sql';
+
+  // Run
+  Memo1.Lines.Add(Cmd);
+  Proc.Run(Cmd);
+
+
   Proc.Run(Cmd);
 end;
 

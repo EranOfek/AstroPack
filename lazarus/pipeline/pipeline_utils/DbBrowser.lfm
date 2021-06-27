@@ -1,7 +1,7 @@
 object DbBrowserForm: TDbBrowserForm
-  Left = 128
+  Left = 273
   Height = 702
-  Top = 169
+  Top = 286
   Width = 1154
   Caption = 'DB Browser'
   ClientHeight = 682
@@ -84,6 +84,7 @@ object DbBrowserForm: TDbBrowserForm
               Top = 40
               Width = 172
               ItemHeight = 15
+              OnChange = ComboBoxDbNameChange
               TabOrder = 0
               Text = 'ComboBoxDbName'
             end
@@ -106,13 +107,14 @@ object DbBrowserForm: TDbBrowserForm
             ClientHeight = 218
             ClientWidth = 200
             TabOrder = 1
-            object ListBox2: TListBox
+            object ListBoxDbTables: TListBox
               Left = 5
               Height = 173
               Top = 40
               Width = 190
               Align = alClient
               ItemHeight = 0
+              OnClick = ListBoxDbTablesClick
               ScrollWidth = 133
               TabOrder = 0
             end
@@ -274,7 +276,7 @@ object DbBrowserForm: TDbBrowserForm
       end
       object TabSheetCreateDb: TTabSheet
         Caption = 'New Page'
-        ClientHeight = 501
+        ClientHeight = 375
         ClientWidth = 1072
         object Label4: TLabel
           Left = 37

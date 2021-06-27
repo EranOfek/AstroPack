@@ -1,8 +1,280 @@
 object DataMod: TDataMod
   OnCreate = DataModuleCreate
   OldCreateOrder = False
-  Height = 317
-  HorizontalOffset = 250
-  VerticalOffset = 126
-  Width = 293
+  Height = 379
+  HorizontalOffset = 336
+  VerticalOffset = 300
+  Width = 531
+  object PQConnection1: TPQConnection
+    Connected = False
+    LoginPrompt = False
+    DatabaseName = 'pipeline'
+    KeepConnection = False
+    Password = 'pass'
+    Transaction = SQLTransaction1
+    UserName = 'postgres'
+    HostName = 'localhost'
+    Left = 48
+    Top = 33
+  end
+  object SQLQuery1: TSQLQuery
+    MaxIndexesCount = 4
+    FieldDefs = <    
+      item
+        Name = 'imageid'
+        DataType = ftString
+        Precision = -1
+        Size = 8192
+      end    
+      item
+        Name = 'ra_center'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_center'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'htm_id'
+        DataType = ftString
+        Precision = -1
+        Size = 8192
+      end    
+      item
+        Name = 'quadrant'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'subimageid'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'exptime'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'jd'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'fyear'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'fmonth'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'fday'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'version'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'jd_insertion'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'rollangle'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_tl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_tr'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_bl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'ra_br'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_tl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_tr'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_bl'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'dec_br'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'rotation'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'scale'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'median'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'mean'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'fstd'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'background'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'fvariance'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'nsrc'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'ncr'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'nstreak'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'nsaturated'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'psf_fwhm'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'psf_fwhm_colorterm'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'zp'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'colorterm'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'istherepsf'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'isthereback'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'isthereavariance'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'istheremask'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'istheresubd'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'istheresubpsf'
+        DataType = ftBoolean
+        Precision = -1
+      end    
+      item
+        Name = 'imagetype'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'sundist'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'earthdist'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'moondist'
+        DataType = ftFloat
+        Precision = -1
+      end>
+    Database = PQConnection1
+    Transaction = SQLTransaction1
+    SQL.Strings = (
+      'select * from raw_images'
+    )
+    Params = <>
+    Left = 136
+    Top = 33
+  end
+  object DataSource1: TDataSource
+    DataSet = SQLQuery1
+    Left = 232
+    Top = 33
+  end
+  object SQLTransaction1: TSQLTransaction
+    Active = False
+    Database = PQConnection1
+    Left = 336
+    Top = 33
+  end
 end
