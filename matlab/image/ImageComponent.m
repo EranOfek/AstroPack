@@ -107,13 +107,13 @@ classdef ImageComponent < Component
         function Result = get.Image(Obj)
             % getter for Image (rescale Data)
             
-            if isempty(Obj.VecX) || isempty(Obj.VecY) || isempty(Obj.SizeIJ)
+            %if isempty(Obj.VecX) || isempty(Obj.VecY) || isempty(Obj.SizeIJ)
                 Result = imresize(Obj, [], 'UpdateObj', false, 'Method', Obj.ScaleMethod);
-            else
+            %else
                 % use a different method for rescaling
                 % FFU
-                error('Rescaling with VecX/VecY/SizeIJ is not yet implemented');
-            end
+            %    error('Rescaling with VecX/VecY/SizeIJ is not yet implemented');
+            %end
         end
         
         function set.Image(Obj, ImageData)

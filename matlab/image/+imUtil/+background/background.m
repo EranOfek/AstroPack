@@ -148,13 +148,13 @@ if Args.ExtendFull
     %Args.ExtendMethod = 'interp_sparse2full'
     switch lower(Args.ExtendMethod)
         case 'imresize'
-            BackIm = reshape([SubImage.Back],Nxy);
+            BackIm = reshape([SubImage.Back],fliplr(Nxy));
             if isempty(BackIm)
                 Back = [];
             else
                 Back = imresize(BackIm,size(Image), 'lanczos3');
             end
-            VarIm = reshape([SubImage.Var],Nxy);
+            VarIm = reshape([SubImage.Var],fliplr(Nxy));
             if isempty(VarIm)
                 Var = [];
             else

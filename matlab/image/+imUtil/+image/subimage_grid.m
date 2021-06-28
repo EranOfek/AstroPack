@@ -74,12 +74,19 @@ Nx = size(CX,1);
 Ny = size(CY,1);
 CCDSEC = zeros(Nx.*Ny,4);
 UnCCDSEC = zeros(Nx.*Ny,4);
-for Iy=1:1:Ny
-    Ind = (Nx.*(Iy-1)+1:Iy.*Nx);
-    CCDSEC(Ind,:)   = [CX, CY(Iy,:).*ones(Nx,1)];
-    UnCCDSEC(Ind,:) = [CX, CY(Iy,:).*ones(Nx,1)];
-    
+
+for Ix=1:1:Nx
+    Ind = (Ny.*(Ix - 1)+1 : Ix.*Ny);
+    CCDSEC(Ind,:)     = [CX(Ix,:).*ones(Ny,1), CY];
+    UnCCDSEC(Ind,:)   = [CX(Ix,:).*ones(Ny,1), CY];
 end
+
+% for Iy=1:1:Ny
+%     Ind = (Nx.*(Iy-1)+1:Iy.*Nx);
+%     CCDSEC(Ind,:)   = [CX, CY(Iy,:).*ones(Nx,1)];
+%     UnCCDSEC(Ind,:) = [CX, CY(Iy,:).*ones(Nx,1)];
+%     
+% end
 Center = [mean(CCDSEC(:,1:2),2), mean(CCDSEC(:,3:4),2)];
 
 DX = UnCCDSEC(:,1)-CCDSEC(:,1);
