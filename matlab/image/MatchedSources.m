@@ -478,7 +478,99 @@ classdef MatchedSources < Component
             end
              
         end
+        
+        function Flag = notNanSources(Obj, ColNames)
+            % Return a vector of logicals indicating soueces which do have any NaNs in theor data.
+            % Input  : - A single element MatchesSources object.
+            %          - A field name, a cell array of field names, or
+            %            empty. If empty, will use all field names.
+            %            For each field name, will flag sources which
+            %            contains NaN's in their columns.
+            %            Defailt is empty.
+            % Output : - A row vector of logicals. True for sources that
+            %            non of their values in their columns contains NaN.
+            %            This is calculated over all requested fields, as
+            %            an or operation (i.e., if one of the columns in
+            %            one of the fields contains NaN, the star will be
+            %            flagged).
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          St.X2=rand(100,200);
+            %          MS.addMatrix(St);
+            %          MS.Data.FLUX(1,1)=NaN;
+            %          Flag = notNanSources(MS, 'FLUX');
+            %          Flag = notNanSources(MS, []); % use all fields
+            
+            arguments
+                Obj(1,1)
+                ColNames     = [];
+            end
+           
+            if isempty(ColNames)
+                ColNames = Obj.Fields;
+            end
+            
+            if ischar(ColNames)
+                ColNames = {ColNames};
+            end
+            Ncol = numel(ColNames);
+            CountNanSrc = zeros(1, Obj.Nsrc);
+            for Icol=1:1:Ncol
+                CountNanSrc = CountNanSrc + sum(isnan(Obj.Data.(ColNames{Icol})), 1);
+            end
+            Flag = CountNanSrc==0;
+            
+        end
+        
+        function Flag = notNanEpochs(Obj, ColNames)
+            % Return a vector of logicals indicating epochs which do have any NaNs in their data.
+            % Input  : - A single element MatchesSources object.
+            %          - A field name, a cell array of field names, or
+            %            empty. If empty, will use all field names.
+            %            For each field name, will flag epochs which
+            %            contains NaN's in their rows.
+            %            Defailt is empty.
+            % Output : - A column vector of logicals. True for epochs that
+            %            non of their values in their rows contains NaN.
+            %            This is calculated over all requested fields, as
+            %            an or operation (i.e., if one of the rows in
+            %            one of the fields contains NaN, the epoch will be
+            %            flagged).
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          St.X2=rand(100,200);
+            %          MS.addMatrix(St);
+            %          MS.Data.FLUX(1,1)=NaN;
+            %          Flag = notNanEpochs(MS, 'FLUX');
+            %          Flag = notNanEpochs(MS, []); % use all fields
+            
+            arguments
+                Obj(1,1)
+                ColNames     = [];
+            end
+           
+            if isempty(ColNames)
+                ColNames = Obj.Fields;
+            end
+            
+            if ischar(ColNames)
+                ColNames = {ColNames};
+            end
+            Ncol = numel(ColNames);
+            CountNanEpoch = zeros(Obj.Nepoch, 1);
+            for Icol=1:1:Ncol
+                CountNanEpoch = CountNanEpoch + sum(isnan(Obj.Data.(ColNames{Icol})), 2);
+            end
+            Flag = CountNanEpoch==0;
+            
+        end
+        
     end
+    
     
     methods % plot
         function H = plotRMS(Obj, Args)
@@ -643,6 +735,29 @@ classdef MatchedSources < Component
             [H, Y] = MS.designMatrix({[],'X','Y'},{[], 1, 2},'MAG',1);
             [H, Y, ErrY] = MS.designMatrix({[],'X','Y'},{[], 1, 2},'MAG',1, 'MAG',2);
 
+            % notNanSources
+            MS = MatchedSources;
+            MS.addMatrix(rand(100,200),'FLUX')
+            MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            St.X2=rand(100,200);
+            MS.addMatrix(St);
+            MS.Data.FLUX(1,1)=NaN;
+            Flag = notNanSources(MS, 'FLUX');
+            if Flag(1,1) || ~all(Flag(2:end))
+                error('Problem with notNanSources');
+            end
+            Flag = notNanSources(MS, []); % use all fields
+            
+            MS = MatchedSources;
+            MS.addMatrix(rand(100,200),'FLUX')
+            MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            St.X2=rand(100,200);
+            MS.addMatrix(St);
+            MS.Data.FLUX(1,1)=NaN;
+            Flag = notNanEpochs(MS, 'FLUX');
+            Flag = notNanEpochs(MS, []); % use all fields
+
+            
             
             % plotRMS
             MS = MatchedSources;
