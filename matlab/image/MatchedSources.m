@@ -233,6 +233,7 @@ classdef MatchedSources < Component
                 FieldName   = [];
             end
            
+                
             if isnumeric(Matrix)
                 % matrix is numeric - add
                 if ~ischar(FieldName)
@@ -241,7 +242,10 @@ classdef MatchedSources < Component
                 Obj.Data.(FieldName) = Matrix;
             elseif isstruct(Matrix)
                 % store the struct as is in Data
-                Obj.Data = Matrix;
+                FN = fieldnames(Matrix);
+                for Ifn=1:1:numel(FN)
+                    Obj.Data.(FN{Ifn}) = Matrix.(FN{Ifn});
+                end
             elseif iscell(Matrix)
                 Ncell = numel(Matrix);
                 for Icell=1:1:Ncell
@@ -253,10 +257,11 @@ classdef MatchedSources < Component
                 if ~all(Nrow==Nrow(1))
                     error('For AstroTable/AstroCatalog input, all catalogs must have the same number of rows');
                 end
+                
                 if ischar(FieldName)
                     FieldName = {FieldName};
                 end
-                
+            
                 [Res, Summary, N_Ep] = imProc.match.matched2matrix(Matrix, FieldName, true);
                 Obj.addMatrix(Res);
 %                 
@@ -307,6 +312,24 @@ classdef MatchedSources < Component
             
         end
         
+        function Obj = deleteMatrix(Obj, FieldName)
+            % remove matrix and field name from an MatchedSources object
+            % Input  : - A MatchedSources object
+            %          - A field name, or a cell array of field names.
+            % Output : - A MatchedSources object
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS.deleteMatrix('X2')
+           
+            if ischar(FieldName)
+                FieldName = {FieldName};
+            end
+            
+            for Ifn=1:1:numel(FieldName)
+                Obj = rmfield(Obj.Data, FieldName{Ifn});
+            end
+            
+        end
+        
         function Result = summary(Obj, Field)
             % Summary of a specific field matrix in MatchedSources
             % Input  : - A single element MatchedSources object.
@@ -339,6 +362,121 @@ classdef MatchedSources < Component
             % Number of sources apeear in each epoch
             Result.NsrcInEpoch     = sum(~isnan(Mat), Obj.DimSrc);
             
+        end
+    end
+    
+    methods % design matrix
+        function [H, Y, ErrY] = designMatrix(Obj, ColNames, FunCell, ColNameY, FunY, ColNameErrY, FunErrY)
+            % Generate a general purpose design matrix from an MatchedSources object
+            % Description: Construct a design matrix of the form:
+            %              H = [FunCell{1}(Col1), FunCell{2}(Col2), ...]
+            %              where the FunCell are user provided functionals,
+            %              and Col are the MatchedSources matrix of a
+            %              specific column name after vectorization (i.e.,
+            %              Matrix(:)).
+            %              Also constrict a Y and ErrY vectors.
+            % Input  : - A single element MatchedSources object.
+            %          - A cell array of column names from which to
+            %            construct the design matrix.
+            %          - (FunCell) A cell array of functional to operate on each
+            %            corresponding column name. Each element in the
+            %            cell may be a function_handle, or an integer
+            %            representing the power to apply to the column.
+            %            If empty element, then the cooresponding column in
+            %            the design matrix will contains one (i.e., solve
+            %            for a constant).
+            %          - Column name for the Y vector.
+            %          - A function hanle, numeric, or empty (lie FunCell)
+            %            to apply to the Y column name.
+            %          - Column name for the ErrY vector.
+            %          - A function hanle, numeric, or empty (lie FunCell)
+            %            to apply to the ErrY column name.
+            % Output : - Design matrix.
+            %          - Y column.
+            %          - ErrY column.
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          St.X2=rand(100,200);
+            %          MS.addMatrix(St);
+            %          [H, Y] = MS.designMatrix({'FLUX','X','Y'},{@sin, 1, 2},'MAG',1);
+            %          [H, Y] = MS.designMatrix({[],'X','Y'},{[], 1, 2},'MAG',1);
+            %          [H, Y, ErrY] = MS.designMatrix({[],'X','Y'},{[], 1, 2},'MAG',1, 'MAG',2);
+            
+            arguments
+                Obj(1,1)
+                ColNames
+                FunCell
+                ColNameY char
+                FunY             = @(x) ones(size(x));
+                ColNameErrY char = [];
+                FunErrY          = @(x) ones(size(x));
+            end
+            
+            if ~iscell(FunCell)
+                FunCell = {FunCell};
+            end
+            if ischar(ColNames)
+                ColNames = {ColNames};
+            end
+            
+            Nfun = numel(FunCell);
+            if Nfun~=numel(ColNames)
+                error('FunCell and ColNames must contain the same number of elements');
+            end
+            
+            Npt = Obj.Nsrc.*Obj.Nepoch;
+            % design matrix
+            H   = nan(Npt, Nfun);
+            for Ifun=1:1:Nfun
+                if isa(FunCell{Ifun}, 'function_handle')
+                    H(:,Ifun) = FunCell{Ifun}( Obj.Data.(ColNames{Ifun})(:) );
+                else
+                    % functional may be [] -> ones, or number -> power
+                    if isempty(FunCell{Ifun})
+                        % ones
+                        H(:,Ifun) = ones(Npt,1);
+                    else
+                        % power
+                        H(:,Ifun) = Obj.Data.(ColNames{Ifun})(:).^FunCell{Ifun};
+                    end
+                end
+            end
+            
+            % Y column
+            if nargout>1
+                if isa(FunY, 'function_handle')
+                    Y = FunY( Obj.Data.(ColNameY)(:) );
+                else
+                    % functional may be [] -> ones, or number -> power
+                    if isempty(FunY)
+                        % ones
+                        Y = ones(Npt,1);
+                    else
+                        % power
+                        Y = Obj.Data.(ColNameY)(:).^FunY;
+                    end
+                end
+                
+                % ErrY column
+                if nargout>2
+                    if isa(FunErrY, 'function_handle')
+                        ErrY = FunY( Obj.Data.(ColNameErrY)(:) );
+                    else
+                        % functional may be [] -> ones, or number -> power
+                        if isempty(FunErrY)
+                            % ones
+                            ErrY = ones(Npt,1);
+                        else
+                            % power
+                            ErrY = Obj.Data.(ColNameErrY)(:).^FunErrY;
+                        end
+                    end
+                end
+                
+            end
+             
         end
     end
     
@@ -450,6 +588,7 @@ classdef MatchedSources < Component
             delete('try.hdf5');
             
             % read
+            clear MS
             MS = MatchedSources;
             MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
             MS.write('try.hdf5')
@@ -464,11 +603,13 @@ classdef MatchedSources < Component
             MS = MatchedSources;
             MS.addMatrix(rand(100,200),'FLUX')
             MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
-            MS = MatchedSources;
             
-            St.Flux=rand(100,200);
+            St.X2=rand(100,200);
             MS.addMatrix(St);
             
+            % deleteMatrix
+            MS.deleteMatrix('X2')
+                        
             % match sources for addMatrix:
             AC = AstroCatalog;
             AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
@@ -490,6 +631,18 @@ classdef MatchedSources < Component
             MS.addMatrix(rand(100,200),'FLUX');
             MS.summary
             MS.summary('FLUX')
+            
+            % design matrix
+            clear MS
+            MS = MatchedSources;
+            MS.addMatrix(rand(100,200),'FLUX')
+            MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            St.X2=rand(100,200);
+            MS.addMatrix(St);
+            [H, Y] = MS.designMatrix({'FLUX','X','Y'},{@sin, 1, 2},'MAG',1);
+            [H, Y] = MS.designMatrix({[],'X','Y'},{[], 1, 2},'MAG',1);
+            [H, Y, ErrY] = MS.designMatrix({[],'X','Y'},{[], 1, 2},'MAG',1, 'MAG',2);
+
             
             % plotRMS
             MS = MatchedSources;
