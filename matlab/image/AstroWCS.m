@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% TODO next-  TAN-SIP Distortion correction is sky2xy
+% TODO Next - Tran2WCS
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -51,7 +51,7 @@ classdef AstroWCS < Component
         Phi0(1,1)    double = NaN;
         Theta0(1,1)  double = NaN;
         
-        Tran2D(1,1) Tran2D              %= Tran2D;
+        Tran2D(1,1) Tran2D   = [];        %= Tran2D;
         
     end
         
@@ -187,7 +187,7 @@ classdef AstroWCS < Component
         
    %======== Functions for related to xy2sky =========
    
-        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,OutUnits)
+        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,OutUnits,includeDistortion)
         % Convert X/Y pixel coordinates to celestial coordinates
         % Description: Convert X/Y pixel coordinates to celestial
         %              coordinates.
@@ -203,10 +203,13 @@ classdef AstroWCS < Component
         %            If not asked for, then the first output will be a
         %            two column matrix.
 
-            if nargin<4
-                OutUnits = 'deg';
-                if nargin<3
-                    PY = [];
+            if nargin<5
+                includeDistortion = true;
+                if nargin<4
+                    OutUnits = 'deg';
+                    if nargin<3
+                        PY = [];
+                    end
                 end
             end
 
@@ -220,7 +223,7 @@ classdef AstroWCS < Component
             end
 
             % pixel to intermediate (in units of CUNIT); including distortion
-            [Xd,Yd] = Obj.pix2interm(PX,PY);
+            [Xd,Yd] = Obj.pix2interm(PX,PY,includeDistortion);
             
             % intermediate to native
             [Phi,Theta] = Obj.interm2native(Xd,Yd,Obj.CUNIT{1},'rad');
@@ -232,7 +235,7 @@ classdef AstroWCS < Component
        
         
         
-        function [X,Y]=pix2interm(Obj,PX,PY)
+        function [X,Y]=pix2interm(Obj,PX,PY,includeDistortion)
         % Convert pixel coordinates (P) to intermediate coordinates (X) -
         % ADDED DISTORTION
         % Input  : - A single element AstroWCS object
@@ -249,9 +252,12 @@ classdef AstroWCS < Component
             if numel(Obj)~=1
                 error('The wcsCl object input must contain a single element');
             end
-
-            if nargin<3
-                PY = [];
+            
+            if nargin<4
+                includeDistortion = true;
+                if nargin<3
+                    PY = [];
+                end
             end
 
             if isempty(PY)
@@ -263,7 +269,7 @@ classdef AstroWCS < Component
             relP = (P - Obj.CRPIX(:));
             
             % distorion for TAN-SIP
-            if strcmpi(Obj.ProjType,'tan-sip')
+            if strcmpi(Obj.ProjType,'tan-sip') && includeDistortion
                 
                 u = relP(1,:);
                 v = relP(2,:);
@@ -284,7 +290,7 @@ classdef AstroWCS < Component
             Y = reshape(XY(:,2),size(PY));
             
             % distorion for TPV
-            if strcmpi(Obj.ProjType,'tpv')
+            if strcmpi(Obj.ProjType,'tpv') && includeDistortion
                 
                 R = sqrt(X.^2 + Y.^2);
                 [X,Y]  = AstroWCS.forwardDistortion(Obj.PV,X,Y,R);
@@ -419,7 +425,7 @@ classdef AstroWCS < Component
         
    %======== Functions for related to sky2xy =========   
    
-        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,InUnits)
+        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,InUnits,includeDistortion)
             % convert celestial coordinates to pixel coordinates
             % Description: Convert celestial coordinates that are in the
             %              reference frmae of CTYPE, RADESYS and EQUNOX,
@@ -441,8 +447,11 @@ classdef AstroWCS < Component
             %            respectively.
             % Example: [X,Y] = coo2xy(Obj,100,10,'deg')
 
-            if nargin<4
-                InUnits = 'deg';
+            if nargin<5
+                includeDistortion = true;
+                if nargin<4
+                    InUnits = 'deg';
+                end
             end
 
             if numel(Obj)~=1
@@ -469,7 +478,7 @@ classdef AstroWCS < Component
             
 
             % Intermediate to pixel
-            [PX,PY] = Obj.interm2pix(X,Y);
+            [PX,PY] = Obj.interm2pix(X,Y,includeDistortion);
 
             PX = reshape(PX,size(Delta));
             PY = reshape(PY,size(Alpha));
@@ -615,7 +624,7 @@ classdef AstroWCS < Component
 
         end    
         
-        function [PX,PY]=interm2pix(Obj,X,Y)
+        function [PX,PY]=interm2pix(Obj,X,Y,includeDistortion)
             % Convert intermediate pixel coordinates to pixel coordinates
             % Input  : - A single element AstroWCS object.
             %          - A matrix of X intermediate pixel coordinate.
@@ -633,17 +642,21 @@ classdef AstroWCS < Component
             if Obj.NAXIS~=size(Obj.CD,1) && Obj.NAXIS~=size(Obj.CD,2)
                 error('Number of coordinates must be consistent with number of axss and CD matrix');
             end
-
-            if nargin<3
-                Y = [];
+            
+            if nargin<4
+                includeDistortion = true;
+                if nargin<3
+                    Y = [];
+                end
             end
+                
             if isempty(Y)
                 Y = X(:,2);
                 X = X(:,1);
             end
             
             % inverse distorion for TPV
-            if strcmpi(Obj.ProjType,'tpv')
+            if strcmpi(Obj.ProjType,'tpv') && includeDistortion
                 
                 err_thresh = 1e-6;
                 max_iters = 10;
@@ -657,7 +670,7 @@ classdef AstroWCS < Component
             relP = (Obj.CD) \ XY.';
             
             % inverse distorion for TAN-SIP
-            if strcmpi(Obj.ProjType,'tan-sip')
+            if strcmpi(Obj.ProjType,'tan-sip')  && includeDistortion
                 
                 U = relP(1,:);
                 V = relP(2,:);
@@ -2208,21 +2221,21 @@ classdef AstroWCS < Component
             AW = AstroWCS.header2wcs(AH);
             
             % xy2sky tests
-            PX = rand(1,500)*1000;
-            PY = rand(1,500)*1000;
             RAD = 180./pi;
             
-            % get [alpha, delta] for TAN projection
-            %Im_name = 'FOCx38i0101t_c0f.fits';
-            %Im_name = 'WD0802+387-S019-Luminance-R001-Luminance.fts';
-            %HDU=1;
             
-            Im_name = 'coj1m011-fl12-20180413-0057-e91.fits.fz';
-            HDU = 2;
+            % get [alpha, delta] for TAN projection
+            Im_name = 'FOCx38i0101t_c0f.fits';
+            %Im_name = 'WD0802+387-S019-Luminance-R001-Luminance.fts';
+            HDU=1;
+            
+            %Im_name = 'coj1m011-fl12-20180413-0057-e91.fits.fz';
+            %HDU = 2;
             
             AH = AstroHeader(Im_name,HDU);
-            F_in_im = PX < AH.Key.NAXIS1 & PY < AH.Key.NAXIS2;
-            
+            PX = rand(1,500) * AH.Key.NAXIS1;
+            PY = rand(1,500) * AH.Key.NAXIS2;
+           
             
             AW = AstroWCS.header2wcs(AH);
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
@@ -2230,23 +2243,24 @@ classdef AstroWCS < Component
             ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas(F_in_im))));
+            disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
             
             % test sky2xy for TAN. 
             % First compare to xy2sky and then compared to ds9
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-            disp(sprintf('Max distance for TAN projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));
+            disp(sprintf('Max distance for TAN projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));
             
             [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
             d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));
+            disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));
             
             % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
-            %Im_name = 'tpv.fits';
-            Im_name = 'WD0548-001_2457842_215821_Clear_meter.fits';
+            Im_name = 'tpv.fits';
+            %Im_name = 'WD0548-001_2457842_215821_Clear_meter.fits';
             AH = AstroHeader(Im_name);
-            F_in_im = PX < AH.Key.NAXIS1 & PY < AH.Key.NAXIS2;
+            PX = rand(1,500) * AH.Key.NAXIS1;
+            PY = rand(1,500) * AH.Key.NAXIS2;
                         
             AW = AstroWCS.header2wcs(AH);
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
@@ -2254,23 +2268,24 @@ classdef AstroWCS < Component
             ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas(F_in_im))));
+            disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
             
             % test sky2xy for TPV. 
             % First compare to xy2sky and then compared to ds9
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-            disp(sprintf('Max distance for TPV projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));          
+            disp(sprintf('Max distance for TPV projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
 
             [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
             d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for TPV projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));            
+            disp(sprintf('Max distance for TPV projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));            
             
             
             % construct a AstroWCS from Header with TAN-SIP projection  and get [alpha, delta]
             Im_name = 'SPITZER_I1_70576896_0000_0000_1_bcd.fits';
             AH = AstroHeader(Im_name);
-            F_in_im = PX < AH.Key.NAXIS1 & PY < AH.Key.NAXIS2;
+            PX = rand(1,500) * AH.Key.NAXIS1;
+            PY = rand(1,500) * AH.Key.NAXIS2;
             
             AW = AstroWCS.header2wcs(AH); 
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
@@ -2278,18 +2293,26 @@ classdef AstroWCS < Component
             ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas(F_in_im))));
+            disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
             
             % test sky2xy for  TAN-SIP. 
             % First compare to xy2sky and then compared to ds9
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-            disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));          
+            disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
 
             [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
             d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));               
+            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));               
             
+            % Check with no distortions
+            [Alpha_no, Delta_no]  = AW.xy2sky(PX,PY,'deg',false);
+            d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha./RAD,Delta./RAD,Alpha_no./RAD,Delta_no./RAD)));
+            disp(sprintf('Max distance for TAN-SIP projection (compared to no distortion) is %.1f [mas]',max(d_mas)));            
+            
+            [PX1_no,PY1_no]  = AW.sky2xy(Alpha,Delta,'deg',false);
+            d_pix = sqrt((PX1_no-PX1).^2 + (PY1_no-PY1).^2);
+            disp(sprintf('Max distance for  TAN-SIP projection (compared to no distortion) is %.1f [mili-pix]',max(d_pix)*1000));             
             
             % construct a AstroWCS from AstroHeader with Naxis=3, and empty
             % projtype in CTYPE3 and get [alpha, delta]
