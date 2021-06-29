@@ -31,6 +31,7 @@ classdef AstroWCS < Component
         CRVAL(1,:)   double = [1 1];
         CD           double = [1 0;0 1];
         PV           double   = [];  % Changes to double from Cell
+        revPV        double   = [];
 %        CDELT(1,:)   double = [1 1];   % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
 %        PC           double = [];      % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
 %        SIP          cell   = {zeros(0,2),zeros(0,2)}; Removed - absorbed in PV
@@ -264,12 +265,12 @@ classdef AstroWCS < Component
             % distorion for TAN-SIP
             if strcmpi(Obj.ProjType,'tan-sip')
                 
-                relPX = relP(1,:);
-                relPY = relP(2,:);
+                u = relP(1,:);
+                v = relP(2,:);
                 
-                [relPX,relPY]  = AstroWCS.forwardDistortion(Obj.PV,relPX,relPY);
+                [U,V]  = AstroWCS.forwardDistortion(Obj.PV,u,v);  % U = u+f(u,v) and V = v+g(u,v)
                 
-                relP = [relPX ; relPY]; % this is already u+g(u,v) and v+g(u,v)
+                relP = [U ; V];
             end
 
             
@@ -466,22 +467,6 @@ classdef AstroWCS < Component
             % native to intermediate
             [X,Y] = Obj.native2interm(Phi, Theta,'rad',Obj.CUNIT{1});
             
-%             % inverse distorsion for TPV and SIP
-%             switch lower(Obj.ProjType)
-%                 case 'tpv'
-%                     % for TPV, invert numerically, iteratively, hopefully
-%                     %  converging
-%                     
-%                     err_thresh = 1e-6;
-%                     max_iters = 10;
-%                     
-%                     [X,Y]  = AstroWCS.backwardDistortion(Obj.PV,X,Y,err_thresh,max_iters);
-%                     
-%                 case 'tan-sip'
-%                     'not implemented yet'
-%                 otherwise
-%                     % do nothing
-%             end
 
             % Intermediate to pixel
             [PX,PY] = Obj.interm2pix(X,Y);
@@ -674,15 +659,21 @@ classdef AstroWCS < Component
             % inverse distorion for TAN-SIP
             if strcmpi(Obj.ProjType,'tan-sip')
                 
-                err_thresh = 1e-9;
-                max_iters = 10;
+                U = relP(1,:);
+                V = relP(2,:);
+                    
+                if ~isempty(Obj.revPV)
+                    [u,v]  = AstroWCS.forwardDistortion(Obj.revPV,U,V); % u = U + F(U,V), v = V+G(U,V)
+                else
+
+                    err_thresh = 1e-4;
+                    max_iters = 10;
+
+                    [u,v]  = AstroWCS.backwardDistortion(Obj.PV,U,V,err_thresh,max_iters);
+
+                end
                 
-                relPX = relP(1,:);
-                relPY = relP(2,:);
-                
-                [relPX,relPY]  = AstroWCS.backwardDistortion(Obj.PV,relPX,relPY,err_thresh,max_iters);
-                
-                relP = [relPX ; relPY]; % this is including u+g(u,v) and v+g(u,v)
+                relP = [u ; v]; 
             end            
             
 
@@ -758,6 +749,11 @@ classdef AstroWCS < Component
             
             % look for PV coeficients
             Obj.PV = Obj.build_PV(AH,Obj.ProjType);
+            
+            % For TAN-SIP try to get revPV (TODO generlize)
+            if strcmpi(Obj.ProjType,'tan-sip')
+                Obj.revPV = AstroWCS.build_TANSIP(Header,true);
+            end
 
 
              % populate proj Meta
@@ -1054,12 +1050,26 @@ classdef AstroWCS < Component
 
         end
  
-        function PV = build_TANSIP(Header)
+        function PV = build_TANSIP(Header,get_inv)
+            %used from both PV and invPV
             
             AH = Header;
             
-            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'A_\d+_\d+','match'));
-            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'B_\d+_\d+','match'));
+            if nargin<2
+                get_inv = false;
+            end
+            
+            BaseX = 'A';
+            BaseY = 'B';
+            
+            if get_inv
+                BaseX = 'AP';
+                BaseY = 'BP';                
+            end
+                
+            
+            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),[BaseX '_\d+_\d+'],'match'));
+            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),[BaseY '_\d+_\d+'],'match'));
             
             NPV1 = sum(FlagMatchPV1);
             NPV2 = sum(FlagMatchPV2);
@@ -1068,7 +1078,7 @@ classdef AstroWCS < Component
                 
                 PV = zeros(2,(1+max(NPV1,NPV2)),3); % to add x and y, as SIP is u+f(u,v), v+g(uv)
                 
-                PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), 'A_(?<u_power>\d+)\_(?<v_power>\d+)','names');
+                PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
                 PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
                 
                 for I1 = 1:1:NPV1
@@ -1077,7 +1087,7 @@ classdef AstroWCS < Component
                 
                 PV(1,(NPV1+1),1:3) = [1, 1, 0]; %  add x as SIP is u+f(u,v)
                 
-                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), 'B_(?<u_power>\d+)\_(?<v_power>\d+)','names');
+                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
                 PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
                 
                 for I2 = 1:1:NPV2
@@ -1234,40 +1244,67 @@ classdef AstroWCS < Component
 
         end
         
-        function [X,Y]  = backwardDistortion(PV,Xd,Yd,err_thresh,max_iters)
-            % iterativly calculate [X,Y} from [Xd,Yd] using PV
-    
-            if nargin<5
-                max_iters = 100;
-                if nargin < 4
-                    err_thresh = 1e-7;
-                end    
-            end
+         
+        function [X,Y]  = backwardDistortion(PV,Xd,Yd,Threshold,MaxIter,Step)  
             
-            niter=0;
-            err=Inf;
-            X0=Xd;
-            Y0=Yd;
-            while (niter < max_iters) && (err > err_thresh) % arbitrary iteration stop
-                if size(PV,3)>2
-                    R = sqrt(X0.^2 + Y0.^2); % TODO - change to arbitrary function f(x,y)
+            if nargin<6
+                Step = 1e-5;
+                if nargin<5
+                    MaxIter = 100;
+                    if nargin < 4
+                        Threshold = 1e-7;
+                    end    
+                end
+            end
+
+            
+            Xf = Xd;
+            Yf = Yd;
+            
+            Xi  = Xf;
+            Yi  = Yf;
+            
+            % The ouput from forward should be the input Xf, Yf
+            NotConverged = true;
+            Iter = 0;
+            while NotConverged
+                %
+                Iter = Iter + 1;
+                
+                if size(PV,3)>3
+                    R = sqrt(Xi.^2 + Yi.^2); % TODO - change to arbitrary function f(x,y)
                 else
                     R=1;
-                end
-                    
+                end                
                 
-                [X1,Y1] = AstroWCS.forwardDistortion(PV,X0,Y0,R);
-                X0= (X0-X1) +Xd;
-                Y0= (Y0-Y1) +Yd;
-                err=sqrt(sum((X1(:)-Xd(:)).^2 + (Y1(:)-Yd(:)).^2));
-                niter=niter+1;
+                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R);
+                [Xi2,Yi2] = AstroWCS.forwardDistortion(PV,(Xi+Step),(Yi+Step),R);
+                
+                DeltaX = (Xi1 - Xi2);
+                DeltaY = (Yi1 - Yi2);
+                
+                IncX = (Xi1 - Xf)./DeltaX .* Step;
+                IncY = (Yi1 - Yf)./DeltaY .* Step;
+                Xi = Xi + IncX;
+                Yi = Yi + IncY; 
+                
+                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R);
+                DiffX = Xi1 - Xf;
+                DiffY = Yi1 - Yf;
+                
+                if max(abs(DiffX))<Threshold && max(abs(DiffY))<Threshold
+                    NotConverged = false;
+                end
+                if Iter>MaxIter
+                    NotConverged = false;
+                    %error('backwardDistortion1 didnot converge after %d iterations',Iter);
+                end
+                
             end
-            X=X0;
-            Y=Y0;
-
-
+            
+            X = Xi;
+            Y = Yi;
         end
-         
         
     end
     
@@ -1506,18 +1543,45 @@ classdef AstroWCS < Component
             
         end
         
+        function [X,Y]  = backwardDistortion1(PV,Xd,Yd,err_thresh,max_iters)
+            % iterativly calculate [X,Y} from [Xd,Yd] using PV
+    
+            if nargin<5
+                max_iters = 100;
+                if nargin < 4
+                    err_thresh = 1e-7;
+                end    
+            end
+            
+            niter=0;
+            err=Inf;
+            X0=Xd;
+            Y0=Yd;
+            while (niter < max_iters) && (err > err_thresh) % arbitrary iteration stop
+                if size(PV,3)>2
+                    R = sqrt(X0.^2 + Y0.^2); % TODO - change to arbitrary function f(x,y)
+                else
+                    R=1;
+                end
+                    
+                
+                [X1,Y1] = AstroWCS.forwardDistortion(PV,X0,Y0,R);
+                X0= (X0-X1) +Xd;
+                Y0= (Y0-Y1) +Yd;
+                err=sqrt(sum((X1(:)-Xd(:)).^2 + (Y1(:)-Yd(:)).^2));
+                niter=niter+1;
+            end
+            X=X0;
+            Y=Y0;
+
+
+        end
     end
 
     %======================================================================
     
     methods (Static)
         
-
-    
-        
-
-        
-
 
         % change name to: sky2xy
         function varargout=coo2xy(Obj,Lon,Lat,Units)
@@ -1606,17 +1670,7 @@ classdef AstroWCS < Component
 
         end      
         
-        
-        
-
-
  
-        
-    
-
-
-
-
 
     end
     
@@ -2120,7 +2174,8 @@ classdef AstroWCS < Component
             AW = AstroWCS([2 2]);
             
             % construct a AstroWCS from AstroHeader with full TAN projection
-            AH = AstroHeader('FOCx38i0101t_c0f.fits');
+            Im_name = 'FOCx38i0101t_c0f.fits';
+            AH = AstroHeader(Im_name);
             AW = AstroWCS.header2wcs(AH);
             
             % Test for header without some: CD matrix missing, no CD matrix,  partial PC matrix, no PC matrix
@@ -2158,72 +2213,90 @@ classdef AstroWCS < Component
             RAD = 180./pi;
             
             % get [alpha, delta] for TAN projection
-            AH = AstroHeader('FOCx38i0101t_c0f.fits');
+            %Im_name = 'FOCx38i0101t_c0f.fits';
+            %Im_name = 'WD0802+387-S019-Luminance-R001-Luminance.fts';
+            %HDU=1;
+            
+            Im_name = 'coj1m011-fl12-20180413-0057-e91.fits.fz';
+            HDU = 2;
+            
+            AH = AstroHeader(Im_name,HDU);
+            F_in_im = PX < AH.Key.NAXIS1 & PY < AH.Key.NAXIS2;
+            
+            
             AW = AstroWCS.header2wcs(AH);
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
             
-            ds9('FOCx38i0101t_c0f.fits');
+            ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas(F_in_im))));
             
             % test sky2xy for TAN. 
             % First compare to xy2sky and then compared to ds9
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-            disp(sprintf('Max distance for TAN projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));
+            disp(sprintf('Max distance for TAN projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));
             
             [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
             d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));
+            disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));
             
             % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
-            AH = AstroHeader('tpv.fits');
+            %Im_name = 'tpv.fits';
+            Im_name = 'WD0548-001_2457842_215821_Clear_meter.fits';
+            AH = AstroHeader(Im_name);
+            F_in_im = PX < AH.Key.NAXIS1 & PY < AH.Key.NAXIS2;
+                        
             AW = AstroWCS.header2wcs(AH);
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
             
-            ds9('tpv.fits');
+            ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas(F_in_im))));
             
             % test sky2xy for TPV. 
             % First compare to xy2sky and then compared to ds9
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-            disp(sprintf('Max distance for TPV projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
+            disp(sprintf('Max distance for TPV projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));          
 
             [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
             d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for TPV projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));            
+            disp(sprintf('Max distance for TPV projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));            
             
             
             % construct a AstroWCS from Header with TAN-SIP projection  and get [alpha, delta]
-            AH = AstroHeader('SPITZER_I1_70576896_0000_0000_1_bcd.fits');
+            Im_name = 'SPITZER_I1_70576896_0000_0000_1_bcd.fits';
+            AH = AstroHeader(Im_name);
+            F_in_im = PX < AH.Key.NAXIS1 & PY < AH.Key.NAXIS2;
+            
             AW = AstroWCS.header2wcs(AH); 
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
             
-            ds9('SPITZER_I1_70576896_0000_0000_1_bcd.fits');
+            ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas(F_in_im))));
             
             % test sky2xy for  TAN-SIP. 
             % First compare to xy2sky and then compared to ds9
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-            disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
+            disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));          
 
             [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
             d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));               
+            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix(F_in_im))*1000));               
             
             
             % construct a AstroWCS from AstroHeader with Naxis=3, and empty
             % projtype in CTYPE3 and get [alpha, delta]
-            AH = AstroHeader('WFPC2u5780205r_c0fx.fits');
+            Im_name = 'WFPC2u5780205r_c0fx.fits';
+            AH = AstroHeader(Im_name);
             AW = AstroWCS.header2wcs(AH);
-            %[Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
+            %[Alpha, Delta]  = AW.xy2sky(PX,PY,'deg'); % TODO
 
             
             % test other things
