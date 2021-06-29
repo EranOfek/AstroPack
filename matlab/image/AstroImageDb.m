@@ -27,9 +27,11 @@ classdef AstroImageDb < Component
                 Obj
                 Header AstroHeader
                 Query io.db.DbQuery
-                TableName string                
+                TableName char                
                 Args.Fields = {};       % As
             end
+            
+            Obj.msgLog(LogLevel.Debug, 'insertAstroHeader');
             
             % Get list of table's fields 
             FieldNames = Query.getTableFieldList(TableName);
@@ -40,36 +42,43 @@ classdef AstroImageDb < Component
                 HeaderData = Header(i).Data;
                 DataSize = size(HeaderData);
                 
-                % Prepare SQL statement
-                % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-                SqlText = ['INSERT INTO ', string(TableName).char, ' ('];
-                SqlFields = '';
-                SqlValues = ' VALUES (';
-                              
-                % Iterate keys
-                for f=1:DataSize(1)
-                    Key = HeaderData{i, 1};
+                % Prepare data record
+                HeaderRec = struct;
+                
+                % @Todo: ???
+                HeaderRec.recid = Component.newUuid();
+                
+                % Iterate all fields
+                NumKeys = DataSize(1);
+                for f = 1:NumKeys
                     
-                    % Check if there is a field matching the header key
-                    if any(contains(FieldNames, Key))
-                        
-                        % 
-                        if numel(SqlFields) > 0:
-                            SqlText = [SqlText ',' Key];
-                            SqlValues = [SqlValues ',' Value];
-                        else
-                            SqlText = [SqlText Key];
-                            SqlValues = [SqlValues Value];
-                        end
-                    else
+                    % Add field name and value to record
+                    Key = HeaderData{f, 1};
+                    if isempty(Key)
+                        continue
                     end
+                    
+                    Value = HeaderData{f, 2};
+                    
+                    % Convert key to valid database field name
+                    FieldName = Query.getValidFieldName(Key);
+                    
+                    if ~strcmp(Key, FieldName)
+                        Obj.msgLog(LogLevel.Debug, 'Key: %s, Field: %s', Key, FieldName);
+                    end
+                    
+                    HeaderRec.(FieldName) = Value;
                     
                 end
                 
+                Query.insertRecord(TableName, HeaderRec);
+                
+                
+                % Prepare SQL statement
+
                 % Now we have keys and values
             end
-            
-            
+                        
         end
     end
     
@@ -94,8 +103,27 @@ classdef AstroImageDb < Component
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'AstroImageDb test started')
     
+            % Get db connection
+            Conn = io.db.Db.getUnitTest();
+            Q = io.db.DbQuery(Conn);
+            Q.query('SELECT version()');
+            assert(Q.ColCount == 1);
+            pgver = Q.getField('version');
+            io.msgLog(LogLevel.Test, 'Version: %s', pgver);
+            assert(contains(pgver, 'PostgreSQL'));
+            TableName = 'master_table';
             
+            % Create db adaptor
+            db = AstroImageDb;                        
+            
+            % Load header from sample fit
+            DataSampleDir = tools.os.getTestDataDir;                                 
+            H = AstroHeader(fullfile(DataSampleDir, 'WFPC2ASSNu5780205bx.fits'));
+            assert(all(size(H.Data)));
 
+            % Insert header to table
+            res = db.insertAstroHeader(H, Q, TableName);
+                
             io.msgStyle(LogLevel.Test, '@passed', 'AstroImageDb test passed')
             Result = true;
         end

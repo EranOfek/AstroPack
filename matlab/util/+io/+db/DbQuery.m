@@ -989,7 +989,19 @@ classdef DbQuery < Component
             end           
             Result = true;
         end
+
         
+        function Result = getValidFieldName(Obj, Str)
+            for i=1:numel(Str)
+                Ch = Str(i);
+                %Valid = isletter(Ch) || isnumeric(Ch) || Ch == '_';
+                Valid = isstrprop(Ch, 'alpha') || isstrprop(Ch, 'digit') || Ch == '_';                
+                if ~Valid
+                    Str(i) = '_';
+                end
+            end
+            Result = Str;
+        end
     end
 
         
