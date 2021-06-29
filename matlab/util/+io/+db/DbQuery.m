@@ -530,7 +530,7 @@ classdef DbQuery < Component
     
     
                    
-    methods % Insert, Update, Delete
+    methods % Insert
         
         function Result = insert(Obj, TableName, Keys, Values)
             % Insert new record to table, Keys and Values are celarray
@@ -617,7 +617,7 @@ classdef DbQuery < Component
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
             try
-                Obj.ResultSet = Obj.Statement.executeUpdate();                             
+                Obj.ResultSet = Obj.Statement.executeUpdate();
                 Obj.ExecOk = true;                
                 Result = true;
             catch
@@ -630,7 +630,80 @@ classdef DbQuery < Component
             Result = true;
         end
                      
+               
+        function Result = insertCell(Obj, TableName, Cell, Args)
+            
+            % Insert DbRecord or struct fields to specified table
+            arguments
+                Obj
+                TableName
+                Cell cell               % Cell array, key, value pairs
+                Args.FieldMap = []      % Optional field map
+                Args.ExFields struct = []     % Additional fields as struct
+            end
+
+            
+            % Get list of table's fields 
+            FieldNames = Obj.getTableFieldList(TableName);
+            CellSize = size(Cell);
+            Rec = struct;
+            
+            % @Todo
+            % Rec.recid = Component.newUuid();
+
+            % Iterate all fields
+            NumKeys = CellSize(1);
+            for f = 1:NumKeys
+
+                % Add field name and value to record
+                Key = Cell{f, 1};
+                if isempty(Key) || ~ischar(Key)
+                    continue
+                end
+
+                Value = Cell{f, 2};
+
+                % Convert key to valid database field name
+                FieldName = Obj.getValidFieldName(Key);
+
+                if ~strcmp(Key, FieldName)
+                    Obj.msgLog(LogLevel.Debug, 'Key: %s, Field: %s', Key, FieldName);
+                end
+
+                FieldName = lower(FieldName);
+                if any(strcmpi(FieldNames, FieldName))
+                    if ~isfield(Rec, FieldName)
+                        Rec.(FieldName) = Value;
+                        Obj.msgLog(LogLevel.Debug, '%s = %s', FieldName, string(Value));
+                    else
+                        Obj.msgLog(LogLevel.Debug, 'field already exist: %s', FieldName);
+                    end
+                else
+                    % Field does not exist in database
+                end                               
+            end
+            
+            % Additional fields
+            ExFieldNames = fieldnames(Args.ExFields);
+            for i = 1:numel(ExFieldNames)
+                FieldName = ExFieldNames{i};
+                Value = Args.ExFields.(FieldName);
+                FieldName = lower(FieldName);
+                
+                if ~isfield(Rec, FieldName)                
+                    Rec.(FieldName) = Value;
+                else
+                    Obj.msgLog(LogLevel.Debug, 'field already exist: %s', FieldName);
+                end
+            end
+
+            Result = Obj.insertRecord(TableName, Rec);
+        end
         
+    end
+    
+    
+    methods % Update        
         function Result = updateRecord(Obj, TableName, Rec, WhereRec, Args)
             % Update record
             arguments
@@ -692,9 +765,11 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Info, 'updateRecord time: %.6f', Obj.Toc);  
                   
             Result = true;
-        end        
-        
-              
+        end                
+    end
+    
+    
+    methods % Delete
         function Result = deleteRecord(Obj, TableName, Rec, Args)
             % Delete record by fields specified in Rec
             arguments

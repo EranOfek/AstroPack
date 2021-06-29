@@ -86,7 +86,6 @@ implementation
 
 {$R *.lfm}
 
-
 { TDbBrowserForm }
 
 procedure TDbBrowserForm.FormCreate(Sender: TObject);
@@ -96,7 +95,9 @@ begin
   Proc.Memo1 := Memo1;
   Proc.StatusBar1 := StatusBar;
 
-  ComboXlsFile.Text := 'unittest.xlsx';  //OpenDialogXls.InitialDir + PathDelim + OpenDialogXls.FileName;
+  ComboXlsFile.Items.Clear();
+  ComboXlsFile.Items.Add('unittest__tables.xlsx');
+  ComboXlsFile.Items.Add('lastdb__tables.xlsx');  //OpenDialogXls.InitialDir + PathDelim + OpenDialogXls.FileName;
 
   ComboXlsFolder.Text := DataMod.AstroFile('database' + PathDelim + 'xlsx');
 end;
@@ -129,7 +130,7 @@ procedure TDbBrowserForm.ComboBoxDbNameChange(Sender: TObject);
 begin
   //
   DbName := ComboBoxDbName.Text;
-  ListBoxDbTables.Items.Assign(DataModu.GetDbTablesList(DbName);
+  ListBoxDbTables.Items.Assign(DataMod.GetDbTablesList(DbName));
 end;
 
 procedure TDbBrowserForm.BtnSelectOutputSqlFolderClick(Sender: TObject);

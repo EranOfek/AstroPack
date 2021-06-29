@@ -50,9 +50,9 @@ object DbBrowserForm: TDbBrowserForm
       Height = 403
       Top = 5
       Width = 1080
-      ActivePage = TabSheetDbBrowser
+      ActivePage = TabSheetXlsxToSQL
       Align = alClient
-      TabIndex = 0
+      TabIndex = 1
       TabOrder = 0
       object TabSheetDbBrowser: TTabSheet
         Caption = 'Database Browser'

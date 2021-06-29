@@ -1,14 +1,5 @@
-#
 # Generate SQL scripts from CSV files downloaded from Google Sheets tabs
-#
-#
 # See: https://gist.github.com/antivanov/59e00f6129725e9b4404
-
-# Instructions
-#
-#
-# Unit-Test:
-#
 # Use unittest__tables from GDrive to test
 #
 # Requirements:
@@ -16,14 +7,18 @@
 #   Ubutnu:
 # 	sudo apt-get install libpq-dev
 # 	sudo pip3 install Psycopg2
-
+#
 #   pip3 install pyyaml openpyxl psycopg2
 #
 # psql -V
+#
+# Create databse from SQL file:
 # psql -U postgres -f __unittest.sql
-
+#
 # Chen Windows: postgres/pass
 # Linux default:
+#
+# Use lazarus/pipeline/pipeline_utils GUI to run this script.
 #
 
 import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl

@@ -1,0 +1,264 @@
+
+HeaderData =
+
+  257×3 cell array
+
+    {'SIMPLE'  }    {[                               1]}    {' file does conform to FITS sta…'}
+    {'BITPIX'  }    {[                             -32]}    {' number of bits per data pixel'  }
+    {'NAXIS'   }    {[                               2]}    {' number of data axes'            }
+    {'NAXIS1'  }    {[                             100]}    {' length of data axis 1'          }
+    {'NAXIS2'  }    {[                             100]}    {' length of data axis 2'          }
+    {'EXTEND'  }    {[                               1]}    {' FITS dataset may contain exte…'}
+    {'COMMENT' }    {'  FITS (Flexible Image Transpo…'}    {0×0 char                          }
+    {'COMMENT' }    {'  and Astrophysics', volume 37…'}    {0×0 char                          }
+    {'ORIGIN'  }    {'NOAO-IRAF FITS Image Kernel De…'}    {' FITS file originator'           }
+    {'DATE'    }    {'2003-07-24T18:28:58'             }    {' Date FITS file was generated'   }
+    {'IRAF-TLM'}    {'10:28:58 (24/07/2003)'           }    {' Time of last modification'      }
+    {'OBJECT'  }    {'U5780205B[1/4]'                  }    {' Name of the object observed'    }
+    {'CRVAL1'  }    {[                          182.63]}    {0×0 char                          }
+    {'CRVAL2'  }    {[                          39.412]}    {0×0 char                          }
+    {'CRPIX1'  }    {[                          -2.135]}    {0×0 char                          }
+    {'CRPIX2'  }    {[                           -2.04]}    {0×0 char                          }
+    {'CD1_1'   }    {[                      2.7561e-05]}    {0×0 char                          }
+    {'CD1_2'   }    {[                     -2.0822e-06]}    {0×0 char                          }
+    {'CD2_1'   }    {[                     -2.0802e-06]}    {0×0 char                          }
+    {'CD2_2'   }    {[                     -2.7587e-05]}    {0×0 char                          }
+    {'MIR_REVR'}    {[                               1]}    {0×0 char                          }
+    {'ORIENTAT'}    {[                          -174.8]}    {0×0 char                          }
+    {'FILLCNT' }    {[                               0]}    {0×0 char                          }
+    {'ERRCNT'  }    {[                               0]}    {0×0 char                          }
+    {'FPKTTIME'}    {[                           51230]}    {0×0 char                          }
+    {'LPKTTIME'}    {[                           51230]}    {0×0 char                          }
+    {'CTYPE1'  }    {'RA---TAN'                        }    {0×0 char                          }
+    {'CTYPE2'  }    {'DEC--TAN'                        }    {0×0 char                          }
+    {'DETECTOR'}    {[                               4]}    {0×0 char                          }
+    {'DEZERO'  }    {[                          311.71]}    {0×0 char                          }
+    {'BIASEVEN'}    {[                          311.76]}    {0×0 char                          }
+    {'BIASODD' }    {[                          311.65]}    {0×0 char                          }
+    {'GOODMIN' }    {[                         -3.2893]}    {0×0 char                          }
+    {'GOODMAX' }    {[                          3420.2]}    {0×0 char                          }
+    {'DATAMEAN'}    {[                         0.70847]}    {0×0 char                          }
+    {'GPIXELS' }    {[                          628289]}    {0×0 char                          }
+    {'SOFTERRS'}    {[                               0]}    {0×0 char                          }
+    {'CALIBDEF'}    {[                            1816]}    {0×0 char                          }
+    {'STATICD' }    {[                               0]}    {0×0 char                          }
+    {'ATODSAT' }    {[                              57]}    {0×0 char                          }
+    {'DATALOST'}    {[                               0]}    {0×0 char                          }
+    {'BADPIXEL'}    {[                               0]}    {0×0 char                          }
+    {'OVERLAP' }    {[                               0]}    {0×0 char                          }
+    {'PHOTMODE'}    {'WFPC2,4,A2D7,FR533P15,,CAL    …'}    {',,CAL                      ''    }
+    {'PHOTFLAM'}    {[                       8.567e-19]}    {0×0 char                          }
+    {'PHOTZPT' }    {[                           -21.1]}    {0×0 char                          }
+    {'PHOTPLAM'}    {[                            5783]}    {0×0 char                          }
+    {'PHOTBW'  }    {[                          2070.2]}    {0×0 char                          }
+    {'MEDIAN'  }    {[                       -0.068218]}    {0×0 char                          }
+    {'MEDSHADO'}    {[                       -0.032535]}    {0×0 char                          }
+    {'HISTWIDE'}    {[                         0.98458]}    {0×0 char                          }
+    {'SKEWNESS'}    {[                         -4.5853]}    {0×0 char                          }
+    {'MEANC10' }    {[                         0.13597]}    {0×0 char                          }
+    {'MEANC25' }    {[                        0.040157]}    {0×0 char                          }
+    {'MEANC50' }    {[                         0.11299]}    {0×0 char                          }
+    {'MEANC100'}    {[                          1.8975]}    {0×0 char                          }
+    {'MEANC200'}    {[                         0.96871]}    {0×0 char                          }
+    {'MEANC300'}    {[                          1.0538]}    {0×0 char                          }
+    {'BACKGRND'}    {[                         0.34673]}    {0×0 char                          }
+    {'FILETYPE'}    {'SCI'                             }    {' type of data found in data file'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'TELESCOP'}    {'HST'                             }    {' telescope used to acquire data' }
+    {'INSTRUME'}    {'WFPC2'                           }    {' identifier for instrument use…'}
+    {'EQUINOX' }    {[                            2000]}    {' equinox of celestial coord. s…'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'ROOTNAME'}    {'u5780205r'                       }    {' rootname of the observation set'}
+    {'PROCTIME'}    {[                           52844]}    {' Pipeline processing time (MJD)' }
+    {'OPUS_VER'}    {'OPUS 14.3b'                      }    {' OPUS software system version …'}
+    {'CAL_VER' }    {0×0 char                          }    {' CALWP2 code version'            }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'MODE'    }    {'FULL'                            }    {' instr. mode: FULL (full res.)…'}
+    {'SERIALS' }    {'OFF'                             }    {' serial clocks: ON, OFF'         }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'IMAGETYP'}    {'EXT'                             }    {' DARK/BIAS/IFLAT/UFLAT/VFLAT/K…'}
+    {'CDBSFILE'}    {'NO'                              }    {' GENERIC/BIAS/DARK/PREF/FLAT/M…'}
+    {'PKTFMT'  }    {[                              96]}    {' packet format code'             }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'FILTNAM1'}    {'FR533P15'                        }    {' first filter name'              }
+    {'FILTNAM2'}    {0×0 char                          }    {' second filter name'             }
+    {'FILTER1' }    {[                              69]}    {' first filter number (0-48)'     }
+    {'FILTER2' }    {[                               0]}    {' second filter number (0-48)'    }
+    {'FILTROT' }    {[                              15]}    {' partial filter rotation angle…'}
+    {'LRFWAVE' }    {[                            4877]}    {' linear ramp filter wavelength'  }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'UCH1CJTM'}    {[                         -88.257]}    {' TEC cold junction #1 temperat…'}
+    {'UCH2CJTM'}    {[                          -88.67]}    {' TEC cold junction #2 temperat…'}
+    {'UCH3CJTM'}    {[                         -88.303]}    {' TEC cold junction #3 temperat…'}
+    {'UCH4CJTM'}    {[                         -88.767]}    {' TEC cold junction #4 temperat…'}
+    {'UBAY3TMP'}    {[                           13.23]}    {' bay 3 A1 temperature (deg C)'   }
+    {'KSPOTS'  }    {'OFF'                             }    {' Status of Kelsall spot lamps:…'}
+    {'SHUTTER' }    {'A'                               }    {' Shutter in place at beginning…'}
+    {'ATODGAIN'}    {[                               7]}    {' Analog to Digital Gain (Elect…'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'MASKCORR'}    {'COMPLETE'                        }    {' Do mask correction: PERFORM, …'}
+    {'ATODCORR'}    {'COMPLETE'                        }    {' Do A-to-D correction: PERFORM…'}
+    {'BLEVCORR'}    {'COMPLETE'                        }    {' Do bias level correction'       }
+    {'BIASCORR'}    {'COMPLETE'                        }    {' Do bias correction: PERFORM, …'}
+    {'DARKCORR'}    {'COMPLETE'                        }    {' Do dark correction: PERFORM, …'}
+    {'FLATCORR'}    {'SKIPPED'                         }    {' Do flat field correction'       }
+    {'SHADCORR'}    {'OMIT'                            }    {' Do shaded shutter correction'   }
+    {'DOSATMAP'}    {'OMIT'                            }    {' Output saturated pixel map'     }
+    {'DOPHOTOM'}    {'COMPLETE'                        }    {' Fill photometry keywords'       }
+    {'DOHISTOS'}    {'OMIT'                            }    {' Make histograms: PERFORM, OMI…'}
+    {'OUTDTYPE'}    {'REAL'                            }    {' Output image datatype: REAL, …'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'MASKFILE'}    {'uref$f8213081u.r0h'              }    {' name of the input DQF of know…'}
+    {'ATODFILE'}    {'uref$dbu1405iu.r1h'              }    {' name of the A-to-D conversion…'}
+    {'BLEVFILE'}    {'ucal$u5780205r.x0h'              }    {' Engineering file with extende…'}
+    {'BLEVDFIL'}    {'ucal$u5780205r.q1h'              }    {' Engineering file DQF'           }
+    {'BIASFILE'}    {'uref$j9a1612mu.r2h'              }    {' name of the bias frame refere…'}
+    {'BIASDFIL'}    {'uref$j9a1612mu.b2h'              }    {' name of the bias frame refere…'}
+    {'DARKFILE'}    {'uref$j2g1549cu.r3h'              }    {' name of the dark reference file'}
+    {'DARKDFIL'}    {'uref$j2g1549cu.b3h'              }    {' name of the dark reference DQF' }
+    {'FLATFILE'}    {'uref$f4i1559cu.r4h'              }    {' name of the flat field refere…'}
+    {'FLATDFIL'}    {'uref$f4i1559cu.b4h'              }    {' name of the flat field refere…'}
+    {'SHADFILE'}    {'uref$e371355eu.r5h'              }    {' name of the reference file fo…'}
+    {'PHOTTAB' }    {0×0 char                          }    {' name of the photometry calibr…'}
+    {'GRAPHTAB'}    {'mtab$n3d14531m_tmg.fits'         }    {' the HST graph table'            }
+    {'COMPTAB' }    {'mtab$n431303km_tmc.fits'         }    {' the HST components table'       }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'SATURATE'}    {[                            4095]}    {' Data value at which saturatio…'}
+    {'USCALE'  }    {[                               1]}    {' Scale factor for output image'  }
+    {'UZERO'   }    {[                               0]}    {' Zero point for output image'    }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'READTIME'}    {[                             464]}    {' Length of time for CCD readou…'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'PA_V3'   }    {[                          49.937]}    {' position angle of V3-axis of …'}
+    {'RA_SUN'  }    {[                          333.72]}    {' right ascension of the sun (d…'}
+    {'DEC_SUN' }    {[                         -10.867]}    {' declination of the sun (deg)'   }
+    {'EQNX_SUN'}    {[                            2000]}    {' equinox of the sun'             }
+    {'MTFLAG'  }    {[                               0]}    {' moving target flag; T if it i…'}
+    {'EQRADTRG'}    {[                               0]}    {' equatorial radius of target (…'}
+    {'FLATNTRG'}    {[                               0]}    {' flattening of target'           }
+    {'NPDECTRG'}    {[                               0]}    {' north pole declination of tar…'}
+    {'NPRATRG' }    {[                               0]}    {' north pole right ascension of…'}
+    {'ROTRTTRG'}    {[                               0]}    {' rotation rate of target'        }
+    {'LONGPMER'}    {[                               0]}    {' longitude of prime meridian (…'}
+    {'EPLONGPM'}    {[                               0]}    {' epoch of longitude of prime m…'}
+    {'SURFLATD'}    {[                               0]}    {' surface feature latitude (deg)' }
+    {'SURFLONG'}    {[                               0]}    {' surface feature longitude (deg)'}
+    {'SURFALTD'}    {[                               0]}    {' surface feature altitude (km)'  }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'PODPSFF' }    {[                               0]}    {' 0=(no  podps fill); 1=(podps …'}
+    {'STDCFFF' }    {[                               0]}    {' 0=(no st dcf fill); 1=(st dcf…'}
+    {'STDCFFP' }    {'0x5569'                          }    {' st dcf fill pattern (hex)'      }
+    {'RSDPFILL'}    {[                            -100]}    {' bad data fill value for calib…'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'UEXPODUR'}    {[                             300]}    {' commanded duration of exposur…'}
+    {'NSHUTA17'}    {[                               1]}    {' Number of AP17 shutter B closes'}
+    {'DARKTIME'}    {[                             300]}    {' Dark time (seconds)'            }
+    {'UEXPOTIM'}    {[                           16880]}    {' Major frame pulse time preced…'}
+    {'PSTRTIME'}    {'1999.051:19:08:37'               }    {' predicted obs. start time (yy…'}
+    {'PSTPTIME'}    {'1999.051:19:16:37'               }    {' predicted obs. stop time (yyy…'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'SUNANGLE'}    {[                          141.62]}    {' angle between sun and V1 axis'  }
+    {'MOONANGL'}    {[                           126.7]}    {' angle between moon and V1 axis' }
+    {'SUN_ALT' }    {[                         -31.523]}    {' altitude of the sun above Ear…'}
+    {'FGSLOCK' }    {'FINE'                            }    {' commanded FGS lock (FINE,COAR…'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'DATE-OBS'}    {'1999-02-20'                      }    {' UT date of start of observati…'}
+    {'TIME-OBS'}    {'19:03:13'                        }    {' UT time of start of observati…'}
+    {'EXPSTART'}    {[                           51230]}    {' exposure start time (Modified…'}
+    {'EXPEND'  }    {[                           51230]}    {' exposure end time (Modified J…'}
+    {'EXPTIME' }    {[                             300]}    {' exposure duration (seconds)--…'}
+    {'EXPFLAG' }    {'NORMAL'                          }    {' Exposure interruption indicator'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'TARGNAME'}    {'NGC4151'                         }    {' proposer's target name'         }
+    {'RA_TARG' }    {[                          182.64]}    {' right ascension of the target…'}
+    {'DEC_TARG'}    {[                          39.406]}    {' declination of the target (de…'}
+    {'ECL_LONG'}    {[                           164.1]}    {' ecliptic longitude of the tar…'}
+    {'ECL_LAT' }    {[                          36.624]}    {' ecliptic latitude of the targ…'}
+    {'GAL_LONG'}    {[                          155.08]}    {' galactic longitude of the tar…'}
+    {'GAL_LAT' }    {[                          75.063]}    {' galactic latitude of the targ…'}
+    {0×0 double}    {0×0 double                        }    {0×0 double                        }
+    {'PROPOSID'}    {[                            8019]}    {' PEP proposal identifier'        }
+    {'PEP_EXPO'}    {'02-030'                          }    {' PEP exposure identifier inclu…'}
+    {'LINENUM' }    {'02.030'                          }    {' PEP proposal line number'       }
+    {'SEQLINE' }    {0×0 char                          }    {' PEP line number of defined se…'}
+    {'SEQNAME' }    {0×0 char                          }    {' PEP define/use sequence name'   }
+    {'HISTORY' }    {'  MASKFILE=uref$f8213081u.r0h …'}    {0×0 char                          }
+    {'HISTORY' }    {'  PEDIGREE=INFLIGHT 01/01/1994…'}    {0×0 char                          }
+    {'HISTORY' }    {'  DESCRIP=STATIC MASK - INCLUD…'}    {0×0 char                          }
+    {'HISTORY' }    {'  BIASFILE=uref$j9a1612mu.r2h …'}    {0×0 char                          }
+    {'HISTORY' }    {'  PEDIGREE=INFLIGHT 29/08/98 -…'}    {0×0 char                          }
+    {'HISTORY' }    {'  DESCRIP=not significantly di…'}    {0×0 char                          }
+    {'HISTORY' }    {'  DARKFILE=uref$j2g1549cu.r3h …'}    {0×0 char                          }
+    {'HISTORY' }    {'  PEDIGREE=INFLIGHT 16/02/1999…'}    {0×0 char                          }
+    {'HISTORY' }    {'  DESCRIP=Pipeline dark: 120 f…'}    {0×0 char                          }
+    {'HISTORY' }    {'  16/02/99'                      }    {0×0 char                          }
+    {'HISTORY' }    {'  FLATFILE=uref$f4i1559cu.r4h …'}    {0×0 char                          }
+    {'HISTORY' }    {'  PEDIGREE=DUMMY  18/04/1995'    }    {0×0 char                          }
+    {'HISTORY' }    {'  DESCRIP=All pixels set to va…'}    {0×0 char                          }
+    {'HISTORY' }    {'  PC1: bias jump level ~0.100 …'}    {0×0 char                          }
+    {'HISTORY' }    {'  The following throughput tab…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crotacomp$hst_ota_007_syn.fi…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_dqepc1_005…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_a2d7pc1_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_flatpc1_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  The following throughput tab…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crotacomp$hst_ota_007_syn.fi…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_dqewfc2_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_a2d7wf2_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_flatwf2_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  The following throughput tab…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crotacomp$hst_ota_007_syn.fi…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_dqewfc3_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_a2d7wf3_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_flatwf3_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  The following throughput tab…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crotacomp$hst_ota_007_syn.fi…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_dqewfc4_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_a2d7wf4_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  crwfpc2comp$wfpc2_flatwf4_00…'}    {0×0 char                          }
+    {'HISTORY' }    {'  Ran task WARMPIX, version 1.…'}    {0×0 char                          }
+    {'HISTORY' }    {'  24-Jul-2003, rej_thresh=0.10…'}    {0×0 char                          }
+    {'HISTORY' }    {'  var_thresh=0.00300,'           }    {0×0 char                          }
+    {'HISTORY' }    {'  fix_dqval=1024, rej_val=INDEF' }    {0×0 char                          }
+    {'SKYSUB1' }    {[                               0]}    {' Sky value for chip 1'           }
+    {'PYS_VERS'}    {[                             1.8]}    {' PyStack.py: Version'            }
+    {'IRAF_I'  }    {'IRAF V2.12.1 July 2002 release…'}    {'2 release:2.12''                 }
+    {'STAC_I'  }    {'$RCSfile: imstack_imshift_imco…'}    {'hift_imcomb.cl,v $ $Revision: …'}
+    {'PYS_ITER'}    {[                               5]}    {' PyStack.py: Number of iterati…'}
+    {'PYS_HEXP'}    {[                               2]}    {' PyStack.py: Value of exponent'  }
+    {'SKYSUB2' }    {[                            0.01]}    {' Sky value for chip 2'           }
+    {'SKYSUB3' }    {[                           -0.08]}    {' Sky value for chip 3'           }
+    {'SKYSUB4' }    {[                           -0.03]}    {' Sky value for chip 4'           }
+    {'NCOMBINE'}    {[                               2]}    {' Number of exposures for this …'}
+    {'HISTORY' }    {'  Ran task WMOSAIC, version 2.…'}    {0×0 char                          }
+    {'COMMENT' }    {1×0 char                          }    {0×0 char                          }
+    {'COMMENT' }    {1×0 char                          }    {0×0 char                          }
+
+	

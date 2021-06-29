@@ -31,54 +31,20 @@ classdef AstroImageDb < Component
                 Args.Fields = {};       % As
             end
             
-            Obj.msgLog(LogLevel.Debug, 'insertAstroHeader');
-            
-            % Get list of table's fields 
-            FieldNames = Query.getTableFieldList(TableName);
-            
+            Obj.msgLog(LogLevel.Debug, 'insertAstroHeader started');
+                        
             % Iterate all headers in array, treat each one as independent data
             for i=1:numel(Header)
                 
+                % Get header as cell{key, value, comment}
                 HeaderData = Header(i).Data;
-                DataSize = size(HeaderData);
                 
-                % Prepare data record
-                HeaderRec = struct;
-                
-                % @Todo: ???
-                HeaderRec.recid = Component.newUuid();
-                
-                % Iterate all fields
-                NumKeys = DataSize(1);
-                for f = 1:NumKeys
-                    
-                    % Add field name and value to record
-                    Key = HeaderData{f, 1};
-                    if isempty(Key)
-                        continue
-                    end
-                    
-                    Value = HeaderData{f, 2};
-                    
-                    % Convert key to valid database field name
-                    FieldName = Query.getValidFieldName(Key);
-                    
-                    if ~strcmp(Key, FieldName)
-                        Obj.msgLog(LogLevel.Debug, 'Key: %s, Field: %s', Key, FieldName);
-                    end
-                    
-                    HeaderRec.(FieldName) = Value;
-                    
-                end
-                
-                Query.insertRecord(TableName, HeaderRec);
-                
-                
-                % Prepare SQL statement
-
-                % Now we have keys and values
+                ExFields = struct;
+                ExFields.rawimageid = Component.newUuid();
+                Result = Query.insertCell(TableName, HeaderData, 'ExFields', ExFields);
             end
                         
+            Obj.msgLog(LogLevel.Debug, 'insertAstroHeader done');
         end
     end
     
@@ -104,25 +70,37 @@ classdef AstroImageDb < Component
             io.msgStyle(LogLevel.Test, '@start', 'AstroImageDb test started')
     
             % Get db connection
-            Conn = io.db.Db.getUnitTest();
+            Conn = io.db.Db.getLast();
             Q = io.db.DbQuery(Conn);
             Q.query('SELECT version()');
             assert(Q.ColCount == 1);
             pgver = Q.getField('version');
             io.msgLog(LogLevel.Test, 'Version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));
-            TableName = 'master_table';
+            TableName = 'raw_images';
+            
+            % Create fits file with header
+            Folder = tempdir;            
+            Header = { 'RA_NE', [1], 'Comment 1';  'RA_SE', [2], 'Comment 2'; 'RA_SW', [3], 'Comment 3';  'RA_NW', [4], 'Comment 4' };
+            ImageData = zeros(10, 10);
+            ImageName = fullfile(Folder, 'AstroImageDbTest.fits');
+            fitswrite(ImageData, ImageName)            
+            FITS.write_keys(ImageName, Header);
             
             % Create db adaptor
             db = AstroImageDb;                        
             
             % Load header from sample fit
-            DataSampleDir = tools.os.getTestDataDir;                                 
-            H = AstroHeader(fullfile(DataSampleDir, 'WFPC2ASSNu5780205bx.fits'));
+            %DataSampleDir = tools.os.getTestDataDir;                                 
+            %H = AstroHeader(fullfile(DataSampleDir, 'WFPC2ASSNu5780205bx.fits'));
+            
+            H = AstroHeader(ImageName);
             assert(all(size(H.Data)));
 
             % Insert header to table
-            res = db.insertAstroHeader(H, Q, TableName);
+            for i=1:10
+                res = db.insertAstroHeader(H, Q, TableName);
+            end
                 
             io.msgStyle(LogLevel.Test, '@passed', 'AstroImageDb test passed')
             Result = true;

@@ -72,6 +72,7 @@
         <Filename Value="DataModu.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DataMod"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="DataModule"/>
       </Unit6>
     </Units>

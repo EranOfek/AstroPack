@@ -5,7 +5,7 @@ unit DataModu;
 interface
 
 uses
-  Classes, SysUtils, PQConnection, SQLDB, DB;
+  Classes, SysUtils, IniFiles, PQConnection, SQLDB, DB;
 
 type
 

@@ -5,6 +5,7 @@ classdef Db < Component
     properties (SetAccess = public)            
         DbUnitTest io.db.DbConnection
         DbPipeline io.db.DbConnection
+        DbLast io.db.DbConnection
         DbPlanner io.db.DbConnection        
         DbSoc io.db.DbConnection
     end
@@ -24,6 +25,9 @@ classdef Db < Component
             
             Obj.DbPipeline = io.db.DbConnection.getDbConnection('pipeline');
             Obj.DbPipeline.DatabaseName = 'pipeline';            
+            
+            Obj.DbLast = io.db.DbConnection.getDbConnection('lastdb');
+            Obj.DbLast.DatabaseName = 'lastdb';                        
             
             Obj.DbPlanner = io.db.DbConnection.getDbConnection('planner');
             Obj.DbPlanner.DatabaseName = 'planner';            
@@ -54,6 +58,18 @@ classdef Db < Component
             Db = io.db.Db.getDb();
             Result = Db.DbUnitTest;            
         end
+        
+        
+        function Result = getPipeline(Obj)        
+            Db = io.db.Db.getDb();
+            Result = Db.DbPipeline;            
+        end        
+        
+        
+        function Result = getLast(Obj)        
+            Db = io.db.Db.getDb();
+            Result = Db.DbLast;            
+        end        
     end
     
     %----------------------------------------------------------------------

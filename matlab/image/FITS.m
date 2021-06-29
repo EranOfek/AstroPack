@@ -628,7 +628,11 @@ classdef FITS < handle
 
             Nkey = size(KeyCell,1);
 
-            [~,List] = io.files.filelist(ImageName,NaN);
+            % Chen fixed
+            %List = io.files.filelist(ImageName, false);
+            List = {ImageName};
+            %[~,List] = io.files.filelist(ImageName,NaN);
+            
             Nim = numel(List);
 
             for Iim=1:1:Nim
@@ -1140,6 +1144,7 @@ classdef FITS < handle
     methods (Static) % tests
         function Result = unitTest(Obj)
             % unitTest for the FITS class
+            io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
             
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
@@ -1188,6 +1193,7 @@ classdef FITS < handle
             cd(PWD);
             Result = true;
 
+            io.msgLog(LogLevel.Test, 'FITS.unitTest done');
         end
     end
     
