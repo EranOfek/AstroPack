@@ -152,7 +152,7 @@ begin
   ScriptFileName := DataMod.AstroFile('python/utils/database_utils/xlsx2sql.py');
   FileName := ComboXlsFolder.Text + PathDelim + ComboXlsFile.Text;
   Params := '-f ' + FileName;
-  Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
+  Cmd := 'c:\python38\python3 ' + ScriptFileName + ' ' + Params;
 
   // Run
   Memo1.Lines.Add(Cmd);
