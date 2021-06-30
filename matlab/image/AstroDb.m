@@ -1,6 +1,6 @@
 % AstroImage database adaptor
 
-classdef AstroImageDb < Component
+classdef AstroDb < Component
     
     properties (Hidden, SetAccess = public)
 
@@ -10,7 +10,7 @@ classdef AstroImageDb < Component
 
     methods % Constructor    
         
-        function Obj = AstroImageDb
+        function Obj = AstroDb
             Obj.setName('AstroImageDb')
             
         end
@@ -19,16 +19,17 @@ classdef AstroImageDb < Component
     
     
     methods
-        
-        
-        function Result = insertAstroHeader(Obj, Header, Query, TableName, Args)
-            % Insert AstroHeader object to the specified database table
+               
+        function Result = insertHeader(Obj, Header, Query, TableName, Args)
+            % Insert AstroHeader/AstroImage object to the specified database table
             arguments
                 Obj
-                Header AstroHeader
+                Header AstroHeader              % AstroHeader / AstroImage
                 Query io.db.DbQuery
                 TableName char                
-                Args.Fields = {};       % As
+                Args.Fields = {};               % As
+                Args.Uuid = [];                 % Empty uses AstroHeader.Uuid
+                Args.Query io.db.DbQuery = []   %
             end
             
             Obj.msgLog(LogLevel.Debug, 'insertAstroHeader started');
@@ -46,14 +47,56 @@ classdef AstroImageDb < Component
                         
             Obj.msgLog(LogLevel.Debug, 'insertAstroHeader done');
         end
+        
+        
+        
+        function Result = insertCatalog(Obj, AstroCat, Query, TableName, Args)
+            % Insert AstroCatalog / AstroTable to the specified database table
+            
+            % Values in AstroCatalog.Catalog                                                = [];
+            % Field names in AstroCatalog.ColNames cell                                           = {};
+
+        
+        
+            arguments
+                Obj
+                AstroCat AstroCatalog      % AstroHeader / AstroImage
+                Query io.db.DbQuery
+                TableName char                
+                Args.Fields = {};       % As
+                Args.Uuid = [];         % Empty uses AstroHeader.Uuid
+            end
+            
+            Obj.msgLog(LogLevel.Debug, 'insertAstroHeader started');
+                        
+            % Iterate all headers in array, treat each one as independent data
+            for i=1:numel(Header)
+                
+                % Get header as cell{key, value, comment}
+                HeaderData = Header(i).Data;
+                
+                ExFields = struct;
+                ExFields.rawimageid = Component.newUuid();
+                Result = Query.insertCell(TableName, HeaderData, 'ExFields', ExFields);
+            end
+                        
+            Obj.msgLog(LogLevel.Debug, 'insertAstroHeader done');
+        end        
     end
     
     
     
     
     % static methods
-    methods (Static)
-       
+    methods % (Static???)
+        function Result = getDefaultQuery(Obj, Args)
+            % Get default database query
+            arguments
+                Obj
+            end
+            
+        end
+        
     end
     
     % 
@@ -67,7 +110,7 @@ classdef AstroImageDb < Component
     % Unit test
     methods(Static)
         function Result = unitTest()
-            io.msgStyle(LogLevel.Test, '@start', 'AstroImageDb test started')
+            io.msgStyle(LogLevel.Test, '@start', 'AstroDb test started')
     
             % Get db connection
             Conn = io.db.Db.getLast();
@@ -88,7 +131,7 @@ classdef AstroImageDb < Component
             FITS.write_keys(ImageName, Header);
             
             % Create db adaptor
-            db = AstroImageDb;                        
+            db = AstroDb;                        
             
             % Load header from sample fit
             %DataSampleDir = tools.os.getTestDataDir;                                 
@@ -102,7 +145,7 @@ classdef AstroImageDb < Component
                 res = db.insertAstroHeader(H, Q, TableName);
             end
                 
-            io.msgStyle(LogLevel.Test, '@passed', 'AstroImageDb test passed')
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroDb test passed')
             Result = true;
         end
     end    

@@ -18,7 +18,11 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
         FileName char       = '';
         
     end
+    
     properties
+        % Each property is mapped to field in common_image_fields
+        % Modify properties to match FITS Header restirctions and database
+        % fields
         ProjName char       = 'none';
         Date                = NaN;
         Filter char         = 'clear';
@@ -36,13 +40,13 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
         FormatRefVersion    = '%03d';
         SubDir              = '';
         DataDir             = 'data';
-        Base                = '/home/last';
-        
-        
+        Base                = '/home/last';             
     end
+    
     properties (Hidden, SetAccess = public)
         UserData
     end
+    
     properties (Hidden, SetAccess=private)
         ParUpdated logical    = false;  % beeing set to true when ProjName...Base parameters are changed
     end
@@ -50,16 +54,41 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
     
     methods % Constructor
        
-        function D=ImagePath
+        function Obj = ImagePath(varargin)
             % Base class constructor
             % Package: @Base           
+            
+            % readFromHeader...
+            
             
         end
     end
     
     
+    methods
+        function Result = readFromHeader(Obj, Header)
+            arguments
+                Obj
+                Header AstroHeader
+            end
+            
+        end
+        
+        
+        function Result = writeToHeader(Obj, Header)
+            arguments
+                Obj
+                Header AstroHeader
+            end
+            
+        end        
+    end
+    
+        
     % setters and getters
     methods
+        
+
         function Result = get.FullName(Obj)
             % getter for FullName
             
@@ -314,10 +343,7 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
             Obj.FullName    = sprintf('%s%s%s',Path,filesep,FileName);
             Obj.Path        = Path;
             
-
         end
-
-        
     end
     
     
@@ -335,7 +361,5 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
             Result = true;
         end
     end    
-        
-    
     
 end
