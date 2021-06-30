@@ -20,6 +20,8 @@
 #
 # Use lazarus/pipeline/pipeline_utils GUI to run this script.
 #
+# xlsx2sql.py -f D:\Ultrasat\AstroPack.git\database\xlsx\lastdb__tables.xlsx
+#
 
 import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime

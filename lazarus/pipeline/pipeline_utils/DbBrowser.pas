@@ -100,6 +100,7 @@ begin
   ComboXlsFile.Items.Add('lastdb__tables.xlsx');  //OpenDialogXls.InitialDir + PathDelim + OpenDialogXls.FileName;
 
   ComboXlsFolder.Text := DataMod.AstroFile('database' + PathDelim + 'xlsx');
+  ComboXlsFile.ItemIndex := 0;
 end;
 
 procedure TDbBrowserForm.ListBoxDbTablesClick(Sender: TObject);
