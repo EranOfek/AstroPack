@@ -12,6 +12,10 @@ function [Result, Info] = zp_sumFlux(Obj, Args)
     %          MS = MatchedSources;
     %          MS.addMatrix({Flux, FluxErr},{'FLUX','FLUXERR'});
     %          [Result, Info] = lcUtil.zp_sumFlux(MS);
+    % if
+    % any(abs(Info.FluxZP./median(Info.FluxZP)./(Fzp./median(Fzp))-1)>0.01),
+    % error
+    %
    
     arguments
         Obj
@@ -54,6 +58,9 @@ function [Result, Info] = zp_sumFlux(Obj, Args)
         CalibFlux     = Obj.Data.(Args.FluxColName) .* FluxZP;
         Diff  = Obj.Data.(Args.FluxColName) - CalibFlux;
         Ratio = Obj.Data.(Args.FluxColName)./CalibFlux;
+        
+        std(Ratio,[],2);
+        std(Diff,[],2);
         
         Chi2 = (Diff./Obj.Data.(Args.FluxErrColName)).^2;
         Chi2_Source = sum(Chi2, 1);
