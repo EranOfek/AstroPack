@@ -1,0 +1,17 @@
+object frmMain: TfrmMain
+  Left = 355
+  Height = 516
+  Top = 119
+  Width = 797
+  BorderStyle = bsNone
+  Caption = 'BGRABitmap Sand'
+  Color = clWhite
+  OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  OnResize = FormResize
+  Position = poScreenCenter
+  LCLVersion = '2.0.10.0'
+end

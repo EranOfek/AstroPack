@@ -1,0 +1,33 @@
+object frmFractalTree: TfrmFractalTree
+  Left = 348
+  Height = 480
+  Top = 143
+  Width = 640
+  Caption = 'Fractal Tree'
+  ClientHeight = 480
+  ClientWidth = 640
+  DesignTimePPI = 120
+  OnCreate = FormCreate
+  Position = poScreenCenter
+  LCLVersion = '1.8.4.0'
+  object vsCanvas: TBGRAVirtualScreen
+    Left = 0
+    Height = 480
+    Top = 0
+    Width = 640
+    OnRedraw = vsCanvasRedraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = clWhite
+    ParentColor = False
+    TabOrder = 0
+    OnMouseWheelDown = vsCanvasMouseWheelDown
+    OnMouseWheelUp = vsCanvasMouseWheelUp
+  end
+  object Timer1: TTimer
+    Interval = 15
+    OnTimer = Timer1Timer
+    left = 146
+    top = 132
+  end
+end

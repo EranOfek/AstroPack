@@ -1,0 +1,33 @@
+object FMain: TFMain
+  Left = 513
+  Height = 424
+  Top = 237
+  Width = 755
+  Caption = 'Voxel'
+  ClientHeight = 424
+  ClientWidth = 755
+  KeyPreview = True
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
+  OnKeyUp = FormKeyUp
+  Position = poDefault
+  LCLVersion = '1.8.0.6'
+  object BGRAVirtualScreen1: TBGRAVirtualScreen
+    Left = 0
+    Height = 424
+    Top = 0
+    Width = 755
+    OnRedraw = BGRAVirtualScreen1Redraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = clWhite
+    ParentColor = False
+    TabOrder = 0
+  end
+  object Timer1: TTimer
+    Interval = 50
+    left = 99
+    top = 92
+  end
+end

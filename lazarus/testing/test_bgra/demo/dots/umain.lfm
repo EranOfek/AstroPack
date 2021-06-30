@@ -1,0 +1,258 @@
+object frmDots: TfrmDots
+  Left = 277
+  Height = 500
+  Top = 100
+  Width = 640
+  Caption = 'Dots'
+  ClientHeight = 500
+  ClientWidth = 640
+  OnCreate = FormCreate
+  LCLVersion = '1.4.2.0'
+  object DrawingArea: TBGRAVirtualScreen
+    Left = 0
+    Height = 500
+    Top = 0
+    Width = 547
+    OnRedraw = DrawingAreaRedraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = clWhite
+    ParentColor = False
+    TabOrder = 0
+  end
+  object SettingsPanel: TBCPanel
+    Left = 547
+    Height = 500
+    Top = 0
+    Width = 93
+    Align = alRight
+    AutoSize = True
+    Background.Color = clBtnFace
+    Background.ColorOpacity = 255
+    Background.Gradient1.StartColor = clWhite
+    Background.Gradient1.StartColorOpacity = 255
+    Background.Gradient1.DrawMode = dmSet
+    Background.Gradient1.EndColor = clBlack
+    Background.Gradient1.EndColorOpacity = 255
+    Background.Gradient1.ColorCorrection = True
+    Background.Gradient1.GradientType = gtLinear
+    Background.Gradient1.Point1XPercent = 0
+    Background.Gradient1.Point1YPercent = 0
+    Background.Gradient1.Point2XPercent = 0
+    Background.Gradient1.Point2YPercent = 100
+    Background.Gradient1.Sinus = False
+    Background.Gradient2.StartColor = clWhite
+    Background.Gradient2.StartColorOpacity = 255
+    Background.Gradient2.DrawMode = dmSet
+    Background.Gradient2.EndColor = clBlack
+    Background.Gradient2.EndColorOpacity = 255
+    Background.Gradient2.ColorCorrection = True
+    Background.Gradient2.GradientType = gtLinear
+    Background.Gradient2.Point1XPercent = 0
+    Background.Gradient2.Point1YPercent = 0
+    Background.Gradient2.Point2XPercent = 0
+    Background.Gradient2.Point2YPercent = 100
+    Background.Gradient2.Sinus = False
+    Background.Gradient1EndPercent = 35
+    Background.Style = bbsColor
+    BevelInner = bvNone
+    BevelOuter = bvRaised
+    BevelWidth = 1
+    Border.Color = clBlack
+    Border.ColorOpacity = 255
+    Border.LightColor = clWhite
+    Border.LightOpacity = 255
+    Border.LightWidth = 0
+    Border.Style = bboNone
+    Border.Width = 1
+    ChildSizing.LeftRightSpacing = 12
+    ChildSizing.TopBottomSpacing = 12
+    ChildSizing.ControlsPerLine = 1
+    FontEx.Color = clDefault
+    FontEx.EndEllipsis = False
+    FontEx.FontQuality = fqSystemClearType
+    FontEx.Height = 0
+    FontEx.SingleLine = True
+    FontEx.Shadow = False
+    FontEx.ShadowColor = clBlack
+    FontEx.ShadowColorOpacity = 255
+    FontEx.ShadowRadius = 5
+    FontEx.ShadowOffsetX = 5
+    FontEx.ShadowOffsetY = 5
+    FontEx.Style = []
+    FontEx.TextAlignment = bcaCenter
+    FontEx.WordBreak = False
+    Rounding.RoundX = 1
+    Rounding.RoundY = 1
+    Rounding.RoundOptions = []
+    TabOrder = 1
+    object Label1: TLabel
+      Left = 13
+      Height = 15
+      Top = 13
+      Width = 25
+      Caption = 'Seed'
+      ParentColor = False
+    end
+    object Label2: TLabel
+      Left = 13
+      Height = 15
+      Top = 67
+      Width = 34
+      Caption = 'Dots X'
+      ParentColor = False
+    end
+    object Label3: TLabel
+      Left = 13
+      Height = 15
+      Top = 121
+      Width = 34
+      Caption = 'Dots Y'
+      ParentColor = False
+    end
+    object editDotsY: TSpinEdit
+      Left = 13
+      Height = 23
+      Top = 144
+      Width = 67
+      MinValue = 1
+      OnChange = ChangeSettings
+      TabOrder = 0
+      Value = 10
+    end
+    object Label4: TLabel
+      Left = 13
+      Height = 15
+      Top = 175
+      Width = 29
+      Caption = 'Color'
+      ParentColor = False
+    end
+    object editColor: TColorButton
+      Left = 13
+      Height = 20
+      Top = 198
+      Width = 67
+      BorderWidth = 2
+      ButtonColorSize = 16
+      ButtonColor = clBlack
+      OnColorChanged = ChangeSettings
+    end
+    object Label5: TLabel
+      Left = 13
+      Height = 15
+      Top = 226
+      Width = 44
+      Caption = 'Min Size'
+      ParentColor = False
+    end
+    object Label6: TLabel
+      Left = 13
+      Height = 15
+      Top = 280
+      Width = 45
+      Caption = 'Max Size'
+      ParentColor = False
+    end
+    object Label7: TLabel
+      Left = 13
+      Height = 15
+      Top = 334
+      Width = 42
+      Caption = 'Spacing'
+      ParentColor = False
+    end
+    object Label8: TLabel
+      Left = 13
+      Height = 15
+      Top = 388
+      Width = 67
+      Caption = 'Random Pos'
+      ParentColor = False
+    end
+    object Label9: TLabel
+      Left = 13
+      Height = 15
+      Top = 442
+      Width = 45
+      Caption = 'Line Size'
+      ParentColor = False
+    end
+    object editLineSize: TFloatSpinEdit
+      Left = 13
+      Height = 23
+      Top = 465
+      Width = 67
+      Increment = 0.1
+      MaxValue = 1000
+      MinValue = 0
+      OnChange = ChangeSettings
+      TabOrder = 1
+      Value = 1.5
+    end
+    object editDotsX: TSpinEdit
+      Left = 13
+      Height = 23
+      Top = 90
+      Width = 67
+      MinValue = 1
+      OnChange = ChangeSettings
+      TabOrder = 2
+      Value = 10
+    end
+    object editSeed: TSpinEdit
+      Left = 13
+      Height = 23
+      Top = 36
+      Width = 67
+      MaxValue = 1000
+      MinValue = 1
+      OnChange = ChangeSettings
+      TabOrder = 3
+      Value = 1
+    end
+    object editMinSize: TSpinEdit
+      Left = 13
+      Height = 23
+      Top = 249
+      Width = 67
+      MinValue = 1
+      OnChange = ChangeSettings
+      TabOrder = 4
+      Value = 4
+    end
+    object editMaxSize: TSpinEdit
+      Left = 13
+      Height = 23
+      Top = 303
+      Width = 67
+      MaxValue = 1000
+      MinValue = 1
+      OnChange = ChangeSettings
+      TabOrder = 5
+      Value = 10
+    end
+    object editSpacing: TSpinEdit
+      Left = 13
+      Height = 23
+      Top = 357
+      Width = 67
+      MaxValue = 1000
+      MinValue = 1
+      OnChange = ChangeSettings
+      TabOrder = 6
+      Value = 40
+    end
+    object editRandomPos: TSpinEdit
+      Left = 13
+      Height = 23
+      Top = 411
+      Width = 67
+      MaxValue = 1000
+      MinValue = 1
+      OnChange = ChangeSettings
+      TabOrder = 7
+      Value = 5
+    end
+  end
+end

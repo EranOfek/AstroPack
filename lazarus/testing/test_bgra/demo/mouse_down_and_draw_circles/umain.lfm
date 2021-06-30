@@ -1,0 +1,37 @@
+object Game: TGame
+  Left = 102
+  Height = 480
+  Top = 110
+  Width = 640
+  Caption = 'Mouse down and draw circles!'
+  ClientHeight = 480
+  ClientWidth = 640
+  DesignTimePPI = 120
+  OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
+  Position = poScreenCenter
+  LCLVersion = '1.9.0.0'
+  object gameCanvas: TBGRAVirtualScreen
+    Cursor = crNone
+    Left = 0
+    Height = 480
+    Top = 0
+    Width = 640
+    OnRedraw = gameCanvasRedraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = clBlack
+    ParentColor = False
+    TabOrder = 0
+    OnMouseDown = gameCanvasMouseDown
+    OnMouseMove = gameCanvasMouseMove
+    OnMouseUp = gameCanvasMouseUp
+  end
+  object gameLoop: TTimer
+    Interval = 15
+    OnTimer = gameLoopTimer
+    OnStartTimer = gameLoopStartTimer
+    Left = 48
+    Top = 48
+  end
+end

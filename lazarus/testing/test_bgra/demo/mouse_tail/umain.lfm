@@ -1,0 +1,32 @@
+object Form1: TForm1
+  Left = 321
+  Height = 240
+  Top = 123
+  Width = 320
+  Caption = 'Form1'
+  ClientHeight = 240
+  ClientWidth = 320
+  DesignTimePPI = 120
+  OnCreate = FormCreate
+  LCLVersion = '1.9.0.0'
+  WindowState = wsMaximized
+  object BGRAVirtualScreen1: TBGRAVirtualScreen
+    Left = 0
+    Height = 240
+    Top = 0
+    Width = 320
+    OnRedraw = BGRAVirtualScreen1Redraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = 12615680
+    ParentColor = False
+    ParentFont = False
+    TabOrder = 0
+  end
+  object Timer1: TTimer
+    Interval = 15
+    OnTimer = Timer1Timer
+    Left = 89
+    Top = 88
+  end
+end

@@ -1,0 +1,24 @@
+object frmTurtle: TfrmTurtle
+  Left = 0
+  Height = 576
+  Top = 0
+  Width = 1024
+  Caption = 'Turtle Graphics'
+  ClientHeight = 576
+  ClientWidth = 1024
+  OnCloseQuery = FormCloseQuery
+  OnShow = FormShow
+  Position = poScreenCenter
+  LCLVersion = '1.9.0.0'
+  object VScreen: TBGRAVirtualScreen
+    Left = 0
+    Height = 576
+    Top = 0
+    Width = 1024
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = clWhite
+    ParentColor = False
+    TabOrder = 0
+  end
+end

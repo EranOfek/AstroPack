@@ -1,0 +1,31 @@
+object frmSuperFormula: TfrmSuperFormula
+  Left = 348
+  Height = 400
+  Top = 143
+  Width = 400
+  Caption = 'Superformula'
+  ClientHeight = 400
+  ClientWidth = 400
+  OnCreate = FormCreate
+  Position = poScreenCenter
+  LCLVersion = '1.9.0.0'
+  object BGRAVirtualScreen1: TBGRAVirtualScreen
+    Left = 0
+    Height = 400
+    Top = 0
+    Width = 400
+    OnRedraw = BGRAVirtualScreen1Redraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = clWhite
+    ParentColor = False
+    ParentFont = False
+    TabOrder = 0
+  end
+  object Timer1: TTimer
+    Interval = 15
+    OnTimer = Timer1Timer
+    Left = 82
+    Top = 53
+  end
+end

@@ -26,6 +26,8 @@ type
     IniFileName : String;
     IniFile : TIniFile;
 
+    PythonExe : String;
+
     // Initialize
     procedure Init;
 
@@ -55,6 +57,9 @@ end;
 procedure TDataMod.Init;
 begin
       AstroPackPath := GetEnvironmentVariable('ASTROPACKPATH');
+      IniFileName := AstroPackPath + PathDelim + 'config.ini';
+      IniFile := TIniFile.Create(IniFileName);
+      PythonExe := IniFile.ReadString('Python', 'Python3', 'C:\Python38\python.exe');
 end;
 
 function TDataMod.AstroFile(FileName: String) : String;

@@ -1,0 +1,30 @@
+object frmMain: TfrmMain
+  Left = 256
+  Height = 380
+  Top = 145
+  Width = 380
+  Caption = 'Atom'
+  ClientHeight = 380
+  ClientWidth = 380
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '2.0.10.0'
+  object BGRAVirtualScreen1: TBGRAVirtualScreen
+    Left = 0
+    Height = 380
+    Top = 0
+    Width = 380
+    OnRedraw = BGRAVirtualScreen1Redraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = 3880759
+    ParentColor = False
+    TabOrder = 0
+  end
+  object Timer1: TTimer
+    Interval = 15
+    OnTimer = Timer1Timer
+    Left = 34
+    Top = 32
+  end
+end

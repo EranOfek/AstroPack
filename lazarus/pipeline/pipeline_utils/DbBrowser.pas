@@ -152,7 +152,7 @@ begin
   ScriptFileName := DataMod.AstroFile('python/utils/database_utils/xlsx2sql.py');
   FileName := ComboXlsFolder.Text + PathDelim + ComboXlsFile.Text;
   Params := '-f ' + FileName;
-  Cmd := 'c:\python38\python3 ' + ScriptFileName + ' ' + Params;
+  Cmd := DataMod.PythonExe + ' ' + ScriptFileName + ' ' + Params;
 
   // Run
   Memo1.Lines.Add(Cmd);
@@ -167,7 +167,7 @@ begin
   // Prepare python command (@Todo: psql does not have redirected output, why? also to python!)
   ScriptFileName := DataMod.AstroFile('python\utils\database_utils\create_db.py');
   Params := '-f ' + ComboXlsFile.Text;
-  Cmd := 'python3 ' + ScriptFileName + ' ' + Params;
+  Cmd := DataMod.PythonExe + ' ' + ScriptFileName + ' ' + Params;
   //Cmd := 'psql -U postgres -f D:\Ultrasat\AstroPack.git\python\utils\database_utils\db\unittest\t2.sql';
 
   // Run

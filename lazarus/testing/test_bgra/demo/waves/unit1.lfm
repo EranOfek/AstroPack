@@ -1,0 +1,22 @@
+object Form1: TForm1
+  Left = 433
+  Height = 480
+  Top = 120
+  Width = 640
+  BorderStyle = bsDialog
+  Caption = 'Waves'
+  OnClick = FormClick
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnPaint = FormPaint
+  Position = poDesktopCenter
+  LCLVersion = '1.8.0.6'
+  object Timer1: TTimer
+    Interval = 30
+    OnTimer = Timer1Timer
+    left = 67
+    top = 25
+  end
+end
