@@ -22,6 +22,7 @@ function Result = background(Obj, Args)
     %                   If NaN, then will not calculate the variance.
     %                   If empty, then will assume the variance is returned as
     %                   the second output argument of 'BackFun'.
+    %                   If a string then will copy Back value into the Var.
     %                   Default is empty (i.e., @imUtil.background.rvar returns
     %                   the robust variance as the second output argument).
     %            'VarFunPar' - A cell array of additional parameters to pass
@@ -69,9 +70,9 @@ function Result = background(Obj, Args)
         Args.BackFunPar cell             = {true}; %{[1 2]};
         Args.VarFun                      = []; %@imUtil.background.rvar; % [];
         Args.VarFunPar cell              = {};
-        Args.SubSizeXY                   = [256 256];
+        Args.SubSizeXY                   = [128 128];
         Args.Overlap                     = 16;
-        Args.ExtendFull(1,1) logical     = false; %true; %false;
+        Args.ExtendFull(1,1) logical     = true; %false;
 
         Args.SubBack(1,1) logical        = false;
         

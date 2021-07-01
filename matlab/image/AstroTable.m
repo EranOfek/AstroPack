@@ -375,7 +375,10 @@ classdef AstroTable < Component %ImageComponent
                 IndInCell     = [];
                 IndInSynonym  = [];
             else             
-                IndInCell     = find(IndInSyn>0, 1, 'first');
+                IndIndInSyn = find(IndInSyn>0);
+                [~,II] = min(IndInSyn(IndIndInSyn));
+                IndInCell = IndIndInSyn(II);
+                %IndInCell     = find(IndInSyn>0, 1, 'first'); % BUG
                 IndInSynonym  = IndInSyn(IndInCell);
                 Name          = Cell(IndInCell);
             end

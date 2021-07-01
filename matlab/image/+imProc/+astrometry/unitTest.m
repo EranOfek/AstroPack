@@ -21,8 +21,13 @@ function Result = unitTest()
     % astrometryCore (with real data)
     cd /home/eran/matlab/images
     AI = AstroImage('PTF_201211203837_i_p_scie_t091230_u014655064_f02_p100037_c02.fits');
+    AI.crop([500 1500 1500 2500]); 
+    imProc.background.background(AI,'VarFun','fromback');
     imProc.sources.findMeasureSources(AI);
+    ds9(AI)
+    ds9.plot(AI.CatData.Catalog(:,1:2))
     
+    Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
     
     
 end

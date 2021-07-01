@@ -32,6 +32,7 @@ function [Back,Var]=background(Image,Args)
 %                   If NaN, then will not calculate the variance.
 %                   If empty, then will assume the variance is returned as
 %                   the second output argument of 'BackFun'.
+%                   If a string then will copy Back value into the Var.
 %                   Default is empty (i.e., @imUtil.background.rvar returns
 %                   the robust variance as the second output argument).
 %            'VarFunPar' - A cell array of additional parameters to pass
@@ -71,12 +72,12 @@ arguments
     Image
     Args.BackFun                 = @median;
     Args.BackFunPar cell         = {[1 2]};
-    Args.VarFun                  = @imUtil.background.rvar;
+    Args.VarFun                  = @imUtil.background.rvar;  % if string than copy Back into Var
     Args.VarFunPar cell          = {};
     Args.SubSizeXY               = [128 128];
     Args.Overlap                 = 16;
     Args.ExtendFull(1,1) logical = true;
-    Args.ExtendMethod            = 'interp_sparse2full'; %'imresize';  % 'imresize' | 'interp_sparse2full'
+    %Args.ExtendMethod            = 'conv'; %'interp_sparse2full'; %'imresize';  % 'imresize' | 'interp_sparse2full'
     Args.FieldName               = 'Im';
 end
 
@@ -85,8 +86,8 @@ if ~isa(Args.BackFun,'function_handle')
     error('BackFun must be a function handle');
 end
 if ~isempty(Args.VarFun)
-    if ~isa(Args.VarFun,'function_handle') && ~isnan(Args.VarFun)
-        error('VarFun must be a function handle, NaN, or empty');
+    if ~isa(Args.VarFun,'function_handle') && ~any(isnan(Args.VarFun)) && ~ischar(Args.VarFun)
+        error('VarFun must be a function handle, char array, NaN, or empty');
     end
 end
 
@@ -128,14 +129,21 @@ for Isub=1:1:Nsub
         % assume the BackFun returns both background and variance
         [SubImage(Isub).Back, SubImage(Isub).Var] = Args.BackFun(SubI,Args.BackFunPar{:});
     else
+         
          % different functions for background and variance
          SubImage(Isub).Back = Args.BackFun(SubI,Args.BackFunPar{:});
-         if isa(Args.VarFun,'function_handle')
-             SubImage(Isub).Var = Args.VarFun(SubI,Args.VarFunPar{:});
-         elseif isnan(Args.VarFun)
-             SubImage(Isub).Var = [];
+         
+         if ischar(Args.VarFun)
+             % put in Var the Back value as is
+             SubImage(Isub).Var = SubImage(Isub).Back;
          else
-             % do nothing
+             if isa(Args.VarFun,'function_handle')
+                 SubImage(Isub).Var = Args.VarFun(SubI,Args.VarFunPar{:});
+             elseif isnan(Args.VarFun)
+                 SubImage(Isub).Var = [];
+             else
+                 % do nothing
+             end
          end
     end
     
@@ -143,65 +151,134 @@ end
 
 
 
-
-if Args.ExtendFull
-    %Args.ExtendMethod = 'interp_sparse2full'
-    switch lower(Args.ExtendMethod)
-        case 'imresize'
-            BackIm = reshape([SubImage.Back],fliplr(Nxy));
-            if isempty(BackIm)
-                Back = [];
-            else
-                Back = imresize(BackIm,size(Image), 'lanczos3');
-            end
-            VarIm = reshape([SubImage.Var],fliplr(Nxy));
-            if isempty(VarIm)
-                Var = [];
-            else
-                Var = imresize(VarIm,size(Image), 'lanczos3');
-            end
-
-            
-        case 'interp_sparse2full'
+% do not interpolate/extrapolate sparse back/var to full image
+Back = reshape([SubImage.Back],fliplr(Nxy));
+Var  = reshape([SubImage.Var],fliplr(Nxy));
     
-            % stitch the background image from the sub images
-            SizeSub = size(SubImage);
-
-            BackIm = reshape([SubImage.Back],SizeSub);
-
-            if numel(BackIm)==1
-                Back = BackIm; % + zeros(size(Image));
-            else
-                %X = reshape([SubImage.CenterX],SizeSub);
-                X = reshape(Center(:,1),SizeSub);
-                %Y = reshape([SubImage.CenterY],SizeSub);
-                Y = reshape(Center(:,2),SizeSub);
-                [Back] = imUtil.partition.interp_sparse2full(X,Y,BackIm,fliplr(size(Image)));
-            end
-
-            if isempty(SubImage(1).Var) || nargout<2
-                Var = [];
-            else
-                VarIm  = reshape([SubImage.Var],SizeSub);
-                if numel(VarIm)==1
-                    Var = VarIm; % + zeros(size(Image));
-                else
-                    %X = reshape([SubImage.CenterX],SizeSub);
-                    X = reshape(Center(:,1),SizeSub);
-                    %Y = reshape([SubImage.CenterY],SizeSub);
-                    Y = reshape(Center(:,2),SizeSub);
-                    [Var]  = imUtil.partition.interp_sparse2full(X,Y,VarIm,fliplr(size(Image)));
-                end
-            end
-        
-        otherwise
-            error('Unknown ExtendMethod option');
-    end
-else
-    % do not interpolate/extrapolate sparse back/var to full image
-    Back = reshape([SubImage.Back],fliplr(Nxy));
-    Var  = reshape([SubImage.Var],fliplr(Nxy));
+if Args.ExtendFull
+    VecY   = floor(Center(1:Nxy(2),2));
+    VecX   = floor(Center(1:Nxy(2):end,1));
+    Back   = imUtil.image.sparse2full(Back, VecX, VecY, size(Image), 'Smooth',false);
+    Var    = imUtil.image.sparse2full(Var, VecX, VecY, size(Image),  'Smooth',false);    
 end
+
+%     %Args.ExtendMethod = 'interp_sparse2full'
+%     switch lower(Args.ExtendMethod)
+%         case 'imresize'
+%             BackIm = reshape([SubImage.Back],fliplr(Nxy));
+%             if isempty(BackIm)
+%                 Back = [];
+%             else
+%                 Back = imresize(BackIm,size(Image), 'lanczos3');
+%             end
+%             VarIm = reshape([SubImage.Var],fliplr(Nxy));
+%             if isempty(VarIm)
+%                 Var = [];
+%             else
+%                 VarIm = reshape([SubImage.Var],fliplr(Nxy));
+%                 Var   = imresize(VarIm,size(Image), 'lanczos3');
+%             end
+% 
+%         case 'conv'
+%             % use convolution
+%             
+%             if isempty(BackIm)
+%                 Back = [];
+%             else
+%                 BackIm = reshape([SubImage.Back],fliplr(Nxy));
+%                 OutSize   = size(Image);
+%                 FullImage = zeros(fliplr(OutSize));
+%                 X = Center(:,1);
+%                 Y = Center(:,2);
+%                 Ind = imUtil.image.sub2ind_fast(OutSize, floor(Y(:)), floor(X(:)) );
+%                 FullImage(Ind) = BackIm(:);
+% 
+%                 % convolve delta functions with circ
+%                 ConvRadius = max(Args.SubSizeXY).*sqrt(2) + 10;
+%                 Circ       = imUtil.kernel2.circ(ConvRadius, ceil([2.*ConvRadius+1, 2.*ConvRadius+1]));
+%                 Back       = imUtil.filter.conv2_fast(FullImage, Circ);
+%             end
+%             
+%             if isempty(SubImage(1).Var) || nargout<2
+%                 Var = [];
+%             else
+%                 VarIm = reshape([SubImage.Var],fliplr(Nxy));
+%                 OutSize   = size(Image);
+%                 FullImage = zeros(fliplr(OutSize));
+%                 X = Center(:,1);
+%                 Y = Center(:,2);
+%                 Ind = imUtil.image.sub2ind_fast(OutSize, floor(Y(:)), floor(X(:)) );
+%                 FullImage(Ind) = VarIm(:);
+% 
+%                 % convolve delta functions with circ
+%                 ConvRadius = max(Args.SubSizeXY).*sqrt(2) + 10;
+%                 Circ       = imUtil.kernel2.circ(ConvRadius, ceil([2.*ConvRadius+1, 2.*ConvRadius+1]));
+%                 Var        = imUtil.filter.conv2_fast(FullImage, Circ);
+%             end
+%             
+%         case 'inpaintn'
+%             % use inpaint
+%             BackIm = reshape([SubImage.Back],fliplr(Nxy));
+%             OutSize = size(Image);
+%             X = Center(:,1);
+%             Y = Center(:,2);
+%             
+%             FullImage = nan(fliplr(OutSize));
+%             Ind = imUtil.image.sub2ind_fast(OutSize, floor(Y(:)), floor(X(:)) );
+%             
+%             FullImage(Ind) = BackIm(:);
+%             Back  = inpaintn(FullImage);
+%             
+%             if isempty(SubImage(1).Var) || nargout<2
+%                 Var = [];
+%             else
+%                 VarIm = reshape([SubImage.Var],fliplr(Nxy));
+%                 FullImage = nan(fliplr(OutSize));
+%                 Ind = imUtil.image.sub2ind_fast(OutSize, floor(Y(:)), floor(X(:)) );
+%             
+%                 FullImage(Ind) = VarIm(:);
+%                 Var  = inpaintn(FullImage);
+%             end
+%             
+%         case 'interp_sparse2full'
+%     
+%             % stitch the background image from the sub images
+%             SizeSub = size(SubImage);
+% 
+%             %BackIm = reshape([SubImage.Back],SizeSub);
+%             BackIm = reshape([SubImage.Back], fliplr(Nxy));
+% 
+%             if numel(BackIm)==1
+%                 Back = BackIm; % + zeros(size(Image));
+%             else
+%                 %X = reshape([SubImage.CenterX],SizeSub);
+%                 %X = reshape(Center(:,1),SizeSub);
+%                 X = reshape(Center(:,1), fliplr(Nxy));
+%                 %Y = reshape([SubImage.CenterY],SizeSub);
+%                 %Y = reshape(Center(:,2),SizeSub);
+%                 Y = reshape(Center(:,2), fliplr(Nxy));
+%                 [Back] = imUtil.partition.interp_sparse2full(X, Y, BackIm, fliplr(size(Image)));
+%             end
+% 
+%             if isempty(SubImage(1).Var) || nargout<2
+%                 Var = [];
+%             else
+%                 VarIm  = reshape([SubImage.Var], fliplr(Nxy));
+%                 if numel(VarIm)==1
+%                     Var = VarIm; % + zeros(size(Image));
+%                 else
+%                     %X = reshape([SubImage.CenterX],SizeSub);
+%                     X = reshape(Center(:,1), fliplr(Nxy));
+%                     %Y = reshape([SubImage.CenterY],SizeSub);
+%                     Y = reshape(Center(:,2), fliplr(Nxy));
+%                     [Var]  = imUtil.partition.interp_sparse2full(X, Y, VarIm, fliplr(size(Image)));
+%                 end
+%             end
+%         
+%         otherwise
+%             error('Unknown ExtendMethod option');
+%     end   
+%end
 
 % switch lower(Args.StitchMethod)
 %     case {'scalar'}
