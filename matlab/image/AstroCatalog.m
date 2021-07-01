@@ -602,6 +602,8 @@ classdef AstroCatalog < AstroTable
             PWD = pwd;
             cd(DataSampleDir);
             
+            % constructor
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
             [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC);
             if AC(1).ColX~=AC(2).ColX
@@ -612,6 +614,7 @@ classdef AstroCatalog < AstroTable
             end
             
             % sort
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog sort');
             AC(1).SortByCol = AC(1).ColY;
             AC(2).SortByCol = 'DEJ2000';
             AC.sortrows(AC(1).ColY);
@@ -620,6 +623,7 @@ classdef AstroCatalog < AstroTable
             end
             
             % sort using the SortByCol property
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog SortByCol');
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
             AC.getCooTypeAuto;
             AC(1).SortByCol = AC(1).ColY;
@@ -630,6 +634,7 @@ classdef AstroCatalog < AstroTable
             end
             
             % bounding circle
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog boundingCircle');
             AC=AstroCatalog({'asu.fit'},'HDU',2);
             [Result] = imProc.match.coneSearch(AC, [1 1], 'Radius',3600.*10);
             [CircleX, CircleY, CircleRadius] = boundingCircle(Result);
@@ -638,21 +643,27 @@ classdef AstroCatalog < AstroTable
             end
             
             % cropXY
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog cropXY');
             AC = AstroCatalog({rand(100,3).*100}, 'ColNames',{'XWIN','YWIN','Flux'});
             Result = cropXY(AC, [1 50 1 50]);
             Result = cropXY(AC, [81 100 41 70],'AddX',{'Flux'});
             Result = cropXY(AC, [81 100 41 70; 1 50 1 50]); % multiple crops of a single catalog
 
+            % getLonLat
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog getLonLat');
             AC=AstroCatalog({'asu.fit'},'HDU',2);
             [Lon,Lat] = getLonLat(AC);
             [Lon,Lat] = getLonLat(AC,'rad');
             
+            % getXY
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog getXY');
             AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});
             [X,Y] = getXY(AC);
 
-            
-            C=catsHTM.cone_search('GAIADR2',1,1,100,'OutType','astrocatalog');
-            [RA, Dec, PM_RA, PM_Dec, Plx, RV] = getRADecPM(C)
+            % cone_search? what is this?
+%             io.msgLog(LogLevel.Test, 'testing AstroCatalog/catsHTM cone_search?');
+%             C=catsHTM.cone_search('GAIADR2',1,1,100,'OutType','astrocatalog'); % <--- doesn't work
+%             [RA, Dec, PM_RA, PM_Dec, Plx, RV] = getRADecPM(C)
             
             
 %             % TRANSFERED!!
@@ -684,9 +695,16 @@ classdef AstroCatalog < AstroTable
             
             
             % plot
-            AC=AstroCatalog({'asu.fit'},'HDU',2);
-            AC.getCooTypeAuto
-            AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
+%             io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
+%             AC=AstroCatalog({'asu.fit'},'HDU',2);
+%             AC.getCooTypeAuto
+%             io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
+%             AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
+            
+            % convertCooUnits
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog convertCooUnits');
+            AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2);
+            AC.convertCooUnits('deg')
 
             cd(PWD);
             Result = true;
