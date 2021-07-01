@@ -674,12 +674,14 @@ classdef MatchedSources < Component
             % unitTest for MatchedSources class
             
             % write
+            io.msgLog(LogLevel.Test, 'testing MatchedSources write');
             MS = MatchedSources;
             MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
             MS.write('try.hdf5')
             delete('try.hdf5');
             
             % read
+            io.msgLog(LogLevel.Test, 'testing MatchedSources read');
             clear MS
             MS = MatchedSources;
             MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
@@ -692,6 +694,7 @@ classdef MatchedSources < Component
             delete('try.hdf5');
 
             % addMatrix
+            io.msgLog(LogLevel.Test, 'testing MatchedSources addMatrix');
             MS = MatchedSources;
             MS.addMatrix(rand(100,200),'FLUX')
             MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
@@ -700,6 +703,7 @@ classdef MatchedSources < Component
             MS.addMatrix(St);
             
             % deleteMatrix
+            io.msgLog(LogLevel.Test, 'testing MatchedSources deleteMatrix');
             MS.deleteMatrix('X2')
                         
             % match sources for addMatrix:
@@ -719,12 +723,14 @@ classdef MatchedSources < Component
             MS.addMatrix(MC,{'RA','Dec'});
             
             % summary
+            io.msgLog(LogLevel.Test, 'testing MatchedSources summary');
             MS=MatchedSources;                
             MS.addMatrix(rand(100,200),'FLUX');
             MS.summary
             MS.summary('FLUX')
             
             % design matrix
+            io.msgLog(LogLevel.Test, 'testing MatchedSources designMatrix');
             clear MS
             MS = MatchedSources;
             MS.addMatrix(rand(100,200),'FLUX')
@@ -736,6 +742,7 @@ classdef MatchedSources < Component
             [H, Y, ErrY] = MS.designMatrix({[],'X','Y'},{[], 1, 2},'MAG',1, 'MAG',2);
 
             % notNanSources
+            io.msgLog(LogLevel.Test, 'testing MatchedSources notNanSources');
             MS = MatchedSources;
             MS.addMatrix(rand(100,200),'FLUX')
             MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
@@ -747,7 +754,7 @@ classdef MatchedSources < Component
                 error('Problem with notNanSources');
             end
             Flag = notNanSources(MS, []); % use all fields
-            
+            io.msgLog(LogLevel.Test, 'testing MatchedSources notNanEpochs');
             MS = MatchedSources;
             MS.addMatrix(rand(100,200),'FLUX')
             MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
@@ -757,14 +764,20 @@ classdef MatchedSources < Component
             Flag = notNanEpochs(MS, 'FLUX');
             Flag = notNanEpochs(MS, []); % use all fields
 
-            
+            % getMatrix
+            io.msgLog(LogLevel.Test, 'testing MatchedSources getMatrix');
+            MS = MatchedSources; 
+            MS.Data.FLUX = rand(100,200);
+            A = MS.getMatrix('FLUX');
             
             % plotRMS
+            io.msgLog(LogLevel.Test, 'testing MatchedSources plotRMS');
             MS = MatchedSources;
             MS.addMatrix(rand(100,200),'MAG_PSF');
             MS.plotRMS
             MS.plotRMS('BinSize',0.1)
             
+            io.msgStyle(LogLevel.Test, '@passed', 'MatchedSources test passed');
             Result = true;
         end
     end

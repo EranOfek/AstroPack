@@ -925,14 +925,17 @@ classdef Tran2D < handle
             % unitTest for Tran2D class
             % Example: Tran2D.unitTest
             
+            io.msgLog(LogLevel.Test, 'testing Tran2D constructors');
             T=Tran2D;
             
             TC = Tran2D;
             TC = Tran2D(2);
             TC = Tran2D('cheby1_3_c1','cheby1_2');
             
+            io.msgLog(LogLevel.Test, 'testing Tran2D design_matrix');
             [Hx,Hy]=design_matrix(T,rand(10,2));
             
+            io.msgLog(LogLevel.Test, 'testing Tran2D nfuns');
             [NfunX,NfunY]=nfuns(T);
             Ans=isParKnown(T);
             TC=Tran2D; TC.ParY=ones(1,13);  TC.ParX=ones(1,13); 
@@ -943,6 +946,7 @@ classdef Tran2D < handle
             TC.ParY(1) = 2; TC.ParY(3)=1.01; TC.ParY(5)=0.01; TC.ParY(8)=0.001;
             XY = [1 2; 1.1 0.2; 0.3 2.1];
             
+            io.msgLog(LogLevel.Test, 'testing Tran2D forward, backward');
             [Xf,Yf]=forward(TC,XY);
             [X,Y]=backward(TC,[Xf, Yf]);
             
@@ -951,20 +955,30 @@ classdef Tran2D < handle
             end
             
             % symbolic representations
+            io.msgLog(LogLevel.Test, 'testing Tran2D functionals2simPoly');
             TC=Tran2D;
             [CX,CY,PX,PY]=Tran2D.functionals2symPoly(TC.ColCell,TC.FunX,TC.FunY,TC.FunNX,TC.FunNY);
-            
+            io.msgLog(LogLevel.Test, 'testing Tran2D symPoly');
             [CX,CY,PX,PY]=symPoly(TC);
             TC = Tran2D;
             TC.symPoly;
             TC.ParX = ones(1,13);
             TC.ParY = ones(1,13);
             TC.polyCoef;
-
+            io.msgLog(LogLevel.Test, 'testing Tran2D symPoly2deg');
             [PolyX_Xdeg,PolyX_Ydeg,PolyY_Xdeg,PolyY_Ydeg]=symPoly2deg(TC);
             TC.ParX = ones(1,13);
             TC.ParY = ones(1,13);
             TC.polyRep;
+            
+            % selected_trans
+            io.msgLog(LogLevel.Test, 'testing Tran2D selected_trans');
+            [FunX,FunY,ColCell]=Tran2D.selected_trans('cheby1_3_c1');
+            
+            % tran2d2wcs
+%             TC = Tran2D('cheby1_3_c1');
+%             W=Tran2D2wcsCl(TC); <-- doesn't work
+            io.msgStyle(LogLevel.Test, '@passed', 'Tran2D test passed');
             
             Result = true;
             

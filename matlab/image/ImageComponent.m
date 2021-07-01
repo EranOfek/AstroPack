@@ -1625,21 +1625,24 @@ classdef ImageComponent < Component
             PWD = pwd;
             cd(DataSampleDir);
             
+            io.msgLog(LogLevel.Test, 'testing ImageComponent needMapKey');
             IC = ImageComponent; 
             IC.needMapKey();
             assert(~isempty(IC.MapKey));
             
             % @Chen: Moved here from Component.m
+            % convert2class
+            io.msgLog(LogLevel.Test, 'testing ImageComponent convert2class')
             IC=ImageComponent; 
             IC.Image = 1;
             AI=convert2class(IC,{'Image'},{'Image'},@AstroImage);
             AI=convert2class(IC,{'Data'},{'ImageData.Data'},@AstroImage,'UseEval',true);
-
+            
+            % data2array
+            io.msgLog(LogLevel.Test, 'testing ImageComponent data2array');
             IC= ImageComponent({1, 2});
             [A] = data2array(IC,'Image');
             [A,B] = data2array(IC,{'Image','Data'});
-
-
             
             Size = [2 2];
             IC = ImageComponent(Size);
@@ -1653,20 +1656,24 @@ classdef ImageComponent < Component
             assert(all(size(IC(1).Image)==[Npix Npix].*Scale), 'Image rescaling is not consistent');
             
             % Read all FITS files
+            io.msgLog(LogLevel.Test, 'testing ImageComponent fits reader');
             IC = ImageComponent('*.fits');
             
-            % size and empty            
+            % size and empty   
+            io.msgLog(LogLevel.Test, 'testing ImageComponent sizeImage');
             IC = ImageComponent({rand(0,1), rand(10,12)});
             [Nx, Ny] = IC.sizeImage;
+            io.msgLog(LogLevel.Test, 'testing ImageComponent isemptyImage');
             Res = IC.isemptyImage();
             assert(all(Res == [1, 0]));
             
             % funUnary
-            io.msgLog(LogLevel.Test, 'ImageComponent funUnary')
+            io.msgLog(LogLevel.Test, 'testing ImageComponent funUnary');
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
             R = IC.funUnary(@sin);
             
             % funUnaryScalar
+            io.msgLog(LogLevel.Test, 'testing ImageComponent funUnaryScalar');
             IC = ImageComponent({ones(10,10), zeros(5,4)}, 'Scale',5);
             R = IC.funUnary(@sin);
             
@@ -1679,6 +1686,7 @@ classdef ImageComponent < Component
             IC.funUnary(@tanh,'CCDSEC',[1 2 1 3],'OutOnlyCCDSEC',true);
                  
             % funBinary
+            io.msgLog(LogLevel.Test, 'testing ImageComponent funBinary');
             IC = ImageComponent({tools.rand.utrandi(10, 10)});
             IC2 = ImageComponent({tools.rand.utrandi(10,10)});
             
@@ -1731,6 +1739,7 @@ classdef ImageComponent < Component
             end
             
             % funUnaryScalar
+            io.msgLog(LogLevel.Test, 'testing ImageComponent funUnaryScalar');
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
             R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'});
             IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5);
@@ -1772,6 +1781,7 @@ classdef ImageComponent < Component
             
             
             % replace
+            io.msgLog(LogLevel.Test, 'testing ImageComponent replace');
             IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
             [Obj,ObjReplaced] = replace(IC, [0.2 1], 0.1);
             if any(Obj(1).Image>0.2)
@@ -1787,13 +1797,16 @@ classdef ImageComponent < Component
             [Obj,ObjReplaced] = replace(IC, [0.2 1;0 0.2], [0.5 0.1]);
             
             % imresize - output is a matrix
+            io.msgLog(LogLevel.Test, 'testing ImageComponent imresize');
             Result = imresize(IC, 2);
             
             % imrotate
+            io.msgLog(LogLevel.Test, 'testing ImageComponent imrotate');
             IC=ImageComponent({rand(10,10)});
             IC.imrotate(10);
             
             % crop
+            io.msgLog(LogLevel.Test, 'testing ImageComponent crop');
             IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
             % crop multiple images with a single crop
             Res = crop(IC,[1 2 1 3]);
@@ -1803,10 +1816,12 @@ classdef ImageComponent < Component
             Res = crop(IC(1:2),[1 2 1 3; 1 2 1 2]);
             
             % image2subimages
+            io.msgLog(LogLevel.Test, 'testing ImageComponent image2subimages');
             IC=ImageComponent; IC.Image=rand(1000,1000);
             [Result,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = image2subimages(IC,[256 256]);
             
             % cutouts around selected positions in a single image
+            io.msgLog(LogLevel.Test, 'testing ImageComponent cutouts');
             IC = ImageComponent({rand(1000,1000)});
             XY = rand(10000,2).*900 + 50;
             Cube = cutouts(IC, XY);
@@ -1816,6 +1831,26 @@ classdef ImageComponent < Component
             Cube = cutouts(IC, XY,'Shift',true);
             Cube = cutouts(IC, XY,'Shift',true,'IsCircFilt',true);
             
+            % imageComponent2AstroImage
+            io.msgLog(LogLevel.Test, 'testing ImageComponent imageComponent2AstroImage');
+            IC = ImageComponent({ones(3,3), zeros(3,3)});
+            AI = IC.imageComponent2AstroImage;
+            
+            % cast
+            io.msgLog(LogLevel.Test, 'testing ImageComponent cast');
+            IC = ImageComponent({rand(10,10)});
+            cast(IC,'single');
+            
+            % background
+            io.msgLog(LogLevel.Test, 'testing ImageComponent background');
+            IC = ImageComponent({100+randn(1000,1000), 50+randn(100,100)});
+            [B,V] = background(IC);
+            
+            % subtractBack
+            io.msgLog(LogLevel.Test, 'testing ImageComponent subtractBack');
+            IC = ImageComponent({100+randn(1000,1000), 50+randn(100,100)});
+            [B,V] = background(IC);
+            subtractBack(IC, B);
             
             cd(PWD);
             
