@@ -14,9 +14,9 @@ function Result = astrometryCore(Obj, Args)
         Args.Con                          = {};
         
         Args.RefColNameMag                = {'Mag_BP','Mag'};
-        Args.RefRangeMag                  = [12 19];
+        Args.RefRangeMag                  = [12 19.5];
         Args.RefColNamePlx                = {'Plx'};
-        Args.RefRangePlx                  = [-Inf 10];
+        Args.RefRangePlx                  = [-Inf 50];
         
         Args.EpochOut                     = [];
         Args.argsProperMotion cell        = {};
@@ -131,17 +131,14 @@ function Result = astrometryCore(Obj, Args)
     Nmatches = sum(Flag);
     
     % DEBUGING
-    % show table of [X, Y, RA, Dec] of matched sources
-    
-    
+    % show table of [X, Y, RA, Dec] of matched sources    
     % Note that XPEAK/YPEAK and X/Y are different because of the shift
     % applied (shift coo to image center)
-    
-    XY = getCol(MatchedCat,{'XPEAK','YPEAK','X','Y'});   % X/Y in image
-    XY = XY(Flag,:);
-    RF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,1),'r','SH');
-    DF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,2),'r','SD');
-    T  = table(XY(:,1),XY(:,2), XY(:,3), XY(:,4), RF, DF)
+    %XY = getCol(MatchedCat,{'XPEAK','YPEAK','X','Y'});   % X/Y in image
+    %XY = XY(Flag,:);
+    %RF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,1),'r','SH');
+    %DF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,2),'r','SD');
+    %T  = table(XY(:,1),XY(:,2), XY(:,3), XY(:,4), RF, DF)
     
     % Fit transformation
     %[Param, Res] = imProc.trans.fitTransformation(TransformedCat, FilteredProjAstCat, 'Tran',Args.Tran);
@@ -160,6 +157,9 @@ function Result = astrometryCore(Obj, Args)
     
     
     % Generate WCS
-    Result = [];
+    Result.Tran       = Tran;
+    Result.Res        = Res;
+    Result.ResPattern = ResPattern;
+    
     
 end

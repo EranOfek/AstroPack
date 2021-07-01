@@ -147,9 +147,9 @@ if size(Cat,1)~=size(Ref,1)
 end
 
 % clean Cat and Ref from NaN's
-FlagGood = ~isnan(sum(Cat,2)) & ~isnan(sum(Ref,2));
-Cat      = Cat(FlagGood,:);
-Ref      = Ref(FlagGood,:);
+%FlagGood = ~isnan(sum(Cat,2)) & ~isnan(sum(Ref,2));
+%Cat      = Cat(FlagGood,:);
+%Ref      = Ref(FlagGood,:);
 
 
 Nsrc = size(Ref,1);
@@ -158,7 +158,6 @@ if Nsrc~=size(Cat,1)
     error('Number of sources in Ref and Cat must be identical');
 end
 
-InPar.ErrPos = InPar.ErrPos.*ones(Nsrc,1);
 
 RefX = Ref(:,InPar.ColRefX);
 RefY = Ref(:,InPar.ColRefY);
@@ -280,7 +279,15 @@ end
 % fitting
 Iter = 0;
 % fit all sources in first iteration
+FlagSrc = ~isnan(sum(Hx,2)) & ~isnan(sum(Hy,2)) & ~isnan(CatX) & ~isnan(CatY);
+Hx      = Hx(FlagSrc,:);
+Hy      = Hy(FlagSrc,:);
+CatX    = CatX(FlagSrc);
+CatY    = CatY(FlagSrc);
+Nsrc    = numel(CatX);
 FlagSrc = true(Nsrc,1);
+InPar.ErrPos = InPar.ErrPos.*ones(Nsrc,1);
+
 
 % formal error only
 Var     = InPar.ErrPos.^2;
