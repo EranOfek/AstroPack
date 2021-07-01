@@ -14,6 +14,7 @@ classdef Db < Component
     methods
         % Constructor    
         function Obj = Db()
+            Obj.setName('Db');
             Obj.needUuid();
             Obj.msgLog(LogLevel.Debug, 'Db created: %s', Obj.Uuid);
         end
