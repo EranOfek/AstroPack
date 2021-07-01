@@ -695,11 +695,11 @@ classdef AstroCatalog < AstroTable
             
             
             % plot
-%             io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
-%             AC=AstroCatalog({'asu.fit'},'HDU',2);
-%             AC.getCooTypeAuto
-%             io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
-%             AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
+             io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
+             AC=AstroCatalog({'asu.fit'},'HDU',2);
+             AC.getCooTypeAuto
+             io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
+             AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
             
             % convertCooUnits
             io.msgLog(LogLevel.Test, 'testing AstroCatalog convertCooUnits');
