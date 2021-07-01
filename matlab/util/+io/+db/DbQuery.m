@@ -574,6 +574,7 @@ classdef DbQuery < Component
 
         function Result = insertRecord(Obj, TableName, Rec, Args)
             % Insert DbRecord or struct fields to specified table
+            % Todo: support struct array
             arguments
                 Obj
                 TableName

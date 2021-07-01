@@ -1,11 +1,11 @@
 object DbBrowserForm: TDbBrowserForm
-  Left = 273
-  Height = 702
-  Top = 286
-  Width = 1154
+  Left = 185
+  Height = 814
+  Top = 198
+  Width = 1263
   Caption = 'DB Browser'
-  ClientHeight = 682
-  ClientWidth = 1154
+  ClientHeight = 794
+  ClientWidth = 1263
   Menu = MainMenu
   OnCreate = FormCreate
   Position = poScreenCenter
@@ -14,60 +14,67 @@ object DbBrowserForm: TDbBrowserForm
     Left = 0
     Height = 70
     Top = 106
-    Width = 1154
+    Width = 1263
     Align = alTop
+    ParentFont = False
     TabOrder = 0
   end
   object PanelLeft: TPanel
     Left = 0
-    Height = 413
+    Height = 520
     Top = 176
     Width = 64
     Align = alLeft
+    ParentFont = False
     TabOrder = 1
   end
   object PanelBottom: TPanel
     Left = 0
     Height = 70
-    Top = 589
-    Width = 1154
+    Top = 696
+    Width = 1263
     Align = alBottom
+    ParentFont = False
     TabOrder = 2
   end
   object Panel4: TPanel
     Left = 64
-    Height = 413
+    Height = 520
     Top = 176
-    Width = 1090
+    Width = 1199
     Align = alClient
     BorderWidth = 4
     Caption = 'Panel4'
-    ClientHeight = 413
-    ClientWidth = 1090
+    ClientHeight = 520
+    ClientWidth = 1199
+    ParentFont = False
     TabOrder = 3
     object PageControl1: TPageControl
       Left = 5
-      Height = 403
+      Height = 510
       Top = 5
-      Width = 1080
-      ActivePage = TabSheetXlsxToSQL
+      Width = 1189
+      ActivePage = TabSheetDbBrowser
       Align = alClient
-      TabIndex = 1
+      ParentFont = False
+      TabIndex = 0
       TabOrder = 0
       object TabSheetDbBrowser: TTabSheet
         Caption = 'Database Browser'
-        ClientHeight = 375
-        ClientWidth = 1072
+        ClientHeight = 482
+        ClientWidth = 1181
+        ParentFont = False
         object Panel10: TPanel
           Left = 0
-          Height = 375
+          Height = 482
           Top = 0
           Width = 210
           Align = alLeft
           BorderWidth = 4
           Caption = 'Panel10'
-          ClientHeight = 375
+          ClientHeight = 482
           ClientWidth = 210
+          ParentFont = False
           TabOrder = 0
           object Panel11: TPanel
             Left = 5
@@ -77,6 +84,7 @@ object DbBrowserForm: TDbBrowserForm
             Align = alTop
             ClientHeight = 147
             ClientWidth = 200
+            ParentFont = False
             TabOrder = 0
             object ComboBoxDbName: TComboBox
               Left = 8
@@ -85,6 +93,7 @@ object DbBrowserForm: TDbBrowserForm
               Width = 172
               ItemHeight = 15
               OnChange = ComboBoxDbNameChange
+              ParentFont = False
               TabOrder = 0
               Text = 'ComboBoxDbName'
             end
@@ -95,26 +104,29 @@ object DbBrowserForm: TDbBrowserForm
               Width = 81
               Caption = 'Database name'
               ParentColor = False
+              ParentFont = False
             end
           end
           object Panel12: TPanel
             Left = 5
-            Height = 218
+            Height = 325
             Top = 152
             Width = 200
             Align = alClient
             BorderWidth = 4
-            ClientHeight = 218
+            ClientHeight = 325
             ClientWidth = 200
+            ParentFont = False
             TabOrder = 1
             object ListBoxDbTables: TListBox
               Left = 5
-              Height = 173
+              Height = 280
               Top = 40
               Width = 190
               Align = alClient
               ItemHeight = 0
               OnClick = ListBoxDbTablesClick
+              ParentFont = False
               ScrollWidth = 133
               TabOrder = 0
             end
@@ -125,68 +137,75 @@ object DbBrowserForm: TDbBrowserForm
               Width = 190
               Align = alTop
               Caption = 'Tables'
+              ParentFont = False
               TabOrder = 1
             end
           end
         end
         object Panel13: TPanel
           Left = 210
-          Height = 375
+          Height = 482
           Top = 0
-          Width = 862
+          Width = 971
           Align = alClient
-          ClientHeight = 375
-          ClientWidth = 862
+          ClientHeight = 482
+          ClientWidth = 971
+          ParentFont = False
           TabOrder = 1
           object Panel14: TPanel
             Left = 1
             Height = 63
             Top = 1
-            Width = 860
+            Width = 969
             Align = alTop
+            ParentFont = False
             TabOrder = 0
           end
           object DBGrid1: TDBGrid
             Left = 1
-            Height = 310
+            Height = 417
             Top = 64
-            Width = 860
+            Width = 969
             Align = alClient
             Color = clWindow
             Columns = <>
             DataSource = DataSource1
+            ParentFont = False
             TabOrder = 1
           end
         end
       end
       object TabSheetXlsxToSQL: TTabSheet
         Caption = 'Convert XLSX to SQL'
-        ClientHeight = 375
-        ClientWidth = 1072
+        ClientHeight = 482
+        ClientWidth = 1181
+        ParentFont = False
         object Panel8: TPanel
           Left = 0
-          Height = 231
+          Height = 338
           Top = 144
-          Width = 1072
+          Width = 1181
           Align = alClient
           BorderWidth = 4
           Caption = 'Panel8'
-          ClientHeight = 231
-          ClientWidth = 1072
+          ClientHeight = 338
+          ClientWidth = 1181
           ParentColor = False
+          ParentFont = False
           TabOrder = 0
           object Memo1: TMemo
             Left = 5
-            Height = 221
+            Height = 328
             Top = 5
-            Width = 1062
+            Width = 1171
             Align = alClient
-            Font.CharSet = OEM_CHARSET
+            Font.CharSet = ANSI_CHARSET
             Font.Color = clBlack
             Font.Height = -12
-            Font.Name = 'Terminal'
-            Font.Pitch = fpFixed
+            Font.Name = 'System'
+            Font.Pitch = fpVariable
             Font.Quality = fqDraft
+            Font.Style = [fsBold]
             ParentFont = False
             ScrollBars = ssAutoBoth
             TabOrder = 0
@@ -196,10 +215,11 @@ object DbBrowserForm: TDbBrowserForm
           Left = 0
           Height = 144
           Top = 0
-          Width = 1072
+          Width = 1181
           Align = alTop
           ClientHeight = 144
-          ClientWidth = 1072
+          ClientWidth = 1181
+          ParentFont = False
           TabOrder = 1
           object Label3: TLabel
             Left = 37
@@ -208,12 +228,13 @@ object DbBrowserForm: TDbBrowserForm
             Width = 80
             Caption = 'Intput XLSX file'
             ParentColor = False
+            ParentFont = False
           end
           object Label5: TLabel
             Left = 38
             Height = 15
             Top = 66
-            Width = 207
+            Width = 208
             Caption = 'Export Google Sheet document as XLSX'
             Color = clBtnFace
             Font.Color = clBlue
@@ -227,6 +248,7 @@ object DbBrowserForm: TDbBrowserForm
             Top = 38
             Width = 712
             ItemHeight = 15
+            ParentFont = False
             TabOrder = 0
           end
           object BtnSelectXlsxFile: TBitBtn
@@ -236,6 +258,7 @@ object DbBrowserForm: TDbBrowserForm
             Width = 32
             Caption = '...'
             OnClick = BtnSelectXlsxFileClick
+            ParentFont = False
             TabOrder = 1
           end
           object BtnConvertXlsToSql: TBitBtn
@@ -245,6 +268,7 @@ object DbBrowserForm: TDbBrowserForm
             Width = 115
             Caption = 'Convert XLSX'
             OnClick = BtnConvertXlsToSqlClick
+            ParentFont = False
             TabOrder = 2
           end
           object BtnCreateDb: TBitBtn
@@ -254,6 +278,7 @@ object DbBrowserForm: TDbBrowserForm
             Width = 112
             Caption = 'Create Database'
             OnClick = BtnCreateDbClick
+            ParentFont = False
             TabOrder = 3
           end
           object Label6: TLabel
@@ -263,6 +288,7 @@ object DbBrowserForm: TDbBrowserForm
             Width = 33
             Caption = 'Folder'
             ParentColor = False
+            ParentFont = False
           end
           object ComboXlsFolder: TComboBox
             Left = 168
@@ -270,6 +296,7 @@ object DbBrowserForm: TDbBrowserForm
             Top = 8
             Width = 712
             ItemHeight = 15
+            ParentFont = False
             TabOrder = 4
           end
         end
@@ -278,6 +305,7 @@ object DbBrowserForm: TDbBrowserForm
         Caption = 'New Page'
         ClientHeight = 375
         ClientWidth = 1072
+        ParentFont = False
         object Label4: TLabel
           Left = 37
           Height = 15
@@ -285,6 +313,7 @@ object DbBrowserForm: TDbBrowserForm
           Width = 72
           Caption = 'Output folder'
           ParentColor = False
+          ParentFont = False
           Visible = False
         end
         object BtnSelectOutputSqlFolder: TBitBtn
@@ -294,6 +323,7 @@ object DbBrowserForm: TDbBrowserForm
           Width = 32
           Caption = '...'
           OnClick = BtnSelectOutputSqlFolderClick
+          ParentFont = False
           TabOrder = 0
           Visible = False
         end
@@ -303,6 +333,7 @@ object DbBrowserForm: TDbBrowserForm
           Top = 69
           Width = 712
           ItemHeight = 15
+          ParentFont = False
           TabOrder = 1
           Visible = False
         end
@@ -311,9 +342,9 @@ object DbBrowserForm: TDbBrowserForm
   end
   object StatusBar: TStatusBar
     Left = 0
-    Height = 23
-    Top = 659
-    Width = 1154
+    Height = 28
+    Top = 766
+    Width = 1263
     Panels = <    
       item
         Width = 200
@@ -324,13 +355,14 @@ object DbBrowserForm: TDbBrowserForm
       item
         Width = 50
       end>
+    ParentFont = False
     SimplePanel = False
   end
   object PanelLogo: TPanel
     Left = 2
     Height = 102
     Top = 2
-    Width = 1150
+    Width = 1259
     Align = alTop
     BorderSpacing.Left = 2
     BorderSpacing.Top = 2
@@ -338,13 +370,14 @@ object DbBrowserForm: TDbBrowserForm
     BorderSpacing.Bottom = 2
     BorderStyle = bsSingle
     ClientHeight = 98
-    ClientWidth = 1146
+    ClientWidth = 1255
+    ParentFont = False
     TabOrder = 5
     object ImageLogo: TImage
       Left = 1
       Height = 96
       Top = 1
-      Width = 1144
+      Width = 1253
       Align = alClient
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963FD6B050089504E47

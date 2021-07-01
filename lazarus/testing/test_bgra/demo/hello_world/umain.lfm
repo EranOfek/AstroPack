@@ -1,0 +1,20 @@
+object frmMain: TfrmMain
+  Left = 355
+  Height = 240
+  Top = 119
+  Width = 320
+  Caption = 'Hello World from BGRABitmap'
+  Color = clBlack
+  OnClick = FormClick
+  OnCreate = FormCreate
+  OnPaint = FormPaint
+  Position = poScreenCenter
+  LCLVersion = '1.9.0.0'
+  object Timer1: TTimer
+    Interval = 15
+    OnTimer = Timer1Timer
+    OnStartTimer = Timer1StartTimer
+    Left = 35
+    Top = 18
+  end
+end

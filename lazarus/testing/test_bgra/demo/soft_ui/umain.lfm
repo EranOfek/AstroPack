@@ -1,0 +1,45 @@
+object frmSoftUI: TfrmSoftUI
+  Left = 464
+  Height = 518
+  Top = 119
+  Width = 503
+  Caption = 'Neumorphic Interfaces (Soft UI)'
+  ClientHeight = 518
+  ClientWidth = 503
+  Color = 15986924
+  OnCreate = FormCreate
+  LCLVersion = '2.1.0.0'
+  object BGRADropShadowControl: TBGRAGraphicControl
+    Left = 27
+    Height = 176
+    Top = 24
+    Width = 206
+    OnRedraw = BGRADropShadowControlRedraw
+    Color = clWhite
+    ColorOpacity = 128
+    Alignment = taCenter
+    Caption = 'DROP SHADOW'
+  end
+  object BGRAInnerShadowControl: TBGRAGraphicControl
+    Left = 256
+    Height = 176
+    Top = 24
+    Width = 206
+    OnRedraw = BGRAInnerShadowControlRedraw
+    Color = clWhite
+    ColorOpacity = 128
+    Alignment = taCenter
+    Caption = 'INNER SHADOW'
+  end
+  object BGRAMixedShadow: TBGRAGraphicControl
+    Left = 27
+    Height = 176
+    Top = 224
+    Width = 206
+    OnRedraw = BGRAMixedShadowRedraw
+    Color = clWhite
+    ColorOpacity = 128
+    Alignment = taCenter
+    Caption = 'MIXED SHADOW'
+  end
+end

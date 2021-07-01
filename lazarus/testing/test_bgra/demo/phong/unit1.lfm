@@ -1,0 +1,36 @@
+object Form1: TForm1
+  Left = 433
+  Height = 379
+  Top = 119
+  Width = 571
+  Caption = 'Form1'
+  ClientHeight = 379
+  ClientWidth = 571
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '2.1.0.0'
+  object BGRAVirtualScreen1: TBGRAVirtualScreen
+    Left = 24
+    Height = 246
+    Top = 95
+    Width = 246
+    OnRedraw = BGRAVirtualScreen1Redraw
+    Alignment = taLeftJustify
+    Caption = 'BGRAVirtualScreen1'
+    Color = clWhite
+    ParentColor = False
+    TabOrder = 0
+  end
+  object BGRAVirtualScreen2: TBGRAVirtualScreen
+    Left = 280
+    Height = 246
+    Top = 95
+    Width = 246
+    OnRedraw = BGRAVirtualScreen2Redraw
+    Alignment = taLeftJustify
+    Caption = 'BGRAVirtualScreen2'
+    Color = clWhite
+    ParentColor = False
+    TabOrder = 1
+  end
+end

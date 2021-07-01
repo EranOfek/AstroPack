@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="atom"/>
+      <Scaled Value="True"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <XPManifest>
+        <DpiAware Value="True"/>
+      </XPManifest>
+      <Icon Value="0"/>
+      <Resources Count="11">
+        <Resource_0 FileName="png\0-index-logo.png" Type="RCDATA" ResourceName="0"/>
+        <Resource_1 FileName="png\1-index-portal-red-semi.png" Type="RCDATA" ResourceName="1"/>
+        <Resource_2 FileName="png\2-index-portal-red.png" Type="RCDATA" ResourceName="2"/>
+        <Resource_3 FileName="png\3-index-portal-orange-semi.png" Type="RCDATA" ResourceName="3"/>
+        <Resource_4 FileName="png\4-index-portal-orange.png" Type="RCDATA" ResourceName="4"/>
+        <Resource_5 FileName="png\5-index-portal-yellow-semi.png" Type="RCDATA" ResourceName="5"/>
+        <Resource_6 FileName="png\6-index-portal-yellow.png" Type="RCDATA" ResourceName="6"/>
+        <Resource_7 FileName="png\7-index-portal-green-semi.png" Type="RCDATA" ResourceName="7"/>
+        <Resource_8 FileName="png\8-index-portal-green.png" Type="RCDATA" ResourceName="8"/>
+        <Resource_9 FileName="png\9-index-portal-blue-semi.png" Type="RCDATA" ResourceName="9"/>
+        <Resource_10 FileName="png\10-index-portal-blue.png" Type="RCDATA" ResourceName="10"/>
+      </Resources>
+    </General>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes Count="0"/>
+    </RunParams>
+    <RequiredPackages Count="2">
+      <Item1>
+        <PackageName Value="bgracontrols"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="LCL"/>
+      </Item2>
+    </RequiredPackages>
+    <Units Count="3">
+      <Unit0>
+        <Filename Value="atom.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="umain.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmMain"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="uatom.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit2>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="atom"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Linking>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True"/>
+        </Win32>
+      </Options>
+    </Linking>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

@@ -1,0 +1,30 @@
+object Form1: TForm1
+  Left = 480
+  Height = 400
+  Top = 144
+  Width = 640
+  Caption = 'Fractal Circles'
+  ClientHeight = 400
+  ClientWidth = 640
+  OnCreate = FormCreate
+  Position = poScreenCenter
+  LCLVersion = '2.0.10.0'
+  object BGRAVirtualScreen1: TBGRAVirtualScreen
+    Left = 0
+    Height = 400
+    Top = 0
+    Width = 640
+    OnRedraw = BGRAVirtualScreen1Redraw
+    Align = alClient
+    Alignment = taLeftJustify
+    Color = clWhite
+    ParentColor = False
+    TabOrder = 0
+  end
+  object Timer1: TTimer
+    Interval = 30
+    OnTimer = Timer1Timer
+    Left = 57
+    Top = 9
+  end
+end
