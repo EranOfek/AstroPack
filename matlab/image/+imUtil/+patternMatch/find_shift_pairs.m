@@ -1,4 +1,4 @@
-function Res=find_shift_pairs(Cat,Ref,varargin)
+function [Res,H2]=find_shift_pairs(Cat,Ref,varargin)
 % find best X/Y shift between two catalogs from all pairs differences
 % Package: imUtil.patternMatch
 % Description: Find best X/Y shift between two catalogs that contains [X,Y]
