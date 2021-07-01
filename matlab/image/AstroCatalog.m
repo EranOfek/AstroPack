@@ -695,18 +695,26 @@ classdef AstroCatalog < AstroTable
             
             
             % plot
-             io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
-             AC=AstroCatalog({'asu.fit'},'HDU',2);
-             AC.getCooTypeAuto
-             io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
-             AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            AC.getCooTypeAuto;
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
+            AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
             
             % convertCooUnits
             io.msgLog(LogLevel.Test, 'testing AstroCatalog convertCooUnits');
             AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2);
-            AC.convertCooUnits('deg')
+            AC.convertCooUnits('deg');
+            
+            % getCoo
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog getCoo');
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            [RA, Dec] = AC.getCoo('deg');
+            [RADec]   = AC.getCoo('rad');
 
             cd(PWD);
+            
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog test passed')
             Result = true;
         end
     end
