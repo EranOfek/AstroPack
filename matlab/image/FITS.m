@@ -695,7 +695,7 @@ classdef FITS < handle
 %             DefV.Append             = false;  % true for multi extension
 %             DefV.OverWrite          = false;
 %             DefV.WriteTime          = false;
-%             InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+%             Args = InArg.populate_keyval(DefV,varargin,mfilename);
 
             % Set FITS DataType
             switch Args.DataType
@@ -818,7 +818,7 @@ classdef FITS < handle
         end % end write
         
         % read to SIM
-        function Sim=read2sim(Images,varargin)
+        function Sim=read2sim(Images,Args)
             % Description: Read FITS images into SIM object.
             %              Can read N-dimensional images.
             %              Can also read multi extension files.
@@ -851,58 +851,61 @@ classdef FITS < handle
             %          S=FITS.read2sim('Image,fits','CCDSEC',[1 10 1 100]);
             % Reliable: 2
             
+            arguments
+                Images
+                Args.HDUnum               = 1;
+                Args.CCDSEC               = [];  % section to read
+                Args.Sim                  = [];  % read into existing SIM
+                Args.ExecField            = SIM.ImageField;   % read into field
+                Args.ReadHead             = true;
+                Args.HDUnum               = 1;
+                Args.PopWCS(1,1) logical  = true;
+            end
+            
             HeaderField = HEAD.HeaderField;
             FileField   = SIM.FileNameField;
             WCSField    = 'WCS';
             
-            DefV.HDUnum               = 1;
-            DefV.CCDSEC               = [];  % section to read
-            DefV.Sim                  = [];  % read into existing SIM
-            DefV.ExecField            = SIM.ImageField;   % read into field
-            DefV.ReadHead             = true;
-            DefV.HDUnum               = 1;
-            DefV.PopWCS               = true;
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
-
+            
             [~,ListIm] = io.files.create_list(Images,NaN);
             Nim = numel(ListIm);
             
-            if (isempty(InPar.Sim))
+            if (isempty(Args.Sim))
                 % allocate SIM
                 Sim = SIM(Nim,1);
             else
                 % Use existing SIM
-                Sim = InPar.Sim;
+                Sim = Args.Sim;
             end
             
             % number of lines in CCDSEC
-            Nccdsec = size(InPar.CCDSEC,1);
+            Nccdsec = size(Args.CCDSEC,1);
             
             % for each image
             Isim = 0; % image (including extensions) index
             for Iim=1:1:Nim
                 % get number of HDU in FITS image
-                if (isempty(InPar.HDUnum))
+                if (isempty(Args.HDUnum))
                     Nhdu   = FITS.num_hdu(ListIm{Iim});
                     HDUnum = (1:1:Nhdu);
                 else
-                    HDUnum = InPar.HDUnum;
+                    HDUnum = Args.HDUnum;
                     Nhdu   = numel(HDUnum);
                 end
                 % for each HDU
                 for Ihdu=1:1:Nhdu
                     Isim = Isim + 1;
                     % Read image to SIM
-                    if (isempty(InPar.CCDSEC))
-                        Sim(Isim).(InPar.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu));
+                    if (isempty(Args.CCDSEC))
+                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu));
                     else
-                        Sim(Isim).(InPar.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'CCDSEC',InPar.CCDSEC(min(Iim,Nccdsec),:));
+                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC(min(Iim,Nccdsec),:));
                     end
                     Sim(Isim).(FileField) = ListIm{Iim};
 
                     % read header
-                    if (InPar.ReadHead)
-                        H = FITS.get_head(ListIm{Iim},HDUnum(Ihdu),InPar.PopWCS);
+                    if (Args.ReadHead)
+                        H = FITS.get_head(ListIm{Iim},HDUnum(Ihdu),Args.PopWCS);
                         Sim(Isim).(HeaderField) = H.(HeaderField);
                         Sim(Isim).(WCSField)    = H.(WCSField);
                     end
