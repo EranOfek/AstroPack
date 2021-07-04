@@ -1279,6 +1279,13 @@ classdef AstroTable < Component
         
     end
     
+    methods (Static) % help
+        function help
+            % show help in manuals.AstroTable
+            
+            open manuals.AstroTable
+        end
+    end
 
     methods (Static)  % Unit-Test
         function Result = unitTest()
