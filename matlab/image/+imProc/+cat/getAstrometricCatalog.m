@@ -16,7 +16,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %            'Con' - Search constraings for catsHTM.
     %                   E.g., {{'Mag_G',[15 16]},{'Plx',@(x) ~isnan(x)}}.
     %                   Default is {}.
-    %            'UseIndex' - UseIndex parameter for catsHTM.
+    %            'UseIndex' - UseIndex paramter for catsHTM.
     %                   Default is false.
     %            'EpochOut' - Output epoch. DEfault units is 'JD' (see
     %                   imProc.cat.applyProperMotion for more options).
@@ -81,7 +81,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
                         EpochIn = Args.EpochIn;
                         EpochInUnits = 'jd';
                     end
-                    Result = imProc.cat.applyProperMotion(Obj, EpochIn, Args.EpochOut, Args.argsProperMotion{:},'EpochInUnits',EpochInUnits);
+                    Result = imProc.cat.applyProperMotion(Result, EpochIn, Args.EpochOut, Args.argsProperMotion{:},'EpochInUnits',EpochInUnits, 'CreateNewObj',false);
                 end
 
                 % coordinates are in radians

@@ -858,7 +858,6 @@ classdef FITS < handle
                 Args.Sim                  = [];  % read into existing SIM
                 Args.ExecField            = SIM.ImageField;   % read into field
                 Args.ReadHead             = true;
-                Args.HDUnum               = 1;
                 Args.PopWCS(1,1) logical  = true;
             end
             
