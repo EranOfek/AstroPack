@@ -4,8 +4,12 @@
 %
 % startup.m folder:
 %
-% Linux:   /home/chent/Documents/MATLAB/startup.m
-% Windows: C:\Users\chen\Documents\MATLAB\startup.m
+% Linux:   
+%   Chen VM - /home/chent/Documents/MATLAB/startup.m
+%
+% Windows: 
+%   Chen Desktop - C:\Users\chen\Documents\MATLAB\startup.m
+%   Chen Laptop  - C:\Users\chent\OneDrive\Documents\MATLAB\startup.m
 %
 
 fprintf('AstroPack startup.m started: %s\n', mfilename('fullpath'));

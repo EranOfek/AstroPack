@@ -1,19 +1,10 @@
 
-%--------------------------------------------------------------------------
-
-
 classdef PipelineMain < PipelineComponent
+    % Pipeline Main class, called from command line Pipeline.m 
+    
     % Properties
     properties (SetAccess = public)
-        
-        filename        
-        configPath = "";
-        data
-        lines
-        userData
-        
-        inputImagePath
-        inputImageExt
+        Input
     end
     
     %-------------------------------------------------------- 
@@ -24,12 +15,19 @@ classdef PipelineMain < PipelineComponent
             Obj.needUuid();
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);            
         end
-    end
-
-    
+    end    
  
+    
     methods
-        function Result = main()
+        function Result = run(Obj, InputFileName)
+            
+            % Load input file
+            Obj.Input = yaml.ReadYaml(string(InputFileName).char);            
+            Obj.Input.FileName = InputFileName;
+            
+            % Input.InputImageFile: 
+            % Input.InputImageFolder:
+            % Input.MaxImagesToProcess: 1
             Result = true;
         end
     end    
