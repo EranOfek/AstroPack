@@ -580,6 +580,7 @@ classdef DbQuery < Component
                 TableName
                 Rec                     % DbRecord or struct
                 Args.FieldMap = []      % Optional field map
+                Args.BatchSize = 1      % Number of records per commit operation - @TODO
             end
             
             % Use all fields that exist in the table
@@ -593,38 +594,43 @@ classdef DbQuery < Component
             % Need connection, clear current query
             Obj.openConn();
             Obj.clear();
-                                                      
-            % Prepare SQL statement
-            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-            FieldNames = Obj.getFieldNames(Rec);
-            disp(FieldNames);          
-            [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
+                                 
+            % Iterate struct array
+            RecordCount = numel(Rec)
+            for i=1:RecordCount
             
-            % 
-            Obj.SqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ')'];
-            Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', Obj.SqlText);
-            
-            % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
-            try
-                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
+                % Prepare SQL statement
+                % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+                FieldNames = Obj.getFieldNames(Rec);
+                disp(FieldNames);          
+                [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
+
+                % 
+                Obj.SqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ')'];
+                Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', Obj.SqlText);
+
+                % Prepare query
+                Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
+                try
+                    Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
+                catch
+                    Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
+                end
+
+                % Iterate struct fields
+                Obj.setStatementValues(FieldNames, Rec, Args.FieldMap);
+
+                % Execute
+                % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+                try
+                    Obj.ResultSet = Obj.Statement.executeUpdate();
+                    Obj.ExecOk = true;                
+                    Result = true;
+                catch
+                    Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);                
+                end
             end
-                      
-            % Iterate struct fields
-            Obj.setStatementValues(FieldNames, Rec, Args.FieldMap);
-             
-            % Execute
-            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
-            try
-                Obj.ResultSet = Obj.Statement.executeUpdate();
-                Obj.ExecOk = true;                
-                Result = true;
-            catch
-                Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);                
-            end
-            
+          
             Obj.Toc = toc();
             Obj.msgLog(LogLevel.Info, 'insertRecord time: %.6f', Obj.Toc);  
                   
