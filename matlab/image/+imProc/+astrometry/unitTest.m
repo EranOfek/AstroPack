@@ -29,8 +29,24 @@ function Result = unitTest()
     
     Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
     
-    Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
+    tic;
+    [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
+    toc
     
+    tic;
+    [Result] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);
+    toc
+    
+    [Result] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat, 'CatRadius',[]);
+    
+    % automatically find CatRadius
+    [Result, AstrometricCat] = imProc.astrometry.astrometryCore([AI.CatData, AI.CatData], 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
+
+    tic;
+    for I=1:1:30
+        [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
+    end
+    toc
     
 end
    
