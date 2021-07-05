@@ -15,6 +15,9 @@ if isempty(varargin)
     varargin = {[1 2]};
 end
 
+% iqr is ~3 times slower compared to tools.math.stat.iqrFast
+FunIQR = @tools.math.stat.iqrFast; % @iqr;
+
 Factor = 0.7413;  %  = 1./norminv(0.75,0,1)
 
-Variance = (iqr(Image,varargin{:}).*Factor).^2;
+Variance = (FunIQR(Image,varargin{:}).*Factor).^2;
