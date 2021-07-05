@@ -2,7 +2,7 @@
 classdef FileProcessor < Component
     % Parent class for file based processing
     %
-    % Polll input folder for new files:
+    % Poll input folder for new files:
     %   Call derived processFileImpl() function 
     %   Delete or move the processed file to archive folder
     %   Clean archive folder after specified numberof days
