@@ -1024,6 +1024,12 @@ classdef Tran2D < handle
         
     end
     
+    methods (Static) % help
+        function help
+            % mlx help for Tran2D
+            open manuals.Tran2D
+        end
+    end
     
     methods (Static)  % unitTest
         function Result = unitTest
