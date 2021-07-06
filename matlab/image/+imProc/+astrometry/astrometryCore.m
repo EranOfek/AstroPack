@@ -157,8 +157,8 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefColNamesRA                = AstroCatalog.DefNamesRA;
         Args.RefColNamesDec               = AstroCatalog.DefNamesDec;
         
-        
     end
+    % The name of the projected X/Y coordinates in the Reference astrometric catalog
     RefColNameX = 'X';
     RefColNameY = 'Y';
     
@@ -166,7 +166,7 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
     % mean value of projection scale:
     ProjectionScale = (180./pi) .* 3600 ./ mean(Args.Scale);
         
-    if isempty(Args.CatRadius)
+    if isempty(Args.CatRadius) && iscahr(Args.CatName)
         % attempt to estimate CatRadius automatically
         % from 1st catalog only!
         XY = getXY(Obj(1), 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
