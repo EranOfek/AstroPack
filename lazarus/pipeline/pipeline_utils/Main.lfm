@@ -11139,6 +11139,22 @@ object MainForm: TMainForm
       }
       Stretch = True
     end
+    object Label7: TLabel
+      Left = 53
+      Height = 32
+      Top = 16
+      Width = 219
+      Caption = '<ULTRASAT Main>'
+      Font.CharSet = ANSI_CHARSET
+      Font.Color = clWhite
+      Font.Height = -24
+      Font.Name = 'Segoe UI'
+      Font.Pitch = fpVariable
+      Font.Quality = fqDraft
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
   end
   object Panel1: TPanel
     Left = 104

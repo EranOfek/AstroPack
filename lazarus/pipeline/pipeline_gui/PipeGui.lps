@@ -4,7 +4,7 @@
     <PathDelim Value="\"/>
     <Version Value="11"/>
     <BuildModes Active="Default"/>
-    <Units Count="6">
+    <Units Count="4">
       <Unit0>
         <Filename Value="PipeGui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -15,19 +15,26 @@
       </Unit0>
       <Unit1>
         <Filename Value="About.pas"/>
+        <IsPartOfProject Value="True"/>
         <ComponentName Value="AboutForm"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="40" Y="5"/>
+        <IsVisibleTab Value="True"/>
+        <TopLine Value="13"/>
+        <CursorPos X="27" Y="25"/>
         <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit1>
       <Unit2>
         <Filename Value="Main.pas"/>
+        <IsPartOfProject Value="True"/>
         <ComponentName Value="MainForm"/>
-        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="-1"/>
-        <CursorPos X="30" Y="16"/>
+        <WindowIndex Value="-1"/>
+        <TopLine Value="25"/>
+        <CursorPos X="55" Y="38"/>
         <UsageCount Value="20"/>
       </Unit2>
       <Unit3>
@@ -39,31 +46,7 @@
         <UsageCount Value="20"/>
         <DefaultSyntaxHighlighter Value="LFM"/>
       </Unit3>
-      <Unit4>
-        <Filename Value="About.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="AboutForm"/>
-        <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="22"/>
-        <CursorPos X="39" Y="25"/>
-        <UsageCount Value="20"/>
-      </Unit4>
-      <Unit5>
-        <Filename Value="Main.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="MainForm"/>
-        <ResourceBaseClass Value="Form"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="25"/>
-        <CursorPos X="55" Y="38"/>
-        <UsageCount Value="20"/>
-      </Unit5>
     </Units>
-    <General>
-      <ActiveWindowIndexAtStart Value="-1"/>
-    </General>
     <JumpHistory HistoryIndex="-1"/>
     <RunParams>
       <FormatVersion Value="2"/>

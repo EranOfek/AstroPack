@@ -4,13 +4,13 @@
     <PathDelim Value="\"/>
     <Version Value="11"/>
     <BuildModes Active="Default"/>
-    <Units Count="31">
+    <Units Count="32">
       <Unit0>
         <Filename Value="PipelineUtils.lpr"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="16"/>
-        <UsageCount Value="94"/>
+        <UsageCount Value="95"/>
       </Unit0>
       <Unit1>
         <Filename Value="About.pas"/>
@@ -21,7 +21,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="7"/>
         <CursorPos X="127" Y="10"/>
-        <UsageCount Value="94"/>
+        <UsageCount Value="95"/>
       </Unit1>
       <Unit2>
         <Filename Value="Main.pas"/>
@@ -30,9 +30,9 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="34"/>
-        <CursorPos X="30" Y="41"/>
-        <UsageCount Value="94"/>
+        <TopLine Value="100"/>
+        <CursorPos X="10" Y="108"/>
+        <UsageCount Value="95"/>
       </Unit2>
       <Unit3>
         <Filename Value="DbBrowser.pas"/>
@@ -40,24 +40,23 @@
         <ComponentName Value="DbBrowserForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="128"/>
-        <CursorPos X="73" Y="164"/>
-        <UsageCount Value="80"/>
+        <TopLine Value="129"/>
+        <CursorPos X="15" Y="132"/>
+        <UsageCount Value="81"/>
       </Unit3>
       <Unit4>
         <Filename Value="..\..\packages\utils\LogPanel.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="73"/>
+        <UsageCount Value="74"/>
       </Unit4>
       <Unit5>
         <Filename Value="..\..\packages\utils\RunProc.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="31" Y="20"/>
-        <UsageCount Value="73"/>
+        <UsageCount Value="74"/>
       </Unit5>
       <Unit6>
         <Filename Value="DataModu.pas"/>
@@ -68,7 +67,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="22"/>
         <CursorPos Y="62"/>
-        <UsageCount Value="44"/>
+        <UsageCount Value="45"/>
       </Unit6>
       <Unit7>
         <Filename Value="..\packages\vcllazarus\LogPanel.pas"/>
@@ -235,6 +234,18 @@
         <EditorIndex Value="-1"/>
         <UsageCount Value="12"/>
       </Unit30>
+      <Unit31>
+        <Filename Value="Pipeline.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="PipelineForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="56"/>
+        <CursorPos X="57" Y="64"/>
+        <UsageCount Value="21"/>
+      </Unit31>
     </Units>
     <General>
       <ActiveWindowIndexAtStart Value="-1"/>

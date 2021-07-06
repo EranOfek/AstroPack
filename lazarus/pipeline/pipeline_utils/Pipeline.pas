@@ -1,4 +1,4 @@
-unit Main;
+unit Pipeline;
 
 {$mode objfpc}{$H+}
 
@@ -6,18 +6,31 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus, ExtCtrls,
-  StdCtrls, About, LogPanel;
+  StdCtrls, ComCtrls, About, LogPanel;
 
 type
 
-  { TMainForm }
+  { TPipelineForm }
 
-  TMainForm = class(TForm)
+  TPipelineForm = class(TForm)
     Button1: TButton;
     Button2: TButton;
+    EditInputImage: TEdit;
+    EditStartTime: TEdit;
+    EditEndTime: TEdit;
+    EditCurProc: TEdit;
+    EditStatus: TEdit;
+    EditStatus1: TEdit;
     ImageLogo: TImage;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
     Label7: TLabel;
     MainMenu: TMainMenu;
+    Memo1: TMemo;
     MIDbCreateDbFromSql: TMenuItem;
     MIDbXlsxToSql: TMenuItem;
     MIDatabase: TMenuItem;
@@ -25,8 +38,14 @@ type
     MIExit: TMenuItem;
     MIAbout: TMenuItem;
     MIHelp: TMenuItem;
+    PageControl1: TPageControl;
     Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    Panel8: TPanel;
     PanelLogo: TPanel;
+    TabSheet1: TTabSheet;
     Timer1: TTimer;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
@@ -43,7 +62,7 @@ type
   end;
 
 var
-  MainForm: TMainForm;
+  PipelineForm: TPipelineForm;
 
 implementation
 
@@ -54,9 +73,9 @@ var
   Log: TLogPanel;
   idx: Integer;
 
-{ TMainForm }
+{ TPipelineForm }
 
-procedure TMainForm.MIExitClick(Sender: TObject);
+procedure TPipelineForm.MIExitClick(Sender: TObject);
 var
   r: trect;
 begin
@@ -64,7 +83,7 @@ begin
   Application.Terminate();
 end;
 
-procedure TMainForm.Timer1Timer(Sender: TObject);
+procedure TPipelineForm.Timer1Timer(Sender: TObject);
 var
   i: Integer;
 begin
@@ -79,7 +98,7 @@ end;
 
 // Menu Events
 
-procedure TMainForm.MIAboutClick(Sender: TObject);
+procedure TPipelineForm.MIAboutClick(Sender: TObject);
 begin
   if AboutForm = nil then
      AboutForm := TAboutForm.Create(Self);
@@ -87,24 +106,24 @@ begin
   AboutForm.Show();
 end;
 
-procedure TMainForm.MIDbCreateDbFromSqlClick(Sender: TObject);
+procedure TPipelineForm.MIDbCreateDbFromSqlClick(Sender: TObject);
 begin
   //
 end;
 
-procedure TMainForm.MIDbXlsxToSqlClick(Sender: TObject);
+procedure TPipelineForm.MIDbXlsxToSqlClick(Sender: TObject);
 begin
   //
 end;
 
-procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+procedure TPipelineForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
      CanClose := Application.Terminated;
 end;
 
 // Buttons Events
 
-procedure TMainForm.Button1Click(Sender: TObject);
+procedure TPipelineForm.Button1Click(Sender: TObject);
 begin
   Log := TLogPanel.Create(Panel1);
   Panel1.InsertControl(Log);
@@ -113,7 +132,7 @@ begin
   //Timer1.Enabled := true;
 end;
 
-procedure TMainForm.Button2Click(Sender: TObject);
+procedure TPipelineForm.Button2Click(Sender: TObject);
 var
   i: Integer;
 begin
