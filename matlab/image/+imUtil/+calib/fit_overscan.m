@@ -55,13 +55,13 @@ function [OverScan,ImageOSS,X,Y]=fit_overscan(Image,varargin)
 %          - Vector of X indices in in which the non-overscan image reside.   
 %          - Vector of Y indices in in which the non-overscan image reside.
 %      By: Eran O. Ofek                         Jun 2020
-% Example: imUtil.calib.fit_overscan*rand(10,10,'OverSec',[1 3 1 10])
+% Example: imUtil.calib.fit_overscan(rand(10,10),'OverSec',[1 3 1 10])
 
 InPar = inputParser;
 addOptional(InPar,'Dim',[]);
 addOptional(InPar,'OverSec',[]);
-addOptional(InPar,'MeanFun',@nanmedian);
-addOptional(InPar,'MeanFunPar',{});  % dim is always 1
+addOptional(InPar,'MeanFun',@median);
+addOptional(InPar,'MeanFunPar',{1,'omitnan'});  % dim is always 1
 addOptional(InPar,'SmoothFun',[]);
 addOptional(InPar,'SmoothFunPar',{});
 addOptional(InPar,'RemoveOS',true);

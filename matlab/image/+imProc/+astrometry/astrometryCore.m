@@ -202,6 +202,10 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
     % set CreateNewObj=true, because AstrometricCat is an output argument.
     %   MUST ALWATS BE true, otherwise, this operation may overide the
     %   existing AstrometricCat in the matlab session
+    
+    % AstroWCS.alphadelta2phitheta
+    % native2interm
+    
     ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                    'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                    'CreateNewObj',true);
@@ -297,6 +301,9 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
 
                 % note that the matching is against the FilteredProjAstCat
                 % and not the TransformedProjAstCat 
+                %
+                %[Param, Res, Tran] = imProc.trans.fitTransformation(TransformedProjAstCat, MatchedCat,...
+                
                 [Param, Res, Tran] = imProc.trans.fitTransformation(MatchedCat, FilteredProjAstCat,...
                                                               'Tran',Args.Tran,...
                                                               'Norm',NaN,...
