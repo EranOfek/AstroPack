@@ -594,6 +594,14 @@ classdef AstroCatalog < AstroTable
     end
     
     
+    methods (Static)
+        function help
+            % show mlx help file for AstroCatalog
+            open manuals.AstroCatalog
+        end
+    end
+        
+    
     methods (Static) % unitTest
         function Result = unitTest
             % unitTest for the AstroCatalog class

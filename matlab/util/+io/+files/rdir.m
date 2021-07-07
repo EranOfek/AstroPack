@@ -8,7 +8,7 @@ function Out=rdir(FileTemp)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Feb 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Util.IO.rdir('*.mat');
+% Example: io.files.rdir('*.mat');
 % Reliable: 2
 %--------------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ for Id=1:1:Nd
     
     if (D(Id).isdir)
         cd(D(Id).name);
-        Out = [Out; Util.IO.rdir(FileTemp)];
+        Out = [Out; io.files.rdir(FileTemp)];
         cd ..
     end
 end
