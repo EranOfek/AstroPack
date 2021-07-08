@@ -24,6 +24,7 @@ function Result = unitTest()
     AI.crop([500 1500 1500 2500]);   % image saved as FITS_Cropped.fits
     
     AI = AstroImage('FITS_Cropped.fits');
+    
     imProc.background.background(AI,'VarFun','fromback');
     imProc.sources.findMeasureSources(AI);
     ds9(AI)

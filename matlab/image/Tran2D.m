@@ -253,8 +253,9 @@ classdef Tran2D < handle
             %                   of the 4th degre + color term of the first degree.
             %            'cheby1_2' -  Fitsr kind Chebyshev polynomials
             %                   of the 2nd degree.
-            %            'poly1' - 1st deg poynomials.
+            %            'poly1' - 1st deg polynomials.
             %            'poly2' - 2nd deg polynomials.
+            %            'poly3' - 3rd deg polynomials.
             %            'poly1_tiptilt' - 1st deg polynomials + 2 tip/tilt
             %                   terms.
             % Output : - A cell array of functionals for X coordinates.
@@ -371,6 +372,20 @@ classdef Tran2D < handle
                                       @(x,y,c,AM,PA) x.*y};
                     FunY        = FunX;     
                     
+                case 'poly3'
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...
+                                      @(x,y,c,AM,PA) x,...
+                                      @(x,y,c,AM,PA) y,...
+                                      @(x,y,c,AM,PA) x.^2,...
+                                      @(x,y,c,AM,PA) y.^2,...
+                                      @(x,y,c,AM,PA) x.*y,...
+                                      @(x,y,c,AM,PA) x.^3,...
+                                      @(x,y,c,AM,PA) y.^3,...
+                                      @(x,y,c,AM,PA) x.^2.*y,...
+                                      @(x,y,c,AM,PA) y.^2.*x};
+                    FunY        = FunX;     
+                    
                 case 'poly1_tiptilt'
                     % chebyshev polynomials of the first kind, of order 3
                     ColCell     = {'x','y','c','AM','PA'};
@@ -426,7 +441,7 @@ classdef Tran2D < handle
 
                 % pad by zeros
                 Coo    = [Coo, zeros(Npt,Ncoo-Ncol)];
-                % CooCol is a cell arrat of coordinates
+                % CooCol is a cell array of coordinates
                 CooCol = mat2cell(Coo,Npt,ones(1,Ncoo));
             end
             
@@ -639,6 +654,60 @@ classdef Tran2D < handle
     
     % fitting
     methods
+        function [Result, Obj] = fitDesignMatrix(Obj, Hx, Hy, X, Y, Args)
+            %
+            % Example: [Result, Obj] = fitDesignMatrix(Obj, Hx, Hy, X, Y, Args)
+           
+            arguments
+                Obj(1,1)
+                Hx
+                Hy
+                X
+                Y
+                Args.Method   = '\';  % '\' | 'lscov'
+                Args.ErrX     = [];
+                Args.ErrY     = [];
+            end
+                  
+            switch Args.Method
+                case '\'
+                    ParX = Hx\X;
+                    ParY = Hy\Y;
+                    ErrParX = [];
+                    ErrParY = [];
+                case 'lscov'
+                    Nx = numel(X);
+                    Ny = numel(Y);
+                    if isempty(Args.ErrX)
+                        Args.ErrX = ones(Nx,1);
+                    end
+                    if isempty(Args.ErrY)
+                        Args.ErrY = ones(Ny,1);
+                    end
+                    
+                    [ParX, ErrParX] = lscov(Hx, X, 1./(Args.ErrX.^2) );
+                    [ParY, ErrParY] = lscov(Hy, Y, 1./(Args.ErrY.^2) );
+                otherwise
+                    error('Unknown Method option');
+            end
+            
+            Result.ParX     = ParX;
+            Result.ParY     = ParY;
+            Result.ErrParX  = ErrParX;
+            Result.ErrParY  = ErrParY;
+            Result.ResidX   = X - Hx.*ParX;
+            Result.ResidY   = Y - Hy.*ParY;
+            Result.RmsX     = std(Result.ResidX);
+            Result.RmsY     = std(Result.ResidY);
+            
+            if nargout>1
+                % update the Tran2D object
+                Obj.ParX = ParX;
+                Obj.ParY = ParY;
+            end
+            
+        end
+        
         function TC=fit_simple(TC,RefXY,Z)
             % A simple fit (no errors/iterations) of a data to the transformation
             % Package: @Tran2D
@@ -657,7 +726,6 @@ classdef Tran2D < handle
                 TC(I).ParX = ParX;
                 TC(I).ParY = ParY;
             end
-            
             
         end
         
@@ -1052,9 +1120,16 @@ classdef Tran2D < handle
             TC=Tran2D; TC.ParY=ones(1,13);  TC.ParX=ones(1,13); 
             [Xf,Yf]=forward(TC,[1 1;2 1]);
             
-            TC=Tran2D; TC.ParY=zeros(1,13);  TC.ParX=zeros(1,13); 
-            TC.ParX(1:2) = 1; TC.ParX(5)=0.03; TC.ParX(7)=0.01;
-            TC.ParY(1) = 2; TC.ParY(3)=1.01; TC.ParY(5)=0.01; TC.ParY(8)=0.001;
+            TC=Tran2D;
+            TC.ParY=zeros(1,13); 
+            TC.ParX=zeros(1,13); 
+            TC.ParX(1:2) = 1;
+            TC.ParX(5)=0.03;
+            TC.ParX(7)=0.01;
+            TC.ParY(1) = 2;
+            TC.ParY(3)=1.01;
+            TC.ParY(5)=0.01;
+            TC.ParY(8)=0.001;
             XY = [1 2; 1.1 0.2; 0.3 2.1];
             
             io.msgLog(LogLevel.Test, 'testing Tran2D forward, backward');

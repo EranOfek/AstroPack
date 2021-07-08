@@ -313,18 +313,33 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
                                                               'ColRefY',RefColNameY);
                                                           
                 
-                [Param, Res, Tran] = imProc.trans.fitTransformation(FilteredProjAstCat, MatchedCat,...
-                                                              'Tran',Args.Tran,...
-                                                              'Norm',NaN,...
-                                                              'ColRefX',Args.CatColNamesX,...
-                                                              'ColRefY',Args.CatColNamesY,...
-                                                              'ColCatX',RefColNameX,...
-                                                              'ColCatY',RefColNameY);
+                                              
+                                                          
+%                 [Param, Res, Tran] = imProc.trans.fitTransformation(FilteredProjAstCat, MatchedCat,...
+%                                                               'Tran',Args.Tran,...
+%                                                               'Norm',NaN,...
+%                                                               'ColRefX',Args.CatColNamesX,...
+%                                                               'ColRefY',Args.CatColNamesY,...
+%                                                               'ColCatX',RefColNameX,...
+%                                                               'ColCatY',RefColNameY);
                                                           
                 % store transformations
                 Result(Iobj).Tran(Isol)       = Tran;
                 Result(Iobj).Res(Isol)        = Res;
 
+                
+                %
+                Step = 10;
+                CXY = Result(Iobj).ImageCenterXY;
+                VecX = (-CXY(1):Step:CXY(1));
+                VecY = (-CXY(2):Step:CXY(2));
+                [MatX, MatY] = meshgrid(VecX, VecY);
+                
+                
+                [x,y]=backward(Result(Iobj).Tran(1),[MatX(:), MatY(:)]);
+                
+                            
+                
             end
             
             % classify the quality of solutions

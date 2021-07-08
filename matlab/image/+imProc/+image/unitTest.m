@@ -17,6 +17,15 @@ function Result = unitTest()
     AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
     Result = imProc.image.image2subimages(AI,[256 256]);
 
+    % interpOverNan
+    AI = AstroImage({ones(100,100)});
+    AI.Image(50,50:51)=NaN;
+    AI.Image(70,70) = NaN;
+    imProc.image.interpOverNan(AI);
+    if ~all(AI.Image==1)
+        error('Problem with interpOverNan');
+    end
+    
     Result = true;
     
 end
