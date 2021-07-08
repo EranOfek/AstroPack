@@ -172,7 +172,7 @@ classdef AstroDb < Component
             
             % Create fits file with header
             Folder = tempdir; 
-            Folder = 'c:\temp';
+            %Folder = 'c:\temp';
             Header = { 'RA_NE', [1], 'Comment 1';  'RA_SE', [2], 'Comment 2'; 'RA_SW', [3], 'Comment 3';  'RA_NW', [4], 'Comment 4' };
             ImageData = zeros(10, 10);
             ImageName = fullfile(Folder, 'AstroImageDbTest.fits');
@@ -189,10 +189,12 @@ classdef AstroDb < Component
             AC = AstroTable({rand(10, 4), rand(10, 4)}, 'ColNames', {'A', 'B', 'C', 'D'});
             
             % Insert header to table
-            Count = 0;
+            tic;
+            Count = 10;
             for i=1:Count
                 res = db.insertHeader(AH, HeaderTableName);
             end
+            toc
                 
             % Insert catalog to table
             Count = 10;
@@ -209,7 +211,7 @@ classdef AstroDb < Component
                 res = db.insertHeader(AH, HeaderTableName);
             end            
             Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'insertHeader time (Count=%d): %.6f', Count, Toc);  
+            io.msgLog(LogLevel.Info, 'insertHeader time (Count=%d): %.6f', Count, Toc);  
                                 
             % Insert many with batch = 1000
             Count = 0; %100;
@@ -220,7 +222,7 @@ classdef AstroDb < Component
             end
             
             Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'insertHeader time (Count=%d, Batch=%d): %.6f', Count, BatchSize, Toc);  
+            io.msgLog(LogLevel.Info, 'insertHeader time (Count=%d, Batch=%d): %.6f', Count, BatchSize, Toc);  
                         
             
             io.msgStyle(LogLevel.Test, '@passed', 'AstroDb test passed')

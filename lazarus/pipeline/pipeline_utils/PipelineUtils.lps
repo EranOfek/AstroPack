@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectSession>
     <PathDelim Value="\"/>
-    <Version Value="11"/>
+    <Version Value="10"/>
     <BuildModes Active="Default"/>
     <Units Count="32">
       <Unit0>
@@ -10,7 +10,7 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="16"/>
-        <UsageCount Value="95"/>
+        <UsageCount Value="96"/>
       </Unit0>
       <Unit1>
         <Filename Value="About.pas"/>
@@ -21,7 +21,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="7"/>
         <CursorPos X="127" Y="10"/>
-        <UsageCount Value="95"/>
+        <UsageCount Value="96"/>
       </Unit1>
       <Unit2>
         <Filename Value="Main.pas"/>
@@ -32,7 +32,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="100"/>
         <CursorPos X="10" Y="108"/>
-        <UsageCount Value="95"/>
+        <UsageCount Value="96"/>
       </Unit2>
       <Unit3>
         <Filename Value="DbBrowser.pas"/>
@@ -40,23 +40,25 @@
         <ComponentName Value="DbBrowserForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="129"/>
-        <CursorPos X="15" Y="132"/>
-        <UsageCount Value="81"/>
+        <IsVisibleTab Value="True"/>
+        <TopLine Value="149"/>
+        <CursorPos X="36" Y="174"/>
+        <UsageCount Value="82"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit3>
       <Unit4>
         <Filename Value="..\..\packages\utils\LogPanel.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="74"/>
+        <UsageCount Value="75"/>
       </Unit4>
       <Unit5>
         <Filename Value="..\..\packages\utils\RunProc.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="31" Y="20"/>
-        <UsageCount Value="74"/>
+        <UsageCount Value="75"/>
       </Unit5>
       <Unit6>
         <Filename Value="DataModu.pas"/>
@@ -64,24 +66,37 @@
         <ComponentName Value="DataMod"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="DataModule"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="22"/>
-        <CursorPos Y="62"/>
-        <UsageCount Value="45"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="46"/>
+        <CursorPos X="28" Y="70"/>
+        <UsageCount Value="46"/>
+        <Loaded Value="True"/>
       </Unit6>
       <Unit7>
+        <Filename Value="Pipeline.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="PipelineForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="-1"/>
+        <WindowIndex Value="-1"/>
+        <TopLine Value="56"/>
+        <CursorPos X="57" Y="64"/>
+        <UsageCount Value="22"/>
+      </Unit7>
+      <Unit8>
         <Filename Value="..\packages\vcllazarus\LogPanel.pas"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="35"/>
-      </Unit7>
-      <Unit8>
+      </Unit8>
+      <Unit9>
         <Filename Value="..\lib\RunProc.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="55"/>
         <CursorPos X="139" Y="72"/>
         <UsageCount Value="18"/>
-      </Unit8>
-      <Unit9>
+      </Unit9>
+      <Unit10>
         <Filename Value="Main.lfm"/>
         <EditorIndex Value="-1"/>
         <WindowIndex Value="-1"/>
@@ -89,172 +104,170 @@
         <CursorPos X="-1" Y="-1"/>
         <UsageCount Value="14"/>
         <DefaultSyntaxHighlighter Value="LFM"/>
-      </Unit9>
-      <Unit10>
+      </Unit10>
+      <Unit11>
         <Filename Value="C:\Bin\Lazarus\lcl\graphics.pp"/>
         <UnitName Value="Graphics"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="55"/>
         <CursorPos X="13" Y="57"/>
         <UsageCount Value="10"/>
-      </Unit10>
-      <Unit11>
+      </Unit11>
+      <Unit12>
         <Filename Value="C:\Bin\Lazarus\components\lazutils\graphtype.pp"/>
         <UnitName Value="GraphType"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="24"/>
         <CursorPos X="3" Y="35"/>
         <UsageCount Value="10"/>
-      </Unit11>
-      <Unit12>
+      </Unit12>
+      <Unit13>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win\wininc\struct.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="210"/>
         <CursorPos X="6" Y="223"/>
         <UsageCount Value="10"/>
-      </Unit12>
-      <Unit13>
+      </Unit13>
+      <Unit14>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\inc\systemh.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="467"/>
         <CursorPos X="3" Y="479"/>
         <UsageCount Value="10"/>
-      </Unit13>
-      <Unit14>
+      </Unit14>
+      <Unit15>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win64\classes.pp"/>
         <UnitName Value="Classes"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="10"/>
-      </Unit14>
-      <Unit15>
+      </Unit15>
+      <Unit16>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\inc\typshrdh.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="130"/>
         <CursorPos X="3" Y="101"/>
         <UsageCount Value="10"/>
-      </Unit15>
-      <Unit16>
+      </Unit16>
+      <Unit17>
         <Filename Value="C:\Bin\Lazarus\lcl\include\canvas.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="1796"/>
         <CursorPos Y="1810"/>
         <UsageCount Value="9"/>
-      </Unit16>
-      <Unit17>
+      </Unit17>
+      <Unit18>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\win\sysutils.pp"/>
         <UnitName Value="SysUtils"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="41" Y="12"/>
         <UsageCount Value="9"/>
-      </Unit17>
-      <Unit18>
+      </Unit18>
+      <Unit19>
         <Filename Value="C:\Bin\python4lazarus\Source\PythonEngine.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="2628"/>
         <CursorPos X="35" Y="2636"/>
         <UsageCount Value="6"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit18>
-      <Unit19>
+      </Unit19>
+      <Unit20>
         <Filename Value="D:\Lazarus\UnTerminal-1.0\UnTerminal-1.0\UnTerminal.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="152"/>
         <CursorPos X="55" Y="179"/>
         <UsageCount Value="6"/>
-      </Unit19>
-      <Unit20>
+      </Unit20>
+      <Unit21>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\packages\fcl-process\src\process.pp"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="19"/>
         <CursorPos X="12" Y="58"/>
         <UsageCount Value="6"/>
-      </Unit20>
-      <Unit21>
+      </Unit21>
+      <Unit22>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\packages\fcl-process\src\processbody.inc"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="5"/>
         <UsageCount Value="6"/>
-      </Unit21>
-      <Unit22>
+      </Unit22>
+      <Unit23>
         <Filename Value="..\lib\UnTerminal.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="7"/>
         <CursorPos X="99" Y="21"/>
         <UsageCount Value="6"/>
-      </Unit22>
-      <Unit23>
+      </Unit23>
+      <Unit24>
         <Filename Value="C:\Bin\Lazarus\lcl\include\control.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="3925"/>
         <CursorPos Y="3945"/>
         <UsageCount Value="6"/>
-      </Unit23>
-      <Unit24>
+      </Unit24>
+      <Unit25>
         <Filename Value="DbBrowser.lfm"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="45"/>
         <CursorPos X="32" Y="66"/>
         <UsageCount Value="6"/>
         <DefaultSyntaxHighlighter Value="LFM"/>
-      </Unit24>
-      <Unit25>
+      </Unit25>
+      <Unit26>
         <Filename Value="C:\Bin\Lazarus\fpc\3.2.0\source\rtl\objpas\sysutils\sysutilh.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="266"/>
         <CursorPos X="3" Y="281"/>
         <UsageCount Value="7"/>
-      </Unit25>
-      <Unit26>
+      </Unit26>
+      <Unit27>
         <Filename Value="..\..\packages\utils\UnTerminal.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="286"/>
         <CursorPos X="63" Y="305"/>
         <UsageCount Value="35"/>
-      </Unit26>
-      <Unit27>
+      </Unit27>
+      <Unit28>
         <Filename Value="..\..\base\MsgLogger.pas"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="7" Y="5"/>
         <UsageCount Value="12"/>
-      </Unit27>
-      <Unit28>
+      </Unit28>
+      <Unit29>
         <Filename Value="..\..\base\LogFile.pas"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="12"/>
-      </Unit28>
-      <Unit29>
+      </Unit29>
+      <Unit30>
         <Filename Value="..\..\base\FileProcessor.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="136"/>
         <CursorPos Y="165"/>
         <UsageCount Value="12"/>
-      </Unit29>
-      <Unit30>
+      </Unit30>
+      <Unit31>
         <Filename Value="..\..\base\Configuration.pas"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="12"/>
-      </Unit30>
-      <Unit31>
-        <Filename Value="Pipeline.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="PipelineForm"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="56"/>
-        <CursorPos X="57" Y="64"/>
-        <UsageCount Value="21"/>
       </Unit31>
     </Units>
-    <General>
-      <ActiveWindowIndexAtStart Value="-1"/>
-    </General>
-    <JumpHistory HistoryIndex="-1"/>
-    <RunParams>
-      <FormatVersion Value="2"/>
-      <Modes Count="0" ActiveMode="default"/>
-    </RunParams>
+    <JumpHistory Count="4" HistoryIndex="3">
+      <Position1>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="133" Column="40" TopLine="129"/>
+      </Position1>
+      <Position2>
+        <Filename Value="DataModu.pas"/>
+        <Caret Line="73" Column="102" TopLine="56"/>
+      </Position2>
+      <Position3>
+        <Filename Value="DataModu.pas"/>
+        <Caret Line="61" Column="24" TopLine="43"/>
+      </Position3>
+      <Position4>
+        <Filename Value="DbBrowser.pas"/>
+        <Caret Line="157" Column="15" TopLine="148"/>
+      </Position4>
+    </JumpHistory>
   </ProjectSession>
   <Debugging>
     <BreakPoints Count="3">
