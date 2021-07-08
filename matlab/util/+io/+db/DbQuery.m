@@ -596,13 +596,13 @@ classdef DbQuery < Component
             Obj.clear();
                                  
             % Iterate struct array
-            RecordCount = numel(Rec)
+            RecordCount = numel(Rec);
             for i=1:RecordCount
             
                 % Prepare SQL statement
                 % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
                 FieldNames = Obj.getFieldNames(Rec);
-                disp(FieldNames);          
+                %disp(FieldNames);          
                 [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
 
                 % 

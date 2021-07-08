@@ -56,10 +56,25 @@ end;
 
 procedure TDataMod.Init;
 begin
-      AstroPackPath := GetEnvironmentVariable('ASTROPACKPATH');
+      AstroPackPath := GetEnvironmentVariable('ASTROPACK_PATH');
+
+      if AstroPackPath = '' then
+      begin
+        {$IFDEF UNIX}
+        AstroPackPath := '/home/eran/matlab/AstroPack';
+        {$ENDIF}
+      end;
+
       IniFileName := AstroPackPath + PathDelim + 'config.ini';
       IniFile := TIniFile.Create(IniFileName);
+
+      {$IFDEF WIN32}
       PythonExe := IniFile.ReadString('Python', 'Python3', 'C:\Python38\python.exe');
+      {$ENDIF}
+
+      {$IFDEF UNIX}
+      PythonExe := IniFile.ReadString('Python', 'Python3', 'python3');
+      {$ENDIF}
 end;
 
 function TDataMod.AstroFile(FileName: String) : String;

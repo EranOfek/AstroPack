@@ -31,6 +31,7 @@ type
     Label5: TLabel;
     Label6: TLabel;
     Label7: TLabel;
+    Label8: TLabel;
     ListBoxDbTables: TListBox;
     MainMenu: TMainMenu;
     Memo1: TMemo;
