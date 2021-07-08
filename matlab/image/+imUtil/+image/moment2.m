@@ -311,16 +311,7 @@ if nargout>1
         % aperture photometry
         Aper.AperRadius = Args.AperRadius;
 
-        % simple aperture photometry in centered pixeleted aperure
-        Aper.AperPhot = zeros(Nsrc,Naper);
-        Aper.AperArea = zeros(Nsrc,Naper);
-        for Iaper=1:1:Naper
-            AperFilter = ones(size(MatR));
-            AperFilter(MatR>Args.AperRadius(Iaper)) = 0;
-            Aper.AperPhot(:,Iaper) = sum(Cube.*AperFilter,[1 2]);
-            Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
-        end
-
+        
 
         % total box photometry - on non centred position
         Aper.BoxPhot = squeeze(nansum(Cube,[1 2]));
@@ -331,11 +322,24 @@ if nargout>1
         BackCube = BackFilter.*Cube;
         % note - use NaN ignoring functions!
         Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,[1 2]));
-        Aper.AnnulusStd  = squeeze(nanstd(BackCube,0,[1 2]));
+        Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
 
         % weighted aperture photometry
         Aper.WeightedAper = squeeze(sum(WInt,[1 2])./sum((W.*W_Max).^2,[1 2])); 
+        % need to subtracted weighted background!
 
+        % simple aperture photometry in centered pixeleted aperure
+        Aper.AperPhot = zeros(Nsrc,Naper);
+        Aper.AperArea = zeros(Nsrc,Naper);
+        for Iaper=1:1:Naper
+            AperFilter = ones(size(MatR));
+            AperFilter(MatR>Args.AperRadius(Iaper)) = 0;
+            Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
+            Aper.AperPhot(:,Iaper)   = sum(Cube.*AperFilter,[1 2]);
+        end
+        % subtracted background from aper phot:
+        Aper.AperPhot = Aper.AperPhot - Aper.AnnulusBack.*Aper.AperArea;
+        
         % Aperure photometry on shifted kernel
 
     end
