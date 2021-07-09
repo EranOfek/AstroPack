@@ -157,8 +157,8 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefColNamesRA                = AstroCatalog.DefNamesRA;
         Args.RefColNamesDec               = AstroCatalog.DefNamesDec;
         
-        
     end
+    % The name of the projected X/Y coordinates in the Reference astrometric catalog
     RefColNameX = 'X';
     RefColNameY = 'Y';
     
@@ -166,7 +166,7 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
     % mean value of projection scale:
     ProjectionScale = (180./pi) .* 3600 ./ mean(Args.Scale);
         
-    if isempty(Args.CatRadius)
+    if isempty(Args.CatRadius) && iscahr(Args.CatName)
         % attempt to estimate CatRadius automatically
         % from 1st catalog only!
         XY = getXY(Obj(1), 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
@@ -202,6 +202,10 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
     % set CreateNewObj=true, because AstrometricCat is an output argument.
     %   MUST ALWATS BE true, otherwise, this operation may overide the
     %   existing AstrometricCat in the matlab session
+    
+    % AstroWCS.alphadelta2phitheta
+    % native2interm
+    
     ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                    'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                    'CreateNewObj',true);
@@ -297,6 +301,9 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
 
                 % note that the matching is against the FilteredProjAstCat
                 % and not the TransformedProjAstCat 
+                %
+                %[Param, Res, Tran] = imProc.trans.fitTransformation(TransformedProjAstCat, MatchedCat,...
+                
                 [Param, Res, Tran] = imProc.trans.fitTransformation(MatchedCat, FilteredProjAstCat,...
                                                               'Tran',Args.Tran,...
                                                               'Norm',NaN,...
@@ -304,10 +311,35 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
                                                               'ColCatY',Args.CatColNamesY,...
                                                               'ColRefX',RefColNameX,...
                                                               'ColRefY',RefColNameY);
+                                                          
+                
+                                              
+                                                          
+%                 [Param, Res, Tran] = imProc.trans.fitTransformation(FilteredProjAstCat, MatchedCat,...
+%                                                               'Tran',Args.Tran,...
+%                                                               'Norm',NaN,...
+%                                                               'ColRefX',Args.CatColNamesX,...
+%                                                               'ColRefY',Args.CatColNamesY,...
+%                                                               'ColCatX',RefColNameX,...
+%                                                               'ColCatY',RefColNameY);
+                                                          
                 % store transformations
                 Result(Iobj).Tran(Isol)       = Tran;
                 Result(Iobj).Res(Isol)        = Res;
 
+                
+                %
+                Step = 10;
+                CXY = Result(Iobj).ImageCenterXY;
+                VecX = (-CXY(1):Step:CXY(1));
+                VecY = (-CXY(2):Step:CXY(2));
+                [MatX, MatY] = meshgrid(VecX, VecY);
+                
+                
+                [x,y]=backward(Result(Iobj).Tran(1),[MatX(:), MatY(:)]);
+                
+                            
+                
             end
             
             % classify the quality of solutions

@@ -23,9 +23,9 @@ function [Flag,Ind]=flag_overdense(Cat,varargin)
 %            'MinStd' - Minimum std in the second method, in order to
 %                   avoide zero std. Default is 0.5.
 %            'MeanFun' - Function handle to use in the background
-%                   estimation. Default is @nanmedian.
+%                   estimation. Default is @median.
 %            'MeanFunPar' - A cell array of parameters to passt to the
-%                   'MeanFun'. Default is {'all'}.
+%                   'MeanFun'. Default is {'all','omitnan'}.
 %            'StdFun' - Function handle to use in the std
 %                   estimation. Default is @imUtil.background.rstd.
 %            'StdFunPar' - A cell array of parameters to passt to the
@@ -59,8 +59,8 @@ InPar = inputParser;
 addOptional(InPar,'MaxNinBox',10);
 addOptional(InPar,'Nsigma',10);
 addOptional(InPar,'MinStd',0.5);
-addOptional(InPar,'MeanFun',@nanmedian);
-addOptional(InPar,'MeanFunPar',{'all'});
+addOptional(InPar,'MeanFun',@median);
+addOptional(InPar,'MeanFunPar',{'all','omitnan'});
 addOptional(InPar,'StdFun',@imUtil.background.rstd);
 addOptional(InPar,'StdFunPar',{});
 addOptional(InPar,'StepX',10);

@@ -667,6 +667,40 @@ classdef MatchedSources < Component
             Hy.Interpreter = Args.Interpreter;
             
         end
+        
+        % get LC by source index
+        function [JD, Mag] = getLC_ind(Obj, Ind, FieldMag)
+            % get the LC [JD, Mag] of a source by its index (column number)
+            % Input  : - A single-element MatchedSources object
+            %          - The index/s of the source in the matched matrix
+            %            (i.e., column number).
+            %          - A dictionary cell array of field names to search
+            %            in the MatchedSources.Data (return the first
+            %            exitsing field).
+            % Output : - JD vector.
+            %          - Mag (or selected field) vector/array for the selected
+            %            sources.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          [JD, Mag] = getLC_ind(MS, [2 3], {'FLUX'})
+            
+            arguments
+                Obj(1,1) MatchedSources
+                Ind
+                FieldMag             = AstroCatalog.DefNamesMag;
+            end
+            
+            [~, Name] = tools.cell.strNameDict2ind(Obj.Fields, FieldMag);
+            JD  = Obj.JD;
+            Mag = Obj.Data.(Name)(:,Ind);
+            
+        end
+        
+        % plot LC by source index
+        
+        % plot LC by source position
     end
     
     methods (Static) % unitTest
@@ -776,6 +810,12 @@ classdef MatchedSources < Component
             MS.addMatrix(rand(100,200),'MAG_PSF');
             MS.plotRMS
             MS.plotRMS('BinSize',0.1)
+            
+            MS = MatchedSources;
+            MS.addMatrix(rand(100,200),'FLUX');
+            MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'});
+            [JD, Mag] = getLC_ind(MS, [2 3], {'FLUX'});
+            
             
             io.msgStyle(LogLevel.Test, '@passed', 'MatchedSources test passed');
             Result = true;

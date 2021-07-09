@@ -26,9 +26,9 @@ function [Flag,Ind]=flag_overdense_colrow(Cat,varargin)
 %            'MinStd' - Minimum std in the second method, in order to
 %                   avoide zero std. Default is 0.5.
 %            'MeanFun' - Function handle to use in the background
-%                   estimation. Default is @nanmedian.
+%                   estimation. Default is @median.
 %            'MeanFunPar' - A cell array of parameters to passt to the
-%                   'MeanFun'. Default is {'all'}.
+%                   'MeanFun'. Default is {'all','omitnan'}.
 %            'StdFun' - Function handle to use in the std
 %                   estimation. Default is @imUtil.background.rstd.
 %            'StdFunPar' - A cell array of parameters to passt to the
@@ -61,8 +61,8 @@ addOptional(InPar,'Dim',1);  % 1 columns, 2 rows
 addOptional(InPar,'MaxNinBox',[]);
 addOptional(InPar,'Nsigma',10);
 addOptional(InPar,'MinStd',0.5);
-addOptional(InPar,'MeanFun',@nanmedian);
-addOptional(InPar,'MeanFunPar',{'all'});
+addOptional(InPar,'MeanFun',@median);      % NOTE: nanmedian is ~x7 slower than median with 'omitnan'
+addOptional(InPar,'MeanFunPar',{'all','omitnan'});
 addOptional(InPar,'StdFun',@imUtil.background.rstd);
 addOptional(InPar,'StdFunPar',{});
 

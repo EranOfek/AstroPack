@@ -8,7 +8,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %              By default, first moment is calculated iteratively around
 %              the guess position. It is calculated using windowing (i.e.,
 %              multiplying the stamp by a weight function). The user can
-%              supply the weight function, but by default it is a Gaussian
+%              supply the weight function, but by default is a Gaussian
 %              with a radius specified by the user. By default, the weight
 %              function width is adapeted iteratively, where in the first
 %              iteration a flat window is used, and then a Gaussian with
@@ -20,7 +20,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %              weighted aperture photometry (weighted by the weight
 %              function and properly normalized). This is roughly
 %              equivalent to PSF photometry.
-%              Note that the measurment of the second moment may be highly
+%              Note that the measurment of the second moment may be
 %              biased and it can be usually used only as a relative
 %              quantity.
 % Input  : - a 2D image (background subtracted), or a 3D cube of cutouts
@@ -100,16 +100,18 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %          [M1,M2,Aper]=imUtil.image.moment2(Cube,16,16)
 
 arguments
-    Image             {mustBeNumeric(Image)}
-    X                 {mustBeNumeric(X)}
-    Y                 {mustBeNumeric(Y)}
-    Args.AperRadius   {mustBeNumeric(Args.AperRadius)} = [2 4 6];
-    Args.Annulus      {mustBeNumeric(Args.Annulus)}    = [8 12];
-    Args.BackFun                                       = @nanmedian
-    Args.MomRadius    {mustBeNumeric(Args.MomRadius)}  = 8;    % recomended ~1.7 FWHM
+    Image             
+    X                 
+    Y                 
+    Args.AperRadius                                    = [2 4 6];
+    Args.Annulus                                       = [8 12];
+    Args.SubBack(1,1) logical                          = true;
+    Args.BackFun                                       = @median
+    Args.BackFunArgs cell                              = {[1 2],'omitnan'};
+    Args.MomRadius                                     = 8;    % recomended ~1.7 FWHM
     Args.WeightFun                                     = 2;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
     Args.Circle(1,1) logical                           = false;
-    Args.MaxIter      {mustBeNumeric(Args.MaxIter)}    = 10;
+    Args.MaxIter                                       = 10;
     Args.NoWeightFirstIter(1,1) logical                = true; 
     Args.PosConvergence                                = 1e-4;
     Args.DynamicWindow(1,1) logical                    = true;
@@ -163,6 +165,27 @@ Vec = (1:1:SizeCube(1)) - SizeCube(1).*0.5 - 0.5;
 [MatX,MatY] = meshgrid(Vec,Vec);
 MatR        = sqrt(MatX.^2 + MatY.^2);
 
+Nsrc = numel(X);
+
+% calculate local annulus background and subtract prior to moment
+% estimation
+if Args.SubBack || nargout>2
+    % Annulus background
+    BackFilter = nan(size(MatR));
+    BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
+    BackCube = BackFilter.*Cube;
+    % note - use NaN ignoring functions!
+    Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
+    Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+
+    % subtract back
+    if Args.SubBack
+        Cube = Cube - reshape(Aper.AnnulusBack,1,1,Nsrc);
+    end
+end
+
+
+
 % apply Gaussian weight
 if isa(Args.WeightFun,'function_handle')
     % WeightFun is a function handle
@@ -178,7 +201,7 @@ end
 W_Max = ones(size(MatR));
 W_Max(MatR>Args.MomRadius) = 0;
 
-Nsrc = numel(X);
+
 
 
 %M1.X = RoundX + squeeze(nansum(W.*Cube.*MatX,[1 2]))./squeeze(nansum(W.*Cube,[1 2]));
@@ -201,6 +224,7 @@ RelY1    = CumRelY1;
 
 M1.RoundX = RoundX;
 M1.RoundY = RoundY;
+
 
 M1.DeltaLastX = RelX1;
 M1.DeltaLastY = RelY1;
@@ -311,31 +335,35 @@ if nargout>1
         % aperture photometry
         Aper.AperRadius = Args.AperRadius;
 
+        
+
+        % total box photometry - on non centred position
+        Aper.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));
+
+        
+%         % Annulus background
+%         BackFilter = nan(size(MatR));
+%         BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
+%         BackCube = BackFilter.*Cube;
+%         % note - use NaN ignoring functions!
+%         Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
+%         Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+
+        % weighted aperture photometry
+        % back is already subtracted
+        Aper.WeightedAper = squeeze(sum(WInt,[1 2])./sum((W.*W_Max).^2,[1 2])); 
+
         % simple aperture photometry in centered pixeleted aperure
         Aper.AperPhot = zeros(Nsrc,Naper);
         Aper.AperArea = zeros(Nsrc,Naper);
         for Iaper=1:1:Naper
             AperFilter = ones(size(MatR));
             AperFilter(MatR>Args.AperRadius(Iaper)) = 0;
-            Aper.AperPhot(:,Iaper) = sum(Cube.*AperFilter,[1 2]);
             Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
+            % back is already subtracted
+            Aper.AperPhot(:,Iaper)   = sum(Cube.*AperFilter,[1 2]);
         end
-
-
-        % total box photometry - on non centred position
-        Aper.BoxPhot = squeeze(nansum(Cube,[1 2]));
-
-        % Annulus background
-        BackFilter = nan(size(MatR));
-        BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
-        BackCube = BackFilter.*Cube;
-        % note - use NaN ignoring functions!
-        Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,[1 2]));
-        Aper.AnnulusStd  = squeeze(nanstd(BackCube,0,[1 2]));
-
-        % weighted aperture photometry
-        Aper.WeightedAper = squeeze(sum(WInt,[1 2])./sum((W.*W_Max).^2,[1 2])); 
-
+                
         % Aperure photometry on shifted kernel
 
     end

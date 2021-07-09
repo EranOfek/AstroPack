@@ -463,6 +463,41 @@ classdef AstroCatalog < AstroTable
             end
         end
             
+        function [Dist, PA] = sphere_dist(Obj, Lon, Lat, LonLatUnits, OutUnits)
+            % Calculate the spherical distance and PA between Lon,Lat in
+            % Astrocatalog and a Lon, Lat in array.
+            % Input  : - A single-element AstroCatlog Object.
+            %          - Lon (scalar, or column vector with the same length
+            %            as the AstroCatalog catalog, or a row vector of
+            %            arbitrary length).
+            %          - Lat
+            %          - Lon/Lat units. Default is 'deg'.
+            %          - Output units of Dist and PA. Default is 'deg'.
+            % Output : - Angular distance.
+            %          - Position angle, as calculated by celestial_sphere.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [Dist, PA] = sphere_dist(AC,1,1);
+            
+            arguments
+                Obj(1,1)
+                Lon
+                Lat
+                LonLatUnits      = 'deg';
+                OutUnits         = 'deg';
+            end
+           
+            [ObjLon, ObjLat] = getLonLat(Obj, 'rad');
+            ConvertFactor    = convert.angular(LonLatUnits,'rad');
+            Lon              = Lon.*ConvertFactor;
+            Lat              = Lat.*ConvertFactor;
+            
+            [Dist, PA]    = celestial.coo.sphere_dist(ObjLon, ObjLat, Lon, Lat);
+            ConvertFactor = convert.angular('rad',LonLatUnits);
+            Dist          = Dist.*ConvertFactor;
+            PA            = PA.*ConvertFactor;
+            
+        end
     end
     
     methods % cut, projection, and transform
@@ -594,6 +629,14 @@ classdef AstroCatalog < AstroTable
     end
     
     
+    methods (Static)
+        function help
+            % show mlx help file for AstroCatalog
+            open manuals.AstroCatalog
+        end
+    end
+        
+    
     methods (Static) % unitTest
         function Result = unitTest
             % unitTest for the AstroCatalog class
@@ -712,6 +755,12 @@ classdef AstroCatalog < AstroTable
             [RA, Dec] = AC.getCoo('deg');
             [RADec]   = AC.getCoo('rad');
 
+            % sphere_dist
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            [Dist, PA] = sphere_dist(AC,1,1);
+            
+            
+            
             cd(PWD);
             
             io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog test passed')

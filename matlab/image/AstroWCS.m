@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% TODO Next - Tran2WCS
+% TODO Next - Complete Tran2WCS (Eran), wcs2keyCell (TPV,TAN-SIP)
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -22,7 +22,7 @@ classdef AstroWCS < Component
         NAXIS(1,1)   uint8  = 2;
         WCSAXES(1,1) uint8  = 2;        
         CTYPE(1,:)   cell   = {'',''};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
-        CUNIT        cell   = {'',''};
+        CUNIT(1,:)   cell   = {'',''};
         RADESYS      char   = 'ICRS';
         LONPOLE      double = 0; 
         LATPOLE      double = 90;
@@ -31,7 +31,7 @@ classdef AstroWCS < Component
         CRVAL(1,:)   double = [1 1];
         CD           double = [1 0;0 1];
         PV           double   = [];  % Changes to double from Cell
-        revPV        double   = [];
+        RevPV        double   = [];
 %        CDELT(1,:)   double = [1 1];   % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
 %        PC           double = [];      % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
 %        SIP          cell   = {zeros(0,2),zeros(0,2)}; Removed - absorbed in PV
@@ -184,6 +184,90 @@ classdef AstroWCS < Component
             Obj.CUNIT(Funit) = coounit(Funit);
             
         end
+        
+   %======== Functions to construct AstroHeader from AstroWCS =========  
+   
+       function KeyCell = wcs2keyCell(Obj)
+           KeyCell = cell(0,3);
+           
+           %Add field by field
+           
+           if ~isempty(Obj.NAXIS)
+               AddCell = {'NAXIS', Obj.NAXIS, ''};
+               KeyCell = [KeyCell; AddCell];
+           end
+           if ~isempty(Obj.WCSAXES)
+               AddCell = {'WCSAXES', Obj.WCSAXES, ''};
+               KeyCell = [KeyCell; AddCell];
+           end 
+           if ~isempty(Obj.RADESYS)
+               AddCell = {'RADESYS', Obj.RADESYS, ''};
+               KeyCell = [KeyCell; AddCell];
+           end       
+           if ~isempty(Obj.NAXIS)
+               AddCell = {'NAXIS', Obj.NAXIS, ''};
+               KeyCell = [KeyCell; AddCell];
+           end
+           if ~isempty(Obj.EQUINOX)
+               AddCell = {'EQUINOX', Obj.EQUINOX, ''};
+               KeyCell = [KeyCell; AddCell];
+           end 
+           if ~isempty(Obj.LONPOLE)
+               AddCell = {'LONPOLE', Obj.LONPOLE, ''};
+               KeyCell = [KeyCell; AddCell];
+           end       
+           if ~isempty(Obj.LATPOLE)
+               AddCell = {'LATPOLE', Obj.LATPOLE, ''};
+               KeyCell = [KeyCell; AddCell];
+           end       
+           
+           Naxis = Obj.WCSAXES;
+           % verify size
+           if (size(Obj.CTYPE,2)~=Naxis) || (size(Obj.CUNIT,2)~=Naxis)
+               error('Wrong size of CTYPE or CUNIT');
+           end
+           
+           for Ix = 1:1:Naxis
+               AddCell = {sprintf('CTYPE%d',Ix), Obj.CTYPE(Ix), ''};
+               KeyCell = [KeyCell; AddCell];
+           end
+           
+           for Ix = 1:1:Naxis
+               AddCell = {sprintf('CUNIT%d',Ix), Obj.CUNIT(Ix), ''};
+               KeyCell = [KeyCell; AddCell];
+           end
+
+           % verify size
+           if (size(Obj.CRPIX,2)~=2) || (size(Obj.CRVAL,2)~=2) ||...
+              (size(Obj.CD,1)~=2) || (size(Obj.CD,2)~=2)
+               error('Wrong size of CRPIX or CRVAL or CD');
+           end           
+           
+           for Ix = 1:2
+               AddCell = {sprintf('CRPIX%d',Ix), Obj.CRPIX(Ix), ''};
+               KeyCell = [KeyCell; AddCell];
+           end
+              
+           for Ix = 1:2
+               AddCell = {sprintf('CRVAL%d',Ix), Obj.CRVAL(Ix), ''};
+               KeyCell = [KeyCell; AddCell];
+           end
+           
+           for Ix1 = 1:2
+               for Ix2 = 1:2
+                   AddCell = {sprintf('CD%d_%d',Ix), Obj.CD(Ix1,Ix2), ''};
+                   KeyCell = [KeyCell; AddCell];
+               end
+           end
+           
+           switch lowercase(Obj.ProjType)
+               case 'tpv'
+                   
+               case 'tan-sip'
+                   
+           end
+
+       end
         
    %======== Functions for related to xy2sky =========
    
@@ -675,8 +759,8 @@ classdef AstroWCS < Component
                 U = relP(1,:);
                 V = relP(2,:);
                     
-                if ~isempty(Obj.revPV)
-                    [u,v]  = AstroWCS.forwardDistortion(Obj.revPV,U,V); % u = U + F(U,V), v = V+G(U,V)
+                if ~isempty(Obj.RevPV)
+                    [u,v]  = AstroWCS.forwardDistortion(Obj.RevPV,U,V); % u = U + F(U,V), v = V+G(U,V)
                 else
 
                     err_thresh = 1e-4;
@@ -763,9 +847,9 @@ classdef AstroWCS < Component
             % look for PV coeficients
             Obj.PV = Obj.build_PV(AH,Obj.ProjType);
             
-            % For TAN-SIP try to get revPV (TODO generlize)
+            % For TAN-SIP try to get RevPV (TODO generlize)
             if strcmpi(Obj.ProjType,'tan-sip')
-                Obj.revPV = AstroWCS.build_TANSIP(Header,true);
+                Obj.RevPV = AstroWCS.build_TANSIP(Header,true);
             end
 
 
@@ -808,7 +892,6 @@ classdef AstroWCS < Component
                
             
         end
-
         
         function CD = build_CD(Header,Naxis)
             % Read The CD matrix, or PC+CDELT, or CDELT
@@ -1115,6 +1198,68 @@ classdef AstroWCS < Component
             
         end
         
+   %======== Functions to construct AstroWCS from Tran2D =========
+   
+        function Obj = tran2wcs(Tran2D,NAXIS,CRPIX,CRVAL,WCSAXES,CTYPE,CUNIT,RADESYS,EQUINOX,LONPOLE,LATPOLE)
+            % Create and populate an AstroWCS object from an Trans2D object
+
+
+            Obj = AstroWCS(1);
+            T2D = Tran2D;
+            
+            % Paste number of axes
+            % if WCSAXES is empty use NAXIS as default
+            Obj.NAXIS = NAXIS;
+            Obj.WCSAXES = WCSAXES;
+            if isempty(Obj.WCSAXES)
+                Obj.WCSAXES = Obj.NAXIS;
+            end
+            
+            % paste CTYPE and transalte to projection information (ProjType,
+            % ProjClass) and CooName and CUNIT            
+            Obj.CTYPE = CTYPE;
+            Obj.CUNIT = CUNIT;                
+            Obj.read_ctype;
+            
+            % paste base WCS info           
+            if ~isempty(RADESYS)
+                Obj.RADESYS = RADESYS;
+            end
+            if ~isempty(EQUINOX)
+                Obj.EQUINOX = EQUINOX;
+            end
+            if ~isempty(LONPOLE)
+                Obj.LONPOLE = LONPOLE;
+            end
+            if ~isempty(LATPOLE)
+                Obj.LATPOLE = LATPOLE;
+            end            
+         
+            Obj.CRPIX = CRPIX;
+            Obj.CRVAL = CRVAL;
+            
+            
+            % TODO once Eran concluded
+            
+%             Obj.CD = Obj.build_CD(AH,Naxis);
+%             
+%             % Read distortions   
+%             
+%             % look for PV coeficients
+%             Obj.PV = Obj.build_PV(AH,Obj.ProjType);
+%             
+%             % For TAN-SIP try to get RevPV (TODO generlize)
+%             if strcmpi(Obj.ProjType,'tan-sip')
+%                 Obj.RevPV = AstroWCS.build_TANSIP(Header,true);
+%             end
+
+
+            
+            
+            % populate proj Meta
+            Obj.populate_projMeta;
+        end
+        
    %======== Functions for related to xy2sky =========           
         
         function [Alpha,Delta]=phitheta2alphadelta(Phi,Theta,PhiP,AlphaP,DeltaP,Units)
@@ -1327,6 +1472,130 @@ classdef AstroWCS < Component
     
     
     methods
+       function H=wcs2head(Obj,H)
+            % Convert ClassWCS object to header WCS key/par
+            % Package: @ClassWCS
+            % Description:
+            % Input  : - A ClassWCS object.
+            %          - Optional header in which to concat the WCS
+            %            keywords.
+            % Output : - An HEAD object with the WCS keywords.
+            
+            
+            
+            WCSField = ClassWCS.WCSField;
+            % debug: W.WCS.CD = W.WCS.CD .* [1 -1;1 1];
+            if (nargin<2)
+                H = [];
+            end
+            if (iscell(H))
+                Tmp = H;
+                H = HEAD;
+                H = add_key(H,Tmp);
+            end
+            if (isempty(H))
+                H = HEAD(size(Obj));
+            end
+            
+            Nw = numel(Obj);
+            for Iw=1:1:Nw
+                CellHead = cell(0,3);
+                Iline    = 0;
+                FN = fieldnames(Obj(Iw).(WCSField));
+                Nfn = numel(FN);
+                for Ifn=1:1:Nfn
+                    if (isstruct(Obj(Iw).(WCSField).(FN{Ifn})))
+                        % struct contains distortions or meta data
+                        switch lower(FN{Ifn})
+                            case 'sip'
+                                AddCell = ClassWCS.sip2head(Obj(Iw).(WCSField).sip,'cell');
+                                CellHead= [CellHead; AddCell];
+                                Iline    = Iline + size(AddCell,1);
+                                
+                                if (size(AddCell,1)>1)
+                                    IsSIP    = true;
+                                else
+                                    IsSIP    = false;
+                                end
+                                
+                            case 'tpv'
+                                Nc = numel(Obj.WCS.tpv.KeyVal);
+                                AddCell = cell(Nc,3);
+                                [AddCell{:,3}]=deal('');
+                                [AddCell{:,1}] = deal(Obj(Iw).(WCSField).tpv.KeyName{:});
+                                [AddCell{:,2}] = deal(Obj(Iw).(WCSField).tpv.KeyVal{:});
+                                
+                                CellHead= [CellHead; AddCell];
+                                Iline    = Iline + Nc;
+                            case 'pv'
+                                Nc = numel(Obj.WCS.PV.KeyVal);
+                                AddCell = cell(Nc,3);
+                                [AddCell{:,3}]=deal('');
+                                [AddCell{:,1}] = deal(Obj(Iw).(WCSField).PV.KeyName{:});
+                                [AddCell{:,2}] = deal(Obj(Iw).(WCSField).PV.KeyVal{:});
+                                
+                                CellHead= [CellHead; AddCell];
+                                Iline    = Iline + Nc;
+                                
+                            otherwise
+                                warning('Unknown structure type in a ClassWCS object');
+                        end
+                        
+                        
+                    else
+                        % N1 N2 are the dimensions of the keyword value element
+                        % e.g., CD is usually a 2x2 matrix...
+                        if (ischar(Obj(Iw).(WCSField).(FN{Ifn})))
+                            N1 = 1;
+                            N2 = 1;
+                        else
+                            [N1,N2] = size(Obj(Iw).(WCSField).(FN{Ifn}));
+                        end
+                        
+                        if (N1>1 && N2>1)
+                            % field contains a matrix
+                            for I1=1:1:N1
+                                for I2=1:1:N2
+                                    KeyName = sprintf('%s%d_%d',FN{Ifn},I1,I2);
+                                    KeyVal  = Obj(Iw).(WCSField).(FN{Ifn})(I1,I2);
+                                    Iline   = Iline + 1;
+                                    CellHead(Iline,:) = {KeyName, KeyVal, ''};
+                                end
+                            end
+                        else
+                            % field contains a vector/scalar
+                            if (N1>1 || N2>1)
+                                % field contains a vector
+                                for I1=1:1:max(N1,N2)
+                                    KeyName = sprintf('%s%d',FN{Ifn},I1);
+                                    KeyVal  = Obj(Iw).(WCSField).(FN{Ifn})(I1);
+                                    Iline   = Iline + 1;
+                                    if (iscell(KeyVal))
+                                        KeyVal = KeyVal{1};
+                                    end
+                                    CellHead(Iline,:) = {KeyName, KeyVal, ''};
+                                end
+                            else
+                                % field contain a scalar
+                                Iline   = Iline + 1;
+                                CellHead(Iline,:) = {FN{Ifn}, Obj(Iw).(WCSField).(FN{Ifn}), ''};
+                            end
+                            
+                        end
+                        
+                    end
+                end
+
+                % delete old WCS keywords
+                H(Iw) = delete_key(H(Iw),CellHead(:,1));
+                % add new keywords
+                H(Iw) = add_key(H(Iw),CellHead);
+                
+            end
+            
+            % end of main loop (Iw)
+        end
+        
         function Obj=fill(Obj,Force)
             % Fill ProjType, ProjClass, Coo, AlphaP, DeltaP in wcsCl object
             % Package: @wcsCl (basic)
@@ -2073,98 +2342,6 @@ classdef AstroWCS < Component
         
         
         % static
-        function [X,Y]=projection_TAN(Long,Lat,R,CenterVec)
-            % Package: @wcsCl (Static, projection)
-
-                Long1 = CenterVec(1);
-                Lat1  = CenterVec(2);
-                % R is really R.*S (R-radius, S-scale factor)
-                CosC = sin(Lat1).*sin(Lat) + cos(Lat1).*cos(Lat).*cos(Long-Long1);
-                X = R.*cos(Lat).*sin(Long-Long1)./CosC;
-                Y = R.*(cos(Lat1).*sin(Lat) - sin(Lat1).*cos(Lat).*cos(Long-Long1))./CosC;
-
-        end
-
-
-        function [X,Y]=projectTAN_coo2xy(Lon,Lat,CRVAL,Units)
-            % project sky coordinates to interm. coordinates using TAN projection
-            % Package: @wcsCl (Static, transformation)
-            % Input  : - Longitude (Units).
-            %          - Latitude (Units).
-            %          - A two element vector of reference point relative
-            %            to which the X/Y coordinates are measured.
-            %          - Units of both the reference point and X/Y
-            %            coordinates.
-            %            {'rad'|'deg'}. Default is 'deg'.
-            % Output : - X intermediate coordinate in angular units as
-            %            measured relative to a reference point.
-            %            X is measured toward the North.
-            %          - Y intermediate coordinate in angular units as
-            %            measured relative to a reference point.
-            %            Y is measured toward the North.
-            % Example: [Lon,Lat]=wcsCl.projectTAN_xy2coo(1,1,[100 45],'deg')
-            %          [X,Y]=wcsCl.projectTAN_coo2xy(Lon,Lat,[100 45],'deg')
-
-
-            if nargin<4
-                Units = 'deg';
-            end
-
-            % measure angular distance from CRVAL
-            ConvFactor = convert.angular(Units,'rad');
-            Lon   = Lon.*ConvFactor;
-            Lat   = Lat.*ConvFactor;
-            CRVAL = CRVAL.*ConvFactor;
-
-            [Theta,Phi] = celestial.coo.sphere_dist(CRVAL(1),CRVAL(2),Lon,Lat);
-
-            Rtheta = tan(Theta);
-            ConvFactor = convert.angular('rad',Units);
-            X = Rtheta.*sin(Phi).*ConvFactor;
-            Y = Rtheta.*cos(Phi).*ConvFactor;  % no minus sign
-
-        end
-
-
-
-        function [Lon,Lat]=projectTAN_xy2coo(X,Y,CRVAL,Units)
-            % project interm. coordinates to sky coordinates using TAN projection
-            % Package: @wcsCl (Static)
-            % Input  : - X intermediate coordinate in angular units as
-            %            measured relative to a reference point.
-            %            X is measured toward the North.
-            %          - Y intermediate coordinate in angular units as
-            %            measured relative to a reference point.
-            %            Y is measured toward the East.
-            %          - A two element vector of reference point relative
-            %            to which the X/Y coordinates are measured.
-            %          - Units of both the reference point and X/Y
-            %            coordinates.
-            %            {'rad'|'deg'}. Default is 'deg'.
-            % Output : - Longitude [Units].
-            %          - Latitude [Units].
-            % Example: [Lon,Lat]=wcsCl.projectTAN_xy2coo(1,1,[100 45],'deg')
-
-            if nargin<4
-                Units = 'deg';
-            end
-
-            ConvFactor = convert.angular(Units,'rad');
-            CRVAL  = CRVAL.*ConvFactor;
-            X      = X.*ConvFactor;
-            Y      = Y.*ConvFactor;
-            Rtheta = sqrt(X.^2 + Y.^2);
-            Phi    = atan2(X,Y);  % X,-Y
-            Theta  = atan(Rtheta);
-
-            [Lat,Lon] = reckon(CRVAL(2),CRVAL(1),Theta,Phi,'radians');
-
-            ConvFactor = convert.angular('rad',Units);
-            Lon    = Lon.*ConvFactor;
-            Lat    = Lat.*ConvFactor;
-
-        end
-
 
 
         
