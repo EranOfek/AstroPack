@@ -1956,6 +1956,12 @@ classdef AstroImage < Component
             %                   convolution. If empty, use faster method
             %                   for the specific image and kernel sizes.
             %                   Default is [].
+            %            'PadMethod' - Padding before operation (padded region
+            %                   will be removed from output).
+            %                   '' - do nothing (Default).
+            %                   'circular' - circular boundry conditions.
+            %                   'replicate' - relpicate nearest edge value.
+            %                   'symmetric' - mirror reflection boundry conditions.
             %            'DataProp' - A cell array of data properties on
             %                   which to aplly the operator.
             %                   Default is {'ImageData'}.
@@ -1985,6 +1991,7 @@ classdef AstroImage < Component
                 PSF                              = [];
                 Args.ArgsPSF cell                = {};
                 Args.UseFFT                      = [];
+                Args.PadMethod                   = '';
                 Args.DataProp cell               = {'ImageData'}
                 Args.DataPropIn                  = 'Image';
                 Args.CreateNewObj(1,1) logical   = true;
@@ -2031,7 +2038,7 @@ classdef AstroImage < Component
                 end
                 
                 for Iprop=1:1:Nprop
-                    Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = imUtil.filter.conv2_fast(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), Kernel, Args.UseFFT);
+                    Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = imUtil.filter.conv2_fast(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), Kernel, Args.UseFFT, Args.PadMethod);
                 end
                 
             end
@@ -2061,6 +2068,12 @@ classdef AstroImage < Component
             %                   convolution. If empty, use faster method
             %                   for the specific image and kernel sizes.
             %                   Default is [].
+            %            'PadMethod' - Padding before operation (padded region
+            %                   will be removed from output).
+            %                   '' - do nothing (Default).
+            %                   'circular' - circular boundry conditions.
+            %                   'replicate' - relpicate nearest edge value.
+            %                   'symmetric' - mirror reflection boundry conditions.
             %            'DataProp' - A cell array of data properties on
             %                   which to aplly the operator.
             %                   Default is {'ImageData'}.
@@ -2090,6 +2103,7 @@ classdef AstroImage < Component
                 PSF                              = [];
                 Args.ArgsPSF cell                = {};
                 Args.UseFFT                      = [];
+                Args.PadMethod                   = '';
                 Args.DataProp cell               = {'ImageData'}
                 Args.DataPropIn                  = 'Image';
                 Args.CreateNewObj(1,1) logical   = true;
@@ -2136,7 +2150,7 @@ classdef AstroImage < Component
                 end
                  
                 for Iprop=1:1:Nprop
-                    Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = imUtil.filter.filter2_fast(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), Kernel, Args.UseFFT);
+                    Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = imUtil.filter.filter2_fast(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), Kernel, Args.UseFFT, Args.PadMethod);
                 end
                 
             end
