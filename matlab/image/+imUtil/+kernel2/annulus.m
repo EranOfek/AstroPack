@@ -4,7 +4,7 @@ function K=annulus(Radii,SizeXY,PosXY)
 % Input  : - (Radii) A two column matrix of [Inner Outer] radius of the
 %            annulus.
 %            If not provided then the default is [7 11].
-%          - Stamp size [X,Y]. Default is [23 23].
+%          - Stamp size [X,Y]. Default is max(radii.*2+1)
 %          - [X,Y] Position of the annulus center in the stamp.
 %            Default is the ceil(stamp_size/2).
 % Output : - A matrix or a cube with the 2D annulus which sum is
@@ -18,11 +18,15 @@ function K=annulus(Radii,SizeXY,PosXY)
 if nargin<3
     PosXY = [];
     if nargin<2
-        SizeXY = [23 23];
+        SizeXY = [];
         if nargin<1
             Radii = [7 11];
         end
     end
+end
+
+if isempty(SizeXY)
+    SizeXY = ones(1,2).*(max(Radii(:)).*2 + 1);
 end
 
 if isempty(PosXY)
