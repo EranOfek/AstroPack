@@ -365,7 +365,6 @@ classdef AstroCatalog < AstroTable
             
         end
         
-        
         function [varargout] = getXY(Obj, Args)
             % Get X/Y columns from AstroCatalog.
             % Input - A single element AstroCatalog object.
@@ -576,6 +575,110 @@ classdef AstroCatalog < AstroTable
         
     end
     
+    methods % interact with Mask images
+        function Result = insertFlagColFromMask(Obj, Mask, Args)
+            % Insert/replace FLAGS column in AstroCatalog as populated from a MaskImage object.
+            % Description: Given an AstroCatalog and a MaskImage objects,
+            %       for each source in the AstroCatalog, search the FLAGS
+            %       in the MaskImage (bitwise or/and) within a user
+            %       provided radius (default is 3 pix). These FLAGS will be
+            %       inserted (or replaced) in the AstroCatalog object as a
+            %       new column.
+            %       Note that by default, unless the Catalog is a table
+            %       type, the FLAGS typw will be casted to have the same
+            %       type as the Catalog data.
+            % Input  : - A single-element AstroCatalog object.
+            %          - A single-element MaskImage object.
+            %          * ...,key,val,...
+            %            'CastToType' - A logical indicating if to cast the
+            %                   type of the inserted Flags column to be the
+            %                   same as the AstroCatalog object Catalog
+            %                   data (if Catalog is of table type, then
+            %                   this is ignored). Default is true.
+            %            'ColX' - A cell array of X column names. Will
+            %                   select the first exitsing column name.
+            %                   Default is AstroCatalog.DefNamesX.
+            %            'ColY' - - A cell array of Y column names. Will
+            %                   select the first exitsing column name.
+            %                   Default is AstroCatalog.DefNamesY.
+            %            'FlagColName' - The flags column name.
+            %                   Default is 'FLAGS'.
+            %            'ColPos' - If Flags column doesn't exist, then
+            %                   this is the position in which to insert the
+            %                   new column. Default is Inf.
+            %            'CreateNewObj' - - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            %            'BitWiseOperator' - Bit-wise Operator: ['or'] | 'and'
+            %            'HalfSize' - Cutout half size (actual size will be
+            %                   1+2*HalfSize. Default is 3.
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
+            %            'IsCircle' - If true then will pad each cutout
+            %                   with NaN outside the HalfSize radius.
+            %                   Default is false.
+            %            'DataProp' - Data property from which to extract
+            %                   the cutouts. Default is 'Image'.
+            % Example: AC = AstroCatalog({rand(100,2).*1024}, 'ColNames',{'X','Y'});
+            %          MI = MaskImage({uint32(ones(1024,1024).*5)});
+            %          insertFlagColFromMask(AC, MI)
+            
+            arguments
+                Obj(1,1)
+                Mask(1,1) MaskImage
+                Args.CastToType(1,1) logical    = true;
+                Args.ColX                       = AstroCatalog.DefNamesX;
+                Args.ColY                       = AstroCatalog.DefNamesY;
+                Args.FlagColName char           = 'FLAGS';
+                Args.ColPos                     = Inf;
+                Args.CreateNewObj               = [];
+                Args.BitWiseOperator            = 'or';
+                % bitwise_cutouts arguments
+                Args.HalfSize                   = 3;
+                Args.CutAlgo                    = 'wmat';  % 'mex' | 'wmat'
+                Args.IsCircle(1,1) logical      = false;
+                Args.DataProp                   = 'Image';
+                
+            end
+            
+            if isempty(Args.CreateNewObj)
+                if nargout==0
+                    Args.CreateNewObj = false;
+                else
+                    Args.CreateNewObj = true;
+                end
+            end
+            if Args.CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            % get X, Y from AstroCatalog
+            XY = getXY(Obj, 'ColX',Args.ColX, 'ColY',Args.ColY);
+            
+            % get the Flags from the mask image
+            FlagColData = bitwise_cutouts(Mask, XY, Args.BitWiseOperator, 'HalfSize',Args.HalfSize,...
+                                                                          'CutAlgo',Args.CutAlgo,...
+                                                                          'IsCircle',Args.IsCircle,...
+                                                                          'DataProp',Args.DataProp);
+            % cast the Type of the new column into the type of the Catalog
+            % (if array). 
+            % If catalog is table then ignore
+            if Args.CastToType && ~istable(Obj.Catalog)
+                FlagColData = cast(FlagColData, class(Obj.Catalog));
+            end
+            
+            % add the flags to the AstroCatalog
+            Obj.replaceCol(FlagColData, Args.FlagColName, Args.ColPos);
+            
+        end
+    end
+    
     methods % plotting
         function varargin = plotMapFun(Obj, Projection, PlotFun, AddCol, varargin)
             % A general map (RA/Dec) plotting function for AstroCatalog object
@@ -703,6 +806,12 @@ classdef AstroCatalog < AstroTable
             AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});
             [X,Y] = getXY(AC);
 
+            % insertFlagColFromMask
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog insertFlagColFromMask');
+            AC = AstroCatalog({rand(100,2).*1024}, 'ColNames',{'X','Y'});
+            MI = MaskImage({uint32(ones(1024,1024).*5)});
+            insertFlagColFromMask(AC, MI);
+            
             % cone_search? what is this?
 %             io.msgLog(LogLevel.Test, 'testing AstroCatalog/catsHTM cone_search?');
 %             C=catsHTM.cone_search('GAIADR2',1,1,100,'OutType','astrocatalog'); % <--- doesn't work

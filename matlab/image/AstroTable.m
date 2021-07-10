@@ -763,8 +763,8 @@ classdef AstroTable < Component
             
         end
         
-        function Obj = replaceCol(Obj, NewData, ColNames)
-            % replace columns in AstroTable
+        function Obj = replaceCol(Obj, NewData, ColNames, Pos)
+            % replace (or insert) columns in AstroTable
             % Input  : - An AstroTable object.
             %          - Data of columns to replace. This may be a matrix,
             %            cell array, a table or another AstroTable
@@ -773,6 +773,9 @@ classdef AstroTable < Component
             %            If AstroTable then numver of elements should be
             %            1 or equal to the number of elements in the first
             %            input.
+            %          - Column names to replace insert.
+            %          - Position for new insertion. Default is Inf.
+            % BUGS   : The function doesn't handle a mix of insert/replace.
             % Example: AC = AstroTable;
             %          AC(1).Catalog = rand(100,3);
             %          AC(1).ColNames={'a','b','c'};
@@ -782,6 +785,7 @@ classdef AstroTable < Component
                 Obj
                 NewData
                 ColNames                 = [];
+                Pos                      = Inf;
             end
             
             Nobj   = numel(Obj);
@@ -793,15 +797,25 @@ classdef AstroTable < Component
                 end
                 for Iobj=1:1:Nobj
                     ColInd   = colname2ind(Obj(Iobj),ColNames);
-                    %NcolData = size(Obj(Iobj2).Catalog,2);
-                    Iobj2    = min(Nobj2,Iobj);
-                    Obj(Iobj).Catalog(:,ColInd) = NewData(Iobj2).Catalog;
+                    if all(isnan(ColInd))
+                        % ColName doesn't exist - add
+                        insertCol(Obj(Iobj), NewData, Pos, ColNames);
+                    else
+                        %NcolData = size(Obj(Iobj2).Catalog,2);
+                        Iobj2    = min(Nobj2,Iobj);
+                        Obj(Iobj).Catalog(:,ColInd) = NewData(Iobj2).Catalog;
+                    end
                 end
             else
                 % 
                 for Iobj=1:1:Nobj
                     ColInd   = colname2ind(Obj(Iobj),ColNames);
-                    Obj(Iobj).Catalog(:,ColInd) = NewData;
+                    if all(isnan(ColInd))
+                        % ColName doesn't exist - add
+                        insertCol(Obj(Iobj), NewData, Pos, ColNames);
+                    else
+                        Obj(Iobj).Catalog(:,ColInd) = NewData;
+                    end
                 end
             end
         end

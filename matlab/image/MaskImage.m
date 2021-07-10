@@ -129,7 +129,6 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                  
         end
         
-        
         function [Result, XY, Ind] = findBit(Obj, BitNames, Args)
             % find pixels with some specific mask-bit open
             % Input  : - A MaskImage object (multi elements supported).
@@ -236,7 +235,6 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
         end
         
-        
         function Result = bitwise_cutouts(Obj, XY, Operator, Args)
             % Apply bitwise operator to a cutouts
             % Input  : - A single-element MaskImage object.
@@ -244,11 +242,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %            Positions will be rounded.
             %          - Operator: ['or'] | 'and'
             %          * ...,key,val,...
-            %            'FunArgs' - A cell array of additional arguments
-            %                   to pass to the function. Default is {}.
             %            'HalfSize' - Cutout half size (actual size will be
-            %                   1+2*HalfSize. Default is 8.
-            %            'PadVal' - Padding value. Default is NaN.
+            %                   1+2*HalfSize. Default is 3.
             %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
@@ -268,7 +263,6 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 Args.HalfSize               = 3;
                 Args.CutAlgo                = 'wmat';  % 'mex' | 'wmat'
                 Args.IsCircle               = false;
-                Args.Shift(1,1) logical     = false;
                 Args.DataProp               = 'Image';
                 
             end
