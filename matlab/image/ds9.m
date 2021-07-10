@@ -631,7 +631,7 @@ classdef ds9 < handle
             % Description: Save a ds9 frame in a SIM object
             % Input  : null.
             % Output : - A SIM object.
-            % Eaxmple: S=ds9.tosim;
+            % Eaxmple: S=ds9.read2sim;
             % Reliable: 2
             
             % Read entire image from ds9
@@ -641,6 +641,24 @@ classdef ds9 < handle
             Sim     = FITS.read2sim(TmpName);
             delete(TmpName);
         end
+        
+        function Result = read2AstroImage
+            % Save a ds9 frame in an AstroImage object
+            % Package: @ds9
+            % Description: Save a ds9 frame in a SIM object
+            % Input  : null.
+            % Output : - An AstroImage object.
+            % Eaxmple: S=ds9.read2AstroImage;
+            % Reliable: 2
+            
+            % Read entire image from ds9
+            TmpName = sprintf('%s.fits',tempname);
+            Answer  = ds9.system('xpaset -p ds9 save %s',TmpName);
+            %Sim     = image2sim(TmpName);
+            Result  = AstroImage(TmpName);
+            delete(TmpName);
+        end
+        
     end
     
     % Frame properties methods
