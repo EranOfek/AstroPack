@@ -1,9 +1,14 @@
 % AstroImage database adaptor
 
+% Threads
+% https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part1
+% https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part2
+
+
 classdef AstroDb < Component
     
     properties (Hidden, SetAccess = public)
-
+        OperQueue       % Queue of AstroDbOper
     
     end
     
@@ -125,7 +130,29 @@ classdef AstroDb < Component
             Obj.msgLog(LogLevel.Debug, 'insertCatalog done');
         end        
     end
-             
+       
+    
+    %
+    methods %
+        function Result = manage(Obj)
+            % Manage queue of pending operations
+
+            % Get next operation from queue
+            Count = 0;
+            Max = 1;
+            while (true)
+                Count = Count + 1;
+                if Count >= Max
+                    break;
+                end
+            end
+            
+            Result = true;
+        end
+        
+    end
+
+    
     %
     methods % (Static???)
         function Result = getDefaultQuery(Obj, Args)
@@ -148,6 +175,17 @@ classdef AstroDb < Component
     methods
                 
     end
+    
+    %
+    methods(Static)
+        function Result = get()
+            persistent Obj
+            if isempty(Obj)
+                Obj = AstroDb;
+            end
+            Result = Obj;
+        end        
+    end    
     
     %----------------------------------------------------------------------
     % Unit test
