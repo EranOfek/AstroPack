@@ -256,7 +256,7 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
     
     
     methods
-        function [FileName,Path] = construct_filename(Obj,varargin)
+        function [FileName,Path] = construct_filename(Obj, varargin)
             % Construct image/catalog file name based on the LAST/ULTRASAT standard
             % Package: +imUtil/+util/+file
             % Description: Return data product file name and path according to the
@@ -343,6 +343,19 @@ classdef ImagePath < handle % & matlab.mixin.CustomDisplay
             Obj.FullName    = sprintf('%s%s%s',Path,filesep,FileName);
             Obj.Path        = Path;
             
+        end
+        
+        
+        function Result = loadFromDb(Obj, QueryOrRec)
+            % Load properties from query or record
+        end
+    end
+    
+    
+    methods(Static)    
+        function Result = createFromDbQuery(Obj, Query)
+            % Create ImagePath
+                
         end
     end
     

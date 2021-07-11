@@ -30,8 +30,25 @@ classdef AstroStore < Component
     
     methods
         
-        function Result = copyFileToStore(Obj, SrcFileName, DstFileName)
+        function Result = copyFileToStore(Obj, SrcFileName, DstFileName, Args)
+            arguments
+                Obj
+                SrcFileName
+                DstFileName
+                Args.Move = false;
+            end                
+                
             %
+            try
+                if Args.Move
+                    Obj.msgLog(LogLevel.Info, 'moving file: %s -> %s', SrcFileName, DstFileName);
+                    movefile(SrcFileName, DstFileName);
+                else                    
+                    Obj.msgLog(LogLevel.Info, 'copying file: %s -> %s', SrcFileName, DstFileName);
+                    copyfile(SrcFileName, DstFileName)
+                end
+            catch
+            end
             Result = true;
         end
   

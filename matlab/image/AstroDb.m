@@ -1,5 +1,10 @@
 % AstroImage database adaptor
 
+% Threads
+% https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part1
+% https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part2
+
+
 classdef AstroDb < Component
     
     properties (Hidden, SetAccess = public)
