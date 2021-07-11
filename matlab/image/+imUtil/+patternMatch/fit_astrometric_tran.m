@@ -301,9 +301,11 @@ while Iter<InPar.MaxIter
     switch lower(InPar.FitMethod)
         case 'lscov'
             
+            %warning('off')
             [ParX,ParErrX] = lscov(Hx(FlagSrc,:), CatX(FlagSrc), InvVar(FlagSrc), InPar.Algo);
             
             [ParY,ParErrY] = lscov(Hy(FlagSrc,:), CatY(FlagSrc), InvVar(FlagSrc), InPar.Algo);
+            %warning('on')
             
         case '\'
             ParX = Hx(FlagSrc,:)\CatX(FlagSrc);

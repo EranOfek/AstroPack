@@ -129,7 +129,6 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                  
         end
         
-        
         function [Result, XY, Ind] = findBit(Obj, BitNames, Args)
             % find pixels with some specific mask-bit open
             % Input  : - A MaskImage object (multi elements supported).
@@ -236,19 +235,55 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
         end
         
-        
-%         function bitwise_cutout(Obj, Operator, Args)
-%             % Apply bitwise operator to a cutouts
-%             
-%             arguments
-%                 Obj
-%                 Operator function_handle
-%                 Args.XY
-%                 Args.Radius
-%                 Args.Shape
-%             end
-%            
-%         end
+        function Result = bitwise_cutouts(Obj, XY, Operator, Args)
+            % Apply bitwise operator to a cutouts
+            % Input  : - A single-element MaskImage object.
+            %          - A two column matrix of [X, Y] positions.
+            %            Positions will be rounded.
+            %          - Operator: ['or'] | 'and'
+            %          * ...,key,val,...
+            %            'HalfSize' - Cutout half size (actual size will be
+            %                   1+2*HalfSize. Default is 3.
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
+            %            'IsCircle' - If true then will pad each cutout
+            %                   with NaN outside the HalfSize radius.
+            %                   Default is false.
+            %            'DataProp' - Data property from which to extract
+            %                   the cutouts. Default is 'Image'.
+            % Output : - A column vector of function output (bitwise or/and
+            %            on all numbers in cutout) per each cutout.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: IC=MaskImage({uint32(ones(100,100))});
+            %          Result = bitwise_cutouts(IC, [1 1; 2 2; 10 10; 30 30], 'or')
+            
+            arguments
+                Obj(1,1)
+                XY
+                Operator                    = 'or';
+                Args.HalfSize               = 3;
+                Args.CutAlgo                = 'wmat';  % 'mex' | 'wmat'
+                Args.IsCircle               = false;
+                Args.DataProp               = 'Image';
+                
+            end
+            
+            switch lower(Operator)
+                case 'or'
+                    Fun = @tools.array.bitor_array;
+                case 'and'
+                    Fun = @tools.array.bitand_array;
+                otherwise
+                    error('Unnown Operator option');
+            end
+                
+            Result = funCutouts(Obj, XY, Fun, 'HalfSize',Args.HalfSize,...
+                                                      'PadVal',0,...
+                                                      'CutALgo',Args.CutAlgo,...
+                                                      'IsCircle',Args.IsCircle,...
+                                                      'DataProp',Args.DataProp);
+         
+            
+        end
         
     end
     
@@ -303,6 +338,10 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             if Result.Image(1,2)~=(BitDec+BitDec2)
                 error('set bit was not sucessful (2)');
             end
+            
+            IC=MaskImage({uint32(ones(100,100))});
+            Result = bitwise_cutouts(IC, [1 1; 2 2; 10 10; 30 30], 'or');
+            
             
             Result = true;
         end

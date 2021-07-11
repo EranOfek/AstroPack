@@ -1588,9 +1588,59 @@ classdef ImageComponent < Component
         end
         
         
-        function [varargout] = funCutouts(Obj)
-            % Apply function on image cutouts
+        function Result = funCutouts(Obj, XY, Fun, Args)
+            % Apply function (that returns a scalar) on image cutouts
+            % Input  : - A single-element ImageComponent object.
+            %          - A two column matrix of [X, Y] positions.
+            %            Positions will be rounded.
+            %          - A function handle to operate on each cutout.
+            %            The function must returns a scalar.
+            %          * ...,key,val,...
+            %            'FunArgs' - A cell array of additional arguments
+            %                   to pass to the function. Default is {}.
+            %            'HalfSize' - Cutout half size (actual size will be
+            %                   1+2*HalfSize. Default is 8.
+            %            'PadVal' - Padding value. Default is NaN.
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
+            %            'IsCircle' - If true then will pad each cutout
+            %                   with NaN outside the HalfSize radius.
+            %                   Default is false.
+            %            'DataProp' - Data property from which to extract
+            %                   the cutouts. Default is 'Image'.
+            % Output : - A column vector of function output per each
+            %            cutout.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: IC=ImageComponent({uint16(ones(100,100))});
+            %          Result = funCutouts(IC, [1 1; 2 2; 10 10; 30 30], @tools.array.bitor_array)
+            %          IC=ImageComponent({uint32(ones(100,100))});
+            %          Result = funCutouts(IC, [1 1; 2 2; 10 10; 30 30], @tools.array.bitor_array,'CutAlgo','wmat')
             
+            arguments
+                Obj(1,1)
+                XY
+                Fun function_handle
+                Args.FunArgs cell           = {};
+                
+                Args.PadVal                 = NaN;
+                Args.HalfSize               = 3;
+                Args.CutAlgo                = 'mex';  % 'mex' | 'wmat'
+                Args.IsCircle               = false;
+                Args.DataProp               = 'Image';
+                
+            end
+            
+            Ncut = size(XY,1);
+            [CutoutCube] = cutouts(Obj, XY, 'HalfSize',Args.HalfSize,...
+                                                      'PadVal',Args.PadVal,...
+                                                      'CutALgo',Args.CutAlgo,...
+                                                      'IsCircle',Args.IsCircle,...
+                                                      'DataProp',Args.DataProp);
+                                                  
+            Array = reshape(CutoutCube, (1+2.*Args.HalfSize).^2, Ncut);
+            
+            Result = Fun(Array, Args.FunArgs{:});
+            Result = Result(:);
+           
         end
         
     end
@@ -1830,6 +1880,13 @@ classdef ImageComponent < Component
             end
             Cube = cutouts(IC, XY,'Shift',true);
             Cube = cutouts(IC, XY,'Shift',true,'IsCircFilt',true);
+            
+            % funCutouts
+            IC=ImageComponent({uint16(ones(100,100))});
+            Result = funCutouts(IC, [1 1; 2 2; 10 10; 30 30], @tools.array.bitor_array)
+            IC=ImageComponent({uint32(ones(100,100))});
+            Result = funCutouts(IC, [1 1; 2 2; 10 10; 30 30], @tools.array.bitor_array,'CutAlgo','wmat')
+
             
             % imageComponent2AstroImage
             io.msgLog(LogLevel.Test, 'testing ImageComponent imageComponent2AstroImage');
