@@ -123,6 +123,8 @@ classdef Tran2D < handle
         FitData        % a general structure to store errors and residuals of best fit
         ParNX       = [0 1];
         ParNY       = [0 1];
+        ErrParX
+        ErrParY
     end
     properties (SetAccess=protected)
         PolyRep     = struct('PX',[],'PY',[],'CX',[],'CY',[],'PolyParX',[],'PolyParY',[],...
@@ -727,6 +729,206 @@ classdef Tran2D < handle
                 TC(I).ParY = ParY;
             end
             
+        end
+        
+        function [Tran, Res] = fitAstrometricTran(Tran,Xind,Yind, Xdep,Ydep, Args)
+            % Fit astrometric transformation
+            % Input  : - A single-element Tran2D object
+            %          - Vector of X coordinate (independent variable)
+            %          - Vector of Y coordinate (independent variable)
+            %          - Vector of X coordinate (dependent variable)
+            %          - Vector of Y coordinate (dependent variable)
+            %          * ...,key,val,...
+            %            'ExtraData' - Additional columns of independent
+            %                   variables to pass to the transformation
+            %                   functionals. E.g., [Color, AM, PA].
+            %                   Default is [].
+            %            'Mag' - A Vector of magnitude per source.
+            %            'ErrPos' - A vector of positional errors per
+            %                   source. In the 2nd iteration, this will be
+            %                   added in quadrature to the resid vs. ma.
+            %                   errors.
+            %                   Default is 0.01.
+            %            'Niter' - Number of iterations. Default is 2.
+            %            'FitMethod' - '\', ['lscov'].
+            %            'MaxResid' - Maximum residual to use in fit.
+            %                   Default is 1.
+            %            'MagRange' - [Min Max] max range. Default is [].
+            %            'BinMethod' - Method to use:
+            %                   'poly' - polynomial fit.
+            %                   'bin' - binning the data.
+            %                   Default is 'bin'
+            %            'PolyDeg' - Polynomial degree for the polynomial fit.
+            %                   Default is 3.
+            %            'BinSize' - Bin size for binning. Default is 1 (mag).
+            %            'FunMean' - A function handle to use when calculating the mean
+            %                   of the data in each bin.
+            %                   Default is @nanmedian.
+            %            'FunStd' - A function handle to use when calculating the std
+            %                   of the data in each bin, or when calculating the global
+            %                   std after the polynomial fit.
+            %                   Default is @imUttil.background.rstd.
+            %            'InterpMethod' - Interpolation method. Default is 'linear'.
+            %            'ThresholdSigma' - Threshold in sigmas (std) for flagging good
+            %                   data. Default is 3.
+            % Output : - A Tran2D object with the ParX, ParY, ErrParX,
+            %            ErrParY populated.
+            %          - A structure of fit quality parameters.
+            % Authors: Eran Ofek (Jul 2021)
+            % Example: [Tran, Res] = fitAstrometricTran(Tran,Xind,Yind, Xdep,Ydep);
+            
+            arguments
+                Tran(1,1)
+                Xind
+                Yind
+                Xdep
+                Ydep
+                Args.ExtraData   % Array with Ndata columns - e.g., [Color, AM, PA]
+                Args.Mag         % vector of magnitudes
+                Args.ErrPos            = 0.01;
+                Args.Niter             = 2; 
+                Args.FitMethod char    = 'lscov';
+
+                Args.MaxResid          = 1;
+                Args.MagRange          = [];
+                Args.BinMethod         = 'bin';   % 'bin' | 'poly'
+                Args.PolyDeg           = 3;
+                Args.BinSize           = 1;
+                Args.FunMean           = @median;
+                Args.FunStd            = @imUtil.background.rstd;
+                Args.InterpMethod      = 'linear';
+                Args.ThresholdSigma    = 3;
+
+            end
+
+            % calculate the design matrix
+            [Hx, Hy] = Tran.design_matrix([Xdep, Ydep, Args.ExtraData]);
+
+            % fitting
+            Iter = 0;
+            % fit all sources in first iteration
+            FlagSrc = ~isnan(sum(Hx,2)) & ~isnan(sum(Hy,2)) & ~isnan(Xind) & ~isnan(Yind);
+            %Hx      = Hx(FlagSrc,:);
+            %Hy      = Hy(FlagSrc,:);
+            %CatX    = Xind(FlagSrc);
+            %CatY    = Yind(FlagSrc);
+            Nsrc    = numel(Xind);
+            %FlagSrc = true(Nsrc,1);    % 
+            Args.ErrPos = Args.ErrPos.*ones(Nsrc,1);
+
+            % formal error only
+            Var     = Args.ErrPos.^2;
+            % error including additional contributions (e.g., scintilations)
+            InvVar  = 1./Var;
+            ResResid = [];
+            for Iter=1:1:Args.Niter
+                switch lower(Args.FitMethod)
+                    case 'lscov'
+                        %warning('off')
+                        [ParX,ErrParX] = lscov(Hx(FlagSrc,:), Xind(FlagSrc), InvVar(FlagSrc), Args.FitMethod);
+                        [ParY,ErrParY] = lscov(Hy(FlagSrc,:), Yind(FlagSrc), InvVar(FlagSrc), Args.FitMethod);
+                        %warning('on')
+                    case '\'
+                        ParX = Hx(FlagSrc,:)\Xind(FlagSrc);
+                        ErrParX = nan(size(ParX));
+
+                        ParY = Hy(FlagSrc,:)\Yind(FlagSrc);
+                        ErrParY = nan(size(ParY));
+
+                    otherwise
+                        error('Unknwon FitMethod option');
+                end
+
+                % calculate the residuals and rms of the fit (all sources)
+                ResidX = Xind - Hx*ParX;
+                ResidY = Yind - Hy*ParY;
+                Resid  = sqrt(ResidX.^2 + ResidY.^2);
+                % RMS is calculated only for selected sources
+                RMS_X  = std(ResidX(FlagSrc));
+                RMS_Y  = std(ResidY(FlagSrc));
+                RMS    = sqrt(RMS_X.^2 + RMS_Y.^2);
+
+                % screening of sources
+                % only for non-final iterations
+                if Iter<Args.Niter
+                    % select good sources and re-estimate positional error
+                    % calculate RMS vs. mag.
+                    [NewFlagSrc,ResResid] = imUtil.calib.resid_vs_mag(Args.Mag(FlagSrc),Resid(FlagSrc),...
+                                                                          'MagRange',Args.MagRange,...
+                                                                          'BinMethod',Args.BinMethod,...
+                                                                          'PolyDeg',Args.PolyDeg,...
+                                                                          'BinSize',Args.BinSize,...
+                                                                          'FunMean',Args.FunMean,...
+                                                                          'FunStd',Args.FunStd,...
+                                                                          'InterpMethod',Args.InterpMethod,...
+                                                                          'ThresholdSigma',Args.ThresholdSigma);
+                    % add error as a function of mag to basic error
+                    InvVar(FlagSrc) = 1./(Var(FlagSrc) + ResResid.InterpMeanResid.^2);
+                    
+                    % update the flags
+                    FlagSrc(FlagSrc) = NewFlagSrc;
+
+                    % Applay MagRnage
+                    if ~isempty(Args.MagRange)
+                        FlagSrc = FlagSrc & Args.Mag>Args.MagRange(1) & Args.Mag<Args.MagRange(2);
+                    end
+                    % apply - removing sources with large residuals
+                    FlagSrc = FlagSrc & Resid<Args.MaxResid;
+
+                    
+
+                end
+
+                ResLoop(Iter).Resid = Resid;
+                ResLoop(Iter).RMS_X = RMS_X;
+                ResLoop(Iter).RMS_Y = RMS_Y;
+                ResLoop(Iter).RMS   = RMS;
+                ResLoop(Iter).Flag  = FlagSrc;
+            end
+
+            [~,ResResid] = imUtil.calib.resid_vs_mag(Args.Mag(FlagSrc),Resid(FlagSrc),...
+                                                                          'MagRange',Args.MagRange,...
+                                                                          'BinMethod',Args.BinMethod,...
+                                                                          'PolyDeg',Args.PolyDeg,...
+                                                                          'BinSize',Args.BinSize,...
+                                                                          'FunMean',Args.FunMean,...
+                                                                          'FunStd',Args.FunStd,...
+                                                                          'InterpMethod',Args.InterpMethod,...
+                                                                          'ThresholdSigma',Args.ThresholdSigma);
+
+          
+            Tran.ParX     = ParX;
+            Tran.ParY     = ParY;
+            Tran.ErrParX  = ErrParX;
+            Tran.ErrParY  = ErrParY;
+
+            Res.ResResid = ResResid;
+            Res.Resid    = Resid;
+            Res.ResidX   = ResidX;
+            Res.ResidY   = ResidY;
+            Res.FlagSrc  = FlagSrc;
+            Res.Ngood    = sum(FlagSrc);
+            Res.Resid    = Resid;
+            Res.RefMag   = Args.Mag;
+            Res.RMS_X    = RMS_X;
+            Res.RMS_Y    = RMS_Y;
+            Res.RMS      = RMS;
+
+            if isempty(ResResid)
+                % no asymptotic rms
+                Res.AssymRMS     = NaN;
+                Res.AssymRMS_mag = NaN;
+                Res.AssymRMS_RMS = NaN;
+            else
+                TmpMag = ResResid.InterpMeanResid; %(Res.FlagSrc);
+                TmpStd = ResResid.InterpStdResid;  %(Res.FlagSrc);
+                [MinMeanRMS, MinMeanInd] = min(TmpMag);
+                Res.AssymRMS     = MinMeanRMS;
+                Res.AssymRMS_mag = TmpMag(MinMeanInd);
+                Res.AssymRMS_RMS = TmpStd(MinMeanInd);
+            end
+            Res.ResResid = ResResid;
+
         end
         
     end
