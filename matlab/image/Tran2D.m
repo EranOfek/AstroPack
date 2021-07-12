@@ -126,7 +126,7 @@ classdef Tran2D < handle
         ErrParX
         ErrParY
     end
-    properties (SetAccess=protected)
+    properties %(SetAccess=protected)
         PolyRep     = struct('PX',[],'PY',[],'CX',[],'CY',[],'PolyParX',[],'PolyParY',[],...
                              'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[]);
     end
