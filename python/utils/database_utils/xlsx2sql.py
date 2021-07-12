@@ -414,6 +414,9 @@ class DatabaseDef:
                 if field.field_name == '':
                     continue
 
+                if field.field_name.find('History of proc_steps') > -1:
+                    log('debug')
+
                 # Skip comment rows
                 if field.field_name.startswith('#') or field.field_name.startswith('%') or \
                         field.field_name.startswith(';') or field.field_name.startswith('//'):

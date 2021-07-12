@@ -1,3 +1,6 @@
+-- To create the database, run from command line:
+-- psql -U postgres -f <dbname>.sql
+
 --
 -- PostgreSQL database dump
 --
