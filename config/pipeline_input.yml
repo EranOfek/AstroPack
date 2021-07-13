@@ -1,0 +1,6 @@
+# Pipeline Input File
+
+InputImageFile: 
+InputImageFolder:
+MaxImagesToProcess: 1
+
