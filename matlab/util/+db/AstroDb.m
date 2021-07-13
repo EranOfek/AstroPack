@@ -25,7 +25,7 @@ classdef AstroDb < Component
     
     methods
                
-        function Result = insertHeader(Obj, Input, TableName, Args)
+        function Result = insertHeaderImpl(Obj, Input, TableName, Args)
             % Insert AstroHeader/AstroImage object to the specified database table
             arguments
                 Obj
@@ -33,7 +33,7 @@ classdef AstroDb < Component
                 TableName char                
                 Args.Fields = {}                % As
                 Args.Uuid = []                  % Empty uses AstroHeader.Uuid
-                Args.Query = []                 % io.db.DbQuery
+                Args.Query = []                 % db.DbQuery
             end
             
             Obj.msgLog(LogLevel.Debug, 'insertHeader started');
@@ -79,7 +79,7 @@ classdef AstroDb < Component
         
         
         
-        function Result = insertCatalog(Obj, Input, TableName, Args)
+        function Result = insertCatalogImpl(Obj, Input, TableName, Args)
             % Insert AstroCatalog / AstroTable to the specified database table
             % Note that AstroCatalog is derived from AstroTable
             
@@ -91,7 +91,7 @@ classdef AstroDb < Component
                 TableName char                
                 Args.Fields = {}        % As
                 Args.Uuid = []          % Empty uses AstroHeader.Uuid
-                Args.Query = []         % io.db.DbQuery
+                Args.Query = []         % db.DbQuery
             end
             
             Obj.msgLog(LogLevel.Debug, 'insertCatalog started');                        
@@ -153,6 +153,41 @@ classdef AstroDb < Component
     end
 
     
+    methods (Static)
+        function Result = insertHeader(varargin) % Input, TableName, Args)
+%             % Insert AstroHeader/AstroImage object to the specified database table
+%             arguments
+%                 Input                           % AstroHeader / AstroImage
+%                 TableName char                
+%                 Args.Fields = {}                % As
+%                 Args.Uuid = []                  % Empty uses AstroHeader.Uuid
+%                 Args.Query = []                 % db.DbQuery
+%             end
+            Result = db.AstroDb.get().insertHeaderImpl(varargin{:});  %Input, TableName, Args);
+        end
+        
+        
+        
+        function Result = insertCatalog(varargin) % Input, TableName, Args)
+            % Insert AstroCatalog / AstroTable to the specified database table
+            % Note that AstroCatalog is derived from AstroTable
+            
+            % Values in AstroCatalog.Catalog = [];
+            % Field names in AstroCatalog.ColNames cell = {};            
+%             arguments
+%                 Input                   % AstroHeader / AstroImage                
+%                 TableName char                
+%                 Args.Fields = {}        % As
+%                 Args.Uuid = []          % Empty uses AstroHeader.Uuid
+%                 Args.Query = []         % db.DbQuery
+%             end
+        
+            Result = db.AstroDb.get().insertCatalogImpl(varargin{:}); %Input, TableName, Args);
+        end
+    end
+    
+    
+    
     %
     methods % (Static???)
         function Result = getDefaultQuery(Obj, Args)
@@ -162,8 +197,8 @@ classdef AstroDb < Component
                 Args
             end
             
-            Conn = io.db.Db.getLast();
-            Query = io.db.DbQuery(Conn);            
+            Conn = db.Db.getLast();
+            Query = db.DbQuery(Conn);            
             Result = Query;
         end
         
@@ -181,7 +216,7 @@ classdef AstroDb < Component
         function Result = get()
             persistent Obj
             if isempty(Obj)
-                Obj = AstroDb;
+                Obj = db.AstroDb();
             end
             Result = Obj;
         end        
@@ -194,11 +229,11 @@ classdef AstroDb < Component
             io.msgStyle(LogLevel.Test, '@start', 'AstroDb test started')
                
             % Create db adaptor
-            db = AstroDb;                                   
+            % db = db.AstroDb;                                   
             
             % Get db connection
-            Conn = io.db.Db.getLast();
-            Q = io.db.DbQuery(Conn);
+            Conn = db.Db.getLast();
+            Q = db.DbQuery(Conn);
             Q.query('SELECT version()');
             assert(Q.ColCount == 1);
             pgver = Q.getField('version');
@@ -230,14 +265,14 @@ classdef AstroDb < Component
             tic;
             Count = 10;
             for i=1:Count
-                res = db.insertHeader(AH, HeaderTableName);
+                res = db.AstroDb.insertHeader(AH, HeaderTableName);
             end
             toc
                 
             % Insert catalog to table
             Count = 10;
             for i=1:Count
-                res = db.insertCatalog(AC, CatalogTableName);
+                res = db.AstroDb.insertCatalog(AC, CatalogTableName);
             end
                 
             %----------------------------------------------------- Batch
@@ -246,7 +281,7 @@ classdef AstroDb < Component
             Count = 0;  %1000;
             tic();
             for i=1:Count
-                res = db.insertHeader(AH, HeaderTableName);
+                res = db.AstroDb.insertHeader(AH, HeaderTableName);
             end            
             Toc = toc();
             io.msgLog(LogLevel.Info, 'insertHeader time (Count=%d): %.6f', Count, Toc);  
@@ -256,7 +291,7 @@ classdef AstroDb < Component
             BatchSize = 1000;
             tic();
             for i=1:Count
-                res = db.insertHeader(AH, HeaderTableName, 'BatchSize', BatchSize);
+                res = db.AstroDb.insertHeader(AH, HeaderTableName, 'BatchSize', BatchSize);
             end
             
             Toc = toc();
