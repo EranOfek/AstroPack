@@ -112,7 +112,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 if isnumeric(BitName)
                     BitInd = BitName + 1;
                 else
-                    BitInd = Obj(Iobj).Dict.name2bit(BitName) + 1;
+                    BitInd = Result(Iobj).Dict.name2bit(BitName) + 1;
                 end
 
                 if isempty(Obj(Iobj).Image)
@@ -120,7 +120,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     if isempty(SizeImage)
                         error('When Flag is a vector of indices, image mask must be pre defined');
                     end
-                    Result(Iobj).Image = Obj(Iobj).Dict.Class(zeros(SizeImage));
+                    Result(Iobj).Image = Result(Iobj).Dict.Class(zeros(SizeImage));
                 end
 
                 Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
