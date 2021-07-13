@@ -152,7 +152,7 @@ classdef DbDriver < Component
             Comp = Map.find(DatabaseType);
             if isempty(Comp)
                 % Not found, create
-                Comp = io.db.DbDriver();
+                Comp = db.DbDriver();
                 Comp.DatabaseType = DatabaseType;
                 Comp.MapKey = DatabaseType;
                 Map.add(Comp);
@@ -170,19 +170,19 @@ classdef DbDriver < Component
             io.msgStyle(LogLevel.Test, '@start', 'DbDriver test started\n');
                
             % Test: Open/close driver
-            Driver = io.db.DbDriver;
+            Driver = db.DbDriver;
             Driver.open();
             assert(Driver.IsOpen); 
             Driver.close();
             assert(~Driver.IsOpen);
             
             % Get/register driver, open, close
-            Drv = io.db.DbDriver.getDbDriver('postgres');
+            Drv = db.DbDriver.getDbDriver('postgres');
             assert(~isempty(Drv));
             Drv.open();
             assert(Drv.IsOpen);
             Drv.close();
-            Drv2 = io.db.DbDriver.getDbDriver('postgres');
+            Drv2 = db.DbDriver.getDbDriver('postgres');
             assert(~isempty(Drv2));
             assert(~Drv2.IsOpen);
             

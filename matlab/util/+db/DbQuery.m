@@ -46,18 +46,18 @@ classdef DbQuery < Component
             if numel(varargin) == 1 
                 
                 % Connection object is specified
-                if strcmp(class(varargin{1}), 'io.db.DbConnection')                    
+                if strcmp(class(varargin{1}), 'db.DbConnection')                    
                     Conn = varargin{1};
                     
                 % Connection name is specified
                 elseif ischar(varargin{1}) || isa(varargin{1}, 'string')
                     Obj.ConnName = varargin{1};
-                    Conn = io.db.DbConnection.getDbConnection(Obj.ConnName);
+                    Conn = db.DbConnection.getDbConnection(Obj.ConnName);
                 end                
                 
             % Use default connection
             elseif numel(varargin) == 0
-                Conn = io.db.DbConnection.getDbConnection('');
+                Conn = db.DbConnection.getDbConnection('');
             else
                 error('DbQuery: Unknown parameters');
             end
@@ -341,7 +341,7 @@ classdef DbQuery < Component
             % creates field names lower-cased)
             
             % Create new record object
-            Rec = io.db.DbRecord(Obj);
+            Rec = db.DbRecord(Obj);
             
             % Loop over all columns in the row
             for ColIndex = 1 : Obj.ColCount                
@@ -568,7 +568,7 @@ classdef DbQuery < Component
         function Result = newRecord(Obj)
             % Create new empty record associated with this query
             
-            Result = io.db.DbQuery(Obj);
+            Result = db.DbQuery(Obj);
         end
         
 
@@ -1103,15 +1103,15 @@ classdef DbQuery < Component
             % NOTE: Database 'unittest' should exist
             
             % Create database connection
-            %Conn = io.db.DbConnection;
+            %Conn = db.DbConnection;
             %Conn.DatabaseName = 'unittest';
             %Conn.open();
 
-            Conn = io.db.Db.getUnitTest();
+            Conn = db.Db.getUnitTest();
             
             % Query Postgres version, result should be similar to
             % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-            Q = io.db.DbQuery(Conn);
+            Q = db.DbQuery(Conn);
             Q.query('SELECT version()');
             assert(Q.ColCount == 1);
             pgver = Q.getField('version');
@@ -1120,7 +1120,7 @@ classdef DbQuery < Component
        
             
             % ---------------------------------------------- getTableFieldList 
-            Q = io.db.DbQuery(Conn);
+            Q = db.DbQuery(Conn);
             Fields = Q.getTableFieldList('master_table');
             disp(Fields);
             
@@ -1129,7 +1129,7 @@ classdef DbQuery < Component
             % details_table exist and are not empty
                        
             % Select two fields from table, using LIMIT
-            Q = io.db.DbQuery(Conn);
+            Q = db.DbQuery(Conn);
             Q.query('SELECT count(*) FROM master_table');
             count = Q.getField('count');
             if count > 0
@@ -1257,7 +1257,7 @@ classdef DbQuery < Component
             Q.insertRecord('master_table', s, 'FieldMap', map);
             
             % ---------------------------------------------- insertRecord: DbRecord
-            r = io.db.DbRecord;
+            r = db.DbRecord;
             r.addProp('recid', Component.newUuid());
             r.addProp('fint', 3);
             Q.insertRecord('master_table', r);

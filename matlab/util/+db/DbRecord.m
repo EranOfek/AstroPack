@@ -155,14 +155,14 @@ classdef DbRecord < dynamicprops
             S.MyX = 1;
             S.MyY = 2;
             S.MyZ = 3;
-            R = io.db.DbRecord;
+            R = db.DbRecord;
             R.loadStruct(S);
             assert(R.MyX == S.MyX);
             assert(R.MyY == S.MyY);
             assert(R.MyX ~= S.MyY);
             
             %
-            Q = io.db.DbRecord;
+            Q = db.DbRecord;
             Q.loadStruct(S);
             assert(R.Equal(Q));
             

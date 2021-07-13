@@ -78,7 +78,7 @@ classdef DbConnection < Component
                
             % Setup driver
             if isempty(Obj.Driver)
-                Obj.Driver = io.db.DbDriver.getDbDriver(Obj.DriverName);
+                Obj.Driver = db.DbDriver.getDbDriver(Obj.DriverName);
             end
             
             % Open driver
@@ -136,7 +136,7 @@ classdef DbConnection < Component
         function Result = newQuery(Obj)
             % Create new DbQuery instance
             
-            Result = io.db.DbQuery(Obj)
+            Result = db.DbQuery(Obj)
         end
         
         
@@ -168,7 +168,7 @@ classdef DbConnection < Component
             Key = ConnKey;
             Comp = Map.find(Key);
             if isempty(Comp)
-                Comp = io.db.DbConnection();
+                Comp = db.DbConnection();
                 Comp.MapKey = ConnKey;
                 Map.add(Comp);
             else
@@ -183,7 +183,7 @@ classdef DbConnection < Component
     methods(Static)
         function Result = setupDefault()
             
-            Con = io.db.DbConnection.getDbConnection('default');
+            Con = db.DbConnection.getDbConnection('default');
             assert(~isempty(Con));
             Result = true;
         end            
@@ -198,7 +198,7 @@ classdef DbConnection < Component
             io.msgStyle(LogLevel.Test, '@start', 'DbConnection test started');
    
             % Open/close connection
-            Conn = io.db.DbConnection(); %'Database', 'unittest');
+            Conn = db.DbConnection(); %'Database', 'unittest');
             Conn.DatabaseName = 'unittest';
             Conn.open();
             assert(Conn.IsOpen);        
@@ -206,13 +206,13 @@ classdef DbConnection < Component
             assert(~Conn.IsOpen);                        
             
             % Get/register connection, open, close
-            Con = io.db.DbConnection.getDbConnection('test');
+            Con = db.DbConnection.getDbConnection('test');
             Con.DatabaseName = 'unittest';
             assert(~isempty(Con));
             Con.open();
             assert(Con.IsOpen);
             Con.close();
-            Con2 = io.db.DbConnection.getDbConnection('test');
+            Con2 = db.DbConnection.getDbConnection('test');
             assert(~isempty(Con2));
             assert(~Con2.IsOpen);
                         

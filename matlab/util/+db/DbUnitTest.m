@@ -39,6 +39,8 @@ classdef DbUnitTest < Component
     methods(Static)
         function Result = unitTest()
             
+            disp(db.Glb);
+            
             % Create database from XLSX
             
             % Insert
