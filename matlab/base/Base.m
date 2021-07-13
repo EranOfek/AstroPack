@@ -118,6 +118,37 @@ classdef Base < handle
                 end
             end
         end
+        
+        function [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout)
+            % A utility function for creation of an object new copy based
+            % on nargout
+            % Input  : - An object
+            %          - [], true, false.
+            %            If true, create new deep copy
+            %            If false, return pointer to object
+            %            If [] and Nargout==0 then do not create new copy.
+            %            Otherwise, create new copy.
+            %          - nargout of function.
+            % Output : - The object (pointer or deep copy).
+            %          - The new value of the CreateNewObj argument
+            % Author : Eran Ofek (Jul 2021)
+            % Example: [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout)
+            
+            if isempty(CreateNewObj)
+                if Nargout==0
+                    CreateNewObj = false;
+                else
+                    CreateNewObj = true;
+                end
+            end
+            if CreateNewObj
+                Result = Obj.copyObject;
+            else
+                Result = Obj;
+            end
+            
+        end
+        
     end
     
     %----------------------------------------------------------------------   
