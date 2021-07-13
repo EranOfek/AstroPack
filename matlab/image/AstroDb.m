@@ -206,7 +206,7 @@ classdef AstroDb < Component
             assert(contains(pgver, 'PostgreSQL'));
             
             HeaderTableName = 'raw_images';
-            CatalogTableName = 'sources';
+            CatalogTableName = 'sources_proc_cropped';
             
             % Create fits file with header
             Folder = tempdir; 
