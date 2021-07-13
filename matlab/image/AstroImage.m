@@ -1386,20 +1386,21 @@ classdef AstroImage < Component
                     Tmp2 = 0;
                 end
             
-                if isa(Obj1(Iobj1).(Args.DataProp),'MaskImage') && Args.UseOrForMask
-                    if isempty(Args.CCDSEC)
-                        Result(Ires).(Args.DataProp).(Args.DataPropIn) = bitor(Tmp1, Tmp2);
+                if ~isempty(Obj1(Iobj1).(Args.DataProp).(Args.DataPropIn))
+                    if isa(Obj1(Iobj1).(Args.DataProp),'MaskImage') && Args.UseOrForMask
+                        if isempty(Args.CCDSEC)
+                            Result(Ires).(Args.DataProp).(Args.DataPropIn) = bitor(Tmp1, Tmp2);
+                        else
+                            Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = bitor(Tmp1, Tmp2);
+                        end
                     else
-                        Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = bitor(Tmp1, Tmp2);
-                    end
-                else
-                    if isempty(Args.CCDSEC)
-                        Result(Ires).(Args.DataProp).(Args.DataPropIn) = Operator(Tmp1, Tmp2, Args.OpArgs{:});
-                    else
-                        Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = perator(Tmp1, Tmp2, Args.OpArgs{:});
+                        if isempty(Args.CCDSEC)
+                            Result(Ires).(Args.DataProp).(Args.DataPropIn) = Operator(Tmp1, Tmp2, Args.OpArgs{:});
+                        else
+                            Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = perator(Tmp1, Tmp2, Args.OpArgs{:});
+                        end
                     end
                 end
-                
             
             end
             
