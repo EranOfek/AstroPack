@@ -1,6 +1,4 @@
 
-%--------------------------------------------------------------------------
-
 
 classdef PipelineLAST < PipelineComponent
     % Properties

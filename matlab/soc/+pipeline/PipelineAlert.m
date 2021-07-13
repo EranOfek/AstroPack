@@ -6,7 +6,7 @@
 %--------------------------------------------------------------------------
 
 
-classdef Alert
+classdef PipelineAlert < Component
     % Properties
     properties (SetAccess = public)
 
@@ -15,7 +15,7 @@ classdef Alert
     %-------------------------------------------------------- 
     methods
         % Constructor    
-        function obj = Alert()
+        function obj = PipelineAlert()
         end
     end
 end

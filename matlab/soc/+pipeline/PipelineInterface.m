@@ -1,6 +1,6 @@
 
 classdef PipelineInterface < Component
-    % Top level Pipeline Manager
+    % Pipeline interface with other systems
     
     
     % Properties
