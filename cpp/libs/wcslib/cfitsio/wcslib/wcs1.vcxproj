@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{36531C27-B1DB-4571-AE0C-4EF8CD06F2A7}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="cel.c" />
+    <ClCompile Include="dis.c" />
+    <ClCompile Include="flexed\fitshdr.c" />
+    <ClCompile Include="flexed\wcsbth.c" />
+    <ClCompile Include="flexed\wcspih.c" />
+    <ClCompile Include="flexed\wcsulex.c" />
+    <ClCompile Include="flexed\wcsutrn.c" />
+    <ClCompile Include="getwcstab.c" />
+    <ClCompile Include="lin.c" />
+    <ClCompile Include="log.c" />
+    <ClCompile Include="prj.c" />
+    <ClCompile Include="spc.c" />
+    <ClCompile Include="sph.c" />
+    <ClCompile Include="spx.c" />
+    <ClCompile Include="tab.c" />
+    <ClCompile Include="test\tbth1.c" />
+    <ClCompile Include="test\tcel1.c" />
+    <ClCompile Include="test\tcel2.c" />
+    <ClCompile Include="test\tdis1.c" />
+    <ClCompile Include="test\tdis2.c" />
+    <ClCompile Include="test\tdisiter.c" />
+    <ClCompile Include="test\tfitshdr.c" />
+    <ClCompile Include="test\tlin.c" />
+    <ClCompile Include="test\tlog.c" />
+    <ClCompile Include="test\tofits.c" />
+    <ClCompile Include="test\tpih1.c" />
+    <ClCompile Include="test\tpih2.c" />
+    <ClCompile Include="test\tprj1.c" />
+    <ClCompile Include="test\tprj2.c" />
+    <ClCompile Include="test\tspc.c" />
+    <ClCompile Include="test\tspcaips.c" />
+    <ClCompile Include="test\tspcspxe.c" />
+    <ClCompile Include="test\tspctrne.c" />
+    <ClCompile Include="test\tsph.c" />
+    <ClCompile Include="test\tsphdpa.c" />
+    <ClCompile Include="test\tspx.c" />
+    <ClCompile Include="test\ttab1.c" />
+    <ClCompile Include="test\ttab2.c" />
+    <ClCompile Include="test\ttab3.c" />
+    <ClCompile Include="test\tunits.c" />
+    <ClCompile Include="test\twcs.c" />
+    <ClCompile Include="test\twcscompare.c" />
+    <ClCompile Include="test\twcsfix.c" />
+    <ClCompile Include="test\twcshdr.c" />
+    <ClCompile Include="test\twcsmix.c" />
+    <ClCompile Include="test\twcssub.c" />
+    <ClCompile Include="test\twcstab.c" />
+    <ClCompile Include="test\twcs_locale.c" />
+    <ClCompile Include="wcs.c" />
+    <ClCompile Include="wcserr.c" />
+    <ClCompile Include="wcsfix.c" />
+    <ClCompile Include="wcshdr.c" />
+    <ClCompile Include="wcsprintf.c" />
+    <ClCompile Include="wcstrig.c" />
+    <ClCompile Include="wcsunits.c" />
+    <ClCompile Include="wcsutil.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cel.h" />
+    <ClInclude Include="dis.h" />
+    <ClInclude Include="fitshdr.h" />
+    <ClInclude Include="getwcstab.h" />
+    <ClInclude Include="lin.h" />
+    <ClInclude Include="log.h" />
+    <ClInclude Include="prj.h" />
+    <ClInclude Include="spc.h" />
+    <ClInclude Include="sph.h" />
+    <ClInclude Include="spx.h" />
+    <ClInclude Include="tab.h" />
+    <ClInclude Include="wcs.h" />
+    <ClInclude Include="wcserr.h" />
+    <ClInclude Include="wcsfix.h" />
+    <ClInclude Include="wcshdr.h" />
+    <ClInclude Include="wcslib.h" />
+    <ClInclude Include="wcsmath.h" />
+    <ClInclude Include="wcsprintf.h" />
+    <ClInclude Include="wcstrig.h" />
+    <ClInclude Include="wcsunits.h" />
+    <ClInclude Include="wcsutil.h" />
+    <ClInclude Include="wtbarr.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
