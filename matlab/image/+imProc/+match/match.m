@@ -48,7 +48,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %            'CooType' - CooType (i.e., 'pix','sphere'). If not empty
     %                   this will override the AstroCatalog.CooType
     %                   property. Default is empty.
-    %            'ColCatX' - If CooType is not empty, this is the coluymn
+    %            'ColCatX' - If CooType is not empty, this is the column
     %                   names/index from which to select the catalog X
     %                   coordinate. Default is [].
     %            'ColCatY' - Like 'ColCatX', but for the Y coordinate.

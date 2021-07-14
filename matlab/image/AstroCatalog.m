@@ -507,10 +507,40 @@ classdef AstroCatalog < AstroTable
             %       and/or multiple sections.
             %       For example, it can produce multiple crops of a single
             %       catalog.
-            % Example : AC = AstroCatalog({rand(100,3).*100}, 'ColNames',{'XWIN','YWIN','Flux'});
-            %           Result = cropXY(AC, [1 50 1 50])
-            %           Result = cropXY(AC, [81 100 41 70],'AddX',{'Flux'})
-            %           Result = cropXY(AC, [81 100 41 70; 1 50 1 50]); % multiple crops of a single catalog
+            % Input  : - An AstroCatalog object.
+            %          - CCDSEC [Xmin, Xmax, Ymin, Ymax]
+            %          * ...,key,val,...
+            %            'ColX' - Name, or cell array (from which to select
+            %                   first that appears) of X column name on
+            %                   which to operate the cropping.
+            %                   Default is Obj.DefNamesX
+            %            'ColY' - Name, or cell array (from which to select
+            %                   first that appears) of Y column name on
+            %                   which to operate the cropping.
+            %                   Default is Obj.DefNamesY
+            %            'AddX' - A cell array of additional columns which
+            %                   contains X coordinates and requires updating
+            %                   after cropping. Default is {}.
+            %            'AddY' - Like 'AddX', but for Y coordinates.
+            %            'UpdateXY' - A logical indicating if to update the
+            %                   X/Y  coordinates, such that the new
+            %                   coordinates will refer to the new cropped
+            %                   image. Default is true.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   If empty (default), then this argument will
+            %                   be set by the number of output args.
+            %                   If 0, then false, otherwise true.
+            %                   This means that IC.fun, will modify IC,
+            %                   while IB=IC.fun will generate a new copy in
+            %                   IB.
+            % Output : - An AstroCatalog object with the updated catalog.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: AC = AstroCatalog({rand(100,3).*100}, 'ColNames',{'XWIN','YWIN','Flux'});
+            %          Result = cropXY(AC, [1 50 1 50])
+            %          Result = cropXY(AC, [81 100 41 70],'AddX',{'Flux'})
+            %          Result = cropXY(AC, [81 100 41 70; 1 50 1 50]); % multiple crops of a single catalog
             
             arguments
                 Obj

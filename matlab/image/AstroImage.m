@@ -1762,6 +1762,8 @@ classdef AstroImage < Component
             %                   This means that IC.fun, will modify IC,
             %                   while IB=IC.fun will generate a new copy in
             %                   IB.
+            % Output : - A cropped AstroImage object.
+            % Author : Eran Ofek (Jul 2021)
             % Example: AI = AstroImage({rand(100,100),rand(100,200)},'Back',{rand(100,100),rand(100,200)});
             %          Res = crop(AI,[11 20 11 30])
 

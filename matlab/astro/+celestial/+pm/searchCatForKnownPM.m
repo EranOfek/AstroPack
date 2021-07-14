@@ -4,7 +4,7 @@ function Result = searchCatForKnownPM(Cat, PM, Args)
     %       are found in the proper motion trajectory.
     % Input  : - Catalog of observations (at least, RA, Dec, Epoch).
     %          - A six or eight columns array of 
-    %            [Epoch_RA_JD, RA, PM_RA, Epoch_Dec_JD, Dec, PM_Dec, Parallax_mas, RV_kms]
+    %            [Epoch_RA_JD, RA_rad, PM_RA, Epoch_Dec_JD, Dec_rad, PM_Dec, Parallax_mas, RV_kms]
     %            If eight columns, then apply parallax.
     %            PM is in mas/yr.
     %          * ...,key,val,...
@@ -70,7 +70,7 @@ function Result = searchCatForKnownPM(Cat, PM, Args)
         end
         Dist = celestial.coo.sphere_dist(CatRA, CatDec, PredRA, PredDec);
         Dist = Dist.*RAD.*ARCSEC_DEG;   % arcsec
-        Flag = Dist<Args.SearchRadius;
+        Flag = Dist<SearchRadius;
         Result(Ipm).Nfound = sum(Flag);
         Result(Ipm).Std    = std(Dist(Flag));
         Result(Ipm).Flag   = Flag;

@@ -215,7 +215,7 @@ classdef MatchedSources < Component
             %            4. A matched AstroTable/AstroCatalog object
             %            In this case, the columns will be selected from
             %            FieldName.
-            %          - A field name.
+            %          - A field name (or a cell array of field names).
             %            If the field already exist, then replace the
             %            current content with the new content.
             % Output : - A MatchedSources object.

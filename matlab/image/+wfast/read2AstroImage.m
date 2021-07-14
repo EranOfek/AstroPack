@@ -1,4 +1,4 @@
-function [Result, CalibObj] = read2AstroImage(FileName, Args)
+function [Result, CalibObj] = read2AstroImage(Files, Args)
     % Read W-FAST image from HDF5 file into an AstroImage and calibrate the
     %   image using the wfast calibration object (dark subtraction, flat
     %   correction). Populate the header, mask image, image, and interpolate over
@@ -20,10 +20,12 @@ function [Result, CalibObj] = read2AstroImage(FileName, Args)
     %            masks.
     %          - The calibration object.
     % Example: cd /data/euler/archive/WFAST/2021/2021-05-28/quadrature_run1
-    %          Result = wfast.conversion.read2AstroImage('WFAST_Balor_20210529-011410-415_F505W_0_Image.h5z');
+    %          Result = wfast.read2AstroImage('WFAST_Balor_20210529-011410-415_F505W_0_Image.h5z');
    
     arguments
-        FileName
+        Files
+        
+        Args.Gain                      = 0.8;
         
         Args.ReadType                  = 'image';
         Args.UseRegExp(1,1) logical    = true;
@@ -44,7 +46,7 @@ function [Result, CalibObj] = read2AstroImage(FileName, Args)
     end
         
     
-    List  = io.files.filelist(FileName,Args.UseRegExp);
+    List  = io.files.filelist(Files,Args.UseRegExp);
     Nlist = numel(List);
     Result = AstroImage([Nlist,1]);
     for Ilist=1:1:Nlist
@@ -97,16 +99,20 @@ function [Result, CalibObj] = read2AstroImage(FileName, Args)
         KeyName = 'CDELT';
         HeaderCell = imUtil.headerCell.deleteKey(HeaderCell,KeyName);
         
-        
         % EQUINOX
         HeaderCell = imUtil.headerCell.replaceKey(HeaderCell, {'EQUINOX'}, {2000});
+        
+        % copy STARTTIM to DATEOBS
+        Itime = find(strcmp(HeaderCell(:,1),'STARTTIM'));
+        HeaderCell(end+1,:) = {'DATEOBS', HeaderCell{Itime,2}};
+        
         
         % add a comment column
         Nkey = size(HeaderCell,1);
         HeaderCell = [HeaderCell, cell(Nkey,1)];
 
         Result(Ilist).HeaderData.Data = HeaderCell;
-
+        
         % Read the image
 
         switch lower(Args.ReadType)
@@ -126,12 +132,16 @@ function [Result, CalibObj] = read2AstroImage(FileName, Args)
         MaskFlag = isnan(Image);
         Result(Ilist).MaskData = maskSet(Result(Ilist).MaskData, MaskFlag, 'HighRN', 1);
         
+        % gain correction
+        Image = Image.*Args.Gain;
+        
         % interp over NaN
         Result(Ilist).Image = Image;
         Result(Ilist).cast('double');
         imProc.image.interpOverNan( Result(Ilist) );
-        Result(Ilist).cast('single');
+        %Result(Ilist).cast('single');
 
+        
         
     end
     
