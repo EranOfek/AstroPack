@@ -43,6 +43,7 @@ function Result = searchCatForKnownPM(Cat, PM, Args)
         Args.CatEpochUnits char     = 'JD';
         Args.SearchRadius           = 1;
         Args.SearchRadiusUnits char = 'arcsec';
+        
     end
     
     RAD        = 180./pi;
@@ -63,6 +64,7 @@ function Result = searchCatForKnownPM(Cat, PM, Args)
     % predict RA/Dec based on known PM
     Npm = size(PM,1);
     for Ipm=1:1:Npm
+        TotalPM = sqrt(sum(PM(Ipm,[3 6]).^2));
         if size(Cat,2)==8
             [PredRA, PredDec] = celestial.coo.proper_motion_parallax(CatJD, PM(Ipm,1), PM(Ipm,4), PM(Ipm,2), PM(Ipm,5), PM(Ipm,3), PM(Ipm,6), PM(Ipm,7), PM(Ipm,8));
         else
@@ -74,7 +76,26 @@ function Result = searchCatForKnownPM(Cat, PM, Args)
         Result(Ipm).Nfound = sum(Flag);
         Result(Ipm).Std    = std(Dist(Flag));
         Result(Ipm).Flag   = Flag;
+        Result(Ipm).TimeRangeFlag = range(CatJD(Flag));
         Result(Ipm).RStdAll = imUtil.background.rstd(Dist);
+        
+        % check the time-range of sources within 1" from each flaged source
+        Ncand = sum(Flag);
+        IndFlag = find(Flag);
+        FlagGood = Flag;
+        for Icand=1:1:Ncand
+            IndCand = IndFlag(Icand);
+            DD = celestial.coo.sphere_dist_fast(CatRA(IndCand), CatDec(IndCand), CatRA, CatDec);
+            DD = DD.*ARCSEC_DEG.*RAD;
+            RangeJD = range(CatJD((DD<Args.SearchRadius)));
+            % time in days it takes a source with TotalPM to cross the SearchRadius
+            % (365./(TotalPM./1000)).*Args.SearchRadius
+            
+            FlagGood(IndCand) = RangeJD < (365./(TotalPM./1000)).*Args.SearchRadius;
+        end
+        Result(Ipm).FlagGood   = FlagGood;
+        Result(Ipm).StdGood    = std(Dist(FlagGood));
+        Result(Ipm).TimeRangeFlagGood = CatJD(FlagGood);
     end
     
 
