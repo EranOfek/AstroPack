@@ -1,4 +1,4 @@
-function [S2,Summary]=sysrem(Resid,Sigma,varargin)
+function [S2,Summary]=sysrem(Resid, Sigma, Args)
 % Apply the Tamuz et al. sysrem decomposition to a matrix of residuals
 % Package: timeseries
 % Description: Given a matrix of residuals (R_ij), of star i in image j,
@@ -45,38 +45,40 @@ function [S2,Summary]=sysrem(Resid,Sigma,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-Def.Sigma = 1;
-if (nargin<2)
-    Sigma = Def.Sigma;
+arguments
+    Resid
+    Sigma                     = [];
+    Args.A                    = 1;
+    Args.C                    = zeros;
+    Args.ReNormSigma          = true;
+    Args.ThreshDeltaS2        = 1;
+    Args.Niter                = 1;
 end
 
-DefV.A                    = 1;
-DefV.C                    = zeros;
-DefV.ReNormSigma          = true;
-DefV.ThreshDeltaS2        = 1;
-DefV.Niter                = 1;
-InPar = InArg.populate_keyval(DefV,varargin,mfilename);
-
+Def.Sigma = 1;
+if isempty(Sigma)
+    Sigma = Def.Sigma;
+end
 
 [Nst,Nim] = size(Resid);
 Nobs = Nst.*Nim;
 Ndof = Nobs - Nst - Nim;
 
-if (numel(InPar.A)==1)
+if (numel(Args.A)==1)
     A = ones(1,Nim);
 else
-    A = InPar.A(:).';
+    A = Args.A(:).';
 end
 
-if (numel(InPar.C)==1)
+if (numel(Args.C)==1)
     C = ones(Nst,1);
 else
-    C = InPar.C(:);
+    C = Args.C(:);
 end
 
 S2_Orig = sum( (Resid./Sigma).^2,[1 2]);
 
-if (InPar.ReNormSigma)
+if (Args.ReNormSigma)
     Sigma = Sigma.*sqrt(S2_Orig./Ndof);
 
     S2_Prev = sum( (Resid./Sigma).^2,[1 2]);
@@ -93,7 +95,7 @@ Summary(K).rms   = std(Resid(:));
 Summary(K).Ndof  = Nobs;
  
 
-for IterR=1:1:InPar.Niter
+for IterR=1:1:Args.Niter
     K = K + 1;
     
     if (IterR>1)
@@ -104,9 +106,9 @@ for IterR=1:1:InPar.Niter
     DeltaS2 = Inf;
 
     Iter = 0;
-    while abs(DeltaS2)>InPar.ThreshDeltaS2
+    while abs(DeltaS2)>Args.ThreshDeltaS2
         Iter = Iter + 1;
-        %InPar.Niter
+        %Args.Niter
 
         C = sum(Resid.*A ./ (Sigma.^2), 2) ./ sum( A.^2./Sigma.^2, 2);
         A = sum(Resid.*C ./ (Sigma.^2), 1) ./ sum( C.^2./Sigma.^2, 1);

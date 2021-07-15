@@ -1,4 +1,4 @@
-function [Result,JD] = createMatchedSources(Files, Args)
+    function [Result,JD] = createMatchedSources(Files, Args)
     %
     % Example: Result = wfast.createMatchedSources('WFAST_Balor_20210529-011312-278_F505W_0_Image.h5z')
     %          [Result,JD] = wfast.createMatchedSources('WFAST_Balor_20210529-0025*','UseRegExp',false)
@@ -83,12 +83,18 @@ function [Result,JD] = createMatchedSources(Files, Args)
     MS = MatchedSources;
     MS.addMatrix(MC, {'X','Y','SN_1','SN_2','SN_3',...
         'FLUX_CONV_2','FLUX_CONV_3','BACK_IM','VAR_IM',...
-        'X2','Y2','FLUX_APER_2',...
+        'X2','Y2',...
+        'FLUX_APER_2','FLUXERR_APER_2',...
         'MAG_CONV_2',...
         'BACK_ANNULUS','STD_ANNULUS',...
         'Nmatch','Dist'});
     
     MS.JD = JD(:);
+    
+    MS.Data.MAG= MS.Data.MAG_CONV_2;                                    
+    MS.Data.MAGERR = 1.086.*MS.Data.FLUXERR_APER_2./MS.Data.FLUX_APER_2;
+
+    
     end
                 
 end

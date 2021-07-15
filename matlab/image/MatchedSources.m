@@ -198,6 +198,29 @@ classdef MatchedSources < Component
         end
     end
     
+    methods (Static) 
+        function H=designMatrixCalib(Nep, Nsrc)
+            %
+            % Example: MatchedSources.designMatrixCalib(5,7)
+            
+            
+            H = zeros(Nep.*Nsrc, Nsrc + Nep);
+            DiagMat = diag(ones(Nep,1));
+            OnesVec = ones(Nep,1);
+            
+            %LinesVec  = (1:Nsrc);        % column indices for the one-vec matrices
+            LinesDiag = Nsrc + (1:Nep);  % column indices for the diag matrices
+            for Isrc=1:1:Nsrc
+                Rows = (1:Nep).' + (Isrc-1).*Nep;
+                H(Rows, Isrc)      = OnesVec;
+                H(Rows, LinesDiag) = DiagMat;
+            end
+            
+            
+        end
+        
+    end
+    
     methods  % functions / get/set Data
         function Obj = addMatrix(Obj, Matrix, FieldName)
             % Add matrix/struct/matched AstroTable into the MatchedSources Data
@@ -478,7 +501,7 @@ classdef MatchedSources < Component
             end
              
         end
-        
+                
         function Flag = notNanSources(Obj, ColNames)
             % Return a vector of logicals indicating soueces which do have any NaNs in theor data.
             % Input  : - A single element MatchesSources object.

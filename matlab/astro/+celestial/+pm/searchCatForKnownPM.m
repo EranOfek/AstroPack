@@ -94,6 +94,7 @@ function Result = searchCatForKnownPM(Cat, PM, Args)
             FlagGood(IndCand) = RangeJD < (365./(TotalPM./1000)).*Args.SearchRadius;
         end
         Result(Ipm).FlagGood   = FlagGood;
+        Result(Ipm).Nflaggood  = sum(FlagGood);
         Result(Ipm).StdGood    = std(Dist(FlagGood));
         Result(Ipm).TimeRangeFlagGood = CatJD(FlagGood);
     end
