@@ -199,12 +199,71 @@ classdef MatchedSources < Component
     end
     
     methods (Static) 
-        function H=designMatrixCalib(Nep, Nsrc)
-            %
-            % Example: MatchedSources.designMatrixCalib(5,7)
+        function H=designMatrixCalib(Nep, Nsrc, Args)
+            % Generate the design matrix for relative photometric calibration 
+            % Reference: Ofek+2011
+            % Input  : - Number of epochs.
+            %          - Number of sources.
+            %          * ...,key,val,...
+            %            'UseSparse' - A logical indicating if to generate
+            %                   a sparse design matrix. Default is false.
+            %            'SrcProp' - A cell array of additional properties
+            %                   to add to the design matrix.
+            %                   Each cell element can be a row vector
+            %                   (property per source; e.g., color), a
+            %                   column vector (property per epoch; e.g.,
+            %                   air mass), or a matrix of size Nep X Nsrc.
+            %                   These properties will be added to the
+            %                   design matrix according to the scheme
+            %                   dictated by 'SrcPropCoefType'.
+            %                   Default is {}.
+            %            'SrcPropCoefType' - A vector of numbers, each
+            %                   element corresponds to a cell element in
+            %                   'SrcProp'. The numbres may be one of the
+            %                   following:
+            %                   1 - will add a single column to the design
+            %                   matrix (i.e., a single coef.).
+            %                   2 - will add a column per epoch.
+            % Output : - The design matrix.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: H=MatchedSources.designMatrixCalib(2,4)
+            %          H=MatchedSources.designMatrixCalib(2,4,'UseSparse',true)
+            %          H=MatchedSources.designMatrixCalib(2,4,'SrcProp',{3.*ones(1,4)})
+            %          H=MatchedSources.designMatrixCalib(2,4,'SrcProp',{3.*ones(1,4)},'SrcPropCoefType',2)
             
+            arguments
+                Nep
+                Nsrc
+                Args.UseSparse(1,1) logical  = false;
+                Args.SrcProp cell            = {};
+                Args.SrcPropCoefType         = 1;  % 1 - single coef.
+                
+            end
             
-            H = zeros(Nep.*Nsrc, Nsrc + Nep);
+            Nprop = numel(Args.SrcProp);
+            % count additional required columns
+            NextraCol = 0;
+            FilledVal = 0;   % number of non zero values (for sparse mat)
+            for Iprop=1:1:Nprop
+                switch Args.SrcPropCoefType(Iprop)
+                    case 1
+                        % single coef
+                        NextraCol = NextraCol + 1;
+                    case 2
+                        % coef per epoch
+                        NextraCol = NextraCol + Nep;
+                    otherwise
+                        error('Unknown SrcPropCoefType option');
+                end
+                FilledVal = FilledVal + Nsrc.*Nep;                                         
+            end
+            
+            if Args.UseSparse
+                Nnonzero = 2.*Nep.*Nsrc + FilledVal;
+                sparse([],[],[],Nep.*Nsrc, Nsrc + Nep + NextraCol, Nnonzero);
+            else
+                H = zeros(Nep.*Nsrc, Nsrc + Nep + NextraCol);
+            end
             DiagMat = diag(ones(Nep,1));
             OnesVec = ones(Nep,1);
             
@@ -216,7 +275,66 @@ classdef MatchedSources < Component
                 H(Rows, LinesDiag) = DiagMat;
             end
             
-            
+            % adding optional blocks
+            ColInd = Nsrc + Nep;
+            for Iprop=1:1:Nprop
+                % check what is the nature of the additional property
+                % 1. A full matrix with number per source/epoch, and a
+                % single free coef.
+                % 2. A full matrix with number per source/epoch, and a
+                % coef. per epoch.
+                % 3. A full matrix with number per source/epoch, and a
+                % coef. per source.
+                % 4. A vector of peroerties per source, and a single common
+                % coef.
+                % 5. Like 4, but a coef. oer epoch.
+               
+                
+                switch Args.SrcPropCoefType(Iprop)
+                    case 1
+                        % common property for all sources, at all epochs
+                        % and a single free coef.
+                        ColInd = ColInd + 1;
+                        if size(Args.SrcProp{Iprop},1) == 1 && numel(Args.SrcProp{Iprop}) == Nsrc
+                            % input is a row vector (parameter per source)
+                            % Args.SrcProp{Iprop} is a vector of length Nsrc
+                            Tmp = repmat(Args.SrcProp{Iprop}(:), 1, Nep).';
+                            H(:,ColInd) = Tmp(:);
+                        elseif size(Args.SrcProp{Iprop},2) == 1 && numel(Args.SrcProp{Iprop}) == Nep
+                            % input is a column vector [parameter per
+                            % epoch]
+                            Tmp = repmat(Args.SrcProp{Iprop}, Nep, 1);
+                            H(:,ColInd) = Tmp;
+                        else
+                            % assume Args.SrcProp{Iprop} is a matrix of size
+                            % Nep x Nsrc
+                            H(:,ColInd) = Args.SrcProp{Iprop}(:);
+                        end
+                    case 2
+                        % common property for all sources, at all epochs
+                        % but a free coef per epoch
+                        
+                        if size(Args.SrcProp{Iprop},1) == 1 && numel(Args.SrcProp{Iprop}) == Nsrc
+                            % input is a row vector (parameter per source)
+                            DiagMatProp = diag(ones(1,Nep));
+                                                        
+                            LinesDiag = ColInd + (1:Nep);  % column indices for the diag matrices
+                            for Isrc=1:1:Nsrc
+                                Rows = (1:Nep).' + (Isrc-1).*Nep;
+                                H(Rows, LinesDiag) = DiagMatProp.*Args.SrcProp{Iprop}(Isrc);
+                            end
+                            ColInd = LinesDiag(end);
+                            
+                        else
+                            error('SrcProp for prop %d must be a vector of length Nsrc',Iprop);
+                        end
+                        
+                    otherwise
+                        error('Unknown SrcPropCoefType option');
+                end
+                    
+                        
+            end 
         end
         
     end
@@ -839,6 +957,13 @@ classdef MatchedSources < Component
             MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'});
             [JD, Mag] = getLC_ind(MS, [2 3], {'FLUX'});
             
+            
+            % designMatrixCalib
+            H=MatchedSources.designMatrixCalib(2,4);
+            H=MatchedSources.designMatrixCalib(2,4,'UseSparse',true);
+            H=MatchedSources.designMatrixCalib(2,4,'SrcProp',{3.*ones(1,4)});
+            H=MatchedSources.designMatrixCalib(2,4,'SrcProp',{3.*ones(1,4)},'SrcPropCoefType',2);
+
             
             io.msgStyle(LogLevel.Test, '@passed', 'MatchedSources test passed');
             Result = true;
