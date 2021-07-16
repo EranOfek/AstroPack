@@ -1530,6 +1530,13 @@ classdef AstroHeader < Component
             Ans = isImType(H, 'bias');            
             Ans = isImType(H, 'bias','CaseSens',false,'IsInputAlt',false);
             
+            % read
+            io.msgLog(LogLevel.Test, 'testing AstroHeader read')
+            H=AstroHeader;
+            H.read('FileName','WFPC2ASSNu5780205bx.fits','HDU',[1]);
+            H=AstroHeader;
+            H.read('FileName', {'WFPC2ASSNu5780205bx.fits', 'WFPC2ASSNu5780205bx.fits'});
+            
             cd(PWD);      
 
             io.msgStyle(LogLevel.Test, '@passed', 'AstroHeader test passed')
