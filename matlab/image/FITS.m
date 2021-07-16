@@ -93,7 +93,9 @@ classdef FITS < handle
             
             Fptr = matlab.io.fits.openFile(FileName);
             Nhdu = matlab.io.fits.getNumHDUs(Fptr);
-            if (Nhdu>=HDUnum)
+            if HDUnum>Nhdu
+                error('Request for HDU %d failed because there are %d HDUs in file',HDUnum,Nhdu)
+            else
                 Htype = matlab.io.fits.movAbsHDU(Fptr,HDUnum);
 
                 Nkey = matlab.io.fits.getHdrSpace(Fptr);
