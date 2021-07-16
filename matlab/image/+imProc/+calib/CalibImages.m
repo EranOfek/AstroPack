@@ -1,6 +1,26 @@
 % CalibImages class - A class for storing calibration image, and performs
 %       the basic calibration steps on images.
-% Description: Each elementof this class may contain ...
+% Description: Each element of this class may contain ...
+
+
+% use case:
+%   1. create dark/bias/flat/fringe
+%       bias
+%       dark
+%       flat
+%       fringe
+%   2. save to disk/db
+%       
+%   3. upload from disk/db
+%   4. apply calib on image
+%       Each calib element corresond to one sub/image
+%       debias
+%       dedark
+%       deflat
+%       defringe
+%       maskSaturated
+%       calibrate (do all)
+
 
 classdef CalibImages < Component
     properties
