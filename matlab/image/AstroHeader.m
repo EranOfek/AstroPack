@@ -171,18 +171,23 @@ classdef AstroHeader < Component
             %                   property.
             %            'HDU' - HDU (scalae or vector) or dataset. Default
             %                   is to use Header.HDU.
+            %                   If empty then set to 1.;
             %            'Type' - File type. 'fits'|'hdf5'|['auto'].
             %                   'auto' will attempt automatic
             %                   identificatin.
             % Examples: H=Header;
             % H.read('FileName',{'File1.fits','File2.fits'});  % read two headers in default HDU.
-            % H.read('FileName','File1.fits','HDU',[1 2]); % read 2 HDUs from a single file
+            % A = H.read('FileName','File1.fits','HDU',[1 2]); % read 2 HDUs from a single file
             
             arguments
                 Obj
                 Args.FileName      = Obj.File;
                 Args.HDU           = Obj.HDU;
                 Args.Type char {mustBeMember(Args.Type,{'auto','fits','fit','FITS','FIT','fit.gz','fits.gz','hdf5','h5','hd5'})} = 'auto';
+            end
+            
+            if isempty(Args.HDU)
+                Args.HDU = 1;
             end
             
             if ~iscell(Args.FileName)
@@ -194,18 +199,17 @@ classdef AstroHeader < Component
             
             switch Args.Type
                 case 'auto'
-                    FileParts = split(FileName,'.');
+                    FileParts = split(Args.FileName,'.');
                     Args.Type = FileParts{end};
             end
             
             switch lower(Args.Type)
                 case {'fits','fit','fit.gz','fits.gz'}
                     % read FITS file
-                    FO = FITS;
                     for Imax=1:1:Nmax
                         Ih    = min(Nhdu,Imax);
                         Ifile = min(Nfile,Imax);
-                        Obj(Ifile).Data = FO.readHeader(Args.FileName{Ifile},Args.HDU(Ih));
+                        Obj(Ifile).Data = FITS.readHeader1(Args.FileName{Ifile}, Args.HDU(Ih));
                         Obj(Ifile).File = Args.FileName{Ifile};
                         Obj(Ifile).HDU  = Args.HDU(Ih);
                     end
