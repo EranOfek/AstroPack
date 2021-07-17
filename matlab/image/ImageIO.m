@@ -231,6 +231,113 @@ classdef ImageIO < Component
             
             
         end
+        
+        function FileName = write1(Data, FileName, Args)
+            % Write a single data array into a file
+            
+            arguments
+                Data                                   % array or Table
+                FileName                      = [];
+                Args.Dir                      = '';
+                Args.Header                   = [];
+                Args.HDU                      = 1;
+                Args.FileType                 = 'fits';
+                Args.DataType                 = '';  % only for images - force data type
+                Args.IsTable(1,1) logical     = false;
+                Args.ColNames                 = {};
+                Args.ColUnits                 = {};
+                Args.CCDSEC                   = [];      % only for 2D images
+                
+                Args.Append(1,1) logical      = false;
+                Args.OverWrite(1,1) logical   = false;
+                Args.WriteTime(1,1) logical   = false;
+                
+                Args.MatVersion               = 'v7.3';
+                
+            end
+            
+            % if FileName is empty - generate a tmp file
+            if isempty(FileName)
+                FileName = tempname;
+            end
+            
+            DataType = [];
+            if ~Args.IsTable
+                if ~isempty(Args.DataType)
+                    % force data type
+                    Data = cast(Data, Args.DataType);
+                end
+                DataType = class(Data);
+                
+                if ~isempty(Args.CCDSEC)
+                    if ndims(Data)==2
+                        Data = Data(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+                    else
+                        error('CCDSEC is currently possible only for 2D images');
+                    end
+                end
+            end
+            
+            % convert header to a 3-col cell array
+            if iscell(Args.Header)
+                Header = Args.Header;
+            elseif isa(Args.Header,'AstroHeader')
+                % get cell
+                Header = Args.Header.Data;
+            else
+                error('Unsupported Header type');
+            end
+                
+            PWD = pwd;
+            if ~isempty(Args.Dir)
+                cd(Args.Dir)
+            end
+            
+            switch lower(Args.FileType)
+                case 'fits'
+                    if Args.IsTable
+                        % write FITS binary table
+                        error('Writing FITS binary tables is not supported yet');
+                    else
+                        % write FITS image
+                        FITS.write(Data, FileName, 'Header', Header,...
+                                                   'DataType',DataType,...
+                                                   'Appned',Args.Appned ,...
+                                                   'OverWrite',Args.OverWrite ,...
+                                                   'WriteTime',Args.WriteTime);
+                    end
+                        
+                case {'hdf5','h5z','h5','hd5'}
+                    
+                case 'matflat'
+                    % save Data and Header variables to a mat file
+                    if Args.Append
+                        save(FileName,'Data','Header',Args.MatVersion,'-append');
+                    else
+                        save(FileName,'Data','Header',Args.MatVersion);
+                    end
+                case 'matstruct'
+                    % save a struct with Data and Header fields to a mat
+                    % file
+                    St.Data   = Data;
+                    St.Header = Header;
+                    if Args.Append
+                        save(FileName,'StData',Args.MatVersion,'-append');
+                    else
+                        save(FileName,'StData',Args.MatVersion);
+                    end
+                case 'jpg'
+                    
+                case 'tiff'
+                    
+                otherwise
+                    error('Unknown FileType option');
+            end
+            
+            cd(PWD);
+            
+            
+        end
     end
     
     methods (Static)  % unitTest

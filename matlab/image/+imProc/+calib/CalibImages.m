@@ -1,7 +1,9 @@
 % CalibImages class - A class for storing calibration image, and performs
 %       the basic calibration steps on images.
-% Description: Each element of this class may contain ...
-
+% Description: Each element of this class may contain all the calibration
+%   images for a single detector or a section of a detector.
+%   This allows performing calibration for multiple detectors
+%   simultaneously.
 
 % use case:
 %   1. create dark/bias/flat/fringe
@@ -10,7 +12,7 @@
 %       flat
 %       fringe
 %   2. save to disk/db
-%       
+%       save images
 %   3. upload from disk/db
 %   4. apply calib on image
 %       Each calib element corresond to one sub/image
