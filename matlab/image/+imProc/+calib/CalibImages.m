@@ -29,9 +29,12 @@
 
 classdef CalibImages < Component
     properties
-        Dark AstroImage     % may hold multiple images
-        Flat AstroImage     % may hold multiple images
-        Fringe AstroImage   % may hold multiple images
+        Bias AstroImage(1,1)     
+        Dark AstroImage   
+        Flat AstroImage
+        Fringe AstroImage(1,1)   
+        
+        SubtractOverScan(1,1) logical   = true;
         
         FlatFilter         = NaN;
         DarkExpTime        = NaN;
@@ -65,8 +68,34 @@ classdef CalibImages < Component
         end
     end
     
+    methods (Access=private)
+        function [Nobj, Nim] = checkObjImageSize(Obj, Image)
+            % Check the validity of the size of CalibImages object and input image
+            %   This function will return an error if not one of the
+            %   following: size(Image)==size(Obj) or (numel(Obj)==1 and numel(Image)>1)');
+            % Input  : - A CalibImages object.
+            %          - An AstroImage object
+            % Output : - Number of elements in the CalibImages object.
+            %          - Number of elements in the AstroImage object.
+            % Author : Eran Ofek (Jul 2021)
+            
+            Nobj = numel(Obj);
+            Nim  = numel(Image);
+            % check size of Obj and Image
+            if all(size(Obj)==size(Image))
+                % Image and Obj has the same size - apply one to one calib
+            else
+                if Nobj==1 && Nim>1
+                    % apply calibration to each input image
+                else
+                    error('Not valid Obj/Image size: Options are: size(Image)==size(Obj) or (numel(Obj)==1 and numel(Image)>1)');
+                end
+            end
+        end
+    end
+    
     methods
-        function Result = dedark(Obj, Image, Args)
+        function Result = debias(Obj, Image, Args)
             %
             
             arguments
@@ -78,9 +107,16 @@ classdef CalibImages < Component
             % create new copy of Image object
             [Result, CreateNewObj] = createNewObj(Image, Args.CreateNewObj, nargout);
            
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+            
             % select
-            
-            
+            Nmax = max(Nobj, Nim);
+            for Iobj=1:1:Nobj
+                Result = imProc.dark.debias(Image, CalibImages(Iobj).Bias, 'CreateNewObj',CreateNewObj);
+            end
+                                                                           
+                
+                
         end
     end
     

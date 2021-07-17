@@ -370,9 +370,8 @@ classdef ImageIO < Component
                     end
                         
                 case {'hdf5','h5z','h5','hd5'}
-                    error('write hdf5 is not implemented yet'); 
                     if isnumeric(Args.HDU)
-                        Args.HDU = sprintf('/%d');
+                        Args.HDU = sprintf('/%d',Args.HDU);
                     elseif ischar(Args.HDU)
                         if ~strcmp(Argd.HDU(1),'/')
                             Args.HDU = sprintf('/%s',Args.HDU);
@@ -382,7 +381,9 @@ classdef ImageIO < Component
                     end
                     h5create(FileName, Args.HDU, size(Data));
                     h5write(FileName, Args.HDU, Data);
+                    % FFU
                     warning('Save Header in HDF5 option is not yet available');
+                    
                 case 'matflat'
                     % save Data and Header variables to a mat file
                     if Args.Append

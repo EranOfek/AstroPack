@@ -26,7 +26,7 @@ classdef HDF5
     % Basic high level static methods: save, load
     methods (Static)
         % simple save array
-        function save(Data,FileName,VarName,Attrib,WriteMode)
+        function save(Data, FileName, VarName, Attrib)
             % save a new array into an HDF5 file dataset
             % Package: @HDF5
             % Description: A simple and fast save HDF5 for arrays
@@ -34,18 +34,14 @@ classdef HDF5
             %          - HDF5 file name to save.
             %          - HDF5 dataset name. Default is '/V'.
             %          - A two column cell array of attribute key,val.
+            % Author : Eran Ofek
            
-            
-            
-            Def.VarName = '/V';
-            Def.Attrib  = {};
-           
-           
-            if (nargin<4)
-                Attrib  = Def.Attrib;
-                if (nargin<3)
-                    VarName = Def.VarName;
-                end
+            arguments
+                Data
+                FileName
+                VarName   = '/V';
+                Attrib    = {};
+                %WriteMode
             end
             
             Plist  = 'H5P_DEFAULT';
@@ -104,8 +100,9 @@ classdef HDF5
             %          - Optional start index
             %          - Optional count index
             % Output : - The data
+            % Author : Eran Ofek
             
-            Data=h5read(FileName,VarName,varargin{:});
+            Data = h5read(FileName,VarName,varargin{:});
             
         end
         
