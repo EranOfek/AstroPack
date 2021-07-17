@@ -105,6 +105,9 @@ classdef AstroHeader < Component
             else
                 % read file names
                 List = io.files.filelist(FileNames,Args.UseRegExp);
+                if isempty(List)
+                    error('No file was found in path');
+                end
             end
             
                 
