@@ -234,18 +234,66 @@ classdef ImageIO < Component
         
         function FileName = write1(Data, FileName, Args)
             % Write a single data array into a file
+            % Input  : - Image/table data.
+            %            This can be a matrix, table, AstroImage,
+            %            ImageComponent.
+            %          - File name to save (with or without full path; see
+            %            also Args.Dir).
+            %            If empty, will generate a tmp file name.
+            %            Default is empty.
+            %          * ...,key,val,...
+            %            'Dir' - Directory name in which to save the image.
+            %                   If empty, use current dir.
+            %                   Default is ''.
+            %            'Header' - An header (3 col cell array).
+            %                   or an AstroHeader object.
+            %                   Default is {}.
+            %            'HDU' - FITS HDU number, or HDF5 dataset name.
+            %                   Default is 1.
+            %            'FileType' - File type to save:
+            %                   'fits'
+            %                   {'hdf5','h5z','h5','hd5'}
+            %                   'matflat' - save Data and Header in flat
+            %                           mat file.
+            %                   'matstruct' - save structure with data and
+            %                           Header fields.
+            %                   {'jpg','tif','tiff','gif','png','bmp','hdf','jp2','jpx','jpeg','pcx','pgm'}
+            %                           Use imwrite.m
+            %            'DataProp' - If input is AstroImage, or
+            %                   ImageComponent, read the data from this property.
+            %            'DataType' - Data Type of Data to save.
+            %                   If empty, then use the original Data data
+            %                   type. Default is empty.
+            %            'IsTable' - A logical indicating if data is a
+            %                   table to save. Default is false.
+            %            'ColNames' - A cell array of table column names.
+            %            'ColUnits' - A cell arrat of table units names.
+            %            'CCDSEC' - CCDSEC to save. If empty, save full
+            %                   image. Default is [].
+            %            'Append' - Append image as a multi extension to an
+            %                      existing FITS file. Default is false.
+            %            'OverWrite'- Overwrite an existing image. Default
+            %                       is false.
+            %            'WriteTime'- Add creation time to image header.
+            %                       Default is false.
+            %            'MatVersion' - MAT file version.
+            %                   Default is '-v7.3'.
+            % Output : - File name. 
+            % Author : Eran Ofek (Jul 2021)
+            % Example: ImageIO.write1(rand(10,10),'tmp.fits')
             
             arguments
                 Data                                   % array or Table
                 FileName                      = [];
-                Args.Dir                      = '';
-                Args.Header                   = [];
+                Args.Dir char                 = '';
+                Args.Header                   = {};
                 Args.HDU                      = 1;
-                Args.FileType                 = 'fits';
+                Args.FileType char            = 'fits';   % 'matai'
+                Args.DataProp char            = 'Image';  % Data prop in AstroImage
                 Args.DataType                 = '';  % only for images - force data type
                 Args.IsTable(1,1) logical     = false;
-                Args.ColNames                 = {};
-                Args.ColUnits                 = {};
+                Args.ColNames cell            = {};
+                Args.ColUnits cell            = {};
                 Args.CCDSEC                   = [];      % only for 2D images
                 
                 Args.Append(1,1) logical      = false;
@@ -254,6 +302,19 @@ classdef ImageIO < Component
                 
                 Args.MatVersion               = 'v7.3';
                 
+            end
+            
+            % convert data from other data types
+            if isa(Data,'AstroImage')
+                if isempty(Args.Header)
+                    % user did not supply header - so read from AstroHeader
+                    Args.Header = Data.Header;
+                end
+                Data = Data.Image;
+            elseif isa(Data,'ImageComponent')
+                Data = Data.Image;
+            else
+                % do nothing
             end
             
             % if FileName is empty - generate a tmp file
@@ -270,6 +331,7 @@ classdef ImageIO < Component
                 DataType = class(Data);
                 
                 if ~isempty(Args.CCDSEC)
+                    % this will work only for a matrix Data
                     if ndims(Data)==2
                         Data = Data(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
                     else
@@ -302,13 +364,14 @@ classdef ImageIO < Component
                         % write FITS image
                         FITS.write(Data, FileName, 'Header', Header,...
                                                    'DataType',DataType,...
-                                                   'Appned',Args.Appned ,...
-                                                   'OverWrite',Args.OverWrite ,...
+                                                   'Append',Args.Append,...
+                                                   'OverWrite',Args.OverWrite,...
                                                    'WriteTime',Args.WriteTime);
                     end
                         
                 case {'hdf5','h5z','h5','hd5'}
-                    
+                    error('write hdf5 is not implemented yet'); 
+               
                 case 'matflat'
                     % save Data and Header variables to a mat file
                     if Args.Append
@@ -326,10 +389,8 @@ classdef ImageIO < Component
                     else
                         save(FileName,'StData',Args.MatVersion);
                     end
-                case 'jpg'
-                    
-                case 'tiff'
-                    
+                case {'jpg','tif','tiff','gif','png','bmp','hdf','jp2','jpx','jpeg','pcx','pgm'}
+                    imwrite(Data, FileName, Args.FileType)
                 otherwise
                     error('Unknown FileType option');
             end
@@ -350,6 +411,10 @@ classdef ImageIO < Component
             [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','CCDSEC',[1 10 1 10]);
             [D]=ImageIO.read1('WFPC2ASSNu5780205bx.fits');
             [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','ReadData',false);
+
+            % write1
+            FileName = ImageIO.write1(rand(10,10),'tmp.fits');
+            delete(FileName);            
             
             % constroctor
             I = ImageIO;
