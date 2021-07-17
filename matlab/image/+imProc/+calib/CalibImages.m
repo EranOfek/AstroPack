@@ -12,10 +12,13 @@
 %       flat
 %       fringe
 %   2. save to disk/db
-%       save images
+%      writeImages
+%      write2DB
 %   3. upload from disk/db
+%       readImages - read calibration images from disk
+%       searchDB - search recent calibration files
 %   4. apply calib on image
-%       Each calib element corresond to one sub/image
+%           Each calib element corresond to one sub/image
 %       debias
 %       dedark
 %       deflat
