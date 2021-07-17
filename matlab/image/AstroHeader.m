@@ -1434,27 +1434,75 @@ classdef AstroHeader < Component
             io.msgLog(LogLevel.Test, 'testing AstroHeader getVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME');
+            assert(Val == 300)
+            assert(prod(Key == 'EXPTIME'))
+            assert(prod(Comment == ' exposure duration (seconds)--calculated'))
+            assert(Nfound == 1)
             [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','IsInputAlt',true);
+            assert(Val == 300)
+            assert(prod(Key == 'EXPTIME'))
+            assert(prod(Comment == ' exposure duration (seconds)--calculated'))
+            assert(Nfound == 1)
             [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME'); % return NaN
+            assert(isnan(Val))
+            assert(prod(Key == 'AEXPTIME'))
+            assert(isempty(Comment))
+            assert(Nfound == 0)
             [Val, Key, Comment, Nfound] = getVal(H, {'BB','EXPTIME','AA'});
+            assert(Val == 300)
+            assert(prod(Key == 'EXPTIME'))
+            assert(prod(Comment == ' exposure duration (seconds)--calculated'))
+            assert(Nfound == 1)
             [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME','UseDict',false);
+            assert(Val == 300)
+            assert(prod(Key == 'EXPTIME'))
+            assert(prod(Comment == ' exposure duration (seconds)--calculated'))
+            assert(Nfound == 1)
             [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','UseDict',false);
+            assert(isnan(Val))
+            assert(prod(Key == 'AEXPTIME'))
+            assert(isempty(Comment))
+            assert(Nfound == 0)
 
             % getStructKey()
             io.msgLog(LogLevel.Test, 'testing AstroHeader getStructKey')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [Result,C] = getStructKey(H, {'EXPTIME'});
-            [Result,C] = getStructKey(H, {'EXPTIME','A'});
-            [Result,C] = getStructKey(H, {'EXPTIME','A'},'UseDict',false);
+            assert(Result.EXPTIME == 300)
+            assert(prod(C.EXPTIME == ' exposure duration (seconds)--calculated'))
+            [Result,C] = getStructKey(H, {'AEXPTIME','A'});
+            assert(Result.AEXPTIME == 300)
+            assert(prod(C.AEXPTIME == ' exposure duration (seconds)--calculated'))
+            assert(isnan(Result.A))
+            assert(isempty(C.A))
+            [Result,C] = getStructKey(H, {'AEXPTIME','A'},'UseDict',false);
+            assert(isnan(Result.AEXPTIME))
+            assert(isempty(C.AEXPTIME))
+            assert(isnan(Result.A))
+            assert(isempty(C.A))
 
             % getCellKey
             io.msgLog(LogLevel.Test, 'testing AstroHeader getCellKey')
             H = AstroHeader('*.fits',1);
-            [Result,C] = getStructKey(H, {'EXPTIME','A'});
-            [Result,IK] = getCellKey(H, {'EXPTIME','bb'},'UseDict',false);
             [Result,IK] = getCellKey(H, {'EXPTIME','bb'});
-            [Result,IK] = getCellKey(H, {'AEXPTIME','bb'});
-
+            [ResultA,IKA] = getCellKey(H, {'AEXPTIME','bb'});
+            [s1, s2] = size(Result)
+            for i = s1 : 1 : s1-1
+                assert(Result{i,1} == ResultA{i,1})
+                assert(isnan(Result{i,2}))
+                assert(isnan(ResultA{i,2}))
+            end
+            assert(isnan(Result{s1, 1}))
+            assert(isnan(ResultA{s1, 1}))
+            [Result,IK] = getCellKey(H, {'AEXPTIME','bb'},'UseDict',false);
+            for i = s1 : 1 : s1-1
+                if i == 2
+                    continue
+                end
+                assert(isnan(Result{i,1}))
+                assert(isnan(Result{i,2}))
+            end
+            
             % insertDefaultComments
             io.msgLog(LogLevel.Test, 'testing AstroHeader insertDefaultComments')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
