@@ -94,7 +94,7 @@ classdef CalibImages < Component
         end
     end
     
-    methods
+    methods % calibration functions
         function Result = debias(Obj, Image, Args)
             % Subtract bias image from an image and update mask
             % Input  : - A CalibImages object.
@@ -193,6 +193,56 @@ classdef CalibImages < Component
             end
         end
         
+        function Result = calibrate(Obj, Image, Args)
+            % Perform basic calibration (bias, flat, etc) to input images
+           
+            arguments
+                Obj
+                Image AstroImage
+                Args.CreateNewObj             = [];   % refers to the Image and not the Obj!!!
+                
+                % overscan
+                Args.OverScan                 = 'OVERSCAN';
+                Args.OverScanDir              = [];
+                Args.OverScanMethod           = 'globalmedian';
+                Args.OverScanMethodArgs cell  = {50};
+                
+            end
+            
+            % create new copy of Image object
+            [Result, CreateNewObj] = createNewObj(Image, Args.CreateNewObj, nargout);
+           
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+                  
+            % populate calibration images
+            
+            
+            
+            for Iim=1:1:Nobj
+                Iobj = min(Iim, Nobj);
+                
+                % mark satuarted pixels
+            
+                
+                % subtract bias/dark
+                % Note taht CreateNewObj was already done (if needed)
+                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false);
+                        
+                % subtract overscan
+                Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
+                                                                'Subtract',true,...
+                                                                'RemoveOthers',true,...
+                                                                'OverScan',Args.OverScan,...
+                                                                'OverScanDir',Args.OverScanDir,...
+                                                                'Method',Args.OverScanMethod,...
+                                                                'MethodArgs',Args.OverScanMethodArgs);
+                
+                % divide by flat
+            
+                % interpolate over satuiared pixels
+            
+            end
+        end
     end
     
     
