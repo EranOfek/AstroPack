@@ -127,16 +127,72 @@ classdef CalibImages < Component
             [Result, CreateNewObj] = createNewObj(Image, Args.CreateNewObj, nargout);
            
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
-            
-            % select
-            
+                        
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
                 Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false);
             end
-                                                                                           
         end
+        
+        function Result = overscan(Obj, Image, Args)
+            % Subtract and remove overscan bias from image.
+            % Input  : - A CalibImages object.
+            %            Not used.
+            %          - An AstroImage object containing the input image
+            %            from which to subtract the bias image.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - [], false, true. 
+            %                   See Base.createNewObj for details.
+            %                   This referes to creation of a new copy of
+            %                   the input AstroImage (not the CalibImages
+            %                   object). Default is [].
+            %            'OverScan' - Either an header keyword containing
+            %                   the overscan region, or an [Xmin Xmax Ymin Ymax]
+            %                   vector for the overscan.
+            %                   Default is 'OVERSCAN'.
+            %            'Subtract' - A logical indicating if to subtract
+            %                   the overscan from the image. Default is true.
+            %            'OverScanDir' - Indicating the direction of the overscan:
+            %                   'x'|'y'|1|2| [].
+            %                   See imProc.dark.overscan for details.
+            %                   Default is [].
+            %            'Method' - Method by which to calculate the overscan:
+            %                   See imProc.dark.overscan for details.
+            %                   Default is 'globalmedian'.
+            %            'MethodArgs' - A cell array of additional
+            %                   arguments to pass to the method.
+            %                   (Defaults are defined for each medthod).
+            % Output : - The AstroImage object, from which the overscan was
+            %            subtrcated and removed.
+            % See also: imProc.dark.overscan
+            % Author : Eran Ofek (Jul 2021)
+            % Example: 
+            
+            arguments
+                Obj
+                Image AstroImage
+                Args.CreateNewObj     = [];   % refers to the Image and not the Obj!!!
+            end
+            
+            % create new copy of Image object
+            [Result, CreateNewObj] = createNewObj(Image, Args.CreateNewObj, nargout);
+           
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+                        
+            for Iim=1:1:Nobj
+                Iobj = min(Iim, Nobj);
+                % Note taht CreateNewObj was already done (if needed)
+                Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
+                                                                'Subtract',true,...
+                                                                'RemoveOthers',true,...
+                                                                'OverScan',Args.OverScan,...
+                                                                'OverScanDir',Args.OverScanDir,...
+                                                                'Method',Args.Method,...
+                                                                'MethodArgs',Args.MethodArgs);
+            end
+        end
+        
     end
     
     

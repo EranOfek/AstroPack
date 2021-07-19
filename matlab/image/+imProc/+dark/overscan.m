@@ -86,21 +86,8 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
     end
     DefArgSGolay = {3 50}; 
 
-
-    if isempty(Args.CreateNewObj)
-        if nargout==0
-            Args.CreateNewObj = false;
-        else
-            Args.CreateNewObj = true;
-        end
-    end
-
-    if Args.CreateNewObj
-        Result = ImObj.copyObject;
-    else
-        Result = ImObj;
-    end
-
+    [Result, Args.CreateNewObj] = createNewObj(ImObj, Args.CreateNewObj, nargout);
+    
     Nim = numel(ImObj);
     if nargout>1
         OverScanAI = AstroImage(size(ImObj));
