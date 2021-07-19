@@ -96,12 +96,31 @@ classdef CalibImages < Component
     
     methods
         function Result = debias(Obj, Image, Args)
-            %
+            % Subtract bias image from an image and update mask
+            % Input  : - A CalibImages object.
+            %            If this is a single-element object, then the bias
+            %            image will subtrcated from all input images.
+            %            If this is a multi-element object, then the input
+            %            must have the same number of elements, ane the
+            %            bias subtraction will be done element-by-element.
+            %          - An AstroImage object containing the input image
+            %            from which to subtract the bias image.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - [], false, true. 
+            %                   See Base.createNewObj for details.
+            %                   This referes to creation of a new copy of
+            %                   the input AstroImage (not the CalibImages
+            %                   object). Default is [].
+            % Output : - The AstroImage object, from which the bias was
+            %            subtrcated.
+            % See also: imProc.dark.debias
+            % Author : Eran Ofek (Jul 2021)
+            % Example: debias(Obj, Image)
             
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj     = [];
+                Args.CreateNewObj     = [];   % refers to the Image and not the Obj!!!
             end
             
             % create new copy of Image object
@@ -110,13 +129,13 @@ classdef CalibImages < Component
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
             
             % select
-            Nmax = max(Nobj, Nim);
-            for Iobj=1:1:Nobj
-                Result = imProc.dark.debias(Image, CalibImages(Iobj).Bias, 'CreateNewObj',CreateNewObj);
+            
+            for Iim=1:1:Nobj
+                Iobj = min(Iim, Nobj);
+                % Note taht CreateNewObj was already done (if needed)
+                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false);
             end
-                                                                           
-                
-                
+                                                                                           
         end
     end
     
