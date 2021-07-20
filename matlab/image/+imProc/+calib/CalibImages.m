@@ -195,11 +195,27 @@ classdef CalibImages < Component
         
         function Result = calibrate(Obj, Image, Args)
             % Perform basic calibration (bias, flat, etc) to input images
-           
+            %       Perform the following steps on an image:
+            %   Create a mask image
+            %   Flag staturated pixels in mask
+            %   Subtract bias image
+            %   Subtract and remove overscan from image
+            %   Divide image by flat
+            %   Multiple image by gain
+            
             arguments
                 Obj
                 Image AstroImage
                 Args.CreateNewObj             = [];   % refers to the Image and not the Obj!!!
+                
+                % bit dictionary
+                Args.BitDictinaryName         = 'BitMask.Image.Default';
+                
+                Args.ArgsSaturation cell      = {};
+                Args.ArgsDebias cell          = {};
+                Args.ArgsOverScan cell        = {};
+                Args.ArgsDeflat cell          = {};
+                
                 
                 % overscan
                 Args.OverScan                 = 'OVERSCAN';
@@ -222,23 +238,31 @@ classdef CalibImages < Component
                 Iobj = min(Iim, Nobj);
                 
                 % mark satuarted pixels
+                Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.ArgSaturation{:},...
+                                                                     'CreateNewObj',false,...
+                                                                     'DefBitDict', BitDictionary(Args.BitDictinaryName) );
             
-                
-                % subtract bias/dark
+                % subtract bias
                 % Note taht CreateNewObj was already done (if needed)
-                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false);
-                        
+                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, Args.ArgsDebias{:},...
+                                                                                      'CreateNewObj',false,...
+                                                                                      'BitDictinaryName',Args.BitDictinaryName);
+                % FFU: dark
+                
                 % subtract overscan
-                Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
-                                                                'Subtract',true,...
+                Result(Iim) = imProc.dark.overscan(Result(Iim), 'Subtract',true,...
                                                                 'RemoveOthers',true,...
-                                                                'OverScan',Args.OverScan,...
-                                                                'OverScanDir',Args.OverScanDir,...
-                                                                'Method',Args.OverScanMethod,...
-                                                                'MethodArgs',Args.OverScanMethodArgs);
+                                                                Args.ArgsOverscan{:},...
+                                                                'CreateNewObj',false);
+                                                                
                 
                 % divide by flat
-            
+                Result(Iim) = imProc.flat.deflat(Result(Iim), CalibImages(Iobj).Flat, Args.ArgsDeflat{:},...
+                                                                                      'CreateNewObj',false,...
+                                                                                      'BitDictinaryName',Args.BitDictinaryName);
+                
+                % multipply image by gain
+                                                                                      
                 % interpolate over satuiared pixels
             
             end
