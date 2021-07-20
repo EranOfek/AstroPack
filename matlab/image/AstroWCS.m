@@ -14,7 +14,7 @@ classdef AstroWCS < Component
     % Component should contain:
     % UserData
     % Config
-    
+
     
     % Add comments
     properties (Access = public)
@@ -30,11 +30,10 @@ classdef AstroWCS < Component
         CRPIX(1,:)   double = [0 0];
         CRVAL(1,:)   double = [1 1];
         CD           double = [1 0;0 1];
-        PV           double   = [];  % Changes to double from Cell
-        RevPV        double   = [];
-%        CDELT(1,:)   double = [1 1];   % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
-%        PC           double = [];      % removed - within AstroWCS we work only with CD. CD can be cosntructed from CDELT and PC
-%        SIP          cell   = {zeros(0,2),zeros(0,2)}; Removed - absorbed in PV
+        
+        PV                 = AstroWCS.DefPVstruct; 
+        RevPV              = AstroWCS.DefPVstruct; 
+
     end     
     
     properties (GetAccess = public)
@@ -54,6 +53,11 @@ classdef AstroWCS < Component
         Tran2D(1,1) Tran2D   = [];        %= Tran2D;
         
     end
+    
+    properties (Hidden, Constant)
+        DefPVstruct         = struct('KeyNamesX',[],'PolyCoefX',[],'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyX_Rdeg',[],...
+                                     'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);         
+    end   
         
     % Future
 %         WCS    % a structure with fields specified in Fields
@@ -316,8 +320,7 @@ classdef AstroWCS < Component
             [Alpha, Delta] = Obj.native2celestial(Phi,Theta,'rad',OutUnits);
     
         end
-       
-        
+              
         
         function [X,Y]=pix2interm(Obj,PX,PY,includeDistortion)
         % Convert pixel coordinates (P) to intermediate coordinates (X) -
@@ -358,7 +361,7 @@ classdef AstroWCS < Component
                 u = relP(1,:);
                 v = relP(2,:);
                 
-                [U,V]  = AstroWCS.forwardDistortion(Obj.PV,u,v);  % U = u+f(u,v) and V = v+g(u,v)
+                [U,V]  = AstroWCS.forwardDistortion(Obj.PV,u,v,[],true);  % U = u+f(u,v) and V = v+g(u,v)
                 
                 relP = [U ; V];
             end
@@ -377,6 +380,7 @@ classdef AstroWCS < Component
             if strcmpi(Obj.ProjType,'tpv') && includeDistortion
                 
                 R = sqrt(X.^2 + Y.^2);
+
                 [X,Y]  = AstroWCS.forwardDistortion(Obj.PV,X,Y,R);
 
             end
@@ -745,7 +749,7 @@ classdef AstroWCS < Component
                 err_thresh = 1e-6;
                 max_iters = 10;
                     
-                [X,Y]  = AstroWCS.backwardDistortion(Obj.PV,X,Y,err_thresh,max_iters);
+                [X,Y]  = AstroWCS.backwardDistortion(Obj.PV,X,Y,false,err_thresh,max_iters);
             end
       
             
@@ -760,13 +764,13 @@ classdef AstroWCS < Component
                 V = relP(2,:);
                     
                 if ~isempty(Obj.RevPV)
-                    [u,v]  = AstroWCS.forwardDistortion(Obj.RevPV,U,V); % u = U + F(U,V), v = V+G(U,V)
+                    [u,v]  = AstroWCS.forwardDistortion(Obj.RevPV,U,V,[],true); % u = U + F(U,V), v = V+G(U,V)
                 else
 
                     err_thresh = 1e-4;
                     max_iters = 10;
 
-                    [u,v]  = AstroWCS.backwardDistortion(Obj.PV,U,V,err_thresh,max_iters);
+                    [u,v]  = AstroWCS.backwardDistortion(Obj.PV,U,V,true,err_thresh,max_iters,true);
 
                 end
                 
@@ -845,11 +849,11 @@ classdef AstroWCS < Component
             % Read distortions   
             
             % look for PV coeficients
-            Obj.PV = Obj.build_PV(AH,Obj.ProjType);
+            Obj.PV = Obj.build_PV_from_Header(AH,Obj.ProjType);
             
             % For TAN-SIP try to get RevPV (TODO generlize)
             if strcmpi(Obj.ProjType,'tan-sip')
-                Obj.RevPV = AstroWCS.build_TANSIP(Header,true);
+                Obj.RevPV = AstroWCS.build_TANSIP_from_Header(Header,true);
             end
 
 
@@ -953,9 +957,8 @@ classdef AstroWCS < Component
             end
             
         end        
-        
-        function PV = build_PV(Header,ProjType)
-            % Read PV coefficients, if any Coeff X_power Y_power R_power
+       
+        function PV = build_PV_from_Header(Header,ProjType)
             
              switch lower(ProjType)
                 case 'none'
@@ -963,18 +966,19 @@ classdef AstroWCS < Component
                 case 'tan'
                     PV = [];
                 case 'tpv'
-                    PV = AstroWCS.build_TPV(Header);
+                    PV = AstroWCS.build_TPV_from_Header(Header);
                 case 'tan-sip'                    
-                    PV = AstroWCS.build_TANSIP(Header);
+                    PV = AstroWCS.build_TANSIP_from_Header(Header);
                 case 'zpn'                    
                     error('Need to add ZPN - TODO');  
                 otherwise
                     error('Unsupported projection type (%s)',ProjType);
-             end 
-            
+             end   
         end
         
-        function PV = build_TPV(Header)
+        function PV = build_TPV_from_Header(Header)
+            
+            PV = AstroWCS.DefPVstruct; 
             
             AH = Header;
            
@@ -986,39 +990,48 @@ classdef AstroWCS < Component
             NPV1 = sum(FlagMatchPV1);
             NPV2 = sum(FlagMatchPV2);
             
-            if  NPV1 || NPV2
-                
-                PV = zeros(2,max(NPV1,NPV2),4);
-                
-                PV1_Names = AH.Data(FlagMatchPV1,1);
-                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
+            if NPV1
+                PV.KeyNamesX = AH.Data(FlagMatchPV1,1)';
+                PV.PolyCoefX = cell2mat(AH.Data(FlagMatchPV1,2))';
+                PV.PolyX_Xdeg = zeros(1,NPV1);
+                PV.PolyX_Ydeg = zeros(1,NPV1);
+                PV.PolyX_Rdeg = zeros(1,NPV1);
                 
                 for I1 = 1:1:NPV1
-                    currPV = PolyTPVtable(PV1_Names(I1),:);
-                    if ~currPV.Axis==1
-                        error('wrong axis');
-                    end
-                    PV(currPV.Axis,I1,1:4) = [PV1_Vals(I1) currPV.xi_power currPV.eta_power currPV.r_power];
+                   currPV = PolyTPVtable(PV.KeyNamesX(I1),:);
+                   if ~currPV.Axis==1
+                       error('wrong axis');
+                   end
+                   PV.PolyX_Xdeg(I1) = currPV.xi_power;
+                   PV.PolyX_Ydeg(I1) = currPV.eta_power;
+                   PV.PolyX_Rdeg(I1) = currPV.r_power;
                 end
                 
-                PV2_Names = AH.Data(FlagMatchPV2,1);
-                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
+                if all(PV.PolyX_Rdeg==0)
+                    PV.PolyX_Rdeg=[];
+                end
+            end
+            
+            if NPV2
+                PV.KeyNamesY = AH.Data(FlagMatchPV2,1)';
+                PV.PolyCoefY = cell2mat(AH.Data(FlagMatchPV2,2))';
+                PV.PolyY_Xdeg = zeros(1,NPV2);
+                PV.PolyY_Ydeg = zeros(1,NPV2);
+                PV.PolyY_Rdeg = zeros(1,NPV2);
                 
                 for I2 = 1:1:NPV2
-                    currPV = PolyTPVtable(PV2_Names(I2),:);
-                    if ~currPV.Axis==2
-                        error('wrong axis');
-                    end
-                    PV(currPV.Axis,I2,1:4) = [PV2_Vals(I2) currPV.xi_power currPV.eta_power currPV.r_power];
+                   currPV = PolyTPVtable(PV.KeyNamesY(I2),:);
+                   if ~currPV.Axis==2
+                       error('wrong axis');
+                   end
+                   PV.PolyY_Xdeg(I2) = currPV.xi_power;
+                   PV.PolyY_Ydeg(I2) = currPV.eta_power;
+                   PV.PolyY_Rdeg(I2) = currPV.r_power;                    
                 end
                 
-                % if no r_power poly, trancate last level
-                if sum(sum(PV(:,:,4)))==0
-                    PV = PV(:,:,1:3);
-                end
-
-            else
-                PV = [];
+                if all(PV.PolyY_Rdeg==0)
+                    PV.PolyY_Rdeg=[];
+                end                                
             end            
             
         end
@@ -1145,9 +1158,11 @@ classdef AstroWCS < Component
                  PolyTPVtable = array2table(PolyTPV,'VariableNames',ColNames,'RowNames',PolyNames);
 
         end
- 
-        function PV = build_TANSIP(Header,get_inv)
+        
+        function PV = build_TANSIP_from_Header(Header,get_inv)
             %used from both PV and invPV
+            
+            PV = AstroWCS.DefPVstruct;             
             
             AH = Header;
             
@@ -1170,33 +1185,62 @@ classdef AstroWCS < Component
             NPV1 = sum(FlagMatchPV1);
             NPV2 = sum(FlagMatchPV2);
             
-            if  NPV1 || NPV2
+            if NPV1
                 
-                PV = zeros(2,(1+max(NPV1,NPV2)),3); % to add x and y, as SIP is u+f(u,v), v+g(uv)
+                PV.KeyNamesX = AH.Data(FlagMatchPV1,1)';
+                PV.PolyCoefX = cell2mat(AH.Data(FlagMatchPV1,2))';
+                PV.PolyX_Xdeg = zeros(1,NPV1);
+                PV.PolyX_Ydeg = zeros(1,NPV1);
                 
                 PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
-                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
-                
                 for I1 = 1:1:NPV1
-                    PV(1,I1,1:3) = [PV1_Vals(I1) str2double(PV1_Powers{I1}.u_power) str2double(PV1_Powers{I1}.v_power)];
-                end
+                   PV.PolyX_Xdeg(I1) = str2double(PV1_Powers{I1}.u_power);
+                   PV.PolyX_Ydeg(I1) = str2double(PV1_Powers{I1}.v_power);                    
+                end               
+            end
+            
+            if NPV2
+                PV.KeyNamesY = AH.Data(FlagMatchPV2,1)';
+                PV.PolyCoefY = cell2mat(AH.Data(FlagMatchPV2,2))';
+                PV.PolyY_Xdeg = zeros(1,NPV2);
+                PV.PolyY_Ydeg = zeros(1,NPV2);
                 
-                PV(1,(NPV1+1),1:3) = [1, 1, 0]; %  add x as SIP is u+f(u,v)
-                
-                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
-                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
+                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');                
                 
                 for I2 = 1:1:NPV2
-                    PV(2,I2,1:3) = [PV2_Vals(I2) str2double(PV2_Powers{I2}.u_power) str2double(PV2_Powers{I2}.v_power)];
+                   PV.PolyY_Xdeg(I2) = str2double(PV2_Powers{I2}.u_power);
+                   PV.PolyY_Ydeg(I2) = str2double(PV2_Powers{I2}.v_power);                      
                 end
-                
-                PV(2,(NPV2+1),1:3) = [1, 0, 1]; % add y as SIP is v+g(u,v)
-               
-            else
-                PV = [];
-            end            
+            end              
             
-        end
+            
+%             if  NPV1 || NPV2
+%                 
+%                 PV = zeros(2,(1+max(NPV1,NPV2)),3); % to add x and y, as SIP is u+f(u,v), v+g(uv)
+%                 
+%                 PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
+%                 PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
+%                 
+%                 for I1 = 1:1:NPV1
+%                     PV(1,I1,1:3) = [PV1_Vals(I1) str2double(PV1_Powers{I1}.u_power) str2double(PV1_Powers{I1}.v_power)];
+%                 end
+%                 
+%                 PV(1,(NPV1+1),1:3) = [1, 1, 0]; %  add x as SIP is u+f(u,v)
+%                 
+%                 PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
+%                 PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
+%                 
+%                 for I2 = 1:1:NPV2
+%                     PV(2,I2,1:3) = [PV2_Vals(I2) str2double(PV2_Powers{I2}.u_power) str2double(PV2_Powers{I2}.v_power)];
+%                 end
+%                 
+%                 PV(2,(NPV2+1),1:3) = [1, 0, 1]; % add y as SIP is v+g(u,v)
+%                
+%             else
+%                 PV = [];
+%             end            
+            
+        end        
         
    %======== Functions to construct AstroWCS from Tran2D =========
    
@@ -1309,34 +1353,36 @@ classdef AstroWCS < Component
             end
 
         end
-        
-        function [Xd,Yd]  = forwardDistortion(PV,X,Y,R)
-           % use PV matrix to calcualte polynomial distortion
-           % PV matrix is [Naxis,n,vals]. NAxis should be 2.
-           % Third axis is [Coeff, X_power, Y_Power, R_Power (optional)]
+
+        function [Xd,Yd]  = forwardDistortion(PV,X,Y,R,plusXY_bool)
+           % use PV structure to calcualte polynomial distortion
+           % plusXY_bool - to add X,Y to the poliniomial. (e.g. in TAN-SIP)
            
-            if nargin<4
+            if nargin<5
+                plusXY_bool = false;
+                if nargin<4
+                    R = 1;
+                end
+            end
+            
+            if isempty(R)
                 R = 1;
             end
             
-            if (size(PV,1) < 2) || (size(PV,3)<2)
-                error('PV matrix too small');
-            end
-
-            CoefX    = PV(1,:,1);
-            X_Xpower = PV(1,:,2);
-            X_Ypower = PV(1,:,3);
-            if (size(PV,3)) > 3
-                X_Rpower = PV(1,:,4);
+            CoefX    = PV.PolyCoefX;
+            X_Xpower = PV.PolyX_Xdeg;
+            X_Ypower = PV.PolyX_Ydeg;
+            if ~isempty(PV.PolyX_Rdeg)
+                X_Rpower = PV.PolyX_Rdeg;
             else
                 X_Rpower = 0;
             end
 
-            CoefY    = PV(2,:,1);
-            Y_Xpower = PV(2,:,2);
-            Y_Ypower = PV(2,:,3);
-            if (size(PV,3)) > 3
-                Y_Rpower = PV(2,:,4);
+            CoefY    = PV.PolyCoefY;
+            Y_Xpower = PV.PolyY_Xdeg;
+            Y_Ypower = PV.PolyY_Ydeg;
+            if ~isempty(PV.PolyY_Rdeg)
+                Y_Rpower = PV.PolyY_Rdeg;
             else
                 Y_Rpower = 0;
             end                        
@@ -1347,9 +1393,15 @@ classdef AstroWCS < Component
 
             Xd=reshape(Xd,size(X));
             Yd=reshape(Yd,size(Y));
+            
+            if plusXY_bool
+                Xd = Xd+X;
+                Yd = Yd+Y;
+            end
 
-        end
+        end        
         
+       
         
    %======== Functions for related to sky2xy =========           
         
@@ -1403,14 +1455,18 @@ classdef AstroWCS < Component
         end
         
          
-        function [X,Y]  = backwardDistortion(PV,Xd,Yd,Threshold,MaxIter,Step)  
+
+        function [X,Y]  = backwardDistortion(PV,Xd,Yd,plusXY_bool,Threshold,MaxIter,Step)  
             
-            if nargin<6
+            if nargin<7
                 Step = 1e-5;
-                if nargin<5
+                if nargin<6
                     MaxIter = 100;
-                    if nargin < 4
+                    if nargin < 5
                         Threshold = 1e-7;
+                        if nargin < 4
+                            plusXY_bool = false;
+                        end
                     end    
                 end
             end
@@ -1429,14 +1485,15 @@ classdef AstroWCS < Component
                 %
                 Iter = Iter + 1;
                 
-                if size(PV,3)>3
-                    R = sqrt(Xi.^2 + Yi.^2); % TODO - change to arbitrary function f(x,y)
+                if isempty(PV.PolyX_Rdeg) && isempty(PV.PolyY_Rdeg)
+                    R = 1;
                 else
-                    R=1;
+                    R = sqrt(Xi.^2 + Yi.^2); % TODO - change to arbitrary function f(x,y)
                 end                
                 
-                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R);
-                [Xi2,Yi2] = AstroWCS.forwardDistortion(PV,(Xi+Step),(Yi+Step),R);
+                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R,plusXY_bool);
+                [Xi2,Yi2] = AstroWCS.forwardDistortion(PV,(Xi+Step),(Yi+Step),R,plusXY_bool);
+                
                 
                 DeltaX = (Xi1 - Xi2);
                 DeltaY = (Yi1 - Yi2);
@@ -1446,7 +1503,8 @@ classdef AstroWCS < Component
                 Xi = Xi + IncX;
                 Yi = Yi + IncY; 
                 
-                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R);
+                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R,plusXY_bool);
+                
                 DiffX = Xi1 - Xf;
                 DiffY = Yi1 - Yf;
                 
@@ -1455,7 +1513,7 @@ classdef AstroWCS < Component
                 end
                 if Iter>MaxIter
                     NotConverged = false;
-                    %error('backwardDistortion1 didnot converge after %d iterations',Iter);
+                    %error('backwardDistortion didnot converge after %d iterations',Iter);
                 end
                 
             end
@@ -1463,6 +1521,7 @@ classdef AstroWCS < Component
             X = Xi;
             Y = Yi;
         end
+        
         
     end
     
@@ -1825,7 +1884,7 @@ classdef AstroWCS < Component
             
         end
         
-        function [X,Y]  = backwardDistortion1(PV,Xd,Yd,err_thresh,max_iters)
+        function [X,Y]  = backwardDistortion_old_OLD(PV,Xd,Yd,err_thresh,max_iters)
             % iterativly calculate [X,Y} from [Xd,Yd] using PV
     
             if nargin<5
@@ -1847,7 +1906,7 @@ classdef AstroWCS < Component
                 end
                     
                 
-                [X1,Y1] = AstroWCS.forwardDistortion(PV,X0,Y0,R);
+                [X1,Y1] = AstroWCS.forwardDistortion_old(PV,X0,Y0,R);
                 X0= (X0-X1) +Xd;
                 Y0= (Y0-Y1) +Yd;
                 err=sqrt(sum((X1(:)-Xd(:)).^2 + (Y1(:)-Yd(:)).^2));
@@ -1858,6 +1917,109 @@ classdef AstroWCS < Component
 
 
         end
+        
+        function [Xd,Yd]  = forwardDistortion_old(PV,X,Y,R)
+           % use PV matrix to calcualte polynomial distortion
+           % PV matrix is [Naxis,n,vals]. NAxis should be 2.
+           % Third axis is [Coeff, X_power, Y_Power, R_Power (optional)]
+           
+            if nargin<4
+                R = 1;
+            end
+            
+            if (size(PV,1) < 2) || (size(PV,3)<2)
+                error('PV matrix too small');
+            end
+
+            CoefX    = PV(1,:,1);
+            X_Xpower = PV(1,:,2);
+            X_Ypower = PV(1,:,3);
+            if (size(PV,3)) > 3
+                X_Rpower = PV(1,:,4);
+            else
+                X_Rpower = 0;
+            end
+
+            CoefY    = PV(2,:,1);
+            Y_Xpower = PV(2,:,2);
+            Y_Ypower = PV(2,:,3);
+            if (size(PV,3)) > 3
+                Y_Rpower = PV(2,:,4);
+            else
+                Y_Rpower = 0;
+            end                        
+
+
+            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)) );
+            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((R(:).').^Y_Rpower(:)) );                
+
+            Xd=reshape(Xd,size(X));
+            Yd=reshape(Yd,size(Y));
+
+        end    
+
+        function [X,Y]  = backwardDistortion_old(PV,Xd,Yd,Threshold,MaxIter,Step)  
+            
+            if nargin<6
+                Step = 1e-5;
+                if nargin<5
+                    MaxIter = 100;
+                    if nargin < 4
+                        Threshold = 1e-7;
+                    end    
+                end
+            end
+
+            
+            Xf = Xd;
+            Yf = Yd;
+            
+            Xi  = Xf;
+            Yi  = Yf;
+            
+            % The ouput from forward should be the input Xf, Yf
+            NotConverged = true;
+            Iter = 0;
+            while NotConverged
+                %
+                Iter = Iter + 1;
+                
+                if size(PV,3)>3
+                    R = sqrt(Xi.^2 + Yi.^2); % TODO - change to arbitrary function f(x,y)
+                else
+                    R=1;
+                end                
+                
+                [Xi1,Yi1] = AstroWCS.forwardDistortion_old(PV,Xi,Yi,R);
+                [Xi2,Yi2] = AstroWCS.forwardDistortion_old(PV,(Xi+Step),(Yi+Step),R);
+                
+                DeltaX = (Xi1 - Xi2);
+                DeltaY = (Yi1 - Yi2);
+                
+                IncX = (Xi1 - Xf)./DeltaX .* Step;
+                IncY = (Yi1 - Yf)./DeltaY .* Step;
+                Xi = Xi + IncX;
+                Yi = Yi + IncY; 
+                
+                [Xi1,Yi1] = AstroWCS.forwardDistortion_old(PV,Xi,Yi,R);
+                DiffX = Xi1 - Xf;
+                DiffY = Yi1 - Yf;
+                
+                if max(abs(DiffX))<Threshold && max(abs(DiffY))<Threshold
+                    NotConverged = false;
+                end
+                if Iter>MaxIter
+                    NotConverged = false;
+                    %error('backwardDistortion didnot converge after %d iterations',Iter);
+                end
+                
+            end
+            
+            X = Xi;
+            Y = Yi;
+        end
+        
+        
     end
 
     %======================================================================
@@ -1952,8 +2114,128 @@ classdef AstroWCS < Component
 
         end      
         
- 
+        function PV = build_PV(Header,ProjType)
+            % Read PV coefficients, if any Coeff X_power Y_power R_power
+            
+             switch lower(ProjType)
+                case 'none'
+                    PV = [];
+                case 'tan'
+                    PV = [];
+                case 'tpv'
+                    PV = AstroWCS.build_TPV(Header);
+                case 'tan-sip'                    
+                    PV = AstroWCS.build_TANSIP(Header);
+                case 'zpn'                    
+                    error('Need to add ZPN - TODO');  
+                otherwise
+                    error('Unsupported projection type (%s)',ProjType);
+             end   
+        end
 
+
+        function PV = build_TPV(Header)
+            
+            AH = Header;
+           
+            PolyTPVtable = AstroWCS.polyTPVdef();
+            
+            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'PV1_\d+','match'));
+            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'PV2_\d+','match'));
+            
+            NPV1 = sum(FlagMatchPV1);
+            NPV2 = sum(FlagMatchPV2);
+            
+            if  NPV1 || NPV2
+                
+                PV = zeros(2,max(NPV1,NPV2),4);
+                
+                PV1_Names = AH.Data(FlagMatchPV1,1);
+                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
+                
+                for I1 = 1:1:NPV1
+                    currPV = PolyTPVtable(PV1_Names(I1),:);
+                    if ~currPV.Axis==1
+                        error('wrong axis');
+                    end
+                    PV(currPV.Axis,I1,1:4) = [PV1_Vals(I1) currPV.xi_power currPV.eta_power currPV.r_power];
+                end
+                
+                PV2_Names = AH.Data(FlagMatchPV2,1);
+                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
+                
+                for I2 = 1:1:NPV2
+                    currPV = PolyTPVtable(PV2_Names(I2),:);
+                    if ~currPV.Axis==2
+                        error('wrong axis');
+                    end
+                    PV(currPV.Axis,I2,1:4) = [PV2_Vals(I2) currPV.xi_power currPV.eta_power currPV.r_power];
+                end
+                
+                % if no r_power poly, trancate last level
+                if sum(sum(PV(:,:,4)))==0
+                    PV = PV(:,:,1:3);
+                end
+
+            else
+                PV = [];
+            end            
+            
+        end     
+        
+
+        function PV = build_TANSIP(Header,get_inv)
+            %used from both PV and invPV
+            
+            AH = Header;
+            
+            if nargin<2
+                get_inv = false;
+            end
+            
+            BaseX = 'A';
+            BaseY = 'B';
+            
+            if get_inv
+                BaseX = 'AP';
+                BaseY = 'BP';                
+            end
+                
+            
+            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),[BaseX '_\d+_\d+'],'match'));
+            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),[BaseY '_\d+_\d+'],'match'));
+            
+            NPV1 = sum(FlagMatchPV1);
+            NPV2 = sum(FlagMatchPV2);
+            
+            if  NPV1 || NPV2
+                
+                PV = zeros(2,(1+max(NPV1,NPV2)),3); % to add x and y, as SIP is u+f(u,v), v+g(uv)
+                
+                PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
+                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
+                
+                for I1 = 1:1:NPV1
+                    PV(1,I1,1:3) = [PV1_Vals(I1) str2double(PV1_Powers{I1}.u_power) str2double(PV1_Powers{I1}.v_power)];
+                end
+                
+                PV(1,(NPV1+1),1:3) = [1, 1, 0]; %  add x as SIP is u+f(u,v)
+                
+                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
+                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
+                
+                for I2 = 1:1:NPV2
+                    PV(2,I2,1:3) = [PV2_Vals(I2) str2double(PV2_Powers{I2}.u_power) str2double(PV2_Powers{I2}.v_power)];
+                end
+                
+                PV(2,(NPV2+1),1:3) = [1, 0, 1]; % add y as SIP is v+g(u,v)
+               
+            else
+                PV = [];
+            end            
+            
+        end        
+        
     end
     
     methods
@@ -2402,8 +2684,8 @@ classdef AstroWCS < Component
             
             
             % get [alpha, delta] for TAN projection
-            Im_name = 'FOCx38i0101t_c0f.fits';
-            %Im_name = 'WD0802+387-S019-Luminance-R001-Luminance.fts';
+            %Im_name = 'FOCx38i0101t_c0f.fits';
+            Im_name = 'WD0802+387-S019-Luminance-R001-Luminance.fts';
             HDU=1;
             
             %Im_name = 'coj1m011-fl12-20180413-0057-e91.fits.fz';
@@ -2433,8 +2715,8 @@ classdef AstroWCS < Component
             disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));
             
             % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
-            Im_name = 'tpv.fits';
-            %Im_name = 'WD0548-001_2457842_215821_Clear_meter.fits';
+            %Im_name = 'tpv.fits';
+            Im_name = 'WD0548-001_2457842_215821_Clear_meter.fits';
             AH = AstroHeader(Im_name);
             PX = rand(1,500) * AH.Key.NAXIS1;
             PY = rand(1,500) * AH.Key.NAXIS2;
