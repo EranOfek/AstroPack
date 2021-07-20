@@ -858,6 +858,28 @@ classdef AstroImage < Component
             end
         end
         
+        function Obj = setKeyVal(Obj, Key, Val, varargin)
+            % Replace/insert keyword/value to HeaderData in AstroImage
+            % Input  : - An AstroImage object
+            %          - A key name or a cell array of key names.
+            %          - A cell array of values, corresponding to the key
+            %            names. Alternatively, a vector of numbers corresponding to the
+            %            key names.
+            %          * ...,key,val,...
+            %            see AstroHeader/replaceVal for options.
+            % Output : - The input AstroImage with the updated header (this
+            %            is a pointer to the original input).
+            % Author : Eran Ofek (Jul 2021)
+            % Example: AI = AstroImage({rand(10,10)});
+            %          AI.setKeyVal('TYPE','science');
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).HeaderData = replaceVal(Obj(Iobj).HeaderData, Key, Val, varargin{:});
+            end
+            
+        end
+        
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
         end
@@ -2371,6 +2393,9 @@ classdef AstroImage < Component
             AI(4).HeaderData.insertKey({'EXPTIME',10}); AI(5).HeaderData.insertKey({'EXPTIME',20});
             [Result] = getStructKey(AI, {'EXPTIME'});
 
+            % setKeyVal
+            AI = AstroImage({rand(10,10)});
+            AI.setKeyVal('TYPE','science');
             
             % maskSet
             io.msgLog(LogLevel.Test, 'testing AstroImage maskSet')

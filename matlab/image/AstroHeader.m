@@ -907,7 +907,8 @@ classdef AstroHeader < Component
             % Input  : - An AstroHeader object (multi elements supported).
             %          - A key name or a cell array of key names.
             %          - A vector or a cell array of values, corresponding to the key
-            %            names.
+            %            names. Alternatively, a vector of numbers corresponding to the
+            %            key names.
             %          * ...,key,val,... or ...,key=val',... list
             %            'SearchAlgo' - search using: ['strcmp'] | 'regexp'
             %            'CaseSens' - Default is true.
@@ -930,8 +931,8 @@ classdef AstroHeader < Component
             arguments
                 Obj
                 Key
-                Val cell
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Val
+                Args.SearchAlgo char                          = 'strcmp'; 
                 Args.CaseSens(1,1) logical                    = true;
                 Args.RepVal(1,1) logical                      = true;
                 Args.Comment                                  = [];

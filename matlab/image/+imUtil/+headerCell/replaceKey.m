@@ -3,7 +3,8 @@ function Cell=replaceKey(Cell,Key,Val,Args)
 % Input  : - A 3 column cell array
 %          - A key name or a cell array of key names.
 %          - A cell array of values, corresponding to the key
-%            names.
+%            names. Alternatively, a vector of numbers corresponding to the
+%            key names.
 %          * ...,key,val,... or ...,key=val',... list
 %            'SearchAlgo' - search using: ['strcmp'] | 'regexp'
 %            'CaseSens' - Default is true.
@@ -31,8 +32,8 @@ function Cell=replaceKey(Cell,Key,Val,Args)
     arguments
         Cell
         Key
-        Val cell
-        Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+        Val 
+        Args.SearchAlgo char                          = 'strcmp'; 
         Args.CaseSens(1,1) logical                    = true;
         Args.RepVal(1,1) logical                      = true;
         Args.Comment                                  = [];
@@ -44,7 +45,13 @@ function Cell=replaceKey(Cell,Key,Val,Args)
         Args.ColComment(1,1) uint8                    = 3;
     end
 
-    
+    if ~iscell(Val)
+        if isnumeric(Val)
+            Val = nume2cell(Val);
+        else
+            Val = {Val};
+        end
+    end
     
     if ischar(Key)
         Key = {Key};
