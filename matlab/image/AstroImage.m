@@ -2304,7 +2304,7 @@ classdef AstroImage < Component
             R = AI.*AI;
             R = AI.*3;
             if ~all(R(2).Image==6)
-                error('Problem with mtimes operator');
+                error('Problem with times operator');
             end
             
             R = AI./AI;

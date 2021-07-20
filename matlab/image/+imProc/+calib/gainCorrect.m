@@ -1,0 +1,66 @@
+function Result = gainCorrect(Obj, Gain, Args)
+    % Divide image by gain and update header.
+    % Input  : - An AstroImage object.
+    %          - A char array of Gain header keyword name, or a numeric
+    %            array of gain values (scalar, or one per image).
+    %            Default is 'GAIN';
+    %          * ...,key,val,...
+    %            'CreateNewObj' - [], true, false. Default is [].
+    %            'getValArgs' - A cell array of additional arguments to
+    %                   pass to AstroHeader/getVal. Default is {}.
+    %            'DataProp' - AstroImage data properties which to divide by
+    %                   gain. Default is {'Image','Var','Back'}.
+    %            'replaceValArgs' - A cell array of additional arguments to
+    %                   pass to AstroHeader/replaceVal. Default is {}.
+    %            'OrigGainKey' - An header keyword name in which to write the
+    %                   original gain. Default is 'ORIGGAIN'
+    % Output : - An AstroImage object with gain=1 and updated header.
+    %            NOTE: The catalog is not modified.
+    % Author : Eran Ofek (Jul 2021)
+    % Example: 
+    
+    arguments
+        Obj
+        Gain                      = 'GAIN';  % keyword, scalar, vector
+        Args.CreateNewObj         = [];
+        Args.getValArgs cell      = {};
+        Args.DataProp             = {'Image','Var','Back'};
+        Args.replaceValArgs cell  = {};
+        Args.OrigGainKey          = 'ORIGGAIN';
+    end
+    DefGainKey = 'GAIN';
+    
+    [Result, Args.CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, nargout);
+    
+    Ngain = numel(Gain);
+    Nprop = numel(Args.DataProp);
+    
+    Nobj = numel(Obj);
+    for Iobj=1:1:Nobj
+        % get GAIN
+        if isnumeric(Gain)
+            Igain   = min(Iobj, Ngain);
+            GainVal = Gain(Igain);
+        else
+            GainVal = getVal(Obj(Iobj).HeaderData, Gain, Args.getValArgs{:});
+        end
+        InvGain = 1./GainVal;
+        
+        % divide image by gain
+        for Iprop=1:1:Nprop
+            Result(Iobj).(Args.DataProp{Iprop}) = Result(Iobj).(Args.DataProp{Iprop}).*InvGain;
+        end
+        
+        % update header keywords
+        if ~isnumeric(Gain)
+            Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Gain, 1, Args.replaceValArgs{:});
+        else
+            Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, DefGainKeu, 1, Args.replaceValArgs{:});
+        end
+        
+        % write old GAIN value
+        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGain, GainVal, Args.replaceValArgs{:});
+        
+    end
+    
+end
