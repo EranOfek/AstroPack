@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% TODO Next - Complete Tran2WCS (Eran), wcs2keyCell (TPV,TAN-SIP)
+% TODO Next - Complete Tran2WCS (fill_TANSIP_KeyNames), wcs2keyCell (TPV,TAN-SIP)
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -188,7 +188,7 @@ classdef AstroWCS < Component
             Obj.CUNIT(Funit) = coounit(Funit);
             
         end
-        
+
    %======== Functions to construct AstroHeader from AstroWCS =========  
    
        function KeyCell = wcs2keyCell(Obj)
@@ -962,9 +962,9 @@ classdef AstroWCS < Component
             
              switch lower(ProjType)
                 case 'none'
-                    PV = [];
+                    PV = AstroWCS.DefPVstruct;
                 case 'tan'
-                    PV = [];
+                    PV = AstroWCS.DefPVstruct;
                 case 'tpv'
                     PV = AstroWCS.build_TPV_from_Header(Header);
                 case 'tan-sip'                    
@@ -1213,51 +1213,43 @@ classdef AstroWCS < Component
                 end
             end              
             
+       
             
-%             if  NPV1 || NPV2
-%                 
-%                 PV = zeros(2,(1+max(NPV1,NPV2)),3); % to add x and y, as SIP is u+f(u,v), v+g(uv)
-%                 
-%                 PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
-%                 PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
-%                 
-%                 for I1 = 1:1:NPV1
-%                     PV(1,I1,1:3) = [PV1_Vals(I1) str2double(PV1_Powers{I1}.u_power) str2double(PV1_Powers{I1}.v_power)];
-%                 end
-%                 
-%                 PV(1,(NPV1+1),1:3) = [1, 1, 0]; %  add x as SIP is u+f(u,v)
-%                 
-%                 PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
-%                 PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
-%                 
-%                 for I2 = 1:1:NPV2
-%                     PV(2,I2,1:3) = [PV2_Vals(I2) str2double(PV2_Powers{I2}.u_power) str2double(PV2_Powers{I2}.v_power)];
-%                 end
-%                 
-%                 PV(2,(NPV2+1),1:3) = [1, 0, 1]; % add y as SIP is v+g(u,v)
-%                
-%             else
-%                 PV = [];
-%             end            
-            
-        end        
+        end   
+        
+   %======== Functions to construct AstroWCS from Tran2D =========          
+        
+     
         
    %======== Functions to construct AstroWCS from Tran2D =========
    
-        function Obj = tran2wcs(Tran2D,NAXIS,CRPIX,CRVAL,WCSAXES,CTYPE,CUNIT,RADESYS,EQUINOX,LONPOLE,LATPOLE)
+        function Obj = tran2wcs(Tran2D,NAXIS,CRPIX,CRVAL,CD,CTYPE,CUNIT,RADESYS,EQUINOX,LONPOLE,LATPOLE,WCSAXES)
             % Create and populate an AstroWCS object from an Trans2D object
 
+            if nargin<12
+                WCSAXES = NAXIS;
+                if nargin<11
+                    LATPOLE = [];
+                    if nargin<10
+                        LONPOLE = [];
+                        if nargin<9
+                            EQUINOX = [];
+                            if nargin<8
+                                RADESYS = [];
+                            end
+                        end
+                    end
+                end
+            end            
 
             Obj = AstroWCS(1);
-            T2D = Tran2D;
+            Obj.Tran2D = Tran2D;
             
             % Paste number of axes
-            % if WCSAXES is empty use NAXIS as default
+            % if WCSAXES is not given use NAXIS as default
             Obj.NAXIS = NAXIS;
             Obj.WCSAXES = WCSAXES;
-            if isempty(Obj.WCSAXES)
-                Obj.WCSAXES = Obj.NAXIS;
-            end
+
             
             % paste CTYPE and transalte to projection information (ProjType,
             % ProjClass) and CooName and CUNIT            
@@ -1281,28 +1273,135 @@ classdef AstroWCS < Component
          
             Obj.CRPIX = CRPIX;
             Obj.CRVAL = CRVAL;
-            
-            
-            % TODO once Eran concluded
-            
-%             Obj.CD = Obj.build_CD(AH,Naxis);
-%             
-%             % Read distortions   
-%             
-%             % look for PV coeficients
-%             Obj.PV = Obj.build_PV(AH,Obj.ProjType);
-%             
-%             % For TAN-SIP try to get RevPV (TODO generlize)
-%             if strcmpi(Obj.ProjType,'tan-sip')
-%                 Obj.RevPV = AstroWCS.build_TANSIP(Header,true);
-%             end
+                       
+            Obj.CD = CD;
 
-
+            Obj.PV = Obj.build_PV_from_Tran2D(Obj.Tran2D,Obj.ProjType);
             
+            %consider adding RevPV for TAN-SIP
             
             % populate proj Meta
             Obj.populate_projMeta;
         end
+        
+        function PV = build_PV_from_Tran2D(Tran2D,ProjType,set_rev)
+
+            if nargin<3
+                set_rev = false;
+            end            
+            
+            
+            PV = AstroWCS.DefPVstruct;
+            
+            PV.PolyCoefX = Tran2D.PolyRep.PolyParX;
+            PV.PolyX_Xdeg = Tran2D.PolyRep.PolyX_Xdeg;            
+            PV.PolyX_Ydeg = Tran2D.PolyRep.PolyX_Ydeg;
+            PV.PolyCoefY = Tran2D.PolyRep.PolyParY;            
+            PV.PolyY_Xdeg = Tran2D.PolyRep.PolyY_Xdeg;            
+            PV.PolyY_Ydeg = Tran2D.PolyRep.PolyY_Ydeg;  
+
+             switch lower(ProjType)
+                case 'none'
+                    % do nothing
+                case 'tan'
+                    % do nothing
+                case 'tpv'
+                    PV = AstroWCS.fill_TPV_KeyNames(PV);
+                case 'tan-sip'                    
+                    PV = AstroWCS.fill_TANSIP_KeyNames(PV,set_rev);
+                case 'zpn'                    
+                    error('Need to add ZPN - TODO');  
+                otherwise
+                    error('Unsupported projection type (%s)',ProjType);
+             end               
+             
+        end
+        
+        function PV = fill_TPV_KeyNames(PV)
+                        
+            PolyTPVtable = AstroWCS.polyTPVdef();
+            
+            NPV1 = length(PV.PolyCoefX);
+            NPV2 = length(PV.PolyCoefY);
+            
+            if NPV1
+                PV.KeyNamesX = cell(size(PV.PolyCoefX));
+                
+                for I1 = 1:1:NPV1
+                    Axis = 1;
+                    xi_power = PV.PolyX_Xdeg(I1);
+                    eta_power = PV.PolyX_Ydeg(I1);
+                    if isempty(PV.PolyX_Rdeg)
+                        r_power = 0;
+                    else
+                        r_power = PV.PolyX_Rdeg(I1);
+                    end
+                    PV.KeyNamesX(I1) = PolyTPVtable.Row(PolyTPVtable.Axis==Axis & PolyTPVtable.xi_power==xi_power & PolyTPVtable.eta_power==eta_power & PolyTPVtable.r_power==r_power);                  
+                end
+            end
+            
+            if NPV2
+                PV.KeyNamesY = cell(size(PV.PolyCoefY));
+                
+                for I2 = 1:1:NPV2
+                    Axis = 2;
+                    xi_power = PV.PolyY_Xdeg(I2);
+                    eta_power = PV.PolyY_Ydeg(I2);
+                    if isempty(PV.PolyY_Rdeg)
+                        r_power = 0;
+                    else
+                        r_power = PV.PolyY_Rdeg(I2);
+                    end
+                    PV.KeyNamesY(I2) = PolyTPVtable.Row(PolyTPVtable.Axis==Axis & PolyTPVtable.xi_power==xi_power & PolyTPVtable.eta_power==eta_power & PolyTPVtable.r_power==r_power);                  
+                end
+            end
+        
+        end
+        
+        function PV = fill_TANSIP_KeyNames(PV,set_rev)  
+          
+            if nargin<2
+                set_rev = false;
+            end
+            
+            BaseX = 'A';
+            BaseY = 'B';
+            
+            if set_rev
+                BaseX = 'AP';
+                BaseY = 'BP';                
+            end
+
+            NPV1 = length(PV.PolyCoefX);
+            NPV2 = length(PV.PolyCoefY);           
+            
+            if ~isempty(PV.PolyX_Rdeg) || ~isempty(PV.PolyY_Rdeg)
+                error('TANSIP do not support poly for R');
+            end
+            
+            if NPV1
+                 PV.KeyNamesX = cell(size(PV.PolyCoefX));
+                
+                for I1 = 1:1:NPV1
+                    u_power = PV.PolyX_Xdeg(I1);
+                    v_power = PV.PolyX_Ydeg(I1);
+                    PV.KeyNamesX{I1} = sprintf('%s_%d_%d',BaseX,u_power, v_power);              
+                end
+                          
+            end
+            
+            if NPV2
+                 PV.KeyNamesY = cell(size(PV.PolyCoefY));
+                
+                for I2 = 1:1:NPV2
+                    u_power = PV.PolyY_Xdeg(I2);
+                    v_power = PV.PolyY_Ydeg(I2);
+                    PV.KeyNamesY{I2} = sprintf('%s_%d_%d',BaseY,u_power, v_power);              
+                end
+                          
+            end             
+            
+        end           
         
    %======== Functions for related to xy2sky =========           
         
@@ -1524,6 +1623,13 @@ classdef AstroWCS < Component
         
         
     end
+
+    
+    
+    
+    
+    
+    
     
     
    %==================OLD FUNCTIONS=================================
@@ -2780,6 +2886,20 @@ classdef AstroWCS < Component
             AW = AstroWCS.header2wcs(AH);
             %[Alpha, Delta]  = AW.xy2sky(PX,PY,'deg'); % TODO
 
+            % Construct AstroWCS from Tran2D
+            TC=Tran2D; 
+            TC.symPoly; TC.ParX = ones(1,13);TC.ParY = ones(1,13);
+            TC.polyCoef; TC.polyRep;
+            
+            NAXIS = 2; CRPIX(1,:) = [1.0 1.0]; CRVAL(1,:) = [0.0 0.0];
+            CD = eye(2); CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
+
+            AW = AstroWCS.tran2wcs(TC,NAXIS,CRPIX,CRVAL,CD,CTYPE,CUNIT);
+            [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg',false);
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg',false);
+            d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
+            disp(sprintf('Max distance for Tran2D (TPV) (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));             
+            
             
             % test other things
             
