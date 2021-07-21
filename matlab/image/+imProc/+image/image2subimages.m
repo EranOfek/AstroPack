@@ -16,6 +16,35 @@ function Result = image2subimages(Obj, BlockSize, Args)
     %                    If empty then use SubSizeXY. Default is [].
     %            'OverlapXY' - Overlapping extra [X, Y] to add to SubSizeXY
     %                    from each side. Default is [32 32].
+    %            'UpdateMask' - A logical indicating if to update the mask
+    %                   image with near edge bit and overlap bit.
+    %                   Default is true.
+    %            'EdgeDist' - Distance from edge, which to flag as a near
+    %                   edge pixel. Default is 10 pix.
+    %            'NearEdge_BitName' - NearEdge bit name.
+    %                   Deafult is 'NearEdge'.
+    %            'Overlap_BitName' - Overlap bit name.
+    %                   Default is 'Overlap'.
+    %            'BitDict' - Bit dictionary to create, if not exits yet.
+    %                   Default is BitDictionary('BitMask.Image.Default').
+    %            'UpdateCat' - A logical indicating if to update the
+    %                   CatalogData. Including:
+    %                   crop sources outside image.
+    %                   Default is true.
+    %            'UpdateXY' - A logical indicating if to update the X/Y coordinates 
+    %                   according to the new image boundries.
+    %                   Default is true.
+    %            'ColX' - A cell array of X column dictionary names by
+    %                   which to perform the catalog cropping, and
+    %                   shifting.
+    %                   Default is AstroCatalog.DefNamesX.
+    %            'ColY' - Like 'ColX', but for the Y axis.
+    %                   Default is AstroCatalog.DefNamesY.
+    %            'AddX' - A cell array of additional X column names to
+    %                   shift. Default is {}.
+    %            'AddY' - Like 'AddX', but for the Y-axis. Default is {}.
+    % Output : - An AstroImage of sub images.
+    % Author : Eran Ofek (May 2021)
     % Example: AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
     %          Result = imProc.image.image2subimages(AI,[256 256])
 
@@ -27,17 +56,18 @@ function Result = image2subimages(Obj, BlockSize, Args)
         Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
 
         Args.UpdateMask(1,1) logical       = true;
-        Args.EdgeDist                      = 1;
+        Args.EdgeDist                      = 10;
         Args.NearEdge_BitName char         = 'NearEdge';
         Args.Overlap_BitName char          = 'Overlap';
         Args.BitDict(1,1) BitDictionary    = BitDictionary('BitMask.Image.Default');
 
         Args.UpdateCat(1,1) logical        = true;
-        Args.ColX                          = {'X','XWIN_IMAGE','XWIN','XPEAK','X_PEAK'};
-        Args.ColY                          = {'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
+        Args.UpdateXY(1,1) logical         = true;
+        Args.ColX                          = AstroCatalog.DefNamesX;  %{'X','XWIN_IMAGE','XWIN','XPEAK','X_PEAK'};
+        Args.ColY                          = AstroCatalog.DefNamesY;  %{'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
         Args.AddX                          = {};  % additional X-coo to update
         Args.AddY                          = {};
-        Args.UpdateXY(1,1) logical         = true;
+        
     end
 
     % find the correct partition
@@ -98,7 +128,6 @@ function Result = image2subimages(Obj, BlockSize, Args)
 
         % update Mask
         if Args.UpdateMask
-
 
             % add edge bit and overlap bit
             for Isub=1:1:Nsub

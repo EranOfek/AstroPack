@@ -97,12 +97,40 @@ classdef CalibImages < Component
     methods % calibration functions
         function Result = createBias(Obj, ImObj, Args)
             % create master bias using imProc.dark.bias and store in CalibImages object.
-            %
+            % Input  : - An CalibImages object
+            %          - A list of AstroImages, or a cell array of file
+            %            names, or a a template of file names (interpreted
+            %            using regular expressions).
+            %          * ...,key,val,...
+            %            'BiasArgs' - A cell array of additional arguments
+            %                   to pass to the imProc.dark.bias function.
+            %                   Default is {}.
+            %            'BlockSize' - Sub images block size to generate.
+            %                   If empty, use the orginal image size and
+            %                   return a single element CalibImages object.
+            %                   Otherwise return multi-element CalibImages
+            %                   object with a sub (bias) image per element.
+            %            'image2subimagesArgs' - A cell array of additional
+            %                   arguments to pass to imProc.image.image2subimages
+            %                   function. Default is {}.
+            % Output : - A CalibImages object with the Bias field
+            %            populated.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: 
             
             arguments
                 Obj
-                ImObj AstroImage
-                Args.BiasArgs cell       = {};
+                ImObj
+                Args.BiasArgs cell            = {};
+                Args.BlockSize                = [];  % empty - do not generate sub images
+                Args.image2subimagesArgs cell = {};
+            end
+            
+            if isa(ImObj,'AstroImage')
+                % do nothing
+            else
+                List  = io.files.filelist(ImObj);
+                ImObj = AstroImage(List);
             end
             
             % seperate to sub image
@@ -111,8 +139,14 @@ classdef CalibImages < Component
             % for each sub image
             
             [Result, IsBias, CoaddN] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
-            Obj.Bias = Result;
             
+            if isempty(Args.BlockSize)
+                Obj.Bias = Result;
+            else
+                Result = imProc.image.image2subimages(Obj, BlockSize, Args.image2subimagesArgs{:});
+                Nres   = numel(Result);
+                [Obj(1:Nres).Bias] = deal(Result);
+            end
         end
         
         function Result = createFlat(Obj)
