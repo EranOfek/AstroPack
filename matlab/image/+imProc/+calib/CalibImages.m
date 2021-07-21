@@ -95,7 +95,24 @@ classdef CalibImages < Component
     end
     
     methods % calibration functions
-        function Result = createBias(Obj)
+        function Result = createBias(Obj, ImObj, Args)
+            % create master bias using imProc.dark.bias and store in CalibImages object.
+            %
+            
+            arguments
+                Obj
+                ImObj AstroImage
+                Args.BiasArgs cell       = {};
+            end
+            
+            % seperate to sub image
+            % work around for reading sub images from disk...
+            
+            % for each sub image
+            
+            [Result, IsBias, CoaddN] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
+            Obj.Bias = Result;
+            
         end
         
         function Result = createFlat(Obj)
