@@ -14,10 +14,13 @@ function Result = gainCorrect(Obj, Gain, Args)
     %                   pass to AstroHeader/replaceVal. Default is {}.
     %            'OrigGainKey' - An header keyword name in which to write the
     %                   original gain. Default is 'ORIGGAIN'
+    %            'DefaultGain' - The default gain in case can't find gain
+    %                   in header. Default is 1.
     % Output : - An AstroImage object with gain=1 and updated header.
     %            NOTE: The catalog is not modified.
     % Author : Eran Ofek (Jul 2021)
-    % Example: 
+    % Example: AI = AstroImage({rand(10,10)});
+    %          imProc.calib.gainCorrect(AI)
     
     arguments
         Obj
@@ -27,6 +30,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         Args.DataProp             = {'Image','Var','Back'};
         Args.replaceValArgs cell  = {};
         Args.OrigGainKey          = 'ORIGGAIN';
+        Args.DefaultGain          = 1;
     end
     DefGainKey = 'GAIN';
     
@@ -44,7 +48,11 @@ function Result = gainCorrect(Obj, Gain, Args)
         else
             GainVal = getVal(Obj(Iobj).HeaderData, Gain, Args.getValArgs{:});
         end
-        InvGain = 1./GainVal;
+        if isnan(GainVal)
+            InvGain = Args.DefaultGain; 
+        else
+            InvGain = 1./GainVal;
+        end
         
         % divide image by gain
         for Iprop=1:1:Nprop
@@ -59,7 +67,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         end
         
         % write old GAIN value
-        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGain, GainVal, Args.replaceValArgs{:});
+        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, 1./InvGain, Args.replaceValArgs{:});
         
     end
     

@@ -47,7 +47,7 @@ function Cell=replaceKey(Cell,Key,Val,Args)
 
     if ~iscell(Val)
         if isnumeric(Val)
-            Val = nume2cell(Val);
+            Val = num2cell(Val);
         else
             Val = {Val};
         end
