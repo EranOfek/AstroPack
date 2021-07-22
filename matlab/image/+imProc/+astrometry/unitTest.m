@@ -2,6 +2,12 @@ function Result = unitTest()
     % unitTest for +imProc.astrometry
     % Example: imProc.astrometry.unitTest
    
+    
+    DataSampleDir = tools.os.getTestDataDir;
+    PWD = pwd;
+    cd(DataSampleDir);
+    
+    
     % astrometryCore (with catalog data)
     RA     = 1;     % rad
     Dec    = 1;     % rad
@@ -50,6 +56,12 @@ function Result = unitTest()
         [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
     end
     toc
+    
+    
+    cd(PWD);
+    io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
+    Result = true;
+    
     
 end
    
