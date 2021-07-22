@@ -454,7 +454,6 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
             Result(Iobj).ErrorOnMean = [Result(Iobj).ResFit.AssymRMS_mag]./sqrt([Result(Iobj).ResFit.Ngood]);
             [~,Result(Iobj).BestInd] = min(Result(Iobj).ErrorOnMean);
 
-            
             % Generate WCS
             
             % add RA/Dec to the catalog

@@ -1271,21 +1271,41 @@ classdef AstroWCS < Component
         function Obj = tran2wcs(Tran2D,NAXIS,CRPIX,CRVAL,CD,CTYPE,CUNIT,RADESYS,EQUINOX,LONPOLE,LATPOLE,WCSAXES)
             % Create and populate an AstroWCS object from an Trans2D object
 
-            if nargin<12
+            arguments
+                Tran2D
+                NAXIS
+                CRPIX
+                CRVAL
+                CD
+                CTYPE
+                CUNIT     
+                RADESYS   = [];
+                EQUINOX   = [];
+                LONPOLE   = [];
+                LATPOLE   = [];
+                WCSAXES   = [];
+            end
+            
+            if isempty(WCSAXES)
                 WCSAXES = NAXIS;
-                if nargin<11
-                    LATPOLE = [];
-                    if nargin<10
-                        LONPOLE = [];
-                        if nargin<9
-                            EQUINOX = [];
-                            if nargin<8
-                                RADESYS = [];
-                            end
-                        end
-                    end
-                end
-            end            
+            end
+                
+            
+%             if nargin<12
+%                 WCSAXES = NAXIS;
+%                 if nargin<11
+%                     LATPOLE = [];
+%                     if nargin<10
+%                         LONPOLE = [];
+%                         if nargin<9
+%                             EQUINOX = [];
+%                             if nargin<8
+%                                 RADESYS = [];
+%                             end
+%                         end
+%                     end
+%                 end
+%             end            
 
             Obj = AstroWCS(1);
             Obj.Tran2D = Tran2D;
