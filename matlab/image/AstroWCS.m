@@ -8,7 +8,7 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% TODO Next - Complete Tran2WCS (fill_TANSIP_KeyNames), wcs2keyCell (TPV,TAN-SIP)
+% TODO Next - Documentation
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -50,7 +50,7 @@ classdef AstroWCS < Component
         Phi0(1,1)    double = NaN;
         Theta0(1,1)  double = NaN;
         
-        Tran2D(1,1) Tran2D   = [];        %= Tran2D;
+        Tran2D(1,1) Tran2D   = [];       
         
     end
     
@@ -60,7 +60,6 @@ classdef AstroWCS < Component
     end   
         
     % Future
-%         WCS    % a structure with fields specified in Fields
 %         gridLon     % a cube: e.g., Long = [X,Y,Color]
 %         gridLat     % a cube: e.g., Lat  = [X,Y,Color]
 %         gridCoo     % a cell array of {X,Y,...} - column per axes 
@@ -189,7 +188,22 @@ classdef AstroWCS < Component
             
         end
 
-   %======== Functions to construct AstroHeader from AstroWCS =========  
+   %======== Functions to construct AstroHeader from AstroWCS ========= 
+   
+       function Header = wcs2head(Obj,Header)
+            % Convert AstroWCS object to AstroHeader key/par
+            % Description:
+            % Input  : - A AstroWCS object.
+            %          - Optional AstroHeader in which to update key/par
+            % Output : - An AstroHeader object with the WCS keywords.           
+           
+           if nargin<2
+               Header = AstroHeader(1);
+           end
+           
+           KeyCell = Obj.wcs2keyCell;
+           Header.replaceVal(KeyCell(:,1),KeyCell(:,2),'Comment',KeyCell(:,3));
+       end
    
        function KeyCell = wcs2keyCell(Obj)
            KeyCell = cell(0,3);
@@ -197,85 +211,106 @@ classdef AstroWCS < Component
            %Add field by field
            
            if ~isempty(Obj.NAXIS)
-               AddCell = {'NAXIS', Obj.NAXIS, ''};
+               AddCell = {'NAXIS', Obj.NAXIS, 'Number of axes'};
                KeyCell = [KeyCell; AddCell];
            end
            if ~isempty(Obj.WCSAXES)
-               AddCell = {'WCSAXES', Obj.WCSAXES, ''};
+               AddCell = {'WCSAXES', Obj.WCSAXES, 'WCS dimensionality'};
                KeyCell = [KeyCell; AddCell];
            end 
            if ~isempty(Obj.RADESYS)
-               AddCell = {'RADESYS', Obj.RADESYS, ''};
+               AddCell = {'RADESYS', Obj.RADESYS, 'Astrometric system'};
                KeyCell = [KeyCell; AddCell];
            end       
-           if ~isempty(Obj.NAXIS)
-               AddCell = {'NAXIS', Obj.NAXIS, ''};
-               KeyCell = [KeyCell; AddCell];
-           end
            if ~isempty(Obj.EQUINOX)
-               AddCell = {'EQUINOX', Obj.EQUINOX, ''};
+               AddCell = {'EQUINOX', Obj.EQUINOX, 'Equinox'};
                KeyCell = [KeyCell; AddCell];
            end 
            if ~isempty(Obj.LONPOLE)
-               AddCell = {'LONPOLE', Obj.LONPOLE, ''};
+               AddCell = {'LONPOLE', Obj.LONPOLE, 'Native Longitude of the Celestial Pole'};
                KeyCell = [KeyCell; AddCell];
            end       
            if ~isempty(Obj.LATPOLE)
-               AddCell = {'LATPOLE', Obj.LATPOLE, ''};
+               AddCell = {'LATPOLE', Obj.LATPOLE, 'Native Latitude of the Celestial Pole'};
                KeyCell = [KeyCell; AddCell];
            end       
            
            Naxis = Obj.WCSAXES;
            % verify size
-           if (size(Obj.CTYPE,2)~=Naxis) || (size(Obj.CUNIT,2)~=Naxis)
+           if (numel(Obj.CTYPE)~=Naxis) || (numel(Obj.CUNIT)~=Naxis)
                error('Wrong size of CTYPE or CUNIT');
            end
            
            for Ix = 1:1:Naxis
-               AddCell = {sprintf('CTYPE%d',Ix), Obj.CTYPE(Ix), ''};
+               AddCell = {sprintf('CTYPE%d',Ix), Obj.CTYPE(Ix), 'WCS projection type for this axis'};
                KeyCell = [KeyCell; AddCell];
            end
            
            for Ix = 1:1:Naxis
-               AddCell = {sprintf('CUNIT%d',Ix), Obj.CUNIT(Ix), ''};
+               AddCell = {sprintf('CUNIT%d',Ix), Obj.CUNIT(Ix), 'Axis unit '};
                KeyCell = [KeyCell; AddCell];
            end
 
            % verify size
-           if (size(Obj.CRPIX,2)~=2) || (size(Obj.CRVAL,2)~=2) ||...
-              (size(Obj.CD,1)~=2) || (size(Obj.CD,2)~=2)
+           if (numel(Obj.CRPIX)~=Naxis) || (numel(Obj.CRVAL)~=Naxis) ||...
+              (size(Obj.CD,1)~=Naxis) || (size(Obj.CD,2)~=Naxis)
                error('Wrong size of CRPIX or CRVAL or CD');
            end           
            
-           for Ix = 1:2
-               AddCell = {sprintf('CRPIX%d',Ix), Obj.CRPIX(Ix), ''};
+           for Ix = 1:Naxis
+               AddCell = {sprintf('CRPIX%d',Ix), Obj.CRPIX(Ix), 'Reference pixel on this axis'};
                KeyCell = [KeyCell; AddCell];
            end
               
-           for Ix = 1:2
-               AddCell = {sprintf('CRVAL%d',Ix), Obj.CRVAL(Ix), ''};
+           for Ix = 1:Naxis
+               AddCell = {sprintf('CRVAL%d',Ix), Obj.CRVAL(Ix), 'World coordinate on this axis'};
                KeyCell = [KeyCell; AddCell];
            end
            
-           for Ix1 = 1:2
-               for Ix2 = 1:2
-                   AddCell = {sprintf('CD%d_%d',Ix), Obj.CD(Ix1,Ix2), ''};
+           for Ix1 = 1:Naxis
+               for Ix2 = 1:Naxis
+                   AddCell = {sprintf('CD%d_%d',Ix1,Ix2), Obj.CD(Ix1,Ix2), 'Linear projection matrix'};
                    KeyCell = [KeyCell; AddCell];
                end
            end
            
-           switch lowercase(Obj.ProjType)
-               case 'tpv'
-                   
-               case 'tan-sip'
-                   
+           for Ix = 1:numel(Obj.PV.KeyNamesX)
+               AddCell = {Obj.PV.KeyNamesX{Ix}, Obj.PV.PolyCoefX(Ix), 'Projection distortion coefficient'};
+               KeyCell = [KeyCell; AddCell];               
            end
-
+           
+           for Ix = 1:numel(Obj.PV.KeyNamesY)
+               AddCell = {Obj.PV.KeyNamesY{Ix}, Obj.PV.PolyCoefY(Ix), 'Projection distortion coefficient'};
+               KeyCell = [KeyCell; AddCell];               
+           end  
+           
+           for Ix = 1:numel(Obj.RevPV.KeyNamesX)
+               AddCell = {Obj.RevPV.KeyNamesX{Ix}, Obj.RevPV.PolyCoefX(Ix), 'Projection distortion coefficient'};
+               KeyCell = [KeyCell; AddCell];               
+           end
+           
+           for Ix = 1:numel(Obj.RevPV.KeyNamesY)
+               AddCell = {Obj.RevPV.KeyNamesY{Ix}, Obj.RevPV.PolyCoefY(Ix), 'Projection distortion coefficient'};
+               KeyCell = [KeyCell; AddCell];               
+           end            
+           
+           switch lower(Obj.ProjType)
+               case 'tan-sip'
+                   AddCell = {'A_ORDER', numel(Obj.PV.KeyNamesX), 'Polynomial order, axis 1'};
+                   KeyCell = [KeyCell; AddCell];
+                   AddCell = {'B_ORDER', numel(Obj.PV.KeyNamesY), 'Polynomial order, axis 2'};
+                   KeyCell = [KeyCell; AddCell];                   
+                   AddCell = {'AP_ORDER', numel(Obj.RevPV.KeyNamesX), 'Polynomial order, axis 1'};
+                   KeyCell = [KeyCell; AddCell];
+                   AddCell = {'BP_ORDER', numel(Obj.RevPV.KeyNamesY), 'Polynomial order, axis 1'};
+                   KeyCell = [KeyCell; AddCell];                   
+           end
+          
        end
         
    %======== Functions for related to xy2sky =========
    
-        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,OutUnits,includeDistortion)
+        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,OutUnits,includeDistortion,useTran2D)
         % Convert X/Y pixel coordinates to celestial coordinates
         % Description: Convert X/Y pixel coordinates to celestial
         %              coordinates.
@@ -291,14 +326,21 @@ classdef AstroWCS < Component
         %            If not asked for, then the first output will be a
         %            two column matrix.
 
-            if nargin<5
-                includeDistortion = true;
-                if nargin<4
-                    OutUnits = 'deg';
-                    if nargin<3
-                        PY = [];
+            if nargin<6
+                useTran2D = false;
+                if nargin<5
+                    includeDistortion = true;
+                    if nargin<4
+                        OutUnits = 'deg';
+                        if nargin<3
+                            PY = [];
+                        end
                     end
                 end
+            end
+            
+            if useTran2D
+                error('Currently do not upport direct use of Tran2D');
             end
 
             if numel(Obj)~=1
@@ -513,7 +555,7 @@ classdef AstroWCS < Component
         
    %======== Functions for related to sky2xy =========   
    
-        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,InUnits,includeDistortion)
+        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,InUnits,includeDistortion,useTran2D)
             % convert celestial coordinates to pixel coordinates
             % Description: Convert celestial coordinates that are in the
             %              reference frmae of CTYPE, RADESYS and EQUNOX,
@@ -535,11 +577,18 @@ classdef AstroWCS < Component
             %            respectively.
             % Example: [X,Y] = coo2xy(Obj,100,10,'deg')
 
-            if nargin<5
-                includeDistortion = true;
-                if nargin<4
-                    InUnits = 'deg';
+            if nargin<6
+                useTran2D = false;
+                if nargin<5
+                    includeDistortion = true;
+                    if nargin<4
+                        InUnits = 'deg';
+                    end
                 end
+            end
+            
+            if useTran2D
+                error('Currently do not upport direct use of Tran2D');
             end
 
             if numel(Obj)~=1
@@ -787,7 +836,6 @@ classdef AstroWCS < Component
             PY = reshape(P(:,2),size(Y));
 
         end
-
         
     end
     
@@ -1217,9 +1265,6 @@ classdef AstroWCS < Component
             
         end   
         
-   %======== Functions to construct AstroWCS from Tran2D =========          
-        
-     
         
    %======== Functions to construct AstroWCS from Tran2D =========
    
@@ -1500,7 +1545,6 @@ classdef AstroWCS < Component
 
         end        
         
-       
         
    %======== Functions for related to sky2xy =========           
         
@@ -1553,7 +1597,6 @@ classdef AstroWCS < Component
 
         end
         
-         
 
         function [X,Y]  = backwardDistortion(PV,Xd,Yd,plusXY_bool,Threshold,MaxIter,Step)  
             
@@ -1621,146 +1664,16 @@ classdef AstroWCS < Component
             Y = Yi;
         end
         
-        
+       
     end
 
     
-    
-    
-    
-    
-    
-    
-    
-   %==================OLD FUNCTIONS=================================
-       
+   %======================================================================    
+   %==================OLD FUNCTIONS=======================================
+   %======================================================================    
     
     
     methods
-       function H=wcs2head(Obj,H)
-            % Convert ClassWCS object to header WCS key/par
-            % Package: @ClassWCS
-            % Description:
-            % Input  : - A ClassWCS object.
-            %          - Optional header in which to concat the WCS
-            %            keywords.
-            % Output : - An HEAD object with the WCS keywords.
-            
-            
-            
-            WCSField = ClassWCS.WCSField;
-            % debug: W.WCS.CD = W.WCS.CD .* [1 -1;1 1];
-            if (nargin<2)
-                H = [];
-            end
-            if (iscell(H))
-                Tmp = H;
-                H = HEAD;
-                H = add_key(H,Tmp);
-            end
-            if (isempty(H))
-                H = HEAD(size(Obj));
-            end
-            
-            Nw = numel(Obj);
-            for Iw=1:1:Nw
-                CellHead = cell(0,3);
-                Iline    = 0;
-                FN = fieldnames(Obj(Iw).(WCSField));
-                Nfn = numel(FN);
-                for Ifn=1:1:Nfn
-                    if (isstruct(Obj(Iw).(WCSField).(FN{Ifn})))
-                        % struct contains distortions or meta data
-                        switch lower(FN{Ifn})
-                            case 'sip'
-                                AddCell = ClassWCS.sip2head(Obj(Iw).(WCSField).sip,'cell');
-                                CellHead= [CellHead; AddCell];
-                                Iline    = Iline + size(AddCell,1);
-                                
-                                if (size(AddCell,1)>1)
-                                    IsSIP    = true;
-                                else
-                                    IsSIP    = false;
-                                end
-                                
-                            case 'tpv'
-                                Nc = numel(Obj.WCS.tpv.KeyVal);
-                                AddCell = cell(Nc,3);
-                                [AddCell{:,3}]=deal('');
-                                [AddCell{:,1}] = deal(Obj(Iw).(WCSField).tpv.KeyName{:});
-                                [AddCell{:,2}] = deal(Obj(Iw).(WCSField).tpv.KeyVal{:});
-                                
-                                CellHead= [CellHead; AddCell];
-                                Iline    = Iline + Nc;
-                            case 'pv'
-                                Nc = numel(Obj.WCS.PV.KeyVal);
-                                AddCell = cell(Nc,3);
-                                [AddCell{:,3}]=deal('');
-                                [AddCell{:,1}] = deal(Obj(Iw).(WCSField).PV.KeyName{:});
-                                [AddCell{:,2}] = deal(Obj(Iw).(WCSField).PV.KeyVal{:});
-                                
-                                CellHead= [CellHead; AddCell];
-                                Iline    = Iline + Nc;
-                                
-                            otherwise
-                                warning('Unknown structure type in a ClassWCS object');
-                        end
-                        
-                        
-                    else
-                        % N1 N2 are the dimensions of the keyword value element
-                        % e.g., CD is usually a 2x2 matrix...
-                        if (ischar(Obj(Iw).(WCSField).(FN{Ifn})))
-                            N1 = 1;
-                            N2 = 1;
-                        else
-                            [N1,N2] = size(Obj(Iw).(WCSField).(FN{Ifn}));
-                        end
-                        
-                        if (N1>1 && N2>1)
-                            % field contains a matrix
-                            for I1=1:1:N1
-                                for I2=1:1:N2
-                                    KeyName = sprintf('%s%d_%d',FN{Ifn},I1,I2);
-                                    KeyVal  = Obj(Iw).(WCSField).(FN{Ifn})(I1,I2);
-                                    Iline   = Iline + 1;
-                                    CellHead(Iline,:) = {KeyName, KeyVal, ''};
-                                end
-                            end
-                        else
-                            % field contains a vector/scalar
-                            if (N1>1 || N2>1)
-                                % field contains a vector
-                                for I1=1:1:max(N1,N2)
-                                    KeyName = sprintf('%s%d',FN{Ifn},I1);
-                                    KeyVal  = Obj(Iw).(WCSField).(FN{Ifn})(I1);
-                                    Iline   = Iline + 1;
-                                    if (iscell(KeyVal))
-                                        KeyVal = KeyVal{1};
-                                    end
-                                    CellHead(Iline,:) = {KeyName, KeyVal, ''};
-                                end
-                            else
-                                % field contain a scalar
-                                Iline   = Iline + 1;
-                                CellHead(Iline,:) = {FN{Ifn}, Obj(Iw).(WCSField).(FN{Ifn}), ''};
-                            end
-                            
-                        end
-                        
-                    end
-                end
-
-                % delete old WCS keywords
-                H(Iw) = delete_key(H(Iw),CellHead(:,1));
-                % add new keywords
-                H(Iw) = add_key(H(Iw),CellHead);
-                
-            end
-            
-            % end of main loop (Iw)
-        end
-        
         function Obj=fill(Obj,Force)
             % Fill ProjType, ProjClass, Coo, AlphaP, DeltaP in wcsCl object
             % Package: @wcsCl (basic)
@@ -1855,498 +1768,41 @@ classdef AstroWCS < Component
 
         end
 
-        
-        function Obj=OLD_populate_projMeta(Obj)
-            % populate projection and pole information in a wcsCl object
-            % Package: @wcsCl
-            % Description: 
-            % Input  : - A wcsCl object
-            % Output : - Obj wcsCl object with the projection type and pole data populated.
-
-            Def.LONPOLE = 0;
-            Def.LATPOLE = 90;
+        function [Flag,Obj]=iswcsOk(Obj)
+            % check minimal content of wcsCl object and update Exist property
+            % Package: @wcsCl (Static)
+            % Input  : - A wcsCl object.
+            % Output : - An array of logical flags for each wcsCl element indicating if
+            %            the wcsCl is likely valid.
+            %          - A wcsCl object with the Exist property updated.
+            % Example: [Flag,Obj]=wcsCl.iswcsOk(Obj)
 
             N = numel(Obj);
+            Flag = false(size(Obj));
             for I=1:1:N
-
-                ProjAlgo  = Obj(I).CTYPE{1}(6:end);
-                ProjClass = wcsCl.classify_projection(ProjAlgo);
-                Obj(I).ProjType  = ProjAlgo;
-                Obj(I).ProjClass = ProjClass;
-                switch lower(ProjClass)
-                    case 'zenithal'
-
-                        Alpha0 = Obj(I).CRVAL(1);
-                        Delta0 = Obj(I).CRVAL(2);
-                        AlphaP = Obj(I).CRVAL(1);
-                        DeltaP = Obj(I).CRVAL(2);
-
-                        Phi0   = 0;
-                        Theta0 = 90;
-
-                        if Delta0>=Theta0
-                            PhiP = 0;
-                        else
-                            PhiP = 180;
-                        end
-
-                        Obj(I).Alpha0 = Alpha0;
-                        Obj(I).Delta0 = Delta0;
-                        Obj(I).AlphaP = AlphaP;
-                        Obj(I).DeltaP = DeltaP;
-                        Obj(I).Phi0   = Phi0;
-                        Obj(I).Theta0 = Theta0;
-                        Obj(I).PhiP   = PhiP;
-                    otherwise
-                        error('Unsupported projection class (%s)',ProjClass);
-                end
-
-
-
-                switch lower(ProjAlgo)
-                    case {'tan'}
-
-                        % treat LONPOLE
-                        if isempty(Obj(I).LONPOLE)
-                            % check if LONPOLE is in PV1_3
-                            if isempty(Obj(I).PV)
-                                % set to default value
-                                Obj(I).LONPOLE = Def.LONPOLE;
-                            else
-                                if numel(Obj(I).PV{1})>=3
-                                    Obj(I).LONPOLE = Obj(I).PV{1}{3};
-                                else
-                                    % set to default value
-                                    Obj(I).LONPOLE = Def.LONPOLE;
-                                end
-                            end
-                        end
-
-                        % treat LATPOLE
-                        if isempty(Obj(I).LATPOLE)
-                            % check if LATPOLE is in PV1_4
-                            if isempty(Obj(I).PV)
-                                % set to default value
-                                Obj(I).LATPOLE = Def.LATPOLE;
-                            else
-                                if numel(Obj(I).PV{1})>=4
-                                    Obj(I).LATPOLE = InPar.PV{1}{4};
-                                else
-                                    % set to default value
-                                    Obj(I).LATPOLE = Def.LATPOLE;
-                                end
-                            end
-                        end
-
-                    case 'tpv'
-
-                    otherwise
-                end
-            end
-        end
-        
-        function [Xd,Yd] = interm2distortedInterm(Obj,X,Y)
-
-            if numel(Obj)~=1
-                error('Input must be a single element wcsCl object');
-            end
-
-           
-            switch lower(Obj.ProjType)
-                case {'tpv','tan-sip'}
-                    R = sqrt(X.^2 + Y.^2);
-                    
-                    CoefX    = Obj.PV(1,:,1);
-                    X_Xpower = Obj.PV(1,:,2);
-                    X_Ypower = Obj.PV(1,:,3);
-                    if (size(Obj.PV,3)) > 3
-                        X_Rpower = Obj.PV(1,:,4);
+                Flag(I) = ~isempty(Obj(I).NAXIS) && ~isnan(Obj(I).NAXIS);
+                Ntype = numel(Obj(I).CTYPE);
+                for Itype=1:1:Ntype
+                    if numel(Obj(I).CTYPE{Itype})>=5
+                        Flag(I) = Flag(I);
                     else
-                        X_Rpower = 0;
+                        Flag(I) = false(I);
                     end
-                    
-                    CoefY    = Obj.PV(2,:,1);
-                    Y_Xpower = Obj.PV(2,:,2);
-                    Y_Ypower = Obj.PV(2,:,3);
-                    if (size(Obj.PV,3)) > 3
-                        Y_Rpower = Obj.PV(2,:,4);
-                    else
-                        Y_Rpower = 0;
-                    end                        
-                    
-                    
-                    Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)) );
-                    Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((R(:).').^Y_Rpower(:)) );
+                end
 
-                case 'zpn'
-                    'not implemented yet'
-                otherwise % no distortion
-                    Xd = X;
-                    Yd = Y;
+                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRPIX)) && all(~isnan(Obj(I).CRPIX));
+                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRVAL)) && all(~isnan(Obj(I).CRVAL));
+                Flag(I) = Flag(I) && all(~isempty(Obj(I).CD(:))) && all(~isnan(Obj(I).CD(:)));
+
+                Obj(I).Exist = Flag(I);
             end
-            
-            Xd=reshape(Xd,size(X));
-            Yd=reshape(Yd,size(Y));
-            
         end
-        
-        function [X,Y]  = backwardDistortion_old_OLD(PV,Xd,Yd,err_thresh,max_iters)
-            % iterativly calculate [X,Y} from [Xd,Yd] using PV
-    
-            if nargin<5
-                max_iters = 100;
-                if nargin < 4
-                    err_thresh = 1e-7;
-                end    
-            end
-            
-            niter=0;
-            err=Inf;
-            X0=Xd;
-            Y0=Yd;
-            while (niter < max_iters) && (err > err_thresh) % arbitrary iteration stop
-                if size(PV,3)>2
-                    R = sqrt(X0.^2 + Y0.^2); % TODO - change to arbitrary function f(x,y)
-                else
-                    R=1;
-                end
-                    
-                
-                [X1,Y1] = AstroWCS.forwardDistortion_old(PV,X0,Y0,R);
-                X0= (X0-X1) +Xd;
-                Y0= (Y0-Y1) +Yd;
-                err=sqrt(sum((X1(:)-Xd(:)).^2 + (Y1(:)-Yd(:)).^2));
-                niter=niter+1;
-            end
-            X=X0;
-            Y=Y0;
-
-
-        end
-        
-        function [Xd,Yd]  = forwardDistortion_old(PV,X,Y,R)
-           % use PV matrix to calcualte polynomial distortion
-           % PV matrix is [Naxis,n,vals]. NAxis should be 2.
-           % Third axis is [Coeff, X_power, Y_Power, R_Power (optional)]
-           
-            if nargin<4
-                R = 1;
-            end
-            
-            if (size(PV,1) < 2) || (size(PV,3)<2)
-                error('PV matrix too small');
-            end
-
-            CoefX    = PV(1,:,1);
-            X_Xpower = PV(1,:,2);
-            X_Ypower = PV(1,:,3);
-            if (size(PV,3)) > 3
-                X_Rpower = PV(1,:,4);
-            else
-                X_Rpower = 0;
-            end
-
-            CoefY    = PV(2,:,1);
-            Y_Xpower = PV(2,:,2);
-            Y_Ypower = PV(2,:,3);
-            if (size(PV,3)) > 3
-                Y_Rpower = PV(2,:,4);
-            else
-                Y_Rpower = 0;
-            end                        
-
-
-            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)) );
-            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((R(:).').^Y_Rpower(:)) );                
-
-            Xd=reshape(Xd,size(X));
-            Yd=reshape(Yd,size(Y));
-
-        end    
-
-        function [X,Y]  = backwardDistortion_old(PV,Xd,Yd,Threshold,MaxIter,Step)  
-            
-            if nargin<6
-                Step = 1e-5;
-                if nargin<5
-                    MaxIter = 100;
-                    if nargin < 4
-                        Threshold = 1e-7;
-                    end    
-                end
-            end
-
-            
-            Xf = Xd;
-            Yf = Yd;
-            
-            Xi  = Xf;
-            Yi  = Yf;
-            
-            % The ouput from forward should be the input Xf, Yf
-            NotConverged = true;
-            Iter = 0;
-            while NotConverged
-                %
-                Iter = Iter + 1;
-                
-                if size(PV,3)>3
-                    R = sqrt(Xi.^2 + Yi.^2); % TODO - change to arbitrary function f(x,y)
-                else
-                    R=1;
-                end                
-                
-                [Xi1,Yi1] = AstroWCS.forwardDistortion_old(PV,Xi,Yi,R);
-                [Xi2,Yi2] = AstroWCS.forwardDistortion_old(PV,(Xi+Step),(Yi+Step),R);
-                
-                DeltaX = (Xi1 - Xi2);
-                DeltaY = (Yi1 - Yi2);
-                
-                IncX = (Xi1 - Xf)./DeltaX .* Step;
-                IncY = (Yi1 - Yf)./DeltaY .* Step;
-                Xi = Xi + IncX;
-                Yi = Yi + IncY; 
-                
-                [Xi1,Yi1] = AstroWCS.forwardDistortion_old(PV,Xi,Yi,R);
-                DiffX = Xi1 - Xf;
-                DiffY = Yi1 - Yf;
-                
-                if max(abs(DiffX))<Threshold && max(abs(DiffY))<Threshold
-                    NotConverged = false;
-                end
-                if Iter>MaxIter
-                    NotConverged = false;
-                    %error('backwardDistortion didnot converge after %d iterations',Iter);
-                end
-                
-            end
-            
-            X = Xi;
-            Y = Yi;
-        end
-        
-        
+       
     end
 
     %======================================================================
     
     methods (Static)
-        
-
-        % change name to: sky2xy
-        function varargout=coo2xy(Obj,Lon,Lat,Units)
-            % convert celestial coordinates to pixel coordinates
-            % Package: @wcsCl (transformation)
-            % Description: Convertt celestial coordinates that are in the
-            %              reference frmae of CTYPE, RADESYS and EQUNOX,
-            %              to pixel [X,Y] coordinates.
-            % Input  : - A single element wcsCl object
-            %          - Either longitude, or a two column matrix of
-            %            [Lognitude, Latitude].
-            %            This can also be a sexagesimal string or a cell
-            %            array of longitude strings.
-            %          - Either latitude, or empty. If empty, then assume
-            %            that the previous argument contains [Long,Lat].
-            %            This can also be a string or cell arraey of
-            %            latitude sexagesimals.
-            %          - Input coordinates units {'rad'|'deg'}
-            %            Default is 'deg'
-            % Output : * Pixel coordinates. If one input argument then this
-            %            is a two column matrix of pixel coordinates [X,Y].
-            %            If two arguments, then these are X and Y,
-            %            respectively.
-            % Example: [X,Y] = coo2xy(Obj,100,10,'deg')
-
-            if nargin<4
-                Units = 'deg';
-            end
-
-            if numel(Obj)~=1
-                error('Works only on a single element wcsCl object');
-            end
-
-            if isempty(Lat)
-                Lat = Lon(:,2);
-                Lon = Lon(:,1);
-            end
-
-            if (iscell(Lon) || ischar(Lon)) && (iscell(Lat) || ischar(Lat))
-                Lon = celestial.coo.convertdms(Lon,'gH','r');
-                Lat = celestial.coo.convertdms(Lat,'gD','R');
-                Units = 'rad';
-            end
-
-
-            % celestial to native
-            [Phi,Theta] = celestial2native(Obj,[Lon(:),Lat(:)],[],Units,'deg');
-            % native to intermediate
-            [X,Y] = native2interm(Obj,[Phi, Theta],[],'deg');
-            % inverse distorsion for TPV and SIP
-            switch lower(Obj.ProjType)
-                case 'tpv'
-                    % for TPV, invert numerically, iteratively, hopefully
-                    %  converging
-                    niter=0;
-                    err=Inf;
-                    X0=X;
-                    Y0=Y;
-                    while niter<10 && err > 1e-6 % arbitrary iteration stop
-                       [X1,Y1] = interm2TPVdistortedInterm(Obj,X0,Y0);
-                       X0=X0-X1+X;
-                       Y0=Y0-Y1+Y;
-                       err=sqrt(sum((X1(:)-X(:)).^2 + (Y1(:)-Y(:)).^2));
-                       niter=niter+1;
-                    end
-                    X=X0;
-                    Y=Y0;
-                case 'tan-sip'
-                    'not implemented yet'
-                otherwise
-                    % do nothing
-            end
-
-            % Intermediate to pixel
-            [PX,PY] = interm2pix(Obj,[X,Y],[]);
-
-            PX = reshape(PX,size(Lon));
-            PY = reshape(PY,size(Lat));
-
-            if nargout>1
-                varargout{1} = PX;
-                varargout{2} = PY;
-            else
-                varargout{1} = [PX,PY];
-            end
-
-        end      
-        
-        function PV = build_PV(Header,ProjType)
-            % Read PV coefficients, if any Coeff X_power Y_power R_power
-            
-             switch lower(ProjType)
-                case 'none'
-                    PV = [];
-                case 'tan'
-                    PV = [];
-                case 'tpv'
-                    PV = AstroWCS.build_TPV(Header);
-                case 'tan-sip'                    
-                    PV = AstroWCS.build_TANSIP(Header);
-                case 'zpn'                    
-                    error('Need to add ZPN - TODO');  
-                otherwise
-                    error('Unsupported projection type (%s)',ProjType);
-             end   
-        end
-
-
-        function PV = build_TPV(Header)
-            
-            AH = Header;
-           
-            PolyTPVtable = AstroWCS.polyTPVdef();
-            
-            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'PV1_\d+','match'));
-            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),'PV2_\d+','match'));
-            
-            NPV1 = sum(FlagMatchPV1);
-            NPV2 = sum(FlagMatchPV2);
-            
-            if  NPV1 || NPV2
-                
-                PV = zeros(2,max(NPV1,NPV2),4);
-                
-                PV1_Names = AH.Data(FlagMatchPV1,1);
-                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
-                
-                for I1 = 1:1:NPV1
-                    currPV = PolyTPVtable(PV1_Names(I1),:);
-                    if ~currPV.Axis==1
-                        error('wrong axis');
-                    end
-                    PV(currPV.Axis,I1,1:4) = [PV1_Vals(I1) currPV.xi_power currPV.eta_power currPV.r_power];
-                end
-                
-                PV2_Names = AH.Data(FlagMatchPV2,1);
-                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
-                
-                for I2 = 1:1:NPV2
-                    currPV = PolyTPVtable(PV2_Names(I2),:);
-                    if ~currPV.Axis==2
-                        error('wrong axis');
-                    end
-                    PV(currPV.Axis,I2,1:4) = [PV2_Vals(I2) currPV.xi_power currPV.eta_power currPV.r_power];
-                end
-                
-                % if no r_power poly, trancate last level
-                if sum(sum(PV(:,:,4)))==0
-                    PV = PV(:,:,1:3);
-                end
-
-            else
-                PV = [];
-            end            
-            
-        end     
-        
-
-        function PV = build_TANSIP(Header,get_inv)
-            %used from both PV and invPV
-            
-            AH = Header;
-            
-            if nargin<2
-                get_inv = false;
-            end
-            
-            BaseX = 'A';
-            BaseY = 'B';
-            
-            if get_inv
-                BaseX = 'AP';
-                BaseY = 'BP';                
-            end
-                
-            
-            FlagMatchPV1 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),[BaseX '_\d+_\d+'],'match'));
-            FlagMatchPV2 = ~tools.cell.isempty_cell(regexp(AH.Data(:,1),[BaseY '_\d+_\d+'],'match'));
-            
-            NPV1 = sum(FlagMatchPV1);
-            NPV2 = sum(FlagMatchPV2);
-            
-            if  NPV1 || NPV2
-                
-                PV = zeros(2,(1+max(NPV1,NPV2)),3); % to add x and y, as SIP is u+f(u,v), v+g(uv)
-                
-                PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
-                PV1_Vals = cell2mat(AH.Data(FlagMatchPV1,2));
-                
-                for I1 = 1:1:NPV1
-                    PV(1,I1,1:3) = [PV1_Vals(I1) str2double(PV1_Powers{I1}.u_power) str2double(PV1_Powers{I1}.v_power)];
-                end
-                
-                PV(1,(NPV1+1),1:3) = [1, 1, 0]; %  add x as SIP is u+f(u,v)
-                
-                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
-                PV2_Vals = cell2mat(AH.Data(FlagMatchPV2,2));                
-                
-                for I2 = 1:1:NPV2
-                    PV(2,I2,1:3) = [PV2_Vals(I2) str2double(PV2_Powers{I2}.u_power) str2double(PV2_Powers{I2}.v_power)];
-                end
-                
-                PV(2,(NPV2+1),1:3) = [1, 0, 1]; % add y as SIP is v+g(u,v)
-               
-            else
-                PV = [];
-            end            
-            
-        end        
-        
-    end
-    
-    methods
-
-
 
         % FFU
         function [X,Y]     = grid_coo2xy(gridCoo,gridLon,gridLat,varargin)
@@ -2497,246 +1953,11 @@ classdef AstroWCS < Component
             Lat = interpn(gridCoo{:},gridLat,varargin{1:Naxes},varargin{Naxes+1:end});
 
         end
-
-
-
-
-
-
-
-
-
-        % delete
-        function Ans=isPopulated(Obj)
-            % Check if wcsCl object Exist field is false (i.e., no WCS in object)
-            % Package: @wcsCl (basic)
-            
-            Ans = [Obj.Exist];
-        end
- 
-        
-        % delete
-        function Ans=iswcsCl(Obj)
-        % Check if object is a wcsCl object 
-        % Package: @wcsCl (basic)
-            Ans = isa(Obj,'wcsCl');
-        end
-
-
-        function [Flag,Obj]=iswcsOk(Obj)
-            % check minimal content of wcsCl object and update Exist property
-            % Package: @wcsCl (Static)
-            % Input  : - A wcsCl object.
-            % Output : - An array of logical flags for each wcsCl element indicating if
-            %            the wcsCl is likely valid.
-            %          - A wcsCl object with the Exist property updated.
-            % Example: [Flag,Obj]=wcsCl.iswcsOk(Obj)
-
-            N = numel(Obj);
-            Flag = false(size(Obj));
-            for I=1:1:N
-                Flag(I) = ~isempty(Obj(I).NAXIS) && ~isnan(Obj(I).NAXIS);
-                Ntype = numel(Obj(I).CTYPE);
-                for Itype=1:1:Ntype
-                    if numel(Obj(I).CTYPE{Itype})>=5
-                        Flag(I) = Flag(I);
-                    else
-                        Flag(I) = false(I);
-                    end
-                end
-
-                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRPIX)) && all(~isnan(Obj(I).CRPIX));
-                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRVAL)) && all(~isnan(Obj(I).CRVAL));
-                Flag(I) = Flag(I) && all(~isempty(Obj(I).CD(:))) && all(~isnan(Obj(I).CD(:)));
-
-                Obj(I).Exist = Flag(I);
-            end
-        end
-        
-
-
-
-
-
-
-
-        % static
-
-
-
-
-        function Obj=populate(varargin)
-            % Package: @wcsCl (basic)
-            % Input  : * An arbitrary number of key,val, arguments that will
-            %            populate the wcsCl object.
-            %            Possible keywords are:
-            %            'CD'
-            %            'PC'
-            %            'PV'
-            %            'CDELT'
-            %            'NAXIS'
-            %            'WCSAXES'
-            %            'CUNIT'
-            %            'CRVAL'
-            %            'PRPIX'
-            %            'CTYPE'
-            %            'RADESYS'
-            %            'EQINOX'
-            %            'LONPOLE'
-            %            'LATPOLE'
-            %            'MJD'
-            % Output : - A wcsCl object
-
-            Def.LONPOLE = 0;
-            Def.LATPOLE = 90;
-
-            InPar = inputParser;
-
-            addOptional(InPar,'CD',[1 0; 0 1],@(x) isnumeric(x));
-            addOptional(InPar,'PC',[1 0; 0 1],@(x) isnumeric(x));
-            addOptional(InPar,'PV',{zeros(0,2),zeros(0,2)},@(x) iscell(x));
-            addOptional(InPar,'CDELT',[1 1].',@(x) isnumeric(x));
-            addOptional(InPar,'NAXIS',2,@(x) isnumeric(x));
-            addOptional(InPar,'WCSAXES',2,@(x) isnumeric(x));
-            addOptional(InPar,'CUNIT',{'deg','deg'},@(x) iscell(x));
-            addOptional(InPar,'CRVAL',[0 0],@(x) isnumeric(x));     % alpha0, delta0
-            addOptional(InPar,'CRPIX',[1 1],@(x) isnumeric(x));
-            addOptional(InPar,'CTYPE',{'RA--TAN','DEC-TAN'},@(x) iscell(x));
-            addOptional(InPar,'RADESYS','ICRS',@(x) ischar(x));  % 'ICRS' | 'FK5' | 'FK4' | 'FK4-NO-E' | 'GAPPT'
-            addOptional(InPar,'EQUINOX',2000,@(x) isnumeric(x));
-            addOptional(InPar,'LONPOLE',0,@(x) isnumeric(x));      % phiP
-            addOptional(InPar,'LATPOLE',90,@(x) isnumeric(x));     % thetaP
-            addOptional(InPar,'MJD',NaN,@(x) isnumeric(x));
-
-            parse(InPar,varargin{:});
-            InPar = InPar.Results;
-
-            if isempty(InPar.CD)
-                % try to populate CD using PC and CDELT
-                if isempty(InPar.PC) || isempty(InPar.CDELT)
-                    error('If CD is not provided, you must provide PC and CDELT');
-                end
-                InPar.CD = InPar.PC.*InPar.CDELT(:);
-            end
-
-            Obj = wcsCl(1);
-
-            if ~strcmp(InPar.CTYPE{1}(5:7),InPar.CTYPE{2}(5:7))
-                error('Projection algorithm must be equal to longitude and latitude');
-            end
-
-            if ~(strcmp(InPar.CTYPE{1}(1:2),'RA') || strcmp(InPar.CTYPE{1}(3:4),'LON'))
-                error('Support only cases in which CTYPE1 contains longitudes');
-            end
-            if ~(strcmp(InPar.CTYPE{2}(1:3),'DEC') || strcmp(InPar.CTYPE{2}(3:4),'LAT'))
-                error('Support only cases in which CTYPE2 contains latitude');
-            end
-
-            ProjAlgo  = InPar.CTYPE{1}(5:7);
-            ProjClass = wcsCl.classify_projection(ProjAlgo);
-            switch lower(ProjClass)
-                case 'zenithal'
-
-                    Alpha0 = InPar.CRVAL(1);
-                    Delta0 = InPar.CRVAL(2);
-                    AlphaP = InPar.CRVAL(1);
-                    DeltaP = InPar.CRVAL(2);
-
-                    Phi0   = 0;
-                    Theta0 = 90;
-
-                    if Delta0>=Theta0
-                        PhiP = 0;
-                    else
-                        PhiP = 180;
-                    end
-
-                otherwise
-                    error('Unsupported projection class (%s)',ProjClass);
-            end
-
-            switch lower(ProjAlgo)
-                case {'tan'}
-
-                    % treat LONPOLE
-                    if isempty(InPar.LONPOLE)
-                        % check if LONPOLE is in PV1_3
-                        if isempty(InPar.PV)
-                            % set to default value
-                            InPar.LONPOLE = Def.LONPOLE;
-                        else
-                            if numel(InPar.PV{1})>=3
-                                InPar.LONPOLE = InPar.PV{1}{3};
-                            else
-                                % set to default value
-                                InPar.LONPOLE = Def.LONPOLE;
-                            end
-                        end
-                    end
-
-                    % treat LATPOLE
-                    if isempty(InPar.LATPOLE)
-                        % check if LATPOLE is in PV1_4
-                        if isempty(InPar.PV)
-                            % set to default value
-                            InPar.LATPOLE = Def.LATPOLE;
-                        else
-                            if numel(InPar.PV{1})>=4
-                                InPar.LATPOLE = InPar.PV{1}{4};
-                            else
-                                % set to default value
-                                InPar.LATPOLE = Def.LATPOLE;
-                            end
-                        end
-                    end
-
-                case 'tpv'
-
-                otherwise
-            end
-
-            % check validity
-            if ~iscell(InPar.CTYPE)
-                error('CTYPE must be a cell array');
-            end
-            if ~iscell(InPar.CUNIT)
-                error('CUNIT must be a cell array');
-            end
-            if ~iscell(InPar.PV)
-                error('PV must be a cell array');
-            end
-
-            Obj.WCS       = struct('RADESYS',InPar.RADESYS,...
-                                 'EQUINOX',InPar.EQUINOX,...
-                                 'NAXIS',  InPar.NAXIS,...
-                                 'WCSAXES',InPar.WCSAXES,...
-                                 'LONPOLE',InPar.LONPOLE,...
-                                 'LATPOLE',InPar.LATPOLE,...
-                                 'MJD',    InPar.MJD,...
-                                 'CTYPE',  {InPar.CTYPE},...
-                                 'CUNIT',  {InPar.CUNIT},...
-                                 'CRVAL',  InPar.CRVAL,...
-                                 'CRPIX',  InPar.CRPIX,...
-                                 'CD',     InPar.CD,...
-                                 'PV',     {InPar.PV},...
-                                 'alpha0', Alpha0,...
-                                 'delta0', Delta0,...
-                                 'alphaP', AlphaP,...
-                                 'deltaP', DeltaP);
-
-        end
-
-  
-        
-        
-        % static
-
-
         
     end          
        
     
-    %======================================================================    
+    %========================Unit-Test======================================    
     
     methods (Static) % Unit-Test
         function Result = unitTest()
@@ -2898,7 +2119,13 @@ classdef AstroWCS < Component
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg',false);
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg',false);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-            disp(sprintf('Max distance for Tran2D (TPV) (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));             
+            disp(sprintf('Max distance for Tran2D (TPV) (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));            
+            
+            % Construct/update AstroHeader from AstroWCS
+            AH1 = AW.wcs2head;
+            
+            AH = AW.wcs2head(AH);
+            
             
             
             % test other things
