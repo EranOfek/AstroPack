@@ -134,7 +134,7 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
         Args.argsFilterForAstrometry cell = {};
         Args.argsFitPattern cell          = {};
         
-        Args.ProjType                     = 'TAN';
+        Args.ProjType                     = 'TPV';
         Args.ImageCenterXY                = [];  % attempt to identify automatically
         
         Args.Scale                        = 1.0;      % range or value [arcsec/pix]
@@ -369,11 +369,14 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
                         XrefT = Xref.*ScaleASpix./ARCSEC_DEG;   % [deg]
                         YrefT = Yref.*ScaleASpix./ARCSEC_DEG;   % [deg]
 
-                        Result(Iobj).WCS(Isol).CRPIX1 = Result(Iobj).ImageCenterXY(1) + CRPIX1;
-                        Result(Iobj).WCS(Isol).CRPIX2 = Result(Iobj).ImageCenterXY(2) + CRPIX2;
-                        Result(Iobj).WCS(Isol).CRVAL1 = RAdeg;
-                        Result(Iobj).WCS(Isol).CRVAL2 = Decdeg;
+                        Result(Iobj).WCS(Isol).CRPIX  = [CRPIX1, CRPIX2] + Result(Iobj).ImageCenterXY(:).';
+                        Result(Iobj).WCS(Isol).CRVAL  = [RAdeg, Decdeg];
                         Result(Iobj).WCS(Isol).CD     = CD;
+                        Result(Iobj).WCS(Isol).CUINT  = 'deg';
+                        Result(Iobj).WCS(Isol).CTYPE  = Args.ProjType;
+                        Result(Iobj).WCS(Isol).NAXIS  = 2;
+                        
+                        
                         
                         [Tran, ResFit] = fitAstrometricTran(Args.Tran,...
                                                 XrefT, YrefT,...
@@ -455,6 +458,7 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
             [~,Result(Iobj).BestInd] = min(Result(Iobj).ErrorOnMean);
 
             % Generate WCS
+            'a'
             
             % add RA/Dec to the catalog
 
