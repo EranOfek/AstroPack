@@ -36,7 +36,15 @@ function Result = unitTest()
     %ds9(AI)
     %ds9.plot(AI.CatData.Catalog(:,1:2))
     
-    Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
+    RAD = 180./pi;
+    CatG = catsHTM.cone_search('GAIAEDR3', 149.1026601./RAD, 69.4547688./RAD, 1400, 'OutType','AstroCatalog');
+    
+    
+    [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
+    % save AstrometricCat_PTF_Cropped.mat AstrometricCat
+    load AstrometricCat_PTF_Cropped.mat
+    
+    Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
     
     tic;
     [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
