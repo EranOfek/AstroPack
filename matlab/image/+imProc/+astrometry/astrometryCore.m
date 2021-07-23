@@ -55,7 +55,7 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
     %                   pass to imProc.trans.fitPattern
     %                   Default is {}.
     %            'ProjType' - Projection type. See imProc.trans.projection.
-    %                   Default is 'TAN'.
+    %                   Default is 'TPV'.
     %            'ImageCenterXY' - [X,Y] in pixels of image center
     %                   corresponding to the guess coordinates.
     %                   If empty, will take the 0.5.*max(XY), where XY are
@@ -82,6 +82,14 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
     %                   Default is Tran2D.
     %            'MaxSol2Check' - Maximum number of solution candidates to
     %                   test (solutions from fitPattern). Default is 3.
+    %            'OutCatCooUnits' - Units of RA/Dec added to catalog.
+    %                   Default is 'deg'.
+    %            'OutCatColRA' - RA Column name added to catalog.
+    %                   Default is 'RA'.
+    %            'OutCatColDec' - Dec Column name added to catalog.
+    %                   Default is 'Dec'.
+    %            'OutCatColPos' - Position of RA/Dec columns added to catalog.
+    %                   Default is Inf.
     %            'CatColNamesX' - A cell array dictionary of input catalog
     %                   X column name. Default is AstroCatalog.DefNamesX.
     %            'CatColNamesY' - A cell array dictionary of input catalog
@@ -110,6 +118,10 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
     %               'BestInd' - Index of solution with minimal ErrorOnMean.
     %          - An AstroCatalog object containing the astrometric catalog
     %            used, after applying proper motions, and queryRange.
+    %          - An handle to the original input catalog, after adding the
+    %            RA/Dec columns for all the sources.
+    %            The input catalog is modified only if more than two output
+    %            arguments are requested.
     % Author : Eran Ofek (Jul 2021)
     % Example: Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
    
@@ -150,7 +162,7 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
         
         
         Args.MaxSol2Check                 = 3;      % maximum number of solutions to check
-        Args.TranMethod char              = 'wcs-tpv';   % 'wcs-tpv' | 'tran2d'
+        Args.TranMethod char              = 'TPV';   % 'TPV' | 'tran2d'
         Args.Tran                         = Tran2D;                           
         Args.ErrPos                       = 0.1;
         Args.Niter                        = 2; 
@@ -212,16 +224,12 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
                                                                                     'ColNameMag',Args.RefColNameMag,...
                                                                                     'RangeMag',Args.RefRangeMag,...
                                                                                     'ColNamePlx',Args.RefColNamePlx,...
-                                                                                    'RangePlx',Args.RefRangePlx);
+                                                                                    'RangePlx',Args.RefRangePlx,...
+                                                                                    'OutRADecUnits','rad');
           
     % RA/Dec in [deg]
     RAdeg  = RA.*RAD;
     Decdeg = Dec.*RAD;
-%     % Addtitional constraints on astrometric catalog
-%     % mag and parallax constraints
-%     % no output argument means that CreateNewObj=false
-%     queryRange(AstrometricCat, Args.RefColNameMag, Args.RefRangeMag,...
-%                                                 Args.RefColNamePlx, Args.RefRangePlx);
    
     % Project astrometric catalog
     % set CreateNewObj=true, because AstrometricCat is an output argument.
@@ -330,8 +338,36 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
                 Yref = getColDic(FilteredProjAstCat, RefColNameY);
                 Mag  = getColDic(FilteredProjAstCat, Args.RefColNameMag);
                 
-                switch Args.TranMethod
-                    case 'wcs-tpv'
+                
+                % fit the catalog to the reference and generate the Tran2D
+                % object and all the information required for the WCS
+                
+                [Tran, ParWCS, ResFit] = imProc.astrometry.fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
+                                                       'ImageCenterXY',Result(Iobj).ImageCenterXY,...
+                                                       'Scale',ResPattern.Sol.Scale(Isol),...
+                                                       'ProjType',Args.ProjType,...
+                                                       'TranMethod',Args.TranMethod,...
+                                                       'Tran',Args.Tran,...
+                                                       'ExtraData',[],...
+                                                       'ErrPos',Args.ErrPos,...
+                                                       'Niter',Args.Niter,...
+                                                       'FitMethod',Args.FitMethod,...
+                                                       'MaxResid',Args.MaxResid,...
+                                                       'MagRange',Args.MagRange,...
+                                                       'BinMethod',Args.BinMethod,...
+                                                       'PolyDeg',Args.PolyDeg,...
+                                                       'BinSize',Args.BinSize,...
+                                                       'FunMean',Args.FunMean,...
+                                                       'FunStd',Args.FunStd,...
+                                                       'InterpMethod',Args.InterpMethod,...
+                                                       'ThresholdSigma',Args.ThresholdSigma);
+        
+        
+               Result(Iobj).ParWCS(Isol) = ParWCS;
+               
+        if 1==0        
+                switch lower(Args.TranMethod)
+                    case 'tpv'
                         % The following fitting attempt to mimic the order
                         % of the TAN-TPV transformation
                         
@@ -436,7 +472,9 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
                         error('Unknown TranMethod option');
                 end
                         
-                                  
+        end  % 1==0
+        
+        
                                                           
                 % store transformations
                 Result(Iobj).Tran(Isol)       = Tran;

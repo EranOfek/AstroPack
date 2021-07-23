@@ -1,0 +1,183 @@
+function [Tran, ParWCS, ResFit] = fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg, Args)
+    % Perform the Tran2D.fitAstrometricTran and prepare the WCS info
+    %   This is an auxilary function that performs the fitting stage
+    %   between an astrometric catalog and an image catalog, and return the
+    %   Tran2D object as well as the information needed for the WCS (e.g.,
+    %   CRPIX, CRVAL, etc.).
+    % Input  : - Xcat - Vector of catalog X coordinates
+    %          - Ycat - Vector of catalog Y coordinates
+    %          - Xref - Vector of external reference projected X
+    %               coordinates
+    %          - Yref - Vector of external reference projected Y
+    %               coordinates
+    %          - Mag - Vector of magnitudes
+    %          - RAdeg - RA [deg] of the center for projection.
+    %          - Decdeg - Dec [deg] of the center for projection.
+    %          * ...,key,val,...
+    %            'ImageCenterXY'
+    %            'Scale' - Scale ["/pix]
+    %            'ProjType' - Projection type. See imProc.trans.projection.
+    %                   Default is 'TPV'.
+    %            'TranMethod' - ['TPV'] | 'tran2d'
+    %                   This dictates the fitting scheme.
+    %            'Tran' - A Tran2D object for the transformation to fit.
+    %                   Default is Tran2D.
+    %            'ExtraData' - Additional columns to pass to the Tran2D
+    %                   transformation. Default is [].
+    %            'ErrPos' - Error in positions [pix].
+    %            'Niter' - Number of fitting iterations.
+    %            'FitMethod' - Fitting method for Tran2D/fitAstrometricTran
+    %                   Default is 'lscov'.
+    %            'MaxResid'
+    %            'MagRange'
+    %            'BinMethod'
+    %            'PolyDeg'
+    %            'BinSize'
+    %            'FunMean'
+    %            'FunStd'
+    %            'InterpMethod'
+    %            'ThresholdSigma'
+    
+    
+    arguments
+        Xcat
+        Ycat
+        Xref
+        Yref
+        Mag
+        RAdeg
+        Decdeg
+        Args.ImageCenterXY
+        Args.Scale              
+        Args.ProjType           = 'TPV';
+        Args.TranMethod         = 'TPV';
+        Args.Tran               = Tran2d;
+        Args.ExtraData          = [];
+        Args.ErrPos
+        Args.Niter
+        Args.FitMethod          = 'lscov';
+        Args.MaxResid
+        Args.MagRange
+        Args.BinMethod
+        Args.PolyDeg
+        Args.BinSize
+        Args.FunMean
+        Args.FunStd
+        Args.InterpMethod
+        Args.ThresholdSigma
+        
+    end
+    ARCSEC_DEG = 3600;
+
+
+    switch lower(Args.TranMethod)
+        case 'tpv'
+            % The following fitting attempt to mimic the order
+            % of the TAN-TPV transformation
+
+
+            % fit affine transformation (only)
+            % Units are "pixels"
+            Tran1 = Tran2D('poly1');
+            % note that independent and dependent coordinates change
+            % order
+            [Tran1, ResFit] = fitAstrometricTran(Tran1,...
+                                    Xref, Yref,...
+                                    Xcat, Ycat,...
+                                    'ExtraData',[],...
+                                    'Mag',Mag,...
+                                    'ErrPos',Args.ErrPos,...
+                                    'Niter',1,...
+                                    'FitMethod',Args.FitMethod,...
+                                    'MaxResid',Args.MaxResid,...
+                                    'MagRange',Args.MagRange,...
+                                    'BinMethod',Args.BinMethod,...
+                                    'PolyDeg',Args.PolyDeg,...
+                                    'BinSize',Args.BinSize,...
+                                    'FunMean',Args.FunMean,...
+                                    'FunStd',Args.FunStd,...
+                                    'InterpMethod',Args.InterpMethod,...
+                                    'ThresholdSigma',Args.ThresholdSigma);
+            %
+            CRPIX1     = Tran1.ParX(1);
+            CRPIX2     = Tran1.ParY(1);
+            % CD matrix
+            CD         = [Tran1.ParX(2:3).'; Tran1.ParY(2:3).'];  % [pix]
+            % measured scale in arcsec/pix
+            ScaleASpix = Args.Scale;   % "/pix
+            CD         = CD.*ScaleASpix./ARCSEC_DEG;   % [deg]
+
+            % Apply affine transformation on Xcat, Ycat
+            Xsi  = CD(1,1).*(Xcat - CRPIX1) + CD(1,2).*(Ycat - CRPIX2);
+            Eta  = CD(2,1).*(Xcat - CRPIX1) + CD(2,2).*(Ycat - CRPIX2);
+
+            % convert Xref, Yref to deg
+            XrefT = Xref.*ScaleASpix./ARCSEC_DEG;   % [deg]
+            YrefT = Yref.*ScaleASpix./ARCSEC_DEG;   % [deg]
+
+            % parameters from which to construct WCS
+            ParWCS.CRPIX  = [CRPIX1, CRPIX2] + Args.ImageCenterXY(:).';
+            ParWCS.CRVAL  = [RAdeg, Decdeg];
+            ParWCS.CD     = CD;
+            ParWCS.CUNIT  = {'deg', 'deg'};
+            ParWCS.CTYPE  = {sprintf('RA---%s',upper(Args.ProjType)), sprintf('DEC--%s',upper(Args.ProjType))};
+            ParWCS.NAXIS  = 2;
+
+            [Tran, ResFit] = fitAstrometricTran(Args.Tran,...
+                                    XrefT, YrefT,...
+                                    Xsi, Eta,...
+                                    'ExtraData',[],...
+                                    'Mag',Mag,...
+                                    'ErrPos',Args.ErrPos,...
+                                    'Niter',Args.Niter,...
+                                    'FitMethod',Args.FitMethod,...
+                                    'MaxResid',Args.MaxResid,...
+                                    'MagRange',Args.MagRange,...
+                                    'BinMethod',Args.BinMethod,...
+                                    'PolyDeg',Args.PolyDeg,...
+                                    'BinSize',Args.BinSize,...
+                                    'FunMean',Args.FunMean,...
+                                    'FunStd',Args.FunStd,...
+                                    'InterpMethod',Args.InterpMethod,...
+                                    'ThresholdSigma',Args.ThresholdSigma);
+
+        case 'tran2d'
+            % a full Tran2D solution, where the observations
+            % are the independent variable
+            % and the fit is done in pixel (observations) units
+            % i.e., the logical thing to do
+            [Tran, ResFit] = fitAstrometricTran(Args.Tran,...
+                                    Xcat, Ycat,...
+                                    Xref,Yref,...
+                                    'ExtraData',[],...
+                                    'Mag',Mag,...
+                                    'ErrPos',Args.ErrPos,...
+                                    'Niter',Args.Niter,...
+                                    'FitMethod',Args.FitMethod,...
+                                    'MaxResid',Args.MaxResid,...
+                                    'MagRange',Args.MagRange,...
+                                    'BinMethod',Args.BinMethod,...
+                                    'PolyDeg',Args.PolyDeg,...
+                                    'BinSize',Args.BinSize,...
+                                    'FunMean',Args.FunMean,...
+                                    'FunStd',Args.FunStd,...
+                                    'InterpMethod',Args.InterpMethod,...
+                                    'ThresholdSigma',Args.ThresholdSigma);
+
+
+%                 [Param, Res, Tran] = imProc.trans.fitTransformation(FilteredProjAstCat, MatchedCat,...
+%                                                               'Tran',Args.Tran,...
+%                                                               'Norm',NaN,...
+%                                                               'ColRefX',Args.CatColNamesX,...
+%                                                               'ColRefY',Args.CatColNamesY,...
+%                                                               'ColCatX',RefColNameX,...
+%                                                               'ColCatY',RefColNameY);
+        otherwise
+            error('Unknown TranMethod option');
+    end
+
+
+    
+    
+end
+    

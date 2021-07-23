@@ -38,9 +38,11 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   Default is {'Plx'}.
     %            'RangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
+    %            'OutRADecUnits' - Output units for the RA and Dec output
+    %                   arguments. Default is 'rad'.
     % Output : - An AstroCatalog object with the astrometric catalog.
-    %          - The input RA in [rad].
-    %          - The input Dec in [rad].
+    %          - The input RA [units from 'OutRADecUnits'].
+    %          - The input Dec [units from 'OutRADecUnits'].
     % Author : Eran Ofek (Jun 2021)
     % Example: Result = imProc.cat.getAstrometricCatalog(1,1);
     
@@ -65,6 +67,8 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Args.RangeMag                  = [12 19.5];
         Args.ColNamePlx                = {'Plx'};
         Args.RangePlx                  = [-Inf 50];
+        % OutRADec
+        Args.OutRADecUnits             = 'rad';
     end
     
     % convert RA/Dec to radians (if in degrees)
@@ -129,6 +133,11 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Result.convertCooUnits(Args.OutUnits);
         
     end
+    
+    % convert RA/Dec to OutRADecUnits units
+    Factor = convert.angular('rad',Args.OutRADecUnits);
+    RA     = RA.*Factor;
+    Dec    = Dec.*Factor;
     
 end
 
