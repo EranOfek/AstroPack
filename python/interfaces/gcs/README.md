@@ -1,6 +1,7 @@
 # Simulators
 
-### sim_gcs - IAI GCS Simulator
+### sim_gcs - IAI GCS Interface
+
 
 
 
