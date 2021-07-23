@@ -1,4 +1,4 @@
-function [Result, AstrometricCat] = astrometryCore(Obj, Args)
+function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
     % A core function for astrometry. Match pattern and fit transformation.
     % Input  : - An AstroCatalog object, with sources X, Y positions.
     %            This can be a multiple element object. In this case, the
@@ -165,6 +165,12 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
         Args.InterpMethod                 = 'linear';
         Args.ThresholdSigma               = 3;         
         
+        % add RA/Dec to input catalog (only if nargout>2)
+        Args.OutCatCooUnits               = 'deg';
+        Args.OutCatColRA                  = 'RA';
+        Args.OutCatColDec                 = 'Dec';
+        Args.OutCatColPos                 = Inf;
+        
         Args.CatColNamesX                 = AstroCatalog.DefNamesX;
         Args.CatColNamesY                 = AstroCatalog.DefNamesY;
         Args.CatColNamesMag               = AstroCatalog.DefNamesMag;
@@ -318,8 +324,8 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
                 % MatchedRef has the same number of lines as in Ref,
                 % but it is affine transformed to the coordinate system of Cat
 
-                Xcat = getColDic(MatchedCat, Args.CatColNamesX);
-                Ycat = getColDic(MatchedCat, Args.CatColNamesY);
+                [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
+                [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
                 Xref = getColDic(FilteredProjAstCat, RefColNameX);
                 Yref = getColDic(FilteredProjAstCat, RefColNameY);
                 Mag  = getColDic(FilteredProjAstCat, Args.RefColNameMag);
@@ -369,14 +375,13 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
                         XrefT = Xref.*ScaleASpix./ARCSEC_DEG;   % [deg]
                         YrefT = Yref.*ScaleASpix./ARCSEC_DEG;   % [deg]
 
-                        Result(Iobj).WCS(Isol).CRPIX  = [CRPIX1, CRPIX2] + Result(Iobj).ImageCenterXY(:).';
-                        Result(Iobj).WCS(Isol).CRVAL  = [RAdeg, Decdeg];
-                        Result(Iobj).WCS(Isol).CD     = CD;
-                        Result(Iobj).WCS(Isol).CUINT  = 'deg';
-                        Result(Iobj).WCS(Isol).CTYPE  = Args.ProjType;
-                        Result(Iobj).WCS(Isol).NAXIS  = 2;
-                        
-                        
+                        % parameters from which to construct WCS
+                        Result(Iobj).ParWCS(Isol).CRPIX  = [CRPIX1, CRPIX2] + Result(Iobj).ImageCenterXY(:).';
+                        Result(Iobj).ParWCS(Isol).CRVAL  = [RAdeg, Decdeg];
+                        Result(Iobj).ParWCS(Isol).CD     = CD;
+                        Result(Iobj).ParWCS(Isol).CUNIT  = {'deg', 'deg'};
+                        Result(Iobj).ParWCS(Isol).CTYPE  = {sprintf('RA---%s',upper(Args.ProjType)), sprintf('DEC--%s',upper(Args.ProjType))};
+                        Result(Iobj).ParWCS(Isol).NAXIS  = 2;
                         
                         [Tran, ResFit] = fitAstrometricTran(Args.Tran,...
                                                 XrefT, YrefT,...
@@ -457,13 +462,19 @@ function [Result, AstrometricCat] = astrometryCore(Obj, Args)
             Result(Iobj).ErrorOnMean = [Result(Iobj).ResFit.AssymRMS_mag]./sqrt([Result(Iobj).ResFit.Ngood]);
             [~,Result(Iobj).BestInd] = min(Result(Iobj).ErrorOnMean);
 
-            % Generate WCS
-            'a'
+            % Generate AstroWCS for best solution
+            StructWCS = Result(Iobj).ParWCS(Result(Iobj).BestInd);
+            KeyValWCS = namedargs2cell(StructWCS);
+            Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran(Result(Iobj).BestInd), KeyValWCS{:});
             
             % add RA/Dec to the catalog
-
-
+            if nargout>2
+                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Obj(Iobj).getCol(IndCatX), Obj(Iobj).getCol(IndCatY));
+                Obj(Iobj).insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
+            end
+            
         end
+        
 
     end
     
