@@ -319,7 +319,7 @@ classdef AstroWCS < Component
         %            If next argument is not provided then this is a
         %            two or more column matrix of [PX,PY,...]
         %          - A matrix of pixel Y coordinates.
-        %          -  OutUnits 
+        %          - OutUnits 
         % Output : - A two column matrix of [RA,Dec](e.g. [Alpha, Delta]) or a matrix of RA
         %            coordinates.
         %          - A matrix of Dec coordinates.
@@ -1268,60 +1268,81 @@ classdef AstroWCS < Component
         
    %======== Functions to construct AstroWCS from Tran2D =========
    
-        function Obj = tran2wcs(Tran2D,NAXIS,CRPIX,CRVAL,CD,CTYPE,CUNIT,RADESYS,EQUINOX,LONPOLE,LATPOLE,WCSAXES)
+        function Obj = tran2wcs(Tran2D, Args)
+            % NAXIS,CRPIX,CRVAL,CD,CTYPE,CUNIT,RADESYS,EQUINOX,LONPOLE,LATPOLE,WCSAXES)
             % Create and populate an AstroWCS object from an Trans2D object
 
-            if nargin<12
-                WCSAXES = NAXIS;
-                if nargin<11
-                    LATPOLE = [];
-                    if nargin<10
-                        LONPOLE = [];
-                        if nargin<9
-                            EQUINOX = [];
-                            if nargin<8
-                                RADESYS = [];
-                            end
-                        end
-                    end
-                end
-            end            
+            arguments
+                Tran2D
+                Args.NAXIS
+                Args.CRPIX
+                Args.CRVAL
+                Args.CD
+                Args.CTYPE
+                Args.CUNIT     
+                Args.RADESYS   = [];
+                Args.EQUINOX   = 2000;
+                Args.LONPOLE   = [];
+                Args.LATPOLE   = [];
+                Args.WCSAXES   = [];
+            end
+            
+            if isempty(Args.WCSAXES)
+                Args.WCSAXES = Args.NAXIS;
+            end
+                
+            
+%             if nargin<12
+%                 WCSAXES = NAXIS;
+%                 if nargin<11
+%                     LATPOLE = [];
+%                     if nargin<10
+%                         LONPOLE = [];
+%                         if nargin<9
+%                             EQUINOX = [];
+%                             if nargin<8
+%                                 RADESYS = [];
+%                             end
+%                         end
+%                     end
+%                 end
+%             end            
 
             Obj = AstroWCS(1);
             Obj.Tran2D = Tran2D;
             
             % Paste number of axes
             % if WCSAXES is not given use NAXIS as default
-            Obj.NAXIS = NAXIS;
-            Obj.WCSAXES = WCSAXES;
+            Obj.NAXIS = Args.NAXIS;
+            Obj.WCSAXES = Args.WCSAXES;
 
             
             % paste CTYPE and transalte to projection information (ProjType,
             % ProjClass) and CooName and CUNIT            
-            Obj.CTYPE = CTYPE;
-            Obj.CUNIT = CUNIT;                
+            Obj.CTYPE = Args.CTYPE;
+            Obj.CUNIT = Args.CUNIT;                
             Obj.read_ctype;
             
             % paste base WCS info           
-            if ~isempty(RADESYS)
-                Obj.RADESYS = RADESYS;
+            if ~isempty(Args.RADESYS)
+                Obj.RADESYS = Args.RADESYS;
             end
-            if ~isempty(EQUINOX)
-                Obj.EQUINOX = EQUINOX;
+            if ~isempty(Args.EQUINOX)
+                Obj.EQUINOX = Args.EQUINOX;
             end
-            if ~isempty(LONPOLE)
-                Obj.LONPOLE = LONPOLE;
+            if ~isempty(Args.LONPOLE)
+                Obj.LONPOLE = Args.LONPOLE;
             end
-            if ~isempty(LATPOLE)
-                Obj.LATPOLE = LATPOLE;
+            if ~isempty(Args.LATPOLE)
+                Obj.LATPOLE = Args.LATPOLE;
             end            
          
-            Obj.CRPIX = CRPIX;
-            Obj.CRVAL = CRVAL;
+            Obj.CRPIX = Args.CRPIX;
+            Obj.CRVAL = Args.CRVAL;
                        
-            Obj.CD = CD;
+            Obj.CD = Args.CD;
 
-            Obj.PV = Obj.build_PV_from_Tran2D(Obj.Tran2D,Obj.ProjType);
+            Obj.PV = Obj.build_PV_from_Tran2D(Obj.Tran2D, Obj.ProjType);
             
             %consider adding RevPV for TAN-SIP
             
@@ -2115,7 +2136,7 @@ classdef AstroWCS < Component
             NAXIS = 2; CRPIX(1,:) = [1.0 1.0]; CRVAL(1,:) = [0.0 0.0];
             CD = eye(2); CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
 
-            AW = AstroWCS.tran2wcs(TC,NAXIS,CRPIX,CRVAL,CD,CTYPE,CUNIT);
+            AW = AstroWCS.tran2wcs(TC,'NAXIS',NAXIS,'CRPIX',CRPIX,'CRVAL',CRVAL,'CD',CD,'CTYPE',CTYPE,'CUNIT',CUNIT);
             [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg',false);
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg',false);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);

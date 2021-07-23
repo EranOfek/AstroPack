@@ -1506,8 +1506,8 @@ classdef AstroHeader < Component
             
             % insertDefaultComments
             io.msgLog(LogLevel.Test, 'testing AstroHeader insertDefaultComments')
-            H=AstroHeader('WFPC2ASSNu5780205bx.fits');
-            insertDefaultComments(H);
+            H=AstroHeader();
+            insertDefaultComments(H); % <---- still empty?
             
             % deleteKey
             io.msgLog(LogLevel.Test, 'testing AstroHeader deleteKey')
@@ -1520,41 +1520,53 @@ classdef AstroHeader < Component
 
             % insertKey
             io.msgLog(LogLevel.Test, 'testing AstroHeader insertKey')
-            H=AstroHeader('WFPC2ASSNu5780205bx.fits');
+            H=AstroHeader();
             H.insertKey('stam');
             H.insertKey({'A','','';'B','',''},'end-1');
-            show(H);
+            assert(H.Data{1,1} == 'A');
+            assert(H.Data{2,1} == 'B');
+            assert(prod(H.Data{3,1} == 'stam'))
             
             % replaceVal
             io.msgLog(LogLevel.Test, 'testing AstroHeader replaceVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
-            H.replaceVal({'COMMENT'},{''});
+            H.replaceVal({'COMMENT'},{'replaced'});
+            assert(prod(H.getVal('COMMENT') == 'replaced'))
             
             % isKeyVal
             io.msgLog(LogLevel.Test, 'testing AstroHeader isKeyVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
-            isKeyVal([H, H],'EXPTIME',300);
-            isKeyVal([H;H], 'KSPOTS','off');
-            isKeyVal([H;H], 'KSPOTS','off','ValCaseSens',true);
+            assert(prod(isKeyVal([H, H],'EXPTIME',300)));
+            assert(prod(isKeyVal([H;H], 'KSPOTS','off')));
+            assert(~prod(isKeyVal([H;H], 'KSPOTS','off','ValCaseSens',true)));
 
             % isKeyExist
             io.msgLog(LogLevel.Test, 'testing AstroHeader isKeyExist')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
-            isKeyExist([H, H],'EXPTIME');
-            isKeyExist([H, H],'AEXPTIME');
-            isKeyExist([H; H],'AEXPTIME','IsInputAlt',true);
-            isKeyExist([H, H],'aaa');
+            assert(prod(isKeyExist([H, H],'EXPTIME')));
+            assert(~prod(isKeyExist([H, H],'AEXPTIME')));
+            assert(prod(isKeyExist([H; H],'AEXPTIME','IsInputAlt',true)));
+            assert(prod(~isKeyExist([H, H],'aaa')));
             
             % julday
             io.msgLog(LogLevel.Test, 'testing AstroHeader julday')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             [JD,ET] = julday(H);
+            assert(abs(2.4512e06 - JD)/JD < 0.001) % because floats
+            assert(ET == 300)
             [JD,ET] = julday([H;H]);
+            assert(abs(2.4512e06 - JD(1))/JD(1) < 0.001) % because floats
+            assert(ET(1) == 300)
+            assert(abs(2.4512e06 - JD(2))/JD(2) < 0.001) % because floats
+            assert(ET(2) == 300)
 
             % groupByKeyVal
             io.msgLog(LogLevel.Test, 'testing AstroHeader groupByKeyVal')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             Groups = groupByKeyVal([H,H],{'IMTYPE','FILTER1','EXPTIME'});
+            assert(prod(Groups(1).Content{1} == 'EXT'))
+            assert(Groups(1).Content{2} == 69)
+            assert(Groups(1).Content{3} == 300)
             
             H = AstroHeader('*.fits',1);
             Groups = groupByKeyVal([H,H],{'IMTYPE','FILTER1','EXPTIME'});
@@ -1568,10 +1580,18 @@ classdef AstroHeader < Component
             io.msgLog(LogLevel.Test, 'testing AstroHeader createBasicHeader')
             H = AstroHeader.createBasicHeader;
             H = AstroHeader.createBasicHeader(1,{'WINDDIR',11;'M_STAT','ok';'NEW',1});
+            assert(H.getVal('WINDDIR') == 11)
+            assert(prod(H.getVal('M_STAT') == 'ok'))
+            assert(H.getVal('NEW') == 1)
             H = AstroHeader.createBasicHeader(1,{'WINDDIR',11,'aa';'M_STAT','ok','jj'});
+            assert(H.getVal('WINDDIR') == 11)
+            assert(prod(H.getVal('M_STAT') == 'ok'))
             H = AstroHeader.createBasicHeader([1 2],'WINDDIR',11,'M_STAT','ok','NEW',1); 
+            assert(H(2).getVal('WINDDIR') == 11)
+            assert(prod(H(2).getVal('M_STAT') == 'ok'))
+            assert(H(2).getVal('NEW') == 1)
             
-            % funUnary -- usage unclear
+            % funUnary
             io.msgLog(LogLevel.Test, 'testing AstroHeader funUnary')
             H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             funUnary(H,@sin);
@@ -1579,8 +1599,17 @@ classdef AstroHeader < Component
             % isImType
             io.msgLog(LogLevel.Test, 'testing AstroHeader isImType')
             H=AstroHeader('*.fits');
-            Ans = isImType(H, 'bias');            
-            Ans = isImType(H, 'bias','CaseSens',false,'IsInputAlt',false);
+            Ans = isImType(H, 'SCI');
+            assert(Ans(1))
+            s = size(Ans)
+            for i = 2 : 1 : s
+                assert(~Ans(i))
+            end
+            Ans = isImType(H, 'sci','CaseSens',false,'IsInputAlt',false);
+            assert(Ans(1))
+            for i = 2 : 1 : s
+                assert(~Ans(i))
+            end
             
             % read
             io.msgLog(LogLevel.Test, 'testing AstroHeader read')
