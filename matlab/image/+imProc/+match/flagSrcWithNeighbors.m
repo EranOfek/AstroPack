@@ -3,13 +3,24 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
     %   Optionaly, remove sources with neighboors.
     % Input  : - A multi-element AstroCatalog object.
     %          * ...,key,val,...
-    %            'CooType'
-    %            'Radius'
-    %            'RadiusUnits'
-    %            'ColNamesX'
-    %            'ColNamesY'
-    %            'ColNamesRA'
-    %            'ColNamesDec'
+    %            'CooType' - ['pix'] | 'spere'.
+    %                   'pix' will work on cartesian coordinates, while 'sphere',
+    %                   on spherical coordinates.
+    %            'Radius' - Search radius. Default is 10.
+    %            'RadiusUnits' - Search radius units (for
+    %                   'CooType'='sphere'). Default is 'arcsec'.
+    %            'ColNamesX' - A cell array of dictionary names for the X
+    %                   coordinates (first to appear will be selected).
+    %                   Default is AstroCatalog.DefNamesX.
+    %            'ColNamesY' - A cell array of dictionary names for the Y
+    %                   coordinates (first to appear will be selected).
+    %                   Default is AstroCatalog.DefNamesY.
+    %            'ColNamesRA' - A cell array of dictionary names for the RA
+    %                   coordinates (first to appear will be selected).
+    %                   Default is AstroCatalog.DefNamesRA.
+    %            'ColNamesDec' - A cell array of dictionary names for the
+    %                   Dec coordinates (first to appear will be selected).
+    %                   Default is AstroCatalog.DefNamesDec.
     % Outout : - A vector of logical indicating sources with neighboors
     %            within search radius. If multi-element AstroCatalog, then
     %            only the vector corresponding to last object is returned.
@@ -63,10 +74,11 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
                 error('Unknown CooType option');
         end   
 
-
+        % perform the search
         [IndTable] = VO.search.search_sortedlat_multi(Coo,...
                                                       Coo(:,1), Coo(:,2), RadiusRad, [], DistFun);
 
+        % flag the sources with neighboors
         Flag = [IndTable.Nmatch]>1;
         Flag = Flag(:);
 
