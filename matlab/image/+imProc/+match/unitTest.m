@@ -44,7 +44,9 @@ function Result = unitTest
 
     [Res, Summary, N_Ep] = imProc.match.matched2matrix(MC, 'RA')
 
-
+    % flagSrcWithNeighbors
+    AC = AstroCatalog({rand(100,2).*1024},'ColNames',{'X','Y'});
+    Flag = imProc.match.flagSrcWithNeighbors(AC)
 
     Result = true;
 end
