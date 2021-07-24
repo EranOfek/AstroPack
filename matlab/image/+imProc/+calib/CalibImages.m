@@ -284,6 +284,12 @@ classdef CalibImages < Component
             %                   correct for fringing. Default is false.
             %           'MultiplyByGain' - A logical indicating if to set
             %                   gain to 1. Default is true.
+            %           'InterpolateOverNan' - A logical indicating if to
+            %                   interpolate over NaN pixels.
+            %                   Default is true.
+            %           'InterpolateOberSaturated' - A logical indicating if to
+            %                   interpolate over saturated pixels.
+            %                   Default is true.
             %           'ArgsSaturation' - A cell array of additional
             %                   arguments to pass to imProc.mask.maskSaturated.
             %                   Default is true.
@@ -315,12 +321,17 @@ classdef CalibImages < Component
                 Args.SubtractOverscan(1,1) logical  = true;
                 Args.CorrectFringing(1,1) logical   = false;
                 Args.MultiplyByGain(1,1) logical    = true;
+                Args.InterpolateOverNan(1,1) logical       = true;
+                Args.InterpolateOberSaturated(1,1) logical = true;
                 
                 Args.ArgsSaturation cell            = {};
                 Args.ArgsDebias cell                = {};
                 Args.ArgsOverScan cell              = {};
                 Args.ArgsDeflat cell                = {};
                 Args.ArgsInterpOverNan cell         = {};
+                
+                Args.Bitname_Saturated              = 'Saturated';
+                
             end
             
             % create new copy of Image object
@@ -373,7 +384,18 @@ classdef CalibImages < Component
                 
                 % interpolate over satuiared pixels
                 if Args.InterpolateOverNan && any(isnan(Result(Iim).Image),'all')
-                    Result = imProc.image.interpOverNan(Obj, Args.ArgsInterpOverNan{:},...
+                    Result(Iim) = imProc.image.interpOverNan(Result(Iim), Args.ArgsInterpOverNan{:},...
+                                            'CreateNewObj',false);
+                end
+                
+                % interpolate over saturated pixels
+                if Args.InterpolateOberSaturated
+                    % find saturated pixels
+                    [~, ~, Ind] = findBit(Result(Iobj), Args.Bitname_Saturated);
+                    % set saturated pixels to NaN
+                    Result(Iobj).Image(Ind) = NaN;
+                    % interpolate over staurated pixels
+                    Result(Iim) = imProc.image.interpOverNan(Result(Iim), Args.ArgsInterpOverNan{:},...
                                             'CreateNewObj',false);
                 end
             end
