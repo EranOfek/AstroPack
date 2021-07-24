@@ -305,6 +305,9 @@ classdef CalibImages < Component
             %           'ArgsInterpOverNan' - A cell array of additional
             %                   arguments to pass to imProc.image.interpOverNan.
             %                   Default is true.
+            %           'Bitname_Saturated' - The bit name for saturated
+            %                   pixels in the mask image dictionary.
+            %                   Default is 'Saturated'.
             % Output : - The output AstroImage after calibration.
             % Author : Eran Ofek (Jul 2021)
             % Example:
