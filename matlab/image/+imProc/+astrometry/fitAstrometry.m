@@ -22,22 +22,42 @@ function [Tran, ParWCS, ResFit] = fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAd
     %                   This dictates the fitting scheme.
     %            'Tran' - A Tran2D object for the transformation to fit.
     %                   Default is Tran2D.
+    %            'UseFlag' - - A vector of logicals indicating which
+    %                   sources (in the vectors of coordinates) to
+    %                   use. Default is true.
     %            'ExtraData' - Additional columns to pass to the Tran2D
     %                   transformation. Default is [].
     %            'ErrPos' - Error in positions [pix].
     %            'Niter' - Number of fitting iterations.
     %            'FitMethod' - Fitting method for Tran2D/fitAstrometricTran
     %                   Default is 'lscov'.
-    %            'MaxResid'
-    %            'MagRange'
-    %            'BinMethod'
-    %            'PolyDeg'
-    %            'BinSize'
-    %            'FunMean'
-    %            'FunStd'
-    %            'InterpMethod'
-    %            'ThresholdSigma'
-    
+    %            'MaxResid' - Maximum residual to use in fit.
+    %                   Default is 1.
+    %            'MagRange' - [Min Max] max range. Default is [].
+    %            'BinMethod' - Method to use:
+    %                   'poly' - polynomial fit.
+    %                   'bin' - binning the data.
+    %                   Default is 'bin'
+    %            'PolyDeg' - Polynomial degree for the polynomial fit.
+    %                   Default is 3.
+    %            'BinSize' - Bin size for binning. Default is 1 (mag).
+    %            'FunMean' - A function handle to use when calculating the mean
+    %                   of the data in each bin.
+    %                   Default is @nanmedian.
+    %            'FunStd' - A function handle to use when calculating the std
+    %                   of the data in each bin, or when calculating the global
+    %                   std after the polynomial fit.
+    %                   Default is @imUttil.background.rstd.
+    %            'InterpMethod' - Interpolation method. Default is 'linear'.
+    %            'ThresholdSigma' - Threshold in sigmas (std) for flagging good
+    %                   data. Default is 3.
+    % Output : - The Tran2D object with the fitted transformations
+    %          - (ParWCS) A structure with some of the parameters required
+    %            in order to build the WCS.
+    %          - (ResFit) A structure containing information about the fit
+    %            quality. See Tran2D/fitAstrometricTran for details.
+    % Author : Eran Ofek (Jul 2021)
+    % Example: imProc.astrometry.fitAstrometry
     
     arguments
         Xcat
@@ -52,6 +72,7 @@ function [Tran, ParWCS, ResFit] = fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAd
         Args.ProjType           = 'TPV';
         Args.TranMethod         = 'TPV';
         Args.Tran               = Tran2d;
+        Args.UseFlag logical    = true;
         Args.ExtraData          = [];
         Args.ErrPos
         Args.Niter
@@ -84,6 +105,7 @@ function [Tran, ParWCS, ResFit] = fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAd
             [Tran1, ResFit] = fitAstrometricTran(Tran1,...
                                     Xref, Yref,...
                                     Xcat, Ycat,...
+                                    'UseFlag',Args.UseFlag,...
                                     'ExtraData',[],...
                                     'Mag',Mag,...
                                     'ErrPos',Args.ErrPos,...

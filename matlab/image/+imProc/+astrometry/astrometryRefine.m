@@ -8,13 +8,19 @@ function astrometryRefine(Obj, Args)
         Args.Header         = []; % If given convert to AstroWCS
         Args.WCS            = []; % If given generate RA/Dec for sources
         
+        Args.RA             = [];
+        Args.Dec            = [];
+        Args.CooUnits       = 'deg';
+        Args.Scale          = [];
         
+        Args.flagSrcWithNeighborsArgs cell      = {};
+        Args.ReuseAstrometricCat(1,1) logical   = true;
         
-        Args.CatColNamesX                 = AstroCatalog.DefNamesX;
-        Args.CatColNamesY                 = AstroCatalog.DefNamesY;
-        Args.CatColNamesMag               = AstroCatalog.DefNamesMag;
-        Args.RefColNamesRA                = AstroCatalog.DefNamesRA;
-        Args.RefColNamesDec               = AstroCatalog.DefNamesDec;
+        Args.CatColNamesX                   = AstroCatalog.DefNamesX;
+        Args.CatColNamesY                   = AstroCatalog.DefNamesY;
+        Args.CatColNamesMag                 = AstroCatalog.DefNamesMag;
+        Args.RefColNamesRA                  = AstroCatalog.DefNamesRA;
+        Args.RefColNamesDec                 = AstroCatalog.DefNamesDec;
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -30,26 +36,46 @@ function astrometryRefine(Obj, Args)
     Nobj  = numel(Obj);
     Nhead = numel(Args.Header);
     Nwcs  = numel(Args.WCS);
+    CooFromBoundingCircle = false;
+    AstrometricCat        = [];
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
         
         % get X/Y columns from catalog
-        [Xcat,~,IndCatX] = getColDic(Obj, Args.CatColNamesX);
-        [Ycat,~,IndCatY] = getColDic(Obj, Args.CatColNamesY);
+        [Xcat,~,IndCatX] = getColDic(Obj(Iobj), Args.CatColNamesX);
+        [Ycat,~,IndCatY] = getColDic(Obj(Iobj), Args.CatColNamesY);
 
         if ~isempty(Args.Header)
             % convert AstroHeader to AstroWCS
             % populate Args.WCS
             Ihead = min(Iobj, Nhead);
-            Args.WCS = AstroWCS.header2wcs(Args.Header(Ihead)   );
+            Args.WCS = AstroWCS.header2wcs(Args.Header(Ihead));
             Nwcs     = 1;
         end
-        if ~isempty(Args.WCS)
+        if isempty(Args.WCS)
+            % assume RA/Dec are available in AstroCatalog
+            [SrcRA, SrcDec] = getLonLat(Obj(Iobj), 'rad');
+        else
             % Convert X/Y to RA/Dec using AstroWCS
             Iwcs = min(Iobj, Nwcs);
             [SrcRA, SrcDec] = Args.WCS(Iwcs).xy2sky(Xcat, Ycat, 'rad');
         end
     
+        if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
+            % estimate RA/Dec of center of catalog from catalog itself
+            CircleUnits = 'deg';
+            [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Obj(Iobj), 'OutUnits',CircleUnits);
+            Args.CooUnits       = CircleUnits;
+            Args.CatRadiusUnits = CircleUnits;
+            CooFromBoundingCircle = true;
+        else
+            CooFromBoundingCircle = false;
+        end
+            
+        if Args.ReuseAstrometricCat && ~isempty(AstrometricCat) 
+            Args.CatName = AstrometricCat;
+        end
+            
         % Get astrometric catalog / incluidng proper motion
         % RA and Dec output are in radians
         % If CatName is an AstroCatalog, then will retun as is, but RA and Dec
@@ -74,30 +100,38 @@ function astrometryRefine(Obj, Args)
     
         % estimate plate scale
         if isempty(Args.Scale)
-            Scale = 
+            % estimate scale based on distances between sources
+            SrcDistRad = celestial.coo.sphere_dist_fast(SrcRA, SrcDec, SrcRA(1), SrcDec(1));
+            SrcDistPix = sqrt((Xcat - Xcat(1)).^2 + (Ycat - Ycat(1)).^2);
+            Scale = median(SrcDistRad.*RAD.*ARCSEC_DEG./SrcDistPix);
         else
             Scale = Args.Scale;
         end
         
-        ProjectionScale = (180./pi) .* 3600 ./ mean(Scale);
+        ProjectionScale = RAD .* ARCSEC_DEG ./ Scale;
     
         % projection
         ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                        'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                        'CreateNewObj',true);
         % filter Cat - remove sources with neighboors
-        [Flag, Obj] = imProc.match.flagSrcWithNeighbors(Obj, Args)
-        
-        
-        
+        if Args.RemoveNeighboors
+            UseFlag = imProc.match.flagSrcWithNeighbors(Obj, Args.flagSrcWithNeighborsArgs{:});
+        else
+            UseFlag = true;
+        end
+                
         % match the RA/Dec against an external catalog
-        [MatchedCat,UM,TUM] = imProc.match.match(FilteredCat, TransformedProjAstCat,...
+        [MatchedCat,UM,TUM] = imProc.match.match(Obj(Iobj), ProjAstCat,...
                                                      'Radius',Args.SearchRadius,...
                                                      'CooType','pix',...
                                                      'ColCatX',Args.CatColNamesX,...
                                                      'ColCatY',Args.CatColNamesY,...
                                                      'ColRefX',RefColNameX,...
                                                      'ColRefY',RefColNameY);
+          
+        %
+        ????? MatchedCat -> Xcat,Ycat,...
                                                  
         % fit
         [Tran, ParWCS, ResFit] = imProc.astrometry.fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
@@ -106,6 +140,7 @@ function astrometryRefine(Obj, Args)
                                                        'ProjType',Args.ProjType,...
                                                        'TranMethod',Args.TranMethod,...
                                                        'Tran',Args.Tran,...
+                                                       'UseFlag',UseFlag,...
                                                        'ExtraData',[],...
                                                        'ErrPos',Args.ErrPos,...
                                                        'Niter',Args.Niter,...

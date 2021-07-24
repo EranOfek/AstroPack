@@ -739,6 +739,9 @@ classdef Tran2D < handle
             %          - Vector of X coordinate (dependent variable)
             %          - Vector of Y coordinate (dependent variable)
             %          * ...,key,val,...
+            %            'UseFlag' - A vector of logicals indicating which
+            %                   sources (in the vectors of coordinates) to
+            %                   use. Default is true.
             %            'ExtraData' - Additional columns of independent
             %                   variables to pass to the transformation
             %                   functionals. E.g., [Color, AM, PA].
@@ -783,6 +786,7 @@ classdef Tran2D < handle
                 Yind
                 Xdep
                 Ydep
+                Args.UseFlag logical   = true;
                 Args.ExtraData   % Array with Ndata columns - e.g., [Color, AM, PA]
                 Args.Mag         % vector of magnitudes
                 Args.ErrPos            = 0.01;
@@ -807,7 +811,7 @@ classdef Tran2D < handle
             % fitting
             Iter = 0;
             % fit all sources in first iteration
-            FlagSrc = ~isnan(sum(Hx,2)) & ~isnan(sum(Hy,2)) & ~isnan(Xind) & ~isnan(Yind);
+            FlagSrc = Args.UseFlag & ~isnan(sum(Hx,2)) & ~isnan(sum(Hy,2)) & ~isnan(Xind) & ~isnan(Yind);
             %Hx      = Hx(FlagSrc,:);
             %Hy      = Hy(FlagSrc,:);
             %CatX    = Xind(FlagSrc);
