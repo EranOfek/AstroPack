@@ -131,8 +131,17 @@ function astrometryRefine(Obj, Args)
                                                      'ColRefY',RefColNameY);
           
         %
-        ????? MatchedCat -> Xcat,Ycat,...
-                                                 
+        % Count the number of matches
+        Flag = ~isnan(MatchedCat.Catalog(:,1));
+        Nmatches = sum(Flag);
+                
+        [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
+        [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
+        Xref = getColDic(ProjAstCat, RefColNameX);
+        Yref = getColDic(ProjAstCat, RefColNameY);
+        Mag  = getColDic(ProjAstCat, Args.RefColNameMag);
+        
+        
         % fit
         [Tran, ParWCS, ResFit] = imProc.astrometry.fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
@@ -156,7 +165,7 @@ function astrometryRefine(Obj, Args)
                                                        'ThresholdSigma',Args.ThresholdSigma);
         
         %
-        Result(Iobj).ParWCS(Isol) = ParWCS;
+        Result(Iobj).ParWCS(Isol)     = ParWCS;
         % store transformations
         Result(Iobj).Tran(Isol)       = Tran;
         Result(Iobj).ResFit(Isol)     = ResFit;
