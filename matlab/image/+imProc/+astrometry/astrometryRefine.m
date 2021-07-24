@@ -1,4 +1,4 @@
-function astrometryRefine(Obj, Args)
+function Result = astrometryRefine(Obj, Args)
     % Refine an astrometric solution of an AstroCatalog object
     %   
     
@@ -13,8 +13,27 @@ function astrometryRefine(Obj, Args)
         Args.CooUnits       = 'deg';
         Args.Scale          = [];
         
+        Args.ProjType                     = 'TPV';
+
+        Args.CatName                      = 'GAIAEDR3';  % or AstroCatalog
+        Args.CatOrigin                    = 'catsHTM';
+        Args.CatRadius                    = 1400;
+        Args.CatRadiusUnits               = 'arcsec'
+        Args.Con                          = {};
+        
+        Args.RefColNameMag                = {'Mag_BP','Mag'};
+        Args.RefRangeMag                  = [12 19.5];
+        Args.RefColNamePlx                = {'Plx'};
+        Args.RefRangePlx                  = [-Inf 50];
+        
+        Args.EpochOut                     = [];
+        Args.argsProperMotion cell        = {};
+        
         Args.flagSrcWithNeighborsArgs cell      = {};
         Args.ReuseAstrometricCat(1,1) logical   = true;
+        
+        
+        
         
         Args.CatColNamesX                   = AstroCatalog.DefNamesX;
         Args.CatColNamesY                   = AstroCatalog.DefNamesY;
@@ -143,6 +162,9 @@ function astrometryRefine(Obj, Args)
         
         
         % fit
+        
+        why do we need ImageCenterXY ?
+        
         [Tran, ParWCS, ResFit] = imProc.astrometry.fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
                                                        'Scale',ResPattern.Sol.Scale(Isol),...
@@ -165,10 +187,10 @@ function astrometryRefine(Obj, Args)
                                                        'ThresholdSigma',Args.ThresholdSigma);
         
         %
-        Result(Iobj).ParWCS(Isol)     = ParWCS;
+        Result(Iobj).ParWCS     = ParWCS;
         % store transformations
-        Result(Iobj).Tran(Isol)       = Tran;
-        Result(Iobj).ResFit(Isol)     = ResFit;
+        Result(Iobj).Tran       = Tran;
+        Result(Iobj).ResFit     = ResFit;
     end
                
                                                       
