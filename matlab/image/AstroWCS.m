@@ -2149,9 +2149,9 @@ classdef AstroWCS < Component
             % Construct AstroWCS from Tran2D after real fit
             load('Result.mat');
             NAXIS = 2;             CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
-            CD = Result.WCS(1).CD;
-            CRPIX = [Result.WCS(1).CRPIX1 Result.WCS(1).CRPIX2];
-            CRVAL = [Result.WCS(1).CRVAL1 Result.WCS(1).CRVAL2];
+            CD = Result.ParWCS(1).CD;
+            CRPIX =  Result.ParWCS(1).CRPIX;
+            CRVAL =  Result.ParWCS(1).CRVAL;
             TC = Result.Tran(1);
             TC.PolyRep;
             AW = AstroWCS.tran2wcs(TC,'NAXIS',NAXIS,'CRPIX',CRPIX,'CRVAL',CRVAL,'CD',CD,'CTYPE',CTYPE,'CUNIT',CUNIT);
@@ -2159,6 +2159,12 @@ classdef AstroWCS < Component
             assert(Alpha(1)~=Alpha(2));
             assert(Delta(1)~=Delta(2));
             
+            
+            AI = AstroImage('PTF_Cropped.fits');
+            ds9(AI);
+            load('AstrometricCat_PTF_Cropped.mat');
+            [PX,PY]  = AW.sky2xy(AstrometricCat.Catalog(:,1),AstrometricCat.Catalog(:,2),'rad');
+            ds9.plot([PX,PY]);
             
             % Construct/update AstroHeader from AstroWCS
             AH1 = AW.wcs2head;
