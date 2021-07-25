@@ -15,6 +15,14 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+
+% BUGS & ISSUES:
+% If ds9.open does not display the image - see possible problem/solution:
+%       https://docs.google.com/document/d/1Q2qI25B9DlF2i7IbWdmPPt3sn3TL0Eq0P5HEaYI6HfM/edit#
+%       Fix a contradiction in the matlab libraries, that cause a problem running system commands:
+%       sudo mv /usr/local/MATLAB/R2020b/sys/os/glnxa64/libstdc++.so.6 /usr/local/MATLAB/R2020b/sys/os/glnxa64/libstdc++.so.6.orig
+
+
 classdef ds9 < handle
     
     
