@@ -85,7 +85,7 @@ classdef AstroImage < Component
         HeaderData(1,1) AstroHeader          %= AstroHeader;
         CatData(1,1) AstroCatalog            %= AstroCatalog;
         PSFData(1,1) AstroPSF                %= AstroPSF;
-        WCS   % not ready: AstroWCS
+        WCS(1,1) AstroWCS                 
         
         PropagateErr(1,1) logical          = false;
         
@@ -426,6 +426,16 @@ classdef AstroImage < Component
             Data = Obj.HeaderData.Key;
         end
         
+        function Data = get.WCS(Obj)
+            % getter for WCS
+            % if empty, attempt to create from header
+            
+            if isempty(Obj.WCS) && ~isempty(Obj.HeaderData)
+                Obj.WCS = AstroWCS.header2wcs(Obj.HeaderData);
+            end
+            Data = Obj.WCS;
+                
+        end
 
     end
     

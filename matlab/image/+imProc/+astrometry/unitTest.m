@@ -83,6 +83,11 @@ function Result = unitTest()
     %toc
     
     
+    % astrometryRefine
+    AI = AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+    W=AstroWCS.header2wcs(AI.HeaderData);
+    
+    
     cd(PWD);
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
     Result = true;
