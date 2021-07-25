@@ -176,7 +176,7 @@ classdef AstroImage < Component
                 Obj.CatData     = AstroCatalog;
                 Obj.CatData     = AstroCatalog;
                 Obj.PSFData     = AstroPSF;
-                Obj.WCS         = [];            % FFU: update when WCS class is ready
+                %Obj.WCS                             % FFU: update when WCS class is ready
                 
             else
                 if isnumeric(FileNames)

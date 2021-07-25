@@ -918,6 +918,12 @@ classdef Tran2D < handle
             Res.RMS_Y    = RMS_Y;
             Res.RMS      = RMS;
 
+            % add X/Y coordnates of sources
+            Res.Xind     = Xind;
+            Res.Yind     = Yind;
+            Res.Xdep     = Xdep;
+            Res.Ydep     = Ydep;
+            
             if isempty(ResResid)
                 % no asymptotic rms
                 Res.AssymRMS     = NaN;

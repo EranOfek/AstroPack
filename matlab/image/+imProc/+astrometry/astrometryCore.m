@@ -149,7 +149,7 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
         Args.ProjType                     = 'TPV';
         Args.ImageCenterXY                = [];  % attempt to identify automatically
         
-        Args.Scale                        = 1.0;      % range or value [arcsec/pix]
+        Args.Scale                        = 1.01;      % range or value [arcsec/pix]
         Args.RotationRange(1,2)           = [-90, 90];
         Args.RotationStep(1,1)            = 0.2;
         
@@ -158,7 +158,7 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
         Args.StepX(1,1)                   = 4;
         Args.StepY(1,1)                   = 4;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
-        Args.SearchRadius(1,1)            = 5;
+        Args.SearchRadius(1,1)            = 10;   
         
         
         Args.MaxSol2Check                 = 3;      % maximum number of solutions to check
@@ -301,6 +301,12 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
             for Isol=1:1:Nsol
                 % Apply affine transformation to Reference
                 % CreateNewObj=true, because FilteredProjAstCat is needed later on
+                
+                
+                % 
+                warning('This -4 is helping - is this due to a bug in the pattern finding?');
+                ResPattern.Sol.AffineTran{Isol}(2:3,3) = ResPattern.Sol.AffineTran{Isol}(2:3,3) - 4;
+                
                 TransformedProjAstCat = imProc.trans.tranAffine(FilteredProjAstCat, ResPattern.Sol.AffineTran{Isol}, true,...
                                                                 'ColX',RefColNameX,...
                                                                 'ColY',RefColNameY);
@@ -364,6 +370,16 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
         
         
                Result(Iobj).ParWCS(Isol) = ParWCS;
+               
+               Xorig = Xcat+Result.ImageCenterXY(1);
+               Yorig = Ycat+Result.ImageCenterXY(2);
+
+               %plot(Xorig, ResFit.Resid.*3600,'.')
+               %plot(Yorig, ResFit.Resid.*3600,'.')
+               scatter(Xorig, Yorig, 10, ResFit.Resid.*3600,'filled')
+               colorbar
+
+               'a'
                
 %         if 1==0        
 %                 switch lower(Args.TranMethod)
