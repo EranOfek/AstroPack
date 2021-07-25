@@ -1356,6 +1356,10 @@ classdef AstroWCS < Component
                 set_rev = false;
             end            
             
+            if isempty(Tran2D.PolyRep.PolyParX) || isempty(Tran2D.PolyRep.PolyX_Xdeg) || isempty(Tran2D.PolyRep.PolyX_Ydeg) || ...
+                    isempty(Tran2D.PolyRep.PolyParY) || isempty(Tran2D.PolyRep.PolyY_Xdeg) || isempty(Tran2D.PolyRep.PolyY_Ydeg)
+                Tran2D.polyRep;
+            end
             
             PV = AstroWCS.DefPVstruct;
             
@@ -2131,7 +2135,7 @@ classdef AstroWCS < Component
             % Construct AstroWCS from Tran2D
             TC=Tran2D; 
             TC.symPoly; TC.ParX = ones(1,13);TC.ParY = ones(1,13);
-            TC.polyCoef; TC.polyRep;
+            TC.polyCoef; %TC.polyRep;
             
             NAXIS = 2; CRPIX(1,:) = [1.0 1.0]; CRVAL(1,:) = [0.0 0.0];
             CD = eye(2); CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
@@ -2141,11 +2145,26 @@ classdef AstroWCS < Component
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg',false);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for Tran2D (TPV) (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));            
+
+            % Construct AstroWCS from Tran2D after real fit
+            load('Result.mat');
+            NAXIS = 2;             CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
+            CD = Result.WCS(1).CD;
+            CRPIX = [Result.WCS(1).CRPIX1 Result.WCS(1).CRPIX2];
+            CRVAL = [Result.WCS(1).CRVAL1 Result.WCS(1).CRVAL2];
+            TC = Result.Tran(1);
+            TC.PolyRep;
+            AW = AstroWCS.tran2wcs(TC,'NAXIS',NAXIS,'CRPIX',CRPIX,'CRVAL',CRVAL,'CD',CD,'CTYPE',CTYPE,'CUNIT',CUNIT);
+            [Alpha, Delta]  = AW.xy2sky([1;1000],[1;1000]);
+            assert(Alpha(1)~=Alpha(2));
+            assert(Delta(1)~=Delta(2));
+            
             
             % Construct/update AstroHeader from AstroWCS
             AH1 = AW.wcs2head;
             
             AH = AW.wcs2head(AH);
+            
             
             
             
