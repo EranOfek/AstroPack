@@ -1,4 +1,4 @@
-function [Tran, ParWCS, ResFit] = fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg, Args)
+function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg, Args)
     % Perform the Tran2D.fitAstrometricTran and prepare the WCS info
     %   This is an auxilary function that performs the fitting stage
     %   between an astrometric catalog and an image catalog, and return the
@@ -57,7 +57,7 @@ function [Tran, ParWCS, ResFit] = fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAd
     %          - (ResFit) A structure containing information about the fit
     %            quality. See Tran2D/fitAstrometricTran for details.
     % Author : Eran Ofek (Jul 2021)
-    % Example: imProc.astrometry.fitAstrometry
+    % Example: imProc.astrometry.fitWCS
     
     arguments
         Xcat
