@@ -1274,10 +1274,10 @@ classdef AstroWCS < Component
 
             arguments
                 Tran2D
-                Args.NAXIS
-                Args.CRPIX
-                Args.CRVAL
-                Args.CD
+                Args.NAXIS(1,1)
+                Args.CRPIX(1,2)
+                Args.CRVAL(1,2)
+                Args.CD(2,2)
                 Args.CTYPE
                 Args.CUNIT     
                 Args.RADESYS   = [];
