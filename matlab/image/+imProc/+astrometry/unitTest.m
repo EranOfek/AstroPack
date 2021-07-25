@@ -59,7 +59,7 @@ function Result = unitTest()
     % catsHTM
     load AstrometricCat_PTF_Cropped.mat
     
-    Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
+    Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
     [Result,~,AI.CatData] = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
     
     % test bad initial conditions
