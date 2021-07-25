@@ -455,9 +455,6 @@ classdef ds9 < handle
             %            7. A SIM object.
             %          - Frame number, or vector of frames. Default is 1.
             %          * ...,key,val,...
-            %            'Frame' - Frame indices or frame parameters
-            %                      (e.g., 'next'). Default is (1:N), where
-            %                      N is the number of images to display.
             %            'Scale' - See ds9.scale. Default is 'mode zscale'.
             %            'CMap'  - See ds9.cmap. Default is [].
             %            'Colorbar' - See ds9.colorbar. Default is 'no'.
