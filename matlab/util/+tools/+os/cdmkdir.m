@@ -16,7 +16,7 @@ catch
     end
     Split = regexp(Dir,filesep,'split');
     % remove empty strings
-    Split = Split(~Util.cell.isempty_cell(Split));
+    Split = Split(~tools.cell.isempty_cell(Split));
     Nsplit = numel(Split);
     for Isplit=1:1:Nsplit
         if exist(Split{Isplit},'dir')==0
