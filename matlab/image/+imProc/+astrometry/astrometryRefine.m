@@ -82,11 +82,18 @@ function Result = astrometryRefine(Obj, Args)
         end
     
         if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
-            % estimate RA/Dec of center of catalog from catalog itself
-            CircleUnits = 'deg';
-            [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Obj(Iobj), 'OutUnits',CircleUnits);
-            Args.CooUnits       = CircleUnits;
-            Args.CatRadiusUnits = CircleUnits;
+            if isempty(Args.WCS)
+                % estimate RA/Dec of center of catalog from catalog itself
+                CircleUnits         = 'deg';
+                [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Obj(Iobj),'CooType','pix','OutUnits',CircleUnits); 
+
+                Args.CooUnits       = CircleUnits;
+                Args.CatRadiusUnits = CircleUnits;
+            else
+                % estimate from image center and WCS
+                error('not yet available');
+                
+            end
             CooFromBoundingCircle = true;
         else
             CooFromBoundingCircle = false;

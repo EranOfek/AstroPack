@@ -420,6 +420,9 @@ classdef AstroCatalog < AstroTable
             %            All elements must have the same CooType.
             %          * ...,key,val,...
             %            'OutUnits' - Output units. Default is 'deg'.
+            %            'CooType' - Coordinate type {'sphere'|'pix'}.
+            %                   If empty, use the AstroCatalog CooType.
+            %                   Default is empty.
             % Output : - The best fit circle X/Long
             %          - The best fit circle Y/Lat
             %          - The best fit circle radius
@@ -432,6 +435,7 @@ classdef AstroCatalog < AstroTable
             arguments
                 Obj
                 Args.OutUnits char       = 'deg';
+                Args.CooType             = [];
             end
             
             Nobj         = numel(Obj);
@@ -440,11 +444,18 @@ classdef AstroCatalog < AstroTable
             CircleRadius = nan(size(Obj));
             
             for Iobj=1:1:Nobj
-                [X, Y] = getCoo(Obj(Iobj),'rad');
-                switch lower(Obj(Iobj).CooType)
+                if isempty(Args.CooType)
+                    CooType = Obj(Iobj).CooType;
+                else
+                    CooType = Args.CooType;
+                end
+                %[X, Y] = getCoo(Obj(Iobj),'rad');
+                switch lower(CooType)
                     case 'sphere'
+                        [X, Y] = getLonLat(Obj(Iobj),'rad');
                         [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
                     case 'pix'
+                        [X, Y] = getXY(Obj(Iobj));
                         [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
                     otherwise
                         error('Unknown CooType=%s option',Obj(Iobj).CooType);
