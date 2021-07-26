@@ -77,6 +77,9 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
     %                   Default is [1 1; 1 -1;-1 1;-1 -1].
     %            'SearchRadius' - Matching search radius [pixels].
     %                   Default is 5.
+    %            'FilterSigma' - Width [sigma units] of Gaussian filter with
+    %                   which to cross-correlate the H2 (hits for shifts) matrix.
+    %                   If empty, no filtering is applied. Default is 3.
     %            'Tran' - A Tran2D object describing the 2D transformation
     %                   to fit.
     %                   Default is Tran2D.
@@ -153,12 +156,13 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
         Args.RotationRange(1,2)           = [-90, 90];
         Args.RotationStep(1,1)            = 0.2;
         
-        Args.RangeX(1,2)                  = [-1000 1000]; 
-        Args.RangeY(1,2)                  = [-1000 1000]; 
-        Args.StepX(1,1)                   = 3;
-        Args.StepY(1,1)                   = 3;
+        Args.RangeX(1,2)                  = [-1000 1000].*0.1; 
+        Args.RangeY(1,2)                  = [-1000 1000].*0.1; 
+        Args.StepX(1,1)                   = 2;
+        Args.StepY(1,1)                   = 2;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
-        Args.SearchRadius(1,1)            = 12;   
+        Args.SearchRadius(1,1)            = 10;   
+        Args.FilterSigma                  = 3;
         
         
         Args.MaxSol2Check                 = 3;      % maximum number of solutions to check
@@ -284,6 +288,7 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
                                                                           'StepY',Args.StepY,...
                                                                           'Flip',Args.Flip,...
                                                                           'SearchRadius',Args.SearchRadius,...
+                                                                          'FilterSigma',Args.FiltreSigma,...
                                                                           'ColNamesX',Args.CatColNamesX,...
                                                                           'ColNamesY',Args.CatColNamesY);
 
@@ -387,8 +392,8 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
                
                %plot(Xorig, ResFit.Resid.*3600,'.')
                %plot(Yorig, ResFit.Resid.*3600,'.')
-%                scatter(Xorig, Yorig, 10, ResFit.Resid.*3600,'filled')
-%                colorbar
+                scatter(Xorig, Yorig, 10, ResFit.Resid.*3600,'filled')
+                colorbar
 % 
 %                'a'
                

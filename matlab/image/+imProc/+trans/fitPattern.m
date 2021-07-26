@@ -100,6 +100,9 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
     %            'MinVariance' - The minimum variance in in the 2D histogram,
     %                     That is used to calculate the S/N.
     %                     Default is 1.
+    %            'FilterSigma' - Width [sigma units] of Gaussian filter with
+    %                   which to cross-correlate the H2 (hits for shifts) matrix.
+    %                   If empty, no filtering is applied. Default is 3.
     % Output : - A structure of possible solutions for matching between the two
     %            catalogs. Follwoing fields are available:
     %            .SN
@@ -160,6 +163,7 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
         Args.SubSizeXY               = [128 128];  % or 'full'
         Args.Overlap                 = [16]; 
         Args.MinVariance             = 1;
+        Args.FilterSigma             = 3;
     end
     
     % Obj1
@@ -245,7 +249,8 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
                                                                                        'VarFunPar',Args.VarFunPar,...
                                                                                        'SubSizeXY',Args.SubSizeXY,...
                                                                                        'Overlap',Args.Overlap,...
-                                                                                       'MinVariance',Args.MinVariance);
+                                                                                       'MinVariance',Args.MinVariance,...
+                                                                                       'FilterSigma',Args.FilterSigma);
                                                                                        
         if nargout>1                                                                           
             Result(Imax).Sol  = OutputArgs{1};

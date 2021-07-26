@@ -88,6 +88,9 @@ function [Res,H2]=find_shift_pairs(Cat,Ref,varargin)
 %            'MinVariance' - The minimum variance in in the 2D histogram,
 %                     That is used to calculate the S/N.
 %                     Default is 1.
+%            'FilterSigma' - Width [sigma units] of Gaussian filter with
+%                   which to cross-correlate the H2 (hits) matrix.
+%                   If empty, no filtering is applied. Default is 3.
 %            'CatColX' - Catalog column that contains the X axis. Default is 1.
 %            'CatColY' - Catalog column that contains the Y axis. Default is 2.
 %            'RefColX' - Reference column that contains the X axis. Default is 1.
@@ -158,6 +161,7 @@ addOptional(InPar,'VarFunPar',{}); % {[1 2]});
 addOptional(InPar,'SubSizeXY',[128 128]);  % or 'full'
 addOptional(InPar,'Overlap',[16]); 
 addOptional(InPar,'MinVariance',1);
+addOptional(InPar,'FilterSigma',3);
 
 addOptional(InPar,'CatColX',1);
 addOptional(InPar,'CatColY',2);
@@ -204,6 +208,14 @@ for Iflip=1:1:Nflip
     
     % generate a 2D histogram of X and Y distances
     [H2,VecX,VecY] = imUtil.patternMatch.hist2d(Dx(:),Dy(:),InPar.RangeX,InPar.RangeY,InPar.StepX,InPar.StepY);
+    
+    % filter H2
+    if ~isempty(InPar.FilterSigma)
+        Gaussian = imUtil.kernel2.gauss(InPar.FilterSigma);
+        Gaussian = Gaussian./sqrt(sum(Gaussian(:).^2));
+        H2       = imUtil.filter.filter2_fast(H2, Gaussian);
+    end
+    
     % Fix the sign of VecX, VecY according to the Flip
     VecX = VecX.*InPar.Flip(Iflip,1);
     VecY = VecY.*InPar.Flip(Iflip,2);
