@@ -82,7 +82,7 @@ end
 
 if isnumeric(InPar.Date)
     % assume JD
-    InPar.Date = convert.time(celestial.time.julday,'JD','StrDate');
+    InPar.Date = convert.time(InPar.Date,'JD','StrDate');
     InPar.Date = InPar.Date{1};
 end
 
