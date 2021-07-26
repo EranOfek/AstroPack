@@ -31,9 +31,7 @@ function Result = astrometryRefine(Obj, Args)
         
         Args.flagSrcWithNeighborsArgs cell      = {};
         Args.ReuseAstrometricCat(1,1) logical   = true;
-        
-        
-        
+                
         
         Args.CatColNamesX                   = AstroCatalog.DefNamesX;
         Args.CatColNamesY                   = AstroCatalog.DefNamesY;

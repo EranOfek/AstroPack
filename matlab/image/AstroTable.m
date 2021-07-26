@@ -636,7 +636,11 @@ classdef AstroTable < Component
                 end
             end
             if nargout>1
-                Units = Obj.ColUnits(ColInd);
+                if ColInd>numel(Obj.ColUnits)
+                    Units = '';
+                else
+                    Units = Obj.ColUnits(ColInd);
+                end
             end
             
             if UpdateAstroTable
