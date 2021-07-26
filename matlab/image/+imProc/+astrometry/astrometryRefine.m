@@ -1,10 +1,10 @@
-function Result = astrometryRefine(Obj, Args)
+function Result = astrometryRefine(ObjAC, Args)
     % Refine an astrometric solution of an AstroCatalog object
     %   
     
     
     arguments
-        Obj AstroCatalog
+        ObjAC AstroCatalog
         Args.Header         = []; % If given convert to AstroWCS
         Args.WCS            = []; % If given generate RA/Dec for sources
         
@@ -34,7 +34,11 @@ function Result = astrometryRefine(Obj, Args)
                 
         Args.RemoveNeighboors(1,1) logical      = true;
         
-        Args.SearchRadius                       = 3;        
+        Args.SearchRadius                       = 3;    
+        
+        Args.IncludeDistortions(1,1) logical    = false;
+        
+        Args.CreateNewObj(1,1) logical          = true;
         
         Args.CatColNamesX                   = AstroCatalog.DefNamesX;
         Args.CatColNamesY                   = AstroCatalog.DefNamesY;
@@ -45,8 +49,14 @@ function Result = astrometryRefine(Obj, Args)
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
     % The name of the projected X/Y coordinates in the Reference astrometric catalog
-    RefColNameX = 'X';
-    RefColNameY = 'Y';
+    RefColNameX   = 'X';
+    RefColNameY   = 'Y';
+    CatColNameRA  = 'RA';
+    CatColNameDec = 'Dec';
+    
+    if Args.CreateNewObj
+        Obj = ObjAC.copyObject;
+    end
     
     
     % Case 1. AstroCatalog contains RA/Dec
@@ -78,7 +88,10 @@ function Result = astrometryRefine(Obj, Args)
         else
             % Convert X/Y to RA/Dec using AstroWCS
             Iwcs = min(Iobj, Nwcs);
-            [SrcRA, SrcDec] = Args.WCS(Iwcs).xy2sky(Xcat, Ycat, 'rad');
+            [SrcRA, SrcDec] = Args.WCS(Iwcs).xy2sky(Xcat, Ycat, 'rad', Args.IncludeDistortions);
+            % add approximate RA, Dec to new copy of catalog
+            Obj = insertCol(Obj, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
+                
         end
     
         if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
@@ -130,7 +143,7 @@ function Result = astrometryRefine(Obj, Args)
             % estimate scale based on distances between sources
             SrcDistRad = celestial.coo.sphere_dist_fast(SrcRA, SrcDec, SrcRA(1), SrcDec(1));
             SrcDistPix = sqrt((Xcat - Xcat(1)).^2 + (Ycat - Ycat(1)).^2);
-            Scale = median(SrcDistRad.*RAD.*ARCSEC_DEG./SrcDistPix);
+            Scale = median(SrcDistRad.*RAD.*ARCSEC_DEG./SrcDistPix,'all','omitnan');
         else
             Scale = Args.Scale;
         end
@@ -149,13 +162,21 @@ function Result = astrometryRefine(Obj, Args)
         end
                 
         % match the RA/Dec against an external catalog
+        % sources in MatchedCat corresponds to sources in ProjAstCat
+        
+        % why is this so bad?
+        % something is wrong - try first astrometryCheck
+        Args.SearchRadius = 8
+        
+        
         [MatchedCat,UM,TUM] = imProc.match.match(Obj(Iobj), ProjAstCat,...
                                                      'Radius',Args.SearchRadius,...
-                                                     'CooType','pix',...
-                                                     'ColCatX',Args.CatColNamesX,...
-                                                     'ColCatY',Args.CatColNamesY,...
-                                                     'ColRefX',RefColNameX,...
-                                                     'ColRefY',RefColNameY);
+                                                     'RadiusUnits','arcsec',...
+                                                     'CooType','sphere',...
+                                                     'ColCatX',CatColNameRA,...
+                                                     'ColCatY',CatColNameDec,...
+                                                     'ColRefX',CatColNameRA,...
+                                                     'ColRefY',CatColNameDec);
           
         %
         % Count the number of matches
@@ -173,7 +194,7 @@ function Result = astrometryRefine(Obj, Args)
         
         % why do we need ImageCenterXY ?
         
-        [Tran, ParWCS, ResFit] = imProc.astrometry.fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
+        [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
                                                        'Scale',ResPattern.Sol.Scale(Isol),...
                                                        'ProjType',Args.ProjType,...

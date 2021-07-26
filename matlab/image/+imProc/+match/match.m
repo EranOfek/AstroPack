@@ -94,7 +94,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
         Args.NmatchColName char          = 'Nmatch';
         
         % if given will override ColX/ColY
-        Args.CooType char                = '';  % pix' | 'sphere'
+        Args.CooType                     = '';  % pix' | 'sphere'
         Args.ColCatX                     = [];
         Args.ColCatY                     = [];
         Args.ColRefX                     = [];
