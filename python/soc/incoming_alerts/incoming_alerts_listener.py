@@ -1,8 +1,6 @@
-# Incoming Alerts Filter:
+# Incoming Alerts Listener
 
-import incoming_alerts_filter_params
-
-class IncomingAlertFilter(Component):
+class IncomingAlertsListener(Component):
 
     # Constructor
     def __init__(self):

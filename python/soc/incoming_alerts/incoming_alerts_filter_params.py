@@ -1,10 +1,6 @@
+# Incoming Alerts Filter Parameters
 
-from manager_base import ManagerBase
-
-
-# General Interface Parent Class
-
-class AlertData(Base):
+class IncomingAlertFilterParams:
 
     # Constructor
     def __init__(self):

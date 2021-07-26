@@ -1,8 +1,5 @@
-# Incoming Alerts Filter:
 
-import incoming_alerts_filter_params
-
-class IncomingAlertFilter(Component):
+class IncomingAlertsDb(DbInterface):
 
     # Constructor
     def __init__(self):
