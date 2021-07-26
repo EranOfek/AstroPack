@@ -83,7 +83,7 @@ function Result = unitTest()
     %toc
     
     % astrometryRefine
-    imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS);
+    imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat);
     
     
     AI = AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');

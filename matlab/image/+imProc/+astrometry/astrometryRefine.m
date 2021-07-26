@@ -32,6 +32,9 @@ function Result = astrometryRefine(Obj, Args)
         Args.flagSrcWithNeighborsArgs cell      = {};
         Args.ReuseAstrometricCat(1,1) logical   = true;
                 
+        Args.RemoveNeighboors(1,1) logical      = true;
+        
+        Args.SearchRadius                       = 3;        
         
         Args.CatColNamesX                   = AstroCatalog.DefNamesX;
         Args.CatColNamesY                   = AstroCatalog.DefNamesY;
@@ -161,7 +164,7 @@ function Result = astrometryRefine(Obj, Args)
         
         % fit
         
-        why do we need ImageCenterXY ?
+        % why do we need ImageCenterXY ?
         
         [Tran, ParWCS, ResFit] = imProc.astrometry.fitAstrometry(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
