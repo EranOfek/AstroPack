@@ -1,7 +1,8 @@
 # GCS Observation Scheduler
 
+# States
 SM_NONE = 0
-SM_DOWNLOAD = 1
+SM_DOWNLOAD_IMAGE = 1
 SM_SEND_TASKS =
 
 

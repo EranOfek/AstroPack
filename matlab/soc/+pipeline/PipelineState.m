@@ -1,13 +1,13 @@
 
 classdef PipelineState < uint32
-    % Log levels, used with MsgLogger class, msgLog(), etc.
+    % Pipeline states
 	enumeration
         None(0)         % Not set
 		Ready(1)        % Ready to process new image
 		ImageStart(2)   %
         
         % Image processing states
-        Verbose(4)      %
+        ImageProcess(4)      %
 		
         % Post process
         ImageDone(6)    % Image process done

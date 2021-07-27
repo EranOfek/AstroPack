@@ -6,7 +6,7 @@ classdef PipelineStateMachine < Component
     % Properties
     properties (SetAccess = public)
         
-        CurState
+        CurState PipelineState
     end
     
     %-------------------------------------------------------- 
@@ -27,6 +27,51 @@ classdef PipelineStateMachine < Component
         
     end
 
+    
+    methods
+        
+        function manage(Obj)
+            
+            switch Obj.CurState
+                
+                case PipelineState.None
+                    %
+                    
+                    
+                case PipelineState.Ready
+                    %
+                    
+                    
+                case PipelineState.ImageStart
+                    %
+            
+                    
+                case PipelineState.ImageProcess
+                    %                    
+                    
+                case PipelineState.ImageDone
+                    %
+                    
+                    
+                case PipelineState.ImageDelay
+                    %
+                    
+                    
+                case PipelineState.FatalError
+                    %
+                    
+                    
+                otherwise
+                    %
+                    
+            end
+            
+            
+        end
+        
+    end
+    
+    
     
     % Unit test
     methods(Static)   
