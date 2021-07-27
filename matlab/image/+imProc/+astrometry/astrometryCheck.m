@@ -3,7 +3,9 @@ function astrometryCheck(Obj, Args)
     
     arguments
         Obj
-        Args.WCS      = [];
+        Args.WCS                              = [];
+        Args.CatName                          = 'GAIAEDR3';
+        Args.getAstrometricCatalogArgs cell   = {};
     end
    
     
@@ -36,8 +38,26 @@ function astrometryCheck(Obj, Args)
             [SrcRA, SrcDec] = WCS.xy2sky(Xcat, Ycat, 'rad', Args.IncludeDistortions);            
         end
         
-        % Compare RA/Dec in catalog with RA/Dec in external ref catalog
+        % retrieve astrometric catalog
+        
+        [CenterCoo, BestRadius] = boundingCircle([SrcRA, SrcDec]); % [in/out: radians]
+        [Result] = getAstrometricCatalog(CenterCoo(1), CenterCoo(2), 'CatName',Args.CatName,...
+                                                                     'Radius',BestRadius,...
+                                                                     'RadiusUnits','rad',...
+                                                                     'CooUnits','rad',...
+                                                                     'OutUnits','deg',...
+                                                                     Args.getAstrometricCatalogArgs{:});
     
+      
+        
+        
+        % Compare RA/Dec in catalog with RA/Dec in external ref catalog
+        
+        
+        AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [Result] = imProc.match.coneSearch(AC, [1 1], 'Radius',3600.*10)
+            %          [CircleX, CircleY, CircleRadius] = boundingCircle(Result);
+            
         
         
         

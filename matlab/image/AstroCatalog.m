@@ -428,8 +428,7 @@ classdef AstroCatalog < AstroTable
             %          - The best fit circle radius
             % Author : Eran Ofek (Apr 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          M = imProc.cat.Match;
-            %          [Result] = M.coneSearch(AC, [1 1], 'Radius',3600.*10)
+            %          [Result] = imProc.match.coneSearch(AC, [1 1], 'Radius',3600.*10)
             %          [CircleX, CircleY, CircleRadius] = boundingCircle(Result);
             
             arguments
