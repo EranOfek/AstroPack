@@ -17,5 +17,52 @@ class ManagerStateMachine(Component):
     # Destructor
     def __del__(self):
         # Deleted
-        pass
+        self.msg_log('')
 
+    #
+    def init(self):
+        self.msg_log('')
+
+    #
+    def start(self):
+        self.msg_log('')
+
+    #
+    def timer_proc(self):
+        try:
+            self.manage()
+        except:
+            self.msg_log('')
+
+
+    #
+    def manage(self):
+
+        self.process_new_incoming_alerts()
+
+        self.process_
+
+
+
+    # Process new incoming alerts
+    def process_new_incoming_alerts(self):
+        self.msg_log('')
+
+    #
+    def process_new_target(self):
+        self.msg_log('')
+
+    #
+    def process_monitors(self):
+        self.msg_log('')
+
+
+    def run_pipeline(self):
+        self.msg_log('')
+
+    #
+    def process_new_outgoing_alerts(self):
+        self.msg_log('')
+
+
+    #

@@ -1,5 +1,5 @@
 
-class IncomingAlertsDb(DbInterface):
+class OutgoingAlertsDb(DbInterface):
 
     # Constructor
     def __init__(self):

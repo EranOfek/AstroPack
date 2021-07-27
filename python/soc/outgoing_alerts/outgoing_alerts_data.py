@@ -1,6 +1,6 @@
 #
 
-class IncomingAlertData:
+class OutgoingAlertData:
 
     # Constructor
     def __init__(self):
@@ -11,3 +11,6 @@ class IncomingAlertData:
         # Deleted
         pass
 
+    # Load from database record
+    def load_from_db(self, result_set):
+        pass

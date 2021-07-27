@@ -262,6 +262,8 @@ class Field:
         self.index = False
         self.index_method = 'btree'
         self.is_common = False
+        self.display_name = ''
+        self.display_format = ''
 
 
 # Get value from specified column in csv line
@@ -448,6 +450,8 @@ class DatabaseDef:
                 field.metadata = get_csv(row, 'Metadata')
                 field.source = get_csv(row, 'Source')
                 field.is_common = is_common
+                field.display_name = get_csv(row, 'Display Name')
+                field.display_format = get_csv(row, 'Display Format')
 
                 # Load field metadata as YAML data
                 field.yaml = yaml.load('{' + field.metadata + '}', Loader=yaml.FullLoader)
