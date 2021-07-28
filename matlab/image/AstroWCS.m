@@ -9,6 +9,7 @@
 %--------------------------------------------------------------------------
 
 % TODO Next - Documentation
+% WCSAXES>2 Not supported yet
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -347,6 +348,10 @@ classdef AstroWCS < Component
                 error('Works only on a single element wcsCl object');
             end
 
+            if Obj.WCSAXES>2
+                error('Currently do not support WCSAXES>2');
+            end
+            
             if isempty(PY)
                 PY = PX(:,2);
                 PX = PX(:,1);
@@ -593,6 +598,10 @@ classdef AstroWCS < Component
 
             if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
+            end
+            
+            if Obj.WCSAXES>2
+                error('Currently do not support WCSAXES>2');
             end
 
             if isempty(Alpha)
@@ -1277,7 +1286,7 @@ classdef AstroWCS < Component
                 Args.NAXIS(1,1)
                 Args.CRPIX(1,2)
                 Args.CRVAL(1,2)
-                Args.CD(2,2)
+                Args.CD
                 Args.CTYPE
                 Args.CUNIT     
                 Args.RADESYS   = [];
@@ -1286,7 +1295,8 @@ classdef AstroWCS < Component
                 Args.LATPOLE   = [];
                 Args.WCSAXES   = [];
             end
-            
+
+            % if WCSAXES is not given use NAXIS as default            
             if isempty(Args.WCSAXES)
                 Args.WCSAXES = Args.NAXIS;
             end
@@ -1312,7 +1322,7 @@ classdef AstroWCS < Component
             Obj.Tran2D = Tran2D;
             
             % Paste number of axes
-            % if WCSAXES is not given use NAXIS as default
+
             Obj.NAXIS = Args.NAXIS;
             Obj.WCSAXES = Args.WCSAXES;
 
@@ -2129,8 +2139,11 @@ classdef AstroWCS < Component
             % projtype in CTYPE3 and get [alpha, delta]
             Im_name = 'WFPC2u5780205r_c0fx.fits';
             AH = AstroHeader(Im_name);
+            PX = rand(1,500) * AH.Key.NAXIS1;
+            PY = rand(1,500) * AH.Key.NAXIS2; 
+            
             AW = AstroWCS.header2wcs(AH);
-            %[Alpha, Delta]  = AW.xy2sky(PX,PY,'deg'); % TODO
+%            [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg'); % Not supported yet
 
             % Construct AstroWCS from Tran2D
             TC=Tran2D; 
