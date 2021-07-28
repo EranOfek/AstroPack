@@ -21,6 +21,8 @@ function varargout = bin2dFun(X, Y, Val, Args)
     %            'StepY' - Bin siez in Y axis. Default is 1.
     %            'Step' - Bin size in X and Y axes. If not empty, then
     %                   overriding both StepX and StepY. Default is [].
+    %            'Nbin' - Number of bins in each axis [X Y], or [X]. If given, overide
+    %                   all step options. Default is [].
     % Output : * One argument per Function. Each argument is a 2D matrix,
     %            corresponding to applying the function on the values in the bins.
     % Author : Eran Ofek (Jul 2021)
@@ -39,6 +41,7 @@ function varargout = bin2dFun(X, Y, Val, Args)
         Args.StepX         = 1;
         Args.StepY         = 1;
         Args.Step          = [];
+        Args.Nbin          = [];
     end
     
     
@@ -49,9 +52,16 @@ function varargout = bin2dFun(X, Y, Val, Args)
         Args.RangeY = [min(Y), max(Y)];
     end
     
-    if ~isempty(Args.Step)
-        Args.StepX = Args.Step;
-        Args.StepY = Args.Step;
+    if isempty(Args.Nbin)
+        if ~isempty(Args.Step)
+            Args.StepX = Args.Step;
+            Args.StepY = Args.Step;
+        end
+    else
+        % select Step according to number of bins
+        Args.Nbin  = Args.Nbin(:).'.*ones(1,2);
+        Args.StepX = (Args.RangeX(2) - Args.RangeX(1))./Args.Nbin(1);
+        Args.StepY = (Args.RangeY(2) - Args.RangeY(1))./Args.Nbin(2);
     end
     
     VecX = (Args.RangeX(1):Args.StepX:Args.RangeX(2));

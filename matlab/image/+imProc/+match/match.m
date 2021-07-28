@@ -1,6 +1,6 @@
 function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args)
     % Match two catalogs in AstroCatalog objects
-    %       This functin returens: a matche source catalog, and an
+    %       This functin returens: a matched source catalog, and an
     %       unmatched source catalog.
     %       The matched catalog result has the same number of
     %       sources as in the Obj2 catalog, and for each Obj2 source,
