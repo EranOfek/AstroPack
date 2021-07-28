@@ -183,9 +183,9 @@ classdef ds9 < handle
             % Example: ds9.isopen
             % Reliable: 2
             if (ismac)
-                Status = system('ps -A | grep ds9 | grep -v grep');
+                Status = system('ps -A | grep ds9 | grep -v grep  > /dev/null');
             else
-                Status = system('ps -xug | grep ds9 | grep -v grep');
+                Status = system('ps -xug | grep ds9 | grep -v grep  > /dev/null');
             end
             if (Status==1)
                 % not open

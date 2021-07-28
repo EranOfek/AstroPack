@@ -4,7 +4,7 @@ function astrometryCheck(Obj, Args)
     arguments
         Obj
         Args.WCS                              = [];
-        Args.CatName                          = 'GAIAEDR3';
+        Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.getAstrometricCatalogArgs cell   = {};
     end
    
@@ -39,25 +39,21 @@ function astrometryCheck(Obj, Args)
         end
         
         % retrieve astrometric catalog
-        
-        [CenterCoo, BestRadius] = boundingCircle([SrcRA, SrcDec]); % [in/out: radians]
-        [Result] = getAstrometricCatalog(CenterCoo(1), CenterCoo(2), 'CatName',Args.CatName,...
+        if ~isa(Args.CatName,'AstroCatalog')
+            [CenterCoo, BestRadius] = boundingCircle([SrcRA, SrcDec]); % [in/out: radians]
+        end
+        [AstrometricCat] = getAstrometricCatalog(CenterCoo(1), CenterCoo(2), 'CatName',Args.CatName,...
                                                                      'Radius',BestRadius,...
                                                                      'RadiusUnits','rad',...
                                                                      'CooUnits','rad',...
                                                                      'OutUnits','deg',...
                                                                      Args.getAstrometricCatalogArgs{:});
-    
-      
+        
+        % Match AstrometricCat with SrcRA, SrcDec
         
         
         % Compare RA/Dec in catalog with RA/Dec in external ref catalog
         
-        
-        AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          [Result] = imProc.match.coneSearch(AC, [1 1], 'Radius',3600.*10)
-            %          [CircleX, CircleY, CircleRadius] = boundingCircle(Result);
-            
         
         
         
