@@ -192,15 +192,15 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
         switch lower(Obj1(Iobj1).CooType)
             case 'sphere'
                 DistFun = @celestial.coo.sphere_dist_fast;
-                Coo1    = getCoo(Obj1(Iobj1), 'rad');
-                Coo2    = getCoo(Obj2(Iobj2), 'rad');
+                Coo1    = getLonLat(Obj1(Iobj1), 'rad');
+                Coo2    = getLonLat(Obj2(Iobj2), 'rad');
 
                 RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
                 ConvertDist = true;
             case 'pix'
                 DistFun = @tools.math.geometry.plane_dist;
-                Coo1    = getCoo(Obj1(Iobj1));
-                Coo2    = getCoo(Obj2(Iobj2));
+                Coo1    = getXY(Obj1(Iobj1));
+                Coo2    = getXY(Obj2(Iobj2));
 
                 RadiusRad = Args.Radius;
                 ConvertDist = false;

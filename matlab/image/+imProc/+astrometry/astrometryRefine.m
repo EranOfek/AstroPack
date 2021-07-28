@@ -1,6 +1,7 @@
 function Result = astrometryRefine(ObjAC, Args)
     % Refine an astrometric solution of an AstroCatalog object
     %   
+    % Example: 
     
     
     arguments
@@ -14,7 +15,22 @@ function Result = astrometryRefine(ObjAC, Args)
         Args.Scale          = [];
         
         Args.ProjType                     = 'TPV';
-
+        Args.TranMethod                   = 'TPV';
+        Args.Tran                         = Tran2D;
+        Args.ErrPos                       = 0.01;
+        Args.ExtraData          = [];
+        Args.Niter              = 2;
+        Args.FitMethod          = 'lscov';
+        Args.MaxResid           = 0.5;
+        Args.MagRange           = [13 19];
+        Args.BinMethod          = 'bin';
+        Args.PolyDeg            = 3;
+        Args.BinSize            = 1;
+        Args.FunMean            = @nanmedian;
+        Args.FunStd             = @imUtil.background.rstd;
+        Args.InterpMethod       = 'linear';
+        Args.ThresholdSigma     = 3;
+        
         Args.CatName                      = 'GAIAEDR3';  % or AstroCatalog
         Args.CatOrigin                    = 'catsHTM';
         Args.CatRadius                    = 1400;
@@ -36,7 +52,7 @@ function Result = astrometryRefine(ObjAC, Args)
         
         Args.SearchRadius                       = 3;    
         
-        Args.IncludeDistortions(1,1) logical    = false;
+        Args.IncludeDistortions(1,1) logical    = true;
         
         Args.CreateNewObj(1,1) logical          = true;
         
@@ -56,6 +72,8 @@ function Result = astrometryRefine(ObjAC, Args)
     
     if Args.CreateNewObj
         Obj = ObjAC.copyObject;
+    else
+        Obj = ObjAC;
     end
     
     
@@ -154,13 +172,7 @@ function Result = astrometryRefine(ObjAC, Args)
         ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                        'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                        'CreateNewObj',true);
-        % filter Cat - remove sources with neighboors
-        if Args.RemoveNeighboors
-            UseFlag = imProc.match.flagSrcWithNeighbors(Obj, Args.flagSrcWithNeighborsArgs{:});
-        else
-            UseFlag = true;
-        end
-                
+     
         % match the RA/Dec against an external catalog
         % sources in MatchedCat corresponds to sources in ProjAstCat
         
@@ -183,6 +195,15 @@ function Result = astrometryRefine(ObjAC, Args)
         Flag = ~isnan(MatchedCat.Catalog(:,1));
         Nmatches = sum(Flag);
                 
+        % filter Cat - remove sources with neighboors
+        if Args.RemoveNeighboors
+            UseFlag = imProc.match.flagSrcWithNeighbors(MatchedCat, Args.flagSrcWithNeighborsArgs{:});
+        else
+            Nsrc    = sizeCatalog(AstrometricCat);
+            UseFlag = true(Nsrc,1);
+        end
+        
+        
         [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
         [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
         Xref = getColDic(ProjAstCat, RefColNameX);
@@ -192,11 +213,11 @@ function Result = astrometryRefine(ObjAC, Args)
         
         % fit
         
-        % why do we need ImageCenterXY ?
+        % why do we need ImageCenterXY ?  Args.WCS.CRPIX <<---?????????
         
         [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
-                                                       'ImageCenterXY',Result(Iobj).ImageCenterXY,...
-                                                       'Scale',ResPattern.Sol.Scale(Isol),...
+                                                       'ImageCenterXY',Args.WCS.CRPIX,...
+                                                       'Scale',Scale,...
                                                        'ProjType',Args.ProjType,...
                                                        'TranMethod',Args.TranMethod,...
                                                        'Tran',Args.Tran,...

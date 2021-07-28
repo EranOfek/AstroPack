@@ -16,6 +16,9 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
     %                   the astrometric catalog. Default is 5.
     %            'RadiusUnits' - Units for matching radius.
     %                   Default is 'arcsec'.
+    %            'IncludeDistortions' - A logical indicating if to use the
+    %                   WCS including the distortions (true), or not (false).
+    %                   Default is true.
     %            'MaxNmtach' - When calculating the rms and median of the residuals,
     %                   do not use sources with number of matches larger than
     %                   this value. Default is 1.
@@ -59,6 +62,8 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
         
         Args.Radius                           = 5;
         Args.RadiusUnits                      = 'arcsec';
+        
+        Args.IncludeDistortions(1,1) logical  = true;
         
         Args.MaxNmtach                        = 1;  % if Inf use allmatched sources
         Args.Nbin                             = 3;  % if empty - skip this stage
@@ -140,14 +145,14 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
                                                   'ColRefX',ColNameRA,...
                                                   'ColRefY',ColNameDec);
         % calc matches statistics
-        DistVec     = abs(getCol(MatchedAstCat, ColNameDist));
+        DistVec     = abs(getCol(MatchedAstCat, ColNameDist));  % [arcsec]
         NmatchVec   = getCol(MatchedAstCat, ColNameNmatch);
         % assume all RA/Dec are in radians
-        AstDec      = getCol(MatchedAstCat, ColNameDec);
-        AstRA       = getCol(MatchedAstCat, ColNameRA);
-        DeltaDec    = getCol(Cat, ColNameDec) - AstDec;
-        DeltaRA     = getCol(Cat, ColNameRA)  - AstRA;
-        DeltaRA     = DeltaRA.*cos(AstDec);
+        [AstRA, AstDec] = getLonLat(MatchedAstCat, 'rad');
+        [CatRA, CatDec] = getLonLat(Cat, 'rad');
+        
+        DeltaDec    = CatDec - AstDec;
+        DeltaRA     = (CatRA  - AstRA).*cos(AstDec);
         % convert rad to arcsec
         DeltaRA     = DeltaRA .*RAD.*ARCSEC_DEG;
         DeltaDec    = DeltaDec.*RAD.*ARCSEC_DEG;
@@ -185,7 +190,11 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
         
         % calculate statistics as a function of magnitude
         Mag = getColDic(MatchedAstCat, Args.ColNamesMag);
-        [Flag, Result(Iobj).MagResid] = imUtil.calib.resid_vs_mag(Mag, DistVec);
+        if all(isnan(Mag)) || isempty(Mag)
+            Result(Iobj).MagResid = [];
+        else
+            [Flag, Result(Iobj).MagResid] = imUtil.calib.resid_vs_mag(Mag, DistVec);
+        end
         
     end
     
