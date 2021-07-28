@@ -33,7 +33,7 @@ classdef InArg
             
             
             % Get the user name:
-            UserHome   = Util.OS.get_userhome;
+            UserHome   = tools.os.get_userhome;
             % UserName = char(java.lang.System.getProperty('user.name'))
             % char(java.net.InetAddress.getLocalHost.getHostName);
             DefFileLocalPath = 'matlab/.FunPars';
@@ -113,7 +113,7 @@ classdef InArg
             FileName = InArg.default_arg_file(CallerFun);
             FullFileName = sprintf('%s%s',Path,FileName);
             if (java.io.File(FullFileName).exists)
-                InPar = Util.IO.load2(FullFileName);
+                InPar = io.files.load2(FullFileName);
             else
                 InPar = [];
             end
@@ -181,7 +181,7 @@ classdef InArg
                 if (java.io.File(DefArgFilePath).exists)
                     % User default parameter file was found - use it
                     % instead of the DefV
-                    DefV = Util.IO.load2(DefArgFilePath);
+                    DefV = io.files.load2(DefArgFilePath);
                 end
 %                 if (exist(DefParFile,'file')>0),
 %                     % User default parameter file was found - use it
@@ -239,9 +239,9 @@ classdef InArg
             FunName_m = sprintf('%s.m',FunName);
             FunName   = which(FunName);
 
-            Line  = Util.files.file2str(FunName_m,'cellremove3dots');
+            Line  = io.files.file2str(FunName_m,'cellremove3dots');
             Idefv = strfind(Line,'DefV.');
-            Iline = find(~Util.cell.isempty_cell(Idefv));
+            Iline = find(~tools.cell.isempty_cell(Idefv));
             N     = numel(Iline);
             for I=1:1:N
                evalc(Line{Iline(I)});
