@@ -190,8 +190,9 @@ function Result = astrometryRefine(ObjAC, Args)
                                                      'ColRefX',CatColNameRA,...
                                                      'ColRefY',CatColNameDec);
           
-        % BUG: for some reason the catalogs are not matched!!!
-        [ProjAstCat.Catalog(F,1:2), MatchedCat.Catalog(F,40:41)].*RAD
+        % Debug: check that the matching is working
+        % F=~isnan(MatchedCat.Catalog(:,1));
+        % [ProjAstCat.Catalog(F,1:2), MatchedCat.Catalog(F,40:41)].*RAD
         
         
         % Count the number of matches
