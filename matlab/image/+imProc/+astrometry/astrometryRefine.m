@@ -178,7 +178,7 @@ function Result = astrometryRefine(ObjAC, Args)
         
         % why is this so bad?
         % something is wrong - try first astrometryCheck
-        Args.SearchRadius = 8
+        Args.SearchRadius = 2
         
         
         [MatchedCat,UM,TUM] = imProc.match.match(Obj(Iobj), ProjAstCat,...
@@ -201,13 +201,13 @@ function Result = astrometryRefine(ObjAC, Args)
                 
         % filter Cat - remove sources with neighboors
         if Args.RemoveNeighboors
-            UseFlag = imProc.match.flagSrcWithNeighbors(MatchedCat, Args.flagSrcWithNeighborsArgs{:});
+            UseFlag = ~imProc.match.flagSrcWithNeighbors(MatchedCat, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
         else
             Nsrc    = sizeCatalog(AstrometricCat);
             UseFlag = true(Nsrc,1);
         end
         
-        
+                
         [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
         [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
         Xref = getColDic(ProjAstCat, RefColNameX);

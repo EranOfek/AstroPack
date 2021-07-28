@@ -75,6 +75,12 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
         end   
 
         % perform the search
+        if ~issorted(Coo(:,2))
+            error('Coo is not sorted');
+            
+            [~,IndSort] = sort(Coo(:,2));
+            Coo         = Coo(IndSort,:);
+        end
         [IndTable] = VO.search.search_sortedlat_multi(Coo,...
                                                       Coo(:,1), Coo(:,2), RadiusRad, [], DistFun);
 

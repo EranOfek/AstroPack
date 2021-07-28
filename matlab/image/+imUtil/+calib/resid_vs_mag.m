@@ -67,8 +67,8 @@ if isempty(InPar.MagRange)
 end
 
 FlagMag = Mag>=InPar.MagRange(1) & Mag<=InPar.MagRange(2);
-Mag     = Mag(FlagMag);
-Resid   = Resid(FlagMag);
+%Mag     = Mag(FlagMag);
+%Resid   = Resid(FlagMag);
 
 Res.Mag              = Mag;
 Res.Resid            = Resid;
@@ -91,7 +91,7 @@ switch lower(InPar.BinMethod)
         Res.InterpMeanResid = interp1(B(:,1),B(:,2),Mag,InPar.InterpMethod);
         Res.InterpStdResid  = interp1(B(:,1),B(:,3),Mag,InPar.InterpMethod);
         
-        Flag = (Resid - Res.InterpMeanResid)./Res.InterpStdResid < InPar.ThresholdSigma;
+        Flag = (Resid - Res.InterpMeanResid)./Res.InterpStdResid < InPar.ThresholdSigma & FlagMag;
 
     otherwise
         error('Unknown Method option');
