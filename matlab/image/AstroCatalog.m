@@ -6,7 +6,7 @@ classdef AstroCatalog < AstroTable
         ColX                                                            = [];
         ColY                                                            = [];
         CooType char    {mustBeMember(CooType,{'pix','sphere',''})}     = '';
-        CooUnits char   {mustBeMember(CooUnits,{'deg','rad','pix',''})} = 'deg';
+        CooUnits char   {mustBeMember(CooUnits,{'deg','rad','pix',''})} = '';
     end
     
     properties (Hidden, SetAccess=private)

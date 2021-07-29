@@ -14,7 +14,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   RA/Dec are numerical scalars). Default is 'deg'.
     %            'Shape' - Search shape. Not implemented. Currently will
     %                   return all sources in cone.
-    %            'OutUnits' - Output catalog units. Default is 'deg'.
+    %            'OutUnits' - Output catalog units. Default is 'rad'.
     %            'Con' - Search constraings for catsHTM.
     %                   E.g., {{'Mag_G',[15 16]},{'Plx',@(x) ~isnan(x)}}.
     %                   Default is {}.
@@ -56,7 +56,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Args.RadiusUnits              = 'arcsec';
         Args.CooUnits                 = 'deg';
         Args.Shape
-        Args.OutUnits                 = 'deg';
+        Args.OutUnits                 = 'rad';
         Args.Con cell                 = {};
         Args.UseIndex(1,1) logical    = false;
         Args.EpochOut                 = [];  % if empty - don't apply proper motion
@@ -120,7 +120,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         end
     else
         % assume CatName contains an actual catalog
-        Result = Args.CatName;
+        Result = Args.CatName.copyObject;
         % FFU: add treatment for sexagesimal coordinates
 %         if numel(RA)>1
 %             error('FFU: Current version treat only RA/Dec deg/rad when CatName is AstroCatalog');

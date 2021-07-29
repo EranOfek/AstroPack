@@ -57,7 +57,7 @@ function Result = unitTest()
     
     % perform offline testing - i.e., GAIA catalog is not available via
     % catsHTM
-    load AstrometricCat_PTF_Cropped.mat
+    load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
     
     Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
     [Result,~,AI.CatData] = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
@@ -82,13 +82,16 @@ function Result = unitTest()
     %end
     %toc
     
-    %
     
-    % astrometryCheck
+    % astrometryCheck  
     R = imProc.astrometry.astrometryCheck(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat)
     
     % astrometryRefine
-    imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
+    % 1. why RR.ResFit rms are (seems) in arcsec??? or else, while in Result they are
+    % in deg
+    % TODO: go over code - note that the match is done in RA/Dec - compare
+    % to Core
+    RR = imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
     
     

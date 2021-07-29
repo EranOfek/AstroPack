@@ -1694,6 +1694,8 @@ classdef catsHTM
                     % do nothing
                 case 'astrocatalog'
                     AstC = AstroCatalog;
+                    AstC.CooType  = 'sphere';
+                    AstC.CooUnits = 'rad';
                     AstC.Catalog  = Cat;
                     AstC.ColNames = ColCell;
                     AstC.ColUnits = ColUnits;
