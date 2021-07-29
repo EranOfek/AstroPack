@@ -197,13 +197,14 @@ classdef AstroWCS < Component
             % Input  : - A AstroWCS object.
             %          - Optional AstroHeader in which to update key/par
             % Output : - An AstroHeader object with the WCS keywords.           
-           
-           if nargin<2
-               Header = AstroHeader(1);
-           end
-           
-           KeyCell = Obj.wcs2keyCell;
-           Header.replaceVal(KeyCell(:,1),KeyCell(:,2),'Comment',KeyCell(:,3));
+
+            arguments
+                Obj
+                Header      = AstroHeader(1);
+            end            
+
+            KeyCell = Obj.wcs2keyCell;
+            Header.replaceVal(KeyCell(:,1),KeyCell(:,2),'Comment',KeyCell(:,3));
        end
    
        function KeyCell = wcs2keyCell(Obj)
@@ -311,7 +312,7 @@ classdef AstroWCS < Component
         
    %======== Functions for related to xy2sky =========
    
-        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,OutUnits,includeDistortion,useTran2D)
+        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,Args)         
         % Convert X/Y pixel coordinates to celestial coordinates
         % Description: Convert X/Y pixel coordinates to celestial
         %              coordinates.
@@ -327,20 +328,16 @@ classdef AstroWCS < Component
         %            If not asked for, then the first output will be a
         %            two column matrix.
 
-            if nargin<6
-                useTran2D = false;
-                if nargin<5
-                    includeDistortion = true;
-                    if nargin<4
-                        OutUnits = 'deg';
-                        if nargin<3
-                            PY = [];
-                        end
-                    end
-                end
+            arguments
+                Obj
+                PX
+                PY                       = [];
+                Args.OutUnits            = 'deg';
+                Args.includeDistortion   = true;
+                Args.useTran2D           = false;                
             end
             
-            if useTran2D
+            if Args.useTran2D
                 error('Currently do not upport direct use of Tran2D');
             end
 
@@ -358,13 +355,13 @@ classdef AstroWCS < Component
             end
 
             % pixel to intermediate (in units of CUNIT); including distortion
-            [Xd,Yd] = Obj.pix2interm(PX,PY,includeDistortion);
+            [Xd,Yd] = Obj.pix2interm(PX,PY,Args.includeDistortion);
             
             % intermediate to native
-            [Phi,Theta] = Obj.interm2native(Xd,Yd,Obj.CUNIT{1},'rad');
+            [Phi,Theta] = Obj.interm2native(Xd,Yd,'InUnits',Obj.CUNIT{1},'OutUnits','rad');
             
             % native to celestial 
-            [Alpha, Delta] = Obj.native2celestial(Phi,Theta,'rad',OutUnits);
+            [Alpha, Delta] = Obj.native2celestial(Phi,Theta,'InUnits','rad','OutUnits',Args.OutUnits);
     
         end
               
@@ -382,17 +379,18 @@ classdef AstroWCS < Component
         %            The intermediate coordinates units are specified in
         %            CUNIT.
         % Example: [X,Y]=pix2interm(Obj,1,1);
+        
+            arguments
+                Obj
+                PX
+                PY                       = [];
+                includeDistortion        = true;             
+            end        
 
             if numel(Obj)~=1
                 error('The wcsCl object input must contain a single element');
             end
-            
-            if nargin<4
-                includeDistortion = true;
-                if nargin<3
-                    PY = [];
-                end
-            end
+
 
             if isempty(PY)
                 PY = PX(:,2);
@@ -408,7 +406,7 @@ classdef AstroWCS < Component
                 u = relP(1,:);
                 v = relP(2,:);
                 
-                [U,V]  = AstroWCS.forwardDistortion(Obj.PV,u,v,[],true);  % U = u+f(u,v) and V = v+g(u,v)
+                [U,V]  = AstroWCS.forwardDistortion(Obj.PV,u,v,'plusXY_bool',true);  % U = u+f(u,v) and V = v+g(u,v)
                 
                 relP = [U ; V];
             end
@@ -428,14 +426,14 @@ classdef AstroWCS < Component
                 
                 R = sqrt(X.^2 + Y.^2);
 
-                [X,Y]  = AstroWCS.forwardDistortion(Obj.PV,X,Y,R);
+                [X,Y]  = AstroWCS.forwardDistortion(Obj.PV,X,Y,'R',R);
 
             end
 
         end
         
         
-        function [Phi,Theta]=interm2native(Obj,X,Y,InUnits,OutUnits)
+        function [Phi,Theta]=interm2native(Obj,X,Y,Args)
             % project coordinates: intermediate to native
             % Input  : - A AstroWCS object
             %          - A matrix of intermediate X coordinate.
@@ -449,15 +447,14 @@ classdef AstroWCS < Component
             %          - A matrix of native Theta coordinate.
             % Example: [Phi,Theta]=interm2native(Obj,100,100)
 
-            if nargin<5
-                OutUnits = 'deg';
-                if nargin<4
-                    InUnits = 'deg';
-                    if nargin<3
-                        Y = [];
-                    end
-                end
-            end
+            arguments
+                Obj
+                X
+                Y                       = [];
+                Args.InUnits            = 'deg';
+                Args.OutUnits           = 'deg';              
+            end            
+            
 
             if numel(Obj)~=1
                 error('Works on a single element wcsCl object');
@@ -469,7 +466,7 @@ classdef AstroWCS < Component
             end
 
             % convert to deg
-            ConvFactor = convert.angular(InUnits,'deg');
+            ConvFactor = convert.angular(Args.InUnits,'deg');
             X   = X.*ConvFactor;
             Y   = Y.*ConvFactor;
 
@@ -492,7 +489,7 @@ classdef AstroWCS < Component
                     error('Unsupported projection class (%s)',Obj.ProjClass);
             end
 
-            ConvFactor = convert.angular('rad',OutUnits);
+            ConvFactor = convert.angular('rad',Args.OutUnits);
             Theta = Theta.*ConvFactor;
             Phi   = Phi.*ConvFactor;
 
@@ -500,7 +497,7 @@ classdef AstroWCS < Component
         end
         
     
-        function [Alpha,Delta]=native2celestial(Obj,Phi,Theta,InUnits,OutUnits)
+        function [Alpha,Delta]=native2celestial(Obj,Phi,Theta,Args)
             % convert native coordinates to celestial coordinates
             % Description: Convert spherical native coordinates
             %              (phi, theta) to spherical celestial
@@ -518,15 +515,13 @@ classdef AstroWCS < Component
             %          - A matrix of celestial (Delta) coordinates.
             % Example: [Alpha,Delta]=native2celestial(Obj,[1 1],[2 2])
 
-            if nargin<5
-                OutUnits = 'deg';
-                if nargin<4
-                    InUnits = 'deg';
-                    if nargin<3
-                        Theta = [];
-                    end
-                end
-            end
+            arguments
+                Obj
+                Phi
+                Theta                   = [];
+                Args.InUnits            = 'deg';
+                Args.OutUnits           = 'deg';              
+            end               
 
             if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
@@ -545,12 +540,12 @@ classdef AstroWCS < Component
             end
 
             ConvFactorW  = convert.angular(Units,'rad');
-            ConvFactorIn = convert.angular(InUnits,'rad');
+            ConvFactorIn = convert.angular(Args.InUnits,'rad');
 
             [Alpha,Delta]=Obj.phitheta2alphadelta(Phi.*ConvFactorIn,Theta.*ConvFactorIn,...
                                 Obj.PhiP.*ConvFactorW,Obj.AlphaP.*ConvFactorW,Obj.DeltaP.*ConvFactorW,'rad');
 
-            ConvFactor = convert.angular('rad',OutUnits);
+            ConvFactor = convert.angular('rad',Args.OutUnits);
             Alpha = Alpha.*ConvFactor;
             Delta = Delta.*ConvFactor;
 
@@ -560,7 +555,7 @@ classdef AstroWCS < Component
         
    %======== Functions for related to sky2xy =========   
    
-        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,InUnits,includeDistortion,useTran2D)
+        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,Args)            
             % convert celestial coordinates to pixel coordinates
             % Description: Convert celestial coordinates that are in the
             %              reference frmae of CTYPE, RADESYS and EQUNOX,
@@ -582,17 +577,16 @@ classdef AstroWCS < Component
             %            respectively.
             % Example: [X,Y] = coo2xy(Obj,100,10,'deg')
 
-            if nargin<6
-                useTran2D = false;
-                if nargin<5
-                    includeDistortion = true;
-                    if nargin<4
-                        InUnits = 'deg';
-                    end
-                end
+            arguments
+                Obj
+                Alpha
+                Delta                    = [];
+                Args.InUnits             = 'deg';
+                Args.includeDistortion   = true;
+                Args.useTran2D           = false;                
             end
             
-            if useTran2D
+            if Args.useTran2D
                 error('Currently do not upport direct use of Tran2D');
             end
 
@@ -604,33 +598,32 @@ classdef AstroWCS < Component
                 error('Currently do not support WCSAXES>2');
             end
 
-            if isempty(Alpha)
-                Alpha = Delta(:,2);
-                Delta = Delta(:,1);
+            if isempty(Delta)
+                Delta = Alpha(:,2);
+                Alpha = Alpha(:,1);
             end
 
             if (iscell(Delta) || ischar(Delta)) && (iscell(Alpha) || ischar(Alpha))
                 Delta = celestial.coo.convertdms(Delta,'gH','r');
                 Alpha = celestial.coo.convertdms(Alpha,'gD','R');
-                InUnits = 'rad';
+                Args.InUnits = 'rad';
             end
 
 
             % celestial to native
-            [Phi,Theta] = Obj.celestial2native(Alpha(:),Delta(:),InUnits,'rad');
+            [Phi,Theta] = Obj.celestial2native(Alpha(:),Delta(:),'InUnits',Args.InUnits,'OutUnits','rad');
             
             % native to intermediate
-            [X,Y] = Obj.native2interm(Phi, Theta,'rad',Obj.CUNIT{1});
+            [X,Y] = Obj.native2interm(Phi, Theta,'InUnits','rad','OutUnits',Obj.CUNIT{1});
             
-
             % Intermediate to pixel
-            [PX,PY] = Obj.interm2pix(X,Y,includeDistortion);
+            [PX,PY] = Obj.interm2pix(X,Y,Args.includeDistortion);
 
             PX = reshape(PX,size(Delta));
             PY = reshape(PY,size(Alpha));
         end      
         
-        function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,InUnits,OutUnits)
+        function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,Args)            
             % convert celestial coordinates to native coordinates
             % Description: Convert sphericall celestial coordinates
             %              (alpha, delta) or cosine directions to native
@@ -652,15 +645,13 @@ classdef AstroWCS < Component
             %          - A matrix of native Theta coordinate.
             % Example: [Phi,Theta]=celestial2native(W,[1 1],[2 2])
 
-            if nargin<5
-                OutUnits = 'deg';
-                if nargin<4
-                    InUnits = 'deg';
-                    if nargin<3
-                        Delta = [];
-                    end
-                end
-            end
+            arguments
+                Obj
+                Alpha
+                Delta                   = [];
+                Args.InUnits            = 'deg';
+                Args.OutUnits           = 'deg';              
+            end                
 
             if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
@@ -672,7 +663,7 @@ classdef AstroWCS < Component
                     % cosine direction
                     [Alpha, Delta] = celestial.coo.cosined2coo(Alpha(:,1),Alpha(:,2),Alpha(:,3));
                     % output is radians - override InUnits
-                    InUnits = 'rad';
+                    Args.InUnits = 'rad';
                 elseif size(Alpha,2)==2
                     % do nothing
                     Delta = Alpha(:,2);
@@ -689,18 +680,18 @@ classdef AstroWCS < Component
 
             % convert to radians
             ConvFactorW  = convert.angular(Units,'rad');
-            ConvFactorIn = convert.angular(InUnits,'rad');
+            ConvFactorIn = convert.angular(Args.InUnits,'rad');
 
             [Phi,Theta] = AstroWCS.alphadelta2phitheta(Alpha.*ConvFactorIn,Delta.*ConvFactorIn,...
                                     Obj.PhiP.*ConvFactorW, Obj.AlphaP.*ConvFactorW, Obj.DeltaP.*ConvFactorW, 'rad');
 
-            ConvFactor = convert.angular('rad',OutUnits);
+            ConvFactor = convert.angular('rad',Args.OutUnits);
             Phi   = Phi.*ConvFactor;
             Theta = Theta.*ConvFactor;
 
         end
    
-        function [X,Y]=native2interm(Obj,Phi,Theta,InUnits,OutUnits)
+        function [X,Y]=native2interm(Obj,Phi,Theta,Args)
             % project coordinates: native to intermediate
             % Input  : - A AstroWCS object
             %          - A matrix of native Phi coordinate.
@@ -714,16 +705,13 @@ classdef AstroWCS < Component
             %          - A matrix of Y intermediate pixel coordinate.
             % Example: [X,Y]=native2interm(Obj,100,100)
 
-            
-            if nargin<5
-                OutUnits = 'deg';
-                if nargin<4
-                    InUnits = 'deg';
-                    if nargin<3
-                        Theta = [];
-                    end
-                end
-            end
+            arguments
+                Obj
+                Phi
+                Theta                       = [];
+                Args.InUnits            = 'deg';
+                Args.OutUnits           = 'deg';              
+            end               
 
             if numel(Obj)~=1
                 error('Works on a single element wcsCl object');
@@ -735,7 +723,7 @@ classdef AstroWCS < Component
             end
 
             % convert native coordinates to radians
-            ConvFactor = convert.angular(InUnits,'rad');
+            ConvFactor = convert.angular(Args.InUnits,'rad');
             Phi   = Phi.*ConvFactor;
             Theta = Theta.*ConvFactor;
 
@@ -763,7 +751,7 @@ classdef AstroWCS < Component
             end
             
             
-            ConvFactor = convert.angular('deg',OutUnits);
+            ConvFactor = convert.angular('deg',Args.OutUnits);
             X   = X.*ConvFactor;
             Y   = Y.*ConvFactor;
             
@@ -781,19 +769,19 @@ classdef AstroWCS < Component
             %          - A matrix of Y pixel coordinate.
             % Example: [P1,P2]=interm2pix(Obj,1,1)
 
+            arguments
+                Obj
+                X
+                Y                       = [];
+                includeDistortion        = true;             
+            end     
+            
              if numel(Obj)~=1
                 error('The wcsCl object input must contain a single element');
             end
 
             if Obj.NAXIS~=size(Obj.CD,1) && Obj.NAXIS~=size(Obj.CD,2)
                 error('Number of coordinates must be consistent with number of axss and CD matrix');
-            end
-            
-            if nargin<4
-                includeDistortion = true;
-                if nargin<3
-                    Y = [];
-                end
             end
                 
             if isempty(Y)
@@ -804,10 +792,10 @@ classdef AstroWCS < Component
             % inverse distorion for TPV
             if strcmpi(Obj.ProjType,'tpv') && includeDistortion
                 
-                err_thresh = 1e-6;
-                max_iters = 10;
+                err_thresh = 1e-7;
+                max_iters = 20;
                     
-                [X,Y]  = AstroWCS.backwardDistortion(Obj.PV,X,Y,false,err_thresh,max_iters);
+                [X,Y]  = AstroWCS.backwardDistortion(Obj.PV,X,Y,'plusXY_bool',false,'Threshold',err_thresh,'MaxIter',max_iters);
             end
       
             
@@ -821,14 +809,14 @@ classdef AstroWCS < Component
                 U = relP(1,:);
                 V = relP(2,:);
                     
-                if ~isempty(Obj.RevPV)
-                    [u,v]  = AstroWCS.forwardDistortion(Obj.RevPV,U,V,[],true); % u = U + F(U,V), v = V+G(U,V)
+                if ~isempty(Obj.RevPV.PolyCoefX)
+                    [u,v]  = AstroWCS.forwardDistortion(Obj.RevPV,U,V,'plusXY_bool',true); % u = U + F(U,V), v = V+G(U,V)
                 else
 
-                    err_thresh = 1e-4;
-                    max_iters = 10;
+                    err_thresh = 1e-6;
+                    max_iters = 20;
 
-                    [u,v]  = AstroWCS.backwardDistortion(Obj.PV,U,V,true,err_thresh,max_iters,true);
+                    [u,v]  = AstroWCS.backwardDistortion(Obj.PV,U,V,'plusXY_bool',true,'Threshold',err_thresh,'MaxIter',max_iters);
 
                 end
                 
@@ -1219,13 +1207,14 @@ classdef AstroWCS < Component
         function PV = build_TANSIP_from_Header(Header,get_inv)
             %used from both PV and invPV
             
+            arguments
+                Header
+                get_inv        = false;             
+            end             
+            
             PV = AstroWCS.DefPVstruct;             
             
             AH = Header;
-            
-            if nargin<2
-                get_inv = false;
-            end
             
             BaseX = 'A';
             BaseY = 'B';
@@ -1284,39 +1273,22 @@ classdef AstroWCS < Component
             arguments
                 Tran2D
                 Args.NAXIS(1,1)
-                Args.CRPIX(1,2)
-                Args.CRVAL(1,2)
+                Args.CRPIX
+                Args.CRVAL
                 Args.CD
                 Args.CTYPE
                 Args.CUNIT     
                 Args.RADESYS   = [];
-                Args.EQUINOX   = 2000;
+                Args.EQUINOX   = [];
                 Args.LONPOLE   = [];
                 Args.LATPOLE   = [];
                 Args.WCSAXES   = [];
-            end
+            end      
 
             % if WCSAXES is not given use NAXIS as default            
             if isempty(Args.WCSAXES)
                 Args.WCSAXES = Args.NAXIS;
             end
-                
-            
-%             if nargin<12
-%                 WCSAXES = NAXIS;
-%                 if nargin<11
-%                     LATPOLE = [];
-%                     if nargin<10
-%                         LONPOLE = [];
-%                         if nargin<9
-%                             EQUINOX = [];
-%                             if nargin<8
-%                                 RADESYS = [];
-%                             end
-%                         end
-%                     end
-%                 end
-%             end            
 
             Obj = AstroWCS(1);
             Obj.Tran2D = Tran2D;
@@ -1362,9 +1334,11 @@ classdef AstroWCS < Component
         
         function PV = build_PV_from_Tran2D(Tran2D,ProjType,set_rev)
 
-            if nargin<3
-                set_rev = false;
-            end            
+            arguments
+                Tran2D
+                ProjType
+                set_rev        = false;             
+            end                         
             
             if isempty(Tran2D.PolyRep.PolyParX) || isempty(Tran2D.PolyRep.PolyX_Xdeg) || isempty(Tran2D.PolyRep.PolyX_Ydeg) || ...
                     isempty(Tran2D.PolyRep.PolyParY) || isempty(Tran2D.PolyRep.PolyY_Xdeg) || isempty(Tran2D.PolyRep.PolyY_Ydeg)
@@ -1439,10 +1413,11 @@ classdef AstroWCS < Component
         end
         
         function PV = fill_TANSIP_KeyNames(PV,set_rev)  
-          
-            if nargin<2
-                set_rev = false;
-            end
+
+            arguments
+                PV
+                set_rev        = false;             
+            end 
             
             BaseX = 'A';
             BaseY = 'B';
@@ -1498,11 +1473,16 @@ classdef AstroWCS < Component
             %          - Celestial latitude
             % Example: - [Alpha,Delta]=AstroWCS.phitheta2alphadelta(1.1,1.1,0,0,0)
 
-
+            arguments
+                Phi
+                Theta
+                PhiP
+                AlphaP
+                DeltaP
+                Units        = 'deg';             
+            end 
+            
             RAD = 180./pi;
-            if nargin<6
-                Units = 'deg';
-            end
 
             % convert to radians
             switch lower(Units)
@@ -1533,20 +1513,17 @@ classdef AstroWCS < Component
 
         end
 
-        function [Xd,Yd]  = forwardDistortion(PV,X,Y,R,plusXY_bool)
+        function [Xd,Yd]  = forwardDistortion(PV,X,Y,Args)
            % use PV structure to calcualte polynomial distortion
            % plusXY_bool - to add X,Y to the poliniomial. (e.g. in TAN-SIP)
-           
-            if nargin<5
-                plusXY_bool = false;
-                if nargin<4
-                    R = 1;
-                end
-            end
-            
-            if isempty(R)
-                R = 1;
-            end
+
+            arguments
+                PV
+                X
+                Y
+                Args.R            = 1;
+                Args.plusXY_bool  = false;             
+            end 
             
             CoefX    = PV.PolyCoefX;
             X_Xpower = PV.PolyX_Xdeg;
@@ -1567,13 +1544,13 @@ classdef AstroWCS < Component
             end                        
 
 
-            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)) );
-            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((R(:).').^Y_Rpower(:)) );                
+            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)) );
+            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)) );                
 
             Xd=reshape(Xd,size(X));
             Yd=reshape(Yd,size(Y));
             
-            if plusXY_bool
+            if Args.plusXY_bool
                 Xd = Xd+X;
                 Yd = Yd+Y;
             end
@@ -1596,11 +1573,16 @@ classdef AstroWCS < Component
             %          - Native latitude
             % Example: [Phi,Theta]=AדארםWCS.alphadelta2phitheta(Alpha,Delta,PhiP,AlphaP,DeltaP)
 
-
+            arguments
+                Alpha
+                Delta
+                PhiP
+                AlphaP
+                DeltaP
+                Units        = 'deg';             
+            end 
+            
             RAD = 180./pi;
-            if nargin<6
-                Units = 'deg';
-            end
 
             % convert to radians
             switch lower(Units)
@@ -1633,21 +1615,17 @@ classdef AstroWCS < Component
         end
         
 
-        function [X,Y]  = backwardDistortion(PV,Xd,Yd,plusXY_bool,Threshold,MaxIter,Step)  
+        function [X,Y]  = backwardDistortion(PV,Xd,Yd,Args)  
             
-            if nargin<7
-                Step = 1e-5;
-                if nargin<6
-                    MaxIter = 100;
-                    if nargin < 5
-                        Threshold = 1e-7;
-                        if nargin < 4
-                            plusXY_bool = false;
-                        end
-                    end    
-                end
-            end
-
+            arguments
+                PV
+                Xd
+                Yd
+                Args.plusXY_bool  = false;     
+                Args.Threshold    = 1e-7; 
+                Args.MaxIter      = 100; 
+                Args.Step         = 1e-5; 
+            end 
             
             Xf = Xd;
             Yf = Yd;
@@ -1668,27 +1646,27 @@ classdef AstroWCS < Component
                     R = sqrt(Xi.^2 + Yi.^2); % TODO - change to arbitrary function f(x,y)
                 end                
                 
-                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R,plusXY_bool);
-                [Xi2,Yi2] = AstroWCS.forwardDistortion(PV,(Xi+Step),(Yi+Step),R,plusXY_bool);
+                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,'R',R,'plusXY_bool',Args.plusXY_bool);
+                [Xi2,Yi2] = AstroWCS.forwardDistortion(PV,(Xi + Args.Step),(Yi + Args.Step),'R',R,'plusXY_bool',Args.plusXY_bool);
                 
                 
                 DeltaX = (Xi1 - Xi2);
                 DeltaY = (Yi1 - Yi2);
                 
-                IncX = (Xi1 - Xf)./DeltaX .* Step;
-                IncY = (Yi1 - Yf)./DeltaY .* Step;
+                IncX = (Xi1 - Xf)./DeltaX .* Args.Step;
+                IncY = (Yi1 - Yf)./DeltaY .* Args.Step;
                 Xi = Xi + IncX;
                 Yi = Yi + IncY; 
                 
-                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,R,plusXY_bool);
+                [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,'R',R,'plusXY_bool',Args.plusXY_bool);
                 
                 DiffX = Xi1 - Xf;
                 DiffY = Yi1 - Yf;
                 
-                if max(abs(DiffX))<Threshold && max(abs(DiffY))<Threshold
+                if (max(abs(DiffX)) < Args.Threshold) && (max(abs(DiffY)) < Args.Threshold)
                     NotConverged = false;
                 end
-                if Iter>MaxIter
+                if Iter > Args.MaxIter
                     NotConverged = false;
                     %error('backwardDistortion didnot converge after %d iterations',Iter);
                 end
@@ -2059,7 +2037,7 @@ classdef AstroWCS < Component
            
             
             AW = AstroWCS.header2wcs(AH);
-            [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
+            [Alpha, Delta]  = AW.xy2sky(PX,PY);
             
             ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
@@ -2068,7 +2046,7 @@ classdef AstroWCS < Component
             
             % test sky2xy for TAN. 
             % First compare to xy2sky and then compared to ds9
-            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for TAN projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));
             
@@ -2084,7 +2062,7 @@ classdef AstroWCS < Component
             PY = rand(1,500) * AH.Key.NAXIS2;
                         
             AW = AstroWCS.header2wcs(AH);
-            [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
+            [Alpha, Delta]  = AW.xy2sky(PX,PY);
             
             ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
@@ -2093,7 +2071,7 @@ classdef AstroWCS < Component
             
             % test sky2xy for TPV. 
             % First compare to xy2sky and then compared to ds9
-            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for TPV projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
 
@@ -2109,7 +2087,7 @@ classdef AstroWCS < Component
             PY = rand(1,500) * AH.Key.NAXIS2;
             
             AW = AstroWCS.header2wcs(AH); 
-            [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg');
+            [Alpha, Delta]  = AW.xy2sky(PX,PY);
             
             ds9(Im_name);
             [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
@@ -2118,22 +2096,29 @@ classdef AstroWCS < Component
             
             % test sky2xy for  TAN-SIP. 
             % First compare to xy2sky and then compared to ds9
-            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg');
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
 
             [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
             d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));               
+            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000)); 
+            
             
             % Check with no distortions
-            [Alpha_no, Delta_no]  = AW.xy2sky(PX,PY,'deg',false);
+            [Alpha_no, Delta_no]  = AW.xy2sky(PX,PY,'includeDistortion',false);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha./RAD,Delta./RAD,Alpha_no./RAD,Delta_no./RAD)));
             disp(sprintf('Max distance for TAN-SIP projection (compared to no distortion) is %.1f [mas]',max(d_mas)));            
             
-            [PX1_no,PY1_no]  = AW.sky2xy(Alpha,Delta,'deg',false);
+            [PX1_no,PY1_no]  = AW.sky2xy(Alpha,Delta,'includeDistortion',false);
             d_pix = sqrt((PX1_no-PX1).^2 + (PY1_no-PY1).^2);
             disp(sprintf('Max distance for  TAN-SIP projection (compared to no distortion) is %.1f [mili-pix]',max(d_pix)*1000));             
+ 
+           % Check with no RevPV
+            AW.RevPV = AstroWCS.DefPVstruct; % clear fields
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
+            d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
+            disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy no RevPV) is %.1f [mili-pix]',max(d_pix)*1000));               
             
             % construct a AstroWCS from AstroHeader with Naxis=3, and empty
             % projtype in CTYPE3 and get [alpha, delta]
@@ -2143,7 +2128,7 @@ classdef AstroWCS < Component
             PY = rand(1,500) * AH.Key.NAXIS2; 
             
             AW = AstroWCS.header2wcs(AH);
-%            [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg'); % Not supported yet
+%            [Alpha, Delta]  = AW.xy2sky(PX,PY); % Not supported yet
 
             % Construct AstroWCS from Tran2D
             TC=Tran2D; 
@@ -2154,8 +2139,8 @@ classdef AstroWCS < Component
             CD = eye(2); CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
 
             AW = AstroWCS.tran2wcs(TC,'NAXIS',NAXIS,'CRPIX',CRPIX,'CRVAL',CRVAL,'CD',CD,'CTYPE',CTYPE,'CUNIT',CUNIT);
-            [Alpha, Delta]  = AW.xy2sky(PX,PY,'deg',false);
-            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'deg',false);
+            [Alpha, Delta]  = AW.xy2sky(PX,PY,'includeDistortion',false);
+            [PX1,PY1]  = AW.sky2xy(Alpha,Delta,'includeDistortion',false);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for Tran2D (TPV) (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));            
 
@@ -2176,7 +2161,7 @@ classdef AstroWCS < Component
             AI = AstroImage('PTF_Cropped.fits');
             ds9(AI);
             load('AstrometricCat_PTF_Cropped.mat');
-            [PX,PY]  = AW.sky2xy(AstrometricCat.Catalog(:,1),AstrometricCat.Catalog(:,2),'rad');
+            [PX,PY]  = AW.sky2xy(AstrometricCat.Catalog(:,1),AstrometricCat.Catalog(:,2),'InUnits','rad');
             ds9.plot([PX,PY]);
             
             % Construct/update AstroHeader from AstroWCS
