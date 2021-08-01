@@ -116,7 +116,7 @@ else
 end
 Spec.Wave = SpecZ(:,1);
 Spec.Spec = SpecZ(:,2).*[CorrFactor(:).'];
-MagBand   = AstroUtil.spec.synphot(SpecZ,InPar.FilterFamily,InPar.FilterName,InPar.FilterSys);
+MagBand   = astro.spec.synphot(SpecZ,InPar.FilterFamily,InPar.FilterName,InPar.FilterSys);
 Spec.Mag  = MagBand + (ZodiVmag-MagVnorm);
 Spec.MagV = ZodiVmag;
 
