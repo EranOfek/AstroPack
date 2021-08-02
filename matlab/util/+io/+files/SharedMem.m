@@ -12,7 +12,8 @@ function send
 filename = fullfile(tempdir, 'talk_answer.dat');
  
 % Create the communications file if it is not already there.
-if ~exist(filename, 'file')
+%if ~exist(filename, 'file')
+if ~isfile(filename)
     [f, msg] = fopen(filename, 'wb');
     if f ~= -1
         fwrite(f, zeros(1,256), 'uint8');
@@ -74,7 +75,8 @@ disp('ANSWER server is awaiting message');
 filename = fullfile(tempdir, 'talk_answer.dat');
 
 % Create the communications file if it is not already there.
-if ~exist(filename, 'file')
+%if ~exist(filename, 'file')
+if ~isfile(filename)   
     [f, msg] = fopen(filename, 'wb');
     if f ~= -1
         fwrite(f, zeros(1,256), 'uint8');

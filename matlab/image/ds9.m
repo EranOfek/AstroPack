@@ -1027,7 +1027,8 @@ classdef ds9 < handle
             end
             
             % check if region file exist
-            if (exist(Args.FileName,'file')==0)
+            %if (exist(Args.FileName,'file')==0)
+            if ~isfile(Args.FileName)
                if (Args.Append)
                    error('User requested to append region file, but file doesnt exist');
                end

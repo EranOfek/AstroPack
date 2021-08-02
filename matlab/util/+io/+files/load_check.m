@@ -43,7 +43,7 @@ if (evalin(WS,sprintf('exist(''%s'')',FileNM))==1)
    % variable exist in workspace
    Var = evalin(WS,sprintf('%s;',FileNM));
 else
-   Var = Util.IO.load2(File);
+   Var = io.files.load2(File);
    %eval(sprintf('Var=%s;',FileNM));
    if (StoreWS)
         assignin(WS,FileNM,Var);

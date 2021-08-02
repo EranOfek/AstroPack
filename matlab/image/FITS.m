@@ -722,7 +722,8 @@ classdef FITS < handle
             % Overwrite existing FITS file
             if (Args.OverWrite)
                 % delete existing FileName if exist
-                if (exist(FileName,'file')~=0)
+                %if (exist(FileName,'file')~=0)
+                if isfile(FileName)
                     delete(FileName);
                 end
             end

@@ -13,11 +13,12 @@ function Dir=dir_cell(Cell)
 %--------------------------------------------------------------------------
 
 Ncell = numel(Cell);
-Dir   = Util.struct.struct_def({'name','folder','date','bytes','isdir','datenum'},Ncell,1);
+Dir   = tools.struct.struct_def({'name','folder','date','bytes','isdir','datenum'},Ncell,1);
 %Dir   = Util.struct.struct_def({'name','date','bytes','isdir','datenum'},Ncell,1);
 
 for Icell=1:1:Ncell
-    if (exist(Cell{Icell},'file')>0 || exist(Cell{Icell},'dir')>0)
+    %if (exist(Cell{Icell},'file')>0 || exist(Cell{Icell},'dir')>0)
+    if isfile(Cell{Icell}) || isfolder(Cell{Icell})   
         dir(Cell{Icell})
         Dir(Icell) = dir(Cell{Icell});        
     end
