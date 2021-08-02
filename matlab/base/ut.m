@@ -1,4 +1,8 @@
 % Unit Tester shortcuts
+% 
+% ut.bpush - Runs all Unit-Tests before git push
+%
+%
 
 classdef ut < handle
     

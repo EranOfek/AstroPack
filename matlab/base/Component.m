@@ -106,13 +106,23 @@ classdef Component < Base
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
-            
-            % Add name to log 
-            if ~isempty(Obj.Name)
-                varargin{1} = [Obj.Name, ': ' , varargin{1}];
+                           
+            for i = 1:numel(Obj)
+                
+                Index = '';
+                if numel(Obj) > 1
+                    Index = ['(', char(string(i)), ')'];
+                end
+                
+                % Add name to log
+                vararg = varargin;
+                if ~isempty(Obj(i).Name) || numel(Obj) > 1
+                    vararg{1} = [Obj.Name, Index, ': ' , varargin{1}];
+                end
+                
+
+                Obj(i).Log.msgLog(Level, vararg{:});
             end
-            
-            Obj(1).Log.msgLog(Level, varargin{:});
         end
         
 
@@ -275,25 +285,27 @@ classdef Component < Base
             % unitTest for Component class
             io.msgLog(LogLevel.Test, 'Component test started');
             
+            % Simple
             a = Component;
-            a.msgLog(LogLevel.Test, 'a created');
-            
+            a.msgLog(LogLevel.Test, 'a created');            
             b = Component;
-            b.msgLog(LogLevel.Test, 'b created');
-            
+            b.msgLog(LogLevel.Test, 'b created');            
             c = Component;
             c.msgLog(LogLevel.Test, 'c created');
             
+            % Uuid
             io.msgLog(LogLevel.Test, 'Testing Uuid');
             a.needUuid();            
             b.needUuid();
             assert(~all(a.Uuid ~= b.Uuid));
             
+            % MapKey
             io.msgLog(LogLevel.Test, 'Testing MapKey');
             a.needMapKey();            
             b.needMapKey();
             assert(~all(a.MapKey ~= b.MapKey));            
            
+            % Array
             c(1) = Component;
             c(2) = Component;
             c.msgLog(LogLevel.Test, 'Msg');
@@ -302,8 +314,7 @@ classdef Component < Base
             k = c.needMapKey();
             disp(k);
             
-            io.msgStyle(LogLevel.Test, '@passed', 'Component test passed');   
-                       
+            io.msgStyle(LogLevel.Test, '@passed', 'Component test passed');                          
             Result = true;
         end
     end    

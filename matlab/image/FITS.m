@@ -1177,6 +1177,8 @@ classdef FITS < handle
             
             % readTable1
             io.msgLog(LogLevel.Test, 'testing FITS readTable1');
+            
+            % @FIX - @Eran
             [Out, Head, Col] = FITS.readTable1('asu.fit');
             
             % get_keys

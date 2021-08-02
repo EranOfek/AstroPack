@@ -30,7 +30,7 @@ classdef ds9 < handle
     
     % Constructor method (display)
     methods
-        function Obj=ds9(Image,varargin)
+        function Obj = ds9(Image,varargin)
             % Display images in ds9
             % Package: @ds9
             % Description: Display images in ds9 (constructor).
@@ -78,7 +78,7 @@ classdef ds9 < handle
     methods (Static)
         
         % execute xpa command
-        function [Answer,Status]=system(String,varargin)
+        function [Answer,Status] = system(String,varargin)
             % Construct and execute an xpa command
             % Package: @ds9
             % Input  : - String to execute. The string may include any
@@ -93,8 +93,10 @@ classdef ds9 < handle
             if ismac
                String = strcat('set DYLD_LIBRARY_PATH "";', String);
                [Status,Answer]=system(String);
+            elseif isunix
+               [Status,Answer]=system(String);               
             else
-               [Status,Answer]=system(String);
+               fprintf('\ds9.system(): Windows is not supported yet!\n'); 
             end
             if (Status~=0)
                 if contains(Answer,'not found')
@@ -105,12 +107,11 @@ classdef ds9 < handle
                 end
                 error('Command: %s failed - Answer: %s',String,Answer);
                 
-            end
-            
+            end            
         end
 
         % construct xpa command
-        function String=construct_command(varargin)
+        function String = construct_command(varargin)
             % Construct an arguments string for ds9 command
             % Package: @ds9
             % Input  : * Arbitrary number of arguments from which to
@@ -151,7 +152,7 @@ classdef ds9 < handle
         end
         
         % xpaget
-        function Ans=xpaget(Command)
+        function Ans = xpaget(Command)
             % Execute an xpaget command
             % Package: @ds9
             % Input  : - The command to follow the 'xpaget ds9'.
@@ -174,7 +175,7 @@ classdef ds9 < handle
         end
         
         % check if ds9 is open
-        function IsOpen=isopen
+        function IsOpen = isopen
             % Check if ds9 is open (linux/mac only)
             % Package: @ds9
             % Input  : null
@@ -3158,13 +3159,24 @@ classdef ds9 < handle
             end
         end
         
+        
+        function Result = supported()
+            % Return true if ds9 is supported (currently only Linux and Mac)            
+            Result = isunix || ismac;
+        end
     end
 
     
     methods (Static) % Unit-Test
         function Result = unitTest()
             % unitTest for ds9
+            io.msgStyle(LogLevel.Test, '@start', 'ds9 test started');
            
+            if ~isunix && ~ismac
+                io.msgStyle(LogLevel.Test, 'red', 'ds9 - Windows is not supported yet !!!');
+            end
+            
+            io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
             Result = true;
         end
     end

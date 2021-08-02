@@ -68,16 +68,33 @@ classdef UnitTester < handle
         
         function Result = report(Obj)
             
-            Obj.msgLog(LogLevel.Test, 'Test list:\n');            
+            %Obj.msgLog(LogLevel.Test, 'Test list:\n');            
+            
+            % Print passed
+            Obj.msgLog(LogLevel.Test, '\n');
+            Obj.msgLog(LogLevel.Test, 'Passed:');            
             for i = 1:numel(Obj.TestList)
                 Passed = Obj.TestResult{i};
                 if Passed                    
-                    Obj.msgStyle(LogLevel.Test, 'black', 'Test: %s, Result: %d', Obj.TestList{i}, Obj.TestResult{i});
+                    Obj.msgStyle(LogLevel.Test, 'blue', 'Test: %s - PASSED', Obj.TestList{i});
                 else
-                    Obj.msgStyle(LogLevel.Test, 'red', 'Test: %s, Result: %d', Obj.TestList{i}, Obj.TestResult{i});
+                    %Obj.msgStyle(LogLevel.Test, 'red', 'Test: %s - FAILED', Obj.TestList{i});
                 end
             end
             
+            % Print failed
+            Obj.msgLog(LogLevel.Test, '\n');
+            Obj.msgLog(LogLevel.Test, 'Failed:');
+            for i = 1:numel(Obj.TestList)
+                Passed = Obj.TestResult{i};
+                if Passed                    
+                    %Obj.msgStyle(LogLevel.Test, 'blue', 'Test: %s - PASSED', Obj.TestList{i});
+                else
+                    Obj.msgStyle(LogLevel.Test, 'red', 'Test: %s - FAILED', Obj.TestList{i});
+                end
+            end            
+            
+            Obj.msgLog(LogLevel.Test, '\n');
             Obj.msgLog(LogLevel.Test, 'Passed: %d', Obj.PassCount);
             Obj.msgLog(LogLevel.Test, 'Failed: %d', Obj.FailCount);
             Result = true;
@@ -170,24 +187,18 @@ classdef UnitTester < handle
             Obj.runTest('AstroImage');            
             Obj.runTest('AstroPSF');
             Obj.runTest('AstroWCS');            
-            Obj.runTest('Trans2D');
+            Obj.runTest('Tran2D');
             Obj.runTest('VarImage');        
             Obj.runTest('BackImage');
-            Obj.runTest('BaseAlgo');
-            Obj.runTest('BaseImage');
-            Obj.runTest('CatAlgo');
             Obj.runTest('DbInfo');
             Obj.runTest('ds9');
             Obj.runTest('FITS');
-            Obj.runTest('FunImage');
-            Obj.runTest('ImageAlgo');
             Obj.runTest('ImageComponent');
             Obj.runTest('ImageIO');
             Obj.runTest('ImagePath');
             Obj.runTest('ImageProc');
             Obj.runTest('MaskImage');
             Obj.runTest('MatchedSources');
-            Obj.runTest('NoisyImage');
             Obj.runTest('PhotonsList');
             Obj.runTest('Rect');
             Obj.runTest('SciImage');

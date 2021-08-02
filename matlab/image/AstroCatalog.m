@@ -789,6 +789,11 @@ classdef AstroCatalog < AstroTable
             cd(DataSampleDir);
             
             % constructor
+            
+            % @FIX - @Eran - Where is this table? We need it also on
+            % Windows - Need instructions where from to take it and where
+            % to put it
+            
             io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
             [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC);
@@ -907,11 +912,8 @@ classdef AstroCatalog < AstroTable
             % sphere_dist
             AC=AstroCatalog({'asu.fit'},'HDU',2);
             [Dist, PA] = sphere_dist(AC,1,1);
-            
-            
-            
-            cd(PWD);
-            
+                                   
+            cd(PWD);           
             io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog test passed')
             Result = true;
         end

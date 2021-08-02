@@ -1330,8 +1330,7 @@ classdef AstroTable < Component
             %To do:
             % -Add output checks for:
             %     -everything
-            
-            
+                        
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
             cd(DataSampleDir);
@@ -1343,8 +1342,10 @@ classdef AstroTable < Component
             AC = AstroTable({rand(10,2),rand(10,2)});
             AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
             AC = AstroTable({rand(10,2),rand(10,2)},'ConvertTable2array',false);
-            AC=AstroTable({array2table(rand(10,2))});
-            AC=AstroTable({rand(10,2)},'ColNames',{'RA','Dec'});
+            AC = AstroTable({array2table(rand(10,2))});                     
+            AC = AstroTable({rand(10,2)},'ColNames',{'RA','Dec'});
+            
+            % @FAILED - @Eran
             A = AstCat; A(1).Cat=rand(10,2);
             A(2).Cat=rand(10,2); A(1).ColCell={'RA','Dec'};
             A(1).ColUnits={'rad','rad'};
@@ -1554,12 +1555,11 @@ classdef AstroTable < Component
             flipud(AC)
             
             cd(PWD);
-            io.msgStyle(LogLevel.Test, '@passed', 'AstroTable test passed')
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroTable test passed');
             Result = true;
         end
     end
     
-
 end
 
             

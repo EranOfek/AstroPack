@@ -1977,6 +1977,9 @@ classdef AstroWCS < Component
 
             io.msgStyle(LogLevel.Test, '@start', 'AstroWCS test started')
             
+            % Test DS9 only on Linux/Mac
+            have_ds9 = ds9.supported();
+            
             % Change to data directory
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
@@ -2005,7 +2008,6 @@ classdef AstroWCS < Component
             
             AH.insertKey({'PC1_2',ValCD(2)/ValCD(1);'PC2_1',ValCD(3)/ValCD(4)});
             AW = AstroWCS.header2wcs(AH); % using CDELT and PC should give identical CD to original
-
             
             % Test with no projection (fill ProjType=ProjClass='none')
             AH.replaceVal({'CTYPE1','CTYPE2'},{'RA','DEC'});
@@ -2021,8 +2023,7 @@ classdef AstroWCS < Component
             
             % xy2sky tests
             RAD = 180./pi;
-            
-            
+                        
             % get [alpha, delta] for TAN projection
             %Im_name = 'FOCx38i0101t_c0f.fits';
             Im_name = 'WD0802+387-S019-Luminance-R001-Luminance.fts';
@@ -2033,26 +2034,30 @@ classdef AstroWCS < Component
             
             AH = AstroHeader(Im_name,HDU);
             PX = rand(1,500) * AH.Key.NAXIS1;
-            PY = rand(1,500) * AH.Key.NAXIS2;
-           
+            PY = rand(1,500) * AH.Key.NAXIS2;           
             
             AW = AstroWCS.header2wcs(AH);
             [Alpha, Delta]  = AW.xy2sky(PX,PY);
             
-            ds9(Im_name);
-            [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-            d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
-            
+            % Test DS9 only on Linux/Mac
+            if have_ds9
+                ds9(Im_name);
+                [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
+                d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+                disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            end
+               
             % test sky2xy for TAN. 
             % First compare to xy2sky and then compared to ds9
             [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for TAN projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));
             
-            [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
-            d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));
+            if have_ds9
+                [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
+                d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
+                disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));
+            end
             
             % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
             %Im_name = 'tpv.fits';
@@ -2064,10 +2069,12 @@ classdef AstroWCS < Component
             AW = AstroWCS.header2wcs(AH);
             [Alpha, Delta]  = AW.xy2sky(PX,PY);
             
-            ds9(Im_name);
-            [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-            d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            if have_ds9
+                ds9(Im_name);
+                [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
+                d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+                disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            end
             
             % test sky2xy for TPV. 
             % First compare to xy2sky and then compared to ds9
@@ -2075,11 +2082,12 @@ classdef AstroWCS < Component
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for TPV projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
 
-            [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
-            d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for TPV projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));            
-            
-            
+            if have_ds9            
+                [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
+                d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
+                disp(sprintf('Max distance for TPV projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));            
+            end
+                        
             % construct a AstroWCS from Header with TAN-SIP projection  and get [alpha, delta]
             Im_name = 'SPITZER_I1_70576896_0000_0000_1_bcd.fits';
             AH = AstroHeader(Im_name);
@@ -2089,10 +2097,12 @@ classdef AstroWCS < Component
             AW = AstroWCS.header2wcs(AH); 
             [Alpha, Delta]  = AW.xy2sky(PX,PY);
             
-            ds9(Im_name);
-            [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-            d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
-            disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            if have_ds9            
+                ds9(Im_name);
+                [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
+                d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+                disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+            end
             
             % test sky2xy for  TAN-SIP. 
             % First compare to xy2sky and then compared to ds9
@@ -2100,11 +2110,12 @@ classdef AstroWCS < Component
             d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
             disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
 
-            [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
-            d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
-            disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000)); 
-            
-            
+            if have_ds9
+                [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
+                d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
+                disp(sprintf('Max distance for  TAN-SIP projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000)); 
+            end
+                        
             % Check with no distortions
             [Alpha_no, Delta_no]  = AW.xy2sky(PX,PY,'includeDistortion',false);
             d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha./RAD,Delta./RAD,Alpha_no./RAD,Delta_no./RAD)));
@@ -2156,32 +2167,26 @@ classdef AstroWCS < Component
             [Alpha, Delta]  = AW.xy2sky([1;1000],[1;1000]);
             assert(Alpha(1)~=Alpha(2));
             assert(Delta(1)~=Delta(2));
-            
-            
+                        
             AI = AstroImage('PTF_Cropped.fits');
-            ds9(AI);
-            load('AstrometricCat_PTF_Cropped.mat');
-            [PX,PY]  = AW.sky2xy(AstrometricCat.Catalog(:,1),AstrometricCat.Catalog(:,2),'InUnits','rad');
-            ds9.plot([PX,PY]);
+            
+            if have_ds9
+                ds9(AI);
+                load('AstrometricCat_PTF_Cropped.mat');
+                [PX,PY]  = AW.sky2xy(AstrometricCat.Catalog(:,1),AstrometricCat.Catalog(:,2),'InUnits','rad');
+                ds9.plot([PX,PY]);
+            end
             
             % Construct/update AstroHeader from AstroWCS
-            AH1 = AW.wcs2head;
-            
+            AH1 = AW.wcs2head;           
             AH = AW.wcs2head(AH);
-            
-            
-            
-            
+                        
             % test other things
-            
-            
-            cd(PWD);   
-             
-            io.msgStyle(LogLevel.Test, '@passed', 'AstroWCS test passed')
+                       
+            cd(PWD);                
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroWCS test passed');
             Result = true;            
         end
-end
+    end
     
 end
-
-

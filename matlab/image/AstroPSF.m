@@ -148,6 +148,7 @@ classdef AstroPSF < Component
             
     end
     
+    
     methods % PSF properties
         
         function [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(Obj, Args)
@@ -190,6 +191,7 @@ classdef AstroPSF < Component
                 Args.EpsStep                = 1e-8;
             end
             
+            % @FIX - @Eran
             if Args.ReCenter
                 % use 1st moment to find PSF center
                 M1 = moment2(Obj);
@@ -211,6 +213,7 @@ classdef AstroPSF < Component
             end
             
         end
+        
         
         function [M1, M2, Aper] = moment2(Obj, Args)
             % Calculate the moments and perture photometry of PSFs
@@ -312,6 +315,7 @@ classdef AstroPSF < Component
             
         end
         
+        
         function [FWHM_CumSum, FWHM_Flux] = fwhm(Obj, Args)
             % Calculate the FWHM of a PSF using the curve of growth
             %   (for alternative method use moment2).
@@ -405,6 +409,8 @@ classdef AstroPSF < Component
             % unitTest for AstroPSF
             % Example: Result = AstroPSF.unitTest
             
+            io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');                                      
+            
             % getPSF
             AP = AstroPSF;
             P = imUtil.kernel2.gauss;
@@ -416,6 +422,8 @@ classdef AstroPSF < Component
             % curve of growth
             AP = AstroPSF;
             AP.DataPSF = imUtil.kernel2.gauss;
+            
+            % @FIX - @Eran
             [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);
 
             % images2cube
@@ -433,6 +441,7 @@ classdef AstroPSF < Component
             % fwhm
             [FWHM_CumSum, FWHM_Flux] = fwhm(AP);
             
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
             Result = true;
         end
     end

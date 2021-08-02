@@ -416,8 +416,13 @@ classdef ImageIO < Component
     methods (Static)  % unitTest
         function Result = unitTest()
             % unitTest for ImageIO class
+            io.msgStyle(LogLevel.Test, '@start', 'ImageIO test started');                          
+            
+            PWD = pwd;
             
             % static class to read a single image/table/header
+            
+            % @FIX - @Eran
             [D,H]=ImageIO.read1('asu.fit','IsTable',1);
             [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits');
             [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','CCDSEC',[1 10 1 10]);
@@ -438,6 +443,8 @@ classdef ImageIO < Component
             I = ImageIO({'WFPC2ASSNu5780205bx.fits','WFPC2u5780205r_c0fx.fits'});
             I = ImageIO('*.fits');
             
+            cd(PWD);
+            io.msgStyle(LogLevel.Test, '@passed', 'ImageIO test passed');                          
             Result = true;
             
         end
