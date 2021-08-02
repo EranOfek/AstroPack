@@ -19,7 +19,8 @@ catch
     Split = Split(~tools.cell.isempty_cell(Split));
     Nsplit = numel(Split);
     for Isplit=1:1:Nsplit
-        if exist(Split{Isplit},'dir')==0
+        %if exist(Split{Isplit},'dir')==0
+        if ~isfolder(Split{Isplit})
             mkdir(Split{Isplit});
         end
         cd(Split{Isplit});
