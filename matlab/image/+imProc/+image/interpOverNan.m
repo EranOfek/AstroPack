@@ -55,7 +55,21 @@ function Result = interpOverNan(Obj, Args)
         for Iprop=1:1:Nprop
             switch lower(Args.Method)
                 case 'inpaint_nans'
-                    Result(Iobj).(Args.DataProp{Iprop}) = inpaint_nans(Obj(Iobj).(Args.DataProp{Iprop}), Args.MethodInpaint);
+                    % perform for each dimension beyond 2 (i.e., images in
+                    % a cube)
+                    Ndim    = ndims(Obj(Iobj).(Args.DataProp{Iprop}));
+                    if Ndim>2
+                        % N-D image
+                        SizeIm = size(Obj(Iobj).(Args.DataProp{Iprop}));
+                        
+                        Nimages = prod(SizeIm(3:end)); % number of images in the dim>2 indices
+                        for Iimages=1:1:Nimages
+                            Result(Iobj).(Args.DataProp{Iprop})(:,:,Iimages) = inpaint_nans(Obj(Iobj).(Args.DataProp{Iprop})(:,:,Iimages), Args.MethodInpaint);
+                        end
+                    else
+                        % 2D image
+                        Result(Iobj).(Args.DataProp{Iprop}) = inpaint_nans(Obj(Iobj).(Args.DataProp{Iprop}), Args.MethodInpaint);
+                    end
                 otherwise
                     error('Unknown Method option');
             end

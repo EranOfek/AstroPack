@@ -7,15 +7,20 @@ function [Result, CalibObj] = read2AstroImage(Files, Args)
     %               addpath('/home/eran/matlab/GUYN/WFAST/wfast')
     % Input  : - File name, or file name with regular expression.
     %          * ...,key,val,...
-    %            'ReadType' - Which dataset to read. Default is 'image'.
+    %            'ReadType' - Which dataset to read:
+    %                   'image' | 'stack' | 'cutouts'
+    %                   Default is 'image'.
     %            'UseRegExp' - A logical indicating if to use regular
     %                   expressions when interpreting file name.
+    %                   Default is true.
+    %            'Calibrate' - APply dark subtraction and flat correction.
     %                   Default is true.
     %            'CalibDir' - W-FAST calibration directory.
     %            'CalibFile' - W-FAST calibration file name.
     %            'CalibObj' - Optional calibration object (from calibration
     %                   file). If empty, thenm will attempt to load from
     %                   calibration file. Default is [].
+    %            'InterpOverNan' - Interpolate over NaNs. Default is true.
     % Output : - An AstroImage object with loaded images, headers, and
     %            masks.
     %          - The calibration object.
@@ -25,17 +30,19 @@ function [Result, CalibObj] = read2AstroImage(Files, Args)
     arguments
         Files
         
-        Args.Gain                      = 0.8;
+        Args.Gain                       = 0.8;
         
-        Args.ReadType                  = 'image';
-        Args.UseRegExp(1,1) logical    = true;
-        Args.CalibDir                  = '/data/euler/archive/WFAST/calibration';
-        Args.CalibFile                 = 'calibration_2021-03-07_WFAST_Balor.mat';
-        Args.CalibObj                  = [];
+        Args.ReadType                   = 'image';    % 'iamge' | 'stack' | 'cutouts'
+        Args.UseRegExp(1,1) logical     = true;
+        Args.Calibrate(1,1) logical     = true;
+        Args.CalibDir                    = '/data/euler/archive/WFAST/calibration';
+        Args.CalibFile                  = 'calibration_2021-03-07_WFAST_Balor.mat';
+        Args.CalibObj                   = [];
+        Args.InterpOverNan(1,1) logical = true; 
     end
     
     % load Calibration object
-    if isempty(Args.CalibObj)
+    if isempty(Args.CalibObj) && Args.Calibrate
         PWD = pwd;
         cd(Args.CalibDir);
         cd  /data/euler/archive/WFAST/calibration
@@ -118,7 +125,10 @@ function [Result, CalibObj] = read2AstroImage(Files, Args)
         switch lower(Args.ReadType)
             case 'image'
                 Image = h5read(FileName, '/images');
-                
+            case 'stack'
+                Image = h5read(FileName, '/stack');
+            case 'cutouts'
+                Image = h5read(FileName, '/cutouts');
             otherwise
                 error('Not supported ReadType option');
         end
@@ -126,22 +136,25 @@ function [Result, CalibObj] = read2AstroImage(Files, Args)
         
         % calibrate the image (dark, flat, bad pixels)
         % using guy code
-        Image = CalibObj.input(Image);
+        if Args.Calibrate
+            Image = CalibObj.input(Image);
+
+            % mask image
+            MaskFlag = isnan(Image);
+            Result(Ilist).MaskData = maskSet(Result(Ilist).MaskData, MaskFlag, 'HighRN', 1);
+
+            % gain correction
+            Image = Image.*Args.Gain;
+        end
         
-        % mask image
-        MaskFlag = isnan(Image);
-        Result(Ilist).MaskData = maskSet(Result(Ilist).MaskData, MaskFlag, 'HighRN', 1);
-        
-        % gain correction
-        Image = Image.*Args.Gain;
+        Result(Ilist).Image = Image;
         
         % interp over NaN
-        Result(Ilist).Image = Image;
-        Result(Ilist).cast('double');
-        imProc.image.interpOverNan( Result(Ilist) );
-        %Result(Ilist).cast('single');
-
-        
+        if Args.InterpOverNan
+            Result(Ilist).cast('double');
+            imProc.image.interpOverNan( Result(Ilist) );
+            %Result(Ilist).cast('single');
+        end
         
     end
     
