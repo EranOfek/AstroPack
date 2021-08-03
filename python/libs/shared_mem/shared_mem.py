@@ -112,7 +112,7 @@ class SharedMemory:
     # Destructor
     def __del__(self):
         print('SharedMemory deleted')
-        self.close()
+        #self.close()
 
 
     # Open memory mapped file
@@ -155,6 +155,9 @@ class SharedMemory:
         if self.fid > -1:
             self.f.close()
             self.fid = -1
+
+        print('SharedMemory.close: done: ' + self.filename)
+
 
     # Write buffer to shared-memory
     def write(self, pos, buf):

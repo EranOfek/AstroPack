@@ -19,9 +19,20 @@ EnvFolders:
     LOG: c:/pipeline/log
     TEMP: c:/pipeline/temp
     IAI: c:/iai
-    
+
+
+# AstroStore
+AstroStore:
+    DataPath: /data/store
+    DataPath_Win: C:\Data\Store\
+
+
+
+# AstroDb
+AstroDb:
+
 #==========================================================================
-#                                 Pipeline 
+#                                 Pipeline
 #==========================================================================
 # Pipeline - General
 Pipeline:
@@ -30,18 +41,18 @@ Pipeline:
 
 #---------------------------------------------------------- DarkImage
 DarkImage:
-    ImageCount: 10    
+    ImageCount: 10
     InputFolder: $ROOT/DarkImage/Input/
 
     # Valid ranges
-    ValidTimeSpanSeconds: [0, 3600]    
+    ValidTimeSpanSeconds: [0, 3600]
     ValidTemperatureRange: [10, 90]
     ValidExposureRangeSeconds: [30, 300]
-    
+
 #==========================================================================
 # Pipeline - IAI GCS Interface
 GcsInterface:
-    InputImagePath: $IAI/gcs/    
+    InputImagePath: $IAI/gcs/
     ProcessedImagePath: $IAI/processed
 
 
@@ -53,5 +64,5 @@ GcsSimulator:
     ImagePath: c:/iai/gcs/
     ImageSourcePath: c:/iai/images
     ImageIntervalSeconds: 10
-   
+
 

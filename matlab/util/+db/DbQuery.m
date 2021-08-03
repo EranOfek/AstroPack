@@ -29,6 +29,9 @@ classdef DbQuery < Component
         ExecOk          = false     % Last result of exec()
         Eof             = true      % True when cursor reached last record of current ResultSet
         Toc             = 0         % Time of last operation
+        
+        % Need to think (03/08/2021)
+        TableName       = '';       %
     end
     
     %-------------------------------------------------------- 
