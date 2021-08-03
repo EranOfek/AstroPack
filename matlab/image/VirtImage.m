@@ -1,4 +1,7 @@
 % Virtual Image Class
+
+% See Datastore (v2021a and up)
+% https://www.mathworks.com/help/matlab/datastore.html
 %--------------------------------------------------------------------------
 
 classdef VirtImage < Component
