@@ -541,7 +541,7 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
             
             % add RA/Dec to the catalog
             if nargout>2
-                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Obj(Iobj).getCol(IndCatX), Obj(Iobj).getCol(IndCatY));
+                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Obj(Iobj).getCol(IndCatX), Obj(Iobj).getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
                 Obj(Iobj).insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
             end
             

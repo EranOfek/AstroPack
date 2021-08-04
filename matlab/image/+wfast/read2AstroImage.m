@@ -13,7 +13,7 @@ function [Result, CalibObj] = read2AstroImage(Files, Args)
     %            'UseRegExp' - A logical indicating if to use regular
     %                   expressions when interpreting file name.
     %                   Default is true.
-    %            'Calibrate' - APply dark subtraction and flat correction.
+    %            'Calibrate' - Apply dark subtraction and flat correction.
     %                   Default is true.
     %            'CalibDir' - W-FAST calibration directory.
     %            'CalibFile' - W-FAST calibration file name.
@@ -26,7 +26,10 @@ function [Result, CalibObj] = read2AstroImage(Files, Args)
     %          - The calibration object.
     % Example: cd /data/euler/archive/WFAST/2021/2021-05-28/quadrature_run1
     %          Result = wfast.read2AstroImage('WFAST_Balor_20210529-011410-415_F505W_0_Image.h5z');
-   
+    %          AI =
+    %          wfast.read2AstroImage('WFAST_Balor_20200801-020630-880_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
+    
+    
     arguments
         Files
         
