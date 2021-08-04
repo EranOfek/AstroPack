@@ -1,6 +1,10 @@
 function cutouts_photometry(Input, Args)
     %
-   
+    % Examples: AI =
+    %          wfast.read2AstroImage('WFAST_Balor_20200801-020630-880_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
+    
+    
+    
     arguments
         Input                                    % AstroImage or file name
         Args.read2AstroImageArgs cell          = {'Calibrate',true,'InterpOverNan',false};

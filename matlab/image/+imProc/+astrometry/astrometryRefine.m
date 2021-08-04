@@ -106,7 +106,8 @@ function Result = astrometryRefine(ObjAC, Args)
         else
             % Convert X/Y to RA/Dec using AstroWCS
             Iwcs = min(Iobj, Nwcs);
-            [SrcRA, SrcDec] = Args.WCS(Iwcs).xy2sky(Xcat, Ycat, 'rad', Args.IncludeDistortions);
+            [SrcRA, SrcDec] = Args.WCS(Iwcs).xy2sky(Xcat, Ycat, 'OutUnits','rad',...
+                                                                'includeDistortion',Args.IncludeDistortions);
             % add approximate RA, Dec to new copy of catalog
             Obj = insertCol(Obj, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
                 
