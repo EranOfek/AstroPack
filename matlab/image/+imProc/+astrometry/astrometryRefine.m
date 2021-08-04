@@ -162,9 +162,9 @@ function Result = astrometryRefine(ObjAC, Args)
             % estimate scale based on distances between sources
             SrcDistRad = celestial.coo.sphere_dist_fast(SrcRA, SrcDec, SrcRA(1), SrcDec(1));
             SrcDistPix = sqrt((Xcat - Xcat(1)).^2 + (Ycat - Ycat(1)).^2);
-            Scale = median(SrcDistRad.*RAD.*ARCSEC_DEG./SrcDistPix,'all','omitnan');
+            Scale = median(SrcDistRad.*RAD.*ARCSEC_DEG./SrcDistPix,'all','omitnan');   % ["/pix]
         else
-            Scale = Args.Scale;
+            Scale = Args.Scale; % ["/pix]
         end
         
         ProjectionScale = RAD .* ARCSEC_DEG ./ Scale;
@@ -176,7 +176,7 @@ function Result = astrometryRefine(ObjAC, Args)
      
         % match the RA/Dec against an external catalog
         % sources in MatchedCat corresponds to sources in ProjAstCat
-                
+      
         [MatchedCat,UM,TUM] = imProc.match.match(Obj(Iobj), ProjAstCat,...
                                                      'Radius',Args.SearchRadius,...
                                                      'RadiusUnits','arcsec',...
@@ -211,6 +211,10 @@ function Result = astrometryRefine(ObjAC, Args)
         Yref = getColDic(ProjAstCat, RefColNameY);
         Mag  = getColDic(ProjAstCat, Args.RefColNameMag);
         
+        % the X/Y coo looks wrong
+        % 1. Check that Xref/Yref is correct (compare to Core)
+        % 2. [ones(10,1), Xref(1:10,:), Yref(1:10,:)]\Xcat(1:10,:) gives
+        % weird results
         
         % fit
         
