@@ -22,11 +22,20 @@ function cutouts_photometry(Input, Args)
         Y    = ceil(SizeC(1).*0.5).*ones(Ncut,1);
         Cube = single(Cube);
         
-        % with 1st moment estimation
-        [M1,M2,Aper] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false);
+        % with 1st moment estimation (Centered)
+        [M1C(Iobj),M2C(Iobj),AperC(Iobj)] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false);
     
-        % without 1st moment estimation
-        [M1,M2,Aper] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false,'MaxIter',-1);
+        % without 1st moment estimation (Forced)
+        [M1F(Iobj),M2F(Iobj),AperF(Iobj)] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false,'MaxIter',-1);
+        
+        %
+        M1C(Iobj)   = tools.struct.reshapeFields(M1C(Iobj), SizeC(3:end));
+        M1F(Iobj)   = tools.struct.reshapeFields(M1F(Iobj), SizeC(3:end));
+        M2C(Iobj)   = tools.struct.reshapeFields(M2C(Iobj), SizeC(3:end));
+        M2F(Iobj)   = tools.struct.reshapeFields(M2F(Iobj), SizeC(3:end));
+        AperC(Iobj) = tools.struct.reshapeFields(AperC(Iobj), SizeC(3:end));
+        AperF(Iobj) = tools.struct.reshapeFields(AperF(Iobj), SizeC(3:end));
+        
         
     end
 end
