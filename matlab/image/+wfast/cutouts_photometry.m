@@ -4,6 +4,9 @@ function cutouts_photometry(Input, Args)
     arguments
         Input                                    % AstroImage or file name
         Args.read2AstroImageArgs cell          = {'Calibrate',true,'InterpOverNan',false};
+        Args.AperRadius(1,:)                   = [2, 3, 4];
+        Args.Annulus(1,2)                      = [4 6];
+        Args.SubBack(1,1) logical              = true;
     end
     
     if ~isa(Input, AstroImage)
@@ -23,10 +26,17 @@ function cutouts_photometry(Input, Args)
         Cube = single(Cube);
         
         % with 1st moment estimation (Centered)
-        [M1C(Iobj),M2C(Iobj),AperC(Iobj)] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false);
+        [M1C(Iobj),M2C(Iobj),AperC(Iobj)] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false,...
+                                                                             'AperRadius',Args.AperRadius,...
+                                                                             'Annulus',Args.Annulus,...
+                                                                             'SubBack',Args.SubBack);
     
         % without 1st moment estimation (Forced)
-        [M1F(Iobj),M2F(Iobj),AperF(Iobj)] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false,'MaxIter',-1);
+        [M1F(Iobj),M2F(Iobj),AperF(Iobj)] = imUtil.image.moment2(Cube, X, Y, 'NoWeightFirstIter',false,'MaxIter',-1,...
+                                                                             'AperRadius',Args.AperRadius,...
+                                                                             'Annulus',Args.Annulus,...
+                                                                             'SubBack',Args.SubBack);
+    
         
         %
         M1C(Iobj)   = tools.struct.reshapeFields(M1C(Iobj), SizeC(3:end), 'first');
