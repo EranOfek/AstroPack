@@ -51,6 +51,8 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %                       circular shape. Default is false.
 %            'MaxIter' - Maximum number of 1st moment position iterations.
 %                       0 will perform aingle 1st moment calculation.
+%                       -1 will use the initial guess without estimating
+%                       the first moment (i.e., forced photometry).
 %                       Default is 10.
 %            'NoWeightFirstIter' - A flag indicating if not to apply weight
 %                       on the first itearation. Default is true.
@@ -207,6 +209,9 @@ W_Max(MatR>Args.MomRadius) = 0;
 %M1.X = RoundX + squeeze(nansum(W.*Cube.*MatX,[1 2]))./squeeze(nansum(W.*Cube,[1 2]));
 %M1.Y = RoundY + squeeze(nansum(W.*Cube.*MatY,[1 2]))./squeeze(nansum(W.*Cube,[1 2]));
 
+M1.RoundX = RoundX;
+M1.RoundY = RoundY;
+
 % 1st moment
 if Args.NoWeightFirstIter
     % no weight function on 1st iteration
@@ -216,101 +221,118 @@ else
     WInt = W.*W_Max.*Cube; % Weighted intensity
 end
 Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
-% 1st moment relative to the stamp center
-CumRelX1 = squeeze(sum(WInt.*MatX,[1 2])).*Norm;
-CumRelY1 = squeeze(sum(WInt.*MatY,[1 2])).*Norm;
-RelX1    = CumRelX1;
-RelY1    = CumRelY1;
-
-M1.RoundX = RoundX;
-M1.RoundY = RoundY;
 
 
-M1.DeltaLastX = RelX1;
-M1.DeltaLastY = RelY1;
-Iter = 0;
-while Iter<Args.MaxIter && any(abs(M1.DeltaLastX)>Args.PosConvergence) && any(abs(M1.DeltaLastY)>Args.PosConvergence)
-    Iter = Iter + 1;
-    % the MatX/MatY cube - shifted to the first moment position
-    MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
-    MatYcen = MatY - reshape(CumRelY1,1,1,Nsrc);
+if Args.MaxIter==-1
+    % No first moment
+    % use X,Y as is
+    Iter = Args.MaxIter;
+    
+    RelX1 = zeros(size(X));
+    RelY1 = zeros(size(Y));
+    
+    CumRelX1 = RelX1;
+    CumRelY1 = RelY1;
+    
+    M1.DeltaLastX = 0;
+    M1.DeltaLastY = 0;
+    
+else
 
-    MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
+    
+    % 1st moment relative to the stamp center
+    CumRelX1 = squeeze(sum(WInt.*MatX,[1 2])).*Norm;
+    CumRelY1 = squeeze(sum(WInt.*MatY,[1 2])).*Norm;
+    RelX1    = CumRelX1;
+    RelY1    = CumRelY1;
 
-    % apply Gaussian weight to the new centeral matrix
-    if ~Args.WindowOnlyOnLastIter
+
+    M1.DeltaLastX = RelX1;
+    M1.DeltaLastY = RelY1;
+    Iter = 0;
+    while Iter<Args.MaxIter && any(abs(M1.DeltaLastX)>Args.PosConvergence) && any(abs(M1.DeltaLastY)>Args.PosConvergence)
+        Iter = Iter + 1;
+        % the MatX/MatY cube - shifted to the first moment position
+        MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
+        MatYcen = MatY - reshape(CumRelY1,1,1,Nsrc);
+
+        MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
+
+        % apply Gaussian weight to the new centeral matrix
+        if ~Args.WindowOnlyOnLastIter
+            if isa(Args.WeightFun,'function_handle')
+                % WeightFun is a function handle
+                W = Args.WeightFun(MatR.^2);
+            elseif isnumeric(Args.WeightFun)
+                % WeightFun is assumed to be the sigma of a Gaussian
+                if Args.DynamicWindow
+                    % tested a few options of dynamic windowing:
+                    %Factor = sqrt(sqrt(abs(M1.DeltaLastX)./PosConvergence).*sqrt(abs(M1.DeltaLastY)./PosConvergence));
+                    %Factor = log10( abs(M1.DeltaLastX)./PosConvergence.* abs(M1.DeltaLastY)./PosConvergence ) + 1;
+                    Factor = max((30./Iter).^0.5,1);
+                else
+                    Factor = 1;
+                end
+                W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
+                %W         = GaussFun(MatR,WeightFun.*Factor);
+                %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
+            else
+                error('WeightFun must be a function handle or a numeric scalar');
+            end
+        end
+
+        % construct a window with maximal radius
+        W_Max = ones(size(MatR));
+        W_Max(MatR>Args.MomRadius) = 0;
+
+
+        WInt = W.*W_Max.*Cube; % Weighted intensity
+        Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
+
+        CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+        CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+
+        M1.DeltaLastX = CumRelX1 - RelX1;
+        M1.DeltaLastY = CumRelY1 - RelY1;
+        RelX1         = CumRelX1;
+        RelY1         = CumRelY1; 
+    end
+
+    % final iteration with the correct window
+    if Args.FinalIterWithCorrectWin
+        Iter = Iter + 1;
+        % the MatX/MatY cube - shifted to the first moment position
+        MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
+        MatYcen = MatY - reshape(CumRelY1,1,1,Nsrc);
+
+        MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
+
+        % apply Gaussian weight to the new centeral matrix
         if isa(Args.WeightFun,'function_handle')
             % WeightFun is a function handle
             W = Args.WeightFun(MatR.^2);
         elseif isnumeric(Args.WeightFun)
-            % WeightFun is assumed to be the sigma of a Gaussian
-            if Args.DynamicWindow
-                % tested a few options of dynamic windowing:
-                %Factor = sqrt(sqrt(abs(M1.DeltaLastX)./PosConvergence).*sqrt(abs(M1.DeltaLastY)./PosConvergence));
-                %Factor = log10( abs(M1.DeltaLastX)./PosConvergence.* abs(M1.DeltaLastY)./PosConvergence ) + 1;
-                Factor = max((30./Iter).^0.5,1);
-            else
-                Factor = 1;
-            end
-            W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
-            %W         = GaussFun(MatR,WeightFun.*Factor);
+            %Factor = 1;
+            W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
+            %W         = GaussFun(MatR,WeightFun);
             %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
         else
             error('WeightFun must be a function handle or a numeric scalar');
         end
+        % construct a window with maximal radiu
+        W_Max = ones(size(MatR));
+        W_Max(MatR>Args.MomRadius) = 0;
+
+
+        WInt = W.*W_Max.*Cube; % Weighted intensity
+        Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
+
+        CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+        CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+
+        M1.DeltaLastX = CumRelX1 - RelX1;
+        M1.DeltaLastY = CumRelY1 - RelY1;
     end
-
-    % construct a window with maximal radius
-    W_Max = ones(size(MatR));
-    W_Max(MatR>Args.MomRadius) = 0;
-
-
-    WInt = W.*W_Max.*Cube; % Weighted intensity
-    Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
-    
-    CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-    CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
-
-    M1.DeltaLastX = CumRelX1 - RelX1;
-    M1.DeltaLastY = CumRelY1 - RelY1;
-    RelX1         = CumRelX1;
-    RelY1         = CumRelY1; 
-end
-
-% final iteration with the correct window
-if Args.FinalIterWithCorrectWin
-    Iter = Iter + 1;
-    % the MatX/MatY cube - shifted to the first moment position
-    MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
-    MatYcen = MatY - reshape(CumRelY1,1,1,Nsrc);
-
-    MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
-
-    % apply Gaussian weight to the new centeral matrix
-    if isa(Args.WeightFun,'function_handle')
-        % WeightFun is a function handle
-        W = Args.WeightFun(MatR.^2);
-    elseif isnumeric(Args.WeightFun)
-        %Factor = 1;
-        W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
-        %W         = GaussFun(MatR,WeightFun);
-        %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
-    else
-        error('WeightFun must be a function handle or a numeric scalar');
-    end
-    % construct a window with maximal radiu
-    W_Max = ones(size(MatR));
-    W_Max(MatR>Args.MomRadius) = 0;
-
-
-    WInt = W.*W_Max.*Cube; % Weighted intensity
-    Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
-
-    CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-    CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
-
-    M1.DeltaLastX = CumRelX1 - RelX1;
-    M1.DeltaLastY = CumRelY1 - RelY1;
 end
 
 M1.Iter = Iter;
