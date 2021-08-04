@@ -1,0 +1,8 @@
+object Form2: TForm2
+  Left = 274
+  Height = 240
+  Top = 250
+  Width = 320
+  Caption = 'Form2'
+  LCLVersion = '2.0.12.0'
+end
