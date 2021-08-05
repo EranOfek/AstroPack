@@ -215,6 +215,8 @@ function Result = astrometryRefine(ObjAC, Args)
         % 1. Check that Xref/Yref is correct (compare to Core)
         % 2. [ones(10,1), Xref(1:10,:), Yref(1:10,:)]\Xcat(1:10,:) gives
         % weird results
+        % MatchedCat: 31.084 985.93   148.7152797  69.329198
+        % ProjAstCat: RA/Dec incorrect!!
         
         % fit
         
