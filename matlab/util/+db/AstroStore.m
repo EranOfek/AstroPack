@@ -4,10 +4,11 @@
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part2
 
 classdef AstroStore < Component
+    % Singletone object
     
     properties (Hidden, SetAccess = public)
-        ManageTimer = [];
-        DataPath = '';
+        ManageTimer = [];       % Timer to manage folders
+        DataPath = '';          % Data path (single, may be extened in the future to support multiple folder)
     end
     
 
@@ -22,19 +23,39 @@ classdef AstroStore < Component
         
         
         function Result = setup(Obj)
-            % Load config
+            % Load settings from configuration
+            % Currently we work with single data folder, in the future
+            % we may enhance the functionality to support multiple data
+            % folders (need to decide the logic)
+            Obj.msgLog(LogLevel.Debug, 'setup started');
             if tools.os.iswindows()
                 Obj.DataPath = Obj.Config.Data.Pipeline.AstroStore.DataPath_Win;
+                if isempty(Obj.DataPath)
+                    Obj.DataPath = 'C:\\Data\\Store';
+                end
             else
                 Obj.DataPath = Obj.Config.Data.Pipeline.AstroStore.DataPath;
+                if isempty(Obj.DataPath)
+                    Obj.DataPath = '/data/store';
+                end                
             end
                        
             % Create folder
             if ~isfolder(Obj.DataPath)
-                Obj.msgLog(LogLevel.Info, 'Creating path: %d', Obj.DataPath);
+                Obj.msgLog(LogLevel.Info, 'Creating folder: %d', Obj.DataPath);
                 mkdir(Obj.DataPath);
             end
-            Result = true;
+            
+            % Validate folder access
+            if isfolder(Obj.DataPath)
+                Obj.msgLog(LogLevel.Debug, 'folder validated: %s', Obj.DataPath);
+                Result = true;
+            else
+                Obj.msgLog(LogLevel.Fatal, 'Failed to access data path: %d', Obj.DataPath);
+                Result = false;                
+            end            
+            
+            Obj.msgLog(LogLevel.Debug, 'setup done');
         end
         
         
@@ -105,17 +126,34 @@ classdef AstroStore < Component
             
         end
         
+
+        function Result = getDataPath(Obj, ImPath)
+            % Get path data folder
+            % Currently we just return our DataPath, without doing anythin
+            % with the specified Impath
+            Result = Obj.DataPath;
+        end
+        
+        
         function Result = getImagePath(Obj, ImPath)
             % Get full path to image
             Result = '';
         end
         
+        
+        function Result = getImageFileName(Obj, ImPath)
+            % Get full path to image
+            Result = '';
+        end        
+        
     end
              
     %
     methods(Static)
-        function Result = get()
+        function Result = getStore()
             persistent Obj
+            
+            % Create if not exist yet
             if isempty(Obj)
                 Obj = AstroStore;
             end

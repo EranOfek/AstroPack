@@ -8,6 +8,9 @@ classdef ImagePath < handle
     end
     
     properties
+        
+        Store AstroStore = []       % 
+        
         % Each property is mapped to field in common_image_path table
 
 
@@ -61,24 +64,23 @@ classdef ImagePath < handle
     methods % Constructor
        
         function Obj = ImagePath(varargin)
-            % Base class constructor
-            % Package: @Base           
-            
-            % readFromHeader...
-            
-            if iswindows()
-                Obj.BasePath = 'C:\\Data\\Store';
-            end
+            % Setup 
+            Obj.Store = db.AstroStore.get();
+           
         end
     end
     
     
     methods
         function Result = readFromHeader(Obj, Header)
+            % Read data from AstroHeader
+            % @TODO: @Eran - Validate field names in FITS header
             arguments
                 Obj
                 Header AstroHeader
             end
+            
+            Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
             
             Obj.Telescope       = Header.Key.TEL;
             Obj.Node            = Header.Key.NODE;
@@ -101,10 +103,13 @@ classdef ImagePath < handle
         
         
         function Result = writeToHeader(Obj, Header)
+            % Write data to AstroHeader            
             arguments
                 Obj
                 Header AstroHeader
             end
+            
+            Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
             
             Header.Key.TEL      = Obj.Telescope;
             Header.Key.NODE     = Obj.Node;
@@ -127,11 +132,13 @@ classdef ImagePath < handle
         
         
         function Result = readFromDb(Obj, Query)
+            % Read data from database table (common_image_path table)
             arguments
                 Obj
                 Query io.db.DbQuery
             end            
             
+            Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
             st = Query.getRecord();
             Obj.Telescope       = st.tel;
             Obj.Node            = st.node;
@@ -152,10 +159,12 @@ classdef ImagePath < handle
         end
         
         
-        function Result = writeToDb(Obj, Query)
+        function Result = writeToDb(Obj, Query, Args)
+            % Insert/update data to database table (common_image_path table)
             arguments
                 Obj
                 Query io.db.DbQuery
+                Args.Insert = True;
             end
             
             st = struct;
@@ -175,7 +184,14 @@ classdef ImagePath < handle
             st.imver    = Obj.ImageVer;
             st.filetype = Obj.FileType;
 
-            Query.insertRecord(Query.TableName, st);
+            if Args.Insert
+                Obj.msgLog(LogLevel.Debug, 'writeToDb: insert: ');
+                Query.insertRecord(Query.TableName, st);                
+            else
+                % @Todo
+                % Obj.msgLog(LogLevel.Debug, 'writeToDb: update: ');
+                %Query.updateRecord(Query.TableName, st);                
+            end
             Result = true;
         end        
     end
@@ -223,6 +239,7 @@ classdef ImagePath < handle
     methods(Static)    
         function Result = createFromDbQuery(Obj, Query)
             % Create ImagePath
+            % @Todo
                 
         end
     end
@@ -234,7 +251,8 @@ classdef ImagePath < handle
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
     
-            %p = ImagePath;
+            p = ImagePath;
+            
             %fn = p.FullName;
             
             % Done
@@ -244,3 +262,4 @@ classdef ImagePath < handle
     end    
     
 end
+
