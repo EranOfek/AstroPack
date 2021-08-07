@@ -6,16 +6,17 @@
 classdef AstroStore < Component
     % Singletone object
     
-    properties (Hidden, SetAccess = public)
+    properties (SetAccess = public)
         ManageTimer = [];       % Timer to manage folders
         DataPath = '';          % Data path (single, may be extened in the future to support multiple folder)
+        Db = []; %db.AstroDb = [];     %
     end
     
 
     methods % Constructor    
         
         function Obj = AstroStore
-            Obj.setName('AstroStore')            
+            Obj.setName('AstroStore');
             Obj.setup();
             
             %Obj.startTimer();
@@ -41,8 +42,12 @@ classdef AstroStore < Component
             end
                        
             % Create folder
+            if ~isempty(Obj.DataPath) && Obj.DataPath(end) == filesep
+                Obj.DataPath = Obj.DataPath(1:end-1)
+            end
+            
             if ~isfolder(Obj.DataPath)
-                Obj.msgLog(LogLevel.Info, 'Creating folder: %d', Obj.DataPath);
+                Obj.msgLog(LogLevel.Info, 'Creating folder: %s', Obj.DataPath);
                 mkdir(Obj.DataPath);
             end
             
@@ -51,9 +56,12 @@ classdef AstroStore < Component
                 Obj.msgLog(LogLevel.Debug, 'folder validated: %s', Obj.DataPath);
                 Result = true;
             else
-                Obj.msgLog(LogLevel.Fatal, 'Failed to access data path: %d', Obj.DataPath);
+                Obj.msgLog(LogLevel.Fatal, 'Failed to access data path: %s', Obj.DataPath);
                 Result = false;                
             end            
+                   
+            % Create db adaptor
+            Obj.Db = db.AstroDb.get();          
             
             Obj.msgLog(LogLevel.Debug, 'setup done');
         end
@@ -90,7 +98,7 @@ classdef AstroStore < Component
     
     methods
         
-        function Result = copyFileToStore(Obj, SrcFileName, DstFileName, Args)
+        function [Result, Dest] = copyFileToStore(Obj, SrcFileName, DstFileName, Args)
             % Copy file to storage
             arguments
                 Obj
@@ -100,20 +108,66 @@ classdef AstroStore < Component
             end                
                 
             %
+            Dest = '';
             try
+
+                if ~isempty(DstFileName) && DstFileName(end) == filesep
+                    DstFileName = [Obj.DataPath, filesep, DstFileName];
+                end
+                
+                [SrcPath, SrcName, SrcExt] = fileparts(SrcFileName);
+                [DstPath, DstName, DstExt] = fileparts(DstFileName);
+                                
+                if isempty(DstFileName)
+                    DstFileName = [Obj.DataPath, filesep, SrcName, SrcExt];
+                elseif isempty(DstName) && ~isempty(DstPath)
+                    DstFileName = [DstPath, filesep, SrcName, SrcExt];
+                    Obj.createDestFolder(DstFileName);                    
+                else
+                    DstFileName = [Obj.DataPath, filesep, DstFileName];
+                    Obj.createDestFolder(DstFileName);                  
+                end
+                
                 if Args.Move
                     Obj.msgLog(LogLevel.Info, 'moving file: %s -> %s', SrcFileName, DstFileName);
                     movefile(SrcFileName, DstFileName);
+                    Result = isfile(DstFileName);
+                    if Result
+                        Dest = DstFileName;
+                    end
                 else                    
-                    Obj.msgLog(LogLevel.Info, 'copying file: %s -> %s', SrcFileName, DstFileName);
+                    Obj.msgLog(LogLevel.Debug, 'copying file: %s -> %s', SrcFileName, DstFileName);
                     copyfile(SrcFileName, DstFileName)
+                    Result = isfile(DstFileName);
+                    if Result
+                        Dest = DstFileName;
+                    end
                 end
             catch
+                Obj.msgLog(LogLevel.Error, 'Exception - copying file: %s -> %s', SrcFileName, DstFileName);
             end
             Result = true;
         end
   
         
+        
+        function Result = createDestFolder(Obj, DstFileName)
+            % Create destination folder
+            
+            Result = false;
+            [DstPath, DstName, DstExt] = fileparts(DstFileName);
+            if ~isfolder(DstPath)
+                Obj.msgLog(LogLevel.Info, 'Creating folder: %s', DstPath);
+                mkdir(DstPath);
+                if isfolder(DstPath)
+                    Result = true;
+                else
+                    Obj.msgLog(LogLevel.Error, 'Failed to create folder: %s', DstPath);
+                end
+            end
+        end
+        
+                    
         function Result = insertFile(Obj, SrcFileName, DstFileName, Args)
             % Insert file record to database
             arguments
@@ -150,34 +204,110 @@ classdef AstroStore < Component
              
     %
     methods(Static)
-        function Result = getStore()
+        function Result = get()
             persistent Obj
             
             % Create if not exist yet
             if isempty(Obj)
-                Obj = AstroStore;
+                Obj = db.AstroStore;
             end
             Result = Obj;
         end
         
     end
-  
     
-    %----------------------------------------------------------------------
-    % Unit test
+
+    %======================================================================
+    
+    %======================================================================  
+    % Performance Test
     methods(Static)
-        function Result = unitTest()
-            io.msgStyle(LogLevel.Test, '@start', 'AstroDbStorge test started')
-               
-            % Create db adaptor
-            db = AstroDb;                                   
-   
+        function Result = perfTest()
+            io.msgStyle(LogLevel.Test, '@start', 'AstroStorge perfTest started')
+                      
+            Store = db.AstroStore.get();
+            assert(~isempty(Store.DataPath));
+            
+            [SrcFileName, FileSize] = UnitTester.getTestFits(1);
+            assert(isfile(SrcFileName));
+            
+            FileSizeMB = FileSize / 1024 / 1024;
+            FileSizeGB = FileSize / 1024 / 1024 / 1024;
+            
+            MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
+            MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
+            
+            % ---------------------------------------------- Copy            
+            % Select two fields from table, using LIMIT            
+            ItersCount = 1000;
+            io.msgLog(LogLevel.Info, 'Perf: copy, Iters: %d ...', ItersCount);            
+            T = tic();
+            for i = 1:ItersCount                      
+                DstName = ['perfTest', filesep, 'perfTest_', char(string(i))];
+                [Result, Dst] = Store.copyFileToStore(SrcFileName, DstName);  %, Args)
+                assert(Result && isfile(Dst));
+            end
+            Time = toc(T) / ItersCount;
+            io.msgLog(LogLevel.Info, 'Perf: copy: %f', Time);
+            io.msgLog(LogLevel.Info, 'Perf: copy: %f per MB', Time / FileSizeMB);
+            io.msgLog(LogLevel.Info, 'Perf: copy: %f per GB', Time / FileSizeGB);
+
+            
+            % function Result = insertFile(Obj, SrcFileName, DstFileName, Args)
+
+            % function Result = getDataPath(Obj, ImPath)
+        
+            % function Result = getImagePath(Obj, ImPath)
+       
+        
+            % function Result = getImageFileName(Obj, ImPath)
+            
             
             io.msgStyle(LogLevel.Test, '@passed', 'AstroDbStore test passed')
             Result = true;
         end
     end    
-             
+
+    
+    %======================================================================
+    
+    %======================================================================  
+    
+    methods(Static)
+        function Result = unitTest()
+            io.msgStyle(LogLevel.Test, '@start', 'AstroStorge test started')
+                      
+            Store = db.AstroStore.get();
+            assert(~isempty(Store.DataPath));
+                   
+            % Get image file name for testing
+            % @Todo - Move to function
+            SrcFileName = UnitTester.getTestFits(1);
+            assert(isfile(SrcFileName));
+            
+            % Copy to Store's root
+            [Result, Dst] = Store.copyFileToStore(SrcFileName, '');  %, Args)
+            assert(Result && isfile(Dst));
+
+            % Copy to Store's subfolder
+            DstSub = ['TestFolder', filesep];
+            [Result, Dst] = Store.copyFileToStore(SrcFileName, DstSub);  %, Args)            
+                        
+            
+            % function Result = insertFile(Obj, SrcFileName, DstFileName, Args)
+
+            % function Result = getDataPath(Obj, ImPath)
+        
+            % function Result = getImagePath(Obj, ImPath)
+       
+        
+            % function Result = getImageFileName(Obj, ImPath)
+                        
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroDbStore perfTest passed')
+            Result = true;
+        end
+    end    
+                 
 end
 
             

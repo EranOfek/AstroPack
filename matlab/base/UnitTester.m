@@ -418,6 +418,32 @@ classdef UnitTester < handle
         end                
     end
 
+    
+    %----------------------------------------------------------------------
+    % Unit test
+    methods(Static)
+        
+        function [FileName, FileSize] = getTestFits(Index)
+            DataSampleDir = tools.os.getTestDataDir;
+            List = dir(fullfile(DataSampleDir, '*.fits'));
+            assert(~isempty(List));
+            [~, IndexList] = sort(string({List.name}), 2, 'ascend');                                                                  
+            FileName = '';
+            FileSize = 0;
+            Idx = 0;
+            for i = IndexList % 1:length(List)
+                if ~List(i).isdir
+                    Idx = Idx + 1;
+                    if Idx == Index
+                        FileName = fullfile(List(i).folder, List(i).name);                        
+                        FileSize = List(i).bytes;
+                        break;
+                    end
+                end
+            end
+        end
+    end
+    
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)

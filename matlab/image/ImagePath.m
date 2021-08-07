@@ -1,43 +1,39 @@
 
-classdef ImagePath < handle
-    properties
-        FullName char       = '';
-        Path char           = '';
-        FileName char       = '';
-        
-    end
+classdef ImagePath < Base
     
     properties
         
-        Store AstroStore = []       % 
+        Store = [] % db.AstroStore = []     % 
         
         % Each property is mapped to field in common_image_path table
 
 
         % Instrument
-        Telescope       = '';       % (ProjName) - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
-        Node            = '';
-        Mount           = '';
-        Camera          = '';
-        JD double       = 0;        % (UTC start of exposure)
-        Timezone        = 0;        % Bias in hours, to generate folder name
+        Telescope       = 'USAT';   % (ProjName) - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
+        Node            = '';       % Optional
+        JD              = 0;        % UTC start of exposure @Eran - UTC or JD???
+        Timezone        = 0;        % Bias in hours, to generate folder name        
+        Mount           = '';       % Optional
+        Camera          = '';       % Optional
 
         % Filter and Field
-        Filter          = '';
-        FieldId         = '';
-        CropId          = '';
+        Filter          = 'clear';  % Optional
+        FieldId         = '';       % Optional
+        CropId          = '';       % Optional
 
-        % Image
-        ImageType       = '';       % sci, bias, dark, domeflat, twflat, skyflat, fringe
-        ImageLevel      = '';       % log, raw, proc, stack, coadd, ref.
+        % Image - Mandatoty fields
+        ImageType       = 'sci';    % sci, bias, dark, domeflat, twflat, skyflat, fringe
+        ImageLevel      = 'raw';    % log, raw, proc, stack, coadd, ref.
         ImageSubLevel   = '';       % Sub level
-        ImageProduct    = '';       % Product: im, back, var, imflag, exp, Nim, psf, cat, spec.
-        ImageVer        = '';       % Version (for multiple processing)
-        FileType        = '';       % fits / hdf5 / fits.gz
+        ImageProduct    = 'im';     % Product: im, back, var, imflag, exp, Nim, psf, cat, spec.
+        ImageVer        = '1';      % Version (for multiple processing)
+        FileType        = 'fits';   % fits / hdf5 / fits.gz
 
         % Debug? or have it?
         BasePath        = '/data/store';    % 
-        FullPath        = '';       %
+        FileName
+        Path
+        FullName        = '';       %
         
         
 %         ProjName char       = 'none';
@@ -65,9 +61,25 @@ classdef ImagePath < handle
        
         function Obj = ImagePath(varargin)
             % Setup 
-            Obj.Store = db.AstroStore.get();
-           
+            %Obj.Store = db.AstroStore.get();
+            Obj.setDefault();
         end
+        
+        
+        function setDefault(Obj)
+            % Set default values
+            
+            DateStr = '2021-01-02 13:14:15.678';
+            DateUTC = datetime(DateStr, 'InputFormat', 'yyyy-MM-dd HH:mm:ss.SSS'); 
+            Obj.JD = juliandate(DateUTC);
+
+            % For unit test
+            Obj.Mount = 'mnt01';
+            Obj.Camera = 'cam01';
+            Obj.FieldId = 'fld1';
+            Obj.CropId = 'crop001-001';
+        end
+
     end
     
     
@@ -208,27 +220,50 @@ classdef ImagePath < handle
                
         function [FileName, Path] = makeFileName(Obj)
             
-            FileName = sprintf('%s%s%s', 
+            % Need to take care of separate folder names ??? @Eran
+            TimeUTC = datetime(Obj.JD, 'convertfrom', 'juliandate');
+            if Obj.Timezone ~= 0
+                TimeUTC = TimeUTC + Obj.Timezone;
+            end
+            TimeStr = datestr(TimeUTC, 'yyyymmdd.HHMMSS.FFF');
             
-            Obj.Telescope
-            Obj.Node
-            Obj.Mount
-            Obj.Camera
-            Obj.JD
-            Obj.Timezone
-            Obj.Filter
-            Obj.FieldId
-            Obj.CropId
-            Obj.ImageType
-            Obj.ImageLevel
-            Obj.ImageSubLevel
-            Obj.ImageProduct
-            Obj.ImageVer
-            Obj.FileType
+            PrefixStr = sprintf('%s' , Obj.Telescope);
             
+            % Optional fields
+            if ~isempty(Obj.Mount)
+                PrefixStr = [PrefixStr, '_', Obj.Mount];
+            end            
+            if ~isempty(Obj.Camera)
+                PrefixStr = [PrefixStr, '_', Obj.Camera];
+            end            
+            if ~isempty(Obj.Filter)
+                PrefixStr = [PrefixStr, '_', Obj.Filter];
+            end            
+            if ~isempty(Obj.FieldId)
+                PrefixStr = [PrefixStr, '_', Obj.FieldId];
+            end            
+            if ~isempty(Obj.CropId)
+                PrefixStr = [PrefixStr, '_', Obj.CropId];
+            end
             
+            % Image fields
+            ImageStr = sprintf('%s_%s.%s_%s_%s', Obj.ImageType, Obj.ImageLevel, Obj.ImageSubLevel, Obj.ImageProduct, Obj.ImageVer);
+            
+            FileName = [PrefixStr, '_', TimeStr, '_', ImageStr, '.', Obj.FileType];
+       
             Obj.FileName    = FileName;
-            Obj.FullName    = sprintf('%s%s%s',Path,filesep,FileName);
+            
+            if ~isempty(Obj.Store)
+                Path = Obj.Store.getDataPath(Obj);
+                Obj.Path = Path;
+                Obj.FullName = sprintf('%s%s%s', Path, filesep, FileName);
+            else
+                Path = '';
+                Obj.FullName = FileName;
+                io.msgLog(LogLevel.Warning, 'ImagePath: Store is not set');
+            end
+
+            
             Obj.Path        = Path;
             
         end
@@ -251,7 +286,10 @@ classdef ImagePath < handle
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
     
-            p = ImagePath;
+            % Default
+            IP = ImagePath();
+            FileName = IP.makeFileName();
+            assert(~isempty(FileName));
             
             %fn = p.FullName;
             

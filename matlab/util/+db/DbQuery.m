@@ -108,7 +108,7 @@ classdef DbQuery < Component
             % @Todo: Replace varargin with arguments block?
             
             % Run SELECT statement (using java calls)          
-            Obj.msgLog(LogLevel.Info, 'query');
+            Obj.msgLog(LogLevel.Debug, 'query');
             Result = false;            
             tic();
             
@@ -147,13 +147,13 @@ classdef DbQuery < Component
             end           
             
             Obj.Toc = toc();            
-            Obj.msgLog(LogLevel.Info, 'query time: %.6f', Obj.Toc);
+            Obj.msgLog(LogLevel.Debug, 'query time: %.6f', Obj.Toc);
         end
         
 
         function Result = exec(Obj, varargin)
             % Execute SQL statement (that does not return data)
-            Obj.msgLog(LogLevel.Info, 'exec');            
+            Obj.msgLog(LogLevel.Debug, 'exec');            
             Result = false;
             tic();
             
@@ -192,7 +192,7 @@ classdef DbQuery < Component
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'exec time: %.6f', Obj.Toc);
+            Obj.msgLog(LogLevel.Debug, 'exec time: %.6f', Obj.Toc);
         end
                
     end        
@@ -591,8 +591,8 @@ classdef DbQuery < Component
             Result = false;
                        
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Info, 'DbQuery: insertRecord');            
-            tic();
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: insertRecord');            
+            T = tic();
             
             % Need connection, clear current query
             Obj.openConn();
@@ -634,8 +634,8 @@ classdef DbQuery < Component
                 end
             end
           
-            Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'insertRecord time: %.6f', Obj.Toc);  
+            Obj.Toc = toc(T);
+            Obj.msgLog(LogLevel.Debug, 'insertRecord time: %f', Obj.Toc);  
                   
             Result = true;
         end
@@ -938,7 +938,7 @@ classdef DbQuery < Component
             SqlValues = '';
             
             if Obj.DebugMode
-                disp(FieldNames);
+                %disp(FieldNames);
             end
             
             % Iterate struct fields            
@@ -1087,8 +1087,61 @@ classdef DbQuery < Component
             end
             Result = Str;
         end
-    end
+    end   
+    
+    %======================================================================
+    
+    %======================================================================  
+    % Performance Test
+    methods(Static)
+        function Result = perfTest()
+            % Unit-Test
+            % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+            % On Linux, use DataGrip by JetBrains 
+            io.msgStyle(LogLevel.Test, '@start', 'DbQuery perfTest started')
+            io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
+               
+            % ---------------------------------------------- Connect
+            % NOTE: Database 'unittest' should exist
 
+            Conn = db.Db.getUnitTest();
+            Q = db.DbQuery(Conn);
+            
+            % NOTE: At this point, we assume that tables master_table and
+            % details_table exist and are not empty
+
+            MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
+            MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
+            
+            % ---------------------------------------------- Select            
+            % Select two fields from table, using LIMIT            
+            ItersCount = 1000;
+            io.msgLog(LogLevel.Info, 'Perf: select, Iters: %d ...', ItersCount);            
+            T = tic();
+            for i = 1:ItersCount                      
+                Q.query(['SELECT * FROM master_table LIMIT 1']);
+            end
+            Time = toc(T) / ItersCount;
+            io.msgLog(LogLevel.Info, 'Perf: select: %f', Time);            
+                       
+            % ---------------------------------------------- insertRecord: struct                      
+            ItersCount = 1000;            
+            io.msgLog(LogLevel.Info, 'Perf: insert, Iters: %d ...', ItersCount);            
+            T = tic();
+            for i = 1:ItersCount                      
+                s = struct;            
+                s.recid = Component.newUuid();
+                Q.insertRecord('master_table', s);            
+            end
+            Time = toc(T) / ItersCount;
+            io.msgLog(LogLevel.Info, 'Perf: insert: %f', Time);
+ 
+            % ----------------------------------------------
+
+            io.msgStyle(LogLevel.Test, '@passed', 'DbQuery perfTest passed')
+            Result = true;
+        end
+    end
         
     %======================================================================
     

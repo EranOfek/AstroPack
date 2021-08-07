@@ -75,9 +75,9 @@ classdef FileProcessor < Component
                 
                 % Get sorted list of all files in input folder
                 List = dir(fullfile(Obj.InputImagePath, Obj.InputFileMask));
-                List = sort(List);
                 
-                for i = 1:length(List)
+                [~, IndexList] = sort(string({List.name}), 2, 'ascend');               
+                for i = IndexList %1:length(List)
                     if ~List(i).isdir
                         FileName = fullfile(List(i).folder, List(i).name);
                         Obj.msgLog(LogLevel.Verbose, FileName);

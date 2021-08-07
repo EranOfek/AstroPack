@@ -24,7 +24,7 @@ EnvFolders:
 # AstroStore
 AstroStore:
     DataPath: /data/store
-    DataPath_Win: C:\Data\Store\
+    DataPath_Win: C:\Data\Store
 
 
 

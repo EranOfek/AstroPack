@@ -16,7 +16,7 @@ classdef AstroDb < Component
     methods % Constructor    
         
         function Obj = AstroDb
-            Obj.setName('AstroImageDb')
+            Obj.setName('AstroDb')
             
         end
 
