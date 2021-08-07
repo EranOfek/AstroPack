@@ -596,22 +596,37 @@ classdef DbQuery < Component
             
             % Need connection, clear current query
             Obj.openConn();
-            Obj.clear();
-                                 
+            
+            % Prepare SQL statement
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+            FieldNames = Obj.getFieldNames(Rec);
+            FieldNamesCount = numel(FieldNames);
+            [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
+
+            % 
+            RecSqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ');'];
+            Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', RecSqlText);
+                
             % Iterate struct array
             RecordCount = numel(Rec);
-            for i=1:RecordCount
-            
-                % Prepare SQL statement
-                % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-                FieldNames = Obj.getFieldNames(Rec);
-                %disp(FieldNames);          
-                [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
-
-                % 
-                Obj.SqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ')'];
-                Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', Obj.SqlText);
-
+            RecIndex = 1;
+            LastBatchCount = 0;
+            while RecordCount > 0
+                 
+                if RecordCount > Args.BatchSize
+                    BatchCount = Args.BatchSize;
+                else
+                    BatchCount = RecordCount;
+                end                
+                RecordCount = RecordCount - BatchCount;
+                
+                Obj.clear();
+                
+                if BatchCount ~= LastBatchCount
+                    Obj.SqlText = repmat(RecSqlText, 1, BatchCount);
+                    LastBatchCount = BatchCount;
+                end
+               
                 % Prepare query
                 Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
                 try
@@ -621,23 +636,28 @@ classdef DbQuery < Component
                 end
 
                 % Iterate struct fields
-                Obj.setStatementValues(FieldNames, Rec, Args.FieldMap);
-
+                FieldIndex = 1;
+                for i = 1:BatchCount                
+                    Obj.setStatementValues(FieldNames, Rec(RecIndex), Args.FieldMap, 'FieldIndex', FieldIndex);
+                    RecIndex = RecIndex + 1;
+                    FieldIndex = FieldIndex + FieldNamesCount;
+                end
+            
                 % Execute
                 % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
                 try
                     Obj.ResultSet = Obj.Statement.executeUpdate();
                     Obj.ExecOk = true;                
-                    Result = true;
                 catch
                     Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);                
+                    Obj.ExecOk = false;
+                    break;
                 end
             end
           
             Obj.Toc = toc(T);
-            Obj.msgLog(LogLevel.Debug, 'insertRecord time: %f', Obj.Toc);  
-                  
-            Result = true;
+            Obj.msgLog(LogLevel.Debug, 'insertRecord time: %f', Obj.Toc);                  
+            Result = Obj.ExecOk;
         end
                      
                
@@ -1115,7 +1135,7 @@ classdef DbQuery < Component
             
             % ---------------------------------------------- Select            
             % Select two fields from table, using LIMIT            
-            ItersCount = 1000;
+            ItersCount = 1; %000;
             io.msgLog(LogLevel.Info, 'Perf: select, Iters: %d ...', ItersCount);            
             T = tic();
             for i = 1:ItersCount                      
@@ -1124,9 +1144,11 @@ classdef DbQuery < Component
             Time = toc(T) / ItersCount;
             io.msgLog(LogLevel.Info, 'Perf: select: %f', Time);            
                        
-            % ---------------------------------------------- insertRecord: struct                      
-            ItersCount = 1000;            
-            io.msgLog(LogLevel.Info, 'Perf: insert, Iters: %d ...', ItersCount);            
+            % ---------------------------------------------- insertRecord: struct
+           
+            ItersCount = 10000;
+            io.msgLog(LogLevel.Info, 'Perf: insert, Iters: %d ...', ItersCount);
+            Count1 = Q.selectCount('master_table');            
             T = tic();
             for i = 1:ItersCount                      
                 s = struct;            
@@ -1135,12 +1157,69 @@ classdef DbQuery < Component
             end
             Time = toc(T) / ItersCount;
             io.msgLog(LogLevel.Info, 'Perf: insert: %f', Time);
+            Count2 = Q.selectCount('master_table');
+            if Count2 ~= Count1 + ItersCount
+                io.msgLog(LogLevel.Info, 'Wrong number of records: Count1: %d, Count2: %d', Count1, Count2);
+            end
  
+            % ---------------------------------------------- insertRecord: Batch
+
+            BathSize = 1000;
+            io.msgLog(LogLevel.Info, 'Perf: insert Batch: %d, Iters: %d ...', BathSize, ItersCount);
+            Count1 = Q.selectCount('master_table');
+            T = tic();
+            s = [];
+            for i = 1:ItersCount                      
+                s(i).recid = Component.newUuid();
+            end
+            Q.insertRecord('master_table', s, 'BatchSize', BathSize);
+            Time = toc(T) / ItersCount;
+            io.msgLog(LogLevel.Info, 'Perf: insert batch: %f', Time);
+            
+            Count2 = Q.selectCount('master_table');
+            if Count2 ~= Count1 + ItersCount
+                io.msgLog(LogLevel.Info, 'Wrong number of records: Count1: %d, Count2: %d', Count1, Count2);
+            end 
+            
             % ----------------------------------------------
+           
 
             io.msgStyle(LogLevel.Test, '@passed', 'DbQuery perfTest passed')
             Result = true;
         end
+        
+        
+        function Result = unitTestDev()
+            % Unit-Test
+            % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+            % On Linux, use DataGrip by JetBrains 
+            io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
+            io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
+               
+            % ---------------------------------------------- Connect
+            % NOTE: Database 'unittest' should exist
+            
+            % Create database connection
+            %Conn = db.DbConnection;
+            %Conn.DatabaseName = 'unittest';
+            %Conn.open();
+
+            Conn = db.Db.getUnitTest();
+            
+            % Query Postgres version, result should be similar to
+            % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
+            Q = db.DbQuery(Conn);
+            
+            s = [];
+            ItersCount = 3;
+            for i = 1:ItersCount                      
+                s(i).recid = Component.newUuid();
+            end
+            Q.insertRecord('master_table', s, 'BatchSize', ItersCount);
+            
+            Result = true;
+        end
+
     end
         
     %======================================================================
