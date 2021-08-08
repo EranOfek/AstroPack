@@ -1876,7 +1876,7 @@ classdef ds9 < handle
                 %--- set coordinates of crosshair ---
                 ds9.system(sprintf('xpaset -p ds9 crosshair %f %f image',X(I),Y(I)));
                 %--- get Coordinates of crosshair ---
-                CooIm = ds9.system(sprintf('xpaget ds9 crosshair wcs %s deg',CooType));
+                CooIm = ds9.system(sprintf('xpaget ds9 crosshair wcs %s',CooType));
                 %[CooX(I), CooY(I)] = strread(CooIm,'%f %f',1); %,'headerlines',4);
                 Cell = textscan(CooIm,'%f %f'); %,'headerlines',4);
                 RA(I) = Cell{1};

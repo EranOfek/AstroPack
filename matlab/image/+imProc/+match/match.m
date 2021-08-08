@@ -16,7 +16,9 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     % Input  : - An AstroCatalog/AstroImage object.
     %            If multiple elements then each element will be
     %            matched against the corresponding element (or a
-    %            single element) in the second object.
+    %            single element) in the second object. 
+    %            If this object is not sorted, then the object will be
+    %            sorted (and modified).
     %          - A second AstroCatalog object - The function will
     %            attempt to match every source in this catalog with
     %            objects in the first input catalog.
