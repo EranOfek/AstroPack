@@ -2,6 +2,7 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
     % Flag sources in AstroCatalog which have neighbors within a radius
     %   Optionaly, remove sources with neighboors.
     % Input  : - A multi-element AstroCatalog object.
+    %            The object must be sorted, by 'Y'.
     %          * ...,key,val,...
     %            'CooType' - ['pix'] | 'spere'.
     %                   'pix' will work on cartesian coordinates, while 'sphere',
@@ -54,6 +55,7 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
                 [ColInd2] = colnameDict2ind(Obj(Iobj), Args.ColNamesDec);
                 if ~Obj(Iobj).IsSorted
                     % sort by Y/Dec
+                    error('Obj must be sorted by Dec');
                     Obj(Iobj).sortrows(ColInd2);
                 end
                 Coo     = getLonLat(Obj(Iobj), 'rad');
@@ -65,6 +67,7 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
                 [ColInd2] = colnameDict2ind(Obj(Iobj), Args.ColNamesY);
                 if ~Obj(Iobj).IsSorted
                     % sort by Y/Dec
+                    error('Obj must be sorted by Y');
                     Obj(Iobj).sortrows(ColInd2);
                 end
                 Coo    = getXY(Obj(Iobj));

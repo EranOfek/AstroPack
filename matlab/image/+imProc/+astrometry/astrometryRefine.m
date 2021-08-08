@@ -169,6 +169,20 @@ function Result = astrometryRefine(ObjAC, Args)
         
         ProjectionScale = RAD .* ARCSEC_DEG ./ Scale;
     
+        
+        
+        % filter Ref - remove sources with neighboors
+        if Args.RemoveNeighboors
+            % sort AstrometricCat
+            AstrometricCat.sortrows('Dec');
+            
+            UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
+        else
+            Nsrc    = sizeCatalog(AstrometricCat);
+            UseFlag = true(Nsrc,1);
+        end
+        
+        
         % projection
         ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                        'AddNewCols',{RefColNameX,RefColNameY},...
@@ -176,7 +190,6 @@ function Result = astrometryRefine(ObjAC, Args)
      
         % match the RA/Dec against an external catalog
         % sources in MatchedCat corresponds to sources in ProjAstCat
-      
         [MatchedCat,UM,TUM] = imProc.match.match(Obj(Iobj), ProjAstCat,...
                                                      'Radius',Args.SearchRadius,...
                                                      'RadiusUnits','arcsec',...
@@ -195,15 +208,6 @@ function Result = astrometryRefine(ObjAC, Args)
         % Count the number of matches
         Flag = ~isnan(MatchedCat.Catalog(:,1));
         Nmatches = sum(Flag);
-                
-        % filter Cat - remove sources with neighboors
-        if Args.RemoveNeighboors
-            UseFlag = ~imProc.match.flagSrcWithNeighbors(MatchedCat, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
-        else
-            Nsrc    = sizeCatalog(AstrometricCat);
-            UseFlag = true(Nsrc,1);
-        end
-        
                 
         [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
         [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
