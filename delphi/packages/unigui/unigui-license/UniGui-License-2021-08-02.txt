@@ -1,5 +1,5 @@
 
-FMSoft Support Desk
+### FMSoft Support Desk
 
 http://jira.fmsoft.net/servicedesk/customer/portal/4/user/signup
 
@@ -7,14 +7,25 @@ Email: chen@tishler.dev
 Password: k6PMh17qdPxv++
 Password: k6PMh17qdPxv++
 
+### Support Forum
 
-------------------------------------------
+http://forums.unigui.com/index.php?/register/
+
+
+Email: chen@tishler.dev
+Password: k6PMh17qdPxv+*
+Password: k6PMh17qdPxv+*
+
+
+### Product Access
+
 
 http://www.unigui.com/
 
 https://prime.fmsoft.net/userv/mportal.dll
 
 Your login name: chen@tishler.dev
+Your password: k6PMh17qdPxv
 Your password: k6PMh17qdPxv
 
 

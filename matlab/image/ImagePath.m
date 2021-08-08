@@ -35,6 +35,11 @@ classdef ImagePath < Base
         Path
         FullName        = '';       %
         
+        % Optional (@Todo discuss with @Eran)
+        SrcFileName     = '';
+        Title           = '';       % Text description
+        Metadata        = '';       % Other textual data
+        
         
 %         ProjName char       = 'none';
 %         Date                = NaN;

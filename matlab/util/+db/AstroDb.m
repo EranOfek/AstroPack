@@ -92,6 +92,7 @@ classdef AstroDb < Component
                 Args.Fields = {}        % As
                 Args.Uuid = []          % Empty uses AstroHeader.Uuid
                 Args.Query = []         % db.DbQuery
+                Args.BatchSize = 1000   % Insert batch size
             end
             
             Obj.msgLog(LogLevel.Debug, 'insertCatalog started');                        
@@ -111,22 +112,26 @@ classdef AstroDb < Component
                 Query = Args.Query;
             end
             
-            % Iterate all headers in array, treat each one as independent data
-            for i=1:numel(Input)
-                
-                % Get header as cell{key, value, comment}
-                Data = struct;
-                Data.sourceid = Component.newUuid();
-                
-                ColCount = numel(Input(i).ColNames);
-                for j=1:ColCount
-                    ColName = Input(i).ColNames{j};
-                    Data.(ColName) = Input(i).Catalog(j);
-                end
-                                              
-                Result = Query.insertRecord(TableName, Data);
+            
+            % Prepare
+            Obj.msgLog(LogLevel.Info, 'Perf: insert Batch: %d, Iters: %d ...', Args.BatchSize, ItersCount);
+            Count1 = Q.selectCount(TableName);
+            T = tic();
+            s = [];
+            for i = 1:ItersCount                      
+                s(i).recid = Component.newUuid();
             end
-                        
+            Result = Q.insertRecord('master_table', s, 'BatchSize', Args.BatchSize);
+            Time = toc(T) / ItersCount;
+            io.msgLog(LogLevel.Info, 'Perf: insert batch: %f', Time);
+            
+            % Validate that we added the correct number of records
+            % (Might be bigger if other process inserts records concurrently)
+            Count2 = Q.selectCount(TableName);
+            if Count2 < Count1 + RecordCount
+                Obj.msgLog(LogLevel.Info, 'Wrong number of records: Count1: %d, Count2: %d', Count1, Count2);
+            end 
+   
             Obj.msgLog(LogLevel.Debug, 'insertCatalog done');
         end        
     end

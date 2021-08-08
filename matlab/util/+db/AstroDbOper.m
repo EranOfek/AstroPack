@@ -1,4 +1,6 @@
-% AstroImage database adaptor
+% @Todo: Think if we need it to work with a queue from background thread.
+% Discuess with @Eran
+%
 
 classdef AstroDbOper < handle
     

@@ -1,5 +1,7 @@
-% Data storge manager (with AstroDb and ImagePath)
+% Data Storge Manager (works along with AstroDb and ImagePath)
 
+% For future development see:
+%
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part1
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part2
 
@@ -99,35 +101,43 @@ classdef AstroStore < Component
     methods
         
         function [Result, Dest] = copyFileToStore(Obj, SrcFileName, DstFileName, Args)
-            % Copy file to storage
+            % Copy (or move) file to storage
             arguments
                 Obj
-                SrcFileName
-                DstFileName
-                Args.Move = false;
+                SrcFileName                 % Source file name
+                DstFileName                 % Destination file/folder name
+                Args.Move = false;          % True to move source file, otherwise it will be copied
             end                
                 
             %
+            Result = false;
             Dest = '';
             try
 
+                % Prepare destination file name
                 if ~isempty(DstFileName) && DstFileName(end) == filesep
                     DstFileName = [Obj.DataPath, filesep, DstFileName];
                 end
                 
                 [SrcPath, SrcName, SrcExt] = fileparts(SrcFileName);
                 [DstPath, DstName, DstExt] = fileparts(DstFileName);
-                                
+                         
+                % Not specified 
                 if isempty(DstFileName)
                     DstFileName = [Obj.DataPath, filesep, SrcName, SrcExt];
+                    
+                % Folder name specified
                 elseif isempty(DstName) && ~isempty(DstPath)
                     DstFileName = [DstPath, filesep, SrcName, SrcExt];
                     Obj.createDestFolder(DstFileName);                    
+                    
+                % Folder and name specified
                 else
                     DstFileName = [Obj.DataPath, filesep, DstFileName];
                     Obj.createDestFolder(DstFileName);                  
                 end
                 
+                % Move
                 if Args.Move
                     Obj.msgLog(LogLevel.Info, 'moving file: %s -> %s', SrcFileName, DstFileName);
                     movefile(SrcFileName, DstFileName);
@@ -135,6 +145,8 @@ classdef AstroStore < Component
                     if Result
                         Dest = DstFileName;
                     end
+                    
+                % Copy
                 else                    
                     Obj.msgLog(LogLevel.Debug, 'copying file: %s -> %s', SrcFileName, DstFileName);
                     copyfile(SrcFileName, DstFileName)
@@ -144,9 +156,10 @@ classdef AstroStore < Component
                     end
                 end
             catch
+                % Handle error
                 Obj.msgLog(LogLevel.Error, 'Exception - copying file: %s -> %s', SrcFileName, DstFileName);
             end
-            Result = true;
+
         end
   
         
@@ -170,13 +183,24 @@ classdef AstroStore < Component
                     
         function Result = insertFile(Obj, SrcFileName, DstFileName, Args)
             % Insert file record to database
+            % @Todo: Need to define the table structure
             arguments
                 Obj
-                SrcFileName
-                DstFileName
-                Args.Move = false;
-                Args.TableName
+                SrcFileName         % Source file name
+                DstFileName         % Destination file name
+                Args.Move = false;  % ?
+                Args.TableName      % Table name
+                Args.ImPath         % Image path
             end                
+
+            Obj.msgLog(LogLevel.Info, 'insertFile: %s', SrcFileName);
+            Count1 = Q.selectCount('master_table');
+            T = tic();
+            s = [];
+            for i = 1:ItersCount                      
+                s(i).recid = Component.newUuid();
+            end
+            Q.insertRecord('master_table', s, 'BatchSize', BathSize);
             
         end
         
@@ -202,6 +226,7 @@ classdef AstroStore < Component
         
     end
              
+    
     %
     methods(Static)
         function Result = get()

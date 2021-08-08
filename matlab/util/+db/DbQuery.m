@@ -1164,15 +1164,15 @@ classdef DbQuery < Component
  
             % ---------------------------------------------- insertRecord: Batch
 
-            BathSize = 1000;
-            io.msgLog(LogLevel.Info, 'Perf: insert Batch: %d, Iters: %d ...', BathSize, ItersCount);
+            BatchSize = 1000;
+            io.msgLog(LogLevel.Info, 'Perf: insert Batch: %d, Iters: %d ...', BatchSize, ItersCount);
             Count1 = Q.selectCount('master_table');
             T = tic();
             s = [];
             for i = 1:ItersCount                      
                 s(i).recid = Component.newUuid();
             end
-            Q.insertRecord('master_table', s, 'BatchSize', BathSize);
+            Q.insertRecord('master_table', s, 'BatchSize', BatchSize);
             Time = toc(T) / ItersCount;
             io.msgLog(LogLevel.Info, 'Perf: insert batch: %f', Time);
             
