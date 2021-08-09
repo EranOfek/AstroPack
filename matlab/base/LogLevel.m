@@ -7,8 +7,9 @@ classdef LogLevel < uint32
 		Warning(2)      % Warning
 		Info(3)         % General info
         Verbose(4)      % Verbose 
-		Debug(5)        % Detailed debug        
+		Debug(5)        % Detailed debug
         Test(6)         % Unit-Test
+        DebugEx(7)      % Very detailed debug        
         All(9)          % All 
     end
 end

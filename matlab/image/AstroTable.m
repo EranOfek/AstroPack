@@ -401,6 +401,7 @@ classdef AstroTable < Component
                 
         end
         
+        
         function Result = isemptyCatalog(Obj)
             % Return true if Catalog data in AstroTable object is empty, otherwise false.
             % example: Result = isemptyCatalog(Obj)
@@ -412,6 +413,7 @@ classdef AstroTable < Component
             end
             
         end
+    
         
         function Obj = deleteCatalog(Obj)
             % delete the content of an AstroTable object
@@ -428,6 +430,7 @@ classdef AstroTable < Component
             end
         end
     end
+    
     
     methods % column names and exist
         function Result = isColumn(Obj,ColName)
@@ -446,6 +449,7 @@ classdef AstroTable < Component
             end
             
         end
+        
         
         function ColInd = colname2ind(Obj, ColName, FillValue)
             % Convert column names to column indices
@@ -506,6 +510,7 @@ classdef AstroTable < Component
             end
         end
         
+        
         function ColName = colind2name(Obj, ColInd)
             % Return column names corresponding to column indices
             % Input  : - A single element AstroCatlog object
@@ -521,6 +526,7 @@ classdef AstroTable < Component
                 ColName = Obj.ColNames(ColInd);
             end
         end
+        
         
         function [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(Obj, ColNames)
             % Given a list of column names, select the first that appear in Table
@@ -545,7 +551,8 @@ classdef AstroTable < Component
             ColInd            = ColInd(IndOfSelectedName);
             ColName           = colind2name(Obj, ColInd);
         end
-            
+        
+        
         function St = col2struct(Obj)
             % return structure array with column names in field and index in values.
             % Example: col2struct(A)
@@ -558,6 +565,7 @@ classdef AstroTable < Component
             end
             
         end
+    
         
         function Result = isColIdentical(Obj, ColNames)
             % Check if ColNames in an AstroTable object is identical to another ColNames
@@ -579,6 +587,7 @@ classdef AstroTable < Component
         end
         
     end
+    
     
     methods  % columns get/edit
         function [Result, Units] = getCol(Obj, Columns, OutputIsTable, UpdateAstroTable, Args)
@@ -649,6 +658,7 @@ classdef AstroTable < Component
             
         end
         
+        
         function [Result, Units, Ind] = getColDic(Obj, Columns)
             % get a single Column data from a dictionary of column names
             % Input  : - A single-element AstroTable object.
@@ -669,6 +679,7 @@ classdef AstroTable < Component
             
         end
         
+        
         function Obj = array2table(Obj)
             % Convert catalog data in AstroTable to table format
             
@@ -682,6 +693,7 @@ classdef AstroTable < Component
             end
         end
         
+        
         function Obj = table2array(Obj)
             % Convert catalog data in AstroTable to array format
             
@@ -692,6 +704,7 @@ classdef AstroTable < Component
                 end
             end
         end
+        
         
         function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits)
             % Insert columns to AstroTable object
@@ -765,6 +778,7 @@ classdef AstroTable < Component
             end
         end
         
+        
         function Obj = replaceColNames(Obj,OldNames,NewNames)
             % Replace column names in AstroTable object
             % Input  : - An AstroTable object.
@@ -786,6 +800,7 @@ classdef AstroTable < Component
             end
             
         end
+        
         
         function Obj = replaceCol(Obj, NewData, ColNames, Pos)
             % replace (or insert) columns in AstroTable
@@ -844,6 +859,7 @@ classdef AstroTable < Component
             end
         end
         
+        
         function Obj = deleteCol(Obj, Columns)
             % Delete columns fron an AstroTable object.
             % Input  : - An AstroTable object.
@@ -867,12 +883,8 @@ classdef AstroTable < Component
                     Obj(Iobj).ColUnits(ColInd) = [];
                 end
             end
-                
-                
-                
-            
-            
         end
+        
        
         function NewObj = merge(Obj,Columns,Args)
             % Merge table/matrices in multiple AstroTable elements

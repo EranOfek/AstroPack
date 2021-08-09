@@ -157,6 +157,34 @@ classdef ImagePath < Base
             
             Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
             st = Query.getRecord();
+            Result = Obj.readFromStruct(st);
+        end
+        
+        
+        function Result = writeToDb(Obj, Query, Args)
+            % Insert/update data to database table (common_image_path table)
+            arguments
+                Obj
+                Query io.db.DbQuery
+                Args.Insert = True;
+            end
+            
+            st = Obj.writeToStruct();
+            if Args.Insert
+                Obj.msgLog(LogLevel.Debug, 'writeToDb: insert: ');
+                Query.insertRecord(Query.TableName, st);                
+            else
+                % @Todo
+                % Obj.msgLog(LogLevel.Debug, 'writeToDb: update: ');
+                %Query.updateRecord(Query.TableName, st);                
+            end
+            Result = true;
+        end
+        
+        
+        
+        function Result = readFromStruct(Obj, st)
+            % Read data from struct or DbRecord (common_image_path table)
             Obj.Telescope       = st.tel;
             Obj.Node            = st.node;
             Obj.Mount           = st.mount;
@@ -175,15 +203,10 @@ classdef ImagePath < Base
             Result = true;
         end
         
+
         
-        function Result = writeToDb(Obj, Query, Args)
-            % Insert/update data to database table (common_image_path table)
-            arguments
-                Obj
-                Query io.db.DbQuery
-                Args.Insert = True;
-            end
-            
+        function st = writeToStruct(Obj)
+            % Write data fields to struct (common_image_path table)            
             st = struct;
             st.tel      = Obj.Telescope;
             st.node     = Obj.Node;
@@ -200,17 +223,8 @@ classdef ImagePath < Base
             st.improd   = Obj.ImageProduct;
             st.imver    = Obj.ImageVer;
             st.filetype = Obj.FileType;
-
-            if Args.Insert
-                Obj.msgLog(LogLevel.Debug, 'writeToDb: insert: ');
-                Query.insertRecord(Query.TableName, st);                
-            else
-                % @Todo
-                % Obj.msgLog(LogLevel.Debug, 'writeToDb: update: ');
-                %Query.updateRecord(Query.TableName, st);                
-            end
-            Result = true;
         end        
+        
     end
         
     % setters and getters

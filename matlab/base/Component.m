@@ -106,7 +106,12 @@ classdef Component < Base
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
-                           
+                 
+            if ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurDispLevel) && ...
+                ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurFileLevel)
+                return
+            end
+            
             for i = 1:numel(Obj)
                 
                 Index = '';

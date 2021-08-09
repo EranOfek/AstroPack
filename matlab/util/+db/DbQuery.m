@@ -592,7 +592,7 @@ classdef DbQuery < Component
                        
             % Execute SQL statement (using java calls)
             Obj.msgLog(LogLevel.Debug, 'DbQuery: insertRecord');            
-            T = tic();
+            T1 = tic();
             
             % Need connection, clear current query
             Obj.openConn();
@@ -636,15 +636,19 @@ classdef DbQuery < Component
                 end
 
                 % Iterate struct fields
+                T2 = tic();
                 FieldIndex = 1;
                 for i = 1:BatchCount                
                     Obj.setStatementValues(FieldNames, Rec(RecIndex), Args.FieldMap, 'FieldIndex', FieldIndex);
                     RecIndex = RecIndex + 1;
                     FieldIndex = FieldIndex + FieldNamesCount;
-                end
+                end            
+                Toc2 = toc(T2);
+                Obj.msgLog(LogLevel.Debug, 'insertRecord prepare time: %f, BatchCount: %d', Toc2, BatchCount);
             
                 % Execute
                 % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+                T3 = tic();
                 try
                     Obj.ResultSet = Obj.Statement.executeUpdate();
                     Obj.ExecOk = true;                
@@ -652,10 +656,12 @@ classdef DbQuery < Component
                     Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);                
                     Obj.ExecOk = false;
                     break;
-                end
+                end                
+                Toc3 = toc(T3);
+                Obj.msgLog(LogLevel.Debug, 'insertRecord executeUpdate time: %f, BatchCount: %d', Toc3, BatchCount);
             end
           
-            Obj.Toc = toc(T);
+            Obj.Toc = toc(T1);
             Obj.msgLog(LogLevel.Debug, 'insertRecord time: %f', Obj.Toc);                  
             Result = Obj.ExecOk;
         end
@@ -1061,7 +1067,7 @@ classdef DbQuery < Component
             
             % Iterate struct fields
             % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
-            Obj.msgLog(LogLevel.Debug, 'setStatementValues: setting values');
+            %Obj.msgLog(LogLevel.DebugEx, 'setStatementValues: setting values');
             Index = Args.FieldIndex;
             for i = 1:numel(FieldNames)
                 f = FieldNames{i};
@@ -1072,23 +1078,23 @@ classdef DbQuery < Component
                 if isa(val, 'int8') || isa(val, 'uint8') || ...
                    isa(val, 'int16') || isa(val, 'uint16') || ...
                    isa(val, 'int32') || isa(val, 'uint32')
-                    Obj.msgLog(LogLevel.Debug, 'integer: %s = %d', f, val);
+                    %Obj.msgLog(LogLevel.DebugEx, 'integer: %s = %d', f, val);
                     Obj.Statement.setInt(Index, val);
                 elseif isa(val, 'int64') || isa(val, 'uint64')
-                    Obj.msgLog(LogLevel.Debug, 'int64: %s = %d', f, val);
+                    %Obj.msgLog(LogLevel.DebugEx, 'int64: %s = %d', f, val);
                     Obj.Statement.setLong(Index, val);
                 elseif isa(val, 'logical')
-                    Obj.msgLog(LogLevel.Debug, 'bool: %s = %d', f, val);
+                    %Obj.msgLog(LogLevel.DebugEx, 'bool: %s = %d', f, val);
                     Obj.Statement.setBoolean(Index, val);
                 elseif isa(val, 'float') || isa(val, 'single') || isa(val, 'double')
-                    Obj.msgLog(LogLevel.Debug, 'double: %s = %f', f, val);
+                    %Obj.msgLog(LogLevel.DebugEx, 'double: %s = %f', f, val);
                     Obj.Statement.setDouble(Index, val);
                 elseif isa(val, 'char')
-                    Obj.msgLog(LogLevel.Debug, 'char: %s = %s', f, val);
+                    %Obj.msgLog(LogLevel.DebugEx, 'char: %s = %s', f, val);
                     Obj.Statement.setString(Index, val);
                 else
                     % Other not supported (yet?)
-                    Obj.msgLog(LogLevel.Debug, 'setStatementValues: ERROR: other type - not supported: %s', f);
+                    Obj.msgLog(LogLevel.Warn, 'setStatementValues: ERROR: other type - not supported: %s', f);
                 end
                 Index = Index+1;
             end           
@@ -1107,6 +1113,29 @@ classdef DbQuery < Component
             end
             Result = Str;
         end
+        
+        
+        
+        function Result = getFieldNamesOfType(Obj, FieldType)
+            %
+            arguments
+                Obj
+                FieldType
+            end
+            
+            
+            % Iterate struct fields
+            % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
+            Obj.msgLog(LogLevel.Debug, 'getFieldNamesOfType: %s', FieldType);
+            
+            Result = {};
+            for ColIndex = 1:Obj.ColCount
+                if strcmp(Obj.ColType{ColIndex}, FieldType)
+                    Result{end+1} = Obj.ColNames{ColIndex};
+                end
+            end
+        end        
+        
     end   
     
     %======================================================================

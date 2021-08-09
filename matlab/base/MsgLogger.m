@@ -100,6 +100,29 @@ classdef MsgLogger < handle
         end        
 
         
+		function Result = shouldLog(Obj, Level, CurLevel)
+
+            % Do nothing if log is disabled
+            if ~Obj.Enabled || Level == LogLevel.None
+                Result = false;
+                       
+            % Error - always usg msgStyle to print in color
+            elseif Level == LogLevel.Error
+                Result = true;
+            
+            % Warning - always usg msgStyle to print in color
+            elseif Level == LogLevel.Warning
+                Result = true;
+                
+            elseif uint32(Level) <= uint32(CurLevel)
+                Result = true;
+                
+            else
+                Result = false;
+            end            
+        end        
+        
+        
         function Result = getLevelStr(Obj, Level)
         
             % Convert enum to string
@@ -119,6 +142,8 @@ classdef MsgLogger < handle
 					s = 'DBG';
 				case LogLevel.Test
 					s = 'TST';
+				case LogLevel.DebugEx
+					s = 'DBX';                    
 				otherwise
 					error('Unknown LogLevel');
             end

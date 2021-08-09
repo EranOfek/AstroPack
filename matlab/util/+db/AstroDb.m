@@ -1,9 +1,14 @@
 % AstroImage database adaptor
 
+% Usage: Use the static functions
+%
+%     db.AstroDb.insertHeader
+%     db.AstroDb.insertCatalog
+%     db.AstroDb.getDefaultQuery
+
 % Threads
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part1
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part2
-
 
 classdef AstroDb < Component
     
@@ -89,20 +94,24 @@ classdef AstroDb < Component
                 Obj
                 Input                   % AstroHeader / AstroImage                
                 TableName char                
+                Args.KeyField = 'proc_iid'
                 Args.Fields = {}        % As
                 Args.Uuid = []          % Empty uses AstroHeader.Uuid
                 Args.Query = []         % db.DbQuery
-                Args.BatchSize = 1000   % Insert batch size
+                Args.BatchSize = 10000  % Insert batch size
             end
             
-            Obj.msgLog(LogLevel.Debug, 'insertCatalog started');                        
+            
+            KeyField = Args.KeyField;
+            
+            Obj.msgLog(LogLevel.Debug, 'insertCatalogImpl started');                        
 
             if isa(Input, 'AstroCatalog')
-                Obj.msgLog(LogLevel.Debug, 'insertCatalog input is AstroCatalog');
+                Obj.msgLog(LogLevel.Debug, 'insertCatalogImpl input is AstroCatalog');
             elseif isa(Input, 'AstroTable')
-                Obj.msgLog(LogLevel.Debug, 'insertCatalog input is AstroTable');
+                Obj.msgLog(LogLevel.Debug, 'insertCatalogImpl input is AstroTable');
             else
-                error('insertCatalog: Input type not supported');
+                error('insertCatalogImpl: Input type not supported');
             end
             
             % Set Query
@@ -111,28 +120,46 @@ classdef AstroDb < Component
             else
                 Query = Args.Query;
             end
+
             
+            % Iterate all catalogs
+            % @Todo: Key record?
+            for i = 1:numel(Input)
+                               
+                % Prepare catalog as struct array
+                % @Todo: Ask @Eran if there is a better/faster way to do it
+                ColNames = Input(i).ColNames;
+                [Rows, Cols] = size(Input(i).Catalog);
+                s = [];
+                T = tic();                
+                for Row = 1:Rows
+                    s(Row).(KeyField) = Component.newUuid();
+                    s(Row).('src_id') = Row;
+                    for Col = 1:Cols
+                        s(Row).(ColNames{Col}) = Input(i).Catalog(Row, Col);
+                    end                    
+                end
+                Time = toc(T);
+                Obj.msgLog(LogLevel.Info, 'insertCatalogImpl: prepare - Rows: %d, Cols: %d, Time: %f', Rows, Cols, Time);
             
-            % Prepare
-            Obj.msgLog(LogLevel.Info, 'Perf: insert Batch: %d, Iters: %d ...', Args.BatchSize, ItersCount);
-            Count1 = Q.selectCount(TableName);
-            T = tic();
-            s = [];
-            for i = 1:ItersCount                      
-                s(i).recid = Component.newUuid();
-            end
-            Result = Q.insertRecord('master_table', s, 'BatchSize', Args.BatchSize);
-            Time = toc(T) / ItersCount;
-            io.msgLog(LogLevel.Info, 'Perf: insert batch: %f', Time);
+                % Prepare
+                Obj.msgLog(LogLevel.Info, 'insertCatalogImpl: Records: %d, Batch: %d', Rows, Args.BatchSize);
+                Count1 = Query.selectCount(TableName);                
+                T = tic();
+                
+                Result = Query.insertRecord(TableName, s, 'BatchSize', Args.BatchSize);
+                Time = toc(T);
+                Obj.msgLog(LogLevel.Info, 'insertCatalogImpl: insertRecord time: %f per %d records, %f per record', Time, Rows, Time / Rows);
             
-            % Validate that we added the correct number of records
-            % (Might be bigger if other process inserts records concurrently)
-            Count2 = Q.selectCount(TableName);
-            if Count2 < Count1 + RecordCount
-                Obj.msgLog(LogLevel.Info, 'Wrong number of records: Count1: %d, Count2: %d', Count1, Count2);
-            end 
-   
-            Obj.msgLog(LogLevel.Debug, 'insertCatalog done');
+                % Validate that we added the correct number of records
+                % (Might be bigger if other process inserts records concurrently)
+                Count2 = Query.selectCount(TableName);
+                if Count2 < Count1 + Rows
+                    Obj.msgLog(LogLevel.Info, 'insertCatalogImpl: Wrong number of records: Count1: %d, Count2: %d', Count1, Count2);
+                end                 
+            end  
+            
+            Obj.msgLog(LogLevel.Debug, 'insertCatalogImpl done');
         end        
     end
        
@@ -158,7 +185,8 @@ classdef AstroDb < Component
     end
 
     
-    methods (Static)
+    methods (Static) % Static functions
+        
         function Result = insertHeader(varargin) % Input, TableName, Args)
 %             % Insert AstroHeader/AstroImage object to the specified database table
 %             arguments
@@ -168,6 +196,7 @@ classdef AstroDb < Component
 %                 Args.Uuid = []                  % Empty uses AstroHeader.Uuid
 %                 Args.Query = []                 % db.DbQuery
 %             end
+
             Result = db.AstroDb.get().insertHeaderImpl(varargin{:});  %Input, TableName, Args);
         end
         
@@ -209,12 +238,6 @@ classdef AstroDb < Component
         
     end
     
-    % 
-    
-    % setters/getters
-    methods
-                
-    end
     
     %
     methods(Static)
@@ -247,7 +270,32 @@ classdef AstroDb < Component
             
             HeaderTableName = 'raw_images';
             CatalogTableName = 'sources_proc_cropped';
+
             
+            MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
+            MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'disp');            
+            
+            
+            % Create catalog
+            SqlText = ['SELECT * from ', CatalogTableName, ' LIMIT 1'];
+            Q.query(SqlText);
+            ColNames = Q.getFieldNamesOfType('Double');            
+            %ColNames = {'ra', 'dec', 'sn_best', 'sn_delta', 'sn_1', 'sn_2', };
+            Rows = 100*1000;
+            
+            Cols = numel(ColNames);
+            AC = AstroTable({rand(Rows, Cols)}, 'ColNames', ColNames);
+            %AC = AstroTable({rand(Rows, Cols), rand(Rows, Cols)}, 'ColNames', ColNames);
+            
+            % Insert catalog to table
+            Count = 1;
+            for i=1:Count
+                res = db.AstroDb.insertCatalog(AC, CatalogTableName);
+            end
+            
+            Count = 1;            
+            
+            %------------------------------------------------- Prepare test data          
             % Create fits file with header
             Folder = tempdir; 
             %Folder = 'c:\temp';
@@ -264,8 +312,17 @@ classdef AstroDb < Component
             assert(all(size(AH.Data)));
 
             % Create catalog
-            AC = AstroTable({rand(10, 4), rand(10, 4)}, 'ColNames', {'A', 'B', 'C', 'D'});
+            AC = AstroTable({rand(10, 4), rand(10, 4)}, 'ColNames', {'ra', 'dec', 'sn_best', 'sn_delta'});
             
+            
+            % Insert catalog to table
+            Count = 10;
+            for i=1:Count
+                res = db.AstroDb.insertCatalog(AC, CatalogTableName);
+            end
+            
+            
+            %------------------------------------------------- Insert Header
             % Insert header to table
             tic;
             Count = 10;
@@ -273,7 +330,8 @@ classdef AstroDb < Component
                 res = db.AstroDb.insertHeader(AH, HeaderTableName);
             end
             toc
-                
+               
+            %------------------------------------------------- Insert Catalog
             % Insert catalog to table
             Count = 10;
             for i=1:Count
