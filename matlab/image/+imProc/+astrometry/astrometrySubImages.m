@@ -14,6 +14,8 @@ function Result = astrometrySubImages(Obj, Args)
         Args.CenterXY          % [X,Y] pix Center of Full image, If empty, calculate from CCDSEC
         
         Args.CreateNewObj
+        
+        Args.MinNumberCoreSolutions = 1;
     end
     
     
@@ -34,6 +36,7 @@ function Result = astrometrySubImages(Obj, Args)
     % Sort SubImages by distance from image center (nominal position)
     [~,SI]  = sort(DistSub);
     
+    EnoughCoreSolutions = false;
     for Iobj=1:1:Nobj
         % for each sub image
         
@@ -41,7 +44,23 @@ function Result = astrometrySubImages(Obj, Args)
         % from full image
         Iim = SI(Iobj);
         
-        
+        if ~EnoughCoreSolutions
+            % run astrometryCore
+            
+            
+            if Iobj>Args.MinNumberCoreSolutions
+                EnoughCoreSolutions = true;
+            end
+        else
+            % run astrometryRefine
+            
+            % select nearest solution
+            
+            % shift solution to current CCDSEC
+            
+            % call astrometryRefine
+            
+        end
     
     
     end
