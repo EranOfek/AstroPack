@@ -1,8 +1,8 @@
 object MainForm: TMainForm
   Left = 0
   Top = 0
-  ClientHeight = 564
-  ClientWidth = 1011
+  ClientHeight = 656
+  ClientWidth = 1311
   Caption = 'MainForm'
   OldCreateOrder = False
   MonitoredKeys.Keys = <>
@@ -11,17 +11,16 @@ object MainForm: TMainForm
   object UniPanel1: TUniPanel
     Left = 0
     Top = 0
-    Width = 1011
+    Width = 1311
     Height = 113
     Hint = ''
     Align = alTop
     TabOrder = 0
     Caption = 'UniPanel1'
-    ExplicitWidth = 808
     object UniImage1: TUniImage
       Left = 1
       Top = 1
-      Width = 1009
+      Width = 1309
       Height = 111
       Hint = ''
       Stretch = True
@@ -11344,166 +11343,857 @@ object MainForm: TMainForm
         B7ACF94F5E66DB799DF5ECFAF7DD84386F62ABBAAEB6FF2FD9BB72CC28C16A62
         0000000049454E44AE426082}
       Align = alClient
-      ExplicitLeft = 2
-      ExplicitTop = 2
-      ExplicitWidth = 806
-      ExplicitHeight = 303
+    end
+  end
+  object UniPanel4: TUniPanel
+    Left = 8
+    Top = 151
+    Width = 769
+    Height = 433
+    Hint = ''
+    TabOrder = 2
+    BorderStyle = ubsNone
+    Caption = ''
+    Color = 8454143
+    Layout = 'hbox'
+    LayoutConfig.Flex = 1
+    LayoutConfig.Width = '100%'
+    object UniPanel5: TUniPanel
+      Left = 16
+      Top = 12
+      Width = 175
+      Height = 345
+      Hint = ''
+      TabOrder = 1
+      BorderStyle = ubsNone
+      Caption = ''
+      Layout = 'vbox'
+      LayoutConfig.Height = '100%'
+      object UniPanel7: TUniPanel
+        Left = 2
+        Top = 3
+        Width = 170
+        Height = 62
+        Hint = ''
+        TabOrder = 1
+        ClientEvents.UniEvents.Strings = (
+          
+            'beforeInit=function beforeInit(sender, config)'#13#10'{'#13#10'  config.body' +
+            'Style={'#39'background-image'#39':'#39'url(files/images/userbg.jpg)'#39','#39'backgr' +
+            'ound-size'#39':'#39'cover'#39'};'#13#10'}')
+        BorderStyle = ubsNone
+        Caption = ''
+        Color = clFuchsia
+        LayoutConfig.Width = '100%'
+        object UniLabel6: TUniLabel
+          Left = 15
+          Top = 11
+          Width = 152
+          Height = 14
+          Hint = ''
+          AutoSize = False
+          Caption = 'Observation Parameters'
+          ParentFont = False
+          Font.Color = clWhite
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 1
+        end
+        object UniLabel7: TUniLabel
+          Left = 15
+          Top = 31
+          Width = 114
+          Height = 14
+          Hint = ''
+          AutoSize = False
+          Caption = 'test@yahoo.com'
+          ParentFont = False
+          Font.Color = clWhite
+          Font.Height = -12
+          TabOrder = 2
+        end
+      end
+      object UniPanel3: TUniPanel
+        Left = 3
+        Top = 71
+        Width = 170
+        Height = 62
+        Hint = ''
+        TabOrder = 2
+        ClientEvents.UniEvents.Strings = (
+          
+            'beforeInit=function beforeInit(sender, config)'#13#10'{'#13#10'  config.body' +
+            'Style={'#39'background-image'#39':'#39'url(files/images/userbg.jpg)'#39','#39'backgr' +
+            'ound-size'#39':'#39'cover'#39'};'#13#10'}')
+        BorderStyle = ubsNone
+        Caption = ''
+        Color = clFuchsia
+        LayoutConfig.Width = '100%'
+        object UniLabel8: TUniLabel
+          Left = 15
+          Top = 11
+          Width = 152
+          Height = 14
+          Hint = ''
+          AutoSize = False
+          Caption = 'Target Parameters'
+          ParentFont = False
+          Font.Color = clWhite
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 1
+        end
+        object UniLabel9: TUniLabel
+          Left = 15
+          Top = 31
+          Width = 114
+          Height = 14
+          Hint = ''
+          AutoSize = False
+          Caption = 'test@yahoo.com'
+          ParentFont = False
+          Font.Color = clWhite
+          Font.Height = -12
+          TabOrder = 2
+        end
+      end
+      object UniPanel8: TUniPanel
+        Left = 2
+        Top = 139
+        Width = 170
+        Height = 62
+        Hint = ''
+        TabOrder = 3
+        ClientEvents.UniEvents.Strings = (
+          
+            'beforeInit=function beforeInit(sender, config)'#13#10'{'#13#10'  config.body' +
+            'Style={'#39'background-image'#39':'#39'url(files/images/userbg.jpg)'#39','#39'backgr' +
+            'ound-size'#39':'#39'cover'#39'};'#13#10'}')
+        BorderStyle = ubsNone
+        Caption = ''
+        Color = clFuchsia
+        LayoutConfig.Width = '100%'
+        object UniLabel10: TUniLabel
+          Left = 15
+          Top = 11
+          Width = 152
+          Height = 14
+          Hint = ''
+          AutoSize = False
+          Caption = 'Background Sources'
+          ParentFont = False
+          Font.Color = clWhite
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 1
+        end
+        object UniLabel11: TUniLabel
+          Left = 15
+          Top = 31
+          Width = 114
+          Height = 14
+          Hint = ''
+          AutoSize = False
+          Caption = 'test@yahoo.com'
+          ParentFont = False
+          Font.Color = clWhite
+          Font.Height = -12
+          TabOrder = 2
+        end
+      end
+    end
+    object UniPanel6: TUniPanel
+      Left = 208
+      Top = 15
+      Width = 505
+      Height = 345
+      Hint = ''
+      TabOrder = 2
+      BorderStyle = ubsNone
+      Caption = ''
+      Color = 16777088
+      LayoutConfig.Flex = 1
+      LayoutConfig.Height = '100%'
+    end
+    object UniSyntaxEdit1: TUniSyntaxEdit
+      Left = 720
+      Top = 8
+      Width = 480
+      Height = 300
+      Hint = ''
+      Lines.Strings = (
+        'UniSyntaxEdit1')
+      Font.Name = 'Courier New'
+    end
+  end
+  object UniPanel9: TUniPanel
+    Left = 112
+    Top = 24
+    Width = 799
+    Height = 42
+    Hint = ''
+    TabOrder = 3
+    BorderStyle = ubsNone
+    Caption = ''
+    Color = 4281825
+    Layout = 'hbox'
+    LayoutAttribs.Align = 'middle'
+    LayoutConfig.Width = '100%'
+    object UniLabel12: TUniLabel
+      Left = 23
+      Top = 14
+      Width = 271
+      Height = 16
+      Hint = ''
+      Caption = 'ULTRASAT Signal to Noise Ratio Calculator'
+      ParentFont = False
+      Font.Color = clWhite
+      Font.Height = -13
+      Font.Style = [fsBold]
+      TabOrder = 1
+      LayoutConfig.Margin = '0 0 0 10'
     end
   end
   object UniPanel2: TUniPanel
-    Left = 352
-    Top = 128
-    Width = 776
-    Height = 432
+    Left = 215
+    Top = 159
+    Width = 985
+    Height = 505
     Hint = ''
     TabOrder = 1
     Caption = ''
-    object UniGroupBox1: TUniGroupBox
-      Left = 24
-      Top = 16
-      Width = 449
-      Height = 305
+  end
+  object UniPageControl1: TUniPageControl
+    Left = 271
+    Top = 177
+    Width = 738
+    Height = 416
+    Hint = ''
+    ActivePage = UniTabSheet2
+    TabOrder = 4
+    object UniTabSheet1: TUniTabSheet
       Hint = ''
-      Caption = 'Observation Parameters'
-      TabOrder = 1
-      object UniEdit1: TUniEdit
-        Left = 248
-        Top = 64
-        Width = 121
+      Caption = 'UniTabSheet1'
+      ExplicitWidth = 600
+      ExplicitHeight = 317
+      object UniGroupBox1: TUniGroupBox
+        Left = 3
+        Top = 12
+        Width = 449
+        Height = 230
         Hint = ''
-        Text = 'UniEdit1'
+        Caption = 'Observation Parameters'
+        TabOrder = 0
+        object UniEdit1: TUniEdit
+          Left = 240
+          Top = 27
+          Width = 121
+          Hint = ''
+          Text = 'UniEdit1'
+          TabOrder = 1
+        end
+        object UniEdit2: TUniEdit
+          Left = 240
+          Top = 55
+          Width = 121
+          Hint = ''
+          Text = 'UniEdit1'
+          TabOrder = 2
+        end
+        object UniEdit3: TUniEdit
+          Left = 240
+          Top = 83
+          Width = 121
+          Hint = ''
+          Text = 'UniEdit1'
+          TabOrder = 3
+        end
+        object UniEdit4: TUniEdit
+          Left = 240
+          Top = 111
+          Width = 121
+          Hint = ''
+          Text = 'UniEdit1'
+          TabOrder = 4
+        end
+        object UniLabel1: TUniLabel
+          Left = 13
+          Top = 27
+          Width = 205
+          Height = 14
+          Hint = ''
+          Caption = 'Target Magnitude in Calib system'
+          ParentFont = False
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 5
+        end
+        object UniLabel2: TUniLabel
+          Left = 16
+          Top = 67
+          Width = 148
+          Height = 14
+          Hint = ''
+          Caption = 'Calib Magnitude System'
+          ParentFont = False
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 6
+        end
+        object UniLabel3: TUniLabel
+          Left = 16
+          Top = 99
+          Width = 232
+          Height = 14
+          Hint = ''
+          Caption = 'ULTRASAT Output Magnitude System'
+          ParentFont = False
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 7
+        end
+        object UniLabel4: TUniLabel
+          Left = 16
+          Top = 131
+          Width = 195
+          Height = 14
+          Hint = ''
+          Caption = 'Redenning (assuming Rv = 3.1)'
+          ParentFont = False
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 8
+        end
+        object UniLabel5: TUniLabel
+          Left = 16
+          Top = 163
+          Width = 59
+          Height = 14
+          Hint = ''
+          Caption = 'UniLabel1'
+          ParentFont = False
+          Font.Height = -12
+          Font.Style = [fsBold]
+          TabOrder = 9
+        end
+        object UniComboBox1: TUniComboBox
+          Left = 240
+          Top = 155
+          Width = 145
+          Hint = ''
+          Text = 'UniComboBox1'
+          TabOrder = 10
+          IconItems = <>
+        end
+        object UniComboBox2: TUniComboBox
+          Left = 240
+          Top = 183
+          Width = 145
+          Hint = ''
+          Style = csDropDownList
+          Text = ''
+          Items.Strings = (
+            'AB'
+            'Vega')
+          TabOrder = 11
+          IconItems = <>
+        end
+      end
+    end
+    object UniTabSheet2: TUniTabSheet
+      Hint = ''
+      Caption = 'UniTabSheet2'
+      ExplicitWidth = 600
+      ExplicitHeight = 317
+      object UniLabel13: TUniLabel
+        Left = 42
+        Top = 54
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Calib Magnitude System'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 0
+      end
+      object UniLabel14: TUniLabel
+        Left = 430
+        Top = 95
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Calib Filter'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 1
       end
-      object UniEdit2: TUniEdit
-        Left = 248
-        Top = 92
-        Width = 121
+      object UniLabel15: TUniLabel
+        Left = 42
+        Top = 272
+        Width = 235
+        Height = 14
         Hint = ''
-        Text = 'UniEdit1'
+        AutoSize = False
+        Caption = 'ULTRASAT Output Magnitude System'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 2
       end
-      object UniEdit3: TUniEdit
-        Left = 248
-        Top = 120
-        Width = 121
+      object UniLabel16: TUniLabel
+        Left = 381
+        Top = 175
+        Width = 235
+        Height = 14
         Hint = ''
-        Text = 'UniEdit1'
+        AutoSize = False
+        Caption = 'Target parameters'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 3
       end
-      object UniEdit4: TUniEdit
-        Left = 248
-        Top = 148
-        Width = 121
+      object UniLabel17: TUniLabel
+        Left = 30
+        Top = 18
+        Width = 235
+        Height = 14
         Hint = ''
-        Text = 'UniEdit1'
+        AutoSize = False
+        Caption = 'Position on sensor'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 4
       end
-      object UniLabel1: TUniLabel
-        Left = 24
-        Top = 72
-        Width = 159
-        Height = 13
+      object UniLabel18: TUniLabel
+        Left = 42
+        Top = 155
+        Width = 98
+        Height = 14
         Hint = ''
-        Caption = 'Target Magnitude in Calib system'
+        AutoSize = False
+        Caption = 'Filter'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 5
       end
-      object UniLabel2: TUniLabel
-        Left = 24
-        Top = 104
-        Width = 114
-        Height = 13
+      object UniLabel19: TUniLabel
+        Left = 42
+        Top = 175
+        Width = 98
+        Height = 14
         Hint = ''
-        Caption = 'Calib Magnitude System'
+        AutoSize = False
+        Caption = 'Filter family'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 6
       end
-      object UniLabel3: TUniLabel
-        Left = 24
-        Top = 136
-        Width = 179
-        Height = 13
+      object UniLabel20: TUniLabel
+        Left = 431
+        Top = 128
+        Width = 235
+        Height = 14
         Hint = ''
-        Caption = 'ULTRASAT Output Magnitude System'
+        AutoSize = False
+        Caption = 'Calib Filter Family'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 7
       end
-      object UniLabel4: TUniLabel
-        Left = 24
-        Top = 168
-        Width = 152
-        Height = 13
+      object UniLabel21: TUniLabel
+        Left = 203
+        Top = 223
+        Width = 235
+        Height = 14
         Hint = ''
-        Caption = 'Redenning (assuming Rv = 3.1)'
+        AutoSize = False
+        Caption = 'Coordinates - RA,DEC'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 8
       end
-      object UniLabel5: TUniLabel
-        Left = 24
-        Top = 200
-        Width = 46
-        Height = 13
+      object UniLabel22: TUniLabel
+        Left = 196
+        Top = 131
+        Width = 235
+        Height = 14
         Hint = ''
-        Caption = 'UniLabel1'
+        AutoSize = False
+        Caption = 'Time of observation'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 9
       end
-      object UniComboBox1: TUniComboBox
-        Left = 248
-        Top = 192
-        Width = 145
+      object UniLabel23: TUniLabel
+        Left = 203
+        Top = 175
+        Width = 150
+        Height = 14
         Hint = ''
-        Text = 'UniComboBox1'
+        AutoSize = False
+        Caption = 'Exposure time'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
         TabOrder = 10
-        IconItems = <>
       end
-    end
-    object UniGroupBox2: TUniGroupBox
-      Left = 496
-      Top = 32
-      Width = 209
-      Height = 137
-      Hint = ''
-      Caption = 'Target Parameters'
-      TabOrder = 2
-    end
-    object UniGroupBox3: TUniGroupBox
-      Left = 504
-      Top = 200
-      Width = 201
-      Height = 169
-      Hint = ''
-      Caption = 'Background Sources'
-      TabOrder = 3
-    end
-  end
-  object UniPanel3: TUniPanel
-    Left = 16
-    Top = 128
-    Width = 305
-    Height = 225
-    Hint = ''
-    TabOrder = 2
-    Caption = 'UniPanel3'
-    object UniPageControl1: TUniPageControl
-      Left = 16
-      Top = 32
-      Width = 289
-      Height = 193
-      Hint = ''
-      ActivePage = UniTabSheet2
-      TabOrder = 1
-      object UniTabSheet1: TUniTabSheet
+      object UniLabel24: TUniLabel
+        Left = 444
+        Top = 215
+        Width = 235
+        Height = 14
         Hint = ''
-        Caption = 'UniTabSheet1'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 289
-        ExplicitHeight = 193
+        AutoSize = False
+        Caption = 'Number of images'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 11
       end
-      object UniTabSheet2: TUniTabSheet
+      object UniLabel41: TUniLabel
+        Left = 444
+        Top = 248
+        Width = 235
+        Height = 14
         Hint = ''
-        Caption = 'UniTabSheet2'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 289
-        ExplicitHeight = 193
+        AutoSize = False
+        Caption = 'Upload Spectrum File'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 12
       end
+      object UniLabel42: TUniLabel
+        Left = 444
+        Top = 280
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Number of images'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 13
+      end
+      object UniLabel43: TUniLabel
+        Left = 444
+        Top = 316
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Number of images'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 14
+      end
+    end
+    object UniTabSheet3: TUniTabSheet
+      Hint = ''
+      Caption = 'UniTabSheet3'
+      ExplicitWidth = 600
+      ExplicitHeight = 317
+      object UniLabel25: TUniLabel
+        Left = 38
+        Top = 26
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Position on sensor'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 0
+      end
+      object UniLabel26: TUniLabel
+        Left = 42
+        Top = 59
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Position on sensor'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 1
+      end
+      object UniLabel27: TUniLabel
+        Left = 38
+        Top = 95
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Position on sensor'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 2
+      end
+      object UniLabel28: TUniLabel
+        Left = 38
+        Top = 147
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Position on sensor'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 3
+      end
+      object UniLabel29: TUniLabel
+        Left = 38
+        Top = 175
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Position on sensor'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 4
+      end
+      object UniLabel30: TUniLabel
+        Left = 38
+        Top = 203
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Position on sensor'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 5
+      end
+      object UniFormattedNumberEdit1: TUniFormattedNumberEdit
+        Left = 328
+        Top = 40
+        Width = 121
+        Hint = ''
+        TabOrder = 6
+        Value = 123.456000000000000000
+        DecimalSeparator = '.'
+        ThousandSeparator = ','
+      end
+      object UniNumberEdit1: TUniNumberEdit
+        Left = 328
+        Top = 123
+        Width = 121
+        Hint = ''
+        TabOrder = 7
+        Value = 123.456000000000000000
+        DecimalSeparator = '.'
+      end
+    end
+    object UniTabSheet4: TUniTabSheet
+      Hint = ''
+      Caption = 'UniTabSheet4'
+      ExplicitWidth = 600
+      ExplicitHeight = 317
+      object UniLabel31: TUniLabel
+        Left = 46
+        Top = 34
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Zodical Light'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 0
+      end
+      object UniLabel32: TUniLabel
+        Left = 46
+        Top = 103
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Cernekov'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 1
+      end
+      object UniLabel33: TUniLabel
+        Left = 46
+        Top = 155
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Host galaxy'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 2
+      end
+      object UniLabel34: TUniLabel
+        Left = 62
+        Top = 183
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Host Type'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 3
+      end
+      object UniLabel35: TUniLabel
+        Left = 62
+        Top = 211
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Host Mag'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 4
+      end
+      object UniLabel36: TUniLabel
+        Left = 62
+        Top = 243
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Host FilterFamily'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 5
+      end
+      object UniLabel37: TUniLabel
+        Left = 62
+        Top = 275
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'HostFilter'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 6
+      end
+      object UniLabel38: TUniLabel
+        Left = 62
+        Top = 307
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'HostMagSys'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 7
+      end
+      object UniLabel39: TUniLabel
+        Left = 406
+        Top = 39
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Stray Light'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 8
+      end
+      object UniLabel40: TUniLabel
+        Left = 406
+        Top = 95
+        Width = 235
+        Height = 14
+        Hint = ''
+        AutoSize = False
+        Caption = 'Limiting Magnitude Signal to Noise'
+        ParentFont = False
+        Font.Color = clBlack
+        Font.Height = -12
+        Font.Style = [fsBold]
+        TabOrder = 9
+      end
+    end
+    object UniTabSheet5: TUniTabSheet
+      Hint = ''
+      Caption = 'UniTabSheet5'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 608
+      ExplicitHeight = 345
+    end
+    object UniTabSheet6: TUniTabSheet
+      Hint = ''
+      Caption = 'UniTabSheet6'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 738
+      ExplicitHeight = 416
+    end
+    object UniTabSheet7: TUniTabSheet
+      Hint = ''
+      Caption = 'UniTabSheet7'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 738
+      ExplicitHeight = 416
     end
   end
 end
