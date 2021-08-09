@@ -251,15 +251,54 @@ classdef AstroDb < Component
         end        
     end    
     
+    
+    %----------------------------------------------------------------------
+    % Unit test
+    methods(Static)
+        function Result = stressTest()
+            io.msgStyle(LogLevel.Test, '@start', 'AstroDb stressTest started')              
+            
+            % Get db connection
+            Conn = db.Db.getLast();
+            Q = db.DbQuery(Conn);
+            Q.query('SELECT version()');
+            assert(Q.ColCount == 1);
+            pgver = Q.getField('version');
+            io.msgLog(LogLevel.Test, 'Version: %s', pgver);
+            assert(contains(pgver, 'PostgreSQL'));
+            
+            %HeaderTableName = 'raw_images';
+            CatalogTableName = 'sources_proc_cropped';
+           
+            MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
+            MsgLogger.setLogLevel(LogLevel.Test, 'type', 'disp');            
+                        
+            % Create catalog with column names matching all fields with data type Double
+            SqlText = ['SELECT * from ', CatalogTableName, ' LIMIT 1'];
+            Q.query(SqlText);
+            ColNames = Q.getFieldNamesOfType('Double');                       
+            Cols = numel(ColNames);
+            Rows = 100*1000;            
+            io.msgLog(LogLevel.Test, 'Preparing test Catalog: Rows: %d, Cols: %d', Rows, Cols);
+            AC = AstroTable({rand(Rows, Cols)}, 'ColNames', ColNames);
+            
+            % Insert catalog to table (with default BatchSize)
+            Count = 1000;
+            for i=1:Count
+                db.AstroDb.insertCatalog(AC, CatalogTableName);
+            end
+            
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroDb stressTest started')
+            Result = true;            
+        end
+    end
+    
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'AstroDb test started')
-               
-            % Create db adaptor
-            % db = db.AstroDb;                                   
-            
+
             % Get db connection
             Conn = db.Db.getLast();
             Q = db.DbQuery(Conn);
@@ -272,30 +311,20 @@ classdef AstroDb < Component
             HeaderTableName = 'raw_images';
             CatalogTableName = 'sources_proc_cropped';
 
-            
             MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
             MsgLogger.setLogLevel(LogLevel.Test, 'type', 'disp');            
-            
-            
+                        
             % Create catalog
             SqlText = ['SELECT * from ', CatalogTableName, ' LIMIT 1'];
             Q.query(SqlText);
             ColNames = Q.getFieldNamesOfType('Double');            
-            %ColNames = {'ra', 'dec', 'sn_best', 'sn_delta', 'sn_1', 'sn_2', };
-            Rows = 100*1000;
-            
             Cols = numel(ColNames);
+            Rows = 1000;                        
             io.msgLog(LogLevel.Test, 'Preparing test Catalog: Rows: %d, Cols: %d', Rows, Cols);
             AC = AstroTable({rand(Rows, Cols)}, 'ColNames', ColNames);
-            %AC = AstroTable({rand(Rows, Cols), rand(Rows, Cols)}, 'ColNames', ColNames);
             
             % Insert catalog to table
-            Count = 1;
-            for i=1:Count
-                res = db.AstroDb.insertCatalog(AC, CatalogTableName);
-            end
-            
-            Count = 1;            
+            res = db.AstroDb.insertCatalog(AC, CatalogTableName);
             
             %------------------------------------------------- Prepare test data          
             % Create fits file with header
