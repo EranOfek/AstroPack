@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+  <Transactions>
+    <Transaction>2021/08/09 22:38:09.014,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\ServerModule.pas</Transaction>
+    <Transaction>2021/08/09 22:38:09.046,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\MainModule.pas</Transaction>
+    <Transaction>2021/08/09 22:38:09.215,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Main.pas</Transaction>
+    <Transaction>2021/08/09 22:38:58.080,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit1.pas</Transaction>
+    <Transaction>2021/08/09 22:40:18.426,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\PipelineStatus.dfm=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit1.dfm</Transaction>
+    <Transaction>2021/08/09 22:40:18.426,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\PipelineStatus.pas=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit1.pas</Transaction>
+    <Transaction>2021/08/09 22:40:31.509,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit2.pas</Transaction>
+    <Transaction>2021/08/09 22:40:48.500,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\IncomingAlerts.pas=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit2.pas</Transaction>
+    <Transaction>2021/08/09 22:40:48.500,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\IncomingAlerts.dfm=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit2.dfm</Transaction>
+    <Transaction>2021/08/09 22:41:02.391,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit3.pas</Transaction>
+    <Transaction>2021/08/09 22:41:21.504,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\OutgoingAlerts.dfm=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit3.dfm</Transaction>
+    <Transaction>2021/08/09 22:41:21.504,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\OutgoingAlerts.pas=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit3.pas</Transaction>
+    <Transaction>2021/08/09 22:41:30.530,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit4.pas</Transaction>
+    <Transaction>2021/08/09 22:41:40.392,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\EventsTable.pas=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit4.pas</Transaction>
+    <Transaction>2021/08/09 22:41:40.392,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\EventsTable.dfm=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit4.dfm</Transaction>
+    <Transaction>2021/08/09 22:41:50.787,=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit5.pas</Transaction>
+    <Transaction>2021/08/09 22:42:13.737,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\MainDashboard.dfm=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit5.dfm</Transaction>
+    <Transaction>2021/08/09 22:42:13.737,D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Frames\MainDashboard.pas=D:\Ultrasat\AstroPack.git\delphi\webapps\Soc\Unit5.pas</Transaction>
+  </Transactions>
+</BorlandProject>
