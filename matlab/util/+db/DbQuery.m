@@ -611,6 +611,7 @@ classdef DbQuery < Component
             RecordCount = numel(Rec);
             RecIndex = 1;
             LastBatchCount = 0;
+            BatchNum = 0;
             while RecordCount > 0
                  
                 if RecordCount > Args.BatchSize
@@ -619,6 +620,7 @@ classdef DbQuery < Component
                     BatchCount = RecordCount;
                 end                
                 RecordCount = RecordCount - BatchCount;
+                BatchNum = BatchNum + 1;
                 
                 Obj.clear();
                 
@@ -628,7 +630,7 @@ classdef DbQuery < Component
                 end
                
                 % Prepare query
-                Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
+                %Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
                 try
                     Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
                 catch
@@ -644,7 +646,7 @@ classdef DbQuery < Component
                     FieldIndex = FieldIndex + FieldNamesCount;
                 end            
                 Toc2 = toc(T2);
-                Obj.msgLog(LogLevel.Debug, 'insertRecord prepare time: %f, BatchCount: %d', Toc2, BatchCount);
+                Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchCount);
             
                 % Execute
                 % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -658,7 +660,7 @@ classdef DbQuery < Component
                     break;
                 end                
                 Toc3 = toc(T3);
-                Obj.msgLog(LogLevel.Debug, 'insertRecord executeUpdate time: %f, BatchCount: %d', Toc3, BatchCount);
+                Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchCount);
             end
           
             Obj.Toc = toc(T1);

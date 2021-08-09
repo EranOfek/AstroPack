@@ -58,7 +58,7 @@ classdef MsgLogger < handle
             
             % Log to display
             if uint32(Level) <= uint32(Obj.CurDispLevel)
-                fprintf('[%s] ', LevStr);
+                fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
                 fprintf(varargin{:});                   
     			fprintf('\n');
             end

@@ -98,7 +98,7 @@ classdef AstroDb < Component
                 Args.Fields = {}        % As
                 Args.Uuid = []          % Empty uses AstroHeader.Uuid
                 Args.Query = []         % db.DbQuery
-                Args.BatchSize = 10000  % Insert batch size
+                Args.BatchSize = 1000   % Insert batch size
             end
             
             
@@ -131,16 +131,17 @@ classdef AstroDb < Component
                 ColNames = Input(i).ColNames;
                 [Rows, Cols] = size(Input(i).Catalog);
                 s = [];
-                T = tic();                
+                T = tic();
+                Uuid = Component.newUuid();
                 for Row = 1:Rows
-                    s(Row).(KeyField) = Component.newUuid();
+                    s(Row).(KeyField) = sprintf('%s-%07d', Uuid, Row);
                     s(Row).('src_id') = Row;
                     for Col = 1:Cols
                         s(Row).(ColNames{Col}) = Input(i).Catalog(Row, Col);
                     end                    
                 end
                 Time = toc(T);
-                Obj.msgLog(LogLevel.Info, 'insertCatalogImpl: prepare - Rows: %d, Cols: %d, Time: %f', Rows, Cols, Time);
+                Obj.msgLog(LogLevel.Info, 'insertCatalogImpl: prepare struct array: Rows: %d, Cols: %d, Time: %f', Rows, Cols, Time);
             
                 % Prepare
                 Obj.msgLog(LogLevel.Info, 'insertCatalogImpl: Records: %d, Batch: %d', Rows, Args.BatchSize);
@@ -273,7 +274,7 @@ classdef AstroDb < Component
 
             
             MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
-            MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'disp');            
+            MsgLogger.setLogLevel(LogLevel.Test, 'type', 'disp');            
             
             
             % Create catalog
@@ -284,6 +285,7 @@ classdef AstroDb < Component
             Rows = 100*1000;
             
             Cols = numel(ColNames);
+            io.msgLog(LogLevel.Test, 'Preparing test Catalog: Rows: %d, Cols: %d', Rows, Cols);
             AC = AstroTable({rand(Rows, Cols)}, 'ColNames', ColNames);
             %AC = AstroTable({rand(Rows, Cols), rand(Rows, Cols)}, 'ColNames', ColNames);
             
@@ -311,7 +313,7 @@ classdef AstroDb < Component
             AH = AstroHeader(ImageName);
             assert(all(size(AH.Data)));
 
-            % Create catalog
+            % Create catalog            
             AC = AstroTable({rand(10, 4), rand(10, 4)}, 'ColNames', {'ra', 'dec', 'sn_best', 'sn_delta'});
             
             
