@@ -47,3 +47,13 @@ Useful links to help you get started:
 Kind regards,
 The Embarcadero Team 
 
+
+### Installation Problem on SKY10
+
+https://en.delphipraxis.net/topic/4198-error-on-loading-data-from-the-server-getit-104embarcaderocom/
+
+Preamble: I know that Windows7 is not officially supported by Delphi 10.4. 
+Though, the below problem was not existing in the same environment (Delphi +Windows7), 
+some months ago. 
+
+
