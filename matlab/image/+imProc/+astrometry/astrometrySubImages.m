@@ -1,4 +1,4 @@
-function Result = astrometrySubImages(Obj, Args)
+function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
     % Solve astrometry for sub images of a single contigious image
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
@@ -17,6 +17,8 @@ function Result = astrometrySubImages(Obj, Args)
         
         Args.MinNumberCoreSolutions = 1;
     end
+    
+    [ResultObj, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, Nargout, 1)
     
     
     N = numel(Obj);
@@ -51,6 +53,7 @@ function Result = astrometrySubImages(Obj, Args)
             % run astrometryCore
             Iim = SI(Iobj);
             
+            ResultObj(Iim) = the new AstroImage here
             
             % check qulity of solution
             Sucess(Iim) = 
@@ -76,8 +79,15 @@ function Result = astrometrySubImages(Obj, Args)
             Iref = IndSucess;
             
             % shift solution to current CCDSEC
+            RefWCS = ResultObj(Iref).WCS.copyObject;
+            % the shift in CRPIX between the image and the ref
+            ShiftX = CCDSEC(Iim,1) - CCDSEC(Iref,1);
+            ShiftY = CCDSEC(Iim,3) - CCDSEC(Iref,3);
+            % add shift to CRPIX
+            RefWCS.CRPIX = RefWCS.CRPIX + [ShiftX, ShiftY];
             
-            % call astrometryRefine
+            % call astrometryRefine with RefWCS and includeDistortion=false
+            
             
             % check qulity of solution
             Sucess(Iim) = 
