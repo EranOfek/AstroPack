@@ -24,7 +24,9 @@ uses
   UserLogin in 'Frames\UserLogin.pas' {UniFrame17: TUniFrame},
   UserList in 'Frames\UserList.pas' {UniFrame18: TUniFrame},
   UserPassword in 'Frames\UserPassword.pas' {UniFrame19: TUniFrame},
-  UserGroupList in 'Frames\UserGroupList.pas' {UniFrame20: TUniFrame};
+  UserGroupList in 'Frames\UserGroupList.pas' {UniFrame20: TUniFrame},
+  PipelineDb in 'Frames\PipelineDb.pas' {UniFrame21: TUniFrame},
+  GcsCom in 'Frames\GcsCom.pas' {UniFrame22: TUniFrame};
 
 {$R *.res}
 
