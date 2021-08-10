@@ -119,7 +119,7 @@ classdef Base < handle
             end
         end
         
-        function [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout)
+        function [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout, MinNargout)
             % A utility function for creation of an object new copy based
             % on nargout
             % Input  : - An object
@@ -129,16 +129,22 @@ classdef Base < handle
             %            If [] and Nargout==0 then do not create new copy.
             %            Otherwise, create new copy.
             %          - nargout of function.
+            %          - Number of nargout above (>) which to create new
+            %            object. Default is 0.
             % Output : - The object (pointer or deep copy).
             %          - The new value of the CreateNewObj argument
             % Author : Eran Ofek (Jul 2021)
             % Example: [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout)
             
+            if nargin<4
+                MinNargout = 0;
+            end
+            
             if isempty(CreateNewObj)
-                if Nargout==0
-                    CreateNewObj = false;
-                else
+                if Nargout>MinNargout
                     CreateNewObj = true;
+                else
+                    CreateNewObj = false;
                 end
             end
             if CreateNewObj
