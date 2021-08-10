@@ -27,51 +27,19 @@ def log(msg, dt = False):
         logfile.flush()
 
 
+def_lines = []
+code_lines = []
 
-# Open output file
-def open_out(self, ext, create_new = False):
-    self.out_filename = self.base_filename + ext
-    log('output file: ' + self.out_filename)
-
-    # Open file for append
-    if self.outf:
-        self.outf.close()
-
-    if create_new:
-        self.outf = open(self.out_filename, 'wt')
-    else:
-        self.outf = open(self.out_filename, 'a')
-
-
-# Read output file as lines
-def read_out(self, ext):
-    filename = self.base_filename + ext
-    lines = []
-    if os.path.exists(filename):
-        with open(filename) as f:
-            lines = f.read().splitlines()
-
-    return lines
-
-
-# Write text to output file, optionally flush
-def write(self, text, flush = True):
-    #print(text)
-    self.outf.write(text)
-    if flush:
-        self.outf.flush()
-
-
-# Write line to output file, optionally flush
-def wrln(text, flush = True):
+def wrdef(text, flush = True):
     print(text)
-    global outf
-    outf.write(text)
-    outf.write('\n')
-    if flush:
-        outf.flush()
+    global def_lines
+    def_lines.append(text)
 
 
+def wrcode(text, flush = True):
+    print(text)
+    global code_lines
+    code_lines.append(text)
 
 #============================================================================
 
@@ -99,62 +67,123 @@ def process_dfm(filename):
     with open(filename) as f:
         lines = f.read().splitlines()
 
+    form_name = ''
     object_name = ''
     object_type = ''
-    left, top, width, height = 0
+    parent_left = 0
+    parent_top = 0
+    left, top, width, height = 0, 0, 0, 0
     caption = ''
+    canvas = ''
+    generate = False
+    type_list = ['TPanel', 'TButton', 'TLabel', 'TEdit', 'TCheckBox']
+    ctrl_count = 0
 
     for line in lines:
-        line = line.rstrip()
+        line = line.strip()
 
-        if line.strip().startswith('object '):
-            object_name = line.split(' ').strip.replace(':', '')
-            object_type = line.split(':')[1].strip()
-
+        # Key = Value
         if line.find(' = ') > -1:
-            key, value = line.split('=').strip()
+            key, value = line.split('=')
+            key = key.strip()
+            value = value.strip()
 
+            # Left, Top, Width, Height, Caption
             if key == 'Left':
-                left = int(value)
-            elif key == 'Height':
-                height = int(value)
+                left = int(value) + parent_left
+                if object_type == 'TPanel':
+                    parent_left = left
             elif key == 'Top':
-                top = int(value)
+                top = int(value) + parent_top
+                if object_type == 'TPanel':
+                    parent_top = top
             elif key == 'Width':
                 width = int(value)
+
+                if ctrl_count == 1:
+                    wrcode('')
+                    wrcode('%s = np.zeros((%d, %d, 3), np.uint8)' % (canvas, height, width))
+                    wrcode("cvui.init('%s_Caption)" % caption)
+                    wrcode('')
+                    wrcode('while True:')
+                    wrcode('    %s[:] = (49, 52, 49)' % canvas)
+                    wrcode('')
+
+            elif key == 'Height':
+                height = int(value)
             elif key == 'Caption':
                 caption = value;
 
-        if line.strip() == 'end':
+        # 'end' or child object
+        if (line == 'end' or line.startswith('object')) and generate:
 
             # Generate
-            if left != 0 and top != 0 and width != 0 and height != 0:
-                wrln('#')
-                wrln(object_name + '_Left   = ' + str(left))
-                wrln(object_name + '_Top    = ' + str(left))
-                wrln(object_name + '_Width  = ' + str(left))
-                wrln(object_name + '_Height = ' + str(left))
+            if width != 0 and height != 0:
+                wrdef('')
+                wrdef('#')
+                prefix = form_name + '_' + object_name
+                wrdef(prefix + '_Left   = ' + str(left))
+                wrdef(prefix + '_Top    = ' + str(top))
+                wrdef(prefix + '_Width  = ' + str(width))
+                wrdef(prefix + '_Height = ' + str(height))
+                wrdef(prefix + '_Caption = ' + caption)
 
                 # Generate code
                 # cvui.text(main_gui, 40, 100, 'Pressure:', 0.4)
-                if object_type == 'TButton':
-                    wrln('')
+                if object_type == 'TPanel':
+                    wrcode('    # ' + object_type + ': ' + caption)
+                    wrcode('')
+                elif object_type == 'TButton':
+                    wrcode('    # ' + object_type + ': ' + caption)
+                    wrcode('    if cvui.button(%s, %s_Left, %s_Top, %s_Caption):' % (canvas, prefix, prefix, prefix))
+                    wrcode('        print(1)')
+                    wrcode('')
                 elif object_type == 'TLabel':
-                    wrln('')
+                    wrcode('    # ' + object_type + ': ' + caption)
+                    wrcode('    cvui.text(%s, %s_Left, %s_Top, %s_Caption, 0.4)' % (canvas, prefix, prefix, prefix))
+                    wrcode('')
                 elif  object_type == 'TEdit':
-                    wrln('')
+                    wrcode('    # ' + object_type + ': ' + caption)
+                    wrcode('')
                 elif object_type == 'TCheckBox':
-                    wrln('')
+                    wrcode('    # ' + object_type + ': ' + caption)
+                    wrcode('')
 
             object_name = ''
             object_type = ''
-            left, top, width, height = 0
+            left, top, width, height = 0, 0, 0, 0
             caption = ''
 
-        wrln(line)
-        wrln('\n')
+        # Object, including TForm, TFrame
+        if line.startswith('object '):
+            ctrl_count = ctrl_count + 1
+            object_name = line.split(' ')[1].strip().replace(':', '')
+            object_type = line.split(':')[1].strip()
 
-    wrln('\n\n')
+            # First object is TForm or TFrame
+            if form_name == '':
+                form_name = object_name
+                canvas = form_name + '_gui'
+                generate = True
+
+            generate = object_type in type_list
+
+
+    fname = filename[:-4]
+
+    #
+    with open(fname + '_def.py', 'wt') as outf:
+        for line in def_lines:
+            outf.write(line)
+            outf.write('\n')
+
+    #
+    with open(fname + '_code.py', 'wt') as outf:
+        outf.write('from ' + os.path.split(fname)[1] + '_def import *\n\n')
+        for line in code_lines:
+            outf.write(line)
+            outf.write('\n')
+
 
     log('process_dfm: ' + filename)
     log('')
@@ -187,21 +216,16 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-f', dest='xlsx',      default='unittest.xlsx', help='input xlsx file')
-    parser.add_argument('-d', dest='dir',       default=None,            help='input folder, all .xlsx files will be processed')
+    parser.add_argument('-f', dest='dfm',       default='test.lfm',      help='input dfm/lfm file')
+    parser.add_argument('-d', dest='dir',       default=None,            help='input folder, all dfm/lfm files will be processed')
     parser.add_argument('-s', dest='subdirs',   action='store_true',     default=False,   help='Process xlsx files in subfolders')
     args = parser.parse_args()
 
-    astro_path = os.getenv('ASTROPACKPATH')
     if args.dir:
-        process_folder(args.dir, ['.xlsx'], args.subdirs)
+        process_folder(args.dir, ['.dfm', '.lfm'], args.subdirs)
 
-    elif args.xlsx:
-        filename = args.xlsx
-        path, fname = os.path.split(filename)
-        if path == '':
-            filename = os.path.join(astro_path, 'database', 'xlsx', fname)
-
+    elif args.dfm:
+        filename = args.dfm
         process_dfm(filename)
 
     else:
