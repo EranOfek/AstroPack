@@ -18,7 +18,13 @@ uses
   SowNotifications in 'Frames\SowNotifications.pas' {UniFrame11: TUniFrame},
   Desy in 'Frames\Desy.pas' {UniFrame12: TUniFrame},
   Nasa in 'Frames\Nasa.pas' {UniFrame13: TUniFrame},
-  Lsst in 'Frames\Lsst.pas' {UniFrame14: TUniFrame};
+  Lsst in 'Frames\Lsst.pas' {UniFrame14: TUniFrame},
+  GcsMaintenance in 'Frames\GcsMaintenance.pas' {UniFrame15: TUniFrame},
+  ApsEventTypes in 'Frames\ApsEventTypes.pas' {UniFrame16: TUniFrame},
+  UserLogin in 'Frames\UserLogin.pas' {UniFrame17: TUniFrame},
+  UserList in 'Frames\UserList.pas' {UniFrame18: TUniFrame},
+  UserPassword in 'Frames\UserPassword.pas' {UniFrame19: TUniFrame},
+  UserGroupList in 'Frames\UserGroupList.pas' {UniFrame20: TUniFrame};
 
 {$R *.res}
 

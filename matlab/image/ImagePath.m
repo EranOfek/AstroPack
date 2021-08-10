@@ -6,7 +6,8 @@ classdef ImagePath < Base
         Store = [] % db.AstroStore = []     % 
         
         % Each property is mapped to field in common_image_path table
-
+        Uuid            = [];       %
+        PkFieldName     = '';       % Primary key field name
 
         % Instrument
         Telescope       = 'USAT';   % (ProjName) - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
@@ -31,15 +32,15 @@ classdef ImagePath < Base
 
         % Debug? or have it?
         BasePath        = '/data/store';    % 
-        FileName
-        Path
+        FileName                    %
+        Path                        %
         FullName        = '';       %
         
         % Optional (@Todo discuss with @Eran)
         SrcFileName     = '';
         Title           = '';       % Text description
         Metadata        = '';       % Other textual data
-        
+        TableName       = '';       %
         
 %         ProjName char       = 'none';
 %         Date                = NaN;
@@ -85,6 +86,44 @@ classdef ImagePath < Base
             Obj.CropId = 'crop001-001';
         end
 
+        
+        function setTestData(Obj)
+            % Set 
+  
+            Obj.Telescope       = 'USAT';            
+            Obj.Node            = '';
+            Obj.JD              = 0;
+            Obj.Timezone        = 0;
+            Obj.Mount           = '';
+            Obj.Camera          = '';
+
+            % Filter and Field
+            Obj.Filter          = 'clear';
+            Obj.FieldId         = 'FLD1';
+            Obj.CropId          = 'CROP123';
+
+            % Image - Mandatoty fields
+            Obj.ImageType       = 'sci';
+            Obj.ImageLevel      = 'raw';
+            Obj.ImageSubLevel   = 'sub';
+            Obj.ImageProduct    = 'im';
+            Obj.ImageVer        = '1';
+            Obj.FileType        = 'fits';
+
+            % Debug? or have it?
+            Obj.BasePath        = '/data/store';
+            Obj.FileName        = '';
+            Obj.Path            = '';       
+            Obj.FullName        = '';       
+
+            % Optional (@Todo discuss with @Eran)
+            Obj.SrcFileName     = '';
+            Obj.Title           = '';       
+            Obj.Metadata        = '';       
+            Obj.TableName       = 'processed_cropped_images';       
+
+            Result = true;
+        end
     end
     
     
@@ -170,13 +209,14 @@ classdef ImagePath < Base
             end
             
             st = Obj.writeToStruct();
+            TableName = Obj.TableName;
             if Args.Insert
                 Obj.msgLog(LogLevel.Debug, 'writeToDb: insert: ');
-                Query.insertRecord(Query.TableName, st);                
+                Query.insertRecord(TableName, st);                
             else
                 % @Todo
                 % Obj.msgLog(LogLevel.Debug, 'writeToDb: update: ');
-                %Query.updateRecord(Query.TableName, st);                
+                %Query.updateRecord(TableName, st);                
             end
             Result = true;
         end
@@ -203,7 +243,6 @@ classdef ImagePath < Base
             Result = true;
         end
         
-
         
         function st = writeToStruct(Obj)
             % Write data fields to struct (common_image_path table)            
@@ -225,13 +264,15 @@ classdef ImagePath < Base
             st.filetype = Obj.FileType;
         end        
         
-    end
         
-    % setters and getters
-    methods       
-
+        function st = makeUuid(Obj)
+            % Create uuid
+            if isempty(Obj.Uuid)
+                Obj.Uuid = Component.MakeUuid();
+            end
+        end
     end
-    
+  
     
     methods
         
@@ -310,7 +351,11 @@ classdef ImagePath < Base
             FileName = IP.makeFileName();
             assert(~isempty(FileName));
             
-            %fn = p.FullName;
+            IP.setTestData();
+            
+            s = IP.writeToStruct();
+            disp(s);
+            
             
             % Done
             io.msgStyle(LogLevel.Test, '@passed', 'ImagePath test passed')

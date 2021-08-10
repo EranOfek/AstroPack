@@ -14,7 +14,10 @@ uses
   ObsVisibility in 'Frames\ObsVisibility.pas' {UniFrame7: TUniFrame},
   ObsAstroMaps in 'Frames\ObsAstroMaps.pas' {UniFrame8: TUniFrame},
   ObsProgram in 'Frames\ObsProgram.pas' {UniFrame9: TUniFrame},
-  ObsValidation in 'Frames\ObsValidation.pas' {UniFrame10: TUniFrame};
+  ObsValidation in 'Frames\ObsValidation.pas' {UniFrame10: TUniFrame},
+  ObsDashboard in 'Frames\ObsDashboard.pas' {UniFrame11: TUniFrame},
+  ObsReports in 'Frames\ObsReports.pas' {UniFrame12: TUniFrame},
+  ObsLog in 'Frames\ObsLog.pas' {UniFrame13: TUniFrame};
 
 {$R *.res}
 
