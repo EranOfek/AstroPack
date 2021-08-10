@@ -87,7 +87,8 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
             RefWCS.CRPIX = RefWCS.CRPIX + [ShiftX, ShiftY];
             
             % call astrometryRefine with RefWCS and includeDistortion=false
-            
+            [ResultFit(Iim), ResultObj(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData, 'WCS',RefWCS, ...);
+                
             
             % check qulity of solution
             Sucess(Iim) = 
