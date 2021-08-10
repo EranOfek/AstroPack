@@ -27,6 +27,7 @@ function [SucessFlag, QualitySummary] = assessAstrometricQuality(ResFit, Args)
          QualitySummary(Ifit).SucessFlag = SucessFlag(Ifit);
          
          
+         
     end
     
     
