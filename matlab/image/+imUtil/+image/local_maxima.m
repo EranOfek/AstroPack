@@ -98,7 +98,7 @@ end
 ThresholdedSN = SN;
 ThresholdedSN(SN<Threshold) = 0;
 
-if all(ThresholdedSN==0,'all')
+if all(ThresholdedSN==0,'all') || all(isnan(ThresholdedSN),'all')
     % The entire ThresholdedSN image is zeros - there is no local max
     % however, in this case imregionalmax retrun that there is local max
     % everywhere...
