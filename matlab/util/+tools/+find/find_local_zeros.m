@@ -16,7 +16,7 @@ function Zeros=find_local_zeros(X,Y,Deg)
 %     By : Eran O. Ofek                    May 2006
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % BUGS   : Fails to find some zeros
-% see also: interp_diff.m, find_local_extramum.m
+% see also: interp_diff.m, find_local_extremum.m
 % Reliable: 2
 %-----------------------------------------------------------------------------
 Check   = 'n';    % check if X is equally spaced and sorted...

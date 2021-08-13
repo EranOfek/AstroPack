@@ -100,13 +100,13 @@ for Istat=1:1:Nstat,
 
    I    = find(FlagConvLargeWin>0.5);    % select all Flaged
    I    = I(find(I<=length(Dist)));
-   if (length(I)<10),
+   if (length(I)<10)
       % skip - conjunction near end/begining of time in moving object list 
    else
-      % search for local extramum in flaged list
-      Extram = find_local_extramum(JD(I),Dist(I));
+      % search for local extremum in flaged list
+      Extram = find_local_extremum(JD(I),Dist(I));
 
-      if(isempty(Extram)==1),
+      if(isempty(Extram)==1)
          % skip
       else
          % select only minima:
@@ -116,7 +116,7 @@ for Istat=1:1:Nstat,
          % go over Minima
          Nm = size(Minima,1);
       
-         for Im=1:1:Nm,
+         for Im=1:1:Nm
             ConjInd = ConjInd + 1;
       
             MinJD    = Minima(Im,1);
@@ -124,14 +124,14 @@ for Istat=1:1:Nstat,
             % check if its a real minima or artefact due to removal
             % of gaps between near approaches
             [Min,MinInd] = min(abs(MinJD-JD));
-            if (FlagConvSmallWin(MinInd)>0.5),
+            if (FlagConvSmallWin(MinInd)>0.5)
                % real minima
                % [MinJD-2450000,MinDist.*RAD]
          
                % Interpolate data in both tables for MinJD
                InterpList1 = zeros(1,NColList1);
-               for Ic1=1:1:NColList1,
-                  if (AngFlag1(Ic1)>0.5),
+               for Ic1=1:1:NColList1
+                  if (AngFlag1(Ic1)>0.5)
                      % angular proprty
                      IntVal = interp_diff_ang(JD,List1(:,Ic1),MinJD);
                   else

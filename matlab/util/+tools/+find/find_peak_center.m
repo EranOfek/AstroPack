@@ -62,7 +62,7 @@ switch lower(InPar.Method)
         MaxX = sum(X.*Ybs)./sum(Ybs);
         MaxY = max(Y);
     case {'str','strh','strn'}
-        Extram=find_local_extramum(X,Y);
+        Extram=find_local_extremum(X,Y);
         %[X, Y, 2nd derivative d^2Y/dX^2]
         % look for local maxima
         Extram = Extram(Extram(:,3)<0,:);
@@ -85,7 +85,7 @@ switch lower(InPar.Method)
     otherwise
         error('Unknown Method option');
 end
-if (isempty(MaxX)),
+if (isempty(MaxX))
     MaxX = NaN;
     MaxY = NaN;
 end

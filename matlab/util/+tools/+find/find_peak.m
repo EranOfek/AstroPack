@@ -9,13 +9,13 @@ function [MaxX,MaxY,ErrX,Flag]=find_peak(X,Y,X0,Method,SemiWidth,StirSel,StirWin
 %          - Method for maximum position estimation
 %            {'max'|'wmean'|'stirling4'},
 %            default is 'stirling4'.
-%            The 'stirling4' calls find_local_extramum.m function.
+%            The 'stirling4' calls find_local_extremum.m function.
 %          - Semi width around X0 in which to search for the maximum,
 %            default is 3.
 %          - Optional selection method for 'stirling4' - if more than
 %            one maximum is found in region, then select the
 %            {'nearest'|'highest'}, default is 'heighest'.
-%          - Optional half window size for find extramum using the
+%          - Optional half window size for find extremum using the
 %            'stirling4' option, default is 10.
 % Output : - X position of of the maximum.
 %          - Y value at maximum.
@@ -94,16 +94,16 @@ else
 
        Ixs = find(abs(X-X0)<=StirWin);
 
-       Extram = find_local_extramum(X(Ixs),Y(Ixs),4);
+       Extram = find_local_extremum(X(Ixs),Y(Ixs),4);
 
        % select maxima in range
        I=find( (Extram(:,1)-X0)<=SemiWidth & Extram(:,3)<0 );
 
        switch StirSel
         case 'nearest'
-           [M,Ind] = min(abs(X0-Extram(I,1)));
+           [~,Ind] = min(abs(X0-Extram(I,1)));
         case 'highest'
-           [M,Ind] = max(Extram(I,2));
+           [~,Ind] = max(Extram(I,2));
 
         otherwise
 	   error('Unknown StirSel option');
@@ -118,19 +118,19 @@ else
        error('Unknown Method option');
    end
    
-   if (MaxX==min(X(Ix))),
+   if (MaxX==min(X(Ix)))
       % MaxX is on (left) edge of serached region
    
-      if (MaxY>X(Ix-1)),
+      if (MaxY>X(Ix-1))
          % however a real maximum
          Flag = 1; 
       else
          % unreal maximum
          Flag = 2; 
       end
-   elseif (MaxX==max(X(Ix))),
+   elseif (MaxX==max(X(Ix)))
       % MaxX is on (right) edge of serached region
-      if (MaxY>X(Ix+1)),
+      if (MaxY>X(Ix+1))
          % however a real maximum
          Flag = -1; 
       else

@@ -18,7 +18,7 @@ function [Yi,SPoly,H,X0]=interp_diff(X,Y,Xi,Deg,Check)
 %            and it may be adequate in the range -2<p<2. 
 %          - The tabulation interval H.
 %          - X0 of the interpolation for each point/polynomial.
-% See also: find_local_extramum.m, find_local_zeros.m, interp_diff_ang.m
+% See also: find_local_extremum.m, find_local_zeros.m, interp_diff_ang.m
 % Reference: Seidelmann 1992, Explanatory Supp. to the Astron. Almanac
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    May 2006

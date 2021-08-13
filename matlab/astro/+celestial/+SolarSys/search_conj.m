@@ -95,16 +95,16 @@ if (isempty(I)==1),
    IndMinSep = [];
 else
    
-   % search for local extramum in flaged list
+   % search for local extremum in flaged list
    size(I)
    size(Dist)
    size(JD)
    max(I)
    min(I)
 
-   Extram = find_local_extramum(JD(I),Dist(I));
+   Extram = find_local_extremum(JD(I),Dist(I));
 
-   if (isempty(Extram)==1),
+   if (isempty(Extram)==1)
       % skip
       Conj = [];
       IndMinSep = [];
@@ -120,7 +120,7 @@ else
       Conj.MinPA   = zeros(Nm,1);
       Conj.List1   = zeros(Nm,NColList1);
       Conj.List2   = zeros(Nm,NColList2);
-      for Im=1:1:Nm,
+      for Im=1:1:Nm
          MinJD    = Minima(Im,1);
          MinDist  = Minima(Im,2);
          % check if its a real minima or artefact due to removal

@@ -145,7 +145,7 @@ if (nargout>1)
         end
     end
     % find local minimum near index minimum
-    %Util.find.find_local_extramum(
+    %Util.find.find_local_extremum(
 end
 
 

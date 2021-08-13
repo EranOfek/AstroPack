@@ -186,7 +186,7 @@ for Iflip=1:1:Nflip
     CC1 = CCn(1,:);
     CC1 = fftshift(CC1);
 
-    % [ListExt] = Util.find.find_local_extramum(InPar.HistRotEdges(:),CC1(:))
+    % [ListExt] = Util.find.find_local_extremum(InPar.HistRotEdges(:),CC1(:))
     % I = find(ListExt(:,3)<0 & ListExt(:,2)>InPar.Thresh)
     % ListExt(I,:)
 

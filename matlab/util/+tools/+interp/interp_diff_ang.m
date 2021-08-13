@@ -16,7 +16,7 @@ function [Yi]=interp_diff_ang(X,Y,Xi,Deg,Check)
 %     By : Eran O. Ofek                    May 2006
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reference: Seidelmann 1992, Explanatory Supp. to the Astron. Almanac
-% See also: find_local_extramum.m; interp_diff.m
+% See also: find_local_extremum.m; interp_diff.m
 % Reliable: 2
 %-----------------------------------------------------------------------------
 DefDeg     = 4;

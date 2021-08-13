@@ -1,22 +1,22 @@
-function Extram=find_local_extramum(X,Y,Deg)
-% Use stirling interpolation to find local extramum in vector.
+function Extram=find_local_extremum(X,Y,Deg)
+% Use stirling interpolation to find local extremum in vector.
 % Package: tools.find
 % Description: Given table of equally spaced data, use Stirling
-%              interpolation formula to find the local extramums of
+%              interpolation formula to find the local extremums of
 %              the tabulated data. The program find all the local
-%              extramums between X(Deg/2) to X(end-Deg/2), where
+%              extremums between X(Deg/2) to X(end-Deg/2), where
 %              Deg is the degree of interpolation.
 % Input  : - Equally spaced (and asendingly sorted) X.
 %          - Y
 %          - Order (currently supports only 4th degree), default is 4.
-% Output : - List of all local extramums:
+% Output : - List of all local extremums:
 %            values of [X, Y, 2nd derivative d^2Y/dX^2] in the points of 
-%            local extramums.
+%            local extremums.
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    May 2006
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % See also: interp_diff.m, find_local_zeros.m
-% Example: X=(1:1:100).'; Y=(X-10).^2; find_local_extramum(X,Y);
+% Example: X=(1:1:100).'; Y=(X-10).^2; find_local_extremum(X,Y);
 % Reliable: 2
 %-----------------------------------------------------------------------------
 Check   = 'n';    % check if X is equally spaced and sorted...
