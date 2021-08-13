@@ -912,6 +912,8 @@ classdef Tran2D < handle
             Res.ResidY   = ResidY;
             Res.FlagSrc  = FlagSrc;
             Res.Ngood    = sum(FlagSrc);
+            Res.NsrcInd  = sum(~isnan(Xind));
+            Res.NsrcDep  = sum(~isnan(Xdep));
             Res.Resid    = Resid;
             Res.RefMag   = Args.Mag;
             Res.RMS_X    = RMS_X;

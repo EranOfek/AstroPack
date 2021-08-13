@@ -60,6 +60,8 @@ function Result = unitTest()
     load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
     
     Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
+    [SucessFlag, QualitySummary] = imProc.astrometry.assessAstrometricQuality(Result.ResFit)
+    
     [Result,~,AI.CatData] = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
     
     % test bad initial conditions
