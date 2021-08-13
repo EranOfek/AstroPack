@@ -16,6 +16,7 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
         Args.CreateNewObj
         
         Args.MinNumberCoreSolutions = 1;
+        Args.assessAstrometricQualityArgs cell   = {};
     end
     
     [ResultObj, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, Nargout, 1)
@@ -53,10 +54,12 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
             % run astrometryCore
             Iim = SI(Iobj);
             
+            ResultFit(Iim) = 
             ResultObj(Iim) = the new AstroImage here
             
             % check qulity of solution
-            Sucess(Iim) = 
+            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+
             
             if Iobj>Args.MinNumberCoreSolutions
                 EnoughCoreSolutions = true;
@@ -88,10 +91,9 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
             
             % call astrometryRefine with RefWCS and includeDistortion=false
             [ResultFit(Iim), ResultObj(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData, 'WCS',RefWCS, ...);
-                
             
             % check qulity of solution
-            Sucess(Iim) = 
+            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
             
         end
     
