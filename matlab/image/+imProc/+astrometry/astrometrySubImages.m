@@ -1,4 +1,4 @@
-function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
+function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
     % Solve astrometry for sub images of a single contigious image
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
@@ -47,6 +47,7 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
     
     EnoughCoreSolutions = false;
     Sucess              = false(size(Obj));  % sucessful solution
+    AstrometricCat      = AstroCatalog(size(Obj));
     for Iobj=1:1:Nobj
         % for each sub image
         
