@@ -1,4 +1,4 @@
-function [Result, Obj] = astrometryRefine(ObjAC, Args)
+function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     % Refine an astrometric solution of an AstroCatalog object
     %   This function may work on images which have either an approximate
     %   WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec
@@ -144,6 +144,7 @@ function [Result, Obj] = astrometryRefine(ObjAC, Args)
     %          - The input AstroCatalog objct with new and updated  RA/Dec
     %            columns. The columns are added only if the second output 
     %            argument is requested.
+    %          - An AstroCatalog containing the AstrometricCat catalog.
     % Author : Eran Ofek (Aug 2021)
     % Example: RR = imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
@@ -280,14 +281,14 @@ function [Result, Obj] = astrometryRefine(ObjAC, Args)
         end
             
         if Args.ReuseAstrometricCat && ~isempty(AstrometricCat) 
-            Args.CatName = AstrometricCat;
+            Args.CatName = AstrometricCat(1);
         end
             
         % Get astrometric catalog / incluidng proper motion
         % RA and Dec output are in radians
         % If CatName is an AstroCatalog, then will retun as is, but RA and Dec
         % will be converted to OutUnits
-        [AstrometricCat, RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
+        [AstrometricCat(Iobj), RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
                                                                                         'CatOrigin',Args.CatOrigin,...
                                                                                         'Radius',Args.CatRadius,...
                                                                                         'RadiusUnits',Args.CatRadiusUnits,...
@@ -322,17 +323,17 @@ function [Result, Obj] = astrometryRefine(ObjAC, Args)
         % filter Ref - remove sources with neighboors
         if Args.RemoveNeighboors
             % sort AstrometricCat
-            AstrometricCat.sortrows('Dec');
+            AstrometricCat(Iobj).sortrows('Dec');
             
-            UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
+            UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat(Iobj), Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
         else
-            Nsrc    = sizeCatalog(AstrometricCat);
+            Nsrc    = sizeCatalog(AstrometricCat(Iobj));
             UseFlag = true(Nsrc,1);
         end
         
         
         % projection
-        ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
+        ProjAstCat = imProc.trans.projection(AstrometricCat(Iobj), RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                        'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                        'CreateNewObj',true);
      

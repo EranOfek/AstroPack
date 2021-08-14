@@ -15,11 +15,15 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
         
         Args.CreateNewObj
         
+        Args.CatName                             = 'GAIAEDR3';  % or AstroCatalog array
+        Args.astrometryCoreArgs cell             = {};
+        Args.astrometryRefineArgs cell           = {};
+        
         Args.MinNumberCoreSolutions = 1;
         Args.assessAstrometricQualityArgs cell   = {};
     end
     
-    [ResultObj, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, Nargout, 1)
+    [ResultObj, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, Nargout, 1);
     
     
     N = numel(Obj);
@@ -49,13 +53,18 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
         % select sub image index, after sorting by distance of sub image
         % from full image
         
-        
         if ~EnoughCoreSolutions
             % run astrometryCore
             Iim = SI(Iobj);
             
-            ResultFit(Iim) = 
-            ResultObj(Iim) = the new AstroImage here
+            % astrometric solution
+            if isa(Args.CatName,'AstroCatalog')
+                CatName = Args.CatName(Iim);
+            else
+                CatName = Args.CatName;
+            end
+            [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = astrometryCore(ResultObj(Iim),'CatName',CatName,...
+                                                                                                  Args.astrometryCoreArgs{:});
             
             % check qulity of solution
             [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
@@ -90,7 +99,15 @@ function [ResultFit, ResultObj] = astrometrySubImages(Obj, Args)
             RefWCS.CRPIX = RefWCS.CRPIX + [ShiftX, ShiftY];
             
             % call astrometryRefine with RefWCS and includeDistortion=false
-            [ResultFit(Iim), ResultObj(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData, 'WCS',RefWCS, ...);
+            if isa(Args.CatName,'AstroCatalog')
+                CatName = Args.CatName(Iim);
+            else
+                CatName = Args.CatName;
+            end
+            [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData,...
+                                                                                                       'WCS',RefWCS, ...
+                                                                                                       'CatName',CatName,...                     
+                                                                                                       Args.astrometryCoreArgs{:});
             
             % check qulity of solution
             [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});

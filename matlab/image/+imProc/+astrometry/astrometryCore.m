@@ -1,4 +1,4 @@
-function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
+function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % A core function for astrometry. Match pattern and fit transformation.
     % Input  : - An AstroCatalog object, with sources X, Y positions.
     %            This can be a multiple element object. In this case, the
@@ -119,12 +119,12 @@ function [Result, AstrometricCat, Obj] = astrometryCore(Obj, Args)
     %               'ErrorOnMean' - A vector of assymptoticRMS/sqrt(Ngood)
     %                       for each solution.
     %               'BestInd' - Index of solution with minimal ErrorOnMean.
-    %          - An AstroCatalog object containing the astrometric catalog
-    %            used, after applying proper motions, and queryRange.
     %          - An handle to the original input catalog, after adding the
     %            RA/Dec columns for all the sources.
     %            The input catalog is modified only if more than two output
     %            arguments are requested.
+    %          - An AstroCatalog object containing the astrometric catalog
+    %            used, after applying proper motions, and queryRange.
     % Author : Eran Ofek (Jul 2021)
     % Example: Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
    
