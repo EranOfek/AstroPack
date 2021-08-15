@@ -142,7 +142,7 @@ classdef FileProcessor < Component
             % Call handler in derived class
             try
                         
-                %
+                % Call user callback function (event)
                 if ~isempty(Obj.ProcessFileFunc)
                     Obj.ProcessFileFunc(Obj, FileName);
                 else

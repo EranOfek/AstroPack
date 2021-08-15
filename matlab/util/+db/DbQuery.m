@@ -903,8 +903,8 @@ classdef DbQuery < Component
             % 
             %Obj.SqlText = ['COPY ', string(TableName).char, ' FROM ', string(FileName).char];
             
-            Obj.SqlText = ['COPY ', string(TableName).char, ' TO ', string(FileName).char, ' DELIMITER ',' CSV HEADER'];
-            Obj.SqlText = "COPY master_table (recid, fint) to 'test_copy_to.csv' csv header";  %DELIMITER ',' CSV HEADER";
+            %Obj.SqlText = ['COPY ', string(TableName).char, ' TO ', string(FileName).char, ' DELIMITER ',' CSV HEADER'];
+            Obj.SqlText = "\\COPY master_table (recid, fint) to 'test_copy_to.csv' csv header";  %DELIMITER ',' CSV HEADER";
             
             Obj.msgLog(LogLevel.Debug, 'copyFrom: SqlText: %s', Obj.SqlText);
   
@@ -1410,6 +1410,8 @@ classdef DbQuery < Component
        
             
             % ---------------------------------------------- copy
+            
+            Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
             
             MyFileName = mfilename('fullpath');       
             [MyPath, ~, ~] = fileparts(MyFileName);            

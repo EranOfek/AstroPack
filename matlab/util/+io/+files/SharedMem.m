@@ -81,7 +81,9 @@ classdef SharedMem < Component
                 fclose(fileID);
             end
             
-
+			Stat = dir(Obj.FileName);
+			Obj.FileSize = Stat.bytes;
+			
             print('file size: ', os.path.getsize(Obj.filename), 'mmap size: ', Obj.memsize)
 
             % Open mmap
