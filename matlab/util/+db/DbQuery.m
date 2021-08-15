@@ -868,7 +868,7 @@ classdef DbQuery < Component
     end
 
     %----------------------------------------------------------------------
-    methods
+    methods % Other
         
         function Result = createDatabase(Obj, DbName, Args)
             % Create database
@@ -879,6 +879,56 @@ classdef DbQuery < Component
             end
             
         end
+        
+        
+        function Result = copyFrom(Obj, TableName, FileName, Args)
+            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
+            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+            arguments
+                Obj
+                TableName
+                FileName
+                Args.Fields = []    %
+            end
+                                   
+            Result = false;
+                       
+            % Execute SQL statement (using java calls)
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyFrom');            
+            T1 = tic();
+            
+            % Need connection, clear current query
+            Obj.openConn();
+ 
+            % 
+            %Obj.SqlText = ['COPY ', string(TableName).char, ' FROM ', string(FileName).char];
+            
+            Obj.SqlText = ['COPY ', string(TableName).char, ' TO ', string(FileName).char, ' DELIMITER ',' CSV HEADER'];
+            Obj.SqlText = "COPY master_table (recid, fint) to 'test_copy_to.csv' csv header";  %DELIMITER ',' CSV HEADER";
+            
+            Obj.msgLog(LogLevel.Debug, 'copyFrom: SqlText: %s', Obj.SqlText);
+  
+            % Prepare query
+            try
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
+            catch
+                Obj.msgLog(LogLevel.Error, 'copyFrom: prepareStatement failed: %s', Obj.SqlText);
+            end
+
+            % Execute
+            T1 = tic();
+            try
+                Obj.ResultSet = Obj.Statement.executeUpdate();
+                Obj.ExecOk = true;                
+            catch
+                Obj.msgLog(LogLevel.Error, 'copyFrom: executeQuery failed: %s', Obj.SqlText);                
+                Obj.ExecOk = false;
+            end                
+            Obj.Toc = toc(T1);   
+            Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);                  
+            Result = Obj.ExecOk;                                   
+        end
+        
     end
     
     %======================================================================
@@ -1358,6 +1408,14 @@ classdef DbQuery < Component
             io.msgLog(LogLevel.Test, 'Version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));
        
+            
+            % ---------------------------------------------- copy
+            
+            MyFileName = mfilename('fullpath');       
+            [MyPath, ~, ~] = fileparts(MyFileName);            
+            CsvFileName = 'unittest_csv1_to.csv';  %fullfile(MyPath, 'unittest_csv1.csv');
+            
+            Q.copyFrom('master_table', CsvFileName);
             
             % ---------------------------------------------- getTableFieldList 
             Q = db.DbQuery(Conn);

@@ -35,9 +35,9 @@ classdef Dictionary < Component
                 if isempty(fieldnames(Obj.Config.Data))
                     Args.DictName
                     %Obj.Config = Configuration;
-                    Obj.Config.loadConfig;
+                    Obj.Config.loadConfig();
                 end
-                Obj.Dict   = eval(sprintf('Obj.Config.Data.%s',Args.DictName));
+                Obj.Dict = eval(sprintf('Obj.Config.Data.%s',Args.DictName));
             end
         end
         
@@ -83,8 +83,8 @@ classdef Dictionary < Component
     
     
     methods % basic functions
-        function [Alt,AltConv]=searchKey(Obj,Key,Args)
-            % Retun alternate names of a specific key in a single dictionary
+        function [Alt, AltConv] = searchKey(Obj, Key, Args)
+            % Return alternate names of a specific key in a single dictionary
             % Input  : - Dictionary object with a single element
             %          - A single key name.
             %          * ...,key,val,...
@@ -139,7 +139,7 @@ classdef Dictionary < Component
         end           
             
             
-        function [Key,AltConv,AllAlt,FlagKey]=searchAlt(Obj,Alt,Args)
+        function [Key, AltConv, AllAlt, FlagKey] = searchAlt(Obj, Alt, Args)
             % Return the key name from an alternate name in a dictionary
             % Input  : - A single element dictionary object.
             %          - A string of name to search in the alternate names.
@@ -183,9 +183,7 @@ classdef Dictionary < Component
                     otherwise
                         error('Unknown SearchAlgo option');
                 end
-                
-                
-                
+                                                
                 FlagKey(Ifn) = any(Flag);
                 if any(FlagKey(Ifn))
                     Key = FN{FlagKey};
@@ -198,6 +196,7 @@ classdef Dictionary < Component
                 end
             end
         end
+        
         
         function Obj = string2funHandle(Obj)
             % convert dictionary items thaatom&t start with '@' to a function
@@ -224,20 +223,50 @@ classdef Dictionary < Component
     end
     
     
+    methods(Static)
+        
+        function Result = getDict(DictName)
+            persistent Map
+            if isempty(Map)
+                Map = ComponentMap('DictionaryFromConfig');
+            end
+            
+            % Set default database type
+            if isempty(DictName)
+                DictName = 'default';
+            end
+            
+            % Search in map
+            Comp = Map.find(DictName);
+            if isempty(Comp)
+                % Not found, create
+                Comp = Dictionary('DictName', DictName);
+                Comp.MapKey = DictName;
+                Map.add(Comp);
+            else
+                % Already exist
+            end
+            Result = Comp;                         
+        end
+    end
+    
+    
     methods(Static) % unitTest
         function Result = unitTest(Obj)
             % Dictionary unit test
             
             io.msgStyle(LogLevel.Test, '@start', 'Dictionary test passed')
             
+            % Create test dictionary
             St.EXPTIME = {'AEXPTIME','EXPTIME','EXPOSURE'};
             St.IMTYPE  = {'IMTYPE','TYPE','IMGTYPE','IMAGETYP'};
             Conv.EXPTIME = {@(x) x, @(x) x, @(x) x};
             D = Dictionary;
             D.Dict = St;
             
-            [Alt,AltConv] = D.searchKey('EXPTIME')
-            [Key,AltConv,AllAlt,FlagKey] = D.searchAlt('AEXPTIME')
+            % Search
+            [Alt, AltConv] = D.searchKey('EXPTIME')
+            [Key, AltConv, AllAlt, FlagKey] = D.searchAlt('AEXPTIME')
             
             
             io.msgStyle(LogLevel.Test, '@passed', 'Dictionary test passed')

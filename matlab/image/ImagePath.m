@@ -8,7 +8,8 @@ classdef ImagePath < Base
         % Each property is mapped to field in common_image_path table
         Uuid            = [];       %
         PkFieldName     = '';       % Primary key field name
-
+        TableName       = '';       %
+        
         % Instrument
         Telescope       = 'USAT';   % (ProjName) - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
         Node            = '';       % Optional
@@ -40,8 +41,10 @@ classdef ImagePath < Base
         SrcFileName     = '';
         Title           = '';       % Text description
         Metadata        = '';       % Other textual data
-        TableName       = '';       %
         
+        %
+        DictKeyNames Dictionary             %
+
 %         ProjName char       = 'none';
 %         Date                = NaN;
 %         Filter char         = 'clear';
@@ -63,11 +66,16 @@ classdef ImagePath < Base
     end
     
     
+    
+    
     methods % Constructor
        
         function Obj = ImagePath(varargin)
             % Setup 
             %Obj.Store = db.AstroStore.get();
+            
+            Obj.DictKeyNames = Dictionary.getDict('Header.ImagePath.KeyNames');
+            
             Obj.setDefault();
         end
         
@@ -138,21 +146,21 @@ classdef ImagePath < Base
             
             Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
             
-            Obj.Telescope       = Header.Key.TEL;
-            Obj.Node            = Header.Key.NODE;
-            Obj.Mount           = Header.Key.MOUNT;
-            Obj.Camera          = Header.Key.CAMERA;
-            Obj.JD              = Header.Key.JD; 
-            Obj.Timezone        = Header.Key.TIMEZONE;
-            Obj.Filter          = Header.Key.FILTER;
-            Obj.FieldId         = Header.Key.FIELDID;
-            Obj.CropId          = Header.Key.CROPID;
-            Obj.ImageType       = Header.Key.IMTYPE;
-            Obj.ImageLevel      = Header.Key.IMLEVEL;
-            Obj.ImageSubLevel   = Header.Key.IMSLEVEL;
-            Obj.ImageProduct    = Header.Key.IMPROD;
-            Obj.ImageVer        = Header.Key.IMVER;
-            Obj.FileType        = Header.Key.FILETYPE;
+            Obj.Telescope       = Header.getVal(Obj.DictKeyNames.Telescope);
+            Obj.Node            = Header.getVal(Obj.DictKeyNames.Node);
+            Obj.Mount           = Header.getVal(Obj.DictKeyNames.Mount);
+            Obj.Camera          = Header.getVal(Obj.DictKeyNames.Camera);
+            Obj.JD              = Header.getVal(Obj.DictKeyNames.JD);
+            Obj.Timezone        = Header.getVal(Obj.DictKeyNames.Timezone);
+            Obj.Filter          = Header.getVal(Obj.DictKeyNames.Filter);
+            Obj.FieldId         = Header.getVal(Obj.DictKeyNames.FieldId);
+            Obj.CropId          = Header.getVal(Obj.DictKeyNames.CropId);
+            Obj.ImageType       = Header.getVal(Obj.DictKeyNames.ImageType);
+            Obj.ImageLevel      = Header.getVal(Obj.DictKeyNames.ImageLevel);
+            Obj.ImageSubLevel   = Header.getVal(Obj.DictKeyNames.ImageSubLevel);
+            Obj.ImageProduct    = Header.getVal(Obj.DictKeyNames.ImageProduct);
+            Obj.ImageVer        = Header.getVal(Obj.DictKeyNames.ImageVer);
+            Obj.FileType        = Header.getVal(Obj.DictKeyNames.FileType);
 
             Result = true;
         end
@@ -167,21 +175,21 @@ classdef ImagePath < Base
             
             Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
             
-            Header.Key.TEL      = Obj.Telescope;
-            Header.Key.NODE     = Obj.Node;
-            Header.Key.MOUNT    = Obj.Mount;
-            Header.Key.CAMERA   = Obj.Camera;
-            Header.Key.JD       = Obj.JD;
-            Header.Key.TIMEZONE = Obj.Timezone;
-            Header.Key.FILTER   = Obj.Filter;
-            Header.Key.FIELDID  = Obj.FieldId;
-            Header.Key.CROPID   = Obj.CropId;
-            Header.Key.IMTYPE   = Obj.ImageType;
-            Header.Key.IMLEVEL  = Obj.ImageLevel;
-            Header.Key.IMSLEVEL = Obj.ImageSubLevel;
-            Header.Key.IMPROD   = Obj.ImageProduct;
-            Header.Key.IMVER    = Obj.ImageVer;
-            Header.Key.FILETYPE = Obj.FileType;
+            Header.setVal(Obj.DictKeyNames.Telescope, Obj.Telescope);
+            Header.setVal(Obj.DictKeyNames.Node, Obj.Node);
+            Header.setVal(Obj.DictKeyNames.Mount, Obj.Mount);
+            Header.setVal(Obj.DictKeyNames.Camera, Obj.Camera);
+            Header.setVal(Obj.DictKeyNames.JD, Obj.JD);
+            Header.setVal(Obj.DictKeyNames.Timezone, Obj.Timezone);
+            Header.setVal(Obj.DictKeyNames.Filter, Obj.Filter);
+            Header.setVal(Obj.DictKeyNames.FieldId, Obj.FieldId);
+            Header.setVal(Obj.DictKeyNames.CropId, Obj.CropId);
+            Header.setVal(Obj.DictKeyNames.ImageType, Obj.ImageType);
+            Header.setVal(Obj.DictKeyNames.ImageLevel, Obj.ImageLevel);
+            Header.setVal(Obj.DictKeyNames.ImageSubLevel, Obj.ImageSubLevel);
+            Header.setVal(Obj.DictKeyNames.ImageProduct, Obj.ImageProduct);
+            Header.setVal(Obj.DictKeyNames.ImageVer, Obj.ImageVer);
+            Header.setVal(Obj.DictKeyNames.FileType, Obj.FileType);            
             
             Result = true;
         end        
@@ -277,7 +285,12 @@ classdef ImagePath < Base
     methods
         
         % <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
-               
+        % <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>               
+        
+        % /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
+        % /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
+        % /data/coadd/area/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods) 
+        
         function [FileName, Path] = makeFileName(Obj)
             
             % Need to take care of separate folder names ??? @Eran

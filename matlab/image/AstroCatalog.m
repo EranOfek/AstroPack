@@ -778,11 +778,30 @@ classdef AstroCatalog < AstroTable
             open manuals.AstroCatalog
         end
     end
-        
+
+    
+    methods (Static) % perfTest
+        function Result = unitTest
+            % perfTest for the AstroCatalog class
+            io.msgStyle(LogLevel.Test, '@sart', 'AstroCatalog perfTest started')
+            
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
+            
+
+            cd(PWD);           
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog perfTest passed')
+            Result = true;
+        end
+    end
+    
     
     methods (Static) % unitTest
         function Result = unitTest
             % unitTest for the AstroCatalog class
+            io.msgStyle(LogLevel.Test, '@sart', 'AstroCatalog test started')
             
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;

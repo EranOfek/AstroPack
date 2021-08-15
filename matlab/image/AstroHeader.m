@@ -17,6 +17,7 @@
 %   getVal - get a single keyword value where the keyword appears first in a dictionary.
 %   getStructKey - Get multiple  keys from multiple headers and store in a structure array
 %   getCellKey - Get multiple  keys from multiple headers and store in a cell array
+%   setVal - Set value @Todo
 %   insertDefaultComments - Insert/replace default comments for keys using the header comments dictionary
 %   deleteKey - Delete keywords from header by exact keyword name
 %   insertKey - Insert key/val/comment to headers
@@ -45,6 +46,7 @@ classdef AstroHeader < Component
         CommentDict Dictionary    % Initialization is done in constructor
         TimeDict Dictionary       % Initialization is done in constructor
     end
+    
     properties (Hidden, SetAccess=private)
         IsKeyUpToDate(1,1) logical    = true; % this is used by get.Key in order to avoid reformatting the cell array into a structure everytime.
     end
@@ -116,18 +118,19 @@ classdef AstroHeader < Component
                 Obj(Ih).File = List{Ih};
             end
             Obj = reshape(Obj,size(List));
+
             
+            % read files            
             Nhdu = numel(HDU);
-            % read files
             for Ih=1:1:Nh
                 if ~isempty(Obj(Ih).File)
                     Ihdu = min(Ih,Nhdu);
                     Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File,HDU(Ihdu));
                 end
-                Obj(Ih).KeyDict     = Dictionary('DictName','Header.Synonyms.KeyNames');
-                Obj(Ih).ValDict     = Dictionary('DictName','Header.Synonyms.KeyVal.IMTYPE');
-                Obj(Ih).CommentDict = Dictionary('DictName','Header.Comments.Default');
-                Obj(Ih).TimeDict    = Dictionary('DictName','Header.Time.KeyNames');
+                Obj(Ih).KeyDict     = Dictionary.getDict('Header.Synonyms.KeyNames');
+                Obj(Ih).ValDict     = Dictionary.getDict('Header.Synonyms.KeyVal.IMTYPE');
+                Obj(Ih).CommentDict = Dictionary.getDict('Header.Comments.Default');
+                Obj(Ih).TimeDict    = Dictionary.getDict('Header.Time.KeyNames');
                 Obj(Ih).TimeDict    = string2funHandle(Obj(Ih).TimeDict);
             end
                
@@ -433,6 +436,7 @@ classdef AstroHeader < Component
         
     end
     
+    
     methods  % getVal, etc.
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
             % get a single keyword value where the keyword appears first in a dictionary.
@@ -510,9 +514,9 @@ classdef AstroHeader < Component
                     Dict = Args.KeyDict;
                 end
                 if Args.IsInputAlt
-                    [Key,AltConv,Alt,~] = searchAlt(Dict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                    [Key, AltConv, Alt, ~] = searchAlt(Dict, KeySynonym, 'CaseSens', Args.CaseSens, 'SearchAlgo', Args.SearchAlgo);
                 else
-                    [Alt, AltConv] = searchKey(Dict, KeySynonym, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                    [Alt, AltConv] = searchKey(Dict, KeySynonym, 'CaseSens', Args.CaseSens, 'SearchAlgo', Args.SearchAlgo);
                 end
                 if isempty(Alt)
                     Alt = KeySynonym;
@@ -612,9 +616,9 @@ classdef AstroHeader < Component
                 if Args.UseDict    
                     for Ikey=1:1:Nkey
                         if Args.IsInputAlt
-                            [Key,AltConv,Alt,~] = searchAlt(Dict, ExactKeys{Ikey}, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                            [Key,AltConv,Alt,~] = searchAlt(Dict, ExactKeys{Ikey}, 'CaseSens', Args.CaseSens, 'SearchAlgo', Args.SearchAlgo);
                         else
-                            [Alt, AltConv] = searchKey(Dict, ExactKeys{Ikey}, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
+                            [Alt, AltConv] = searchKey(Dict, ExactKeys{Ikey}, 'CaseSens', Args.CaseSens, 'SearchAlgo', Args.SearchAlgo);
                         end
                                               
                         if isempty(Alt)
@@ -678,8 +682,8 @@ classdef AstroHeader < Component
             %                   For example, if you would like to search
             %                   by 'AEXPTIME' use true.
             %                   Default is false.
-            %            'KeyDict' - An optional keyword dictionary (a s
-            %                   tructure) that will override the object
+            %            'KeyDict' - An optional keyword dictionary
+            %                   (a structure) that will override the object
             %                   dictionary.
             % Output : - A cell array of keyword values. Line per
             %            AstroHeader element, rows per keyword.
@@ -752,8 +756,7 @@ classdef AstroHeader < Component
         
         end
         
-        
-        
+                
         function Obj = insertDefaultComments(Obj,Args)
             % Insert/replace default comments for keys using the header comments dictionary
             % Input  : - An AstroHeader object (multiple elements supported)
@@ -961,6 +964,14 @@ classdef AstroHeader < Component
             end
             
         end
+        
+        
+        function Result = setVal(Obj, Key, Val)
+            % @Todo - use Dictionaries
+            
+            Result = Obj.replaceVal(Key, Val);
+        end
+        
         
 %         function search(Obj,Val,Args)
 %             %

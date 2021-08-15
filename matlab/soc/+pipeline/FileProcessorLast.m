@@ -1,5 +1,5 @@
 
-classdef FileProcessor < Component
+classdef FileProcessorLast < FileProcessor
     % Parent class for file based processing
     %
     % Poll input folder for new files:
@@ -23,10 +23,6 @@ classdef FileProcessor < Component
         ProcessFilesMaxAge = 7      % Number of days to keep processed files in Processed Path
         OutputFilesMaxAge = 7       % Number of days to keep output files in Output path
         EnableDelete = false        % False by default to avoid accidents! USE WITH CARE
-                        
-        %
-        ProcessFileFunc = []        % function (FileProcessor, FileName)
-
     end
     
     %-------------------------------------------------------- 
@@ -141,13 +137,7 @@ classdef FileProcessor < Component
             
             % Call handler in derived class
             try
-                        
-                %
-                if ~isempty(Obj.ProcessFileFunc)
-                    Obj.ProcessFileFunc(Obj, FileName);
-                else
-                    Obj.processFileImpl(FileName)
-                end
+                Obj.processFileImpl(FileName)
             catch
             end
         end

@@ -81,8 +81,7 @@ classdef AstroDb < Component
             
             Obj.msgLog(LogLevel.Debug, 'insertHeader done');
         end
-        
-        
+                
         
         function Result = insertCatalogImpl(Obj, Input, TableName, Args)
             % Insert AstroCatalog / AstroTable to the specified database table
@@ -100,12 +99,10 @@ classdef AstroDb < Component
                 Args.Query = []         % db.DbQuery
                 Args.BatchSize = 1000   % Insert batch size
             end
-            
-            
-            KeyField = Args.KeyField;
-            
+                        
             Obj.msgLog(LogLevel.Debug, 'insertCatalogImpl started');                        
-
+            KeyField = Args.KeyField;           
+            
             if isa(Input, 'AstroCatalog')
                 Obj.msgLog(LogLevel.Debug, 'insertCatalogImpl input is AstroCatalog');
             elseif isa(Input, 'AstroTable')
@@ -120,7 +117,6 @@ classdef AstroDb < Component
             else
                 Query = Args.Query;
             end
-
             
             % Iterate all catalogs
             % @Todo: Key record?
@@ -168,7 +164,7 @@ classdef AstroDb < Component
     %
     methods %
         function Result = manage(Obj)
-            % Manage queue of pending operations
+            % @Todo: Manage queue of pending operations
 
             % Get next operation from queue
             Count = 0;

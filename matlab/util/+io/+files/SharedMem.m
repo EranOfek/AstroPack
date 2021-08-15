@@ -28,17 +28,14 @@ classdef SharedMem < Component
     
     properties (Hidden, SetAccess = public)
         FileName
+        FileSize
         MMap
-    
-        f = None
-        fid = None
-        filename = None
-        filesize = 0
-        memsize = 100000
-        mmap = None
-        memsignature = 0x11031973
-        memheader_size = 8 * 4     # sizeof(struct MemHeader)
-        bufheader_size = 5 * 4     # sizeof(struct BufHeader)
+        MemSize
+        MemSignature = 0x11031973
+        MemHeaderSize = 8 * 4       % sizeof(struct MemHeader)
+        BufHeaderSize = 5 * 4       % sizeof(struct BufHeader)
+        
+        % Flags
         BUFH_UYVY = 0x00000001
         BUFH_MAT_RGB = 0x00000002                    
     end
@@ -64,65 +61,56 @@ classdef SharedMem < Component
     
     methods
                
-        function Result = open(Obj, fname, create = False)
+        function Result = open(Obj, FName, Args)
+            arguments
+                Obj
+                FName
+                Args.Create = false
+                Args.FileSize = 0
+            end
+
             % Open memory mapped file
-            Obj.filename = fname
-            print('SharedMemory.open: ' + Obj.filename)
+            Obj.FileName = FName;
+            print('SharedMemory.open: ' + Obj.FileName)
 
             % Open/create file and set size
-            if create
-                if not os.path.exists(Obj.filename)
-                    Obj.f = open(Obj.filename, 'wb')
-                    Obj.f.seek(Obj.memsize-1)
-                    Obj.f.write(b'\0')
-                    Obj.f.close()
-                end
+            if Args.Create
+                Data = uint8(1:Obj.MemSize);
+                fileID = fopen(Obj.FileName, 'w');
+                fwrite(fileID, Data, 'uint8');
+                fclose(fileID);
             end
             
-            % Open file
-            Obj.f = open(Obj.filename, 'rb+')
-            Obj.fid = Obj.f.fileno()
-            Obj.filesize = os.path.getsize(Obj.filename)
-            if Obj.filesize > 0
-                Obj.memsize = Obj.filesize
-            end
 
             print('file size: ', os.path.getsize(Obj.filename), 'mmap size: ', Obj.memsize)
 
             % Open mmap
-            Obj.mmap = mmap.mmap(Obj.fid, 0, access=mmap.ACCESS_WRITE)
-            Obj.mmap.seek(0)
+            Obj.MMap = memmapfile(filename, 'Writable', true, 'Format', 'uint8');
         end
 
 
-        function Result = open(Obj, fname, create = False)
+        function Result = close(Obj)
             % Close file
-            print('SharedMemory.close: ' + self.filename)
+            print('SharedMemory.close: ' + Obj.FileName)
 
             % Close mmap
-            if self.mmap
+            if ~isempty(Obj.MMap)
                 self.mmap.close()
-                self.mmap = None
+                Obj.MMap = [];
             end
 
-            % Close file
-            if self.fid > -1
-                self.f.close()
-                self.fid = -1
-            end
-
-            print('SharedMemory.close: done: ' + self.filename)
+            print('SharedMemory.close: done: ' + Obj.FileName)
         end
 
         
-        function Result = write(self, pos, buf)
+        function Result = write(Obj, pos, buf)
             % Write buffer to shared-memory
             self.mmap.seek(pos)
             self.mmap.write(buf)
         end
 
 
-        function Result = read(self, pos, nbytes):
+        function Result = read(Obj, pos, nbytes):
             % Read buffer from shared-memory
             self.mmap.seek(pos)
             buf = self.mmap.read(nbytes)
@@ -130,7 +118,7 @@ classdef SharedMem < Component
         end
 
 
-        function Result = get_buf(self)
+        function Result = getBuf(Obj)
             % Return buf, put_counter, w, h
             %with m = Locker(...)
             buf, put_counter, width, height, flags = self.do_get_buf()
@@ -138,7 +126,7 @@ classdef SharedMem < Component
         end
 
 
-        function Result = do_get_buf(self)        
+        function Result = doGetBuf(Obj)        
             % Get next buffer from shared-memory, return bytes object or None if queue is empty
             % Return buf, put_counter, width, height, flags
 
@@ -211,7 +199,7 @@ classdef SharedMem < Component
         function Result = unitTestServerSide()
             % Simple test (without header) - write current time string to shared memory
 
-            io.msgLog('cpp side (server)')
+            io.msgLog(LogLevel.Test, 'cpp side (server)')
             sm = SharedMemory()
             sm.open(FILENAME)
             while true

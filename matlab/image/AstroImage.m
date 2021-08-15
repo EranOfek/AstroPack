@@ -2190,11 +2190,47 @@ classdef AstroImage < Component
                 
             end
             
+        end               
+    end
+       
+    
+    methods (Static) % perfTestMat
+        function Result = perfTestMat
+            % Low level perfTest for the Matlab matrix
+            io.msgStyle(LogLevel.Test, '@sart', 'AstroImage perfTestMat started')
+            
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
+            
+
+            cd(PWD);           
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroImage perfTestMat passed')
+            Result = true;
         end
-        
-        
     end
     
+    
+    
+    methods (Static) % perfTest
+        function Result = perfTest
+            % perfTest for the AstroImage class
+            io.msgStyle(LogLevel.Test, '@sart', 'AstroImage perfTest started')
+            
+            DataSampleDir = tools.os.getTestDataDir;
+            PWD = pwd;
+            cd(DataSampleDir);
+            
+            
+
+            cd(PWD);           
+            io.msgStyle(LogLevel.Test, '@passed', 'AstroImage perfTest passed')
+            Result = true;
+        end
+    end
+    
+        
     methods (Static) % Unit-Test
         function Result = unitTest()
             % unitTest for AstroImage
@@ -2449,7 +2485,6 @@ classdef AstroImage < Component
         end
     end
     
-
 end
 
-            
+           
