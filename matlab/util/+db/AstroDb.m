@@ -315,10 +315,31 @@ classdef AstroDb < Component
             Q.query(SqlText);
             ColNames = Q.getFieldNamesOfType('Double');            
             Cols = numel(ColNames);
-            Rows = 1000;                        
+            Rows = 10;
+            
+            % https://undocumentedmatlab.com/articles/faster-csvwrite-dlmwrite
+            % https://github.com/nazarovsky/mex-writematrix
+            % 
+            for Iter=1:5
+                io.msgLog(LogLevel.Test, 'Preparing rand Catalog: Rows: %d, Cols: %d', Rows, Cols);
+                T1 = tic();
+                AC = AstroTable({rand(Rows, Cols)}, 'ColNames', ColNames);
+                T = toc();
+                io.msgLog(LogLevel.Test, 'Preparing rand Catalog: Rows: %d, Cols: %d: = %.4f', Rows, Cols, T);
+                
+                T1 = tic();
+                FileName = sprintf('c:\\temp\\Cat-%d.csv', Rows);
+                AC.csvWrite(FileName);
+                T = toc();
+                io.msgLog(LogLevel.Test, 'csvWrite: Rows: %d, Cols: %d = %.4f', Rows, Cols, T);
+                
+                Rows = Rows * 10;
+            end
+            
+            Rows = 10;
             io.msgLog(LogLevel.Test, 'Preparing test Catalog: Rows: %d, Cols: %d', Rows, Cols);
             AC = AstroTable({rand(Rows, Cols)}, 'ColNames', ColNames);
-            
+                
             % Insert catalog to table
             res = db.AstroDb.insertCatalog(AC, CatalogTableName);
             

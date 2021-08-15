@@ -1236,8 +1236,15 @@ classdef AstroTable < Component
             end
             
         end
+    
+        
+        function Result = csvWrite(Obj, FileName)
+            csvwrite(FileName, Obj.Catalog);
+            Result = true;
+        end
         
     end
+    
     
     methods % plots
         function varargout = plotFun(Obj, PlotFun, Columns, varargin)
@@ -1302,10 +1309,9 @@ classdef AstroTable < Component
             if ~HoldOn
                 % return hold to original state
                 hold off;
-            end
-            
-            
+            end                        
         end
+        
         
         function varargout = plot(Obj, ColXY, varargin)
             % plot function for AstroTable objects

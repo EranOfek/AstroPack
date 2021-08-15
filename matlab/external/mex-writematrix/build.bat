@@ -1,0 +1,1 @@
+mex mex_WriteMatrix.c -lut

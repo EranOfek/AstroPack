@@ -881,53 +881,59 @@ classdef DbQuery < Component
         end
         
         
+        function Result = copyTo(Obj, TableName, FileName, Args)
+            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
+            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+            arguments
+                Obj
+                TableName           %
+                FileName            %
+                Args.Fields = ''    %
+                Args.Csv = true     %
+            end
+                                                          
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyTo');            
+            
+            AFields = '';
+            if ~isempty(Args.Fields)
+                AFields = [' (', Args.Fields, ') '];
+            end
+            
+            % Prepare SQL
+            ASql = ['COPY ', string(TableName).char, string(AFields).char, ' TO ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER'];                        
+            
+            Result = Obj.exec(ASql);
+            Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);                  
+            Result = Obj.ExecOk;                                   
+        end
+        
+        
         function Result = copyFrom(Obj, TableName, FileName, Args)
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
             arguments
                 Obj
-                TableName
-                FileName
-                Args.Fields = []    %
+                TableName           %
+                FileName            %
+                Args.Fields = ''    %
+                Args.Csv = true     %
             end
-                                   
-            Result = false;
-                       
-            % Execute SQL statement (using java calls)
+                                                          
             Obj.msgLog(LogLevel.Debug, 'DbQuery: copyFrom');            
-            T1 = tic();
             
-            % Need connection, clear current query
-            Obj.openConn();
- 
-            % 
-            %Obj.SqlText = ['COPY ', string(TableName).char, ' FROM ', string(FileName).char];
-            
-            %Obj.SqlText = ['COPY ', string(TableName).char, ' TO ', string(FileName).char, ' DELIMITER ',' CSV HEADER'];
-            Obj.SqlText = "\\COPY master_table (recid, fint) to 'test_copy_to.csv' csv header";  %DELIMITER ',' CSV HEADER";
-            
-            Obj.msgLog(LogLevel.Debug, 'copyFrom: SqlText: %s', Obj.SqlText);
-  
-            % Prepare query
-            try
-                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'copyFrom: prepareStatement failed: %s', Obj.SqlText);
+            AFields = '';
+            if ~isempty(Args.Fields)
+                AFields = [' (', Args.Fields, ') '];
             end
-
-            % Execute
-            T1 = tic();
-            try
-                Obj.ResultSet = Obj.Statement.executeUpdate();
-                Obj.ExecOk = true;                
-            catch
-                Obj.msgLog(LogLevel.Error, 'copyFrom: executeQuery failed: %s', Obj.SqlText);                
-                Obj.ExecOk = false;
-            end                
-            Obj.Toc = toc(T1);   
+            
+            % Prepare SQL
+            ASql = ['COPY ', string(TableName).char, string(AFields).char, ' FROM ''', string(FileName).char, ' DELIMITER '','' CSV HEADER;'];
+                %' WITH (FORMAT csv)'];  %, ''' DELIMITER '','' CSV HEADER'];                        
+            
+            Result = Obj.exec(ASql);
             Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);                  
             Result = Obj.ExecOk;                                   
-        end
+        end        
         
     end
     
@@ -1411,13 +1417,20 @@ classdef DbQuery < Component
             
             % ---------------------------------------------- copy
             
-            Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
+            Q.copyTo('master_table', 'c:\\temp\\a1.csv');
+            Q.copyFrom('master_table', 'c:\\temp\\a3.csv', 'Fields', 'recid,inserttime,updatetime,fint,fbigint,fbool,fdouble,ftimestamp,fstring,master_string');
+            
+            Q.copyTo('master_table', 'c:\\temp\\a1.csv');
+            
+            Q.copyTo('master_table', 'c:\\temp\\a2.csv', 'Fields', 'recid,fint');
+            
+            % Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
             
             MyFileName = mfilename('fullpath');       
             [MyPath, ~, ~] = fileparts(MyFileName);            
             CsvFileName = 'unittest_csv1_to.csv';  %fullfile(MyPath, 'unittest_csv1.csv');
             
-            Q.copyFrom('master_table', CsvFileName);
+            %Q.copyFrom('master_table', CsvFileName);
             
             % ---------------------------------------------- getTableFieldList 
             Q = db.DbQuery(Conn);
