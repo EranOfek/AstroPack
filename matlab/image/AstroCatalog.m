@@ -781,9 +781,9 @@ classdef AstroCatalog < AstroTable
 
     
     methods (Static) % perfTest
-        function Result = unitTest
+        function Result = perfTest
             % perfTest for the AstroCatalog class
-            io.msgStyle(LogLevel.Test, '@sart', 'AstroCatalog perfTest started')
+            io.msgStyle(LogLevel.Test, '@start', 'AstroCatalog perfTest started')
             
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
@@ -801,7 +801,7 @@ classdef AstroCatalog < AstroTable
     methods (Static) % unitTest
         function Result = unitTest
             % unitTest for the AstroCatalog class
-            io.msgStyle(LogLevel.Test, '@sart', 'AstroCatalog test started')
+            io.msgStyle(LogLevel.Test, '@start', 'AstroCatalog test started')
             
             DataSampleDir = tools.os.getTestDataDir;
             PWD = pwd;
