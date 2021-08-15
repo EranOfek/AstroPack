@@ -17,7 +17,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % Input  : -
     % Output : -
     % Author : Eran Ofek (Aug 2021)
-    % Example: 
+    % Example: pipeline.generic.singleRaw2proc
     
     arguments
         File                   % FileName+path / AstroImage
