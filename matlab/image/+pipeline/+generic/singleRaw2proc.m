@@ -21,20 +21,23 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     arguments
         File                   % FileName+path / AstroImage
-        Args.Dir                            = '';
-        Args.Dark                           = []; % [] - do nothing
-        Args.Flat                           = []; % [] - do nothing
-        Args.Fringe                         = []; % [] - do nothing
-        Args.BlockSize                      = [];  % empty - full image
+        Args.Dir                              = '';
+        Args.Dark                             = []; % [] - do nothing
+        Args.Flat                             = []; % [] - do nothing
+        Args.Fringe                           = []; % [] - do nothing
+        Args.BlockSize                        = [];  % empty - full image
         
-        Args.maskSaturatedArgs cell         = {};
-        Args.debiasArgs cell                = {};
-        Args.deflatArgs cell                = {};
-        Args.image2subimagesArgs cell       = {};
-        Args.backgroundArgs cell            = {};
-        Args.findMeasureSourcesArgs cell    = {};
-        Args.astrometrySubImagesArgs cell   = {};
-        Args.CreateNewObj                   = [];
+        Args.InterpOverSaturated(1,1) logical = true;
+        
+        Args.maskSaturatedArgs cell           = {};
+        Args.debiasArgs cell                  = {};
+        Args.deflatArgs cell                  = {};
+        Args.image2subimagesArgs cell         = {};
+        Args.backgroundArgs cell              = {};
+        Args.interpOverNanArgs cell           = {};
+        Args.findMeasureSourcesArgs cell      = {};
+        Args.astrometrySubImagesArgs cell     = {};
+        Args.CreateNewObj                     = [];
     end
     
     % Get Image
@@ -84,11 +87,14 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % Background 
     SI = imProc.background.background(SI, Args.backgroundArgs{:});
     
-    % Replac saturated pixels by NaN
-    
-    SI = imProc.mask.replaceMaskedPixVal(SI,  {'Saturated','NonLin'}, NaN, 'Method','any', 'CreateNewObj',false);
-    
-    % Interpolate over NaN
+    if Args.InterpOverSaturated
+        % Replac saturated pixels by NaN
+        SI = imProc.mask.replaceMaskedPixVal(SI,  {'Saturated','NonLin'}, NaN, 'Method','any', 'CreateNewObj',false);
+
+        % Interpolate over NaN
+        SI = interpOverNan(SI, Args.interpOverNanArgs{:},...
+                               'CreateNewObj',false);
+    end
     
     % Source finding
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
