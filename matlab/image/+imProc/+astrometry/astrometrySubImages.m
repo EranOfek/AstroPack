@@ -1,4 +1,4 @@
-function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
+function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
     % Solve astrometry for sub images of a single contigious image
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
@@ -13,7 +13,7 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
         Args.CCDSEC(:,4)
         Args.CenterXY          % [X,Y] pix Center of Full image, If empty, calculate from CCDSEC
         
-        Args.CreateNewObj
+        Args.CreateNewObj                        = [];
         
         Args.CatName                             = 'GAIAEDR3';  % or AstroCatalog array
         Args.astrometryCoreArgs cell             = {};
@@ -23,7 +23,7 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
         Args.assessAstrometricQualityArgs cell   = {};
     end
     
-    [ResultObj, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, Nargout, 1);
+    [ResultObj, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, Nargout, 0);
     
     
     N = numel(Obj);

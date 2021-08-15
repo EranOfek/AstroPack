@@ -12,7 +12,8 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy]=partition_sub
 %            'Output' - Output type {['cell'] | 'struct'}
 %            'FieldName' - Field name in a struct output in which to store
 %                       the sub images. Default is 'Im'.
-%            'SubSizeXY' - Sub image size [X,Y]. Default is [128 128].
+%            'SubSizeXY' - Sub image size [X,Y]. If empty, then full image.
+%                    Default is [128 128].
 %            'Nxy' - Number of sub images along each dimension [Nx, Ny].
 %                    If empty then use SubSizeXY. Default is [].
 %            'OverlapXY' - Overlapping extra [X, Y] to add to SubSizeXY
@@ -50,6 +51,10 @@ SizeXY = fliplr(size(Image));
 
 NooverlapCCDSEC = [];
 if isempty(CCDSEC)
+    if isempty(Args.SubSizeXY)
+        % use full image
+        Args.SubSizeXY = SizeXY;
+    end
     % partition image using subimage_grid
     [CCDSEC,NooverlapCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid(SizeXY,...
                                                             'SubSizeXY',Args.SubSizeXY,...

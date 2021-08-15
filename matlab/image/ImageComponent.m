@@ -1685,7 +1685,7 @@ classdef ImageComponent < Component
             io.msgLog(LogLevel.Test, 'testing ImageComponent convert2class')
             IC=ImageComponent; 
             IC.Image = 1;
-            AI=convert2class(IC,{'Image'},{'Image'},@AstroImage);
+            AI=convert2class(IC,{'Image'},{'Image'},@double);
             AI=convert2class(IC,{'Data'},{'ImageData.Data'},@AstroImage,'UseEval',true);
             
             % data2array
