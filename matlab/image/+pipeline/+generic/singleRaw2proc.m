@@ -52,9 +52,9 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % createNewObj
     [AI, CreateNewObj] = AI.createNewObj(Args.CreateNewObj, nargout, 0);
-            
+    
     % Mask Saturated
-    AI = imProc.astrometry.maskSaturated(AI, Args.maskSaturatedArgs{:},...
+    [AI] = imProc.astrometry.maskSaturated(AI, Args.maskSaturatedArgs{:},...
                                              'CreateNewObj',false);
     
     % Subtract Dark
@@ -62,6 +62,8 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         AI = imProc.dark.debias(AI, Args.Dark, Args.debiasArgs{:},...
                                                'CreateNewObj',false);
     end
+    
+    % Subtract overscan & trim
     
     % Divide by Flat
     if ~isempty(Args.Flat)
@@ -81,6 +83,12 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % Background 
     SI = imProc.background.background(SI, Args.backgroundArgs{:});
+    
+    % Replac saturated pixels by NaN
+    
+    SI = imProc.mask.replaceMaskedPixVal(SI,  {'Saturated','NonLin'}, NaN, 'Method','any', 'CreateNewObj',false);
+    
+    % Interpolate over NaN
     
     % Source finding
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...

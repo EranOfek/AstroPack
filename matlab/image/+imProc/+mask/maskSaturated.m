@@ -1,4 +1,4 @@
-function Result = maskSaturated(Obj, Args)
+function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
     % set mask bits for saturated and non-linear pixels
     % Input  : - An AstroImage object (multi elements supported).
     %          * ...,key,val,...
@@ -21,13 +21,17 @@ function Result = maskSaturated(Obj, Args)
     %                   which to read the gain. 
     %                   If gain is not available in header then will be set
     %                   to 1. Default is 'GAIN'.
-    %                   
+    %            'SatPix2NaN' - A logical indicating if to replace
+    %                   saturated pixels with NaN. Default is false.
+    %
     %            'NonLinLevel' - Like 'SatLevel', but for non-linearity.
     %                   Default is [].
     %            'NonLinKey' - Like 'SatKey' but for non-linearity.
     %                   Default is 'NONLIN'.
     %            'BitName_NonLinear' - Like 'BitName_Saturation'.
     %                   Default is 'NonLinear'
+    %            'NonLinPix2NaN' - A logical indicating if to replace
+    %                   non-linear pixels with NaN. Default is false.
     %           
     %            'DefBitDict' - Default bit dictionary if
     %                   not exist. Default is
@@ -44,6 +48,10 @@ function Result = maskSaturated(Obj, Args)
     %            Some additional hidden arguments
     % Output : - An AstroImage object in which the MaskData is set with
     %            saturated and non-linear pixels.
+    %          - A matrix of logicals (for the latest images) indicating
+    %            saturated pixels.
+    %          - A matrix of logicals (for the latest images) indicating
+    %            non-linear pixels.
     % Author : Eran Ofek (May 2021)
     % Example: AI = AstroImage({rand(10,10).*1000});
     %          Result = imProc.mask.maskSaturated(AI, 'SatLevel',500)
@@ -56,6 +64,7 @@ function Result = maskSaturated(Obj, Args)
         Args.SatLevel                  = [];    % in ADUs
         Args.SatKey                    = 'SATURVAL';
         Args.BitName_Saturated char    = 'Saturated';
+        Args.SatPix2NaN(1,1) logical   = false;
         
         Args.MultLevelByGain(1,1) logical = false;
         Args.Gain                      = 'GAIN';
@@ -63,6 +72,7 @@ function Result = maskSaturated(Obj, Args)
         Args.NonLinLevel               = [];    % in ADUs
         Args.NonLinKey                 = 'NONLIN';
         Args.BitName_NonLinear char    = 'NonLinear';
+        Args.NonLinPix2NaN(1,1) logical= false;
         
         Args.DefBitDict                = BitDictionary('BitMask.Image.Default');
         Args.CreateNewObj              = [];
@@ -121,9 +131,13 @@ function Result = maskSaturated(Obj, Args)
             FlagSat = Obj(Iobj).(Args.ImageProp).(Args.ImagePropIn) > (SatLevel.*Gain);
             % set bit mask
             maskSet(Result(Iobj).(Args.MaskProp), FlagSat, Args.BitName_Saturated, 1, 'CreateNewObj',false, 'DefBitDict',Args.DefBitDict);
+            
+            if Args.SatPix2NaN
+                Result(Iobj).(Args.MaskProp).(Args.ImagePropIn)(FlagSat) = NaN;
+            end
         end
         
-        % get stauration level for image
+        % get non-lin level for image
         if isempty(Args.NonLinLevel)
             % get from header
             NonLinLevel = Obj(Iobj).HeaderData.getVal(Args.NonLinKey);
@@ -135,6 +149,10 @@ function Result = maskSaturated(Obj, Args)
             FlagNL  = Obj(Iobj).(Args.ImageProp).(Args.ImagePropIn) > (NonLinLevel.*Gain);
             % set bit mask
             maskSet(Result(Iobj).(Args.MaskProp), FlagNL, Args.BitName_NonLinear, 1, 'CreateNewObj',false, 'DefBitDict',Args.DefBitDict);
+            
+            if Args.NonLinPix2NaN
+                Result(Iobj).(Args.MaskProp).(Args.ImagePropIn)(FlagNL) = NaN;
+            end
         end
     end
         
