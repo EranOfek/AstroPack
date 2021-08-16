@@ -31,6 +31,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         
         Args.maskSaturatedArgs cell           = {};
         Args.debiasArgs cell                  = {};
+        Args.overscanArgs cell                = {};
         Args.deflatArgs cell                  = {};
         Args.image2subimagesArgs cell         = {};
         Args.backgroundArgs cell              = {};
@@ -67,6 +68,8 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     end
     
     % Subtract overscan & trim
+    [AI] = imProc.dark.overscan(AI, Args.overscanArgs{:},...
+                                    'CreateNewObj',false);
     
     % Divide by Flat
     if ~isempty(Args.Flat)
