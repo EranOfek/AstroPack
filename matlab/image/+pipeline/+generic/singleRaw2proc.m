@@ -27,7 +27,12 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.Fringe                           = []; % [] - do nothing
         Args.BlockSize                        = [];  % empty - full image
         
+        Args.MaskSaturated(1,1) logical       = true;
         Args.InterpOverSaturated(1,1) logical = true;
+        Args.DoAstrometry(1,1) logical        = true;
+        Args.DoPhotometry(1,1) logical        = true;
+        Args.MatchExternal(1,1) logical       = false;
+        Args.SaveProducts(1,1) logical        = true;
         
         Args.maskSaturatedArgs cell           = {};
         Args.debiasArgs cell                  = {};
@@ -38,6 +43,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.interpOverNanArgs cell           = {};
         Args.findMeasureSourcesArgs cell      = {};
         Args.astrometrySubImagesArgs cell     = {};
+        Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
         Args.CreateNewObj                     = [];
     end
     
@@ -57,9 +63,11 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % createNewObj
     [AI, CreateNewObj] = AI.createNewObj(Args.CreateNewObj, nargout, 0);
     
-    % Mask Saturated
-    [AI] = imProc.astrometry.maskSaturated(AI, Args.maskSaturatedArgs{:},...
+    % Mask Saturated - mask saturated and non-lin pixels
+    if Args.MaskSaturated
+        [AI] = imProc.mask.maskSaturated(AI, Args.maskSaturatedArgs{:},...
                                              'CreateNewObj',false);
+    end
     
     % Subtract Dark
     if ~isempty(Args.Dark)
@@ -83,7 +91,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         error('Fringe removal is not implemented yet');
     end
     
-    % Sub Images
+    % Sub Images - divide the image to multiple sub images
     SI = imProc.image.image2subimages(AI, Args.BlockSize, Args.image2subimagesArgs{:});
     clear AI;
     
@@ -91,6 +99,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     SI = imProc.background.background(SI, Args.backgroundArgs{:});
     
     if Args.InterpOverSaturated
+        % Motivation: Saturated pixels may cause problems and it is better
+        % to interpolate over such pixels (i.e., it may remove some of the
+        % theta functions that may be problematoc for convolution)
+        
         % Replac saturated pixels by NaN
         SI = imProc.mask.replaceMaskedPixVal(SI,  {'Saturated','NonLin'}, NaN, 'Method','any', 'CreateNewObj',false);
 
@@ -104,17 +116,30 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
                                                'CreateNewObj',false);
     
     % Astrometry
-    [SI, Result.AstrometricFit, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
+    if Args.DoAstrometry
+        [SI, Result.AstrometricFit, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
                                                                                         'CreateNewObj',false);
     
-    % Update Cat astrometry
+        % Update Cat astrometry
+        SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:});
+    end
     
     % Photometric ZP
+    if Args.DoPhotometry
+        % [Result, ZP, PhotCat] = imProc.calib.photometricZP(Obj, Args)
     
-    % Update Cat photometry
+        % Update Cat photometry
+    end
+    
+    % match against external catalogs
+    if Args.MatchExternal
+        
+    end
     
     % Save products
-    
+    if Args.SaveProducts
+        
+    end
     
     
 end

@@ -1,5 +1,10 @@
 function [Result, ZP, PhotCat] = photometricZP(Obj, Args)
-    %
+    % Apply an absolute photometric calibration to AstroCatalog
+    %       Given an AstroCatalog or AstroImage with a catalog, match the
+    %       sources against a photometric catalog, and calculate the zero
+    %       point (ZP) of the catalog.
+    % Inout  : -
+    %          * ...,key,val,...
     
     %            'CatName' - Either an astrometric catalog name (char
     %                   array) to query around the requested coordinates,
@@ -27,6 +32,10 @@ function [Result, ZP, PhotCat] = photometricZP(Obj, Args)
     %                   Default is {'Plx'}.
     %            'RangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
+    
+    % Output :
+    % Author :
+    % Example: 
     
     arguments
         Obj           % AstroCatalaog | AstroImage
@@ -138,7 +147,6 @@ function [Result, ZP, PhotCat] = photometricZP(Obj, Args)
                 ResFit(Iobj).Resid = Y - H*ResFit(Iobj).Par;
                 ResFit(Iobj).RMS   = std(ResFit(Iobj).Resid);
                 ResFit(Iobj).Chi2  = sum((ResFit(Iobj).Resid./ErrY).^2);
-                
                 
             otherwise
                 error('Unknown Method option');
