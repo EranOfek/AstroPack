@@ -927,12 +927,10 @@ classdef DbQuery < Component
             end
             
             % Prepare SQL
-            ASql = ['COPY ', string(TableName).char, string(AFields).char, ' FROM ''', string(FileName).char, ' DELIMITER '','' CSV HEADER;'];
-                %' WITH (FORMAT csv)'];  %, ''' DELIMITER '','' CSV HEADER'];                        
-            
+            ASql = ['COPY ', string(TableName).char, string(AFields).char, ' FROM ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER;'];
+                            
             Result = Obj.exec(ASql);
             Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);                  
-            Result = Obj.ExecOk;                                   
         end        
         
     end
@@ -1416,12 +1414,20 @@ classdef DbQuery < Component
        
             
             % ---------------------------------------------- copy
+            % https://www.postgresqltutorial.com/psql-commands/
+            % https://kb.objectrocket.com/postgresql/postgresql-psql-examples-part-2-1043
+            % From psql:
+            % psql -U postgres
+            % dbname unittest
+            % \dt
+            % \d master_table
+            % \COPY master_table TO 'c:\temp\aa1.csv' DELIMITER ',' CSV HEADER
             
-            Q.copyTo('master_table', 'c:\\temp\\a1.csv');
-            Q.copyFrom('master_table', 'c:\\temp\\a3.csv', 'Fields', 'recid,inserttime,updatetime,fint,fbigint,fbool,fdouble,ftimestamp,fstring,master_string');
+            Q.copyFrom('master_table', 'c:\temp\aa1c.csv');
+
+            Q.copyFrom('master_table', 'c:\\temp\\aa1c.csv', 'Fields', 'recid,fint');
             
-            Q.copyTo('master_table', 'c:\\temp\\a1.csv');
-            
+            Q.copyTo('master_table', 'c:\\temp\\a1.csv');           
             Q.copyTo('master_table', 'c:\\temp\\a2.csv', 'Fields', 'recid,fint');
             
             % Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");

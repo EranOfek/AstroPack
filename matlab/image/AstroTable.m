@@ -1356,7 +1356,11 @@ classdef AstroTable < Component
             % Create an empty AstroTable
             io.msgLog(LogLevel.Test, 'testing AstroTable constructor')
             AC = AstroTable;
+            
+            % Create four empty tables
             AC = AstroTable([2 2]);
+            
+            % Create two tables with random data
             AC = AstroTable({rand(10,2),rand(10,2)});
             AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
             AC = AstroTable({rand(10,2),rand(10,2)},'ConvertTable2array',false);

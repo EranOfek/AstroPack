@@ -104,8 +104,7 @@ classdef UnitTester < handle
         function Result = doBeforePush(Obj)
             % Call before Push
             
-            Result = Obj.testCore();
-            
+            Result = Obj.testCore();            
             Result = Obj.testImage();
             
             Obj.report();
@@ -116,6 +115,31 @@ classdef UnitTester < handle
                 Obj.msgStyle(LogLevel.Test, '@failed', 'BeforePush FAILED - DO NOT PUSH !!!');
             end
         end
+        
+        
+        function Result = doPerfTest(Obj)
+            % Run all Performance tests
+            
+            % Image
+            AstroImage.perfTest();
+            AstroCatalog.perfTest();
+            
+            % Database/Files
+            db.DbQuery.perfTest();
+            db.AstroDb.perfTest();
+            db.AstroStore.perfTest();            
+        end
+        
+        
+        function Result = doStressTest(Obj)
+            % Run all Stress tests
+            
+            db.DbQuery.stressTest();
+            db.AstroDb.stressTest();
+            db.AstroStore.stressTest();
+            
+        end        
+        
         
     end
     
@@ -459,7 +483,21 @@ classdef UnitTester < handle
             Tester = UnitTester;
             Result = Tester.doBeforePush();            
         end
+        
+        
+        function Result = perfTest()
+            % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
+            Tester = UnitTester;
+            Result = Tester.doPerfTest();            
+        end        
+        
+                
+        function Result = stressTest()
+            % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
+            Tester = UnitTester;
+            Result = Tester.doStressTest();            
+        end
+                
     end
         
 end
-

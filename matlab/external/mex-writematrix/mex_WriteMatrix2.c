@@ -1,7 +1,7 @@
 // Write contents of matrix Z to csv delimited file 
 //
 //  Usage:
-//     mex_WriteMatrix(filename, matrix, format, delimiter, writemode);
+//     mex_WriteMatrix(filename, matrix, format, delimiter, writemode, header, struct_array);
 //
 //  Parameters:
 //     filename  - full path for CSV file to export 
@@ -9,7 +9,9 @@
 //     format    - format of export (sprintf) , e.g. '%10.6f'
 //     delimiter - delimiter, for example can be ',' or ';'
 //     writemode - write mode 'w+' for rewriting file 'a+' for appending
-//  
+//     header    - 
+//     struct_array - 
+//
 
 #include "mex.h"
 #define _WIN32
@@ -32,36 +34,58 @@
    
 //-------------------------------------------------------------------------
 // Write to file routine
-void writemat(double *z, size_t cols, size_t rows, char *fname, char *fmt, char *dlm, char *wmode)
+void writemat2(double* z, size_t cols, size_t rows, char* fname, char* fmt, char* dlm, char* wmode,
+        char* header, const mxArray* struct_array)
 {
 	int i, j;
-
+	mxArray* field;
+	int nfields = mxGetNumberOfFields(struct_array);
+	size_t NStructElems = mxGetNumberOfElements(struct_array);	
+	
+	//
+	if (NStructElems != rows) {
+	   mexErrMsgIdAndTxt(FUNCNAME, "Struct array items must be same as matrix rows");
+	}
+	
 	// Open file
 	FILE* fd = fopen(fname, wmode);
 	if (fd == NULL) {
-        mexErrMsgIdAndTxt(FUNCNAME, "fopen() Error!");
-        exit;
+         mexErrMsgIdAndTxt(FUNCNAME, "fopen() Error!");
+         exit;
 	}
    
+	// Write header
+	if (header[0]) {
+		fprintf(fd, "%s\n", header);
+	}
+	
+	//
 	for (i=0;  i < rows;  i++) {
-		for (j=0;  j < cols;  j++) {          
+       
+		for (ifield=0;  ifield < nfields;  ifield++) {
+				
+            field = mxGetFieldByNumber(prhs[0], i, ifield);
+		}
+      
+	    // Matrix
+		for (j=0;  j < cols;  j++) {
 			fprintf(fd, fmt, z[i + j*rows]);
-			if (j < cols-1) {
+			if (j < cols-1) {           
 				fprintf(fd, dlm);
 			}
 		}
 		fprintf(fd, "\n");
-      
+
 		// Check for Ctrl-C event
 		if (utIsInterruptPending()) {
-			mexPrintf("Ctrl-C Detected.\n\n");        
+			mexPrintf("Ctrl-C Detected.\n\n");
 			fclose(fd);
 			return;  
-		}
+		}      
 	}
    
-	// Close file
-	fclose(fd);
+   // Close file
+   fclose(fd);
 }
 
 //-------------------------------------------------------------------------
@@ -71,8 +95,8 @@ void mexFunction( int nlhs, mxArray *plhs[],
 {
     double *inMatrix;           // MxN input matrix
 	
-    size_t m;                   // M = number of rows of matrix
-    size_t n;                   // N = number of cols of matrix
+    size_t rows;                // M = number of rows of matrix
+    size_t cols;                // N = number of cols of matrix
 	
     size_t fnamelen;            // filename string buffer length
     char  *fname;               // filename string
@@ -86,10 +110,13 @@ void mexFunction( int nlhs, mxArray *plhs[],
     size_t wmodelen;   			// write mode string buffer length
     char  *wmode;               // value format string
 
-    int    status;
+    size_t headerlen;   		// header string buffer length
+    char  *header;              // header
 	
+    int    status;
+
     // Check for proper number of arguments
-    if (nrhs != 5) {
+    if (nrhs != 7) {
         mexErrMsgIdAndTxt(FUNCNAME, "Five input parameters required (filename, matrix, value format, separator, write mode)");
     }
 
@@ -102,7 +129,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
     }
 
     if (!mxIsChar(prhs[2])) {    
-        mexErrMsgIdAndTxt(FUNCNAME, "Value format must be a string (e.g. %%10.6f)");
+        mexErrMsgIdAndTxt(FUNCNAME,"Value format must be a string (e.g. %%10.6f)");
     }
 
     if (!mxIsChar(prhs[3])) {    
@@ -112,7 +139,15 @@ void mexFunction( int nlhs, mxArray *plhs[],
     if (!mxIsChar(prhs[4])) {    
         mexErrMsgIdAndTxt(FUNCNAME, "Write mode must be a char (e.g. w+ or a+)");
     }
+	
+    if (!mxIsChar(prhs[5])) {    
+        mexErrMsgIdAndTxt(FUNCNAME, "Header mode must be a char");
+    }	
 
+    if (!mxIsStruct(prhs[6])) {
+		mexErrMsgIdAndTxt(FUNCNAME, "Struct array expected");
+	}
+	
     // Process first input = filename
     fnamelen = mxGetN(prhs[0]) + 1;
     fname = (char*)mxCalloc(fnamelen, sizeof(char));
@@ -120,8 +155,8 @@ void mexFunction( int nlhs, mxArray *plhs[],
 
     // Process second input = matrix
     inMatrix = mxGetPr(prhs[1]);
-    n = mxGetN(prhs[1]);
-    m = mxGetM(prhs[1]);
+    rows = mxGetN(prhs[1]);
+    cols = mxGetM(prhs[1]);
 
     // Process 3rd input = value format
     fmtlen = mxGetN(prhs[2]) + 1;
@@ -137,15 +172,28 @@ void mexFunction( int nlhs, mxArray *plhs[],
     wmodelen = mxGetN(prhs[4]) + 1;
     wmode = (char*)mxCalloc(wmodelen, sizeof(char));
     status = mxGetString(prhs[4], wmode, (mwSize)wmodelen);
-
+	
+    // Process 6th input = header
+    headerlen = mxGetN(prhs[5]) + 1;
+    header = (char*)mxCalloc(headerlen, sizeof(char));
+    status = mxGetString(prhs[5], header, (mwSize)headerlen);
+		
+	//	
+    nfields = mxGetNumberOfFields(prhs[6]);
+    NStructElems = mxGetNumberOfElements(prhs[6]);
+	if (NStructElems != rows) {
+		mexErrMsgIdAndTxt(FUNCNAME, "Struct array items must be same as matrix rows");
+	}
+	
     // Call the actual function
-    writemat(inMatrix, n, m,fname, fmt, dlm, wmode);
+    writemat2(inMatrix, rows, cols, fname, fmt, dlm, wmode, header, prhs[6]);
 
     // Free strings
     mxFree(fname);
     mxFree(fmt);
     mxFree(dlm);
     mxFree(wmode);
+	mxFree(header);
 }
 //-------------------------------------------------------------------------
 
