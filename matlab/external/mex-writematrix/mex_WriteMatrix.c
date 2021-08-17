@@ -128,10 +128,10 @@ void mexFunction( int nlhs, mxArray *plhs[],
     fmt = (char*)mxCalloc(fmtlen, sizeof(char));
     status = mxGetString(prhs[2], fmt, (mwSize)fmtlen);
 
-    // Process 4th input = delimite
+    // Process 4th input = delimiter
     dlmlen = mxGetN(prhs[3]) + 1;
     dlm = (char*)mxCalloc(dlmlen, sizeof(char));
-    status = mxGetString(prhs[3], dlm, (mwSize) dlmlen);
+    status = mxGetString(prhs[3], dlm, (mwSize)dlmlen);
 
     // Process 5th input = write mode
     wmodelen = mxGetN(prhs[4]) + 1;
