@@ -184,7 +184,7 @@ classdef AstroTable < Component
 %     end
 
  
-    methods % Setters/Getters
+    methods % Setter/Getters
         function set.Catalog(Obj, Data)
             % setter for catalog - set also column names and units if table
             % and available
