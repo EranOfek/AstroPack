@@ -283,11 +283,67 @@ classdef AstroSpec < Component
             end
             Factor = 10.^(-0.4.*sum(A_LambdaMag, 2));
         end
+        
+        function [FilterCell, Name] = read2FilterMatrix(Family, Name)
+            % Convet a filter name/AstFilter to cell of transmissions
+            % Input  : - A cell of family names, a family name, a matrix or
+            %            an AstFilter object.
+            %          - A filter name or a cell of names.
+            % Output : - A cell array of filter transmissions.
+            %          - A cell array of filter names.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: [FilterCell, Name] = AstroSpec.read2FilterMatrix(Family, Name)
+            
+            if ischar(Name)
+                Name = {Name};
+            end
+            
+            if ischar(Family)
+                Family = {Family};
+            end
+                
+            if iscellstr(Family)
+                Family = AstFilter.get(Family, Name);
+            end
+            
+            if isa(Family, 'AstFilter')
+                Nf = numel(Family);
+                FilterCell = cell(1, Nf);
+                for If=1:1:Nf
+                    FilterCell{If} = Family(If).nT;
+                end
+            elseif isnumeric(Family)
+                FilterCell{1} = Family;
+            else
+                error('Unknown Family option');
+            end
+                
+        end
     end
     
     methods (Static) % special spectra
         function Result = blackBody(WaveData, Temp, Args)
-            %
+            % Create an AstroSpec object with black body spectra
+            %       Return specific (per Ang) luminosity or emittence.
+            % Input  : - A vector of wavelengths, or an AstroSPec object
+            %            from which the wavelength vector will be taken.
+            %          - A vector of temperature.
+            %          * ...,key,val,...
+            %            'Radius' - Scalar or vector of BB radii for conversion
+            %                   to luminosity. If empty,
+            %                   then return the spectra in units of
+            %                   emittemce from a cm^2/s/A on the BB.
+            %            'RadiusUnits' - Radius units. Default is 'cm'.
+            %            'Dist' - Scalar of vector of distances. If empty,
+            %                   then return the spectra in units of
+            %                   emittemce from a cm^2/s/A on the BB.
+            %            'DistUnits' - Distance units. Default is 'pc'.
+            %            'SpecType' - Spectrum type:
+            %                    'P'  - planck formula, default.
+            %                    'RJ' - Rayleigh-Jeans approximation
+            %                    'W'  - Wein spectrum.
+            % Output : - An AstroSPec array, with element per temperature.
+            % Author : Eran Ofek (Aug 2021)
             % Example: Result = AstroSpec.blackBody((4000:10:9000)', [5000; 6000])
             
             arguments
@@ -329,6 +385,130 @@ classdef AstroSpec < Component
             
         end
             
+    end
+    
+    methods (Static)  % read spectra from spectral libraries
+        
+    end
+    
+    methods % synthetic photometry
+        function [Result, Flag, FilterWave] = synphot(Obj, FilterFamily, FilterName, Args)
+            % Synthetic photometry on an AstroSpec object spectra
+            % Input  : - An AstroSpec object (multi elements supported)
+            %          - A cell of filter family names, an AstFilter
+            %            object, or a matrix of transmissions.
+            %          - A cell array of filter names. The output structure
+            %            will have a field name for each one of these names.
+            %          * ...,key,val,...
+            %            'MagSys' - Mag system: ['AB'] | 'Vega'
+            %            'Device' - Device ['photon'] | 'bol'
+            %            'Algo' - Algorithm - see astro.spec.synphot
+            %                   Default is 'cos'
+            %            'Ebv' - E_{B-V} [mag] extinction to apply to
+            %                   spectra. Default is 0.
+            %            'R' - R_V to use for extinction. Default is 3.08.
+            % Output : - A structure array of syntheic magnitudes.
+            %            Element per object element, and ach filter is
+            %            stored in a field with its name.
+            %          - Like Mag results, but for the fraction of
+            %            extrapolated part of the filter.
+            %            0 means no extrapolation.
+            %          - A vector of the filter central wavelengths. 
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          [Result, Flag, FilterWave] = synphot(AS, {'SDSS','SDSS'}, {'g','r'})
+            
+            arguments
+                Obj
+                FilterFamily       % AstroFilter object, Name, Matrix
+                FilterName         % numer in Result
+                
+                Args.MagSys   = 'AB';
+                Args.Device   = 'photon';
+                Args.Algo     = 'cos';
+                Args.Ebv      = 0;
+                Args.R        = 3.08;
+            end
+           
+            [FilterCell, Name] = AstroSpec.read2FilterMatrix(FilterFamily, FilterName);
+            
+            Nname = numel(Name);
+            Nobj  = numel(Obj);
+            FilterWave = zeros(1, Nname);
+            for Iobj=1:1:Nobj
+                Spec = [Obj(Iobj).Wave(:), Obj(Iobj).Flux(:)];
+                
+                for Iname=1:1:Nname
+                    [Mag, FiltFlag, FilterWave(Iname)] = astro.spec.synphot(Spec, FilterCell{Iname}, [], Args.MagSys, Args.Algo, Args.Ebv, Args.R, Args.Device);
+                    Result(Iobj).(Name{Iname})     = Mag;
+                    Flag(Iobj).(Name{Iname})       = FiltFlag;
+                end
+            end
+        end
+    end
+    
+    methods % filtering
+        function Result = filterFun(Obj, Function, varargin)
+            % Apply a 1-D function (filter) on the Flux field in AstroSpec
+            % object. The function do not check if the wavelength is
+            % equally spaced.
+            % The function operates on the Flux, FluxErr, and Back fields.
+            % Input  : - An AstroSpec object.
+            %          - A function handle. E.g., @medfilt1, @hampel,
+            %            @sgolayfilt,...
+            %          * Additional arguments to pass to the specific
+            %            function.
+            % Output : - If no output argument is requested, then will modify the input
+            %            AstroSpec object. Otherwise, will create a new
+            %            copy of the object.
+            %            The oupt contains the filtered spectra.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AS=AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          AS.filterFun(@medfilt1,10)
+            
+            [Result] = createNewObj(Obj, [], nargout, 0);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj).Flux = Function(Obj(Iobj).Flux, varargin{:});
+            end
+        end
+        
+    end
+    
+    methods  % plots
+        function H = plot(Obj, varargin)
+            % Plot all the spectra in an AstroSpec object
+            % Input  : - An AstroSpec object (multi elements supported)
+            %          * Additional input arguments to pass to the plot
+            %            command.
+            % Output : - AN handle for the last plot.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: Result = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          Result.plot  
+           
+            IsHold = ishold;
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                H = plot(Obj(Iobj).Wave, Obj(Iobj).Flux, varargin{:});
+                hold on;
+            end
+            
+            H = xlabel(sprintf('Wavelength [%s]',Obj(1).WaveUnits));
+            H.FontSize    = 18;
+            H.Interpreter = 'latex';
+            H = ylabel(sprintf('Flux [%s]',Obj(1).FluxUnits));
+            H.FontSize    = 18;
+            H.Interpreter = 'latex';
+            
+            if ~IsHold
+                hold off;
+            end
+            
+            
+        end
+        
     end
     
     methods  % redshift/extinction/luminosity
