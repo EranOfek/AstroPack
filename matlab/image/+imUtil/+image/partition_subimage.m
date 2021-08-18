@@ -30,7 +30,7 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy]=partition_sub
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [SubImage,CCDSEC,Center,NoOverLap]=imUtil.image.partition_subimage(rand(256,256),[],'SubSizeXY',[64 64],'OverlapXY',[10 10],'Output','struct');
+% Example: [SubImage,CCDSEC,Center,NoOverLap,NewNoOverlap]=imUtil.image.partition_subimage(rand(256,256),[],'SubSizeXY',[64 64],'OverlapXY',[50 50],'Output','struct');
 %          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC)
 %          cellfun(@(x) std(x(:)),SubImage,'UniformOutput',false)  % calculate std for each sub image
 %          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC,'Output','struct');
@@ -38,12 +38,12 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy]=partition_sub
 %--------------------------------------------------------------------------
 
 arguments
-    Image                {mustBeNumeric(Image)}
+    Image                
     CCDSEC                                                = [];
     Args.Output                                           = 'cell';  % 'cell' | 'struct'
-    Args.SubSizeXY(1,2)  {mustBeNumeric(Args.SubSizeXY)}  = [128 128];
+    Args.SubSizeXY(1,2)                                   = [128 128];
     Args.Nxy                                              = [];
-    Args.OverlapXY       {mustBeNumeric(Args.OverlapXY)}  = [32 32];
+    Args.OverlapXY                                        = [32 32];
     Args.FieldName                                        = 'Im';
 end
 

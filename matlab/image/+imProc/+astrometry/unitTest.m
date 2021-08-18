@@ -115,12 +115,17 @@ function Result = unitTest()
     
     
     % break into sub images
-    SI = imProc.image.image2subimages(AI,[1024 1024]);
-    
+    SI = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
     imProc.background.background(SI, 'SubSizeXY',[]);
+    imProc.sources.findMeasureSources(SI);
+    
+    RA  = AI.HeaderData.Key.RA;
+    Dec = AI.HeaderData.Key.DEC;
+    
+    % severe bug in set/get.CooUnits in AstroCatalog
     
     
-    esult = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName');
+    Result = imProc.astrometry.astrometryCore(SI(32).CatData, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2');
     
     
     cd(PWD);

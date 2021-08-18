@@ -29,9 +29,9 @@ function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 
 arguments
     SizeXY
-    Args.SubSizeXY(1,2) {mustBeNumeric(Args.SubSizeXY)}  = [128 128];
+    Args.SubSizeXY(1,2)                                  = [128 128];
     Args.Nxy                                             = [];
-    Args.OverlapXY(1,2) {mustBeNumeric(Args.OverlapXY)}  = [32  32];
+    Args.OverlapXY(1,2)                                  = [32  32];
 end
 
 
@@ -78,7 +78,7 @@ UnCCDSEC = zeros(Nx.*Ny,4);
 for Ix=1:1:Nx
     Ind = (Ny.*(Ix - 1)+1 : Ix.*Ny);
     CCDSEC(Ind,:)     = [CX(Ix,:).*ones(Ny,1), CY];
-    UnCCDSEC(Ind,:)   = [CX(Ix,:).*ones(Ny,1), CY];
+    UnCCDSEC(Ind,:)   = [unCX(Ix,:).*ones(Ny,1), unCY];
 end
 
 % for Iy=1:1:Ny

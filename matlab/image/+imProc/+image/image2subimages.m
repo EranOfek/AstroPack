@@ -140,11 +140,11 @@ function Result = image2subimages(Obj, BlockSize, Args)
 
                 % near edge
                 Flag   = imUtil.ccdsec.selectNearEdges(SizeIJ, Args.EdgeDist);
-                Result(Isub) = maskSet(Result(Isub), Flag, Args.NearEdge_BitName, true, 'CreateNewObj',true);
+                Result(Isub) = maskSet(Result(Isub), Flag, Args.NearEdge_BitName, true, 'CreateNewObj',false);
 
                 % ovelaping
                 Flag = imUtil.ccdsec.flag_ccdsec(SizeIJ, NewNoOverlap(Isub,:), false);
-                Result(Isub) = maskSet(Result(Isub), Flag, Args.Overlap_BitName, true, 'CreateNewObj',true);
+                Result(Isub) = maskSet(Result(Isub), Flag, Args.Overlap_BitName, true, 'CreateNewObj',false);
 
             end
 

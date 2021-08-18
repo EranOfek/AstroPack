@@ -58,13 +58,18 @@ classdef AstroCatalog < AstroTable
             if isempty(Obj.CooUnits)
                 ColIndX = colname2ind(Obj, Obj.ColX);
                 ColIndY = colname2ind(Obj, Obj.ColY);
-                CooUnitsX = Obj.ColUnits{ColIndX};
-                CooUnitsY = Obj.ColUnits{ColIndY};
-                if ~strcmp(CooUnitsX,CooUnitsY)
-                    error('CooUnits for columns %d and %d are inconsistent',ColIndX, ColIndY);
+                if isempty(ColIndX) || isempty(ColIndY)
+                    Units        = '';
+                    Obj.CooUnits = Units;
+                else
+                    CooUnitsX = Obj.ColUnits{ColIndX};
+                    CooUnitsY = Obj.ColUnits{ColIndY};
+                    if ~strcmp(CooUnitsX,CooUnitsY)
+                        error('CooUnits for columns %d and %d are inconsistent',ColIndX, ColIndY);
+                    end
+                    Units        = CooUnitsX;
+                    Obj.CooUnits = Units;
                 end
-                Units        = CooUnitsX;
-                Obj.CooUnits = Units;
             else
                 Units = Obj.CooUnits;
             end
