@@ -123,6 +123,79 @@ classdef AstroCatalog < AstroTable
     end
     
     methods % column names
+        function [Result] = isCooPix(Obj, DicCooX, DicCooY)
+            % Check if X/Y (pixel) coordinates exist in an AstroCatalog
+            % Input  : - An AstroCatalog object.
+            %          - Cell array of dictionary for X column names.
+            %            Default is AstroCatalog.DefNamesX.
+            %          - Cell array of dictionary for Y column names.
+            %            Default is AstroCatalog.DefNamesY.
+            % Output : - An array of logical indicating if each one of the
+            %            Astrocatalog elements contains an X/Y columns.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [Result] = isCooPix(AC);
+            
+            arguments
+                Obj
+                DicCooX       = AstroCatalog.DefNamesX;
+                DicCooY       = AstroCatalog.DefNamesY;
+            end
+            
+            Nobj   = numel(Obj);
+            Result = true(size(Obj));
+            for Iobj=1:1:Nobj
+                [~, UnitsX, IndX] = getColDic(Obj, DicCooX);
+                [~, UnitsY, IndY] = getColDic(Obj, DicCooY);
+                
+                if ~strcmp(UnitsX, UnitsY)
+                    error('X and Y columns have different units');
+                end
+                
+                if isempty(IndX) || isempty(IndY)
+                    Result(Iobj) = false;
+                end
+            end
+        end
+        
+        function [Result, Units] = isCooSphere(Obj, DicCooRA, DicCooDec)
+            % Check if RA/Dec (units) coordinates exist in an AstroCatalog
+            % Input  : - An AstroCatalog object.
+            %          - Cell array of dictionary for RA column names.
+            %            Default is AstroCatalog.DefNamesRA.
+            %          - Cell array of dictionary for Dec column names.
+            %            Default is AstroCatalog.DefNamesDec.
+            % Output : - An array of logical indicating if each one of the
+            %            Astrocatalog elements contains an RA/Dec columns.
+            %          - A cell array of units per AstroCatalog element.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [Result, Units] = isCooSphere(AC);
+            
+            arguments
+                Obj
+                DicCooRA       = AstroCatalog.DefNamesRA;
+                DicCooDec      = AstroCatalog.DefNamesDec;
+            end
+            
+            Nobj   = numel(Obj);
+            Result = true(size(Obj));
+            Units  = cell(size(Obj));
+            for Iobj=1:1:Nobj
+                [~, UnitsRA,  IndRA]  = getColDic(Obj, DicCooRA);
+                [~, UnitsDec, IndDec] = getColDic(Obj, DicCooDec);
+                
+                if ~strcmp(UnitsRA, UnitsDec)
+                    error('RA and Dec columns have different units');
+                end
+                Units{Iobj} = UnitsRA;
+                
+                if isempty(IndRA) || isempty(IndDec)
+                    Result(Iobj) = false;
+                end
+            end
+        end
+            
         function [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(Obj, Args)
             % Attempt to get CooType and RA/Dec X/Y column names automatically from Catalog
             % Input  : - An AstroCatalog object.
@@ -817,6 +890,13 @@ classdef AstroCatalog < AstroTable
             % @FIX - @Eran - Where is this table? We need it also on
             % Windows - Need instructions where from to take it and where
             % to put it
+            
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            [Result] = isCooPix(AC);
+            
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            [Result, Units] = isCooSphere(AC);
+            
             
             io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
