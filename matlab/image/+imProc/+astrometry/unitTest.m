@@ -106,6 +106,23 @@ function Result = unitTest()
     W=AstroWCS.header2wcs(AI.HeaderData);
     
     
+    % test on LAST images
+    cd /data/euler/archive/LAST/2020/08/22/proc
+    AI = AstroImage('LAST.0.1_20200823.002733.839_clear__sci_proc_im_000.fits');  % M42
+    AI = AstroImage('LAST.0.1_20200823.002412.958_clear__sci_proc_im_000.fits');  % NGC253
+    AI = AstroImage('LAST.0.1_20200823.000105.682_clear__sci_proc_im_000.fits');  % empty field
+    
+    
+    
+    % break into sub images
+    SI = imProc.image.image2subimages(AI,[1024 1024]);
+    
+    imProc.background.background(SI, 'SubSizeXY',[]);
+    
+    
+    esult = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName');
+    
+    
     cd(PWD);
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
     Result = true;

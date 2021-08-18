@@ -99,7 +99,7 @@ if ischar(Args.SubSizeXY)
     switch lower(Args.SubSizeXY)
         case 'full'
             SubImage(1).(Args.FieldName) = Image;
-            Size     = size(SubImage);
+            Size     = size(Image);
             CCDSEC   = [1 Size(2) 1 Size(1)];
             Center   = [mean(CCDSEC(:,1:2),2), mean(CCDSEC(:,3:4),2)];
             Nxy      = [1 1];
