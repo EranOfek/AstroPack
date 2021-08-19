@@ -407,9 +407,10 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
             Tmp.Catalog = Cat;
             Cat = Tmp;
             Cat.ColNames = ColCellOut;
-            Cat.ColX = colname2ind(Cat,'X');
-            Cat.ColY = colname2ind(Cat,'Y');
-            Cat.CooType = 'pix';
+            % obsolete
+            %Cat.ColX = colname2ind(Cat,'X');
+            %Cat.ColY = colname2ind(Cat,'Y');
+            %Cat.CooType = 'pix';
 
         case 'mat'
             % do nothing

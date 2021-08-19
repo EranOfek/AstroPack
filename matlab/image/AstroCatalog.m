@@ -149,8 +149,8 @@ classdef AstroCatalog < AstroTable
             ColY   = nan(size(Obj));
             
             for Iobj=1:1:Nobj
-                [~, UnitsX, IndX] = getColDic(Obj, DicCooX);
-                [~, UnitsY, IndY] = getColDic(Obj, DicCooY);
+                [~, UnitsX, IndX] = getColDic(Obj(Iobj), DicCooX);
+                [~, UnitsY, IndY] = getColDic(Obj(Iobj), DicCooY);
                 
                 if ~strcmp(UnitsX, UnitsY)
                     error('X and Y columns have different units');
@@ -196,8 +196,8 @@ classdef AstroCatalog < AstroTable
             ColRA  = nan(size(Obj));
             ColDec = nan(size(Obj));
             for Iobj=1:1:Nobj
-                [~, UnitsRA,  IndRA]  = getColDic(Obj, DicCooRA);
-                [~, UnitsDec, IndDec] = getColDic(Obj, DicCooDec);
+                [~, UnitsRA,  IndRA]  = getColDic(Obj(Iobj), DicCooRA);
+                [~, UnitsDec, IndDec] = getColDic(Obj(Iobj), DicCooDec);
                 
                 if ~strcmp(UnitsRA, UnitsDec)
                     error('RA and Dec columns have different units');
@@ -236,11 +236,50 @@ classdef AstroCatalog < AstroTable
             [CooType{IsPix}]  = deal('pix');
             
             Units(IsSphere) = UnitsSphere(IsSphere);
-            Units(IsPix) = UnitsPix(IsPix);
+            Units(IsPix)    = UnitsPix(IsPix);
             
             ColX(IsSphere) = ColRA(IsSphere);
-            ColY(IsSphere) = ColDec(IsSphere);
+            ColY(IsSphere) = ColDec(IsSphere);            
+        end
+        
+        function [IsSphereBoth, IsPixBoth, CooType] = getCommomCooType(Obj1, Obj2)
+            % get common CooType for two AstroCatalog objects.
+            % Input  : - The first AstroCatalog object (multi elements
+            %            supported).
+            %          - The second AstroCatalog object (multi elements
+            %            supported).
+            % Output : - A vector of logical (length identical to the
+            %            longest of Obj1/Obj2) containing true if both
+            %            objects has sphereical CooType.
+            %          - A vector of logical (length identical to the
+            %            longest of Obj1/Obj2) containing true if both
+            %            objects has pix CooType.
+            %          - A cell array of chars, indicating 'sphere' (if
+            %            both objects have spherical coordinates),
+            %            otherwise 'pix' (if both have pix coordinates),
+            %            and empty otherwise.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [IsSphereBoth, IsPixBoth, CooType] = getCommomCooType(AC, AC)
+           
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            Nobj  = max(Nobj1, Nobj2);
             
+            IsPix1    = isCooPix(Obj1);
+            IsPix2    = isCooPix(Obj2);
+            IsSphere1 = isCooSphere(Obj1);
+            IsSphere2 = isCooSphere(Obj2);
+            
+            IsSphereBoth  = IsSphere1 & IsSphere2;
+            IsPixBoth     = IsPix1    & IsPix2;
+            
+            if nargout>2
+                CooType = cell(Nobj,1);
+
+                [CooType{IsSphereBoth}] = deal('sphere');
+                [CooType{IsPixBoth}]    = deal('pix');
+            end
             
         end
         
@@ -268,93 +307,119 @@ classdef AstroCatalog < AstroTable
             
         end
             
-        function [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(Obj, Args)
-            % Attempt to get CooType and RA/Dec X/Y column names automatically from Catalog
-            % Input  : - An AstroCatalog object.
-            %          * ...,key,val,...
-            %            'CaseSens' - Case senstive column name search.
-            %                   Default is false.
-            %            'UpdateProp' - Indicating if to update the
-            %            CooType, ColX and ColY properties.
-            %            Default is true.
-            % Output : - CooType: 'sphere' | 'pix', for the last element in
-            %            the AstroCatalog object.
-            %          - X column name.
-            %          - Y column name.
-            %          - X column index.
-            %          - Y column index.
-            % Author : Eran Ofek (Mar 2021)
-            % Example: [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC(1));
-           
-            arguments
-                Obj
-                Args.CaseSens(1,1) logical            = false;
-                Args.UpdateProp(1,1) logical          = true;
-            end
-            
-            
-            Nobj = numel(Obj);
-            % search synonyms in config file
-            %warning('Search synonym in config file does not operational yet');
-            
-            for Iobj=1:1:Nobj
-                SynonymCell_RA  = Obj(Iobj).DefNamesRA;
-                SynonymCell_Dec = Obj(Iobj).DefNamesDec;
-
-                [Name_RA,  IndInCell_RA,  IndInSynonym_RA]  = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
-                [Name_Dec, IndInCell_Dec, IndInSynonym_Dec] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
-                if isempty(IndInCell_RA) || isempty(IndInCell_Dec)
-                    CooType = 'pix';
-                else
-                    % spherical coordinates found in AstroCatalog
-                    CooType = 'sphere';
-                end
-
-                switch lower(CooType)
-                    case 'pix'
-                        SynonymCell_X = Obj(Iobj).DefNamesX;
-                        SynonymCell_Y = Obj(Iobj).DefNamesY;
-
-                        [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_X, 'CaseSens', Args.CaseSens);
-                        [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Y, 'CaseSens', Args.CaseSens);
-                    case 'sphere'
-                        SynonymCell_RA  = Obj(Iobj).DefNamesRA;
-                        SynonymCell_Dec = Obj(Iobj).DefNamesDec;
-
-                        [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
-                        [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
-                    otherwise
-                        error('Unknown/illegal CooType option');
-                end
-                NameX = NameX{1};
-                NameY = NameY{1};
-                CooUnitsX = Obj(Iobj).ColUnits{IndInCellX};
-                CooUnitsY = Obj(Iobj).ColUnits{IndInCellY};
-                
-                if Args.UpdateProp
-                    Obj(Iobj).CooType = CooType;
-                    Obj(Iobj).ColX    = IndInCellX;
-                    Obj(Iobj).ColY    = IndInCellY;
-                    if ~strcmp(CooUnitsX, CooUnitsY)
-                        error('Coo units must be identical in both axes');
-                    end
-                    Obj(Iobj).CooUnits = CooUnitsX;
-                end
-            end
-            
-            
-        end
+%         function [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(Obj, Args)
+%             % Attempt to get CooType and RA/Dec X/Y column names automatically from Catalog
+%             % Input  : - An AstroCatalog object.
+%             %          * ...,key,val,...
+%             %            'CaseSens' - Case senstive column name search.
+%             %                   Default is false.
+%             %            'UpdateProp' - Indicating if to update the
+%             %            CooType, ColX and ColY properties.
+%             %            Default is true.
+%             % Output : - CooType: 'sphere' | 'pix', for the last element in
+%             %            the AstroCatalog object.
+%             %          - X column name.
+%             %          - Y column name.
+%             %          - X column index.
+%             %          - Y column index.
+%             % Author : Eran Ofek (Mar 2021)
+%             % Example: [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC(1));
+%            
+%             arguments
+%                 Obj
+%                 Args.CaseSens(1,1) logical            = false;
+%                 Args.UpdateProp(1,1) logical          = true;
+%             end
+%             
+%             
+%             Nobj = numel(Obj);
+%             % search synonyms in config file
+%             %warning('Search synonym in config file does not operational yet');
+%             
+%             for Iobj=1:1:Nobj
+%                 SynonymCell_RA  = Obj(Iobj).DefNamesRA;
+%                 SynonymCell_Dec = Obj(Iobj).DefNamesDec;
+% 
+%                 [Name_RA,  IndInCell_RA,  IndInSynonym_RA]  = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
+%                 [Name_Dec, IndInCell_Dec, IndInSynonym_Dec] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
+%                 if isempty(IndInCell_RA) || isempty(IndInCell_Dec)
+%                     CooType = 'pix';
+%                 else
+%                     % spherical coordinates found in AstroCatalog
+%                     CooType = 'sphere';
+%                 end
+% 
+%                 switch lower(CooType)
+%                     case 'pix'
+%                         SynonymCell_X = Obj(Iobj).DefNamesX;
+%                         SynonymCell_Y = Obj(Iobj).DefNamesY;
+% 
+%                         [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_X, 'CaseSens', Args.CaseSens);
+%                         [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Y, 'CaseSens', Args.CaseSens);
+%                     case 'sphere'
+%                         SynonymCell_RA  = Obj(Iobj).DefNamesRA;
+%                         SynonymCell_Dec = Obj(Iobj).DefNamesDec;
+% 
+%                         [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
+%                         [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
+%                     otherwise
+%                         error('Unknown/illegal CooType option');
+%                 end
+%                 NameX = NameX{1};
+%                 NameY = NameY{1};
+%                 CooUnitsX = Obj(Iobj).ColUnits{IndInCellX};
+%                 CooUnitsY = Obj(Iobj).ColUnits{IndInCellY};
+%                 
+%                 if Args.UpdateProp
+%                     Obj(Iobj).CooType = CooType;
+%                     Obj(Iobj).ColX    = IndInCellX;
+%                     Obj(Iobj).ColY    = IndInCellY;
+%                     if ~strcmp(CooUnitsX, CooUnitsY)
+%                         error('Coo units must be identical in both axes');
+%                     end
+%                     Obj(Iobj).CooUnits = CooUnitsX;
+%                 end
+%             end
+%             
+%             
+%         end
         
-        function Obj = convertCooUnits(Obj,Units)
-            % convert all coordinates Units for multiple element object
+        function Obj = convertCooUnits(Obj, Units, DicCooRA, DicCooDec)
+            % convert all spherical coordinates Units for multiple element object
+            % Input  : - An AstroCatalog object
+            %          - Units of RA/Dec to convert into.
+            %          - Cell array of dictionary for RA column names.
+            %            Default is AstroCatalog.DefNamesRA.
+            %          - Cell array of dictionary for Dec column names.
+            %            Default is AstroCatalog.DefNamesDec.
+            % Output : - An AstroCatalog object with the updated units.
+            % Author : Eran Ofek (Aug 2021)
             % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             %          AC.convertCooUnits('deg')
             %          Obj.convertCooUnits('deg')
             
-            
+            arguments
+                Obj
+                Units char
+                DicCooRA       = AstroCatalog.DefNamesRA;
+                DicCooDec      = AstroCatalog.DefNamesDec;
+            end
+                
+            [IsSphereCoo, ObjUnits, ColRA, ColDec] = isCooSphere(Obj, DicCooRA, DicCooDec);
+                        
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Obj(Iobj).CooUnits = Units;
+                if IsSphereCoo(Iobj)
+                    % only for spherical coordinates
+                    if ~strcmp(ObjUnits{Iobj}, Units)
+                        % only if coordinates requires conversion
+                        ConvFactor = convert.angular(ObjUnits{Iobj}, Units);
+                        Obj(Iobj).Catalog(:,ColRA(Iobj))  = Obj(Iobj).Catalog(:,ColRA(Iobj))  .* ConvFactor;
+                        Obj(Iobj).Catalog(:,ColDec(Iobj)) = Obj(Iobj).Catalog(:,ColDec(Iobj)) .* ConvFactor;
+                        Obj(Iobj).ColUnits{ColRA(Iobj)}  = Units;
+                        Obj(Iobj).ColUnits{ColDec(Iobj)} = Units;
+                    end
+                end                
             end            
             
         end
@@ -592,14 +657,17 @@ classdef AstroCatalog < AstroTable
             CircleY      = nan(size(Obj));
             CircleRadius = nan(size(Obj));
             
+            if isempty(Args.CooType)
+                CooType = getCooType(Obj);
+            else
+                [CooType{1:Nobj}] = deal(Args.CooType);
+            end
+           
+            
             for Iobj=1:1:Nobj
-                if isempty(Args.CooType)
-                    CooType = Obj(Iobj).CooType;
-                else
-                    CooType = Args.CooType;
-                end
+               
                 %[X, Y] = getCoo(Obj(Iobj),'rad');
-                switch lower(CooType)
+                switch lower(CooType{Iobj})
                     case 'sphere'
                         [X, Y] = getLonLat(Obj(Iobj),'rad');
                         [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
@@ -607,14 +675,14 @@ classdef AstroCatalog < AstroTable
                         [X, Y] = getXY(Obj(Iobj));
                         [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
                     otherwise
-                        error('Unknown CooType=%s option',Obj(Iobj).CooType);
+                        error('Unknown CooType=%s option',CooType{Iobj});
                 end
                 CircleX      = BestCoo(1);
                 CircleY      = BestCoo(2);
                 CircleRadius = BestRadius;
             end
             % convert output to Args.OutUnits
-            if strcmp(Obj(Iobj).CooType,'sphere')
+            if strcmp(CooType{Iobj},'sphere')
                 ConvFactor   = convert.angular('rad',Args.OutUnits);
                 CircleX      = CircleX.*ConvFactor;
                 CircleY      = CircleY.*ConvFactor;
@@ -872,7 +940,7 @@ classdef AstroCatalog < AstroTable
     methods % plotting
         function varargin = plotMapFun(Obj, Projection, PlotFun, AddCol, varargin)
             % A general map (RA/Dec) plotting function for AstroCatalog object
-            % Input  : - An AstroCatalog object.
+            % Input  : - A single element AstroCatalog object.
             %          - Map projection. See axesm for options.
             %            Default is 'aitoff'. 
             %          - Plot function handle. e.g., @plotm.
@@ -884,7 +952,6 @@ classdef AstroCatalog < AstroTable
             % Output : - 
             % Author : Eran Ofek (Apr 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          AC.getCooTypeAuto
             %          AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1)
             %          
             %          AC.plotMapFun('aitoff',@scatterm,{'mag1','sep1'},'.','MarkerSize',1)
@@ -908,11 +975,15 @@ classdef AstroCatalog < AstroTable
             
             % first time
             A=axesm(Projection, 'Frame', 'on', 'Grid', 'on');
-
-            CooUnits = Obj.CooUnits;
-            Obj.CooUnits = 'deg';
-            [varargin{1:nargout}] = plotFun(Obj, PlotFun, {Obj.ColY, Obj.ColX, AddCol{:}}, varargin{:});
-            Obj.CooUnits = CooUnits;
+            [IsCooSphere, CooUnits] = isCooSphere(Obj);
+            if ~IsCooSphere
+                error('plotMapFun requires spherical coordinates in catalog');
+            end
+            Obj = convertCooUnits(Obj, 'deg');
+            [ColX, ColY] = getColCooForCooType(Obj, 'sphere');
+            
+            [varargin{1:nargout}] = plotFun(Obj, PlotFun, {ColY, ColX, AddCol{:}}, varargin{:});
+            Obj = convertCooUnits(Obj, CooUnits{1});
 
             %[varargin{1:1:nargin}] = plot(Obj)
              
@@ -975,34 +1046,38 @@ classdef AstroCatalog < AstroTable
             AC=AstroCatalog({'asu.fit'},'HDU',2);
             [ColX, ColY] = getColCooForCooType(AC, 'sphere')
             
-            
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            [IsSphereBoth, IsPixBoth, CooType] = getCommomCooType(AC, AC);
+           
             io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
-            [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC);
-            if AC(1).ColX~=AC(2).ColX
-                error('ColX in the two elements should have been identical');
-            end
-            if AC(1).ColY~=AC(2).ColY
-                error('ColY in the two elements should have been identical');
-            end
+            % obsolete: [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC);
+%             if AC(1).ColX~=AC(2).ColX
+%                 error('ColX in the two elements should have been identical');
+%             end
+%             if AC(1).ColY~=AC(2).ColY
+%                 error('ColY in the two elements should have been identical');
+%             end
             
             % sort
             io.msgLog(LogLevel.Test, 'testing AstroCatalog sort');
-            AC(1).SortByCol = AC(1).ColY;
+            AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
+            [~,~,~,ColY] = getCooType(AC);
+            AC(1).SortByCol = ColY(1);
             AC(2).SortByCol = 'DEJ2000';
-            AC.sortrows(AC(1).ColY);
-            if ~issorted(AC(1).Catalog(:,AC(1).ColY))
+            AC.sortrows(ColY);
+            if ~issorted(AC(1).Catalog(:,ColY(1)))
                 error('catalog is not sorted');
             end
             
             % sort using the SortByCol property
             io.msgLog(LogLevel.Test, 'testing AstroCatalog SortByCol');
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
-            AC.getCooTypeAuto;
-            AC(1).SortByCol = AC(1).ColY;
+            [~,~,~,ColY] = getCooType(AC);
+            AC(1).SortByCol = ColY(1);
             AC(2).SortByCol = 'DEJ2000';
             AC.sortrows;
-            if ~issorted(AC(1).Catalog(:,AC(1).ColY))
+            if ~issorted(AC(1).Catalog(:,ColY(1)))
                 error('catalog is not sorted');
             end
             
@@ -1076,7 +1151,7 @@ classdef AstroCatalog < AstroTable
             % plot
             io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
             AC=AstroCatalog({'asu.fit'},'HDU',2);
-            AC.getCooTypeAuto;
+            %AC.getCooTypeAuto;
             io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
             AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
             

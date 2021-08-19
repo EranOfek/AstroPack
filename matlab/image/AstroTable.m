@@ -602,7 +602,8 @@ classdef AstroTable < Component
             %            catalog, will store this sub catalog in the
             %            AstroTable object.
             %            Default is false.
-            %          - Attempt to use dictionary for column names.
+            %          * ...,key,val,...
+            %            ' UseDict' - unsupported
             % Output : - A matrix or a table containing the selected
             %            columns.
             %          - A cell array of units corresponding to the
@@ -618,8 +619,6 @@ classdef AstroTable < Component
                 OutputIsTable(1,1) logical         = false;
                 UpdateAstroTable(1,1) logical      = false;
                 Args.UseDict(1,1) logical          = true;
-                Args.DictName                      = {};
-                Args.DictFamily char               = '';
             end
                 
             
@@ -675,7 +674,17 @@ classdef AstroTable < Component
             end
                         
             Ind             = colnameDict2ind(Obj, Columns);
-            [Result, Units] = getCol(Obj, Ind);
+            if isempty(Ind)
+                Result = [];
+                Units  = '';
+            else
+                [Result, Units] = getCol(Obj, Ind);
+                if isempty(Units)
+                    Units = '';
+                else
+                    Units = Units{1};
+                end
+            end
             
         end
         

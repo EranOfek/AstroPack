@@ -131,58 +131,11 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     % select CooType
     if isempty(Args.CooType)
         % attempt to select automatically
-        
-        [CooType, Units, ColX, ColY] = getCooType(Obj)
-        ........
-        
-        
-    if ~isempty(Args.CooType)
-        % override Obj1/ColX
-        [Obj1(1:1:Nobj1).CooType] = deal(Args.CooType);
-        if isnumeric(Args.ColCatX)
-            [Obj1(1:1:Nobj1).ColX] = deal(Args.ColCatX);
-        else
-            % assume char/cell
-            for Iobj1=1:1:Nobj1
-                [~, Obj1(Iobj1).ColX] = AstroTable.searchSynonym(Obj1(Iobj1).ColNames, Args.ColCatX);
-            end
-        end
-        % override Obj1/ColY
-        if isnumeric(Args.ColCatY)
-            [Obj1(1:1:Nobj1).ColY] = deal(Args.ColCatY);
-        else
-            % assume char/cell
-            for Iobj1=1:1:Nobj1
-                [~, Obj1(Iobj1).ColY] = AstroTable.searchSynonym(Obj1(Iobj1).ColNames, Args.ColCatY);
-            end
-        end
-        
-        % override Obj2/ColX
-        [Obj2(1:1:Nobj2).CooType] = deal(Args.CooType);
-        if isnumeric(Args.ColCatX)
-            [Obj2(1:1:Nobj2).ColX] = deal(Args.ColCatX);
-        else
-            % assume char/cell
-            for Iobj2=1:1:Nobj2
-                [~, Obj2(Iobj2).ColX] = AstroTable.searchSynonym(Obj2(Iobj2).ColNames, Args.ColCatX);
-            end
-        end
-        % override Obj2/ColY
-        if isnumeric(Args.ColCatY)
-            [Obj2(1:1:Nobj2).ColY] = deal(Args.ColCatY);
-        else
-            % assume char/cell
-            for Iobj2=1:1:Nobj2
-                [~, Obj2(Iobj2).ColY] = AstroTable.searchSynonym(Obj2(Iobj2).ColNames, Args.ColCatY);
-            end
-        end
-        
+        [~, ~, CommonCooType] = getCommomCooType(Obj1, Obj2);
+    else
+        [CommonCooType{1:Nmax}] = deal(Args.CooType);
     end
-        
 
-    
-    
-    
     MatchedObj         = AstroCatalog([Nmax,1]);
     UnMatchedObj       = AstroCatalog([Nmax,1]);
     TruelyUnMatchedObj = AstroCatalog([Nmax,1]);
@@ -190,14 +143,17 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
         Iobj1 = min(Imax, Nobj1);
         Iobj2 = min(Imax, Nobj2);
 
-        % Match Obj1(Iobj1) against Obj2(Iobj2)
-        if ~Obj1(Iobj1).IsSorted
-            Obj1(Iobj1).sortrows(Obj1(Iobj1).ColY);
-        end
-        if ~strcmp(Obj1(Iobj1).CooType, Obj2(Iobj2).CooType)
+        if isempty(CommonCooType{Imax})
             error('CooType is not consistent while matching: Iobj1=%d, Iobj2=%d',Iobj1,Iobj2);
         end
-        switch lower(Obj1(Iobj1).CooType)
+        
+        % Match Obj1(Iobj1) against Obj2(Iobj2)
+        if ~Obj1(Iobj1).IsSorted
+            [~, ColY] = getColCooForCooType(Obj1(Iobj1), CommonCooType{Imax});
+            Obj1(Iobj1).sortrows(ColY);
+        end
+       
+        switch lower(CommonCooType{Imax})
             case 'sphere'
                 DistFun = @celestial.coo.sphere_dist_fast;
                 Coo1    = getLonLat(Obj1(Iobj1), 'rad');
@@ -246,7 +202,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
             MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
 
             % copy the common properties from Obj2
-            copyProp(Obj1(Iobj1), MatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+            copyProp(Obj1(Iobj1), MatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
 
             % add Dist column:
             if Args.AddDistCol
@@ -267,11 +223,11 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
             % UnMatchedObj
             if nargout>1
                 UnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagNearest,:);
-                UnMatchedObj(Imax) = copyProp(Obj1(Iobj2), UnMatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+                UnMatchedObj(Imax) = copyProp(Obj1(Iobj2), UnMatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
 
                 if nargout>2
                     TruelyUnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagAll,:);
-                    TruelyUnMatchedObj(Imax) = copyProp(Obj1(Iobj2), TruelyUnMatchedObj(Imax), {'CooType','ColX','ColY','ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+                    TruelyUnMatchedObj(Imax) = copyProp(Obj1(Iobj2), TruelyUnMatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
                 end
             end
         end
