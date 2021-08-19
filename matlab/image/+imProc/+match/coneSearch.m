@@ -8,6 +8,10 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
     %            If more then one row, then the results of the
     %            search will be merged.
     %          * ...,key,val,...
+    %            'CooType' - Which Coo system to use 'pix' (for X/Y),
+    %                   or 'sphere' (for RA/Dec).
+    %                   If empty, will look for 'sphere', and if not exist
+    %                   will use 'pix'. Default is [].
     %            'Radius'  - Search radius. Default is 5.
     %            'RadiusUnits' - Search radius units (if spherical
     %                   coordinates search). Default is 'arcsec'.
@@ -49,6 +53,7 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
     arguments
         CatObj
         Coo
+        Args.CooType                     = [];
         Args.Radius                      = 5;
         Args.RadiusUnits                 = 'arcsec';
         Args.Shape char                  = 'circle';
@@ -60,9 +65,9 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
         Args.CreateNewObj                = [];
     end
 
-    if isempty(CatObj(1).CooType)
-        CatObj.getCooTypeAuto;
-    end
+%     if isempty(CatObj(1).CooType)
+%         CatObj.getCooTypeAuto;
+%     end
 
     % Convert Coo to radians
     CooRad = convert.angular(Args.CooUnits,'rad',Coo);
@@ -99,16 +104,26 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
 
     Nobj = numel(CatObj);
     for Iobj=1:1:Nobj
-        if ~CatObj(Iobj).IsSorted
-            CatObj(Iobj).sortrows(CatObj(Iobj).ColY);
+        
+        if isempty(Args.CooType)
+            [CooType, ~, ColX, ColY] = getCooType(CatObj(Iobj));
+            CooType = CooType{1};
+        else
+            CooType = Args.CooType;
+            [ColX, ColY] = getColCooForCooType(Obj(Iobj), CooType);
         end
-        switch lower(CatObj(Iobj).CooType)
+        
+        if ~CatObj(Iobj).IsSorted
+            CatObj(Iobj).sortrows(ColY);
+        end
+        
+        switch lower(CooType)
             case 'sphere'
-                [Ind,Flag] = VO.search.search_sortedlat_multi(getCoo(CatObj(Iobj),'rad'),...
+                [Ind,Flag] = VO.search.search_sortedlat_multi(getLonLat(CatObj(Iobj),'rad'),...
                                                             CooRad(:,1), CooRad(:,2), RadiusRad, [],...
                                                             @celestial.coo.sphere_dist_fast);
             case 'pix'
-                [Ind,Flag] = VO.search.search_sortedlat_multi(getCoo(CatObj(Iobj),'rad'),...
+                [Ind,Flag] = VO.search.search_sortedlat_multi(getXY(CatObj(Iobj)),...
                                                             Coo(:,1), Coo(:,2), RadiusRad, [],...
                                                             @tools.math.geometry.plane_dist);
 

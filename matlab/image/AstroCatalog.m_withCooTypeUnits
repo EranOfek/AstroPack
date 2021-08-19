@@ -3,10 +3,10 @@
 
 classdef AstroCatalog < AstroTable
     properties
-        %ColX                                                            = [];
-        %ColY                                                            = [];
-        %CooType char    {mustBeMember(CooType,{'pix','sphere',''})}     = '';
-        %CooUnits char   {mustBeMember(CooUnits,{'deg','rad','pix',''})} = '';
+        ColX                                                            = [];
+        ColY                                                            = [];
+        CooType char    {mustBeMember(CooType,{'pix','sphere',''})}     = '';
+        CooUnits char   {mustBeMember(CooUnits,{'deg','rad','pix',''})} = '';
     end
     
     properties (Hidden, SetAccess=private)
@@ -49,78 +49,81 @@ classdef AstroCatalog < AstroTable
     
     methods % setters/getters
 
-%         function Units = get.CooUnits(Obj)
-%             % getter for CooUnits - if empty, attempt to obtain from
-%             % catalog.
-%             % Note this is not cleared when the catalog is changed.
-%            
-%                 
-%             if isempty(Obj.CooUnits)
-%                 ColIndX = colname2ind(Obj, Obj.ColX);
-%                 ColIndY = colname2ind(Obj, Obj.ColY);
-%                 if isempty(ColIndX) || isempty(ColIndY)
-%                     Units        = '';
-%                     Obj.CooUnits = Units;
-%                 else
-%                     CooUnitsX = Obj.ColUnits{ColIndX};
-%                     CooUnitsY = Obj.ColUnits{ColIndY};
-%                     if ~strcmp(CooUnitsX,CooUnitsY)
-%                         error('CooUnits for columns %d and %d are inconsistent',ColIndX, ColIndY);
-%                     end
-%                     Units        = CooUnitsX;
-%                     Obj.CooUnits = Units;
-%                 end
-%             else
-%                 Units = Obj.CooUnits;
-%             end
-%         end
+        function Units = get.CooUnits(Obj)
+            % getter for CooUnits - if empty, attempt to obtain from
+            % catalog.
+            % Note this is not cleared when the catalog is changed.
+           
+                
+            if isempty(Obj.CooUnits)
+                ColIndX = colname2ind(Obj, Obj.ColX);
+                ColIndY = colname2ind(Obj, Obj.ColY);
+                if isempty(ColIndX) || isempty(ColIndY)
+                    Units        = '';
+                    Obj.CooUnits = Units;
+                else
+                    CooUnitsX = Obj.ColUnits{ColIndX};
+                    CooUnitsY = Obj.ColUnits{ColIndY};
+                    if ~strcmp(CooUnitsX,CooUnitsY)
+                        error('CooUnits for columns %d and %d are inconsistent',ColIndX, ColIndY);
+                    end
+                    Units        = CooUnitsX;
+                    Obj.CooUnits = Units;
+                end
+            else
+                Units = Obj.CooUnits;
+            end
+
+            
+            
+        end
         
-%         function set.CooUnits(Obj, Val)
-%             % setter for CooUnits and coordinates unit conversion
-%             % If ColNames doesn't contains units, this will just update the
-%             % ColNames and CooUnits according to the input value.
-%             % If ColName do contain units, this will update the units and
-%             % convert the coordinate columns to the requested Units.
-%             % If ColX and ColY are empty, then will attempt to populate
-%             % them.
-%             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2)
-%             %          AC.CooUnits = 'rad';
-%             %          AC.CooUnits = 'deg';                     
-%             
-%             if isempty(Obj.ColX) || isempty(Obj.ColY)
-%                 Obj.getCooTypeAuto;
-%             end
-%             ColIndX = colname2ind(Obj, Obj.ColX);
-%             ColIndY = colname2ind(Obj, Obj.ColY);
-%             CooUnitsX = Obj.ColUnits{ColIndX};
-%             CooUnitsY = Obj.ColUnits{ColIndY};
-%             if isempty(CooUnitsX)
-%                 % set coordinate units without converting the values
-%                 Obj.ColUnits{ColIndX} = Val;
-%             else
-%                 if ~strcmp(CooUnitsX,'pix')
-%                     ConvFactor = convert.angular(CooUnitsX, Val, 1);
-%                     Obj.Catalog(:,ColIndX) = Obj.Catalog(:,ColIndX).*ConvFactor;
-%                     Obj.ColUnits{ColIndX} = Val;
-%                 end
-%             end
-%             if isempty(CooUnitsY)
-%                 % set coordinate units without converting the values
-%                 Obj.ColUnits{ColIndY} = Val;
-%             else
-%                 if ~strcmp(CooUnitsY,'pix')
-%                     ConvFactor = convert.angular(CooUnitsY, Val, 1);
-%                     Obj.Catalog(:,ColIndY) = Obj.Catalog(:,ColIndY).*ConvFactor;
-%                     Obj.ColUnits{ColIndY} = Val;
-%                 end
-%             end
-%                 
-%             Obj.CooUnits = Val;
-%         end
+        function set.CooUnits(Obj, Val)
+            % setter for CooUnits and coordinates unit conversion
+            % If ColNames doesn't contains units, this will just update the
+            % ColNames and CooUnits according to the input value.
+            % If ColName do contain units, this will update the units and
+            % convert the coordinate columns to the requested Units.
+            % If ColX and ColY are empty, then will attempt to populate
+            % them.
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2)
+            %          AC.CooUnits = 'rad';
+            %          AC.CooUnits = 'deg';                     
+            
+            if isempty(Obj.ColX) || isempty(Obj.ColY)
+                Obj.getCooTypeAuto;
+            end
+            ColIndX = colname2ind(Obj, Obj.ColX);
+            ColIndY = colname2ind(Obj, Obj.ColY);
+            CooUnitsX = Obj.ColUnits{ColIndX};
+            CooUnitsY = Obj.ColUnits{ColIndY};
+            if isempty(CooUnitsX)
+                % set coordinate units without converting the values
+                Obj.ColUnits{ColIndX} = Val;
+            else
+                if ~strcmp(CooUnitsX,'pix')
+                    ConvFactor = convert.angular(CooUnitsX, Val, 1);
+                    Obj.Catalog(:,ColIndX) = Obj.Catalog(:,ColIndX).*ConvFactor;
+                    Obj.ColUnits{ColIndX} = Val;
+                end
+            end
+            if isempty(CooUnitsY)
+                % set coordinate units without converting the values
+                Obj.ColUnits{ColIndY} = Val;
+            else
+                if ~strcmp(CooUnitsY,'pix')
+                    ConvFactor = convert.angular(CooUnitsY, Val, 1);
+                    Obj.Catalog(:,ColIndY) = Obj.Catalog(:,ColIndY).*ConvFactor;
+                    Obj.ColUnits{ColIndY} = Val;
+                end
+            end
+                
+            Obj.CooUnits = Val;
+        end
     end
     
     methods % column names
-        function [Result, Units, ColX, ColY] = isCooPix(Obj, DicCooX, DicCooY)
+        function [Result] = isCooPix(Obj, DicCooX, DicCooY)
             % Check if X/Y (pixel) coordinates exist in an AstroCatalog
             % Input  : - An AstroCatalog object.
             %          - Cell array of dictionary for X column names.
@@ -129,12 +132,9 @@ classdef AstroCatalog < AstroTable
             %            Default is AstroCatalog.DefNamesY.
             % Output : - An array of logical indicating if each one of the
             %            Astrocatalog elements contains an X/Y columns.
-            %          - A cell array of units.
-            %          - An array of X colum indices (one per element).
-            %          - An array of Y colum indices (one per element).
             % Author : Eran Ofek (Aug 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          [Result, Units, ColX, ColY] = isCooPix(AC);
+            %          [Result] = isCooPix(AC);
             
             arguments
                 Obj
@@ -144,10 +144,6 @@ classdef AstroCatalog < AstroTable
             
             Nobj   = numel(Obj);
             Result = true(size(Obj));
-            Units  = cell(size(Obj));
-            ColX   = nan(size(Obj));
-            ColY   = nan(size(Obj));
-            
             for Iobj=1:1:Nobj
                 [~, UnitsX, IndX] = getColDic(Obj, DicCooX);
                 [~, UnitsY, IndY] = getColDic(Obj, DicCooY);
@@ -156,19 +152,13 @@ classdef AstroCatalog < AstroTable
                     error('X and Y columns have different units');
                 end
                 
-                
                 if isempty(IndX) || isempty(IndY)
                     Result(Iobj) = false;
-                    Units{Iobj}  = '';
-                else
-                    Units{Iobj} = UnitsX;
-                    ColX(Iobj)  = IndX;
-                    ColY(Iobj)  = IndY;
                 end
             end
         end
         
-        function [Result, Units, ColRA, ColDec] = isCooSphere(Obj, DicCooRA, DicCooDec)
+        function [Result, Units] = isCooSphere(Obj, DicCooRA, DicCooDec)
             % Check if RA/Dec (units) coordinates exist in an AstroCatalog
             % Input  : - An AstroCatalog object.
             %          - Cell array of dictionary for RA column names.
@@ -178,11 +168,9 @@ classdef AstroCatalog < AstroTable
             % Output : - An array of logical indicating if each one of the
             %            Astrocatalog elements contains an RA/Dec columns.
             %          - A cell array of units per AstroCatalog element.
-            %          - An array of RA colum indices (one per element).
-            %          - An array of Dec colum indices (one per element).
             % Author : Eran Ofek (Aug 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          [Result, Units, ColRA, ColDec] = isCooSphere(AC);
+            %          [Result, Units] = isCooSphere(AC);
             
             arguments
                 Obj
@@ -193,8 +181,6 @@ classdef AstroCatalog < AstroTable
             Nobj   = numel(Obj);
             Result = true(size(Obj));
             Units  = cell(size(Obj));
-            ColRA  = nan(size(Obj));
-            ColDec = nan(size(Obj));
             for Iobj=1:1:Nobj
                 [~, UnitsRA,  IndRA]  = getColDic(Obj, DicCooRA);
                 [~, UnitsDec, IndDec] = getColDic(Obj, DicCooDec);
@@ -206,66 +192,8 @@ classdef AstroCatalog < AstroTable
                 
                 if isempty(IndRA) || isempty(IndDec)
                     Result(Iobj) = false;
-                else
-                    ColRA(Iobj)  = IndRA;
-                    ColDec(Iobj) = IndDec;
                 end
             end
-        end
-            
-        function [CooType, Units, ColX, ColY] = getCooType(Obj)
-            % Return the Coordinate type of an AstroCatalog
-            % Input  : - An AstroCatalog object
-            % Output : - A cell array of CooType. If 'sphere' exist, then
-            %            it will be declared as 'sphere'.
-            %          - A cell array of units.
-            %          - An array of X/RA colum indices (one per element).
-            %          - An array of Y/Dec colum indices (one per element).
-            % Author : Eran Ofek (Aug 2021)
-            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          [CooType, Units, ColX, ColY] = getCooType(AC);   
-            
-            CooType = cell(size(Obj));
-            Units   = cell(size(Obj));
-            Nobj    = numel(Obj);
-            
-            [IsSphere, UnitsSphere, ColRA, ColDec] = isCooSphere(Obj);
-            [IsPix,    UnitsPix, ColX, ColY]       = isCooPix(Obj);
-            
-            [CooType{1:Nobj}] = deal('sphere');
-            [CooType{IsPix}]  = deal('pix');
-            
-            Units(IsSphere) = UnitsSphere(IsSphere);
-            Units(IsPix) = UnitsPix(IsPix);
-            
-            ColX(IsSphere) = ColRA(IsSphere);
-            ColY(IsSphere) = ColDec(IsSphere);
-            
-            
-        end
-        
-        function [ColX, ColY] = getColCooForCooType(Obj, CooType)
-            % Get the X/RA and Y/Dec column indices for a specific CooType
-            % Input  : - An AstroCatalog object
-            %          - CooType: 'sphere' | 'pix'
-            % Output : - An array of X/RA column indices (one per element).
-            %          - An array of Y/Dec column indices (one per element).
-            % Author : Eran Ofek (Aug 2021)
-            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          [ColX, ColY] = getColCooForCooType(AC, 'sphere')
-            
-            Nobj = numel(Obj);
-            ColX = nan(size(Obj));
-            ColY = nan(size(Obj));
-            switch lower(CooType)
-                case 'sphere'
-                    [~,~,ColX, ColY] = isCooSphere(Obj);
-                case 'pix'
-                    [~,~,ColX, ColY] = isCooPix(Obj);
-                otherwise
-                    error('Unknown CooType option');
-            end
-            
         end
             
         function [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(Obj, Args)
@@ -359,46 +287,46 @@ classdef AstroCatalog < AstroTable
             
         end
         
-%         function [varargout] = getCoo(Obj, Units)
-%             % get coordinates columns from a single element AstroCatalog object
-%             % Input  : - A single element AstroCatalog object
-%             %          - Units of output coordinates (for no spherical
-%             %            coordinates will return them as they are).
-%             % Output : * If two argument are requested then these are X and
-%             %            Y, or RA and Dec. If a single argument is
-%             %            requested then this is a two column matrix of
-%             %            [X, Y] or [RA, Dec].
-%             % Author : Eran Ofek (Mar 2021)
-%             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-%             %          [RA, Dec] = AC.getCoo('deg');
-%             %          [RADec]   = AC.getCoo('rad');
-%             
-%             arguments
-%                 Obj(1,1)
-%                 Units char                = 'rad';
-%             end
-%            
-%             if isempty(Obj.ColX) || isempty(Obj.ColY)
-%                 Obj.getCooTypeAuto;
-%             end
-%             
-%             X = getCol(Obj, Obj.ColX);
-%             Y = getCol(Obj, Obj.ColY);
-%             
-%             if strcmp(Obj.CooType, 'sphere') && ~strcmp(Obj.CooUnits, Units)
-%                 ConvFactor = convert.angular(Obj.CooUnits, Units, 1);
-%                 X          = X.*ConvFactor;
-%                 Y          = Y.*ConvFactor;
-%             end
-%             
-%             if nargout>1
-%                 varargout{1} = X;
-%                 varargout{2} = Y;
-%             else
-%                 varargout{1} = [X, Y];
-%             end
-%             
-%         end
+        function [varargout] = getCoo(Obj, Units)
+            % get coordinates columns from a single element AstroCatalog object
+            % Input  : - A single element AstroCatalog object
+            %          - Units of output coordinates (for no spherical
+            %            coordinates will return them as they are).
+            % Output : * If two argument are requested then these are X and
+            %            Y, or RA and Dec. If a single argument is
+            %            requested then this is a two column matrix of
+            %            [X, Y] or [RA, Dec].
+            % Author : Eran Ofek (Mar 2021)
+            % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
+            %          [RA, Dec] = AC.getCoo('deg');
+            %          [RADec]   = AC.getCoo('rad');
+            
+            arguments
+                Obj(1,1)
+                Units char                = 'rad';
+            end
+           
+            if isempty(Obj.ColX) || isempty(Obj.ColY)
+                Obj.getCooTypeAuto;
+            end
+            
+            X = getCol(Obj, Obj.ColX);
+            Y = getCol(Obj, Obj.ColY);
+            
+            if strcmp(Obj.CooType, 'sphere') && ~strcmp(Obj.CooUnits, Units)
+                ConvFactor = convert.angular(Obj.CooUnits, Units, 1);
+                X          = X.*ConvFactor;
+                Y          = Y.*ConvFactor;
+            end
+            
+            if nargout>1
+                varargout{1} = X;
+                varargout{2} = Y;
+            else
+                varargout{1} = [X, Y];
+            end
+            
+        end
         
         function [varargout] = getLonLat(Obj, Units, Args)
             % Get Lon/Lat columns from AstroCatalog.
@@ -969,12 +897,6 @@ classdef AstroCatalog < AstroTable
             AC=AstroCatalog({'asu.fit'},'HDU',2);
             [Result, Units] = isCooSphere(AC);
             
-            AC=AstroCatalog({'asu.fit'},'HDU',2);
-            [CooType, Units] = getCooType(AC);   
-            
-            AC=AstroCatalog({'asu.fit'},'HDU',2);
-            [ColX, ColY] = getColCooForCooType(AC, 'sphere')
-            
             
             io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
             AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
@@ -1085,11 +1007,11 @@ classdef AstroCatalog < AstroTable
             AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2);
             AC.convertCooUnits('deg');
             
-            % getCoo - obsolete
-%             io.msgLog(LogLevel.Test, 'testing AstroCatalog getCoo');
-%             AC=AstroCatalog({'asu.fit'},'HDU',2);
-%             [RA, Dec] = AC.getCoo('deg');
-%             [RADec]   = AC.getCoo('rad');
+            % getCoo
+            io.msgLog(LogLevel.Test, 'testing AstroCatalog getCoo');
+            AC=AstroCatalog({'asu.fit'},'HDU',2);
+            [RA, Dec] = AC.getCoo('deg');
+            [RADec]   = AC.getCoo('rad');
 
             % sphere_dist
             AC=AstroCatalog({'asu.fit'},'HDU',2);

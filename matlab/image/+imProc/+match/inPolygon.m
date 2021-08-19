@@ -6,6 +6,10 @@ function [Result, Flag] = inPolygon(CatObj, Coo, Args)
     %          - A two column matrix of [Long, Lat] or [X,Y] that
     %            defines the verteces of the polygon.
     %          * ...,key,val,...
+    %            'CooType' - Which Coo system to use 'pix' (for X/Y),
+    %                   or 'sphere' (for RA/Dec).
+    %                   If empty, will look for 'sphere', and if not exist
+    %                   will use 'pix'. Default is [].
     %            'CooUnits' - Units of (spherical) coordinates
     %                   (second input argument). Default is 'deg'.
     %            'CreateNewObj' - Indicating if the output
@@ -32,13 +36,14 @@ function [Result, Flag] = inPolygon(CatObj, Coo, Args)
         CatObj
         Coo
 
+        Args.CooType                     = [];
         Args.CooUnits char               = 'deg';
         Args.CreateNewObj                = [];
     end
 
-    if isempty(CatObj(1).CooType)
-        CatObj.getCooTypeAuto;
-    end
+%     if isempty(CatObj(1).CooType)
+%         CatObj.getCooTypeAuto;
+%     end
 
     % Convert Coo to radians
     CooRad = convert.angular(Args.CooUnits,'rad',Coo);
@@ -74,11 +79,18 @@ function [Result, Flag] = inPolygon(CatObj, Coo, Args)
         %    CatObj(Iobj).sortrows(CatObj(Iobj).ColY);
         %end
 
-        switch lower(CatObj(Iobj).CooType)
+        if isempty(Args.CooType)
+            [CooType] = getCooType(CatObj(Iobj));
+            CooType = CooType{1};
+        else
+            CooType = Args.CooType;
+        end
+        
+        switch lower(CooType)
             case 'sphere'
-                Flag = celestial.htm.in_polysphere(getCoo(CatObj(Iobj),'rad'),CooRad);
+                Flag = celestial.htm.in_polysphere(getLonLat(CatObj(Iobj),'rad'),CooRad);
             case 'pix'
-                Pos = getCoo(CatObj(Iobj),'rad');  % here 'rad' is ignored
+                Pos = getXY(CatObj(Iobj));
                 Flag = inpolygon(Pos(:,1),Pos(:,2), Coo(:,1), Coo(:,2));
             otherwise
                 error('Unknown CooType option');
