@@ -10,42 +10,121 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,varargin)
 %            'Background' - A background image. Default is [].
 %            'Variance'   - A variance image. Default is [].
 %            'SigmaVec'   - Vector of the Gaussian bank sigmas.
+%                           This should not include a sharp object (such a
+%                           sharp object is added by the code).
 %                           Default is logspace(0,1,25).'
 %            'MinStars'   - Minimum numbre of stars needed to estimate
 %                           FWHM. Default is 5.
 %            'PixScale'   - Pixel scale ["/pix]. Default is 1.
+%            'Method'     - Method: 
+%                           'bisec' - Bi-sector search
+%                           'MaxNdet' - Choose the filter with the max
+%                                   number of detections.
+%                           'MaxNdetInterp' - Same as 'MaxNdet', but with
+%                                   interpolation over number of detections.
+%                           Default is 'bisec'.
+%            'MaxIter'    - Numbre of iterations for the 'bisec' method.
+%                           Default is 6.
 % Output : - FWHM [arcsec].
 %          - Number of stars used for estimating the FWHM.
 % Author : Eran Ofek (Mar 2021)
-% Example: FWHM=imUtil.psf.fwhm_fromBank(Image);
+% Example: FWHM=imUtil.psf.fwhm_fromBank(AI.Image);
 
 
 InPar = inputParser;
 addOptional(InPar,'MinSN',50); 
 addOptional(InPar,'Background',[]); 
 addOptional(InPar,'Variance',[]); 
-addOptional(InPar,'SigmaVec',logspace(0,1,25).');
+addOptional(InPar,'SigmaVec',logspace(0,2,5));
 addOptional(InPar,'MinStars',5);
 addOptional(InPar,'PixScale',1);  % "/pix
+%addOptional(InPar,'Method','MaxNdet');    % 10: 3.035; 20: 2.653; 40: 2.645; 80: 2.719; 160: 2.677; 320: 2.676
+%addOptional(InPar,'Method','MaxNdetInterp');  % 10: 2.954; 20: 2.687; 40: 2.718; 80: 2.750; 160: 2.696; 320: 2.675
+addOptional(InPar,'Method','bisec');  % 10: 2.954; 20: 2.687; 40: 2.718; 80: 2.750; 160: 2.696; 320: 2.675
+addOptional(InPar,'MaxIter',6);  
+%addOptional(InPar,'Method','InterpSN'); % 2.7297   NaN 
 parse(InPar,varargin{:});
 InPar = InPar.Results;
 
+switch lower(InPar.Method)
+    case {'maxndet','maxndetinterp'}
+        % Choose the template that maximize the SN for the largest number
+        % of stars, ecluding the shaprpest star
+        
+        InPar.SigmaVec = [0.1; InPar.SigmaVec(:)];  % add a sharp object (always first) to bank of templates
 
-InPar.SigmaVec = [0.1, InPar.SigmaVec];
+        % filter image with filter bandk of gaussians with variable width
+        SN = imUtil.filter.filter2_snBank(Image,InPar.Background,InPar.Variance,@imUtil.kernel2.gauss,InPar.SigmaVec);
+        % Pos contains: [X,Y,SN,index]
+        [~,Pos,MaxIsn]=imUtil.image.local_maxima(SN,1,InPar.MinSN);
 
-% filter image with filter bandk of gaussians with variable width
-SN = imUtil.filter.filter2_snBank(Image,InPar.Background,InPar.Variance,@imUtil.kernel2.gauss,InPar.SigmaVec);
-% Pos contains: [X,Y,SN,index]
-[~,Pos,MaxIsn]=imUtil.image.local_maxima(SN,1,InPar.MinSN);
+        % remove sharp objects
+        Pos = Pos(Pos(:,4)~=1,:);
 
-% remove sharp objects
-Pos = Pos(Pos(:,4)~=1,:);
+        Nstars = size(Pos,1);
 
-Nstars = size(Pos,1);
+        if Nstars<InPar.MinStars
+            FWHM = NaN;
+        else
+            
+            switch lower(InPar.Method)
+                case 'maxndet'
+                    % Choose the templates (FWHM) that has the maximum number of max-detections
+                    FWHM = 2.35.*InPar.PixScale.*InPar.SigmaVec(mode(Pos(:,4),'all'));
+                case 'maxndetinterp'
+                    % Choose the templates (FWHM) that has the maximum number of max-detections
+                    % but interplate over the number of max-detections for each templates
+                    Ntemp  = numel(InPar.SigmaVec);
+                    Ncount = histcounts(Pos(:,4),(0.5:1:Ntemp+0.5)').';
+                    LinSpace = (1:1:Ntemp)';
+                    Extram = tools.find.find_local_extremum(LinSpace, Ncount);
+                    Extram = Extram(Extram(:,3)<0,:);
+                    if isempty(Extram)
+                        FWHM = NaN;
+                    else
+                        [~,Imax]  = max(Extram(:,2));
+                        TempInd   = Extram(Imax,1);
+                        BestSigma = interp1(LinSpace, InPar.SigmaVec, TempInd, 'cubic');
+                        FWHM      = 2.35.*InPar.PixScale.*BestSigma;
+                    end
+                otherwise
+                    error('Unknown Method option');
+            end
+        end
+    case 'bisec'
+        % bi-sector method
+        
+        Nsigma   = numel(InPar.SigmaVec);
+        SigmaVec = [0.1; InPar.SigmaVec(:)];  % add a sharp object (always first) to bank of templates
+        
+        if isempty(InPar.Background) || isempty(InPar.Variance)
+            [InPar.Background, InPar.Variance] =  imUtil.background.mode(Image, true);
+        end
+        
+        for I=1:1:InPar.MaxIter
+            % filter image with filter bandk of gaussians with variable width
+            
+            SN = imUtil.filter.filter2_snBank(Image, InPar.Background, InPar.Variance,@imUtil.kernel2.gauss, SigmaVec(:));
+            % Pos contains: [X,Y,SN,index]
+            [~,Pos,MaxIsn]=imUtil.image.local_maxima(SN, 1, InPar.MinSN);
 
-if Nstars<InPar.MinStars
-    FWHM = NaN;
-else
-    % instead one can check if the SN improves...
-    FWHM = 2.35.*InPar.PixScale.*InPar.SigmaVec(mode(Pos(:,4),'all'));
+            % remove sharp objects
+            Pos = Pos(Pos(:,4)~=1,:);
+
+            Nstars = size(Pos,1);
+
+            BestInd = mode(Pos(:,4),'all');
+            if I<InPar.MaxIter
+                if BestInd>Nsigma
+                    SigmaVec(end+1) = SigmaVec(end) + SigmaVec(end) - SigmaVec(end-1);
+                end
+                SigmaVec = [0.1, logspace(log10(SigmaVec(BestInd-1)), log10(SigmaVec(BestInd+1)), Nsigma)];
+            end
+        end
+        
+        FWHM = SigmaVec(BestInd).*2.35.*InPar.PixScale;
+        
+        
+    otherwise
+        error('Unknown Method option');
 end

@@ -133,6 +133,7 @@ SizeVar      = size(Variance);
 FiltImage    = zeros(SizeIm(1),SizeIm(2),Nbank);
 NormVar      = zeros(Nbank,1);
 FiltImageVar = zeros(SizeVar(1),SizeVar(2),Nbank);
+%FiltImageStd = zeros(SizeVar(1),SizeVar(2),Nbank);
 SN           = zeros(SizeIm(1),SizeIm(2),Nbank);
 if nargout>1
     Flux         = zeros(SizeIm(1),SizeIm(2),Nbank);
@@ -144,9 +145,11 @@ for Ibank=1:1:Nbank
     % Convert the image variance to the filtred image variance
     NormVar(Ibank) = sum(Template(:,:,Ibank).^2,[1 2]);
     FiltImageVar(:,:,Ibank) = Variance.*NormVar(Ibank);
+    %FiltImageStd(:,:,Ibank) = sqrt(Variance.*NormVar(Ibank));
 
     % S/N image
     SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./sqrt(FiltImageVar(:,:,Ibank));
+    %SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./FiltImageStd(:,:,Ibank);
     if nargout>1
         % flux estimator image [see Zackay & Ofek 2017 - Coaddition I paper]
         Flux(:,:,Ibank) = FiltImage(:,:,Ibank)./NormVar(Ibank);  % possible bug (CHECK) - FiltImageVar(:,:,Ibank);
