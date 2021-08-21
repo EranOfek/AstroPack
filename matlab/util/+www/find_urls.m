@@ -1,4 +1,4 @@
-function [List,IsDir,FileName]=find_urls(URL,varargin)
+function [List,IsDir,FileName]=find_urls(URL, Args)
 % Read the URL content and extract all the links within the URL
 % Package: www
 % Description: Given a URL, read the URL content and extract all the links
@@ -38,26 +38,25 @@ function [List,IsDir,FileName]=find_urls(URL,varargin)
 %          List= www.find_urls(URL,'match','.*?\.fits');
 % Reliable: 2
 %--------------------------------------------------------------------------
-import Util.cell.*
 
-DefV.strfind = [];
-DefV.match   = [];
-DefV.input   = 'url';
-DefV.base    = [];
-DefV.User    = '';
-DefV.Pass    = '';
-DefV.Method  = 'webread';
-
-
-%InPar = set_varargin_keyval(DefV,'y','use',varargin{:});
-InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+arguments
+    URL
+    Args.strfind = [];
+    Args.match   = [];
+    Args.input   = 'url';
+    Args.base    = [];
+    Args.User    = '';
+    Args.Pass    = '';
+    Args.Method  = 'webread';
+end
 
 
-switch lower(InPar.input)
+
+switch lower(Args.input)
     case 'url'
-        switch lower(InPar.Method)
+        switch lower(Args.Method)
             case 'webread'
-                Options = weboptions('Username',InPar.User,'Password',InPar.Pass,'Timeout',15);
+                Options = weboptions('Username',Args.User,'Password',Args.Pass,'Timeout',15);
                 Str = webread(URL,Options);
             case 'urlread'
                 Str = urlread(URL);
@@ -65,13 +64,13 @@ switch lower(InPar.input)
                 error('Unknown Method option');
         end
     case 'file'
-        Str = Util.files.file2str(URL,'str');
+        Str = io.files.file2str(URL,'str');
     otherwise
         error('Unknown input option');
 end
 
-if (~isempty(InPar.base))
-   BaseUrl = InPar.base;
+if (~isempty(Args.base))
+   BaseUrl = Args.base;
 else
    BaseUrl = regexp(Str,'<base href=".*?">','match');
    if (isempty(BaseUrl))
@@ -99,7 +98,7 @@ end
 
 
 [Tokens,Match] = regexp(Str,'<(a).*?>.*?</\1>','tokens','match');
-I=find(isempty_cell(strfind(Match,'href'))==0);
+I=find(tools.cell.isempty_cell(strfind(Match,'href'))==0);
 Match = Match(I);
 
 Location = strfind(Match,'href');
@@ -144,15 +143,15 @@ for Im=1:1:N
       end
    end
 end
-List = List(isempty_cell(List)==0);
+List = List(tools.cell.isempty_cell(List)==0);
 
 % match/find strings
-if (~isempty(InPar.strfind))
-   List = List(~isempty_cell(strfind(List,InPar.strfind)));
+if (~isempty(Args.strfind))
+   List = List(~tools.cell.isempty_cell(strfind(List,Args.strfind)));
 end
 
-if (~isempty(InPar.match))
-   List = List(~isempty_cell(regexp(List,InPar.match)));
+if (~isempty(Args.match))
+   List = List(~tools.cell.isempty_cell(regexp(List,Args.match)));
 end
 
 if (nargout>1)

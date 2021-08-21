@@ -388,7 +388,114 @@ classdef AstroSpec < Component
     end
     
     methods (Static)  % read spectra from spectral libraries
-        
+        function Spec = synspecGAIA(Args)
+            % Load GAIA synthetic spectra and if necessey interpolate over
+            % Temperature (other parameters are not interpolated).
+            % Input  : * ...,key,val,...
+            %            'Temp' - Vector of fffective temperature of spectra [K], in
+            %                   range of 3,500 to 400,000 K.
+            %                   Default is 5750.
+            %            'GraV' - Vector of surface gravity (log10(cgs)]
+            %                   Default is 4.5
+            %            'Metal' - Vector of metalicity.
+            %                   Must be in (-2.5:0.5:0.5).
+            %                   Default is 0.
+            %            'Rot' - Rotation [km/s]. Default is 0.
+            %            'OutType' - ['astrospec'] | 'astspec' | 'mat'.
+            % Outout : - An AstroSpec object with specta.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: Spec = AstroSpec.synspecGAIA
+            %          Spec = AstroSpec.synspecGAIA('Temp',[5750 5500 5550],'Grav',[4.5]);
+            
+            arguments
+                Args.Temp           = 5750;
+                Args.Grav           = 4.5   
+                Args.Metal          = 0;
+                Args.Rot            = 0;
+                Args.OutType        = 'astrospec';   % 'astrospec' | 'astspec' | 'mat'
+                Args.VecTemp        = [(3500:250:10000), (10500:500:12000), (13000:1000:35000), 40000, 45000, (1e5:1e5:4e5)];
+                Args.VecMetal       = (-2.5:0.5:0.5);
+            end
+            
+            
+            Nt   = numel(Args.Temp);
+            Ng   = numel(Args.Grav);
+            Nm   = numel(Args.Metal);
+            Nr   = numel(Args.Rot);
+            Nmax = max([Nt,Ng,Nm,Nr]);
+            Temp = Args.Temp(:).*ones(Nmax,1);
+            Grav = Args.Grav(:).*ones(Nmax,1);
+            Metal= Args.Metal(:).*ones(Nmax,1);
+            Rot  = Args.Rot(:).*ones(Nmax,1);
+            
+            WaveFileName = 'GAIA_Wave1A.mat';
+            
+            PWD = pwd;
+            cd('~/matlab/data/spec/GAIA_SpecTemplate');
+            
+            FileSuffix = 'K2SNWNVD01F.mat';
+            W          = io.files.load2(sprintf('%s',WaveFileName));
+            
+            
+            for Is=1:1:Nmax
+                if (Metal(Is)<0)
+                    MetalSign = 'M';
+                else
+                    MetalSign = 'P';
+                end
+
+                if any(Temp(Is)==Args.VecTemp)
+                    % read a single file
+                    SpecName = sprintf('T%05dG%02d%s%02dV%03d%s',...
+                        round(Temp(Is)),round(Grav(Is).*10),MetalSign,round(abs(Metal(Is)).*10),round(Rot(Is)),FileSuffix);
+
+                    SpecMat  = [W, io.files.load2(SpecName)];
+                else
+                    % requires interpolation in T and M
+                    DeltaT = Temp(Is) - Args.VecTemp;
+                    DeltaTpos = DeltaT(DeltaT>0);
+                    DeltaTneg = DeltaT(DeltaT<0);
+                    
+                    T1 = Temp(Is) - min(DeltaTpos);
+                    T2 = Temp(Is) - max(DeltaTneg);
+                    
+                    SpecName1 = sprintf('T%05dG%02d%s%02dV%03d%s',...
+                        T1,round(Grav(Is).*10),MetalSign,round(abs(Metal(Is)).*10),round(Rot(Is)),FileSuffix);
+                    SpecName2 = sprintf('T%05dG%02d%s%02dV%03d%s',...
+                        T2,round(Grav(Is).*10),MetalSign,round(abs(Metal(Is)).*10),round(Rot(Is)),FileSuffix);
+
+                    SpecMat1  = [io.files.load2(SpecName1)];
+                    SpecMat2  = [io.files.load2(SpecName2)];
+                    
+                    % weights
+                    T2w = abs(T1 - Temp(Is))./abs(T2-T1);
+                    T1w = abs(T2 - Temp(Is))./abs(T2-T1);
+                    
+                    SpecMat   = [W, T1w.*SpecMat1 + T2w.*SpecMat2];
+                    
+                end
+
+                switch lower(Args.OutType)
+                    case 'astrospec'
+                        Spec(Is) = AstroSpec(SpecMat);
+                        Spec(Is).Z   = 0;
+                        Spec(Is).Vel = 0;
+                    case 'astspec'
+                        Spec(Is)=AstSpec.mat2spec(SpecMat,{'Wave','Int'},{'Ang','erg*cm^-2 *s^-1*Ang^-1'});
+                        Spec(Is).z = 0;
+                        Spec(Is).source = 'GAIA local DB';
+                        Spec(Is).ObjName = sprintf('GAIA synspec T=%f, g=%f, M=%f, R=%f',Temp(Is),Grav(Is),Metal(Is),Rot(Is));
+                    case 'mat'
+                        % do nothing
+                        Spec = SpecMat;
+                    otherwise
+                        error('Unknown OutType option');
+                end
+                
+                cd(PWD);
+            end
+            
+        end
     end
     
     methods % synthetic photometry

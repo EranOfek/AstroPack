@@ -1,6 +1,6 @@
 function files_arrived(Files)
 % Check if all files in a list arrived to disk (i.e., size not increasing).
-% Package: Util.files
+% Package: io.files
 % Description: Check if all files in a list arrived to disk. This is done
 %              by checking that the file size does not increase with time.
 % Input  : - Cell array of files to check. 
@@ -8,16 +8,16 @@ function files_arrived(Files)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    May 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Util.files.files_arrived({'files_arrived'});
+% Example: io.files.files_arrived({'files_arrived'});
 % Reliable: 2
 %--------------------------------------------------------------------------
 
 Arrived = false;
-Dir1 = Util.files.dir_cell(Files);
+Dir1 = io.files.dir_cell(Files);
 while ~Arrived    
     % check if all files arrived
     pause(0.2);
-    Dir2 = Util.files.dir_cell(Files);
+    Dir2 = io.files.dir_cell(Files);
 
     try
         if (all(([Dir1.bytes] - [Dir2.bytes])==0))

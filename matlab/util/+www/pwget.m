@@ -73,7 +73,7 @@ if (~iscell(Links))
 end
 
 % remove empty links
-Links = Links(~Util.cell.isempty_cell(Links));
+Links = Links(~tools.cell.isempty_cell(Links));
 
 
 Nlink = length(Links);
@@ -121,7 +121,7 @@ end
 
 % check that all files arrived
 if (Nlink>1)
-    Util.files.files_arrived(Files);
+    io.files.files_arrived(Files);
     
 %     Arrived = false;
 %     Dir1 = Util.files.dir_cell(Files);
