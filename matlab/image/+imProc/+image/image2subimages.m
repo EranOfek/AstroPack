@@ -67,7 +67,6 @@ function Result = image2subimages(Obj, BlockSize, Args)
         Args.ColY                          = AstroCatalog.DefNamesY;  %{'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
         Args.AddX                          = {};  % additional X-coo to update
         Args.AddY                          = {};
-        
     end
 
     % find the correct partition

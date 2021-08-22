@@ -16,7 +16,14 @@ function Result = unitTest()
     % image2subimages
     AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
     Result = imProc.image.image2subimages(AI,[256 256]);
-
+    %
+    Im=[[ones(100,100), ones(100,100).*3];[ones(100,100).*2, ones(100,100).*4]];
+    AI=AstroImage({Im});
+    Result = imProc.image.image2subimages(AI,[100 100]);
+    if ~(median(Result(1).Image(:))==1 && median(Result(2).Image(:))==2 && median(Result(3).Image(:))==3 && median(Result(4).Image(:))==4)
+        error('Problem with image2subimages');
+    end
+    
     % interpOverNan
     AI = AstroImage({ones(100,100)});
     AI.Image(50,50:51)=NaN;
@@ -25,6 +32,8 @@ function Result = unitTest()
     if ~all(AI.Image==1)
         error('Problem with interpOverNan');
     end
+    
+    
     
     Result = true;
     
