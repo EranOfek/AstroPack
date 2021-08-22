@@ -104,7 +104,11 @@ switch lower(InPar.Method)
             [InPar.Background, InPar.Variance] =  imUtil.background.mode(Image, true);
         end
         
-        for I=1:1:InPar.MaxIter
+        Cont = true;
+        I = 0;
+        while Cont
+            I = I + 1;
+            %for I=1:1:InPar.MaxIter
             % filter image with filter bandk of gaussians with variable width
             
             SN = imUtil.filter.filter2_snBank(Image, InPar.Background, InPar.Variance,@imUtil.kernel2.gauss, SigmaVec(:));
@@ -116,16 +120,29 @@ switch lower(InPar.Method)
 
             Nstars = size(Pos,1);
 
-            BestInd = mode(Pos(:,4),'all');
-            if I<InPar.MaxIter
-                if BestInd>Nsigma
-                    SigmaVec(end+1) = SigmaVec(end) + SigmaVec(end) - SigmaVec(end-1);
+            if Nstars<InPar.MinStars
+                Cont    = false;
+                BestInd = NaN;
+            else
+                BestInd = mode(Pos(:,4),'all');
+                if I<InPar.MaxIter
+                    if BestInd>Nsigma
+                        SigmaVec(end+1) = SigmaVec(end) + SigmaVec(end) - SigmaVec(end-1);
+                    end
+                    SigmaVec = [0.1, logspace(log10(SigmaVec(BestInd-1)), log10(SigmaVec(BestInd+1)), Nsigma)];
                 end
-                SigmaVec = [0.1, logspace(log10(SigmaVec(BestInd-1)), log10(SigmaVec(BestInd+1)), Nsigma)];
+            end
+            
+            if I==InPar.MaxIter
+                Cont = false;
             end
         end
         
-        FWHM = SigmaVec(BestInd).*2.35.*InPar.PixScale;
+        if isnan(BestInd)
+            FWHM = NaN;
+        else
+            FWHM = SigmaVec(BestInd).*2.35.*InPar.PixScale;
+        end
         
         
     otherwise
