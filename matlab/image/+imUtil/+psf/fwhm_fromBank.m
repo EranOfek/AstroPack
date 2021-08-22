@@ -32,19 +32,22 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,varargin)
 
 
 InPar = inputParser;
+addOptional(InPar,'CCDSEC',[]); 
 addOptional(InPar,'MinSN',50); 
 addOptional(InPar,'Background',[]); 
 addOptional(InPar,'Variance',[]); 
 addOptional(InPar,'SigmaVec',logspace(0,2,5));
 addOptional(InPar,'MinStars',5);
 addOptional(InPar,'PixScale',1);  % "/pix
-%addOptional(InPar,'Method','MaxNdet');    % 10: 3.035; 20: 2.653; 40: 2.645; 80: 2.719; 160: 2.677; 320: 2.676
-%addOptional(InPar,'Method','MaxNdetInterp');  % 10: 2.954; 20: 2.687; 40: 2.718; 80: 2.750; 160: 2.696; 320: 2.675
 addOptional(InPar,'Method','bisec');  % 10: 2.954; 20: 2.687; 40: 2.718; 80: 2.750; 160: 2.696; 320: 2.675
 addOptional(InPar,'MaxIter',6);  
-%addOptional(InPar,'Method','InterpSN'); % 2.7297   NaN 
 parse(InPar,varargin{:});
 InPar = InPar.Results;
+
+if ~isempty(InPar.CCDSEC)
+    Image = Image(CCDSEC(1,3):CCDSEC(1,4), CCDSEC(1,1):CCDSEC(1,2));
+end
+
 
 switch lower(InPar.Method)
     case {'maxndet','maxndetinterp'}
