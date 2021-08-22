@@ -44,7 +44,6 @@ function Result = projection(Obj, Lon0, Lat0, Scale, Projection, Args)
     % Example: Result = imProc.trans.projection(rand(100,2), 0.5, 0.5, 1, 'tan', 'Coo0Units','rad', 'ColUnits',{'rad','rad'})
     %          Result = imProc.trans.projection(rand(100,2), 0.5, 0.5, 180./pi, 'tan', 'Coo0Units','deg', 'ColUnits',{'deg','deg'})
     
-    
     arguments
         Obj
         Lon0
@@ -115,11 +114,6 @@ function Result = projection(Obj, Lon0, Lat0, Scale, Projection, Args)
                 
                 [X,Y] = celestial.proj.pr_gnomonic(Lon, Lat, Scale, [Lon0, Lat0]);
                 
-%             case {'sin'}
-%                 % sin projection
-%                 
-%                 [X,Y] = celestial.proj.pr_sin(Lon, Lat, [Lon0, Lat0]);
-                
             otherwise
                 error('Unsupported projection option');
         end
@@ -128,8 +122,6 @@ function Result = projection(Obj, Lon0, Lat0, Scale, Projection, Args)
             % write X/Y over Lon/Lat
             Cat = replaceCol(Cat, [X, Y], [ColLon, ColLat]);
             % in this case, make sure that CooType is not 'sphere'
-            Cat.CooType  = '';
-            Cat.CooUnits = '';
         else
             Cat = insertCol(Cat, [X, Y], Args.Pos, Args.AddNewCols, {'',''});
         end
@@ -142,8 +134,5 @@ function Result = projection(Obj, Lon0, Lat0, Scale, Projection, Args)
         else
             error('Unknown catalog format');
         end
-            
-        
-        
     end
 end

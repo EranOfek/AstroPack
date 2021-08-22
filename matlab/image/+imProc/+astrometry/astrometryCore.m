@@ -156,8 +156,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RotationRange(1,2)           = [-90, 90];
         Args.RotationStep(1,1)            = 0.2;
         
-        Args.RangeX(1,2)                  = [-1000 1000].*0.1; 
-        Args.RangeY(1,2)                  = [-1000 1000].*0.1; 
+        Args.RangeX(1,2)                  = [-1000 1000];
+        Args.RangeY(1,2)                  = [-1000 1000];
         Args.StepX(1,1)                   = 2;
         Args.StepY(1,1)                   = 2;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
@@ -216,6 +216,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % RA and Dec output are in radians
     % If CatName is an AstroCatalog, then will retun as is, but RA and Dec
     % will be converted to OutUnits
+    
     [AstrometricCat, RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
                                                                                     'CatOrigin',Args.CatOrigin,...
                                                                                     'Radius',Args.CatRadius,...

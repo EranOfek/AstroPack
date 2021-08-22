@@ -72,7 +72,6 @@ function [ResultCat, ResultRef, Summary] = filterForAstrometry(ObjCat, ObjRef, A
     %          - Summary of number of sources survived after each step.
     % Author : Eran Ofek (Jun 2021)
     % Example: [Cat,Ref]=imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);
-   
         
     arguments
         ObjCat

@@ -51,11 +51,6 @@ function Result = unitTest()
     RAD = 180./pi;
     %CatG = catsHTM.cone_search('GAIAEDR3', 149.1026601./RAD, 69.4547688./RAD, 1400, 'OutType','AstroCatalog');
     if Cont
-        
-        
-        problem : with 0.1 this doens't work - with 0 it works??!!
-        
-        
         [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
         % save AstrometricCat_PTF_Cropped.mat AstrometricCat
     end

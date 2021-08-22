@@ -129,9 +129,6 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
     % Author : Eran Ofek (May 2021)
     % Example: Result = imProc.trans.fitPattern(Obj1, Obj2, Args)
     
-    
-    
-    
     arguments
         Obj1
         Obj2
@@ -176,9 +173,6 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
     elseif isnumeric(Obj1)
         % assume Obj1 is a matrix in which the X/Y are in columns 1 and 2
         Obj1 = AstroCatalog({Obj1},'ColNames',{'X','Y'});
-        Obj1.ColX = 1;
-        Obj1.ColY = 2;
-        Obj1.CooType = 'pix';
     else
         error('Unsupported Obj1 type - must be AstroImage, AstroCatalog or numeric');
     end
@@ -193,9 +187,6 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
     elseif isnumeric(Obj2)
         % assume Obj1 is a matrix in which the X/Y are in columns 1 and 2
         Obj2 = AstroCatalog({Obj2},'ColNames',{'X','Y'});
-        Obj2.ColX = 1;
-        Obj2.ColY = 2;
-        Obj2.CooType = 'pix';
     else
         error('Unsupported Obj1 type - must be AstroImage, AstroCatalog or numeric');
     end   
