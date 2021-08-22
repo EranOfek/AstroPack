@@ -38,7 +38,10 @@ function [FWHM, Nstars] = measureFWHM(Obj, Args)
         Args.MaxIter      = 6;
     end
 
-    if isnumeric(Obj) || iscell(Obj)
+    
+    if isnumeric(Obj)
+        Obj = AstroImage({Obj});
+    elseif iscell(Obj)
         Obj = AstroImage(Obj);
     end
         
