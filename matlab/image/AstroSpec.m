@@ -431,6 +431,7 @@ classdef AstroSpec < Component
             WaveFileName = 'GAIA_Wave1A.mat';
             
             PWD = pwd;
+            % FFU: This dir is in config/Install.Data.Dirs.yml
             cd('~/matlab/data/spec/GAIA_SpecTemplate');
             
             FileSuffix = 'K2SNWNVD01F.mat';
