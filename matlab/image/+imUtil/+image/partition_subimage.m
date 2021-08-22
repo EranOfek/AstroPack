@@ -81,12 +81,12 @@ for Isub=1:1:Nsub
             if (Isub==1)
                 SubImage = cell(Nsub,1);
             end
-            SubImage{Isub} = Image(CCDSEC(Isub,3):CCDSEC(Isub,4),CCDSEC(Isub,1):CCDSEC(Isub,2));
+            SubImage{Isub} = Image(CCDSEC(Isub,3):CCDSEC(Isub,4), CCDSEC(Isub,1):CCDSEC(Isub,2));
         case 'struct'
             if (Isub==1)
                 SubImage = struct(Args.FieldName,cell(Nsub,1));
             end
-            SubImage(Isub).(Args.FieldName) = Image(CCDSEC(Isub,3):CCDSEC(Isub,4),CCDSEC(Isub,1):CCDSEC(Isub,2));
+            SubImage(Isub).(Args.FieldName) = Image(CCDSEC(Isub,3):CCDSEC(Isub,4), CCDSEC(Isub,1):CCDSEC(Isub,2));
         otherwise
             error('Unknown Output option');
     end

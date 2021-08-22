@@ -101,7 +101,7 @@ function Result = image2subimages(Obj, BlockSize, Args)
             end
 
             for Isub=1:1:Nsub
-                Result(Isub).(Prop).Data   = Sub.Im;
+                Result(Isub).(Prop).Data   = Sub(Isub).Im;
                 Result(Isub).(Prop).Scale  = [];
                 Result(Isub).(Prop).CCDSEC = EdgesCCDSEC(Isub,:);
             end
