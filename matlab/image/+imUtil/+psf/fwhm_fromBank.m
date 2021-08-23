@@ -6,13 +6,15 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,varargin)
 %              detection above some S/N.
 % Input  : - An image in matrix format.
 %          * list of ...,key,val,...
+%            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] of region in which to
+%                   measure FWHM. If empty use entire image. Default is [].
 %            'MinSN' - Minimum S/N to use. Default is 50.
 %            'Background' - A background image. Default is [].
 %            'Variance'   - A variance image. Default is [].
 %            'SigmaVec'   - Vector of the Gaussian bank sigmas.
 %                           This should not include a sharp object (such a
 %                           sharp object is added by the code).
-%                           Default is logspace(0,1,25).'
+%                           Default is logspace(0,2,5).
 %            'MinStars'   - Minimum numbre of stars needed to estimate
 %                           FWHM. Default is 5.
 %            'PixScale'   - Pixel scale ["/pix]. Default is 1.

@@ -492,9 +492,8 @@ classdef AstroSpec < Component
                     otherwise
                         error('Unknown OutType option');
                 end
-                
-                cd(PWD);
             end
+            cd(PWD);
             
         end
     end
@@ -707,6 +706,12 @@ classdef AstroSpec < Component
             % Author : Eran Ofek (Aug 2021)
             % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
             %          [Result, Flag, FilterWave] = synphot(AS, {'SDSS','SDSS'}, {'g','r'})
+            %          Spec = AstroSpec.synspecGAIA('Temp',[5750 5500 5550],'Grav',[4.5]);
+            %          Spec = AstroSpec.synspecGAIA('Temp',[5750],'Grav',[4.0, 4.5]);
+            %          T=[5000 0; 5001 1; 5999 1; 6000 0];  % filter transmission
+            %          Spec.interpOverNan;
+            %          [Result, Flag, FilterWave] = synphot(Spec, T, 'F55');
+
             
             arguments
                 Obj
