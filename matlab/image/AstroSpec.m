@@ -13,7 +13,7 @@ classdef AstroSpec < Component
     
     properties
         Data table
-        MaskData MaskImage
+        MaskData MaskImage   = MaskImage;
         Z                    = [];   % spectrum redshift-frame [0 - restframe]
         Vel                  = [];   % override Z
         DistZ                = [];   % redshift for ditsnace
@@ -496,6 +496,188 @@ classdef AstroSpec < Component
                 cd(PWD);
             end
             
+        end
+    end
+    
+    methods  % resampling, sort, interpolation
+        function Result = sort(Obj, Args)
+            % Sort elements of AstroSpec object by wavelength
+            % Input  : - An AstroSpec object.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec object with the elements sorted by
+            %            wavelength.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: S = AstroSpec({rand(100,3)});
+            %          S.sort;
+            
+            arguments
+                Obj
+                Args.CreateNewObj           = [];
+            end
+                
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [Result(Iobj).Data, Isort] = sortrows(Obj(Iobj).Data, 'Wave');
+                
+                if ~isempty(Obj(Iobj).MaskData.Data)
+                    Result(Iobj).MaskData.Data = Obj(Iobj).MaskData.Data(Isort);
+                end
+            end
+        end
+                
+        function Result = interp1(Obj, NewWave, Args)
+            % Interpolate the elements of AstroSpec into a new wavelength grid.
+            %       The Mask will be interpolated using nearest
+            %       interpolation. This function works only if the Data is
+            %       convertable to a numeric matrix.
+            % Input  : - An AstroSpec object.
+            %          - A vector of new wavelngth grid on which to
+            %            interpolate the AstroSpec object.
+            %          * ...,key,val,...
+            %            'Method' - Interpolation method. See interp1 for
+            %                   options. Default is 'linear'.
+            %            'ExtraArgs' - A cell array of additional arguments
+            %                   to pass to interp1. Default is {}.
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec object with the interpolated spectra.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: S = AstroSpec({rand(100,3)});
+            %          S.sort;
+            %          S.interp1([0:0.1:1]);
+            
+            arguments
+                Obj
+                NewWave
+                Args.Method               = 'linear';
+                Args.ExtraArgs cell       = {};
+                Args.CreateNewObj         = [];
+            end
+          
+            NewWave = NewWave(:);
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+            
+            Nobj = numel(Obj);
+            
+            for Iobj=1:1:Nobj
+                % special treatment for Mask
+                if ~isempty(Obj(Iobj).MaskData.Data)
+                    Result(Iobj).MaskData.Data = interp1(Obj(Iobj).Wave, Obj(Iobj).MaskData.Data, NewWave, 'nearest');
+                end
+                VarNames = Obj(Iobj).Data.Properties.VariableNames;
+                VarUnits = Obj(Iobj).Data.Properties.VariableUnits;
+                Result(Iobj).Data = array2table(interp1(Obj(Iobj).Wave, table2array(Obj(Iobj).Data), NewWave, Args.Method, Args.ExtraArgs{:}));
+                Result(Iobj).Data.Properties.VariableNames = VarNames;
+                Result(Iobj).Data.Properties.VariableUnits = VarUnits;
+            end
+        end
+        
+        function Result = interpOverRanges(Obj, Ranges, Args)
+            % Interpolate AstroSpec object over some ranges
+            %       Useful for interpolation over ranges containing
+            %       spectral lines.
+            % Input  : - An AstroSpec object.
+            %          - A two column matrix of [Min Max] ranges.
+            %            Each line is a wavelength range, and data points
+            %            within (<>) this range will be interpolated.
+            %          * ...,key,val,...
+            %            'Method' - Interpolation method. See interp1 for
+            %                   options. Default is 'linear'.
+            %            'ExtraArgs' - A cell array of additional arguments
+            %                   to pass to interp1. Default is {}.
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec object with the interpolated spectra.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: S = AstroSpec({rand(100,3)});
+            %          S.sort;
+            %          Ranges = [0.2 0.5; 0.6 0.9];
+            %          R = S.interpOverRanges(Ranges);
+           
+            arguments
+                Obj
+                Ranges(:,2)
+                Args.Method char            = 'linear';
+                Args.ExtraArgs cell         = {};
+                Args.CreateNewObj           = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+            
+            Nranges = size(Ranges, 1);
+                
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Wave = Obj(Iobj).Wave;
+                for Iranges=1:1:Nranges
+                    Flag = Wave > Ranges(Iranges,1) & Wave < Ranges(Iranges,2);
+                    Result(Iobj).Data = Result(Iobj).Data(~Flag,:);
+                    if ~isempty(Result(Iobj).MaskData.Data)
+                        Result(Iobj).MaskData.Data = Result(Iobj).MaskData.Data(~Flag);
+                    end
+                    Result(Iobj).interp1(Wave, 'CreateNewObj',false, 'Method',Args.Method, 'ExtraArgs',Args.ExtraArgs);
+                end
+            end
+        end
+        
+        function Result = interpOverNan(Obj, Args)
+            % Interpolate AstroSpec object over NaNs.
+            % Input  : - An AstroSpec object.
+            %          * ...,key,val,...
+            %            'Method' - Interpolation method. See interp1 for
+            %                   options. Default is 'linear'.
+            %            'ExtraArgs' - A cell array of additional arguments
+            %                   to pass to interp1. Default is {}.
+            %            'DataProp' - Data property in which to look for
+            %                   NaNs. Default is 'Flux'.
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec object with the interpolated spectra.
+            %            (NaNs are interpolated over).
+            % Author : Eran Ofek (Aug 2021)
+            % Example: S = AstroSpec({rand(100,3)});
+            %          S.sort;
+            %          S.Flux(2:5) = NaN;
+            %          R = S.interpOverNan;
+           
+            arguments
+                Obj
+                Args.Method char            = 'linear';
+                Args.ExtraArgs cell         = {};
+                Args.DataProp               = 'Flux';
+                Args.CreateNewObj           = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+                            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Wave = Obj(Iobj).Wave;
+                
+                Flag = isnan(Obj(Iobj).(Args.DataProp));
+                Result(Iobj).Data = Result(Iobj).Data(~Flag,:);
+                if ~isempty(Result(Iobj).MaskData.Data)
+                    Result(Iobj).MaskData.Data = Result(Iobj).MaskData.Data(~Flag);
+                end
+                Result(Iobj).interp1(Wave, 'CreateNewObj',false, 'Method',Args.Method, 'ExtraArgs',Args.ExtraArgs);
+            end
         end
     end
     

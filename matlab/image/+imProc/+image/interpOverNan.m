@@ -32,7 +32,6 @@ function Result = interpOverNan(Obj, Args)
         Args.CreateNewObj   = [];
     end
     
-    
     if isempty(Args.CreateNewObj)
         if nargout==0
             Args.CreateNewObj = false;
@@ -47,7 +46,6 @@ function Result = interpOverNan(Obj, Args)
     else
         Result = Obj;
     end
-    
     
     Nprop = numel(Args.DataProp); 
     Nobj  = numel(Obj);
