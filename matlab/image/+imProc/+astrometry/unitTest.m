@@ -39,6 +39,7 @@ function Result = unitTest()
         %AI = AstroImage('PTF_201211203837_i_p_scie_t091230_u014655064_f02_p100037_c02.fits');
         %AI.crop([500 1500 1500 2500]);   % image saved as FITS_Cropped.fits
     end
+    
     % test on real image
     AI = AstroImage('PTF_Cropped.fits');
 

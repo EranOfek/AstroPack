@@ -50,22 +50,22 @@ arguments
     Args.FilterCollapse             = 'medfilt1';
     Args.FilterCollapsePar cell     = {10};
     Args.StdCollapse                = 'rstd';
-    Args.StdCollapsePar cell        = {};
+    Args.StdCollapsePar cell        = {}; % for std use: [],'all','omitnan'};
 end
 
 
 % collapse
 switch lower(Args.CollapseFun)
     case 'median'
-        Line = nanmedian(Image,Args.Dim);
+        Line = median(Image, Args.Dim, 'omitnan');
     case 'mean'
-        Line = nanmean(Image,Args.Dim);
+        Line = mean(Image, Args.Dim, 'omitnan');
     case 'sum'
-        Line = nansum(Image,Args.Dim);
+        Line = sum(Image, Args.Dim, 'omitnan');
     case 'std'
-        Line = nanstd(Image,[],Args.Dim);
+        Line = std(Image, [], Args.Dim, 'omitnan');
     case 'var'
-        Line = nanvar(Image,[],Args.Dim);
+        Line = var(Image, [], Args.Dim, 'omitnan');
     otherwise
         error('Unknown CollapseFun option');
 end
@@ -101,9 +101,9 @@ end
 
 switch lower(Args.StdCollapse)
     case 'std'
-        StdLine = nanstd(Line,Args.StdCollapsePar{:});
+        StdLine = std(Line, Args.StdCollapsePar{:});
     case 'rstd'
-        StdLine = imUtil.background.rstd(Line,Args.StdCollapsePar{:});
+        StdLine = imUtil.background.rstd(Line, Args.StdCollapsePar{:});
     case 'stdfilt'
         error('not implemented')
         
