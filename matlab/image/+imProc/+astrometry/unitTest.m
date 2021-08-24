@@ -122,9 +122,11 @@ function Result = unitTest()
     
     RA  = AI.HeaderData.Key.RA;
     Dec = AI.HeaderData.Key.DEC;
-    
-    % severe bug in set/get.CooUnits in AstroCatalog
-    
+        
+    RA  = '01:21:39.560';
+    Dec = '+15:12:25.70';
+    RA  = celestial.coo.convertdms(RA,'SH','d');
+    Dec = celestial.coo.convertdms(Dec,'SD','d');
     
     Result = imProc.astrometry.astrometryCore(SI(32).CatData, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2');
     

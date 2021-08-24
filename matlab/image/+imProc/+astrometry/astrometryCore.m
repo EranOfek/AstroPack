@@ -277,6 +277,11 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         end
         imProc.trans.tranAffine(FilteredCat, -Result(Iobj).ImageCenterXY, true); %[-1024 -2048],true);
   
+        figure(1); FilteredCat.plotSources; axis([-200 50 -400 100]);
+        figure(2); FilteredProjAstCat.plotSources; axis([-200 50 -400 100])
+        
+        % [Dist2, Theta2, X, Y] = plot.distBetweenPoints
+        
         % Match pattern catalog to projected astrometric catalog
         % FFU: CatColNamesX/Y are for both Cat and Ref!!
         [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
