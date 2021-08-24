@@ -22,7 +22,7 @@ classdef AstroCatalog < AstroTable
         DefNamesPMDec cell               = {'PMDec'};
         DefNamesRV cell                  = {'RV'};
         DefNamesPlx cell                 = {'Plx'};
-        DefNamesMag cell                 = {'Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP'};
+        DefNamesMag cell                 = {'Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2'};
     end
   
     
@@ -990,6 +990,50 @@ classdef AstroCatalog < AstroTable
             
         end
         
+        function varargout = plotSources(Obj, Args)
+            % Plot sources by their X/Y position, where the symbol size corresponds to magnitude.
+            % Input  : - A single element AstroCatalog object.
+            %          * ...,key,val,...
+            %            'ColX' - A cell array of X column names dictionary. 
+            %                   Default is AstroCatalog.DefNamesX.
+            %            'ColY' - A cell array of Y column names dictionary. 
+            %                   Default is AstroCatalog.DefNamesY.
+            %            'ColMag' - A cell array of Mag column names dictionary. 
+            %                   Default is AstroCatalog.DefNamesMag.
+            %            'MinMaxSize' - [Min Max] of symbol size area.
+            %                   Scaled from magnitude.
+            %                   Default is [3 30].
+            %            'InvertScaling' - Invert magnitude to size scaling
+            %                   (brighter is bigger). Default is true.
+            %            'Color' - Symbol color. Default is 'k'.
+            % Example: AT = AstroCatalog({rand(100,3)},'ColNames',{'X','Y','Mag'}); 
+            %          AT.plotSources
+            %          CC=catsHTM.cone_search('GAIAEDR3', '01:21:39.560','+15:12:25.70',600,'OutType','AstroCatalog');
+            %          CC.plotSources('ColX',{'RA'},'ColY',{'Dec'})
+           
+            arguments
+                Obj(1,1)
+                Args.ColX                       = AstroCatalog.DefNamesX;
+                Args.ColY                       = AstroCatalog.DefNamesY;
+                Args.ColMag                     = AstroCatalog.DefNamesMag;
+                Args.MinMaxSize                 = [3 30];   % area
+                Args.InvertScaling(1,1) logical = true;
+                Args.Color                      = 'k';
+            end
+            
+            [DataX,   UnitsX]   = getColDic(Obj, Args.ColX);
+            [DataY,   UnitsY]   = getColDic(Obj, Args.ColY);
+            [DataMag, UnitsMag] = getColDic(Obj, Args.ColMag);
+            
+            if Args.InvertScaling
+                DataMag = max(DataMag) - DataMag;
+            end
+            ScaledMag = (DataMag - min(DataMag))./range(DataMag);  % mag in range of 0 to 1
+            ScaledMag = ScaledMag.*range(Args.MinMaxSize) + min(Args.MinMaxSize);
+            
+            [varargout{1:nargout}] = scatter(DataX, DataY, ScaledMag, Args.Color,'filled');
+            box on;
+        end
     end
     
     
