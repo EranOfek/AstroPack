@@ -2,6 +2,7 @@ function cutouts_photometry(Input, Args)
     %
     % Examples: AI =
     %          wfast.read2AstroImage('WFAST_Balor_20200801-020630-880_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
+    %           wfast.cutouts_photometry(AI)
     
     
     
@@ -13,14 +14,14 @@ function cutouts_photometry(Input, Args)
         Args.SubBack(1,1) logical              = true;
     end
     
-    if ~isa(Input, AstroImage)
+    if ~isa(Input, 'AstroImage')
         % read FileName into an AstroImage object
         [AI, CalibObj] = read2AstroImage(Input, Args.read2AstroImageArgs{:},'ReadType','cutouts');
     else
         AI = Input;
     end
     
-    Nobj = numel(Obj);
+    Nobj = numel(AI);
     for Iobj=1:1:Nobj
         SizeC = size(AI(Iobj).Image);
         Ncut  = prod(SizeC(3:end));
@@ -50,6 +51,8 @@ function cutouts_photometry(Input, Args)
         AperC(Iobj) = tools.struct.reshapeFields(AperC(Iobj), SizeC(3:end), 'first');
         AperF(Iobj) = tools.struct.reshapeFields(AperF(Iobj), SizeC(3:end), 'first');
         
+        'a'
         
+        plot(AperC.AperPhot(:,15,2))
     end
 end
