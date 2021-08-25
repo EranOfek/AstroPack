@@ -861,7 +861,7 @@ classdef AstroSpec < Component
     
     methods  % fitting
         function Result = fitSpec(Obj, ModelSpec, Args)
-            %
+            % UNDER CONSTRUCTION
            
             arguments
                 Obj                     % AstroSpec
