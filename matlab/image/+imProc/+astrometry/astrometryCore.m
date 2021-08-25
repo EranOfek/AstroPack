@@ -163,7 +163,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.StepX(1,1)                   = 2;
         Args.StepY(1,1)                   = 2;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
-        Args.SearchRadius(1,1)            = 10;   
+        Args.SearchRadius(1,1)            = 5;   
         Args.FilterSigma                  = 3;
         
         
@@ -288,6 +288,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         
         % Match pattern catalog to projected astrometric catalog
         % FFU: CatColNamesX/Y are for both Cat and Ref!!
+        % NormScale - is the scale normalized to 1 (as the new ref was
+        % sacled)
         [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
                                                                           'Scale',NormScale,...
                                                                           'HistRotEdges',RotationEdges,...
@@ -441,11 +443,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Obj(Iobj).getCol(IndCatX), Obj(Iobj).getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
                 Obj(Iobj).insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
             end
-            
         end
-        
 
     end
-    
     
 end

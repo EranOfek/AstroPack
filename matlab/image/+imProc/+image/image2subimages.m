@@ -1,4 +1,4 @@
-function Result = image2subimages(Obj, BlockSize, Args)
+function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
     % Partition an AstroImage image into sub images
     % Input  : - An AstroImage object with a single element.
     %          - BlockSize [X, Y] of sub images. or [X] (will be copied as [X, X]).
@@ -44,6 +44,11 @@ function Result = image2subimages(Obj, BlockSize, Args)
     %                   shift. Default is {}.
     %            'AddY' - Like 'AddX', but for the Y-axis. Default is {}.
     % Output : - An AstroImage of sub images.
+    %          - A structure with CCDSEC info, including:
+    %            EdgesCCDSEC
+    %            ListCenters
+    %            NoOverlapCCDSEC
+    %            NewNoOverlap
     % Author : Eran Ofek (May 2021)
     % Example: AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
     %          Result = imProc.image.image2subimages(AI,[256 256])
@@ -89,6 +94,12 @@ function Result = image2subimages(Obj, BlockSize, Args)
                                'OverlapXY',Args.OverlapXY);
                 Nsub   = numel(Sub);
                 Result = AstroImage([1,Nsub]);
+                if nargout>1
+                    InfoCCDSEC.EdgesCCDSEC     = EdgesCCDSEC;
+                    InfoCCDSEC.ListCenters     = ListCenters;
+                    InfoCCDSEC.NoOverlapCCDSEC = NoOverlapCCDSEC;
+                    InfoCCDSEC.NewNoOverlap    = NewNoOverlap;
+                end
             else
                 [Sub] = ...
                         imUtil.image.partition_subimage(Obj.(Prop).Image, Args.CCDSEC,...

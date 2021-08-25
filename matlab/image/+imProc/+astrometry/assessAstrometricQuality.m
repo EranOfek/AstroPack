@@ -12,7 +12,7 @@ function [SucessFlag, QualitySummary] = assessAstrometricQuality(ResFit, Args)
     %            'MinAssymRMS' - Min AssymRMS of solution [deg].
     %                   Default is 0.2./3600.
     %            'MinErrOnMean' - Min error on the maem for solution [deg].
-    %                   Default is 0.01./3600.
+    %                   Default is 0.05./3600.
     % Output : - A vector of sucess flags (one per ResFit element).
     %          - A structure array of collected astrometric quality
     %            paramseters.
@@ -26,7 +26,7 @@ function [SucessFlag, QualitySummary] = assessAstrometricQuality(ResFit, Args)
         
         Args.MinRMS               = 0.3./3600;    % deg
         Args.MinAssymRMS          = 0.2./3600;    % deg
-        Args.MinErrOnMean         = 0.01./3600;   % deg
+        Args.MinErrOnMean         = 0.05./3600;   % deg
     end
     
     Nfit = numel(ResFit);

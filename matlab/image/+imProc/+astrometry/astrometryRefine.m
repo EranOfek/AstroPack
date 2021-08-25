@@ -234,7 +234,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     Nhead = numel(Args.Header);
     Nwcs  = numel(Args.WCS);
     CooFromBoundingCircle = false;
-    AstrometricCat        = [];
+    AstrometricCat        = AstroCatalog(size(Obj));  % []
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
         

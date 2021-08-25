@@ -116,7 +116,7 @@ function Result = unitTest()
     
     
     % break into sub images
-    SI = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
+    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
     imProc.background.background(SI, 'SubSizeXY',[]);
     imProc.sources.findMeasureSources(SI);
     
@@ -129,6 +129,10 @@ function Result = unitTest()
     Dec = celestial.coo.convertdms(Dec,'SD','d');
     
     Result = imProc.astrometry.astrometryCore(SI(32).CatData, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2');
+    
+    
+    % astrometrySubImages
+    [ResultObj, ResultFit, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec)
     
     
     cd(PWD);
