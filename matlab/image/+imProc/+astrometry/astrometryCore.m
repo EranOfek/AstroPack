@@ -155,6 +155,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.Scale                        = 1.0;      % range or value [arcsec/pix]
         Args.RotationRange(1,2)           = [-90, 90];
         Args.RotationStep(1,1)            = 0.2;
+        Args.DistEdges                    = (12:3:300).';
+        Args.HistDistEdgesRotScale        = [10 600 300];
         
         Args.RangeX(1,2)                  = [-1000 1000];
         Args.RangeY(1,2)                  = [-1000 1000];
@@ -203,6 +205,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     RotationEdges = (Args.RotationRange(1):Args.RotationStep:Args.RotationRange(2));
     % mean value of projection scale:
     ProjectionScale = (180./pi) .* 3600 ./ mean(Args.Scale);
+    NormScale = Args.Scale./mean(Args.Scale);
         
     if isempty(Args.CatRadius) && ischar(Args.CatName)
         % attempt to estimate CatRadius automatically
@@ -277,17 +280,19 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         end
         imProc.trans.tranAffine(FilteredCat, -Result(Iobj).ImageCenterXY, true); %[-1024 -2048],true);
   
-        figure(1); FilteredCat.plotSources; axis([-200 50 -400 100]);
-        figure(2); FilteredProjAstCat.plotSources; axis([-200 50 -400 100])
-        
+        % debuging
+        %figure(1); FilteredCat.plotSources; axis([-200 50 -400 100]);
+        %figure(2); FilteredProjAstCat.plotSources; axis([-200 50 -400 100])
         % figure(1); [Dist1, Theta1, X, Y] = plot.distBetweenPoints
         % figure(2); [Dist2, Theta2, X, Y] = plot.distBetweenPoints
         
         % Match pattern catalog to projected astrometric catalog
         % FFU: CatColNamesX/Y are for both Cat and Ref!!
         [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
-                                                                          'Scale',Args.Scale,...
+                                                                          'Scale',NormScale,...
                                                                           'HistRotEdges',RotationEdges,...
+                                                                          'HistDistEdgesRot',Args.DistEdges,...
+                                                                          'HistDistEdgesRotScale',Args.HistDistEdgesRotScale,...
                                                                           'RangeX',Args.RangeX,...
                                                                           'RangeY',Args.RangeY,...
                                                                           'StepX',Args.StepX,...

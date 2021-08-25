@@ -8,7 +8,7 @@ function [Dist, Theta, X, Y] = distBetweenPoints(varargin)
     %          - X
     %          - Y
     % Author : Eran Ofek (Aug 2021)
-    % Example: plot(1,1); [Dist, X, Y] = plot.distBetweenPoints;
+    % Example: plot(1,1); [Dist, Theta, X, Y] = plot.distBetweenPoints;
     
     [X, Y] = ginput(varargin{:});
     Dist = sqrt(diff(X).^2 + diff(Y).^2);  

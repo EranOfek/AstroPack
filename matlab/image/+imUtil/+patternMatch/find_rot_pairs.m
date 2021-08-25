@@ -146,7 +146,7 @@ CatDist  = sqrt(CatDiffX.^2 + CatDiffY.^2);
 CatTan   = atan(CatDiffY./CatDiffX);
 %CatTan   = atan2(CatDiffY,CatDiffX);
 % calc histograms
-CatHist = histcounts2((CatDist(:)),CatTan(:).*RAD,InPar.HistDistEdges,InPar.HistRotEdges);
+CatHist = histcounts2((CatDist(:)), CatTan(:).*RAD, InPar.HistDistEdges, InPar.HistRotEdges);
 
 
 
@@ -172,7 +172,7 @@ for Iflip=1:1:Nflip
     RefDist = RefDist(Fr);
     RefTan  = RefTan(Fr);
     % calc hist
-    RefHist = histcounts2((RefDist(:)),RefTan(:).*RAD,InPar.HistDistEdges,InPar.HistRotEdges);
+    RefHist = histcounts2((RefDist(:)), RefTan(:).*RAD, InPar.HistDistEdges, InPar.HistRotEdges);
     
     
 
