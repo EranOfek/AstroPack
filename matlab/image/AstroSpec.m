@@ -531,6 +531,23 @@ classdef AstroSpec < Component
             end
         end
                 
+        function Obj = selectWave(Obj, Flag)
+            % Select lines from AstroSpec (don't generate a new copy)
+            % Input  : - An AstroSpec object
+            %          - A vector of logical flags or indices of lines to
+            %            select.
+            % Output : - The original AstroSpec with the removed lines.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AS = AstroSpec({rand(100,3)});
+            %          AS = selectWave(AS, [1 2 3]);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).Data = Obj(Iobj).Data(Flag,:);
+            end
+            
+        end
+        
         function Result = interp1(Obj, NewWave, Args)
             % Interpolate the elements of AstroSpec into a new wavelength grid.
             %       The Mask will be interpolated using nearest
@@ -539,6 +556,7 @@ classdef AstroSpec < Component
             % Input  : - An AstroSpec object.
             %          - A vector of new wavelngth grid on which to
             %            interpolate the AstroSpec object.
+            %            Alternatively, a AstroSpec object with wavelength.
             %          * ...,key,val,...
             %            'Method' - Interpolation method. See interp1 for
             %                   options. Default is 'linear'.
@@ -563,6 +581,9 @@ classdef AstroSpec < Component
                 Args.CreateNewObj         = [];
             end
           
+            if isa(NewWave, 'AstroSpec')
+                NewWave = NewWave.Wave;
+            end
             NewWave = NewWave(:);
             
             [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
@@ -582,6 +603,58 @@ classdef AstroSpec < Component
             end
         end
         
+        function [New1, New2] = interpAndKeepOverlap(Obj1, Obj2, Args)
+            % Given two AstroSpec objects, interpolate the first into the
+            % wavelength grid defined by the second and keep only the
+            % overlaping points.
+            % Input  : - The first AstroSpec object (multi elements
+            %            supported).
+            %          - The second AstroSpec object (multi elements
+            %            supported).
+            %            'Method' - Interpolation method. See interp1 for
+            %                   options. Default is 'linear'.
+            %            'ExtraArgs' - A cell array of additional arguments
+            %                   to pass to interp1. Default is {}.
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec object with the interpolated spectra.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: S1 = AstroSpec({rand(100,3)});
+            %          S1.sort
+            %          S2 = AstroSpec({rand(100,3).*0.5});
+            %          S2.sort
+            %          [New1, New2] = interpAndKeepOverlap(S1, S2);
+           
+            arguments
+                Obj1
+                Obj2
+                Args.Method           = 'linear';
+                Args.ExtraArgs cell   = {};
+                Args.CreateNewObj     = [];
+            end
+            
+            [New1] = createNewObj(Obj1, Args.CreateNewObj, nargout, 0);
+            [New2] = createNewObj(Obj2, Args.CreateNewObj, nargout, 1);
+
+            N1 = numel(New1);
+            N2 = numel(New2);
+            N  = max(N1, N2);
+            for I=1:1:N
+                I1 = min(I, N1);
+                I2 = min(I, N2);
+                
+                New1(I1) = interp1(New1(I1), New2(I2).Wave, 'Method',Args.Method, 'ExtraArgs',Args.ExtraArgs, 'CreateNewObj',false);
+                % remove NaNs
+                FlagNN   = ~isnan(New1(I1).Flux) | isnan(New2(I2).Flux);
+                New1(I1) = selectWave(New1(I1), FlagNN);
+                New1(I2) = selectWave(New2(I2), FlagNN);
+            end
+            
+        end
+            
         function Result = interpOverRanges(Obj, Ranges, Args)
             % Interpolate AstroSpec object over some ranges
             %       Useful for interpolation over ranges containing
@@ -678,6 +751,21 @@ classdef AstroSpec < Component
                 Result(Iobj).interp1(Wave, 'CreateNewObj',false, 'Method',Args.Method, 'ExtraArgs',Args.ExtraArgs);
             end
         end
+        
+        function Result = length(Obj)
+            % Return length of each spectrum in AstroSpec object
+            % Input  : - An AstroSpec object.
+            % Output : - A vector of lengths of each spectrum.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AS = AstroSpec({rand(100,3)});
+            %          AS.length
+           
+            Nobj   = numel(Obj);
+            Result = nan(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = numel(Obj(Iobj).Wave);
+            end
+        end
     end
     
     methods % synthetic photometry
@@ -769,6 +857,73 @@ classdef AstroSpec < Component
             end
         end
         
+    end
+    
+    methods  % fitting
+        function Result = fitSpec(Obj, ModelSpec, Args)
+            %
+           
+            arguments
+                Obj                     % AstroSpec
+                ModelSpec               % AstroSpec to fit to Obj
+                Args.InterpModel2spec(1,1) logical   = true;
+                Args.InterpMethod                    = 'linear';
+                Args.FitType                         = 'norm';   % 'none' | 'norm' | 'normadd' | 'ext'
+            end
+            
+            Nobj = numel(Obj);
+            Nms  = numel(ModelSpec);
+            Nmax = max(Nobj, Nms);
+            for Imax=1:1:Nmax
+                Iobj = min(Imax, Nobj);
+                Ims  = min(Imax, Nms);
+                
+                if Args.InterpModel2spec
+                    % model over obj
+                     [NewModelSpec, NewObj] = interpAndKeepOverlap(ModelSpec(Ims), Obj(Iobj), 'Method',Args.InterpMethod, 'CreateNewObj',true);
+                     
+                else
+                    % Obj over model
+                    [NewObj, NewModelSpec] = interpAndKeepOverlap(Obj(Iobj), ModelSpec(Ims), 'Method',Args.InterpMethod, 'CreateNewObj',true);
+                end
+            
+                % fit 
+                % scale, additive, extinction
+                
+                Nw = NewModelSpec.length;
+                
+                switch lower(Args.FitType)
+                    case 'none'
+                        ScaledModel = NewModelSpec.Flux;
+                        ScaledErr   = NewModelSpec.FluxErr;
+                    otherwise
+                        % fiiting
+                        switch lower(Args.FitType)
+                            case 'norm'
+                                % fit only normalization
+                                H    = [NewModelSpec.Flux(:)];
+                            case 'normadd'
+                                H    = [NewModelSpec.Flux(:), ones(Nw,1)];
+                            case 'ext'
+
+                            otherwise
+                        end
+                        Y    = NewObj.Flux;
+                        ErrY = NewObj.FluxErr;
+                        if isempty(ErrY)
+                            ErrY = ones(Nw,1);
+                        end
+                        [Par, ParErr] = lscov(H, Y, (1./ErrY).^2);
+                        ScaledModel   = H*Par;
+                        ScaledErr     = Par(1).*NewModelSpec.FluxErr(:);
+                end
+                        
+                    
+                Diff = NewObj.Flux - ScaledModel;
+                
+                
+            end
+        end
     end
     
     methods  % plots
