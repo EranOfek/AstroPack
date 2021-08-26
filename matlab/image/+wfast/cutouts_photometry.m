@@ -1,7 +1,8 @@
 function cutouts_photometry(Input, Args)
     %
-    % Examples: AI =
-    %          wfast.read2AstroImage('WFAST_Balor_20200801-020630-880_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
+    % Examples: AI(1) = wfast.read2AstroImage('WFAST_Balor_20200801-020634-879_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
+    %           AI(2) = wfast.read2AstroImage('WFAST_Balor_20200801-020630-880_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
+    %           
     %           wfast.cutouts_photometry(AI)
     
     
@@ -51,8 +52,21 @@ function cutouts_photometry(Input, Args)
         AperC(Iobj) = tools.struct.reshapeFields(AperC(Iobj), SizeC(3:end), 'first');
         AperF(Iobj) = tools.struct.reshapeFields(AperF(Iobj), SizeC(3:end), 'first');
         
-        'a'
-        
-        plot(AperC.AperPhot(:,15,2))
+        %plot(AperC(Iobj).AperPhot(:,15,2))
     end
+    
+    % Merge LCs from all objects
+    M1C   = tools.struct.mergeStructArray(M1C);
+    M1F   = tools.struct.mergeStructArray(M1F);
+    M2C   = tools.struct.mergeStructArray(M2C);
+    M2F   = tools.struct.mergeStructArray(M2F);
+    AperC = tools.struct.mergeStructArray(AperC);
+    AperF = tools.struct.mergeStructArray(AperF);
+    
+    plot(AperC.AperPhot(:,15,2))
+    
+    'a'
+    
+    
+    
 end
