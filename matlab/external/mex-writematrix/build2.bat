@@ -1,1 +1,2 @@
-mex mex_WriteMatrix2.c -lut
+call mex mex_WriteMatrix2.c -lut
+pause

@@ -30,13 +30,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 	
 	if (mxIsEmpty(prhs[0])) { // empty input matrix just returns an empty matrix
 		plhs[0]=mxDuplicateArray(prhs[0]);
-		if (nlhs>1) {
-			plhs[1]=mxDuplicateArray(prhs[0]);
+		if (nlhs > 1) {
+			plhs[1] = mxDuplicateArray(prhs[0]);
 		}
 		return; 
 	}
 	
-	if( mxGetN(prhs[0])<2 || mxGetM(prhs[0])<2 || mxGetNumberOfDimensions(prhs[0])>3 ) mexErrMsgIdAndTxt("MATLAB:util:img:mexCutout:inputNotMatrix", "Must input a (2D or 3D) matrix to mexCutout!");
+	if (mxGetN(prhs[0])<2 || mxGetM(prhs[0])<2 || mxGetNumberOfDimensions(prhs[0])>3 ) mexErrMsgIdAndTxt("MATLAB:util:img:mexCutout:inputNotMatrix", "Must input a (2D or 3D) matrix to mexCutout!");
 
 	// check argument 1
 	if (mxIsNumeric(prhs[1])==0 || mxIsDouble(prhs[1])==0) {
@@ -56,7 +56,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 	
 	// check argument 3
 	double pad_value=0;
-	if(nrhs > 3 && mxIsEmpty(prhs[3])==0) {
+	if (nrhs > 3 && mxIsEmpty(prhs[3])==0) {
 		if (mxIsNumeric(prhs[3])==0) {
 			mexErrMsgIdAndTxt("MATLAB:util:img:mexCutout:inputNotNumeric", "Input 4 to mexCutout is not numeric...");
 		}
@@ -126,11 +126,16 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 			pos[j][i]=(int) round(pos_ptr[num_cuts*j+i])-1; // minus one for conversion btw matlab indices and C indices
 		}
 		
-		if(debug_bit>2) mexPrintf("pos: %d %d\n", pos[0][i], pos[1][i]);
+		if (debug_bit>2) {
+			mexPrintf("pos: %d %d\n", pos[0][i], pos[1][i]);
+		}
 			
 	}
 	
-	if(debug_bit) mexPrintf("input class: %s\n", mxGetClassName(prhs[0]));
+	if (debug_bit) {
+		mexPrintf("input class: %s\n", mxGetClassName(prhs[0]));
+	}
+	
 	const size_t out_dims[4]={cut_size, cut_size, pages, num_cuts};
 	
 	unsigned char pad_value_bytes[8]={0}; // can contain any value type 
@@ -234,11 +239,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 			push_y=-y1;
 			
 		// make sure x/y values are not larger than array boundary
-		if (cut_size_x+x1+push_x>=cols) 
+		if (cut_size_x+x1+push_x >= cols) {
 			cut_size_x=cols-x1;
+		}
 		
-		if (cut_size_y+y1+push_y>=rows) 
+		if (cut_size_y+y1+push_y>=rows) {
 			cut_size_y=rows-y1;
+		}
 		
 		for (int p=0; p<pages; p++) {
 			for (int j=push_x; j<cut_size_x; j++) {
