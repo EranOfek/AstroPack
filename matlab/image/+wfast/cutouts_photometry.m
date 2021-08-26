@@ -64,6 +64,12 @@ function cutouts_photometry(Input, Args)
     AperF = tools.struct.mergeStructArray(AperF);
     
     plot(AperC.AperPhot(:,15,2))
+    plot(M1C.X(:,15))
+    
+    MeanX = mean(M1C.X(:,15));
+    MeanY = mean(M1C.Y(:,15));
+    plot(sqrt( (M1C.X(:,15)-MeanX).^2 + (M1C.Y(:,15)-MeanY).^2) )
+    
     
     'a'
     
