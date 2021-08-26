@@ -13,6 +13,7 @@ function cutouts_photometry(Input, Args)
         Args.AperRadius(1,:)                   = [2, 3, 4];
         Args.Annulus(1,2)                      = [4 6];
         Args.SubBack(1,1) logical              = true;
+        Args.MinFluxForCentering               = 100;
     end
     
     if ~isa(Input, 'AstroImage')
@@ -52,6 +53,33 @@ function cutouts_photometry(Input, Args)
         AperC(Iobj) = tools.struct.reshapeFields(AperC(Iobj), SizeC(3:end), 'first');
         AperF(Iobj) = tools.struct.reshapeFields(AperF(Iobj), SizeC(3:end), 'first');
         
+        % select stars which with reasnoable flux
+        Flag = mean(AperC.AperPhot(:,:,2),1)>Args.MinFluxForCentering;
+        MeanX = mean(M1C.X(:,Flag),2,'omitnan');
+        MeanY = mean(M1C.Y(:,Flag),2,'omitnan');
+        FX    = repmat(MeanX, SizeC(4), 1);
+        FY    = repmat(MeanY, SizeC(4), 1);
+        
+        % without 1st moment estimation (Forced on mean position)
+        % This is the probably the best estimator
+        [M1FM(Iobj),M2FM(Iobj),AperFM(Iobj)] = imUtil.image.moment2(Cube, FX, FY, 'NoWeightFirstIter',false,'MaxIter',-1,...
+                                                                             'AperRadius',Args.AperRadius,...
+                                                                             'Annulus',Args.Annulus,...
+                                                                             'SubBack',Args.SubBack);
+    
+        
+        M1FM(Iobj)   = tools.struct.reshapeFields(M1F(Iobj), SizeC(3:end), 'first');
+        M2FM(Iobj)   = tools.struct.reshapeFields(M2F(Iobj), SizeC(3:end), 'first');
+        AperFM(Iobj) = tools.struct.reshapeFields(AperF(Iobj), SizeC(3:end), 'first');
+        
+        'got here'
+        
+        
+        SN = squeeze(AperC.AperPhot(:,:,2))./ sqrt( squeeze(AperC.AperPhot(:,:,2)) + AperC.AnnulusStd.^2  );
+        mean(SN,2,'omitnan')
+        MeanX = mean(M1C.X,2,'omitnan')
+        
+        
         %plot(AperC(Iobj).AperPhot(:,15,2))
     end
     
@@ -68,6 +96,7 @@ function cutouts_photometry(Input, Args)
     
     MeanX = mean(M1C.X(:,15));
     MeanY = mean(M1C.Y(:,15));
+    
     plot(sqrt( (M1C.X(:,15)-MeanX).^2 + (M1C.Y(:,15)-MeanY).^2) )
     
     
