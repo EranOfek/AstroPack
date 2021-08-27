@@ -139,9 +139,9 @@ function [Result, ZP, PhotCat] = photometricZP(Obj, Args)
                 [Nsrc, Nband] = size(RefMagBands);
                 
                 Color = RefMag - RefMagBands;
-                H     = [ones(Nsrc,1), RefMag, Color];
-                Y     = CatMag;
-                ErrY  = CatMagErr;
+                H     = [ones(Nsrc,1), Color];
+                Y     = CatMag - RefMag;
+                ErrY  = sqrt(CatMagErr.^2 + sum(RefMagBandsErr.^2, 2));
                 
                 ResFit(Iobj).Par   = H\Y;
                 ResFit(Iobj).Resid = Y - H*ResFit(Iobj).Par;
