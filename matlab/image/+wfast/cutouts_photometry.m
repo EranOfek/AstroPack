@@ -72,6 +72,11 @@ function cutouts_photometry(Input, Args)
         M2FM(Iobj)   = tools.struct.reshapeFields(M2F(Iobj), SizeC(3:end), 'first');
         AperFM(Iobj) = tools.struct.reshapeFields(AperF(Iobj), SizeC(3:end), 'first');
         
+        SumFlux = sum(AperFM(Iobj).AperPhot(:,Flag,2), 2)
+        CorrZP  = SumFlux./mean(SumFlux)
+        
+        AperFM(Iobj).AperPhot = AperFM(Iobj).AperPhot .* CorrZP;
+        
         'got here'
         
         
