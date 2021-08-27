@@ -650,7 +650,7 @@ classdef AstroSpec < Component
                 % remove NaNs
                 FlagNN   = ~isnan(New1(I1).Flux) | isnan(New2(I2).Flux);
                 New1(I1) = selectWave(New1(I1), FlagNN);
-                New1(I2) = selectWave(New2(I2), FlagNN);
+                New2(I2) = selectWave(New2(I2), FlagNN);
             end
             
         end
@@ -863,12 +863,17 @@ classdef AstroSpec < Component
         function Result = fitSpec(Obj, ModelSpec, Args)
             % UNDER CONSTRUCTION
            
+            % Example: Spec = AstroSpec.synspecGAIA('Temp',[5750],'Grav',[4.5]);
+            %          BB = AstroSpec.blackBody(Spec.Wave, 5750);
+            %          Result = fitSpec(Spec, BB)
+            
             arguments
                 Obj                     % AstroSpec
                 ModelSpec               % AstroSpec to fit to Obj
                 Args.InterpModel2spec(1,1) logical   = true;
                 Args.InterpMethod                    = 'linear';
                 Args.FitType                         = 'norm';   % 'none' | 'norm' | 'normadd' | 'ext'
+                Args.R                               = 3.08;
             end
             
             Nobj = numel(Obj);
@@ -905,7 +910,10 @@ classdef AstroSpec < Component
                             case 'normadd'
                                 H    = [NewModelSpec.Flux(:), ones(Nw,1)];
                             case 'ext'
-
+                                WaveMicrons       = convert.length(NewModelSpec.WaveUnits, 'micrometer', NewModelSpec.Wave);
+                                A_W               = astro.spec.extinction(1, WaveMicrons, [], Args.R);
+                                NewModelSpec.Flux = NewModelSpec.Flux.*10.^(-0.4.*A_W);
+                                H                 = [NewModelSpec.Flux(:)];
                             otherwise
                         end
                         Y    = NewObj.Flux;
@@ -918,9 +926,8 @@ classdef AstroSpec < Component
                         ScaledErr     = Par(1).*NewModelSpec.FluxErr(:);
                 end
                         
-                    
-                Diff = NewObj.Flux - ScaledModel;
-                
+                Result(Imax).Resid = NewObj.Flux - ScaledModel;
+                Result(Imax).Ratio = NewObj.Flux ./ ScaledModel;
                 
             end
         end
