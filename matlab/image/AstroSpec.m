@@ -971,6 +971,8 @@ classdef AstroSpec < Component
                 Obj                     % AstroSpec
                 ModelSpec               % AstroSpec to fit to Obj
                 Args.InterpModel2spec(1,1) logical   = true;
+                Args.FunFlux                         = [];
+                Args.FunArgs cell                    = {};
                 Args.InterpMethod                    = 'linear';
                 Args.FitType                         = 'norm';   % 'add' | 'none' | 'norm' | 'normadd' | 'ext'
                 Args.R                               = 3.08;
@@ -992,6 +994,10 @@ classdef AstroSpec < Component
                     [NewObj, NewModelSpec] = interpAndKeepOverlap(Obj(Iobj), ModelSpec(Ims), 'Method',Args.InterpMethod, 'CreateNewObj',true);
                 end
             
+                % apply function to spectra
+                NewObj       = funFlux(NewObj,       Args.FunFlux, 'FunArgs',Args.FunArgs, 'CreateNewObj',false);
+                NewModelSpec = funFlux(NewModelSpec, Args.FunFlux, 'FunArgs',Args.FunArgs, 'CreateNewObj',false);
+                
                 % fit 
                 % scale, additive, extinction
                 
@@ -1031,6 +1037,8 @@ classdef AstroSpec < Component
                         
                 Result(Imax).Resid = NewObj.Flux - ScaledModel;
                 Result(Imax).Ratio = NewObj.Flux ./ ScaledModel;
+                Result(Imax).Std   = std(Result(Imax).Resid);
+                Result(Imax).Chi2  = sum((Result(Imax).Resid./ScaledErr).^2);
                 
             end
         end
