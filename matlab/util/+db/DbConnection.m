@@ -1,22 +1,8 @@
-% PostgreSQL Database Class
+% DbConnection Class, connection to database on host, as use
+% Wrapper for Java Connection class
+% 'jdbc:postgresql://localhost:5432/pipeline'
 %
-% The native Matlab database functions requires installation of the Matlab
-% Database Toolbox. To avoid dependency on it, we implement our database
-% class using the Java packages.
-%
-% Some workaround is required to use the java interface.
-%
-% See:
-% https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
-%
-%
-% Postgresql driver must be installed, download page:
-% 
-% https://jdbc.postgresql.org/
-% https://jdbc.postgresql.org/download.html
-%
-% We currently use postgresql-42.2.19.jar
-%--------------------------------------------------------------------------
+% Used internally by DbQuery
 
 classdef DbConnection < Component
     
@@ -31,28 +17,23 @@ classdef DbConnection < Component
         Port = 5432                 % Post number, 5432 is Postgres default
                                     
         % Driver
-        DriverName = 'postgres'     % 
-        Driver = [ ]
+        DriverName = 'postgres'     % Driver name
+        Driver = []                 % DbDriver
         Url = ''                    % Connection URL
-        Metadata = []               %
+        Metadata = []               % Metadata
         
         ConnectionStr = ''          % 'jdbc:postgresql://localhost:5432/pipeline'
-        Conn = []  % Connection object, returned by connect()
-        IsOpen = false
-        
+        Conn = []                   % Java Connection object, returned by connect()
+        IsOpen = false              % True if connection is open        
     end
     
     %-------------------------------------------------------- 
-    methods
-        % Constructor    
+    methods % Constructor
+        
         function Obj = DbConnection(varargin)
             Obj.setName('DbConnection');
             Obj.needUuid();
-            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
-            
-            if numel(varargin) > 0
-                
-            end
+            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);            
         end
         
         
@@ -67,6 +48,7 @@ classdef DbConnection < Component
                
         function Result = open(Obj)          
             % Connect to database specified by Host:Port:Database as UserName/Password
+            
             f_ = io.FuncLog('DbConnection.open');
             Obj.msgLog(LogLevel.Info, 'open');
             
@@ -96,7 +78,7 @@ classdef DbConnection < Component
                 Obj.msgLog(LogLevel.Error, 'open: setProperty failed');
             end
      
-            % Connect
+            % Connect to database
             try
                 Obj.Url = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
                 Obj.msgLog(LogLevel.Info, 'open: Url: %s', Obj.Url);
@@ -117,11 +99,10 @@ classdef DbConnection < Component
             Result = Obj.IsOpen;
             Obj.msgLog(LogLevel.Info, 'open finished');
         end
-        
-        
+                
         
         function Result = close(Obj)
-            % Disconnect from database
+            % Disconnect from database, % @Todo
             
             Obj.msgLog(LogLevel.Info, 'close');
             try
@@ -134,15 +115,14 @@ classdef DbConnection < Component
        
         
         function Result = newQuery(Obj)
-            % Create new DbQuery instance
+            % Create new DbQuery instance linked to this connection
             
             Result = db.DbQuery(Obj)
         end
-        
-        
+                
     end
     
-       %----------------------------------------------------------------------
+    %----------------------------------------------------------------------
     methods(Static) % getDbConnection
         
         function Result = getConnectionKey()
@@ -189,8 +169,7 @@ classdef DbConnection < Component
         end            
         
     end
-    
-    
+        
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)
@@ -221,8 +200,5 @@ classdef DbConnection < Component
             Result = true;
         end
     end    
-        
-    
+            
 end
-
-

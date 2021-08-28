@@ -1,5 +1,6 @@
 % Database record with dynamic properties
 % Similar to struct, but based on dynamicprops class
+% Used by DbQuery with select and insert SQL operations.
 
 classdef DbRecord < dynamicprops
     
@@ -15,8 +16,12 @@ classdef DbRecord < dynamicprops
     %-------------------------------------------------------- 
     methods % Constructor            
         function Obj = DbRecord(varargin)           
+            % Constructor
+            %   DbRecord()          - Create new empty record object
+            %   DbRecord(DbQuery)   - Create object linked to specified query
             
-            % General unique id, as Uuid or SerialStr (more compact)
+            
+            % Generate unique id, as Uuid or SerialStr (more compact and fast)
             if Obj.UseUuid_
                 Obj.Uuid_ = Component.newUuid();
             else
@@ -65,6 +70,7 @@ classdef DbRecord < dynamicprops
         function Result = loadStruct(Obj, Struct)
             % Load all struct fields to properties
             
+            % Iterate all struct fields
             FieldNames = fieldnames(Struct);
             for i = 1:numel(FieldNames)
                 Field = FieldNames{i};
@@ -76,6 +82,8 @@ classdef DbRecord < dynamicprops
                         Obj.addprop(Field);
                     end
                     Obj.(Field) = Struct.(Field);
+                    
+                % Not supported
                 else
                     io.msgLog(LogLevel.Error, 'DbRecod.loadStruct: Field type not supported: %s', Field);                    
                 end        
@@ -85,7 +93,8 @@ classdef DbRecord < dynamicprops
 
         
         function Struct = getStruct(Obj)
-            % Load all struct fields to properties
+            % Return new struct with field values
+            % Field names ending with '_' are ignored
             
             Struct = struct;
             PropNames = properties(Obj);
@@ -99,7 +108,7 @@ classdef DbRecord < dynamicprops
  
 
         function Result = getFieldNames(Obj)
-            % Load all struct fields to properties
+            % Get list of field names, properties ending with '_' are excluded
             
             Result = {};
             PropNames = properties(Obj);
@@ -113,7 +122,7 @@ classdef DbRecord < dynamicprops
         
                         
         function addProp(Obj, Prop, Value)
-            %
+            % Add new property with value
             addprop(Obj, Prop);
             Obj.(Prop) = Value;
         end
@@ -151,6 +160,7 @@ classdef DbRecord < dynamicprops
             % Unit test
             io.msgStyle(LogLevel.Test, '@start', 'DbRecord test started');
       
+            % Load from struct
             S.MyX = 1;
             S.MyY = 2;
             S.MyZ = 3;
@@ -160,7 +170,7 @@ classdef DbRecord < dynamicprops
             assert(R.MyY == S.MyY);
             assert(R.MyX ~= S.MyY);
             
-            %
+            % Convert to struct
             Q = db.DbRecord;
             Q.loadStruct(S);
             assert(R.Equal(Q));
@@ -172,4 +182,3 @@ classdef DbRecord < dynamicprops
     end
         
 end
-

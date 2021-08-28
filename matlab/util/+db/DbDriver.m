@@ -1,6 +1,5 @@
 % Database Driver Class, currently supports PostgreSQL
-% Internally used by DbQuery
-
+% DbDriver is used internally by DbQuery
 %
 % The native MATLAB database functions require installation of MATLAB
 % Database Toolbox. To avoid dependency on it, we implement our database
@@ -10,7 +9,6 @@
 %
 % See:
 % https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
-%
 %
 % Postgresql driver must be installed, download page:
 % 
@@ -34,7 +32,7 @@ classdef DbDriver < Component
         
         SourceJarFile = ''          % Source file
         TargetJarFile = ''          % Target
-        Driver = []                 % Driver object
+        Driver = []                 % Java Driver object, returned by org.postgresql.Driver
         IsOpen = false              %        
     end
     
@@ -57,7 +55,7 @@ classdef DbDriver < Component
     methods % Connect, disconnect
                         
         function Result = open(Obj)          
-            %
+            % Load database driver library
             Obj.msgLog(LogLevel.Info, 'open');
             
             % Already open
@@ -67,10 +65,13 @@ classdef DbDriver < Component
                 return
             end
                       
+            % Postgres
             if strcmp(Obj.DatabaseType, 'postgres')
+                
+                % Copy driver .jar file from source folder to target folder
                 if Obj.copyDriverFile(Obj.PostgresJar)
                                 
-                    % Create the database connection
+                    % Create Java driver object
                     try                
                         Obj.Driver = org.postgresql.Driver;
                         Obj.IsOpen = true;
@@ -78,6 +79,8 @@ classdef DbDriver < Component
                         Obj.msgLog(LogLevel.Error, 'open: Failed to get org.postgresql.Driver');
                     end
                 end
+                
+            % Other type
             else
                 Obj.msgLog(LogLevel.Error, 'open: Database type not supported: %s', Obj.DatabaseType);
             end
@@ -95,6 +98,7 @@ classdef DbDriver < Component
             [MyPath, ~, ~] = fileparts(MyFileName);            
             Obj.SourceJarFile = fullfile(MyPath, FileName);
                         
+            % Target is temporary folder
             if tools.os.iswindows()
                 Obj.TargetJarFile = fullfile('C:\Temp', FileName);
             else
@@ -107,8 +111,7 @@ classdef DbDriver < Component
                 Obj.msgLog(LogLevel.Error, 'cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
             end
             
-            % Add jar file to classpath (ensure it is present in your current dir)
-            % Do we need this? javaclasspath('postgresql-9.0-801.jdbc4.jar');
+            % Add jar file to javaclasspath (ensure it is present in your current dir)
             try
                 javaclasspath(Obj.TargetJarFile);
                 Obj.msgLog(LogLevel.Info, 'driver OK');
@@ -120,8 +123,7 @@ classdef DbDriver < Component
                 
         
         function Result = close(Obj)
-            % Disconnect from database
-            
+            % Unload database driver
             Obj.msgLog(LogLevel.Info, 'close');
             try
                 Obj.Driver = [];
@@ -137,6 +139,7 @@ classdef DbDriver < Component
     methods(Static) % getDbDriver
         
         function Result = getDbDriver(DatabaseType)
+            % Get singleton Map object that maps database type to DbDriver object
             persistent Map
             if isempty(Map)
                 Map = ComponentMap('DbDriver');
@@ -150,7 +153,7 @@ classdef DbDriver < Component
             % Search in map
             Comp = Map.find(DatabaseType);
             if isempty(Comp)
-                % Not found, create
+                % Not found, create new DbDriver object for this database type
                 Comp = db.DbDriver();
                 Comp.DatabaseType = DatabaseType;
                 Comp.MapKey = DatabaseType;
@@ -167,7 +170,7 @@ classdef DbDriver < Component
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'DbDriver test started\n');
                
-            % Test: Open/close driver
+            % Test: Open (load), close (unload) driver
             Driver = db.DbDriver;
             Driver.open();
             assert(Driver.IsOpen); 
