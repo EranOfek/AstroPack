@@ -1,16 +1,19 @@
-% Top-level configuration
-%
+% Configuration class
 % Load multiple configuration files as properties
 %
 % Load all YML files in folder
 % Access each file as property of the Configuration object.
+%
+% Usually we work with only one singleton configuration object in the 
+% system.
 %
 % Note: Since Configuration.getSingleton() uses persistant object,
 %       in order to load fresh configuration you need to do 'clear all'
 %--------------------------------------------------------------------------
 
 classdef Configuration < handle
-    
+    % Note that this class is derived from Base and not from Component
+
     % Properties
     properties (SetAccess = public)
         ConfigName              % Optional name for the entire configuration
@@ -29,8 +32,14 @@ classdef Configuration < handle
             [MyPath, ~, ~] = fileparts(MyFileName);            
             
             % Set path to configuration files
-            % @FFU: overide with env???
-            Obj.Path = fullfile(MyPath, '..', '..', 'config');
+            EnvPath = getenv('ASTROPACK_CONFIG_PATH');
+            if ~isempty(EnvPath)
+                Obj.Path = EnvPath;
+                io.msgLog(LogLevel.Info, 'Configuration: Using env path: %s', Obj.Path);
+            else
+                Obj.Path = fullfile(MyPath, '..', '..', 'config');
+                io.msgLog(LogLevel.Info, 'Configuration: Using git path: %s', Obj.Path);
+            end
             
             % Set path to yaml external package
             % Replace it with env? move to startup.m?
@@ -57,12 +66,13 @@ classdef Configuration < handle
     methods % Main functions
          
         function loadConfig(Obj)
-            % Load entire Configuration: all files in folder
+            % Load ALL configuration files in Obj.Path folder
             
-            % Load default folder            
+            % Load files in default folder            
             Obj.loadFolder(Obj.Path);
             
-            % Load local files
+            % Load local files from local/ subfolder
+            % These files should be excluded from git (in config/.gitignore)
             Obj.loadFolder(fullfile(Obj.Path, 'local'));
         end
         
@@ -71,11 +81,12 @@ classdef Configuration < handle
             % Load specified file to property            
             
             arguments
-                Obj
-                FileName
+                Obj         %
+                FileName    % Configuration file name
                 
                 % True to create new property in Obj.Data with the file
-                % name, otherwise YML is loaded directly into Data
+                % name, otherwise YML keys are loaded directly under 
+                % Obj.Data property
                 Args.Field logical = true;
             end
         
@@ -119,6 +130,7 @@ classdef Configuration < handle
             %Obj.ConfigName = 'Config';
             io.msgLog(LogLevel.Info, 'loadFolder: %s', Obj.Path);
             
+            % Scan folder for files
             List = dir(fullfile(Path, '*.yml'));
             for i = 1:length(List)
                 if ~List(i).isdir
@@ -130,13 +142,13 @@ classdef Configuration < handle
        
      
         function reloadFile(Obj, YamlStruct)
-            % Reload specified configuration file            
+            % Reload specified configuration object (file name)
             Configuration.reload(Obj.(YamlStruct));
         end        
        
      
         function reloadFolder(Obj)
-            % Reload all configuration files from folder            
+            % Reload all configuration files from default folder            
             loadFolder(Obj, Obj.Path);
         end        
         

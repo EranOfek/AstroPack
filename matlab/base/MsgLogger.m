@@ -1,3 +1,5 @@
+% Note that this class is derived from handle and not from Component
+
 % [StackTrace, WorkspaceIndex] = dbstack;
 % 
 % if numel(StackTrace) < 2

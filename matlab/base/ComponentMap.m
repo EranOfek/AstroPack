@@ -1,5 +1,5 @@
-% 
-%--------------------------------------------------------------------------
+% ComponentMap - Wrapper for MATLAB's containers.Map dictionary object
+% Note that this class is derived from Base and not from Component
 
 classdef ComponentMap < Base
     
@@ -11,22 +11,23 @@ classdef ComponentMap < Base
         % vectors. As a result, they provide more flexibility for data 
         % access than array indices, which must be positive integers. 
         % Values can be scalar or nonscalar arrays.
-        Map = []            % containers.Map - List of CompDirMap
-        Name = [] 
+        Map = []        % containers.Map(Key) -> Component
+        Name = []       % Map name
     end
     
     %-------------------------------------------------------- 
     methods % Constructor 
         
         function Obj = ComponentMap(varargin)
+            % Constructor, optional parameter is used as map name,
+            % otherwise the default '(unnamed)' is used
             if numel(varargin) > 0
                 Obj.Name = varargin{1};
             else
                 Obj.Name = '(unnamed)';
             end
-            Obj.msgLog(LogLevel.Debug, 'ComponentMap created: %s', Obj.Name);
             Obj.Map = containers.Map();
-            
+            Obj.msgLog(LogLevel.Debug, 'ComponentMap created: %s', Obj.Name);
         end
         
         
@@ -38,11 +39,12 @@ classdef ComponentMap < Base
     end
     
     
-    methods    
+    methods % Map functions
         function add(Obj, Comp)
+            % Add Component to the map using its MapKey property
+            
             Key = Obj.getKey(Comp);
             Obj.msgLog(LogLevel.Info, 'ComponentMap.add: %s', Key);            
-            
             if ~Obj.Map.isKey(Key)
                 Obj.Map(Key) = Comp;
             else
@@ -52,20 +54,21 @@ classdef ComponentMap < Base
         
         
         function remove(Obj, Comp)
-            Key = Obj.getKey(Comp);
-            Obj.msgLog(LogLevel.Debug, 'ComponentMap.remove: %s', Key);                        
+            % Remove the specified component from map
             
+            Key = Obj.getKey(Comp);
+            Obj.msgLog(LogLevel.Debug, 'ComponentMap.remove: %s', Key);            
             if Obj.Map.isKey(Key)
                 Obj.Map.remove(Key);
             else
                 Obj.msgLog(ObjLevel.Warning, 'ComponentMap.remove: Component does not exist in map: %s', Key);
-            end            
-            
+            end                        
         end
               
         
         function Result = find(Obj, CompKey)
-            % Return component by key
+            % Find component in map by the specified key, returns [] if not
+            % found
             if Obj.Map.isKey(CompKey)
                 Result = Obj.Map(CompKey);
             else
@@ -75,12 +78,13 @@ classdef ComponentMap < Base
         
         
         function Result = getKey(Obj, Comp)
-            % Get/make component key
+            % Get component map key, generate it if required
             Result = Comp.needMapKey();
         end
         
         
         function Result = getCount(Obj)
+            % Return number of items in map
             Result = Obj.Map.Count;
         end
         
@@ -93,6 +97,8 @@ classdef ComponentMap < Base
                 
                 % @TODO: Need release or delete??
                 %Comp.release();
+                
+                % Remove from map (this DOES NOT delete the component itself)
                 Obj.Map.remove(Key);
             end
             
@@ -103,11 +109,12 @@ classdef ComponentMap < Base
         
         function msgLog(Obj, Level, varargin)  
             % Write message to log
-            %Obj.Log.msgLog(Level, varargin{:});
+            
+            % Since ComponentMap is derived from Base and not from Component
+            % we use the global io.msgLog() function
             io.msgLog(Level, varargin{:});
         end
-        
- 
+         
     end
 
 
@@ -122,8 +129,7 @@ classdef ComponentMap < Base
             Result = PersObj;
         end    
     end
-    
-    
+        
         
     methods(Static) % Unit test
         function Result = unitTest()
@@ -146,5 +152,3 @@ classdef ComponentMap < Base
     end    
         
 end
-
-

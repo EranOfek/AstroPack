@@ -1,35 +1,35 @@
-% Basic log file
-                                   
-%--------------------------------------------------------------------------
+% Simple textual log file
+% Note that this class is derived from handle and not from Component
 
 classdef LogFile < handle
     % Properties
     properties (SetAccess = public)
-        FileName
+        FileName            % File name
         Fid = []            % File handle
-        UserData
-        LogPath = '';       %"C:\\_Ultrasat\\log";
-        Timestamp = ''
-        UseFlush = true;    % DO NOT CHANGE - It does not work without close (13/06/2021)
+        UserData            % Optional user data
+        LogPath = ''        % 'C:\\_Ultrasat\\log'
+        Timestamp = ''      % Timestamp when log file created
+        UseFlush = true     % DO NOT CHANGE - It does not work without close (Chen, 13/06/2021)
     end
     
     %-------------------------------------------------------- 
-    methods
+    methods % Constructor
         
         function Obj = LogFile(FileName)
-            % Constructor for LogFile
-            
+            % Constructor for LogFile            
             arguments
                 FileName = 'default';
             end
             
+            % Filename includes folder name
             if contains(FileName, '/') || contains(FileName, '\\')
                 [Obj.LogPath, FileName, Ext] = fileparts(FileName);
                 FileName = [FileName, Ext];
             else
-                
+
+                % Filename does not include folder name, make sure that
+                % we have default folder name
                 if isempty(Obj.LogPath)
-                    %if tools.os.iswindows()
                     if ~isunix
                         Obj.LogPath = 'C:\\Temp';
                     else
@@ -38,10 +38,12 @@ classdef LogFile < handle
                 end
             end
             
-            % Prepare file name
+            % Prepare file name from path, timestamp, and specified name
             Obj.Timestamp = Obj.getFileNameTimestamp();
             fn = sprintf('%s-%s.log', Obj.Timestamp, FileName);
             Obj.FileName = fullfile(Obj.LogPath, fn);
+            
+            % Write separation line to clearly mark that we started now
             Obj.write('=========================================== Started');
         end
         
@@ -60,13 +62,15 @@ classdef LogFile < handle
     methods
        
         function Result = write(Obj, varargin)
-            % Log text line to file
+            % Write text line to file
             Result = write2(Obj, '', varargin{:});
         end
         
         
         function Result = write2(Obj, Title, varargin)
-            % Log text line to file
+            % Log title and text line to file
+            
+            % Prepare prompt from timestamp and title
             if isempty(Title)
                 Prompt = sprintf('%s > ', Obj.getTimestamp());
             else
@@ -88,7 +92,7 @@ classdef LogFile < handle
             fprintf(Obj.Fid, varargin{:});
             fprintf(Obj.Fid, '\n');
             
-            % Close file, as fflush does not work well (why?)
+            % Close file, NOTE: fflush() does not work well (why?)
             if Obj.UseFlush
                 fclose(Obj.Fid);
                 Obj.Fid = [];
@@ -103,7 +107,8 @@ classdef LogFile < handle
     methods(Static)        
                       
         function Result = getSingleton()
-            % Return singleton object
+            % Return singleton object, this is the default log file
+            % to be used by current process (or workspace)
             persistent PersObj
             if isempty(PersObj)
                 PersObj = LogFile();
@@ -113,17 +118,19 @@ classdef LogFile < handle
         
         
         function Result = getTimestamp()
-            % Return current time as string
+            % Return current date/time as sortable string with milliseconds
             Result = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
         end
         
         
         function Result = getFileNameTimestamp()
+            % Return current date/time as sortable string
             Result = datestr(now, 'yyyy-mm-dd__HH-MM-SS');
         end
         
         
         function Result = getFileName(SubName)
+            %
             Obj = LogFile.getSingleton();
             fn = sprintf('%s-%s.log', Obj.Timestamp, SubName);
             Result = fullfile(Obj.LogPath, fn);
@@ -133,19 +140,24 @@ classdef LogFile < handle
        
     methods(Static) % Unit test
         function Result = unitTest()
+            % Note that we cannot use here any of the msgLog() functions,
+            % as we validate that LogFile works without any dependencies
             fprintf('LogFile test started\n');
-            Lf = LogFile.getSingleton();
-            Lf.write('LogFile test started');
             
+            % Get singleton object
+            Lf = LogFile.getSingleton();
+            
+            % Write some lines to file
+            Lf.write('LogFile test started');
             for i=1:1:3
                 Lf.write('Line: %d', i);
-            end
-           
+            end           
             Lf.write('LogFile test passed');
+            
+            % Done
             fprintf('LogFile test passed\n');
             Result = true;
         end
     end
         
 end
-

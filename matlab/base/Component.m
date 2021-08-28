@@ -1,5 +1,6 @@
 % Component class - this class hinerits from Base class, and most
 % astro-related class are hinerits from this class.
+%
 % The component class starts loads the Configuration object into it.
 % Functionality: 
 %       makeUuid - (re)generate a UUID to each element in an object
@@ -59,7 +60,9 @@ classdef Component < Base
         
         
         function Result = makeUuid(Obj)
-            % (re)Generate unique ID for each element in object
+            % (re)Generate unique ID for each element in object, return
+            % current Uuid or [] for array
+            
             for i = 1:numel(Obj)                
                 Obj(i).Uuid = Component.newUuid();
             end
@@ -89,7 +92,8 @@ classdef Component < Base
         
         
         function Result = needMapKey(Obj)
-            % If empty, generate map key as uuid
+            % Generate or get current map key as uuid
+            % Map key is used with ComponentMap class as key to the object
             for i = 1:numel(Obj)
                 if isempty(Obj(i).MapKey)
                     Obj(i).MapKey = Obj(i).needUuid();
@@ -107,50 +111,69 @@ classdef Component < Base
         function msgLog(Obj, Level, varargin)  
             % Write message to log
                  
+            % Do nothing if both display and file logs are disabled
             if ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurDispLevel) && ...
                 ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurFileLevel)
                 return
             end
             
+            % Log all items in array
             for i = 1:numel(Obj)
                 
+                % Add array index to log message
                 Index = '';
                 if numel(Obj) > 1
                     Index = ['(', char(string(i)), ')'];
                 end
                 
-                % Add name to log
+                % Add Name to log
                 vararg = varargin;
                 if ~isempty(Obj(i).Name) || numel(Obj) > 1
                     vararg{1} = [Obj.Name, Index, ': ' , varargin{1}];
                 end
                 
-
                 Obj(i).Log.msgLog(Level, vararg{:});
             end
         end
         
 
         function msgStyle(Obj, Level, Style, varargin)  
-            % Set msg style
+            % Log with style (color, etc.)
             
-            % Add name to log 
-            if ~isempty(Obj.Name)
-                varargin{1} = [Obj.Name, ': ', varargin{1}];
+            % Do nothing if both display and file logs are disabled
+            if ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurDispLevel) && ...
+                ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurFileLevel)
+                return
             end
             
-            Obj(1).Log.msgStyle(Level, Style, varargin{:});
+            % Log all items in array
+            for i = 1:numel(Obj)
+                
+                % Add array index to log message
+                Index = '';
+                if numel(Obj) > 1
+                    Index = ['(', char(string(i)), ')'];
+                end
+            
+                % Add Name to log
+                vararg = varargin;
+                if ~isempty(Obj(i).Name) || numel(Obj) > 1
+                    vararg{1} = [Obj.Name, Index, ': ' , varargin{1}];
+                end
+                
+                Obj(i).Log.msgStyle(Level, Style, vararg{:});
+            end
         end        
     end
     
     
-    methods % aux functions
+    methods % Auxiliary functions
         function Args = selectDefaultArgsFromProp(Obj, Args)
             % Given an Args structure, go over fields - if empty, take
             % value from object property. Otherwise, use value.
             
             ArgNames = fieldnames(Args);
-            for Ian=1:1:numel(ArgNames)
+            for Ian = 1:1:numel(ArgNames)
                 if isempty(Args.(ArgNames{Ian}))
                     Args.(ArgNames{Ian}) = Obj.(ArgNames{Ian});
                 end
@@ -159,14 +182,14 @@ classdef Component < Base
         end
     end
     
+    
     methods % some useful functionality
         function Result = convert2class(Obj, DataPropIn, DataPropOut, ClassOut, Args)
             % Convert a class that henhirts from Component to another class
             %       Uses eval, so in some cases maybe slow.
             %       Creates a new copy.
             % Input  : - An object which class hinherits from Component.
-            %          - A cell array of data properties in the input
-            %            class.
+            %          - A cell array of data properties in the input class.
             %          - A cell array of data properties, corresponding to
             %            the previous argument, in the target class.
             %          - A function handle for the target class.
@@ -206,6 +229,7 @@ classdef Component < Base
                 end
             end
         end
+        
         
         function varargout = data2array(Obj, DataProp)
             % Convert scalar data property in an object into an array
@@ -254,18 +278,20 @@ classdef Component < Base
         end
     end
     
-
     
     methods(Static)
         function Result = newUuid()    
-            % Generate Uuid
+            % Generate Uuid using java
             Temp = java.util.UUID.randomUUID;
+            
+            % Convert java string to char
             Result = string(Temp.toString()).char;
         end
         
         
         function Result = newSerial()    
-            % Generate simple serial number, used as fast local uuid
+            % Generate simple serial number, used as alternative
+            % for local Uiud with fast performance
             persistent Counter
             if isempty(Counter)
                 Counter = 0;
@@ -274,8 +300,11 @@ classdef Component < Base
             Result = Counter;
         end        
         
+        
         function Result = newSerialStr(varargin)    
             % Generate simple serial number, used as fast local uuid
+            % If parameter is specified, use it as prefix to the counter
+            
             if numel(varargin) == 1
                 Result = string(varargin(1) + string(Component.newSerial())).char;
             else                
@@ -290,7 +319,7 @@ classdef Component < Base
             % unitTest for Component class
             io.msgLog(LogLevel.Test, 'Component test started');
             
-            % Simple
+            % Create instances
             a = Component;
             a.msgLog(LogLevel.Test, 'a created');            
             b = Component;
@@ -298,19 +327,19 @@ classdef Component < Base
             c = Component;
             c.msgLog(LogLevel.Test, 'c created');
             
-            % Uuid
+            % Make sure that we get different Uuids
             io.msgLog(LogLevel.Test, 'Testing Uuid');
             a.needUuid();            
             b.needUuid();
             assert(~all(a.Uuid ~= b.Uuid));
             
-            % MapKey
+            % Make sure that we get different MapKeys
             io.msgLog(LogLevel.Test, 'Testing MapKey');
             a.needMapKey();            
             b.needMapKey();
             assert(~all(a.MapKey ~= b.MapKey));            
            
-            % Array
+            % Generate Uuid and MapKey for arrays
             c(1) = Component;
             c(2) = Component;
             c.msgLog(LogLevel.Test, 'Msg');
@@ -324,4 +353,3 @@ classdef Component < Base
         end
     end    
 end
-
