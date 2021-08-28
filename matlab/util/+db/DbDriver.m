@@ -1,8 +1,10 @@
-% PostgreSQL Database Class
+% Database Driver Class, currently supports PostgreSQL
+% Internally used by DbQuery
+
 %
-% The native Matlab database functions requires installation of the Matlab
+% The native MATLAB database functions require installation of MATLAB
 % Database Toolbox. To avoid dependency on it, we implement our database
-% class using the Java packages.
+% class using Java packages.
 %
 % Some workaround is required to use the java interface.
 %
@@ -18,8 +20,8 @@
 % We currently use postgresql-42.2.19.jar
 %--------------------------------------------------------------------------
 
-
 classdef DbDriver < Component
+    % Database Driver Class
     
     % Properties
     properties (SetAccess = public)            
@@ -27,28 +29,26 @@ classdef DbDriver < Component
         % Connection details
         DatabaseType = 'postgres'   % Currently we support only Postgres
         
-        % Driver
+        % Driver Java package file (.jar)
         PostgresJar = 'postgresql-42.2.19.jar'
         
-        SourceJarFile = ''
-        TargetJarFile = ''
-        Driver = []                % Driver object
-        IsOpen = false
-        
+        SourceJarFile = ''          % Source file
+        TargetJarFile = ''          % Target
+        Driver = []                 % Driver object
+        IsOpen = false              %        
     end
     
     %-------------------------------------------------------- 
-    methods
-        % Constructor    
-        function Obj = DbDriver()
+    methods % Constructor
+        function Obj = DbDriver()            
             Obj.setName('DbDriver');
             Obj.needUuid();
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
         end
         
         
-        % Destructor
         function delete(Obj)
+            % Destructor
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end        
     end
@@ -115,8 +115,7 @@ classdef DbDriver < Component
                 Result = true;
             catch
                 Obj.msgLog(LogLevel.Error, 'javaclasspath failed: %s', Obj.TargetJarFile);                
-            end
-            
+            end            
         end
                 
         
@@ -164,8 +163,7 @@ classdef DbDriver < Component
     end
     
     %----------------------------------------------------------------------
-    % Unit test
-    methods(Static)
+    methods(Static) % Unit test
         function Result = unitTest()
             io.msgStyle(LogLevel.Test, '@start', 'DbDriver test started\n');
                
@@ -192,6 +190,4 @@ classdef DbDriver < Component
         end
     end    
         
-    
 end
-

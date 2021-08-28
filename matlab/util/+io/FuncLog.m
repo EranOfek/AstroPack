@@ -1,23 +1,23 @@
+% Automatic scope/function entry/exit logger
 
-classdef FuncLog < handle
-    % Function start/done log
+classdef FuncLog < handle   
     
     % Properties
     properties (SetAccess = public)
-        Title
+        Title       % Function/scope title
     end
     
     %-------------------------------------------------------- 
     methods
-        % Constructor    
         function Obj = FuncLog(Title)
+            % Constructor               
             Obj.Title = Title;
             io.msgStyle(LogLevel.Debug, '@start', 'Func Start: %s', Obj.Title);
         end
         
         
-        % Destructor
         function delete(Obj)
+            % Destructor            
             io.msgStyle(LogLevel.Debug, '@done', 'Func Done: %s', Obj.Title);
         end        
     end

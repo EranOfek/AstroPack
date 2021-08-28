@@ -3,4 +3,6 @@
 # Autosave files
 *.asv
 */*.asv
+
+# Log files
 *.log

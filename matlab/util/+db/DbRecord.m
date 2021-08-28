@@ -1,16 +1,15 @@
-% Database record
-
-%--------------------------------------------------------------------------
+% Database record with dynamic properties
+% Similar to struct, but based on dynamicprops class
 
 classdef DbRecord < dynamicprops
     
     % Properties
     properties (SetAccess = public)
-        Name_        = 'DbRecord';
+        Name_        = 'DbRecord'
         Query_       = []           % Linked DbQuery
         KeyField_    = ''           % Key field(s)
         Uuid_        = ''           % Used when UseUuid is true
-        UseUuid_     = false;       % 
+        UseUuid_     = false        % True to use Uuid, otherwise the faster SerialStr is used
     end
     
     %-------------------------------------------------------- 

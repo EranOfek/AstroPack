@@ -1,21 +1,12 @@
-% Note that this class is derived from handle and not from Component
-
-% [StackTrace, WorkspaceIndex] = dbstack;
 % 
-% if numel(StackTrace) < 2
-%     CallerName = 'session';
-%     Line      = NaN;
-% else
-%     CallerName = StackTrace(2).name;
-%     Line      = StackTrace(2).line;
-% end
+% Note that this class is derived from handle (and not from Component)
 
 classdef MsgLogger < handle
-    % Message logger with levels
+    % Message logger to console and file, with log levels
     
     % Properties
     properties (SetAccess = public)
-        Enabled logical
+        Enabled logical         % True to enable logging
         CurFileLevel LogLevel   % Current level for log file
         CurDispLevel LogLevel   % Current level for display
         LogF LogFile            % Log file
@@ -23,8 +14,7 @@ classdef MsgLogger < handle
     end
     
     %-------------------------------------------------------- 
-    methods
-        % Constructor    
+    methods % Constructor        
         function Obj = MsgLogger()
             Obj.Enabled = true;
             Obj.CurFileLevel = LogLevel.All;
@@ -37,25 +27,27 @@ classdef MsgLogger < handle
 	methods
         
 		function msgLog(Obj, Level, varargin)
-
+            % Log message to console/file according to current
+            % LogLevel settings
+            
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
                 return
             end
                        
-            % Error - always usg msgStyle to print in color
-            if Level == LogLevel.Error
+            % Always use msgStyle to print errors in red color
+            if Level == LogLevel.Error || Level == LogLevel.Fatal
                 Obj.msgStyle(Level, '@error', varargin{:});
                 return
             end
             
-            % Warning - always usg msgStyle to print in color
+            % Always use msgStyle to print warnings in red color
             if Level == LogLevel.Warning
                 Obj.msgStyle(Level, '@warn', varargin{:});
                 return
             end            
             
-            % Prepare prompt
+            % Prepare prompt with level
             LevStr = getLevelStr(Obj, Level);
             
             % Log to display
@@ -70,19 +62,20 @@ classdef MsgLogger < handle
                 if ~isempty(Obj.LogF)
                     Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
                 end
-            end
-            
+            end            
         end        
              
         
 		function msgStyle(Obj, Level, Style, varargin)
-
+            % Log message to console/file according to current
+            % LogLevel settings
+            
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
                 return
             end
             
-            % Prepare prompt                     
+            % Prepare prompt with log level
             LevStr = getLevelStr(Obj, Level);
             
             % Log to display
@@ -97,25 +90,27 @@ classdef MsgLogger < handle
                 if ~isempty(Obj.LogF)
                     Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
                 end
-            end
-            
+            end            
         end        
 
         
 		function Result = shouldLog(Obj, Level, CurLevel)
-
+            % Return true if specified Level should be logged according
+            % to the specified CurLevel settings
+            
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
                 Result = false;
                        
-            % Error - always usg msgStyle to print in color
-            elseif Level == LogLevel.Error
+            % Error - always use log
+            elseif Level == LogLevel.Error || Level == LogLevel.Fatal
                 Result = true;
             
-            % Warning - always usg msgStyle to print in color
+            % Warning - always log
             elseif Level == LogLevel.Warning
                 Result = true;
                 
+            % Other level below or equal to current
             elseif uint32(Level) <= uint32(CurLevel)
                 Result = true;
                 
@@ -126,12 +121,15 @@ classdef MsgLogger < handle
         
         
         function Result = getLevelStr(Obj, Level)
-        
+            % Convert Level enumeation to string
+            
             % Convert enum to string
 			s = '';
             switch Level        
 				case LogLevel.None
 					s = 'NON';
+				case LogLevel.Fatal
+					s = 'FTL';
 				case LogLevel.Error
 					s = 'ERR';
 				case LogLevel.Warning
@@ -154,6 +152,8 @@ classdef MsgLogger < handle
         
     
 		function msgStack(Obj, Level, varargin)
+            % Log stack trace
+            
             [StackTrace, WorkspaceIndex] = dbstack;
 
             Obj.msgLog(Level, varargin{:});
@@ -180,7 +180,7 @@ classdef MsgLogger < handle
     methods(Static) % Static functions
                 
         function Result = getSingleton()
-            % Return singleton object
+            % Return singleton object, the deafult MsgLogger
             persistent PersObj
             if isempty(PersObj)
                 PersObj = MsgLogger;
@@ -190,6 +190,7 @@ classdef MsgLogger < handle
         
         
         function setLogLevel(Level, Args)
+            % Set current log level, Args.type is 'all', 'file', 'disp'
             arguments
                 Level LogLevel
                 Args.type = 'all'
@@ -207,22 +208,24 @@ classdef MsgLogger < handle
             if strcmp(Args.type, 'all') || strcmp(Args.type, 'disp')
                 m.CurDispLevel = Level;
             end                                  
-        end     
-        
+        end        
     end
     
     
     methods(Static) % Unit test
         
-        function unitTestStackTrace(Count)            
+        function unitTestStackTrace(Count)
+            % Recursive test for stack trace log
             if Count > 0
                 M = MsgLogger.getSingleton();            
                 M.msgStack(LogLevel.Test, 'Recursion(%d)', Count);            
                 MsgLogger.unitTestStackTrace(Count-1);
             end
         end
-
-        function Result = unitTest()            
+        
+        
+        function Result = unitTest()
+            % Unit-test
             fprintf('MsgLogger test started\n');
             
             % Test cprintf (in external/)
@@ -247,13 +250,15 @@ classdef MsgLogger < handle
             io.msgLog(LogLevel.Test, 'Back to all');
             
             % Test MsgLogger            
-            M.msgLog(LogLevel.Test, 'Test: %d', uint32(LogLevel.Test));
-            M.msgLog(LogLevel.Debug, 'Test: %d', uint32(LogLevel.Debug));
-            M.msgLog(LogLevel.Info, 'Test: %d', uint32(LogLevel.Info));
+            M.msgLog(LogLevel.Test,    'Test: %d', uint32(LogLevel.Test));
+            M.msgLog(LogLevel.Debug,   'Test: %d', uint32(LogLevel.Debug));
+            M.msgLog(LogLevel.Info,    'Test: %d', uint32(LogLevel.Info));
             M.msgLog(LogLevel.Warning, 'Test: %d', uint32(LogLevel.Warning));
-            M.msgLog(LogLevel.Error, 'Test: %d', uint32(LogLevel.Error));
-            M.msgLog(LogLevel.None, 'Test: %d', uint32(LogLevel.None));
+            M.msgLog(LogLevel.Error,   'Test: %d', uint32(LogLevel.Error));
+            M.msgLog(LogLevel.Fatal,   'Test: %d', uint32(LogLevel.Fatal));            
+            M.msgLog(LogLevel.None,    'Test: %d', uint32(LogLevel.None));
             
+            % Stack trace
             M.msgStack(LogLevel.Test, 'MyStackTrace: %d', 123);            
             MsgLogger.unitTestStackTrace(5);
             
