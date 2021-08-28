@@ -766,6 +766,48 @@ classdef AstroSpec < Component
                 Result(Iobj) = numel(Obj(Iobj).Wave);
             end
         end
+        
+        function Result = funFlux(Obj, Fun, Args)
+            % Apply a function to the Flux, FluxErr, Back columns.
+            % Input  : - An AstroSpec object.
+            %          - A function handle to apply.
+            %          * ...,key,val,...
+            %            'FunArgs' - A cell array of additional arguments to pass to
+            %                   the function.
+            %            'DataProp' - A cell array of data properties on
+            %                   which to apply the function.
+            %                   Default is {'Flux', 'FluxErr', 'Back'}.
+            %            'CreateNewObj' -  [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec objec after aplying the function.
+            % Author : Eran Ofek (Aug 2021)
+            % Example:  Spec = AstroSpec.synspecGAIA('Temp',[5750 5500 5550],'Grav',[4.5]);
+            %           Res  = funFlux(Spec, @log10);
+            
+            arguments
+                Obj
+                Fun function_handle
+                Args.FunArgs cell         = {};
+                Args.DataProp             = {'Flux', 'FluxErr', 'Back'};
+                Args.CreateNewObj         = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+           
+            Nobj = numel(Obj);
+            Nd   = numel(Args.DataProp);
+            for Iobj=1:1:Nobj
+                for Id=1:1:Nd
+                    if ~isempty(Obj(Iobj).(Args.DataProp{Id}))
+                        Result(Iobj).(Args.DataProp{Id}) = Fun(Obj(Iobj).(Args.DataProp{Id}), Args.FunArgs{:});
+                    end
+                end
+            end
+            
+        end
     end
     
     methods % synthetic photometry
@@ -872,7 +914,7 @@ classdef AstroSpec < Component
                 ModelSpec               % AstroSpec to fit to Obj
                 Args.InterpModel2spec(1,1) logical   = true;
                 Args.InterpMethod                    = 'linear';
-                Args.FitType                         = 'norm';   % 'none' | 'norm' | 'normadd' | 'ext'
+                Args.FitType                         = 'norm';   % 'add' | 'none' | 'norm' | 'normadd' | 'ext'
                 Args.R                               = 3.08;
             end
             
@@ -904,6 +946,9 @@ classdef AstroSpec < Component
                     otherwise
                         % fiiting
                         switch lower(Args.FitType)
+                            case 'add'
+                                % fit only additive term
+                                H    = [ones(Nw,1)];
                             case 'norm'
                                 % fit only normalization
                                 H    = [NewModelSpec.Flux(:)];
