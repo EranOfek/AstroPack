@@ -562,6 +562,8 @@ classdef AstroSpec < Component
             %                   options. Default is 'linear'.
             %            'ExtraArgs' - A cell array of additional arguments
             %                   to pass to interp1. Default is {}.
+            %            'RemoveNan' - A logical indicating of to remove
+            %                   NaNs. Default is false.
             %            'CreateNewObj' - [], true, false.
             %                   If true, create new deep copy
             %                   If false, return pointer to object
@@ -576,9 +578,10 @@ classdef AstroSpec < Component
             arguments
                 Obj
                 NewWave
-                Args.Method               = 'linear';
-                Args.ExtraArgs cell       = {};
-                Args.CreateNewObj         = [];
+                Args.Method                 = 'linear';
+                Args.ExtraArgs cell         = {};
+                Args.RemoveNan(1,1) logical = false;
+                Args.CreateNewObj           = [];
             end
           
             if isa(NewWave, 'AstroSpec')
@@ -600,6 +603,11 @@ classdef AstroSpec < Component
                 Result(Iobj).Data = array2table(interp1(Obj(Iobj).Wave, table2array(Obj(Iobj).Data), NewWave, Args.Method, Args.ExtraArgs{:}));
                 Result(Iobj).Data.Properties.VariableNames = VarNames;
                 Result(Iobj).Data.Properties.VariableUnits = VarUnits;
+                
+                if Args.RemoveNan
+                    Flag = isnan(Result(Iobj).Wave) | isnan(Result(Iobj).Flux);
+                    Result(Iobj) = selectWave(Result(Iobj), ~Flag);
+                end
             end
         end
         
@@ -805,6 +813,56 @@ classdef AstroSpec < Component
                         Result(Iobj).(Args.DataProp{Id}) = Fun(Obj(Iobj).(Args.DataProp{Id}), Args.FunArgs{:});
                     end
                 end
+            end
+            
+        end
+        
+        function Result = interpLogSpace(Obj, Args)
+            % Interpolate an AstroSpec object into a logarithmic wavelength grid.
+            % Input  : - An AstroSpec object.            
+            %          * ...,key,val,...
+            %            'Res' - Resolution (Dlambda/lambda) to use fot the
+            %                   log-spacing. If empty, estimate using
+            %                   wave-diff. Default is [].
+            %            'Method' - Interpolation method. See interp1 for
+            %                   options. Default is 'linear'.
+            %            'ExtraArgs' - A cell array of additional arguments
+            %                   to pass to interp1. Default is {}.
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec object with logarithmic spaced
+            %            wavelength grid.
+            % Output : - An AstroSpec object with the interpolated spectra.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: Spec = AstroSpec.synspecGAIA('Temp',[5750],'Grav',[4.5]);
+            %          Result = interpLogSpace(Spec);
+            
+            arguments
+                Obj
+                Args.Res               = [];
+                Args.Method            = 'linear';
+                Args.ExtraArgs cell    = {};
+                Args.CreateNewObj      = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Args.Res)
+                    % estimate resolution
+                    Res = min(Obj(Iobj).Wave(1:end-1)./diff(Obj(Iobj).Wave));
+                    Res = Res .* log10(max(Obj(Iobj).Wave));
+                else
+                    Res = Args.Res .* log10(max(Obj(Iobj).Wave));
+                end
+                
+                NewWave = logspace(log10(min(Obj(Iobj).Wave)), log10(max(Obj(Iobj).Wave)), ceil(Res));
+                
+                Result(Iobj) = interp1(Result(Iobj), NewWave, 'Method',Args.Method, 'ExtraArgs',Args.ExtraArgs{:}, 'RemoveNan',true, 'CreateNewObj',false);
             end
             
         end
