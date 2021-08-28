@@ -1,44 +1,45 @@
 % AstroImage database adaptor
-
+%
 % Usage: Use the static functions
 %
 %     db.AstroDb.insertHeader
 %     db.AstroDb.insertCatalog
 %     db.AstroDb.getDefaultQuery
-
-% Threads
+%
+%
+% Threads - For optional future use
+%
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part1
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part2
 
 classdef AstroDb < Component
     
     properties (Hidden, SetAccess = public)
-        OperQueue       % Queue of AstroDbOper
-    
+        OperQueue       % Queue of AstroDbOper, future use    
     end
     
 
     methods % Constructor    
         
         function Obj = AstroDb
-            Obj.setName('AstroDb')
-            
+            Obj.setName('AstroDb')            
         end
 
     end
     
     
-    methods
+    methods % Internal implementations, do not use directly
                
         function Result = insertHeaderImpl(Obj, Input, TableName, Args)
+            % Internal implementation
             % Insert AstroHeader/AstroImage object to the specified database table
             arguments
                 Obj
-                Input                           % AstroHeader / AstroImage
-                TableName char                
-                Args.Fields = {}                % As
-                Args.Uuid = []                  % Empty uses AstroHeader.Uuid
-                Args.Query = []                 % db.DbQuery
+                Input               % AstroHeader / AstroImage
+                TableName char      % Table name
+                Args.Fields = {}    % As
+                Args.Uuid = []      % Empty uses AstroHeader.Uuid
+                Args.Query = []     % db.DbQuery
             end
             
             Obj.msgLog(LogLevel.Debug, 'insertHeader started');
@@ -84,6 +85,7 @@ classdef AstroDb < Component
                 
         
         function Result = insertCatalogImpl(Obj, Input, TableName, Args)
+            % Internal implementations
             % Insert AstroCatalog / AstroTable to the specified database table
             % Note that AstroCatalog is derived from AstroTable
             
@@ -92,7 +94,7 @@ classdef AstroDb < Component
             arguments
                 Obj
                 Input                   % AstroHeader / AstroImage                
-                TableName char                
+                TableName char          %
                 Args.KeyField = 'proc_iid'
                 Args.Fields = {}        % As
                 Args.Uuid = []          % Empty uses AstroHeader.Uuid
@@ -162,7 +164,7 @@ classdef AstroDb < Component
        
     
     %
-    methods %
+    methods % Manager, caller from timer
         function Result = manage(Obj)
             % @Todo: Manage queue of pending operations
 
@@ -198,7 +200,7 @@ classdef AstroDb < Component
         end
         
         
-        
+      
         function Result = insertCatalog(varargin) % Input, TableName, Args)
             % Insert AstroCatalog / AstroTable to the specified database table
             % Note that AstroCatalog is derived from AstroTable
@@ -216,8 +218,7 @@ classdef AstroDb < Component
             Result = db.AstroDb.get().insertCatalogImpl(varargin{:}); %Input, TableName, Args);
         end
     end
-    
-    
+      
     
     %
     methods % (Static???)
@@ -249,7 +250,7 @@ classdef AstroDb < Component
     
     
     %----------------------------------------------------------------------
-    % Unit test
+    % Performance Test
     methods(Static)
         function Result = perfTest()
             io.msgStyle(LogLevel.Test, '@start', 'AstroDb perfTest started')              
@@ -297,7 +298,7 @@ classdef AstroDb < Component
     end
     
     %----------------------------------------------------------------------
-    % Unit test
+    % Stress Test
     methods(Static)
         function Result = stressTest()
             io.msgStyle(LogLevel.Test, '@start', 'AstroDb stressTest started')              
@@ -462,7 +463,5 @@ classdef AstroDb < Component
         end
     end    
              
-
 end
-
-            
+        
