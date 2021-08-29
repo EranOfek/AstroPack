@@ -1,8 +1,21 @@
-% DbQuery - Database query based on Java
+% DbQuery - SQL Database query
 %
-% https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
-%--------------------------------------------------------------------------
-% Use unittest__tables from GDrive to test
+% This class provides SQL functionality, currently tested with PostgreSQL v13.
+%
+% Functionality
+%
+% Related Classes:
+%   DbDriver - Internally used to load Java package for Postgres
+%   DbConnection - Used to connect to specific database on local or remote
+%   server.
+%   DbRecord - Class with dynamic properties, used as struct to store
+%   values of database record.
+%
+% References:
+%   https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
+%
+% Unit-Test:
+%   Use unittest__tables from GDrive to test
 %
 
 classdef DbQuery < Component
@@ -11,9 +24,9 @@ classdef DbQuery < Component
     properties (SetAccess = public)            
         
         % Connection details
-        ConnectionStr   = ''
+        ConnectionStr   = ''        %
         Conn            = []        % DbConnection
-        ConnName        = ''
+        ConnName        = ''        %
         
         % Current SQL statement data
         SqlText         = ''        % SQL text
@@ -21,7 +34,7 @@ classdef DbQuery < Component
         
         ResultSet       = []        % Returned result-set
         Record          = []        % Current record
-        Metadata        = []        
+        Metadata        = []        % 
         ColCount        = 0         %
         ColNames        = []        %
         ColType         = []        %
@@ -106,6 +119,8 @@ classdef DbQuery < Component
         function Result = query(Obj, varargin)
             % Run SELECT query, for other statements use exec() 
             % @Todo: Replace varargin with arguments block?
+            % Example:
+            %   Result = query('SELECT COUNT(*) from master_table')
             
             % Run SELECT statement (using java calls)          
             Obj.msgLog(LogLevel.Debug, 'query');
@@ -153,6 +168,8 @@ classdef DbQuery < Component
 
         function Result = exec(Obj, varargin)
             % Execute SQL statement (that does not return data)
+            % Example: exec('INSERT ...')
+            
             Obj.msgLog(LogLevel.Debug, 'exec');            
             Result = false;
             tic();
@@ -201,7 +218,8 @@ classdef DbQuery < Component
     methods % Record, Fields
         
         function Result = next(Obj)
-            % Move cursor to next record
+            % Move cursor to next record, return false if reached end of
+            % data
             Result = false;
             Obj.Eof = true;
             try
@@ -214,7 +232,8 @@ classdef DbQuery < Component
         
         
         function Result = prev(Obj)
-            % Move cursor to previous record
+            % Move cursor to previous record, return false if reached end
+            % of data
             Result = false;
             Obj.Eof = true;
             try
@@ -229,6 +248,8 @@ classdef DbQuery < Component
         function Result = getField(Obj, FieldName)
             % Get field value from current ResultSet, when FieldName is
             % numeric, it is used as column index
+            % Example:
+            %    Value = getField('MyFieldName')
             
             if isnumeric(FieldName)
                 ColIndex = FieldName;
@@ -266,7 +287,7 @@ classdef DbQuery < Component
         
         
         function Result = isField(Obj, FieldName)        
-            % Check if field exists            
+            % Check if field exists by name           
             if isempty(Obj.ResultSet)
                 Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
                 Result = '';
@@ -287,7 +308,7 @@ classdef DbQuery < Component
         
         
         function Result = getFieldIndex(Obj, FieldName)
-            % Get field index in ColNames{}            
+            % Get field index by field name, search in ColNames{}            
             Result = find(strcmp(Obj.ColNames, FieldName));
         end
          
@@ -381,7 +402,7 @@ classdef DbQuery < Component
     
     methods % Select
         
-        function select(Obj, Fields, TableName, Args)
+        function Result = select(Obj, Fields, TableName, Args)
             % Execute: SELECT Fields FROM TableName
             
             arguments 
@@ -1411,8 +1432,7 @@ classdef DbQuery < Component
             pgver = Q.getField('version');
             io.msgLog(LogLevel.Test, 'Version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));
-       
-            
+                   
             % ---------------------------------------------- copy
             % https://www.postgresqltutorial.com/psql-commands/
             % https://kb.objectrocket.com/postgresql/postgresql-psql-examples-part-2-1043
@@ -1667,4 +1687,3 @@ classdef DbQuery < Component
                 
     end                
 end
-
