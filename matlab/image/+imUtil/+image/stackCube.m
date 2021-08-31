@@ -90,27 +90,27 @@ CoaddN            = [];
 
 switch lower(Args.StackMethod)
     case 'sum'
-        Coadd = nansum(Cube, 3);
+        Coadd = sum(Cube, 3,'omitnan');
         if Args.CalcCoaddN
             CoaddN  = sum(~isnan(Cube),3);
         end
         
         if Args.CalcCoaddVar
-            CoaddVar = nansum(Args.VarCube,3);
+            CoaddVar = sum(Args.VarCube,3,'omitnan');
         end
         
     case 'mean'
-        Coadd = nanmean(Cube, 3);
+        Coadd = mean(Cube, 3, 'omitnan');
         if Args.CalcCoaddN
             CoaddN  = sum(~isnan(Cube),3);
         end
         
         if Args.CalcCoaddVar && ~isempty(Args.VarCube)
-            CoaddVar = nansum(Args.VarCube,3);  %./(CoaddN.^2);
+            CoaddVar = sum(Args.VarCube, 3, 'omitnan');  %./(CoaddN.^2);
         end
         
     case 'median'
-        Coadd = nanmedian(Cube, 3);
+        Coadd = median(Cube, 3, 'omitnan');
         if Args.CalcCoaddN
             CoaddN  = sum(~isnan(Cube),3);
         end
@@ -120,11 +120,11 @@ switch lower(Args.StackMethod)
             % variance of the median and the variance of the
             % mean  (Kenney and Keeping 1962, p. 211).
             CorrFactor = pi.*(2.*CoaddN+1)./(4.*CoaddN);
-            CoaddVar   = CorrFactor.*nansum(Args.VarCube,3); %./(CoaddN.^2);
+            CoaddVar   = CorrFactor.*sum(Args.VarCube, 3, 'omitnan'); %./(CoaddN.^2);
         end
         
     case 'var'
-        Coadd = nanvar(Cube, [], 3);
+        Coadd = var(Cube, [], 3, 'omitnan');
         if Args.CalcCoaddN
             CoaddN  = sum(~isnan(Cube),3);
         end
@@ -180,7 +180,7 @@ switch lower(Args.StackMethod)
             error('Can not calc wmean without the variance cube');
         end
         InvVarCube = 1./Args.VarCube;
-        Coadd      = nansum(Cube.*InvVarCube, 3) ./ nansum(InvVarCube, 3);
+        Coadd      = sum(Cube.*InvVarCube, 3, 'omitnan') ./ sum(InvVarCube, 3, 'omitnan');
         CoaddN     = sum(~isnan(Cube),3);
         CoaddVar   = Args.VarCube; %InvVarCube; %.*CoaddN;
         
@@ -190,7 +190,7 @@ switch lower(Args.StackMethod)
          % 5],'MaxIter',3}
          
          if Args.CalcCoaddVar
-            CoaddVar = nansum(Args.VarCube,3); %./(CoaddN.^2);
+            CoaddVar = sum(Args.VarCube, 3, 'omitnan'); %./(CoaddN.^2);
          end
         
     case 'wsigmaclip'
@@ -199,7 +199,7 @@ switch lower(Args.StackMethod)
          % 5],'MaxIter',3}
          
          if Args.CalcCoaddVar
-            CoaddVar = nansum(Args.VarCube,3); %./(CoaddN.^2);
+            CoaddVar = sum(Args.VarCube, 3, 'omitnan'); %./(CoaddN.^2);
          end
          
     case 'bitor'

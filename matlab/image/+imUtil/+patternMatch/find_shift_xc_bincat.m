@@ -69,10 +69,10 @@ function Res=find_shift_xc_bincat(Cat,Ref,varargin)
 %                     this parameter will be returned.
 %            'BackFun' - Used for 'sn' PeakMethod.
 %                     For details see imUtil.background.background.
-%                     Default is @nanmedian.
+%                     Default is @median.
 %            'BackFunPar' - Used for 'sn' PeakMethod.
 %                     For details see imUtil.background.background.
-%                     Default is {'all'}.
+%                     Default is {'all','omitnan'}.
 %            'VarFun' - Used for 'sn' PeakMethod.
 %                     For details see imUtil.background.background.
 %                     Default is @imUtil.background.rvar.
@@ -152,8 +152,8 @@ addOptional(InPar,'Threshold',5);  % if 'sn', this is S/N if 'maxn'|'max1' this 
 addOptional(InPar,'Conn',8);
 addOptional(InPar,'FracOfMax',0.5);
 
-addOptional(InPar,'BackFun',@nanmedian); % @median);
-addOptional(InPar,'BackFunPar',{'all'});      % {[1 2],'omitnan'});
+addOptional(InPar,'BackFun',@median); % @median);
+addOptional(InPar,'BackFunPar',{'all','omitnan'});      % {[1 2],'omitnan'});
 addOptional(InPar,'VarFun',@imUtil.background.rvar);    % if empty, then will try to read var from second output of BackFun...
 addOptional(InPar,'VarFunPar',{}); % {[1 2]});
 addOptional(InPar,'SubSizeXY',[128 128]);  % or 'full'
