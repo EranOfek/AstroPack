@@ -81,10 +81,10 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
     %                     this parameter will be returned.
     %            'BackFun' - Used for 'sn' PeakMethod.
     %                     For details see imUtil.background.background.
-    %                     Default is @nanmedian.
+    %                     Default is @median.
     %            'BackFunPar' - Used for 'sn' PeakMethod.
     %                     For details see imUtil.background.background.
-    %                     Default is {'all'}.
+    %                     Default is {'all','omitnan'}.
     %            'VarFun' - Used for 'sn' PeakMethod.
     %                     For details see imUtil.background.background.
     %                     Default is @imUtil.background.rvar.
@@ -153,8 +153,8 @@ function [Result, Matched] = fitPattern(Obj1, Obj2, Args)
         Args.Conn                    = 8;
         
         % background pars for find_shift_pairs
-        Args.BackFun                 = @nanmedian; % @median;
-        Args.BackFunPar cell         = {'all'};      % {[1 2],'omitnan'});
+        Args.BackFun                 = @median; % @median;
+        Args.BackFunPar cell         = {'all','omitnan'};      % {[1 2],'omitnan'});
         Args.VarFun                  = @imUtil.background.rvar;    % if empty, then will try to read var from second output of BackFun...
         Args.VarFunPar cell          = {}; % {[1 2]});
         Args.SubSizeXY               = [128 128];  % or 'full'

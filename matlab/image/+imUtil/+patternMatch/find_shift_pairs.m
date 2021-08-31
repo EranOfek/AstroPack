@@ -69,10 +69,10 @@ function [Res,H2]=find_shift_pairs(Cat,Ref,varargin)
 %                     this parameter will be returned.
 %            'BackFun' - Used for 'sn' PeakMethod.
 %                     For details see imUtil.background.background.
-%                     Default is @nanmedian.
+%                     Default is @median.
 %            'BackFunPar' - Used for 'sn' PeakMethod.
 %                     For details see imUtil.background.background.
-%                     Default is {'all'}.
+%                     Default is {'all','omitnan'}.
 %            'VarFun' - Used for 'sn' PeakMethod.
 %                     For details see imUtil.background.background.
 %                     Default is @imUtil.background.rvar.
