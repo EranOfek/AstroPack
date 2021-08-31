@@ -1,9 +1,8 @@
 # Automatic tool to extract functions from matlab source files
-#
-#
+# with their H1 comments.
 
 
-import os, glob, time, argparse, shutil
+import os, glob, argparse
 from datetime import datetime
 
 FILE_EXT = ['.m']
@@ -23,6 +22,9 @@ def log(msg, dt = False):
         logfile.flush()
 
 
+# Extract H1 comment from comment lines below the function line
+# function Result = openConn(Obj)
+#    % Open connection, throw exception on failure
 def get_comment(lines, idx):
     comment = ''
     example = ''
@@ -40,71 +42,81 @@ def get_comment(lines, idx):
     return comment, example
 
 
-# function Result = openConn(Obj)
-#    % Open connection, throw exception on failure
-
+# Process single .m file
 def process_file(fname):
+
+    # Read source file
     with open(fname) as f:
         lines = f.read().splitlines()
 
+    # Add empty lines at beginning and end to allow +/-1 indexing without exceptions
     lines.insert(0, '')
     lines.append('')
 
+    # Create output file
     path, fn = os.path.split(fname)
     out_fname = os.path.join(out_path, fn + '.txt')
-
     outf = open(out_fname, 'wt')
 
-    func = False
-    func_name = ''
+    # Process line by line
     class_name = ''
     methods_type = ''
     for line_num, line in enumerate(lines):
-
         try:
             # Skip comment lines
             if line.strip().startswith('%'):
                 continue
 
+            # Skip empty lines
             line = line.replace('/t', '    ').strip()
             if line == '':
                 continue
 
+            # Add spaces for easy split
             line = line.replace('=', ' = ')
             line = line.replace('(', ' ( ')
             line = line.replace(')', ' ) ')
             tokens = line.split(' ')
+
+            # methods
             if 'methods' in tokens:
                 new_methods_type = ''
                 if 'Static' in tokens:
                     new_methods_type = 'Static'
 
+                # swtiched type
                 if new_methods_type != methods_type:
                     methods_type = new_methods_type
-                    outf.write('\nmethods ' + methods_type + '\n\n')
+                    outf.write('\n% methods ' + methods_type + '\n%\n')
 
-
+            # classdef
             if tokens[0] == 'classdef':
                 class_name = tokens[1]
-                outf.write('class: {}\n\n'.format(class_name))
+                outf.write('% class: {}\n%\n'.format(class_name))
                 continue
 
+            # function
             if 'function' in tokens:
+
+                # Get function name
                 if '=' in line:
                     func_name = line.split('=')[1].strip().split('(')[0].strip()
                 else:
                     func_name = line.split('function')[1].strip().split('(')[0].strip()
 
                 if func_name != '':
+                    # Get comment
                     title = get_comment(lines, line_num)
-                    outf.write('{} - {}\n'.format(func_name, title))
+                    outf.write('% {} - {}\n'.format(func_name, title))
+                    outf.write('%\n')
         except:
             log('exception parsing line: ' + line)
 
-
+    # Done
     outf.close()
 
 
+# Process folder with recursion
 def process_folder(fpath, subdirs = True):
     ext_list = ['.m']
     if subdirs:

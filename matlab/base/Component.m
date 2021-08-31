@@ -34,10 +34,13 @@ classdef Component < Base
     end
     
     %-------------------------------------------------------- 
-    methods
-        % Constructor    
+    methods % Constructor
+        
         function Obj = Component(varargin)
+            % Constructor
             % By default use system log and configuration
+            %   NewComp = Component()
+            %   NewComp = Component(Owner)
             
             % Set owner component
             if numel(varargin) > 0
@@ -60,8 +63,9 @@ classdef Component < Base
         
         
         function Result = makeUuid(Obj)
-            % (re)Generate unique ID for each element in object, return
-            % current Uuid or [] for array
+            % Generate or re-generate unique ID for each element in object, 
+            % Return Uuid or [] for array
+            % MyUuid = Obj.makeUuid()
             
             for i = 1:numel(Obj)                
                 Obj(i).Uuid = Component.newUuid();
@@ -76,7 +80,8 @@ classdef Component < Base
         
         
         function Result = needUuid(Obj)
-            % Generate unique ID only if not empty
+            % Generate unique ID only if empty
+            % Return Uuid or [] for array
             for i = 1:numel(Obj)            
                 if isempty(Obj(i).Uuid)
                     Obj(i).makeUuid();
@@ -109,7 +114,8 @@ classdef Component < Base
 
         
         function msgLog(Obj, Level, varargin)  
-            % Write message to log
+            % Write message to log according to current log-level settings
+            % Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
                  
             % Do nothing if both display and file logs are disabled
             if ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurDispLevel) && ...
@@ -139,6 +145,7 @@ classdef Component < Base
 
         function msgStyle(Obj, Level, Style, varargin)  
             % Log with style (color, etc.)
+            % Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
             
             % Do nothing if both display and file logs are disabled
             if ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurDispLevel) && ...
@@ -168,6 +175,7 @@ classdef Component < Base
     
     
     methods % Auxiliary functions
+        
         function Args = selectDefaultArgsFromProp(Obj, Args)
             % Given an Args structure, go over fields - if empty, take
             % value from object property. Otherwise, use value.
@@ -257,7 +265,7 @@ classdef Component < Base
             
             Nobj  = numel(Obj);
             Nprop = numel(DataProp);
-            if nargout>Nprop
+            if nargout > Nprop
                 error('Numbre of input data properties must be equal or larger than the number of output arguments');
             end
             DataProp = DataProp(1:nargout);
@@ -281,7 +289,7 @@ classdef Component < Base
     
     methods(Static)
         function Result = newUuid()    
-            % Generate Uuid using java
+            % Generate Uuid using java package
             Temp = java.util.UUID.randomUUID;
             
             % Convert java string to char
@@ -290,8 +298,7 @@ classdef Component < Base
         
         
         function Result = newSerial()    
-            % Generate simple serial number, used as alternative
-            % for local Uiud with fast performance
+            % Generate simple serial number, used as alternative to Uuid
             persistent Counter
             if isempty(Counter)
                 Counter = 0;
@@ -302,9 +309,11 @@ classdef Component < Base
         
         
         function Result = newSerialStr(varargin)    
-            % Generate simple serial number, used as fast local uuid
+            % Generate simple serial number, used as alternative to Uuid,
+            % shorter string and fast performance.
             % If parameter is specified, use it as prefix to the counter
-            
+            % Example:
+            %   Serial = Obj.newSerialStr('MyIndex') -> 'MyIndex1'
             if numel(varargin) == 1
                 Result = string(varargin(1) + string(Component.newSerial())).char;
             else                

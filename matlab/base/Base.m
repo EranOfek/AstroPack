@@ -1,9 +1,9 @@
 % Component base class
-%       This is the base class from which all the classes in AstroPack
-%       hinerits.
+%   This is the base class from which all the classes in AstroPack hinerits.
+%
 % Functionality:
-%       copyObject - by value deep copy of an object/
-%       copyProp - Copy specific properyies from one object to another
+%   copyObject - by value deep copy of an object/
+%   copyProp - Copy specific properyies from one object to another
 %--------------------------------------------------------------------------
 
 % Making a DEEP Copy: Copy each property value and assign it to the new 
@@ -35,7 +35,7 @@ classdef Base < handle
     
     methods % Copy
         function NewObj = copyObject(Obj, Args)
-            % By value copy of an object ans its content
+            % Copy by value an object and its content
             % Input  : - Any object that inherits from Base
             %          * ...,key,val,...
             %            'ClearProp' - A cell array of properties which
@@ -119,6 +119,7 @@ classdef Base < handle
             end
         end
         
+        
         function [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout, MinNargout)
             % A utility function for creation of an object new copy based
             % on nargout
@@ -151,8 +152,7 @@ classdef Base < handle
                 Result = Obj.copyObject;
             else
                 Result = Obj;
-            end
-            
+            end            
         end
         
     end
@@ -183,4 +183,3 @@ classdef Base < handle
     end    
     
 end
-
