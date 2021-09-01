@@ -10,7 +10,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %       The sources in Obj1 that doesn't have counterparts in
     %       Obj2 are listed in the unmatched catalog.
     %       Also return a catalog of TruelyUnMatchedObj.
-    %       This exclude not only the neaest source within the
+    %       This exclude not only the nearest source within the
     %       search radius, but all the sources in Obj1 which have
     %       counterparts within the search radius.
     % Input  : - An AstroCatalog/AstroImage object.
