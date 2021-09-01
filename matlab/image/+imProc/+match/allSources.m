@@ -1,12 +1,37 @@
 function Result = allSources(Obj, Args)
-    %
+    % Match multiple catalogs and create a catalog of all unique (by position) sources.
+    %       i.e., generate a list of all unique positions that appears in all the AstroCatalog object.
+    % Input  : - A multi-element AstroCatalog object.
+    %            Each element must contain a catalog which have the same
+    %            coordinate system as all the other catalogs, and the
+    %            coordinates have the same column names.
+    %          * ...,key,val,...
+    %            'CooType' - Coordinate system by which to match the catalogs
+    %                   'sphere' | 'pix'. Default is 'sphere'.
+    %            'Radius'  - Search radius. Default is 5.
+    %            'RadiusUnits' - Search radius units (if spherical
+    %                   coordinates search). Default is 'arcsec'.
+    %            'ColNamesX' - A cell array of dictionary for X column name.
+    %                   Default is AstroCatalog.DefNamesX.
+    %            'ColNamesY' - A cell array of dictionary for Y column name.
+    %                   Default is AstroCatalog.DefNamesY.
+    %            'ColNamesRA' - A cell array of dictionary for RA column name.
+    %                   Default is AstroCatalog.DefNamesRA.
+    %            'ColNamesDec' - A cell array of dictionary for Dec column name.
+    %                   Default is AstroCatalog.DefNamesDec.
+    % Output : - An AstroCatalog object containing a single element catalog
+    %            with X and Y positions.
+    % Author : Eran Ofek (Sep 2021)
     % Example: AC=AstroCatalog({rand(10,3), rand(10,3), rand(10,3)},'ColNames',{'RA','Dec','Z'},'ColUnits',{'rad','rad',''});
-    %          Result = allSources(AC, 'CooType','sphere');
+    %          AC(1).Catalog = [AC(1).Catalog; AC(3).Catalog(1:5,:); AC(2).Catalog(1:2,:)];
+    %          Result = imProc.match.allSources(AC, 'CooType','sphere');
     
     arguments
         Obj                                     % either AstroCatalog or AstroImage
         Args.CooType                 = 'sphere';
-        
+        Args.Radius                  = 3;
+        Args.RadiusUnits             = 'arcsec';
+                
         Args.ColNamesX               = AstroCatalog.DefNamesX;
         Args.ColNamesY               = AstroCatalog.DefNamesY;
         Args.ColNamesRA              = AstroCatalog.DefNamesRA;
@@ -22,19 +47,20 @@ function Result = allSources(Obj, Args)
     switch lower(Args.CooType)
         case 'sphere'
             [ColIndX, ColNameX] = colnameDict2ind(Obj(Iobj), Args.ColNamesRA);
-            [ColIndY, ColNameY] = colnameDict2ind(Obj(Iobj), Args.ColNamesRDec);
+            [ColIndY, ColNameY] = colnameDict2ind(Obj(Iobj), Args.ColNamesDec);
         case 'pix'
             [ColIndX, ColNameX] = colnameDict2ind(Obj(Iobj), Args.ColNamesX);
             [ColIndY, ColNameY] = colnameDict2ind(Obj(Iobj), Args.ColNamesY);
         otherwise
             error('Unknown CooType option');
     end
-    [X, Xunit] = MatchedCoo.getCol(ColIndX);
-    [Y, Yunit] = MatchedCoo.getCol(ColIndY);
+    
+    [X, Xunit] = Obj(Iobj).getCol(ColIndX);
+    [Y, Yunit] = Obj(Iobj).getCol(ColIndY);
 
     % MergedCoo is an AstroCatalog with two columns
     % X, Y of all sources found
-    MergedCoo  = AstroCatalog({[X, Y]}, 'ColNames',{'ColNameX','ColNameY'},'ColUnits',{Xunit, Yunit});
+    Result  = AstroCatalog({[X, Y]}, 'ColNames',{ColNameX{1},ColNameY{1}}, 'ColUnits',{Xunit{1}, Yunit{1}});
     
 
     for Iobj=2:1:Nobj
@@ -48,13 +74,6 @@ function Result = allSources(Obj, Args)
             error('Unknown Obj input class - 1st input argument must be an AstroImage or AstroCatalog object');
         end
             
-        if Iobj==1
-            % decide on CooType
-            
-        end
-        
-
-
         %       The matched catalog result has the same number of
         %       sources as in the Obj2 catalog, and for each Obj2 source,
         %       the nearest source in Obj1 is listed. If there is no
@@ -62,13 +81,18 @@ function Result = allSources(Obj, Args)
         %       contains NaNs.
         %       The sources in Obj1 that doesn't have counterparts in
         %       Obj2 are listed in the unmatched catalog.
-        [~, UnMatchedObj] = match(Obj(Iobj), MergedCoo, 'CooType',Args.CooType,...
-                                                                 'ColCatX',ColIndX,...
-                                                                 'ColCatY',ColIndY,...
-                                                                 'ColRefX',1,...
-                                                                 'ColRefY',2);
+        [~, UnMatchedObj] = imProc.match.match(Cat, Result, 'CooType',Args.CooType,...
+                                                            'Radius',Args.Radius,...
+                                                            'RadiusUnits',Args.RadiusUnits,...
+                                                            'AddIndInRef',false,...
+                                                            'AddDistCol',false,...
+                                                            'ColCatX',ColIndX,...
+                                                            'ColCatY',ColIndY,...
+                                                            'ColRefX',1,...
+                                                            'ColRefY',2);
+        
         % add UnMatchedObj to MergedCoo
-        MergedCoo = merge([MergedCoo, UnMatchedObj], {ColNameX, ColNameY});
+        Result = merge([Result, UnMatchedObj], {ColNameX{1}, ColNameY{1}});
     end
     
 end

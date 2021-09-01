@@ -926,7 +926,13 @@ classdef AstroTable < Component
             ColIndC  = colname2ind(Obj(1), Columns);
             
             Ncol     = numel(ColNames);
-            NewObj   = AstroTable;
+            if isa(Obj, 'AstroCatalog')
+                NewObj   = AstroCatalog;
+            else
+                % assume AstroTable
+                NewObj   = AstroTable;
+            end
+            
             NewObj.ColNames = ColNames;
             NewObj.Catalog = zeros(0,Ncol);
             for Iobj=1:1:Nobj

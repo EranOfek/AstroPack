@@ -48,5 +48,11 @@ function Result = unitTest
     AC = AstroCatalog({rand(100,2).*1024},'ColNames',{'X','Y'});
     Flag = imProc.match.flagSrcWithNeighbors(AC)
 
+    % allSources
+    AC=AstroCatalog({rand(10,3), rand(10,3), rand(10,3)},'ColNames',{'RA','Dec','Z'},'ColUnits',{'rad','rad',''});
+    AC(1).Catalog = [AC(1).Catalog; AC(3).Catalog(1:5,:); AC(2).Catalog(1:2,:)];
+    Result = imProc.match.allSources(AC, 'CooType','sphere');
+    
+    
     Result = true;
 end
