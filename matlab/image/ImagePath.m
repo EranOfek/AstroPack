@@ -1,6 +1,7 @@
 
 classdef ImagePath < Base
-    
+    % Construct and parse image path used in storage, database, and headers
+    % The file path is described in the LAST/ULTRASAT file naming convension document.
     properties
         
         Store = [] % db.AstroStore = []     % 
@@ -10,26 +11,30 @@ classdef ImagePath < Base
         PkFieldName     = '';       % Primary key field name
         TableName       = '';       %
         
-        % Instrument
-        Telescope       = 'USAT';   % (ProjName) - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
-        Node            = '';       % Optional
+        % Fields from file name
+        ProjName        = '';       % 
         JD              = 0;        % UTC start of exposure @Eran - UTC or JD???
-        Timezone        = 0;        % Bias in hours, to generate folder name        
-        Mount           = '';       % Optional
-        Camera          = '';       % Optional
+        TimeStr         = '';       % Time as appears in file name
 
         % Filter and Field
-        Filter          = 'clear';  % Optional
-        FieldId         = '';       % Optional
-        CropId          = '';       % Optional
-
-        % Image - Mandatoty fields
+        Filter          = 'clear';  % 
+        FieldId         = '';       % 
+        CropId          = '';       % 
         ImageType       = 'sci';    % sci, bias, dark, domeflat, twflat, skyflat, fringe
         ImageLevel      = 'raw';    % log, raw, proc, stack, coadd, ref.
         ImageSubLevel   = '';       % Sub level
         ImageProduct    = 'im';     % Product: im, back, var, imflag, exp, Nim, psf, cat, spec.
         ImageVer        = '1';      % Version (for multiple processing)
         FileType        = 'fits';   % fits / hdf5 / fits.gz
+
+        % Additional fields from database table
+        Timezone        = 0;        % Bias in hours, to generate folder name        
+        Title           = '';       % Text description
+        Metadata        = '';       % Other textual data
+        Telescope       = 'USAT';   % (ProjName) - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
+        Node            = '';       % (ProjName) - 
+        Mount           = '';       % (ProjName) - 
+        Camera          = '';       % (ProjName) - 
 
         % Debug? or have it?
         BasePath        = '/data/store';    % 
@@ -39,8 +44,7 @@ classdef ImagePath < Base
         
         % Optional (@Todo discuss with @Eran)
         SrcFileName     = '';
-        Title           = '';       % Text description
-        Metadata        = '';       % Other textual data
+
         
         %
         DictKeyNames Dictionary             %
@@ -80,7 +84,7 @@ classdef ImagePath < Base
         end
         
         
-        function setDefault(Obj)
+        function Result = setDefault(Obj)
             % Set default values
             
             DateStr = '2021-01-02 13:14:15.678';
@@ -92,10 +96,29 @@ classdef ImagePath < Base
             Obj.Camera = 'cam01';
             Obj.FieldId = 'fld1';
             Obj.CropId = 'crop001-001';
+            
+            
+            Obj.ProjName = 'LAST.1.1.1';        
+            Obj.Filter char         = 'clear';
+            Obj.FieldID             = '';
+            FormatFieldID char  = '%06d';
+            Obj.Type char           = 'sci';
+            Obj.Level char          = 'raw';
+            Obj.SubLevel char       = '';
+            Obj.Product char        = 'im';
+            Obj.Version             = 1;
+            Obj.FormatVersion       = '%03d';
+            Obj.FileType            = 'fits';
+            Obj.TimeZone            = 2;
+            Obj.RefVersion          = 1;
+            Obj.FormatRefVersion    = '%03d';
+            Obj.SubDir              = '';
+            Obj.DataDir             = 'data';
+            Obj.Base                = '/home/last';            
         end
 
         
-        function setTestData(Obj)
+        function Result = setTestData(Obj)
             % Set 
   
             Obj.Telescope       = 'USAT';            
@@ -136,6 +159,11 @@ classdef ImagePath < Base
     
     
     methods
+        
+    end
+
+
+    methods % read/write
         function Result = readFromHeader(Obj, Header)
             % Read data from AstroHeader
             % @TODO: @Eran - Validate field names in FITS header
@@ -271,7 +299,10 @@ classdef ImagePath < Base
             st.imver    = Obj.ImageVer;
             st.filetype = Obj.FileType;
         end        
-        
+    end
+
+    
+    methods % Helpers
         
         function st = makeUuid(Obj)
             % Create uuid
@@ -282,7 +313,321 @@ classdef ImagePath < Base
     end
   
     
-    methods
+    methods(Static) % Make
+        
+        function Result = constructPath(Args)
+            % Construct image/catalog file path based on the LAST/ULTRASAT standard
+            % Options are:
+            % /data/YYYY/MM/DD/raw/ - contains all the science raw data
+            % /data/YYYY/MM/DD/log/  - contains all the log files
+            % /data/YYYY/MM/DD/proc/ - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
+            % /data/YYYY/MM/DD/calib/ - contains all the processed calibration images/variance/masks/catalogs
+            % /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
+            % /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
+            % /data/coadd/area/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
+            
+            % Example: Path=imUtil.util.file.construct_path
+            %          Path=imUtil.util.file.construct_path('Level','ref','SubDir','x')
+            %          Path=imUtil.util.file.construct_path('Level','proc','Type','bias')
+            arguments
+                Args.Base = '/home/last'
+                Args.DataDir = 'data';  % Default is 'data'
+                Args.SubDir = ''  % This is the area/location directory below the coadd/ref directory
+                Args.ProjName
+                Args.Time = []; %  - If empty, then will use current computer time, and
+%                   will assume the time is in UTC.
+%                   If numeric then assume the time is in JD, if char then
+%                   assume the time is in the YYYY-MM-DDTHH:MM:SS.FFF
+%                   format.Date, TimeZone} or {YYYY, MM, DD}, or []}
+                Args.TimeZone = 2;  % Hours
+                Args.Type = 'sci';
+                Args.Level = 'raw';
+                Args.FieldID % (may be required for the <area#> (char or number) 
+                Args.FieldIDformat = '%05d'
+                Args.Area
+                Args.Visit
+                Args.RefVersion = 1;    % Reference image version
+                Args.FormatRefVersion = '%03d'  % Format for numeric reference version
+            end
+            
+
+% convert date to JD
+if isempty(InPar.Date)
+    JD = celestial.time.julday;
+else
+    if ischar(InPar.Date) || iscellstr(InPar.Date)
+        JD = convert.time(InPar.Date,'StrDate','JD');
+    else
+        % already in JD
+        JD = InPar.Date;
+    end    
+end
+
+
+switch InPar.Level
+    case 'ref'
+        if isnumeric(InPar.RefVersion)
+            InPar.RefVersion = sprintf(InPar.FormatRefVersion,InPar.RefVersion);
+        end
+
+        DateDir = sprintf('%s%s%s%s%s',filesep,...
+                                   InPar.Level,...
+                                   filesep,...
+                                   'version',...
+                                   InPar.RefVersion,...
+                                   filesep,...
+                                   InPar.SubDir);
+    case 'coadd'
+        DateDir = sprintf('%s%s%s%s%s',filesep,...
+                                   InPar.Level,...
+                                   filesep,...
+                                   InPar.SubDir);
+    otherwise
+        
+
+        % check TimeZone!
+        % convert to JD
+        %JD = convert.time(InPar.Date,'StrDate','JD');
+        [Y,M,D]=imUtil.util.file.date_directory(JD,InPar.TimeZone);
+        
+        %LocalJD = JD + InPar.TimeZone./24;
+        %FloorLocalJD = floor(LocalJD);
+        %FloorDate = celestial.time.jd2date(FloorLocalJD);
+        
+        
+        
+        YearDir = sprintf('%04d',Y);
+        MDir   = sprintf('%02d',M);
+        DDir   = sprintf('%02d',D);
+        MDDir  = sprintf('%s%s%s',MDir,filesep,DDir);
+        
+        
+        
+        if strcmp(InPar.Level,'proc') && ~strcmp(InPar.Type,'sci')
+            % calibration
+            Level = 'calib';
+        else
+            Level = InPar.Level;
+        end
+        
+        DateDir = sprintf('%s%s%s%s%s%s',filesep,...
+                                YearDir,...
+                                filesep,...
+                                MDDir,...
+                                filesep,...
+                                Level);
+end
+
+
+Path = sprintf('%s%s%s',InPar.Base,...
+                        filesep,...
+                        InPar.DataDir,...
+                        DateDir);
+   
+            % Clean path from multiple /
+            Path = regexprep(Path, sprintf('%s{2,5}', filesep), '/');
+            msgLog(LogLevel.Debug, 'Path: %s', Path);
+            Result = Path;            
+        end
+
+        
+        function Result = constructFile(Args)
+            %
+            % Returns: string containing image name 
+            % Returns: string containing image path (if nargout>1, call constructPath)
+            arguments
+                Args.ProjName
+                Args.Date
+                {TimeZone} or {YYYY, MM, DD} or [] (required for path) [Save in 2 properties: JD & DateStr]
+                Args.Filter (char)
+                Args.FieldID (char or number) [Saved as char]
+                Args.FieldID format - default is %05d [Not in DB]
+                Args.Counter (number) - if the user didn’t supply then apply auto increase (if AutoIncrease = true)
+                Args.AutoIncrease - increase counter - default is true. [Not in DB]
+                Args.Type (char)
+                Args.Level (char)
+                Args.SubLevel (char) - default is ‘n’ [note that n will be replaced by “”, without “.” seperator)
+                Args.Product (char)
+                Args.Version (char or number) [saved as char]
+                Args.Version format - default is %03d. [Not in DB]
+                Args.FileType - default is ‘fits’.
+                    end
+                end
+                        
+                
+                
+                
+function [FileName,Path] = construct_filename(varargin)
+% Construct image/catalog file name based on the LAST/ULTRASAT standard
+% Package: +imUtil/+util/+file
+% Description: Return data product file name and path according to the
+%              LAST/ULTRASAT standard.
+%              <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
+% Input  : * Pairs of ...,key,val,... Possible keywords include:
+%            'ProjName' - Default is 'LAST.0.1'.
+%            'Date' - If empty, then will use current computer time, and
+%                   will assume the time is in UTC.
+%                   If numeric then assume the time is in JD, if char then
+%                   assume the time is in the YYYY-MM-DDTHH:MM:SS.FFF
+%                   format.
+%                   Default is [].
+%            'TimeZone' - Time zone [hours]. Default is 2.
+%            'Filter' - Default is 'clear'.
+%            'FieldID' - Default is ''.
+%            'FormatFieldID' - Formatting of FieldID if is given as number.
+%                   Default is '%06d'.
+%            'Type' - either bias, dark, domeflat, twflat, skyflat, fringe,
+%                   sci, wave.
+%                   Default is 'sci'.
+%            'Level' - either log, raw, proc, stack, coadd, ref.
+%                   Default is 'raw'.
+%            'SubLevel' - Options are:
+%                   n - normal
+%                   s - proper subtraction S
+%                   sp - proper subtraction S tag.
+%                   d - proper subtraction D
+%                   t - Translient
+%                   r - proper coaddition R
+%                   m - matched filter with unspecified filter
+%                   Default is ''.
+%            'Product' - either: im, back, var, imflag, exp, Nim, psf, cat, spec.
+%                   Default is 'im'.
+%            'Version' - Default is 1.
+%            'FormatVersion' - Formatting of Version if is given as number.
+%                   Default is '%03d'.
+%            'FileType' - Default is 'fits'.
+%            'RefVersion' - Reference image version. Default is 1.
+%            'FormatRefVersion' - Format for numeric reference version.
+%                   Default is '%03d'.
+%            'SubDir' - This is the area/location directory below the
+%                   coadd/ref directory. Default is ''.
+%            'DataDir' - Default is 'data'.
+%            'Base' - Default is '/home/last'.
+% Output : -File name.
+%          - Path string.
+% Example: FileName=imUtil.util.file.construct_filename
+%          [FileName,Path]=imUtil.util.file.construct_filename('FieldID',100)
+
+
+InPar = inputParser;
+addOptional(InPar,'ProjName','LAST.0.1');
+addOptional(InPar,'Date',[]); % if empty use now | JD | full string
+addOptional(InPar,'Filter','clear');
+addOptional(InPar,'FieldID','');
+addOptional(InPar,'FormatFieldID','%06d');
+addOptional(InPar,'Type','sci');
+addOptional(InPar,'Level','raw');
+addOptional(InPar,'SubLevel','');
+addOptional(InPar,'Product','im');
+addOptional(InPar,'Version',1);
+addOptional(InPar,'FormatVersion','%03d');
+addOptional(InPar,'FileType','fits');
+addOptional(InPar,'TimeZone',2);
+addOptional(InPar,'RefVersion',1);
+addOptional(InPar,'FormatRefVersion','%03d');
+addOptional(InPar,'SubDir','');
+addOptional(InPar,'DataDir','data');
+addOptional(InPar,'Base','/home/last');
+parse(InPar,varargin{:});
+InPar = InPar.Results;
+
+
+%<ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
+
+
+if isempty(InPar.Date)
+    InPar.Date = celestial.time.julday;
+end
+
+if isnumeric(InPar.Date)
+    % assume JD
+    InPar.Date = convert.time(InPar.Date,'JD','StrDate');
+    InPar.Date = InPar.Date{1};
+end
+
+if isnumeric(InPar.FieldID)
+    InPar.FieldID = sprintf(InPar.FormatFieldID,InPar.FieldID);
+end
+
+
+
+        Path = .construct_path('Date', Args.Date,...
+                                     'TimeZone', Args.TimeZone,...
+                                     'Level', Args.Level,...
+                                     'Type', Args.Type,...
+                                     'RefVersion', Args.RefVersion,...
+                                     'FormatRefVersion', Args.FormatRefVersion,...
+                                     'Base', Args.Base,
+                                    'DataDir', Args.DataDir,...
+                                     'SubDir', Args.SubDir,
+                                     
+                                     
+                Path = sprintf('%s%s', Path, filesep);
+
+                % Clean from multiple '/'
+                Path = regexprep(Path, sprintf('%s{2,5}', filesep), '/');
+
+                                     
+                % Verify Type
+                switch Args.Type
+                    case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'wave'}
+                        % Ok
+                    otherwise
+                        error('Unknown Type option: %s', Args.Type);
+                end
+
+                % Verify Level
+                switch Args.Level
+                    case {'log', 'raw', 'proc', 'stack', 'ref', 'coadd'}
+                        % Ok
+                    otherwise
+                        error('Unknown Level option: %s', Args.Level);
+                end
+
+                if isempty(InPar.SubLevel)
+                    MergedLevel = InPar.Level;
+                else
+                    MergedLevel = sprintf('%s.%s',InPar.Level,InPar.SubLevel);    
+                end
+
+                % Verify Product
+                switch Args.Product
+                    case { 'im', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
+                        % Ok
+                    otherwise
+                        error('Unknown Product option: %s', Args.Product);
+                end
+
+                if isnumeric(Args.Version)
+                    Args.Version = sprintf(Args.FormatVersion, Args.Version);
+                end
+
+            % Remove '-' and ':' from date
+            if iscellstr(InPar.Date)
+                InPar.Date = InPar.Date{1};
+            end
+            InPar.Date = strrep(InPar.Date, '-', '');
+            InPar.Date = strrep(InPar.Date, 'T', '.');
+            InPar.Date = strrep(InPar.Date, ':' ,'');
+
+
+            FileName = sprintf('%s_%s_%s_%s_%s_%s_%s_%s.%s', Args.ProjName,...
+                           Args.Date,...
+                           Args.Filter,...
+                           Args.FieldID,...
+                           Args.Type,...
+                           MergedLevel,...
+                           Args.Product,...
+                           Args.Version,...
+                           Args.FileType);
+                       
+                  msgLog(LogLevel.Debug, 'FileName: %s', FileName);
+                  Result = FileName;
+                       
+                       
+                
+                
+                
         
         % <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
         % <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>               
@@ -341,10 +686,24 @@ classdef ImagePath < Base
             
         end
  
-    end
+                end
     
     
-    methods(Static)    
+        methods(Static) % Parsers
+              
+        function Result = path2struct(path)
+            %(static) - Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
+        end
+        
+        
+        function Result = filename2struct(fname)
+            %Convert a file name string to a structure with all available information
+        end
+
+            end
+            
+            
+            methods(Static)
         function Result = createFromDbQuery(Obj, Query)
             % Create ImagePath
             % @Todo

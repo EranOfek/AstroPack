@@ -27,19 +27,25 @@ def log(msg, dt = False):
 #    % Open connection, throw exception on failure
 def get_comment(lines, idx):
     comment = ''
-    example = ''
 
     # Look for comment line below the function line
     count = 1
     while lines[idx+count].strip().startswith('%'):
         line = lines[idx+count].strip().replace('\t', ' ')
         line = line.replace('%', '').strip()
-        comment = (comment + ' ' + line).strip()
+        line = line.replace('--', '').strip()
+        line = line.replace('==', '').strip()
+        words = line.split(' ')
+        words_lower = line.lower().split(' ')
+        if 'example' in words_lower:
+            break
+        comment_line = ' '.join(words)
+        comment = (comment + ' ' + comment_line).strip()
         count = count + 1
-        if count >= 10:
+        if count >= 5 or len(comment) > 120:
             break
 
-    return comment, example
+    return comment
 
 
 # Process single .m file
@@ -87,7 +93,7 @@ def process_file(fname):
                 # swtiched type
                 if new_methods_type != methods_type:
                     methods_type = new_methods_type
-                    outf.write('\n% methods ' + methods_type + '\n%\n')
+                    #outf.write('\n% methods ' + methods_type + '\n%\n')
 
             # classdef
             if tokens[0] == 'classdef':
@@ -104,11 +110,15 @@ def process_file(fname):
                 else:
                     func_name = line.split('function')[1].strip().split('(')[0].strip()
 
+                outline = '% ' + func_name
+                if methods_type != '':
+                    outline = outline + ' (' + methods_type + ')'
+
                 if func_name != '':
                     # Get comment
-                    title = get_comment(lines, line_num)
-                    outf.write('% {} - {}\n'.format(func_name, title))
-                    outf.write('%\n')
+                    comment = get_comment(lines, line_num)
+                    outline = outline + ' - ' + comment
+                    outf.write(outline + '\n')
         except:
             log('exception parsing line: ' + line)
 
