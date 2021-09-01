@@ -3,11 +3,16 @@ function Result = mergeCatalogs(Obj, Args)
     
     arguments
         Obj
-        Args.MatchByXY(1,1) logical    = false;
+        Args.CooType                 = 'sphere';
+        Args.allSourcesArgs cell     = {};
+        Args.matchArgs cell          = {};
     end
     
+    % find all unique sources
+    AllSources = imProc.match.allSources(Obj, 'CooType',Args.CooType, Args.allSourcesArgs{:});
+    
     % Match catalogs by RA/Dec or X/Y
-    [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = imProc.match.match(Obj1, Obj2, Args)
+    [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = imProc.match.match(Obj, AllSources, 'CooType',Args.CooType, Args.matchArgs{:})
     
     % Generate a matched sources matrix
     
