@@ -117,10 +117,11 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             
             % shift solution to current CCDSEC
             RefWCS = ResultObj(Iref).WCS.copyObject;
-            % the shift in CRPIX between the image and the ref
+            
+%             % the shift in CRPIX between the image and the ref
             ShiftX = Args.CCDSEC(Iim,1) - Args.CCDSEC(Iref,1);
             ShiftY = Args.CCDSEC(Iim,3) - Args.CCDSEC(Iref,3);
-            % add shift to CRPIX
+            % add shift to CRPIX - why??????
             RefWCS.CRPIX = RefWCS.CRPIX - [ShiftX, ShiftY];
             
             % call astrometryRefine with RefWCS and includeDistortion=false
@@ -133,11 +134,11 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             % Estimate RA/Dec of SubImage center
             CenterX = (Args.CCDSEC(Iim,2) - Args.CCDSEC(Iim,1)).*0.5;
             CenterY = (Args.CCDSEC(Iim,4) - Args.CCDSEC(Iim,3)).*0.5;
-            
+           
             [RA, Dec] = RefWCS.xy2sky(CenterX, CenterY, 'OutUnits','deg', 'includeDistortion',false);
             
-            got here - there is a problem
-            at seems that NsrcDep = 0????
+            %got here - there is a problem
+            %at seems that NsrcDep = 0????
             
             [ResultRefineFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData,...
                                                                                                        'WCS',RefWCS, ...
@@ -148,7 +149,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
                                                                                                        Args.astrometryCoreArgs{:});
             
             % check qulity of solution
-            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
             
         end
     
