@@ -7,7 +7,9 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     %          - An array of RA [Epoch X Source]
     %          - An array of Dec [Epoch X Source]
     %          - An array of errors in RA, in the same units as RA.
+    %            Default is 1./(3600.*100).
     %          - An array of errors in Dec, in the same units as Dec.
+    %            Default is 1./(3600.*100).
     %          * ...,key,val,...
     %            'MinNobs' - minimum number of data points required for fit
     %                   (used only when the number of observations is not
@@ -19,6 +21,9 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     %            'Units' - Units of RA/Dec. This is used only for the the
     %                   checking that the RA data is not crossing zero.
     %                   Default is 'deg'.
+    %            'RenormErr' - A logical flag inducating if to normalize
+    %                   the chi2 for the H1 hypothesis to 1.
+    %                   Default is true.
     % Output : - A structure with the following fields:
     %            .MeanT - Mean epoch relative to which the fit is done.
     %            .RA.ParH1 - Parameters for H1 [pos; vel] for each source.
@@ -34,7 +39,7 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     %            .RA.StdResid_H0 - std of H0 residuals.
     %            .Dec. - the same as .RA, but for the Dec axis.
     % Author : Eran Ofek (May 2021)
-    % Example: Time=(1:1:20)'; RA = randn(20,1e5)./(3600.*100); Dec=randn(20,1e5)./(3600.*100);
+    % Example: Time=(1:1:20)'; RA = randn(20,1e5)./(3600.*100); Dec=randn(20,1e5)./(3600.*200);
     %          RA(:,1) = (0.1:0.1:2)'./(3600);
     %          Result = celestial.pm.fitMultiProperMotion(Time, RA, Dec);
 
@@ -47,6 +52,7 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         Args.MinNobs = 5;
         Args.Prob    = [1e-3 1e-5];
         Args.Units   = 'deg';
+        Args.RenormErr(1,1) logical = true;
     end
     DeltaDoF  = 1;
     ProbDeltaChi2 = chi2inv(1-Args.Prob, DeltaDoF);
@@ -115,7 +121,14 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         Result.(PropStr).ParH0 = ParH0;
         
         Result.(PropStr).Chi2_H1 = nansum((ResidH1./ErrY).^2, 1);
-        Result.(PropStr).Chi2_H0 = nansum((ResidH0./ErrY).^2, 1);        
+        
+        
+        Result.(PropStr).Chi2_H0 = nansum((ResidH0./ErrY).^2, 1);       
+        if Args.RenormErr
+            Result.(PropStr).Chi2_H0 = Result.(PropStr).Chi2_H0./Result.(PropStr).Chi2_H1;
+            Result.(PropStr).Chi2_H1 = ones(size(Result.(PropStr).Chi2_H1));
+        end
+        
         Result.(PropStr).Nobs    = Nobs;
 
         Result.(PropStr).DeltaChi2 = Result.(PropStr).Chi2_H0 - Result.(PropStr).Chi2_H1;

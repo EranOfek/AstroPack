@@ -34,6 +34,14 @@ classdef MatchedSources < Component
     properties (Constant)
         DimEpoch = 1;
         DimSrc   = 2;
+        
+        DefNamesX cell                   = {'X','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK'};
+        DefNamesY cell                   = {'Y','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK'};
+        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
+        DefNamesDec cell                 = {'Dec','DEC','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
+        DefNamesErrRA cell               = {'RAERR','RA_ERR','ALPHAERR','ALPHA_ERR'};
+        DefNamesErrDec cell              = {'DecErr','DECERR','DEC_ERR','DELTAERR','DELTA_ERR'};
+        DefNamesMag cell                 = {'Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2'};
     end
    
     methods % constructor
@@ -504,6 +512,70 @@ classdef MatchedSources < Component
             Result.NsrcInEpoch     = sum(~isnan(Mat), Obj.DimSrc);
             
         end
+        
+        function [FieldName] = getFieldNameDic(Obj, Dic)
+            % Get field name in MatchedSources Data properties that first
+            % appear in a dictionary (cell array).
+            % Input  : - A Matched Sources object.
+            %          - A cell array of dictionary (i.e., alternative
+            %            field names corresponding to a single field.
+            % Output : - A string of field name.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Obj = MatchedSources;
+            %          Obj.addMatrix(rand(30,40),'RA');
+            %          Obj.addMatrix(rand(30,40),'Dec');
+            %          [FieldName] = getFieldNameDic(Obj, MatchedSources.DefNamesDec)
+            
+            FN = fieldnames(Obj.Data);
+            Flag = ismember(FN, Dic);
+            FieldName = FN(Flag);
+            if isempty(FieldName)
+                FieldName = '';
+            else
+                FieldName = FieldName{1};
+            end
+        end
+        
+        function [MatRA, MatDec, MatErrRA, MatErrDec] = getLonLat(Obj)
+            % Get data matrices containing the RA/Dec fields.
+            % Input  : - A MatchedSources object.
+            % Output : - A matrix of RA (longitude).
+            %          - A matrix of Dec (latitude).
+            %          - A matrix of RA errors.
+            %          - A matrix of Dec errors.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Obj = MatchedSources;
+            %          Obj.addMatrix(rand(30,40),'RA');
+            %          Obj.addMatrix(rand(30,40),'Dec');
+            %          [MatRA, MatDec] = getLonLat(Obj)
+           
+            [FieldRA]     = getFieldNameDic(Obj, Obj.DefNamesRA);
+            [FieldDec]    = getFieldNameDic(Obj, Obj.DefNamesDec);
+            [FieldErrRA]  = getFieldNameDic(Obj, Obj.DefNamesErrRA);
+            [FieldErrDec] = getFieldNameDic(Obj, Obj.DefNamesErrDec);
+            
+            if isempty(FieldRA)
+                MatRA = [];
+            else
+                MatRA     = Obj.Data.(FieldRA);
+            end
+            if isempty(FieldDec)
+                MatDec = [];
+            else
+                MatDec    = Obj.Data.(FieldDec);
+            end
+            if isempty(FieldErrRA)
+                MatErrRA = [];
+            else
+                MatErrRA  = Obj.Data.(FieldErrRA);
+            end
+            if isempty(FieldErrDec)
+                MatErrDec = [];
+            else
+                MatErrDec = Obj.Data.(FieldErrDec);
+            end
+            
+        end
     end
     
     methods % design matrix
@@ -881,6 +953,21 @@ classdef MatchedSources < Component
             io.msgLog(LogLevel.Test, 'testing MatchedSources deleteMatrix');
             MS.deleteMatrix('X2')
                         
+            % getFieldNameDic
+            Obj = MatchedSources;
+            Obj.addMatrix(rand(30,40),'RA');
+            Obj.addMatrix(rand(30,40),'Dec');
+            [FieldName] = getFieldNameDic(Obj, MatchedSources.DefNamesDec);
+
+            % getLonLat
+            Obj = MatchedSources;
+            Obj.addMatrix(rand(30,40),'RA');
+            Obj.addMatrix(rand(30,40),'Dec');
+            [MatRA, MatDec] = getLonLat(Obj)
+
+           
+            
+            
             % match sources for addMatrix:
             AC = AstroCatalog;
             AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];

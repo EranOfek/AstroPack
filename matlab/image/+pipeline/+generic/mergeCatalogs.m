@@ -7,6 +7,7 @@ function Result = mergeCatalogs(Obj, Args)
         Args.unifiedSourcesCatalogArgs cell     = {};
         Args.matchArgs cell          = {};
         Args.MatchedColums           = {'RA','Dec','PSF_MAG','PSF_MAGERR','APER_MAG_1_','APER_MAGERR_1_','APER_MAG_2_','APER_MAGERR_2_'});
+        Args.fitMotionArgs cell      = {};
     end
     
     % find all unique sources
@@ -20,7 +21,7 @@ function Result = mergeCatalogs(Obj, Args)
     MatchedS.addMatrix(MatchedObj, Args.MatchedColums);
     
     % fit PM
-    
+    FitMotion = fitMotion(Obj, Args.fitMotionArgs{:});
     
     % flag PM
     
