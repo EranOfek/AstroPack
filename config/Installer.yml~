@@ -1,0 +1,10 @@
+InstallationLocation : '~/matlab/data'
+# The following are cell arrays of entry per dataset
+DataName             : ['GAIA_SpecTemplate']
+SubDir               : ['spec']
+URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/GAIA_SpecTemplate/index.html']
+Size                 : [1805]
+# true - get tar, false - get indiv. files
+GetTar               : [0]
+SearchFile           : ['.*\.mat']
+Description          : ['GAIA stars synthetic spectral templates']
