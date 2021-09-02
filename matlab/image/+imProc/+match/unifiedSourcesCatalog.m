@@ -1,4 +1,4 @@
-function Result = allSources(Obj, Args)
+function Result = unifiedSourcesCatalog(Obj, Args)
     % Match multiple catalogs and create a catalog of all unique (by position) sources.
     %       i.e., generate a list of all unique positions that appears in all the AstroCatalog object.
     % Input  : - A multi-element AstroCatalog object.
@@ -24,7 +24,7 @@ function Result = allSources(Obj, Args)
     % Author : Eran Ofek (Sep 2021)
     % Example: AC=AstroCatalog({rand(10,3), rand(10,3), rand(10,3)},'ColNames',{'RA','Dec','Z'},'ColUnits',{'rad','rad',''});
     %          AC(1).Catalog = [AC(1).Catalog; AC(3).Catalog(1:5,:); AC(2).Catalog(1:2,:)];
-    %          Result = imProc.match.allSources(AC, 'CooType','sphere');
+    %          Result = imProc.match.unifiedSourcesCatalog(AC, 'CooType','sphere');
     
     arguments
         Obj                                     % either AstroCatalog or AstroImage

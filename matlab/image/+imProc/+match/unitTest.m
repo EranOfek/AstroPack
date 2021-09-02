@@ -17,7 +17,7 @@ function Result = unitTest
     AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
     AC.ColNames = {'RA','Dec'}; AC.ColUnits = {'rad','rad'};
     AC.getCooTypeAuto
-    AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]
+    AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0];
     AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
     AC2.getCooTypeAuto
     [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
@@ -51,7 +51,7 @@ function Result = unitTest
     % allSources
     AC=AstroCatalog({rand(10,3), rand(10,3), rand(10,3)},'ColNames',{'RA','Dec','Z'},'ColUnits',{'rad','rad',''});
     AC(1).Catalog = [AC(1).Catalog; AC(3).Catalog(1:5,:); AC(2).Catalog(1:2,:)];
-    Result = imProc.match.allSources(AC, 'CooType','sphere');
+    Result = imProc.match.unifiedSourcesCatalog(AC, 'CooType','sphere');
     
     
     Result = true;

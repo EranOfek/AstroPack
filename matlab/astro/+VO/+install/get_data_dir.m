@@ -4,10 +4,10 @@ function get_data_dir(Args)
     % Example: VO.install.get_data_dir
    
     arguments
-        Args.InstellationLocation = '~/matlab/data';
+        Args.InstallationLocation = '~/matlab/data';
         Args.Dir                  = {'https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/GAIA_SpecTemplate/index.html'};
-        Args.SearchFile           = {'.*\.mat'}
-        Args.SizeMB               [1805];
+        Args.SearchFile           = {'.*\.mat'};
+        Args.SizeMB               = [1805];
         Args.Delete(1,1) logical  = true;
         Args.Npwget               = 10;
         Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
@@ -15,9 +15,9 @@ function get_data_dir(Args)
     
     if ~isunix && ~ismac
         % assume windows - replace / with \
-        Args.InstellationLocation = strrep(Args.InstellationLocation,'/',filesep);
+        Args.InstellationLocation = strrep(Args.InstallationLocation,'/',filesep);
     else
-        Args.InstellationLocation = strrep(Args.InstellationLocation,'\',filesep);
+        Args.InstellationLocation = strrep(Args.InstallationLocation,'\',filesep);
     end
     
     PWD = pwd;
