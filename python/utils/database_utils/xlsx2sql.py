@@ -1204,7 +1204,7 @@ def main():
     parser.add_argument('-s', dest='subdirs',   action='store_true',     default=False,   help='Process xlsx files in subfolders')
     args = parser.parse_args()
 
-    astro_path = os.getenv('ASTROPACKPATH')
+    astro_path = os.getenv('ASTROPACK_PATH')
     if args.dir:
         process_folder(args.dir, ['.xlsx'], args.subdirs)
 

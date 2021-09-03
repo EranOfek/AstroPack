@@ -10,14 +10,21 @@
 import os, glob, argparse
 from datetime import datetime
 
+ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
+
 UPDATE_M = False
 
 
 FILE_EXT = ['.m']
-out_path = 'c:/temp/funcs/'
+out_path = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen/all_classes')
 
 cur_folder = ''
-class_name = ''
+cur_class = ''
+cur_package = ''
+cur_package_class = ''
+
+package_list = []
+class_list = []
 
 # Log message to file
 LOG_PATH = 'c:/temp/'
@@ -59,39 +66,70 @@ def get_comment(lines, idx):
     return comment
 
 
-
-def update_m_file(fname, func_list_comments):
+def update_m_file(fname, func_list):
 
     # Read source file
     with open(fname) as f:
         lines = f.read().splitlines()
 
-    # Check if we already have comment block
+    start_idx = lines.index('% #functions')
+    end_idx = lines.index('% #/functions', start_idx)
 
+    if start_idx > -1 and end_idx > -1:
+        lines = lines[:start_idx] + lines[start_idx + 1:]
+    else:
+        start_idx = 0
+
+    # Check if we already have comment block
     for i, line in enumerate(lines):
         pass
 
-    outf = open(fname, 'wt')
-    for line in lines:
+    # Insert functions list at to of file
+    lines.insert('% #AutoGen', start_idx)
+    lines.insert('% #functions', start_idx+1)
+    for i, func in enumerate(func_list):
+        lines.insert(start_idx+2, func)
 
-        # Remove trailing spaces
+    lines.insert(start_idx + 2 + len(func_list), '% #/functions')
+
+    # Write output file
+    with open(fname + '_out.m', 'wt') as f:
         line = line.rstrip()
-        outf.write(line)
-        outf.write('\n')
+        f.write(line)
+        f.write('\n')
 
-    outf.close()
+
+def get_package_from_path(path):
+    path = path.replace('\\', '/')
+    names = path.split('/')
+    pkg_name = ''
+    for fn in names:
+        if fn.startswith('+'):
+            if pkg_name != '':
+                pkg_name = pkg_name + '.'
+            pkg_name = pkg_name + fn
+
+    return pkg_name
 
 
 # Process single .m file
 def process_file(fname):
-    global cur_folder, class_name
+    global cur_folder, cur_class, cur_package, cur_package_class, class_list
 
     cur_folder = os.path.split(fname)[0]
-    cur_last = cur_folder.path.split(fname)[0]
+    cur_last = cur_folder.path.split(fname)[1]
 
     # Folder name is class
     if cur_last.startswith('@'):
-        class_name = cur_last
+        cur_class = cur_last
+
+    # Check if we have packages
+    pkg = get_package_from_path(cur_folder)
+    if pkg != cur_package:
+        cur_package = pkg
+
+    if pkg != '' and not pkg in package_list:
+        package_list.append(pkg)
 
     func_list_comments = []
 
@@ -142,6 +180,15 @@ def process_file(fname):
             # classdef
             if tokens[0] == 'classdef':
                 class_name = tokens[1]
+
+                if cur_package != '':
+                    cur_package_class = cur_package + '.' + class_name
+                else:
+                    cur_package_class = class_name
+
+                if not cur_package_class in class_list:
+                    class_list.append(cur_package_class)
+
                 outf.write('% class: {}\n%\n'.format(class_name))
                 continue
 
@@ -205,13 +252,42 @@ def main():
 
     parser.add_argument('-o', dest='outdir', default=None, help='Output folder')
 
+    package_list_filename = os.path.join(ASTROPACK_PATH, 'package_list.txt')
+    class_list_filename = os.path.join(ASTROPACK_PATH, 'package_list.txt')
+
+    global package_list, class_list
+
+    # Load current class_list
+    # Read source file
+    if os.path.exists(package_list_filename):
+        with open(package_list_filename) as f:
+            package_list = f.read().splitlines()
+
+    if os.path.exists(class_list_filename):
+        with open(class_list_filename) as f:
+            class_list = f.read().splitlines()
+
     #process_file('c:/temp/DbQuery.m')
-    process_folder('D:/Ultrasat/AstroPack.git/matlab')
+    process_folder('D:/Ultrasat/AstroPack.git/matlab/base')
 
     #args = parser.parse_args()
 
     folder = '.'
     #process_folder(folder, True)
+
+    package_list.sort()
+    class_list.sort()
+
+    with open(package_list_filename) as f:
+        for line in package_list:
+            f.write(line)
+            f.write('\n')
+
+    with open(class_list_filename) as f:
+        for line in class_list:
+            f.write(line)
+            f.write('\n')
+
 
 
 if __name__ == '__main__':
