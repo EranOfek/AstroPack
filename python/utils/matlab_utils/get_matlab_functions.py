@@ -12,7 +12,7 @@ from datetime import datetime
 
 ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
 
-UPDATE_M = False
+UPDATE_M = True #False
 
 
 FILE_EXT = ['.m']
@@ -25,6 +25,8 @@ cur_package_class = ''
 
 package_list = []
 class_list = []
+func_list = []
+
 
 # Log message to file
 LOG_PATH = 'c:/temp/'
@@ -72,31 +74,37 @@ def update_m_file(fname, func_list):
     with open(fname) as f:
         lines = f.read().splitlines()
 
-    start_idx = lines.index('% #functions')
-    end_idx = lines.index('% #/functions', start_idx)
+    start_idx = lines.index('% #functions') if '% #functions' in lines else -1
+    end_idx = lines.index('% #/functions', start_idx) if '% #/functions' in lines else -1
 
     if start_idx > -1 and end_idx > -1:
         lines = lines[:start_idx] + lines[start_idx + 1:]
     else:
         start_idx = 0
 
-    # Check if we already have comment block
-    for i, line in enumerate(lines):
-        pass
+        #
+        for i, line in enumerate(lines):
+            if not line.startswith('%'):
+                start_idx = i+1
+                break
 
     # Insert functions list at to of file
-    lines.insert('% #AutoGen', start_idx)
-    lines.insert('% #functions', start_idx+1)
+    lines.insert(start_idx, '% #AutoGen')
+    lines.insert(start_idx+1, '% #functions')
     for i, func in enumerate(func_list):
         lines.insert(start_idx+2, func)
 
     lines.insert(start_idx + 2 + len(func_list), '% #/functions')
+    lines.insert(start_idx + 3, '%')
 
     # Write output file
-    with open(fname + '_out.m', 'wt') as f:
-        line = line.rstrip()
-        f.write(line)
-        f.write('\n')
+    out_fname = fname + '_out.m'
+    with open(out_fname, 'wt') as f:
+        for line in lines:
+            line = line.rstrip()
+            f.write(line + '\n')
+
+    log('update_m_file done: ')
 
 
 def get_package_from_path(path):
@@ -114,14 +122,28 @@ def get_package_from_path(path):
 
 # Process single .m file
 def process_file(fname):
-    global cur_folder, cur_class, cur_package, cur_package_class, class_list
+    global cur_folder, cur_class, cur_package, cur_package_class, class_list, func_list
 
-    cur_folder = os.path.split(fname)[0]
-    cur_last = cur_folder.path.split(fname)[1]
+    update_m = False
+
+    fname = fname.replace('\\', '/')
+    cur_folder, cur_file = os.path.split(fname)
+    cur_last = os.path.split(cur_folder)[1]
+    cur_f = os.path.splitext(cur_file)
 
     # Folder name is class
+    is_class_file = False
+    is_class_folder = False
     if cur_last.startswith('@'):
-        cur_class = cur_last
+
+        is_class_folder = True
+        class_name = cur_last[1:]
+        if class_name != cur_class:
+            cur_class = class_name
+            func_list = []
+    else:
+        cur_class = ''
+        func_list = []
 
     # Check if we have packages
     pkg = get_package_from_path(cur_folder)
@@ -131,7 +153,6 @@ def process_file(fname):
     if pkg != '' and not pkg in package_list:
         package_list.append(pkg)
 
-    func_list_comments = []
 
     # Read source file
     with open(fname) as f:
@@ -143,11 +164,8 @@ def process_file(fname):
 
     # Create output file
     path, fn = os.path.split(fname)
-    out_fname = os.path.join(out_path, fn + '.txt')
-    outf = open(out_fname, 'wt')
 
     # Process line by line
-    class_name = ''
     methods_type = ''
     for line_num, line in enumerate(lines):
         try:
@@ -179,17 +197,18 @@ def process_file(fname):
 
             # classdef
             if tokens[0] == 'classdef':
-                class_name = tokens[1]
+                is_class_file = True
+
+                cur_class = tokens[1]
 
                 if cur_package != '':
-                    cur_package_class = cur_package + '.' + class_name
+                    cur_package_class = cur_package + '.' + cur_class
                 else:
-                    cur_package_class = class_name
+                    cur_package_class = cur_class
 
                 if not cur_package_class in class_list:
                     class_list.append(cur_package_class)
 
-                outf.write('% class: {}\n%\n'.format(class_name))
                 continue
 
             # function
@@ -209,15 +228,32 @@ def process_file(fname):
                     # Get comment
                     comment = get_comment(lines, line_num)
                     outline = outline + ' - ' + comment
-                    outf.write(outline + '\n')
+                    func_list.append(outline)
+
         except:
             log('exception parsing line: ' + line)
 
-    # Done
-    outf.close()
 
-    if UPDATE_M:
-        update_m_file(fname, func_list_comments)
+    # Sort the function list
+    func_list.sort()
+
+    if is_class_folder:
+        out_fname = os.path.join(out_path, cur_class + '.txt')
+    else:
+        out_fname = os.path.join(out_path, fn + '.txt')
+
+
+    # Write function list file
+    with open(out_fname, 'wt') as f:
+        f.write('% class: {}\n%\n'.format(cur_class))
+        for line in func_list:
+            f.write(line + '\n')
+
+    if is_class_file:
+        update_m = True
+
+    if update_m and UPDATE_M:
+        update_m_file(fname, func_list)
 
 
 
@@ -229,8 +265,26 @@ def process_folder(fpath, subdirs = True):
     else:
         flist = glob.glob(os.path.join(fpath, '*.*'), recursive=False)
 
+    '''
+    fpath = fpath.replace('\\', '/')
+    folder, file = os.path.split(fpath)
+    last = os.path.split(folder)[1]
+
+    # Folder name is class
+    is_class_folder = False
+    if last.startswith('@'):
+        is_class_folder = True
+    '''
+
     for fname in flist:
+        fname = fname.replace('\\', '/')
         fnlower = fname.lower()
+
+        # Skip files in doc/autogen folder
+        if 'doc/autogen' in fnlower:
+            continue
+
+        #
         for ext in ext_list:
             ext = ext.lower()
             if fnlower.endswith(ext):
@@ -268,7 +322,7 @@ def main():
             class_list = f.read().splitlines()
 
     #process_file('c:/temp/DbQuery.m')
-    process_folder('D:/Ultrasat/AstroPack.git/matlab/base')
+    process_folder('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
 
     #args = parser.parse_args()
 
