@@ -2,7 +2,7 @@
 % https://www.mathworks.com/help/matlab/matlab_prog/function-argument-validation-1.html#mw_1b62b6d6-a445-4c55-a9b9-9c70becfdbe6
 
 
-function funcarg(x,y,args)
+function funcarg(x, y,args)
     arguments
         x (1,:) double
         y (1,:) double
@@ -15,6 +15,10 @@ function funcarg(x,y,args)
     disp(y);
     disp(args.maxval);
     disp(args.minval);
+    
+    s = args;
+    disp(s);
+    
 end
 
 
