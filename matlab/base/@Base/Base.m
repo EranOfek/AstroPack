@@ -157,29 +157,28 @@ classdef Base < handle
         
     end
     
+    
+    methods
+        
+        function Result = setProps(Obj, Args)
+            % Copy fields of struct Args to class properties, non-existing properties are ignored
+            % Return number of fields copied
+            Result = 0;
+            fn = fieldnames(Args);
+            for i = 1:numel(fn)
+                if isprop(Obj, fn{i})
+                    Obj.(fn{i}) = Args.(fn{i});
+                    Result = Result + 1;
+                end
+            end
+        end
+    end
+    
     %----------------------------------------------------------------------   
     methods(Static) % Unit test
         
-        function Result = unitTest()
+        Result = unitTest()
             % unitTest for Base class
-            io.msgLog(LogLevel.Test, 'Base test started');
-            
-            % Test copyObject()
-            a = Base();
-            a.UserData = 123;            
-            b = a.copyObject();
-            assert(a.UserData == b.UserData);
-            b.UserData = 0;
-            assert(a.UserData ~= b.UserData);
-            
-            % Test copyProp()
-            c = Base();
-            a.copyProp(c, {'UserData'});
-            assert(a.UserData == c.UserData);
-            
-            io.msgLog(LogLevel.Test, 'Base test passed');
-            Result = true;
-        end
     end    
     
 end
