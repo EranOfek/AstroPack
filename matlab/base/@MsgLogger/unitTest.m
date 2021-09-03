@@ -51,6 +51,6 @@ function unitTestStackTrace(Count)
     if Count > 0
         M = MsgLogger.getSingleton();            
         M.msgStack(LogLevel.Test, 'Recursion(%d)', Count);            
-        MsgLogger.unitTestStackTrace(Count-1);
+        unitTestStackTrace(Count-1);
     end
 end
