@@ -8,16 +8,7 @@ function Result = mergeCatalogs(Obj, Args)
         Args.ColPrefix cell          = {'Mean_', 'Med_', 'Std_', 'Err_'};
         Args.ColGeneratingFun        = {@mean, @median, @std, @tools.math.stat.mean_error};
         Args.GeneratingFunArgs       = { {1,'omitnan'}, {1,'omitnan'}, {[],1,'omitnan'}, {1} };
-            
-        Args.Mean_ColPrefix          = 'Mean_';
-        Args.Median_ColPrefix        = 'Med_';
-        Args.Std_ColPrefix           = 'Std_';
-        Args.Err_ColPrefix           = 'Err_';   % std/sqrt(N)
-        
-        Args.ColsToCalcMean          = {'RA','Dec','PSF_MAG'}
-        Args.ColsToCalcMedian        = {'RA','Dec','PSF_MAG'};
-        Args.ColsToCalcStd           = {'RA','Dec','PSF_MAG'};
-        Args.ColsToCalcErr           = {'RA','Dec','PSF_MAG'};
+        Args.ColsToApplyFun          = {'RA','Dec','MAG_PSF'};   
         
         Args.FitPM(1,1) logical      = true;
         Args.ColName_PM_DeltaChi2    = 'PM_DeltaChi2';
@@ -57,14 +48,34 @@ function Result = mergeCatalogs(Obj, Args)
     MatchedS = MatchedSources;
     MatchedS.addMatrix(MatchedObj, Args.MatchedColums);
     
+    
     % Mean position
-    Ncol = numel(Args.ColsToCalcMean);
+    Ncol    = numel(Args.ColsToApplyFun);
+    Nprefix = numel(Args.ColPrefix);
+    
+    % allocate table data variables
+    NtotCol = Ncol.*Nprefix
+    NewTableColName
+    NewTable
+    
+    ColInd  = 0;
     for Icol=1:1:Ncol
-        MatchedS.Data.(Args.ColsToCalcMean{Icol})
+        % get data for Column
+        ColData = MatchedS.Data.(Args.ColsToApplyFun{Icol});
         
-        Args.ColsToCalcMean
-        ...
-        
+        for Iprefix=1:1:Nprefix
+            ColInd = ColInd + 1;
+            
+            % apply function on ColData (column wise)
+            NewColumn = Args.ColGeneratingFun(ColData, Args.GeneratingFunArgs{Iprefix}{:});
+            
+            % NewColumn name
+            NewColName = sprintf('%s%s', Args.ColPrefix{Iprefix}, Args.ColsToApplyFun{Icol});
+            
+            % store NewColumn in table
+            NewTableColName{ColInd} = NewColName;
+            NewTable(:,ColInd) = NewColumn(:);
+        end
     end
     
     % fit PM
