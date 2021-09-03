@@ -1,12 +1,23 @@
 # Automatic tool to extract functions from matlab source files
 # with their H1 comments.
 
+#
+# Outputs:
+# For each .m file - txt file with function list
+
+
 
 import os, glob, argparse
 from datetime import datetime
 
+UPDATE_M = False
+
+
 FILE_EXT = ['.m']
 out_path = 'c:/temp/funcs/'
+
+cur_folder = ''
+class_name = ''
 
 # Log message to file
 LOG_PATH = 'c:/temp/'
@@ -48,8 +59,41 @@ def get_comment(lines, idx):
     return comment
 
 
+
+def update_m_file(fname, func_list_comments):
+
+    # Read source file
+    with open(fname) as f:
+        lines = f.read().splitlines()
+
+    # Check if we already have comment block
+
+    for i, line in enumerate(lines):
+        pass
+
+    outf = open(fname, 'wt')
+    for line in lines:
+
+        # Remove trailing spaces
+        line = line.rstrip()
+        outf.write(line)
+        outf.write('\n')
+
+    outf.close()
+
+
 # Process single .m file
 def process_file(fname):
+    global cur_folder, class_name
+
+    cur_folder = os.path.split(fname)[0]
+    cur_last = cur_folder.path.split(fname)[0]
+
+    # Folder name is class
+    if cur_last.startswith('@'):
+        class_name = cur_last
+
+    func_list_comments = []
 
     # Read source file
     with open(fname) as f:
@@ -124,6 +168,10 @@ def process_file(fname):
 
     # Done
     outf.close()
+
+    if UPDATE_M:
+        update_m_file(fname, func_list_comments)
+
 
 
 # Process folder with recursion
