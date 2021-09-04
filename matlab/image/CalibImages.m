@@ -145,7 +145,7 @@ classdef CalibImages < Component
     
     methods (Access=private)
         function [Nobj, Nim] = checkObjImageSize(Obj, Image)
-            % Check the validity of the size of CalibImages object and input image
+            % Check the validity of the size (number of elements) of CalibImages object and input image
             %   This function will return an error if not one of the
             %   following: size(Image)==size(Obj) or (numel(Obj)==1 and numel(Image)>1)');
             % Input  : - A CalibImages object.
@@ -153,6 +153,11 @@ classdef CalibImages < Component
             % Output : - Number of elements in the CalibImages object.
             %          - Number of elements in the AstroImage object.
             % Author : Eran Ofek (Jul 2021)
+            
+            arguments
+                Obj
+                Image AstroImage
+            end
             
             Nobj = numel(Obj);
             Nim  = numel(Image);
@@ -170,8 +175,10 @@ classdef CalibImages < Component
     end
     
     methods % calibration functions
-        function Result = createBias(Obj, ImObj, Args)
-            % create master bias using imProc.dark.bias and store in CalibImages object.
+        function Obj = createBias(Obj, ImObj, Args)
+            % Create master bias using imProc.dark.bias and store in CalibImages object.
+            %   Optionaly, can break the bias image to sub images and store
+            %   them in different elements of the CalibImages object.
             % Input  : - An CalibImages object
             %          - A list of AstroImages, or a cell array of file
             %            names, or a a template of file names (interpreted
@@ -189,7 +196,8 @@ classdef CalibImages < Component
             %                   arguments to pass to imProc.image.image2subimages
             %                   function. Default is {}.
             % Output : - A CalibImages object with the Bias field
-            %            populated.
+            %            populated. This is an handle to the original input
+            %            object.
             % Author : Eran Ofek (Jul 2021)
             % Example: 
             
@@ -213,14 +221,14 @@ classdef CalibImages < Component
             
             % for each sub image
             
-            [Result, IsBias, CoaddN] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
+            [BiasImage, IsBias, CoaddN] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
             
             if isempty(Args.BlockSize)
-                Obj.Bias = Result;
+                Obj.Bias = BiasImage;
             else
-                Result = imProc.image.image2subimages(Obj, BlockSize, Args.image2subimagesArgs{:});
-                Nres   = numel(Result);
-                [Obj(1:Nres).Bias] = deal(Result);
+                BiasSub = imProc.image.image2subimages(BiasImage, BlockSize, Args.image2subimagesArgs{:});
+                Nres     = numel(BiasSub);
+                [Obj(1:Nres).Bias] = deal(BiasSub);
             end
         end
         
@@ -231,7 +239,7 @@ classdef CalibImages < Component
         end
         
         function Result = debias(Obj, Image, Args)
-            % Subtract bias image from an image and update mask
+            % Subtract bias image from an image and update mask.
             % Input  : - A CalibImages object.
             %            If this is a single-element object, then the bias
             %            image will subtrcated from all input images.
@@ -259,7 +267,7 @@ classdef CalibImages < Component
             end
             
             % create new copy of Image object
-            [Result, CreateNewObj] = createNewObj(Image, Args.CreateNewObj, nargout);
+            [Result] = createNewObj(Image, Args.CreateNewObj, nargout);
            
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
@@ -311,7 +319,7 @@ classdef CalibImages < Component
             end
             
             % create new copy of Image object
-            [Result, CreateNewObj] = createNewObj(Image, Args.CreateNewObj, nargout);
+            [Result] = createNewObj(Image, Args.CreateNewObj, nargout);
            
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
