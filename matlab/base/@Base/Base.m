@@ -27,8 +27,8 @@ classdef Base < handle
     
     %-------------------------------------------------------- 
     methods
-        % Constructor    
         function Obj = Base()
+            % Constructor                
         end
     end
 

@@ -6,3 +6,6 @@
 
 # Log files
 *.log
+
+*.m$out.m
+
