@@ -1,4 +1,4 @@
-function [Result,Flag] = isFlat(AI, Args)
+function [Result, Flag, FilterCell] = isFlat(AI, Args)
     % Check and validate that a set of images in an AstroImage object are flat images
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
@@ -24,11 +24,15 @@ function [Result,Flag] = isFlat(AI, Args)
     %                   variance. Default is true.
     %            'ImTypeKeyName' - IMTYPE header keyword name.
     %                   Default is 'IMTYPE'.
+    %            'FilterKey' - A string of Filter main dictionary name.
+    %                   This is used in order to generate the cell of filter names.
+    %                   Default is 'FILTER'. 
     %            Additional parameters to pass yo isImType.
     % Output : - A vector of logical indicating if an
     %            image is a validate flat image.
     %          - A structure containing vector of logicals for
     %            individaul tests.
+    %          - A cell array of filters (per image).
     % Author : Eran Ofek (May 2021)
     % Example: A=AstroImage('LAST.*_dark.fits');
     %          [Result,Flag] = imProc.flat.isFlat(A)
@@ -42,6 +46,8 @@ function [Result,Flag] = isFlat(AI, Args)
         Args.MaxFracBadPixels(1,1)                                      = 0.0001;
         Args.UseImageVar                                                = true;
 
+        Args.FilterKey                                                  = 'FLAT';
+        
         Args.ImTypeKeyName                                              = 'IMTYPE';                
         Args.UseDict(1,1) logical                                       = true;
         Args.CaseSens(1,1) logical                                      = true;
@@ -73,4 +79,10 @@ function [Result,Flag] = isFlat(AI, Args)
     end                   
     Result = Flag.IsImType & Flag.TemplateOK;
 
+    if nargout>2
+        % return also List of filter names for each image
+        St = getStructKey(AI, Args.FilterKey, 'UseDict',true);
+        FilterCell = {ST.(Args.FilterKey)};
+    end
+    
 end

@@ -1,5 +1,6 @@
 function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     % Generate a super flat image from a set of flat images.
+    %   A flat image will be generated for each Filter
     % Input  : - An AstroImage object with multiple images.
     %          * ...,key,val,...
     %            'BitDictinaryName' - A BitDictionary name.
@@ -28,6 +29,10 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %            'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
     %            'DivideEmpiricalByN' - A logical indicating if to divide
     %                   CoaddVarEmpirical by N. Default is false.
+    %            'FilterKey' - A string of Filter main dictionary name.
+    %                   This is used in order to group the images by
+    %                   filter. If empty, then use all images.
+    %                   Default is 'FILTER'.
     %            'getValArgs' - A cell array of arguments to pass
     %                   to the Header/getVal function. Default is {}.
     %            'FlatHighStd_BitName' - FlatHighStd bit name.
@@ -53,11 +58,14 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %            'SumExpTime' - A logical indicating if to sum
     %                   (true) or take the mean (false) of the
     %                   EXPTIME header keyword. Default is false.
-    % Output : - An AstroImage containing the bias/dark image.
+    % Output : - An arrray of AstroImage containing the Flat image per
+    %            filter.
     %          - A vector of logical indicating which images were
     %            used.
     %          - A matrix of the number of images used in each
     %            pixel.
+    %            If multiple filters, then this corresponds to the last
+    %            filter.
     % Example: AI = AstroImage('LAST.*_dark.fits')
     %          Bias = imProc.dark.bias(AI);
     %          AI = AstroImage('LAST.*_twflat.fits');
@@ -83,6 +91,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
         Args.DivideEmpiricalByN         = false;
 
+        Args.FilterKey                  = 'FILTER';
 
         Args.getValArgs                 = {};
 
@@ -117,8 +126,29 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         end
     end
 
-    C = imProc.image.Stack;
-    [Result, CoaddN, ImageCube] = imProc.stack.coadd(ImObj, 'CCDSEC',[],...
+    % check filters
+    if isempty(Args.FilterKey)
+        % use all images
+        Nufilt = 1;
+    else
+        St           = getStructKey(ImObj, Args.FilterKey, 'UseDict',true);
+        FilterCell   = {St.(Args.FilterKey)};
+        UniqueFilter = unique(FilterCell);
+        Nufilt       = numel(UniqueFilter);
+    end
+    
+    Result = AstroImage([Nufilt 1]); % allocate AstroImage
+    for Iufilt=1:1:Nufilt
+        % for each unique filter
+        % flag of images taken using current filter
+        if isempty(Args.FilterKey)
+            % use all images
+            FlagFilter = true(numel(ImObj),1);
+        else
+            FlagFilter = strcmp(UniqueFilter{Iufilt}, FilterCell);
+        end
+        
+        [Result(Iufilt), CoaddN, ImageCube] = imProc.stack.coadd(ImObj(FlagFilter), 'CCDSEC',[],...
                                       'Offset',[],...
                                       'PreNorm',Args.PreNorm,...
                                       'PreNormArgs',Args.PreNormArgs,...
@@ -135,38 +165,40 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
                                       'PostNormArgs',Args.PostNormArgs,...
                                       'SumExpTime',Args.SumExpTime);
 
-     % Make sure BitDictionary is populated
-     if ~isempty(Args.BitDictinaryName)
-         if ischar(Args.BitDictinaryName)
-             Result.MaskData.Dict = BitDictionary(Args.BitDictinaryName);
-         elseif isa(Args.BitDictinaryName,'BitDictionary')
-             Result.MaskData.Dict = Args.BitDictinaryName;
+         % Make sure BitDictionary is populated
+         if ~isempty(Args.BitDictinaryName)
+             if ischar(Args.BitDictinaryName)
+                 Result(Iufilt).MaskData.Dict = BitDictionary(Args.BitDictinaryName);
+             elseif isa(Args.BitDictinaryName,'BitDictionary')
+                 Result(Iufilt).MaskData.Dict = Args.BitDictinaryName;
+             else
+                 error('BitDictinaryName must be a char array or a BitDictionary');
+             end
+         end % else do nothing
+
+         % FlatHighStd
+         if isa(Args.FlatHighStd_MeanFun,'function_handle')
+             FlagFlatHighStd = Result(Iufilt).Var > (Args.FlatHighStd_Threshold.*Args.FlatHighStd_MeanFun(Result(Iufilt).Var,'all'));
+         elseif isnumeric(Args.FlatHighStd_MeanFun)
+             % value for RN
+             FlagFlatHighStd = Result(Iufilt).Var > (Args.FlatHighStd_Threshold.*Args.FlatHighStd_MeanFun.^2);
          else
-             error('BitDictinaryName must be a char array or a BitDictionary');
+             error('Unknown FlatHighStd_MeanFun option');
          end
-     end % else do nothing
+         Result(Iufilt) = maskSet(Result(Iufilt), FlagFlatHighStd, Args.FlatHighStd_BitName, 1);
 
-     % FlatHighStd
-     if isa(Args.FlatHighStd_MeanFun,'function_handle')
-         FlagFlatHighStd = Result.Var > (Args.FlatHighStd_Threshold.*Args.FlatHighStd_MeanFun(Result.Var,'all'));
-     elseif isnumeric(Args.FlatHighStd_MeanFun)
-         % value for RN
-         FlagFlatHighStd = Result.Var > (Args.FlatHighStd_Threshold.*Args.FlatHighStd_MeanFun.^2);
-     else
-         error('Unknown FlatHighStd_MeanFun option');
-     end
-     Result = maskSet(Result, FlagFlatHighStd, Args.FlatHighStd_BitName, 1);
+         % FlatLowVal
+         FlagFlatLowVal = Result(Iufilt).Image < Args.FlatLowVal_Threshold;
+         Result(Iufilt) = maskSet(Result(Iufilt), FlagFlatLowVal, Args.FlatLowVal_BitName, 1);
 
-     % FlatLowVal
-     FlagFlatLowVal = Result.Image < Args.FlatLowVal_Threshold;
-     Result = maskSet(Result, FlagFlatLowVal, Args.FlatLowVal_BitName, 1);
+         % NaN
+         FlagNaN = isnan(Result(Iufilt).Image);
+         Result(Iufilt)  = maskSet(Result(Iufilt), FlagNaN, Args.NaN_BitName, 1);
 
-     % NaN
-     FlagNaN = isnan(Result.Image);
-     Result  = maskSet(Result, FlagNaN, Args.NaN_BitName, 1);
-
-     % Update Header
-     if ~isempty(Args.AddHeader)
-        Result.HeaderData = insertKey(Result.HeaderData, Args.AddHeader, Args.AddHeaderPos);
-     end
+         % Update Header
+         if ~isempty(Args.AddHeader)
+            Result(Iufilt).HeaderData = insertKey(Result(Iufilt).HeaderData, Args.AddHeader, Args.AddHeaderPos);
+         end
+    end
+            
 end
