@@ -1,5 +1,6 @@
 function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
     % Divide by flat (and construct if needed) from a list of images
+    %       Treat a single Filter images only.
     % Input  : - An AstroImage object. Either containing images
     %            from which to divide the flat, or all the images
     %            including the flat images.
@@ -83,7 +84,7 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
         IsNotFlat              = true(size(ImObj));
     end
 
-    % subtract the bias image
+    % divide by the flat image
     if ~any(IsNotFlat)
         error('No non-flat image from which to divide flat');
     end
