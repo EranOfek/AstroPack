@@ -128,7 +128,7 @@ function Result = unitTest()
     RA  = celestial.coo.convertdms(RA,'SH','d');
     Dec = celestial.coo.convertdms(Dec,'SD','d');
     
-    Result = imProc.astrometry.astrometryCore(SI(32).CatData, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2');
+    [Result, NewSI32] = imProc.astrometry.astrometryCore(SI(32).CatData, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2');
     
     
     % astrometrySubImages

@@ -23,7 +23,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
         Args.astrometryCoreArgs cell             = {};
         Args.astrometryRefineArgs cell           = {};
         
-        Args.MinNumberCoreSolutions = 1;
+        Args.MinNumberCoreSolutions              = 1;
         Args.assessAstrometricQualityArgs cell   = {};
     end
     

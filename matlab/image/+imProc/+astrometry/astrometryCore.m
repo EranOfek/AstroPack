@@ -121,7 +121,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %               'BestInd' - Index of solution with minimal ErrorOnMean.
     %          - An handle to the original input catalog, after adding the
     %            RA/Dec columns for all the sources.
-    %            The input catalog is modified only if more than two output
+    %            The input catalog is modified only if two or more output
     %            arguments are requested.
     %          - An AstroCatalog object containing the astrometric catalog
     %            used, after applying proper motions, and queryRange.
@@ -439,8 +439,13 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran(Result(Iobj).BestInd), KeyValWCS{:});
             
             % add RA/Dec to the catalog
-            if nargout>2
+            if nargout>1
                 [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Obj(Iobj).getCol(IndCatX), Obj(Iobj).getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+                % Obj(Iobj).WCS = Result(Iobj).WCS;
+                % add WCS keys to header
+                % Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                
+                % update RA/Dec on catalog
                 Obj(Iobj).insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
             end
         end
