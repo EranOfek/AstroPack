@@ -1,2 +1,0 @@
-# MATLAB Doc Folder
-
