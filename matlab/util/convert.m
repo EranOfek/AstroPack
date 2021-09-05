@@ -1269,7 +1269,7 @@ classdef convert
         end
 
         % Convert between time systems
-        function Output=time(Input,InType,OutType)
+        function Output = time(Input, InType, OutType)
             % Convert between different types of time systems and years
             % Package: @convert
             % Description: Convert between different types of time systems and years.
