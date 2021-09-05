@@ -1,0 +1,6 @@
+% class: PipelineStateMachine
+%
+% PipelineStateMachine - 
+% init - 
+% manage - 
+% unitTest (Static) - 

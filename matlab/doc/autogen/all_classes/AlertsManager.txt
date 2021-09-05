@@ -1,0 +1,5 @@
+% class: AlertsManager
+%
+% AlertsManager - 
+% pollInputImage - 
+% uTest (Static) - 

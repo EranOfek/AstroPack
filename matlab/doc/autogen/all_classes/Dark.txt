@@ -1,0 +1,12 @@
+% class: Dark
+%
+% Dark - Constructor for a Dark object
+% bias - Generate a super bias image from a s et of bias images.
+% compare2template - Compare AstroImage to a template and variance and flag image which are different than the template.
+% debias - Subtract bias (and construct if needed) from a list of images
+% identifyFlaringPixels - Identify flaring pixels in a cube of images Searched by looking at (Cube-Mean)/Std>Threshold
+% identifySimilarImages - Search for sucessive images with a fraction of identical pixel values This is useful in order to identify problems with the detector firmware (i.e., some regions of the detector in two surcessive images are identical due to a readout
+% isBias - Check and validate that a set of images in an AstroImage object are bias images
+% isDark - Check and validate that a set of images in an AstroImage object are dark images
+% overscan - Create overscan images and optionally subtract from images
+% unitTest (Static) - unitTest for the Dark class Example: Result = imProc.image.Dark.unitTest

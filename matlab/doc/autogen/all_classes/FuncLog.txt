@@ -1,0 +1,6 @@
+% class: FuncLog
+%
+% FuncLog - Constructor
+% delete - Destructor
+% unitTest (Static) - 
+% unitTestHelper1 (Static) - Test auto-destructor

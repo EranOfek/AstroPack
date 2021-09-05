@@ -1,0 +1,1252 @@
+% class: PipelineState
+%
+% %s\n',FunName ) ; - 
+% %s\n',FunName ) ; - 
+% ... - 
+% 0.1;    % relative weight between errors and weight function - 
+% 0.6;    % tapering function parameter. - in the case of 'C' this is the precentage of the flat part.
+% BG_sigma_Callback - hObject    handle to BG_sigma (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% BG_sigma_CreateFcn - hObject    handle to BG_sigma (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% BackgroundValue_Callback - hObject    handle to BackgroundValue (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% BackgroundValue_UpdateTxt - hObject    handle to BackgroundValue (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Background_Callback - hObject    handle to Background (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Background_CreateFcn - hObject    handle to Background (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% BandName_Callback - hObject    handle to BandName (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% BandName_CreateFcn - hObject    handle to BandName (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% BandNumber_Callback - hObject    handle to BandNumber (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% BandNumber_CreateFcn - hObject    handle to BandNumber (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Cerenkov - Calculate the Cerenkov spectrum generated in a lens Package: telescope.Optics Description: Calculate the Cerenkov spectrum generated in a lens.
+% Clear_Callback - hObject    handle to Clear (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Ebv_Callback - hObject    handle to Ebv (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Ebv_CreateFcn - hObject    handle to Ebv (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Export_Callback - hObject    handle to Export (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% FilterGrid_Callback - hObject    handle to FilterGrid (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% GEO_object_visibility - SHORT DESCRIPTION HERE Package: ultrasat Description:
+% GetYamlVals - this function converts data formatted in yaml style (cells containing timestamps and values) into matlab user friendly matrices.
+% GraphsNumber_SelectionChangedFcn - hObject    handle to the selected object in GraphsNumber eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Graphs_PlotPoints - handles    structure with handles and user data (see GUIDATA)
+% GridRbbFilter_Callback - hObject    handle to GridRbbFilter (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Grid_Callback - hObject    handle to Grid (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Grid_CreateFcn - hObject    handle to Grid (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Grid_UpdateList - 
+% InitialGuess - 
+% LAST_scheduler - 
+% LAST_simulator - Simulate LAST targets scheduling Package: +celestial.schedling Description:
+% Limits_Callback - hObject    handle to Limits (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% LoadSettings_Callback - hObject    handle to LoadSettings (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Load_Callback - hObject    handle to Load (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% LossFun - 
+% Max_Callback - hObject    handle to Max (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Max_CreateFcn - hObject    handle to Max (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% MinTPointsBand_Callback - hObject    handle to MinTPointsBand (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% MinTPointsBand_CreateFcn - hObject    handle to MinTPointsBand (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% MinTPointsBand_UpdateText - hObject    handle to MinTPointsBand (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% MinTPoints_Callback - hObject    handle to MinTPoints (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% MinTPoints_CreateFcn - hObject    handle to MinTPoints (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Min_Callback - hObject    handle to Min (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Min_CreateFcn - hObject    handle to Min (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Model_Callback - hObject    handle to Model (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Model_CreateFcn - hObject    handle to Model (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Ms_Callback - hObject    handle to Ms (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Ms_CreateFcn - hObject    handle to Ms (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% NewDataFile_Callback - hObject    handle to NewDataFile (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Outlier_Callback - hObject    handle to Outlier (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% PTH_IMPORT - 
+% PTH_IMPORT - 
+% PTH_INHERITANCE - 
+% PTH_INHERITANCE - 
+% PTH_PRIMITIVES - 
+% PTH_PRIMITIVES - 
+% PeakNumber_Callback - hObject    handle to PeakNumber (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% PeakNumber_CreateFcn - hObject    handle to PeakNumber (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% PhotoFit_Callback - hObject    handle to Photofit (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Pipeline - Command-line entry point for PipelineMain class
+% PlotGrid_Callback - hObject    handle to PlotGrid (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA) plotGrid([handles.SOPRANOS_GUI.UserData.data.snname '_' lower(handles.Model.String{handles.Model.Value}) '_grid'])
+% PlotPhotoFit_Callback - hObject    handle to PlotPhotoFit (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Plot_Callback - hObject    handle to Plot (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% PlottedInGraph_Callback - hObject    handle to PlottedInGraph (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% PlottedInGraph_CreateFcn - hObject    handle to PlottedInGraph (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Populate_Callback - hObject    handle to Populate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Prog_Callback - hObject    handle to Prog (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Prog_CreateFcn - hObject    handle to Prog (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% RA_Callback - hObject    handle to RA (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% RA_CreateFcn - hObject    handle to RA (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% ReadYaml - 
+% ReadYamlRaw - 
+% RedShift_Callback - hObject    handle to RedShift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% RedShift_CreateFcn - hObject    handle to RedShift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Residuals_Callback - hObject    handle to Residuals (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% RunGrid_Callback - hObject    handle to RunGrid (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% RunTheExample - 
+% SOPRANOS_GUI - SOPRANOS_GUI MATLAB code for SOPRANOS_GUI.fig SOPRANOS_GUI, by itself, creates a new SOPRANOS_GUI or raises the existing singleton*.
+% SOPRANOS_GUI_LayoutFcn - policy - create a new figure or use a singleton. 'new' or 'reuse'.
+% SOPRANOS_GUI_OpeningFcn - This function has no output args, see OutputFcn. hObject    handle to figure eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% SOPRANOS_GUI_OutputFcn - varargout  cell array for returning output args (see VARARGOUT); hObject    handle to figure eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% SaveSettings_Callback - hObject    handle to SaveSettings (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Save_Callback - hObject    handle to Save (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% SpanMethod_Callback - hObject    handle to SpanMethod (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% SpanMethod_CreateFcn - hObject    handle to SpanMethod (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Steps_Callback - hObject    handle to Steps (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Steps_CreateFcn - hObject    handle to Steps (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Table_CellEditCallback - hObject    handle to Table (see GCBO) eventdata  structure with the following fields (see MATLAB.UI.CONTROL.TABLE) Indices: row and column indices of the cell(s) edited PreviousData: previous data for the cell(s) edited
+% Table_CellSelectionCallback - hObject    handle to Table (see GCBO) eventdata  structure with the following fields (see MATLAB.UI.CONTROL.TABLE) Indices: row and column indices of the cell(s) currently selecteds handles    structure with handles and user data (see GUIDATA)
+% Table_Update - iband      the band number to display handles    structure with handles and user data (see GUIDATA)
+% TimeVals2Cell - creates a typical struct with field named by header. Values are cell of date and vals. synopsis: s = TimeVals2Cell(time,datavalues,header)
+% TransientEnd_Callback - hObject    handle to TransientEnd (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% TransientEnd_CreateFcn - hObject    handle to TransientEnd (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% TransientStart_Callback - hObject    handle to TransientStart (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% TransientStart_CreateFcn - hObject    handle to TransientStart (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% Transient_Callback - hObject    handle to Transient (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% ULTRASAT_restricted_visibility - SHORT DESCRIPTION HERE Package: ultrasat Description:
+% Vs_Callback - hObject    handle to Vs (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% Vs_CreateFcn - hObject    handle to Vs (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% WriteYaml - 
+% [jd, mjd, cps, cpserr, flux, fluxerr, prevRef, percRef ,RA, Dec, DiscMJD, z ,... - 
+% aberration - Apply aberration of light to source position Package: celestial.coo Description: Calculate the position of a star corrected for aberration of light.
+% accretion_disk - theoretical spectrum of a optically thick, thin accretion disk Package: AstroUtil.spec Description: Calculate the theoretical spectrum of a optically thick, thin accretion disk given the mass of
+% accretion_disk_mag_c - Optically thick, thin accretion disk magnitudes Package: astro.spec Description: Calculate the magnitude, in a given filter, of a optically-thick thin accretion disk model.
+% acis_psf - Read and interpolate the Chandra ACIS-S/ACIS-I PSF. Package: VO.Chandra Description: Read and interpolate the Chandra ACIS-S/ACIS-I PSF from the Chandra CalDB files.
+% ad_dist - Calculate the filled beam angular diameter distance between two redshifts Package: astro.cosmo Description: Calculate the filled beam angular diameter distance between two redshifts along the line of sight.
+% ad_dr_dist - Calculates the Dyer-Roeder angular diameter distance for the empty beam Package: astro.cosmo Description: Calculates the Dyer-Roeder angular diameter distance, for the empty beam case (for filled beam use: ad_dist.m),
+% ad_q_dist - Angular diamater distance with quintessence Package: astro.cosmo Description: Compute filled-beam angular-diameter distance to an object in a flat Universe with constant equation of state
+% addCoordinates2catalog - Add or update RA/Dec coordinates in catalogs in AstroImage/Astrocatalog
+% add_meta_data2ps1 - SHORT DESCRIPTION HERE Package: VO.PS1 Description:
+% add_offset - Offset a position by angular distance and position angle Package: celestial.coo Description: Add an offset specified by angular distance and position angle to celestial coordinates.
+% addall - 
+% affine2d_transformation - Applay a 2D affine transformation to [X,Y] coordinates Package: +imUtil.cat Description: Applay a 2D affine transformation to [X,Y] coordinates
+% airmass - Airmass from time and object and observer position Package: celestial.coo Description: Given the JD, object celestial coordinates, and observer Geodetic coordinates, calculating the airmass of the
+% airy - Calculate the monochromatic Airy function (circular diffraction) Package: telescope.Optics Description: Calculate the theoretical diffraction pattern for a perfect circular aperture.
+% alpha_kspl_fast - Deflection for softened power law elliptical density Package: AstroUtil.lensing Description: Calculate deflection for softened power law elliptical density of the form:
+% alpha_sis - Gravitational deflection for softend spherical isothermal sphere Package: AstroUtil.lensing Description: Calculate the gravitational lensing deflection angle for a softend isothermal sphere (SIS).
+% alpha_spl - Gravitational deflection of softened power law elliptical potential Package: AsttroUtil.lensing Description: Calculate gravitational lensing deflection and magnification tensor for softened power law elliptical potential of the
+% alt2ha - Convert altitude and declnation to hour angle Package: celestial.coo Description: Given an object altitude and declination and the observer latitude, return the corresponding Hour Angle.
+% altha2dec - Convert altitude and hour angle to declination Package: celestial.coo Description: Given Altitude and Hour Angle of an object and the observer latitude, calculate the object Declination.
+% amapproj - Old map projection function (not supported) Package: celestial.map Description: Plot a list of coordinates (as dots/lines) on a map with a chosen projection.
+% ang_radius_from_color - Estimate angular radius and color temperature from a set of magnitudes Package: +AstroUtil.stars
+% ang_radius_from_temp - Calculate the angular size of a star given its mag, extinction and temp Package: +AstroUtil.stars
+% angle_in2pi - Convert an angle to the 0 to 2*pi range Package: celestial.coo Description: Convert an angle to the range 0 to 2.*pi.
+% annulus - create a matrix or a cube of 2D normalized annulus shape in each image Package: +imUtil.kernel2
+% annulus_filter - Apply annului filters to an image Package: @imUtil.background
+% applyAtmosphericExtinction - Apply extinction to spectrum
+% applyProperMotion - Apply proper motion and parallax to sources in AstroCatalog object
+% applyUnaryFun - Applay scalar-unary function (e.g., function that returns a scalar) on AstroImage
+% apsides_precession - First order estimation of the GR precession of the line of apsides Package: celestial.Kepler Description: First order estimation of the GR precession of the line of apsides.
+% area_sphere_polygon - Area of a polygon on a sphere Package: celestial.coo Description: Calculate the area of a polygon on a sphere, where the polygon sides are assumed to be great circles. If the polygon
+% arp - Fit autoregression model for evently spaced time series Package: timeseries Description: Calculate the autoregessive process of order p. Moddeling an evenly spaced time series, z(t), with:
+% assessAstrometricQuality - Collect information regarding quality of astrometric solution and return a sucess flag.
+% assign_targets2telescopes - 
+% astcat_search - Search an astronomical catalog formatted in HDF5/HTM/zones format Example: VO.search.astcat_search('FIRST',1,1,0.01)
+% asteroid_magnitude - Calculate the magnitude of minor planets in the HG system Package: celestial.SolarSys Description: Calculate the magnitude of minor planets in the HG system. Valid for phase angles (Beta) in range 0 to 120 deg.
+% astrometric_binary - Predict astrometric binary position Package: AstroUtil.binary Description: Given orbital elements of an astrometric binary, predicts its sky position as a function of time.
+% astrometric_cat - Get astrometric catalog, corrected for proper motion Package: +imUtil.cat
+% astrometryCheck - Compare the astrometry of a catalog with a reference astrometric catalog. Return statistics regarding the matched sources, rms, rms as a function of position and mag.
+% astrometryCore - A core function for astrometry. Match pattern and fit transformation.
+% astrometryRefine - Refine an astrometric solution of an AstroCatalog object This function may work on images which have either an approximate WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec coordinates. The coordinates should be good to a few arcseconds.
+% astrometrySubImages - Solve astrometry for sub images of a single contigious image The solution is done by executing astrometryCore for a limited number of sub images, and astrometryRefine for all the rest, based on the solution from astrometryCore.
+% autocor - Autocorrelation of a 2D image Package: imUtil.filter Description: Autocorrelation of a 2D image, with optional background subtraction and StD normalization.
+% azalt2hadec - Convert Az/Alt to HA/Dec Package: +celestial.coo
+% back_comp - Get spectra of background components Package: telescope Description: Get spectra of background components for S/N calculation. All the components are in [erg/cm^2/s/Ang/arcsec^2].
+% background - Calculate background and variance of an AstroImage object.
+% background - Estimate the background and its variance for an astronomical image Package: @imUtil.background Description: A wrapper function for estimating the background and background variance of an imaage in a matrix form.
+% band_spectrum - Band psectrum Package: astro.spec Description: Calculate an un-normalized Band-spectrum (Band et al. 1993).
+% beta_minimize - - beta_minimize function                                                glens Description: Given a model and approximate source position, find the best source position that minimize the
+% bias - Generate a super bias image from a s et of bias images.
+% bin_by_eye - Bin data by define bins interactively Package: timeseries Description: Bin light curve by eye. The function plots the light curve and let the user to define bins using the mouse.
+% binary_reflection_effect - reflection effect from a star with unit illumination on mirror Package: AstroUtil.binary Description: Calculate the reflection effect from a star with unit illumination on mirror (star) with radius R2.
+% binary_rv - Binary star radial velocity (RV) Package : AstroUtil.binary Description: Calculate binary star radial velocity as a function of time.
+% binmdup CooType cannot be a function handle' ) ; - 
+% binms CooType cannot be a function handle' ) ; - 
+% binms CooType cannot be a function handle' ) ; - 
+% binning - Binning function. Calculate various functions in data bins. Package: timeseries Description: Binning a timeseries. In each bin, calculate various functions (e.g., mean) or
+% binning_adaptive - Construct list of edges for binning, given some bin size criteria Package: timeseries Description:
+% binning_npt - Binning a time series by equal number of sucssesive points Package: timeseries Description: Binning a time series by equal number of sucssesive points
+% binning_old - The old version of the binning function. Use binning instead. Package: timeseries Description: Binning a timeseries using equally spaced bins. In each bin, calculate the mean, median, std,
+% black_body - Black body spectrum Package: astro.spec Description: Black body spectrum. OBSOLETE: Use AstSpec.blackbody instead.
+% blackbody_bolmag - Bolometric magnitude of black body spectrum Package: astro.spec Description: Calculate the bolometric magnitude of a black body spectrum, given its temperature, radius and distance.
+% blackbody_flux - Flux of blackbody in some wavelength range Package: AstroUtil.spec Description: Calculate the flux, in a given wavelength range, of a black-body, given its temperature, radius and distance.
+% blackbody_mag_c - Blackbody magnitude Package: astro.spec Description: Calculate the magnitude, in a given filter, of a black-body, given its temperature, radius and distance.
+% boundingCircle - fit the smallest-radius bounding circle to set of X, Y points
+% brightness_temp - Brightness temperature Package: AstroUtil.spec Description: Calculate the brightness temperature.
+% build_PS1_htm_cat - build PS1 HDF5/HTM catalog
+% build_htm_catalog - Build an HTM catalog in HDF5 format for fast queries Package: @VO.prep Description: Given a catalog, prepare the catalog in HDF5 format sorted into HTM cells. This program is used for the construction of
+% build_obsid_cat - Construct a catalog of all Chandra observations Package: VO.Chandra Description: Construct a catalog of all Chandra observations by going over the entire Chandra image archive.
+% build_obsid_cat - Construct a catalog of all Chandra observations Package: VO.Chandra Description: Construct a catalog of all Chandra observations by going over the entire Chandra image archive.
+% calcGrid - Calculate chi2/dof grid Package: AstroUtil.supernove.SOPRANOS Description: Calculate chi2/dof grid for a SN light curve against a Sapir & Waxman 2017 shock cooling model.
+% calc_all_planets_lun_occ - Lunar occultations of planets
+% calc_magnification - Magnification from mapping matrix Package: AstroUtil.lensing Description: Given the gravitational lensing mapping matrix d\alpha/d\theta, calculate the magnification.
+% calc_pm - calc_pm function Description: Calculate the proper motion of a star from a set of measurments.
+% calc_prop - 
+% calc_vsop87 - Planetary coordinates based on the VSOP87 theory Package: celestial.SolarSys Description: Calculate planetary coordinates using the VSOP87 theory.
+% calib_flux_lsq - Best fit zeropoints and mean magnitudes to a matrix of magnitudes. Package: timeseries Description: Calculate the best fit photometric zero point (ZP) per image and mean magnitude per source to a set of instrumental
+% calib_flux_sum - Normalize (calibrate) a matrix of fluxes using sum of flux in each epoch. Package: timeseries Description: Normalize (calibrate) a matrix of fluxes (Stars, Epochs) using sum of flux in each epoch.
+% calibrate_spec_using_phot - calibrate_spec_using_phot function                             AstroSpec Description: Given a spectrum and a light curve in one or more bands, applay synthetic photometry to the spectrum to calibrate
+% call_find_shift_scale_spec - 
+% cat_band_dictionary - Return the band (filter) name in a given catalog. Package: VO.util Description: Given a catalog name (e.g., 'sdss') and a band name (e.g., 'r'), return the corresponding band in the catalog
+% cat_cone - Cone search a local or online catalog. Package: VO.search Description: A uniform interface function for catalogs cone search. The catalog can be either a local catalog in the +cats
+% cat_fit_template2phot - SHORT DESCRIPTION HERE Package: AstroUtil Description:
+% catalog_interface - An interface auxilary to the catalogs in the data directory Package: VO.search Description: An auxilary function to interface the local catalogs in the data directory as well as external catalogs.
+% catalog_interface_show_columns - catalog interface show catalog columns
+% catalog_interface_show_help - catalog interface show help
+% catalog_interface_show_info - catalaog interface show information
+% catalog_mapping - Mapping of VizieR catalogs columns Package: VO.VizieR Description: Get the VizieR catalogs mapping indicating the format (column names, units and location) for each catalog.
+% ccdsec2str - Conver a CCDSEC [Xmin Xmax Ymin Ymax] to a string. Example: Str = imUtil.ccdsec.ccdsec2str([1 1000 21 900])
+% ccf - ccf function                                                      timeseries Description: Discrete cross-correlation function for two sets of unequaly spaced stationary time series.
+% ccf1 - ccf1 function                                                 timeseries Description:
+% ccf_fft - Cross correlation function of evenly spaced data using fft Package: timeseries Description: Calculate the normalized cross correlation function of two evenly spaced timeseries using fft.
+% ccf_old - Cross coorelation between two equally spaced series Package: timeseries Description: Cross correlation function for two sets of equally spaced time series.
+% cds_astcat_search - Query a VizieR catalog using the cdsclient tools Package: VO.VizieR Description: Query a VizieR catalog using the cdsclient command line tools. Allow to query a specific catalog by coordinates, or
+% cdsclient_path - Return the path of the local cdsclient directory Package: VO.VizieR Description: Return the path of the local cdsclient directory. Edit in order to change the parameters.
+% cdsclient_prog_names - Return the list of programs in the cdsclient directory Package: VO.VizieR
+% cdt_dz - Calculate the differential cdt/dz in the FLRW geometry. Package: astro.cosmo Description: Calculate the differential cdt/dz in the FLRW geometry.
+% cel_annulus_area - Area within a celestial annulus Package: celestial.coo Description: Calculate the area within a celestial annulus defined by an inner radius and outer radius of two concentric small circles.
+% celestial_circ - Grid of coordinates on a small spherical circle Package: celestial.coo Description: Calculate grid of longitude and latitude of a small circle on the celestial sphere.
+% cellhead2struct - convert a 3-column cell array containing header into a structure. Description: Remove duplicate keys, illegal characters and the 'END' key.
+% center2corners - Return field corners given its center and size Package: celestial.coo Description: Given a field/s center and size calculate the field/s corners.
+% center_ccdsec - Calculate the [X, Y] centers of lines in CCDSEC
+% checkbox_HoldOnAxis_Callback - hObject    handle to checkbox_HoldOnAxis (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% checkbox_HoldOnTemplate_Callback - hObject    handle to checkbox_HoldOnTemplate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% chi2_astrometric_binary - Find astrometric binary elements from observations Package: AstroUtil.binary Description: Given the astrometric observations of a binary and its eccentricity, Time of periastron and period, fit linearly
+% chi2_bb_photometry - Given photometric observations calculate \chi^2 for BB with a given T. Package: astro.spec Description: Given photometric observations calculate \chi^2 for a black body with a given effective temperature and angular
+% chi2_microlensing - chi^2 between microlensing observations and model Package: AstroUtil.microlensing Description: Calculate a \chi^2 for between a microlensing event light curve and a theoretical model light curve
+% ciao_extractspec - Prepare the ARF and MRF Chandra files required for X-ray spectroscopy. Package: VO.Chandra Description: Use Chandra/CIAO tasks to prepare the ARF and MRF files required for X-ray spectroscopy of a source.
+% circ - create a matrix or a cube of 2D normalized corcular shape in each image Package: +imUtil.kernel2
+% circ_fit - Fit a circle to a set of 2D coordinates on a plane or the sphere Package: +imUtil.util.fit Description: Fit points, on a plane or a sphere, to a circle. Calculate the best fit radius and the center of the circle.
+% coadd - Coadd images in AstroImage object including pre/post normalization
+% coaddProperCore - Proper coaddition of images in AstroImage object
+% coalescence_gw_time - Calculate the coalescence time for a binary stars due to GW emission Package: +AstroUtil.binary
+% coco - Convert between different coordinates (OBSOLETE: use convert_coo) Package: celestial.coo Description: General coordinate convertor. Convert/precess coordinate from/to Equatorial/galactic/Ecliptic
+% collapse_stat - Collapse an image on one dimension and calc line statistics Package: @imUtil.background Description: Collapse an image on one dimension and calculate the line statistics including smooth background level, and std
+% color2temp - Usage: temp = color2temp(color, filter1, filter2, filter_system='GAIA', mag_system='AB') Use the difference between two color magnitudes to estimate the temperature, using Eran's AstroUtil.spec.blackbody_mag_c.
+% combine_proper - Proper coaddition of images in a cube Package: imUtil.image Description: Proper coaddition (Zackay & Ofek 2017) of images in a cube
+% comoving_dist - Comoving distance Package astro.cosmo Description: Calculate the line of sight comoving distance.
+% comoving_volume - Calculate the differential and comoving volume Package: astro.cosmo Description: Calculate the differential comoving volume (d\Omega dz) at redshift z and the total comoving volume from redshift
+% comoving_volume_handle - 
+% compare2template - Compare AstroImage to a template and variance and flag image which are different than the template.
+% coneSearch - cone search(s) on AstroCatalog/AstroImage object
+% cone_in_polysphere - Check if a cone (small circle) is within a convex spherical polygon Package: celestial.htm Description: Check if a cone (small circle) is within a convex spherical polygon which sides are great circles.
+% connected_prop - Package: imUtil.sources Description:
+% constellation - Find the constellations in which celestial coordinates are located. Package: celestial.stars Description: Find the constellations in which celestial coordinates are located.
+% construct_filename - Construct image/catalog file name based on the LAST/ULTRASAT standard Package: +imUtil/+util/+file Description: Return data product file name and path according to the LAST/ULTRASAT standard.
+% construct_path - Construct image/catalog file path based on the LAST/ULTRASAT standard Package: +imUtil/+util/+file Description: Construct file path for ULTRASAT/LAST standard. The file path is described in the LAST/ULTRASAT file naming
+% construct_ptf_procimage_name - SHORT DESCRIPTION HERE Package: VO.PTF Description:
+% construct_vizquery - Constrct a query string for the Vizier cdsclient command line Package: VO.VizieR Description: Constrct a query string for the Vizier cdsclient command line
+% contains - 
+% conv2_fast - convolve two 2-D matrices using either fft or conv, whichever faster. Package: imUtil.filter Description: Convolve two matrices in which the second matrix is smaller or equal in size to the first matrix.
+% conv2_fft - convolve two 2-D matrices using fft. Package: imUtil.filter Description: Convolve two matrices in which the second matrix is smaller or equal in size to the first matrix.
+% conv_vargauss - Convolution with a Gaussian with a wavelngth dependent width Package: AstroUtil Description: Convolution with a Gaussian with a wavelngth dependent width.
+% convert2equatorial - Convert coordinates/name to apparent equatorial coordinates. Package: celestial Description: Given a coordinates in some coordinate system or equinox, or an object name, convert it to euatorial coordinates that
+% convert_coo - Convert between different coordinates Package: celestial.coo Description: General coordinate convertor. Convert/precess coordinate from/to Equatorial/galactic/Ecliptic
+% convertdms - Convert between various representations of coordinates and time Package: celestial.coo Description: Convert between various representations of coordinates and time as sexagesimal coordinates, degrees and radians.
+% convertdms1 - convertdms1 function                                               ephem Description:
+% coo2box - Calculate box vertices around coordinates (OBSOLETE: use coo2box) Package: celestial Description: Given a list of RA/Dec coordinates, and box half size, calculate the approximnate positions of the box vertices
+% coo2coaddid - Find all WISE coadd_id for a given coordinate. Package: VO.WISE Description: Given celestial equatorial coordinates, find all WISE coadd_id string ID that covers the coordinates.
+% coo2cosined - Coordinates to cosine directions Package: celestial.coo Description: Convert coordinates to cosine directions in the same reference frame. See also: cosined.m, cosined2coo.m
+% coo2field - Convert equatorial J2000 coordinates to PTF fields/CCDIDs Package: VO.PTF Description: Look for the PTF fields/CCDs that contains a given coordinate.
+% coo2id - Convert RA/Dec to GALEX image identifiers Package: VO.GALEX Description: Convert RA/Dec to GALEX image IDs.
+% coo2run - Convert J2000 equatorial coordinates to SDSS run/rerun/col/field ID. Package: VO.SDSS Description: Given celestial equatorial coordinates, find all SDSS Run/Rerun/Col/Field number ID that cover the coordinates.
+% coo2xy - Given [RA, Dec, additional columns] calculate the x,y, position in sterographic polar projection and return [X, Y, Rest of colums] for objects found
+% coo_resolver - Resolve coordinates or target name into RA/Dec Package: celestial Description: Given coordinates (Lon/Lat) in any coordinate system or format, or a target name convert the coordinates into
+% coo_visibility - Calculate the visibility of celestial coordinates Package: +celestial.scheduling Description: For a given night, and a list of targets, calculate the matrix of target visibility in 5-min (default) steps.
+% cosbell - Cosine bell function (Obsolete: use timeseries.taper instead) Package: timeseries Description: cosine bell function Generating cosine bell function in the range
+% cosined - Convert between coordinates and cosine directions Package: celestial.coo Description: Cosine direction transformation. Convert longitude and latitude to cosine direction and visa versa.
+% cosined2coo - Cosine direction to coordinates Package: celestial.coo Description: Convert cosine directions to coordinates in the same reference frame. See also: cosined.m, coo2cosined.m
+% cosmo_pars - Cosmological parameters as measured by various experiments. Package: astro.cosmo Description: Return the cosmological parameters as measured by various experiments.
+% cprintf - CPRINTF displays styled formatted text in the Command Window Syntax: count = cprintf(style,format,...)
+% crdetect_lacos - L.A. cosmic cosmic ray detection for astronomical images Package: imUtil.filter Description: Find and remove cosmic rays in an astronomical image using the L.A.cosmic algorithm (van Dokkum 2001).
+% createMatchedSources - Example: Result = wfast.createMatchedSources('WFAST_Balor_20210529-011312-278_F505W_0_Image.h5z') [Result,JD] = wfast.createMatchedSources('WFAST_Balor_20210529-0025*','UseRegExp',false) [Result,JD] = wfast.createMatchedSources('WFAST*.h5z','UseRegExp',false)
+% crit_surface_density - The critical surface density for gravitational lensing Package: astro.cosmo Description: Calculates the critical surface density for gravitational lensing, given the cosmology and redshifts of the lens
+% cube_chi2 - Calculate the sigma-clipped mean of a dataset Package: imUtil.image Description: Calculate the sigma-clipped mean of a dataset with iterations.
+% cubicZeros - this functions solves the cubic equation of the form: ax^3+bx^2+cx+d=0 a,b,c,d should by either scalar or matrices of the same form.
+% curve_of_growth - Calculate the curve of growth of a PSF Package: imUtil.psf Description: Calculate the curve of growth of a PSF.
+% cutouts - Break a single image to a cube of cutouts around given positions including optional sub pixel shift. Uses ImageComponent/cutouts.
+% cutouts_photometry - Examples: AI(1) = wfast.read2AstroImage('WFAST_Balor_20200801-020634-879_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false); AI(2) = wfast.read2AstroImage('WFAST_Balor_20200801-020630-880_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
+% dEdX_calc - Calculate dE/dX as a function of energy Package: ultrasat Description: Calculate the energy loss of electrons propagating in a material. This is used in order to estimate the Cernekov
+% daily_observability - Observability plot fot a specific coordinates Package: telescope.obs Description: Plot the observability of a given object from a give location on Earth during one night.
+% datadump - 
+% date2jd - Convert Julian/Gregorian date to Julian Day Package: @Time Description: Convert Julian/Gregorian date to Julian Day.
+% date_directory - Return the D/M/Y for a directory given a date Package: +imUtil.util.file Description: When associating a date with a file/directory name, the nearest day at the previous noon is chosen.
+% date_str2vec - date_str2vec function                                            General Description: Convert a string or a cell array of string containing date and time in the format 'YYYY-MM-DD HH:MM:SS.frac'
+% days_in_month - Return the number of days in month Package: @Time, adapted from +celestial.time Description: Calculate the number of days in a given Gregorian or Julian month.
+% dcf - ccf function                                                  timeseries Description: Discrete cross-correlation function and structure function for two sets of unequaly spaced stationary
+% dcf1 - dcf1 function                                                 timeseries Description:
+% dctn - 
+% debias - Subtract bias (and construct if needed) from a list of images
+% dec_Callback - hObject    handle to dec (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% dec_CreateFcn - hObject    handle to dec (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% dec_list; - -
+% decals_viewer_link - Get link to DECaLS image viewer Package: VO Description: Get link to DECaLS image viewer
+% deflat - Divide by flat (and construct if needed) from a list of images Treat a single Filter images only.
+% deflateimports - 
+% deleteKey - delete lines with specific keys
+% delta_t - Return \Delta{T} Package: celestial.time Description: Return \Delta{T} at a vector of Julian days. DeltaT is defined as ET-UT prior to 1984, and
+% delta_vir_z - Calculate the virial overdensity \Delta_{vir} Package: astro.cosmo Description: Calculate the virial overdensity \Delta_{vir}, as a function of redshift z, and cosmological paramaeters.
+% dilute_cat_by_mag - Remove faint sources from a catalog to have a specific surface density Package: +imUtil.cat Description: Dilute sources from a acatalog based on sources magnitude. Remove the faintest sources and sources which have NaN
+% disp_measure - Calculate the dispersion measure along a cosmological line of sight Package: astro.cosmo Description: Calculate the dispersion measure along a cosmological line of sight as a function of redshift. Valid below redshift 3
+% dist_mod2dist - Convert distance modulous to luminosity distance and redshift Package: astro.cosmo Description: Convert distance modulous to luminosity distance and redshift.
+% distsp - 
+% divideFactor - Divide factor (constant) from AstroImage
+% dls_ds_2z - Given D_ls/D_s ratio, z_l and cosmological parameters, solve for z_s. Package: AstroUtil.lensing Description: Given D_ls/D_s ratio, z_l and cosmological parameters, solve for z_s.
+% dnu_dt - Calculate dnu/dt and dr/dt for elliptical orbit Package: celestial.Kepler Description: Calculate dnu/dt and dr/dt for elliptical orbit using the Kepler Equation.
+% do_bb_fit - 
+% doinheritance - 
+% dome_az - dome_az function                                                   ephem Description:
+% dosubstitution - 
+% download_galex - 
+% dumpElement - return;
+% e2000q2000 - convert from inertial mean ecliptic of date and equinox of date to FK5 equatorial.
+% e_z - E(z) cosmological function Package: astro.cosmo Description: Calculate E(z) cosmological function, which is proportional to the time derivative of the logarithm
+% earth_gravity_field - Calculate the Earth gravity field for a set of locations. Package: celestial.Earth Description: Calculate the Earth gravity field for a set of locations. For both rotating and non rotating Earth.
+% earth_vel_ron_vondrak - Earth barycentric velocity Package: celestial.SolarSys Description: Calculate the Earth barycentric velocity in respect to the mean equator and equinox of J2000.0, using a version
+% easter_date - Calculate the date of Easter Package: celestial.time Description: Calculate the date of Easter for any Gregorian year.
+% eb_demo - GUI Eclipsing Binary light-curve demo. Package: AstroUtil.binary Description: GUI Eclipsing Binary light-curve demo.
+% eb_light_curve - Eclipsing binary light curve as a function of time. Package: AstroUtil.binary Description: Calculate eclipsing binary light curve as a function of time.
+% eccentric2true_anomaly - Convert Eccentric anomaly to true anomaly Package: celestial.Kepler Description: Convert Eccentric anomaly to true anomaly.
+% ecliptic2helioecliptic - Ecliptic longitude to Helio-ecliptic longitude Package: celestial.coo Description: Transform ecliptic longitude to Helio-ecliptic longitude.
+% edit_AD_Mass_Callback - hObject    handle to edit_AD_Mass (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_AD_Mass_CreateFcn - hObject    handle to edit_AD_Mass (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_AD_SM_Year_Callback - hObject    handle to edit_AD_SM_Year (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_AD_SM_Year_CreateFcn - hObject    handle to edit_AD_SM_Year (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_BlackBodyTemp_Callback - hObject    handle to edit_BlackBodyTemp (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_BlackBodyTemp_CreateFcn - hObject    handle to edit_BlackBodyTemp (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_CCF_Step_Callback - hObject    handle to edit_CCF_Step (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_CCF_Step_CreateFcn - hObject    handle to edit_CCF_Step (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_InnerRad_Callback - hObject    handle to edit_InnerRad (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_InnerRad_CreateFcn - hObject    handle to edit_InnerRad (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_MaxRedshift_Callback - hObject    handle to edit_MaxRedshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_MaxRedshift_CreateFcn - hObject    handle to edit_MaxRedshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_MinRedshift_Callback - hObject    handle to edit_MinRedshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_MinRedshift_CreateFcn - hObject    handle to edit_MinRedshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_ObserverE_BV_Callback - hObject    handle to edit_ObserverE_BV (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_ObserverE_BV_CreateFcn - hObject    handle to edit_ObserverE_BV (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_ObserverR_Callback - hObject    handle to edit_ObserverR (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_ObserverR_CreateFcn - hObject    handle to edit_ObserverR (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_OuterRad_Callback - hObject    handle to edit_OuterRad (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_OuterRad_CreateFcn - hObject    handle to edit_OuterRad (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_PolyDivide_Callback - hObject    handle to edit_PolyDivide (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_PolyDivide_CreateFcn - hObject    handle to edit_PolyDivide (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_Redshift_Callback - hObject    handle to edit_Redshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_Redshift_CreateFcn - hObject    handle to edit_Redshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_SNAge_Callback - hObject    handle to edit_SNAge (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_SNAge_CreateFcn - hObject    handle to edit_SNAge (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_ScaleVal_Callback - hObject    handle to edit_ScaleVal (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_ScaleVal_CreateFcn - hObject    handle to edit_ScaleVal (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_ShiftVal_Callback - hObject    handle to edit_ShiftVal (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_ShiftVal_CreateFcn - hObject    handle to edit_ShiftVal (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_SourceE_BV_Callback - hObject    handle to edit_SourceE_BV (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_SourceE_BV_CreateFcn - hObject    handle to edit_SourceE_BV (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_SourceR_Callback - hObject    handle to edit_SourceR (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_SourceR_CreateFcn - hObject    handle to edit_SourceR (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_SpecColErr_Callback - hObject    handle to edit_SpecColErr (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_SpecColErr_CreateFcn - hObject    handle to edit_SpecColErr (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_SpecColW_Callback - hObject    handle to edit_SpecColW (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_SpecColW_CreateFcn - hObject    handle to edit_SpecColW (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_SpecColY_Callback - hObject    handle to edit_SpecColY (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_SpecColY_CreateFcn - hObject    handle to edit_SpecColY (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_TempColErr_Callback - hObject    handle to edit_TempColErr (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_TempColErr_CreateFcn - hObject    handle to edit_TempColErr (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_TempColI_Callback - hObject    handle to edit_TempColI (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_TempColI_CreateFcn - hObject    handle to edit_TempColI (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% edit_TempColW_Callback - hObject    handle to edit_TempColW (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% edit_TempColW_CreateFcn - hObject    handle to edit_TempColW (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% elements2position - Convert orbital elements and date to position and velocity vectors. Package: celestial.Kepler Description: Convert orbital elements and date to position vector and velocity vector at a give epoch.
+% elements_1950to2000 - B1950.0 FK4 orbital elements to J2000.0 FK5 Package: celestial.Kepler Description: Convert solar system orbital elements given in the B1950.0 FK4 reference frame to the J2000.0 FK5 reference frame.
+% elp2date - convert to inertial mean ecliptic of date and equinox of date.
+% elp2e2000 - convert to inertial mean ecliptic of date and equinox of date.
+% eq_sampling - Resample two [X,Y] lists to have the same sampling (x). Package: astro.spec Description: Given two lists, each contains [X,Y], equalize the sampling frequency of the two lists by interpolating both lists to
+% eq_temp - Eqilibrium temperature of a body illuminated by a black-body radiation. Package: astro.spec Description: Calculate the eqilibrium temperature of a body illuminated by a black-body radiation.
+% equinox_solstice - Approximate time of Equinox and Solstice Package: celestial.SolarSys Description: Calculate the approximate time of Equinox and Solstice for a given list of years. Accurate to about 100s between
+% equipot - Calculate the gravitational potential of a binary star on a grid. Package: AstroUtil.stars Description: Calculate two body equipotanials map.
+% equipot - Calculate the gravitational potential of a binary star on a grid. Package: AstroUtil.stars Description: Calculate two body equipotanials map.
+% event_rate - Calculate event rate for ULTRASAT given event and host abs. mag. Package: ultrasat Description: Calculate event rate for ULTRASAT given event and host abs. mag.
+% extinction - Extinction in band from E_{B-V} Package: astro.spec Description: Given the E_{B-V} and the wavelength or filter name calculate the extinction in magnitude.
+% extract_phase - Extract observations take at some phase range Package: timeseries Description: Given a time series, extract observation made in a given phases range. The phase and epoch is defined by the user.
+% extrapolate2d - Example: imUtil.trans.extrapolate2d([1 1 1000 1000],[1 1000 1 1000],[1 1 1000 1000].*2 + 1)
+% fermiexp - Fermi rise - Exp decay weight function Package: +celestial.scheduling
+% field2coo - Find the center equatorial J2000 coordinates for PTF fields/CCDIDs Package: VO.PTF Description: Look for the PTF fields/CCDs coordinates by its ID.
+% figure1_CreateFcn - hObject    handle to figure1 (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% filelist - Generate a cell array of files list from file name/regular expression Package: @imUtil.util
+% filename2prop - Convert file name to properties Package: +imUtil.util.file
+% filename_constructor - Package: @imUtil.util
+% filename_info - Get information from PTF file name Package: VO.PTF Description: Get information from the IPAC PTF file name construct.
+% fill_sparse - given a list of sparse 2D positions and values, fill an image by interp Package: @imUtil.background
+% filter2_fast - Source/template detection in 2D images by filtering (cross-correlation) Package: imUtil.filter Description: 2D filtering (cross correkation) of an image (matrix) with a template (filter). The program chooeses which algorith to
+% filter2_fft - cross-correlate (filter) two 2-D matrices using fft. Package: imUtil.filter Description: 2D Cross correlation (filtering) of two matrices. The second matrix is the "filter" and should be smaller or
+% filter2_fftfft - cross-correlate a 2-D matrix with bank using fft. The input maybe ffted Package: imUtil.filter Description: 2D Cross correlation (filtering) of two matrices, or a matrix with a template bank of matrices.
+% filter2_sn - Filter an image with a PSF and calculate the S/N and Flux estimators Package: imUtil.filter Description: Filter an image with a template/PSF and calculate the signal-to-noise ratio (S/N) for
+% filter2_snBank - Filter an image with a bank of PSFs and calculate the S/N and Flux estimators Package: imUtil.filter Description: Filter an image with a template/PSF bank and calculate the signal-to-noise ratio (S/N) for
+% filter2_var - Calculate the variance and mean filter of an image Package: imUtil.filter Description: Calculate the variance and mean filter of an image in circular apertures.
+% filterForAstrometry - Given two catalogs, match their surface density and filter sources. Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs by removing NaN coordinates, imUtil.cat.flag_overdense_colrow, imUtil.cat.flag_overdense,
+% filterSources - Generate a background image filtered from sources using sucessive filtering The image is populated in the Back field or returned as an IBackImage object. Description: This routine filter out sources from an image and
+% filter_sources - Generate a background image filtered from sources using sucessive filtering Description: This routine filter out sources from an image and generate an approximate background image. The following steps are implemented:
+% findMaximum - Find numerically the maximum likelihood Package: AstroUtil.supernove.SOPRANOS Description: Find numerically the maximum likelihood
+% findMeasureSources - Basic sources finder and measurments on AstroImage object. This function uses the +imUtil.sources.find_sources function.
+% find_coo - Cone search in a table with spherical coordinates. Package: celestial.search Description: Search for a coordinate within a radius in a table of spherical coordinates.
+% find_crHT - Find cosmic rays in a catalog using hypothesis testing Package: +imUtil.sources Description:
+% find_images_regions - - find_images_regions function                                          glens Description:  Given a mass model, its parameters and a source position, search for images of
+% find_registration_trans - Example: imUtil.patternMatch.find_registration_trans
+% find_rot_pairs - Find the best rotation required to match two catalogs using dist-rot hist Package: imUtil.patternMatch Description: Find the best rotation required to match two catalogs using The Kaiser method. The histogram of the distance and
+% find_scalerot_pairs - Find rotation and scale required to match two catalogs using logdist-rot hist Package: imUtil.patternMatch Description: Find the best rotation and scale and flip (by that order) needed to be applied to a acatalog in order to match it
+% find_shift_pairs - find best X/Y shift between two catalogs from all pairs differences Package: imUtil.patternMatch Description: Find best X/Y shift between two catalogs that contains [X,Y] positions. The shifts are identified by calculating the
+% find_shift_scale_spec - Find best scale and additive shift to match two spectra Package: AstroUtil.spec Description: Given a spectrum and a reference spectrum [Wavelength, Flux] find the shift (a constant added to the data) and/or a
+% find_shift_xc_bincat - find best X/Y shift between two catalogs from xcorr binned catalogs Package: imUtil.patternMatch Description: Find best X/Y shift between two catalogs that contains [X,Y] positions. The shifts are identified by calculating the
+% find_sources - find sources in an image Package: imUtil.sources Description: Find sources in an image using a matched filter of template bank and calculate basic properties for all the sources
+% find_within_radius_cell - Find points within a radius from a list of coordinates. Package: imUtil.image Description: Given a list of coordinates within an array, return for each coordinate a vector (within a cell array) of indices of
+% find_within_radius_mat - Construct a cube of stamps around specific locations in a 2D image. Package: imUtil.image Description: Given an image and a list of coordinates, construct a cybe of stamps around the coordinates. Region outside the image
+% fitMotion - fit Proper motion in RA/Dec to coordinates in MatchedSources object. Given a MatchedSources object with RA/Dec fields, fit proper motions using the celestial.pm.fitMultiProperMotion function.
+% fitMultiProperMotion - Simultanoulsy (fast) fit proper motion and stationary model to observations The fit is done in RA/Dec space, and no cos(delta) is applied Perform hypothesis testing between the proper motion and stationary models.
+% fitPattern - Match two catalogs using stars pattern and return approximate transformation Description: Given two catalogs that coordinadte systems are related by flip, scale, rotation and shift, search the the approximate affine transformation
+% fitSurface - Fit a surface to a 2D image, with sigma clipping The X/Y coordinates are normalized prior to fitting.
+% fitTransformation - Fit an exact transformation between two matched catalogs The returned transformation is from the reference to the catalog.
+% fitWCS - Perform the Tran2D.fitAstrometricTran and prepare the WCS info This is an auxilary function that performs the fitting stage between an astrometric catalog and an image catalog, and return the Tran2D object as well as the information needed for the WCS (e.g.,
+% fit_astrometric_binary - Fit an elliptical-orbit binary orbit to astrometric data. Package: AstroUtil.binary Description: Fit an elliptical-orbit binary orbit to astrometric data. The fit has 7 free parameters, 4 of which (omega, Omega, i,
+% fit_astrometric_timedelay - SHORT DESCRIPTION HERE Package: AstroUtil.lensing Description:
+% fit_astrometric_tran - Fit astrometric transformation Package: +imUtil.patternMatch Description: Fit astrometruc transformation to two matched catalogs. Xref = a_0 + a_1*Xcat + a_2*Ycat + ...
+% fit_astrometry - Package: imUtil.patternMatch Description:
+% fit_bb - Fit a blackbody to spectrum Package: astro.spec Description: Fit a black body spectrum to a list of spectral measurments, spectrum or photometric measurments.
+% fit_bb_photometry - SHORT DESCRIPTION HERE Package: astro Description:
+% fit_overscan - fit the overscan region in an image and subtract Package: +imUtil.calib Description: Given an image and an the coordinates of the over scan region in CCDSEC format (i.e., [Xmin Xmax Ymin Ymax]),
+% fit_polys_deltachi2 - Fit polynomials of various orders to a time series and calculate chi^2 Package: timeseries Description: Fit polynomials of various orders to a time series and calculate chi^2 and rms for each polynomial fit.
+% fit_proper_motion - SHORT DESCRIPTION HERE Package: celestial Description:
+% fit_rv_ellipse - Fit radial velocity to ellipse as a function of period Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period, fit an ellipse and calculate the RMS as a function
+% fit_scircle - Example: celestial.coo.fit_scircle
+% fit_sn_rise - Fit rise-time of SN light curve Package: astro.supernova Description: Fit various functions appropriate for the rise of SN light curve. The fitted functions are:
+% fit_specline - Fit and measure flux of spectral line Package: AstroUtil.spec Description: Fit multiple profiles and measure flux of spectral line
+% fit_template2phot - Fit a set of spectral templates to photometric observations of a source. Package: astro Description: Fit a set of spectral templates to photometric observations of a single source. Return the spectral template that best
+% fit_transformation - Package: mUtil.trans Description: In a 2-D image interpolate over NaNs or over pixels in which a bit mask has a specific bit equal true.
+% fitswrite - Write a FITS file with a single image in HDU=1 Package: +imUtil.util.fits
+% fixHyperlink - 
+% flagSrcWithNeighbors - Flag sources in AstroCatalog which have neighbors within a radius Optionaly, remove sources with neighboors.
+% flag_badcol - Flag a bad column/row in an image Package: @imUtil.background Description: Flag a column/row which background/noise level is high.
+% flag_ccdsec - Flag the pixels within or outside a ccd section
+% flag_overdense - Flag sources that are found in overdense (box shaped) regions Package: +imUtil.cat Description: Given a catalog of [X,Y] positions, flag sources that are found in regions which their density is above a threshold.
+% flag_overdense_colrow - Flag sources that are found in overdense (box shaped) regions Package: +imUtil.cat Description: Given a catalog of [X,Y] positions, flag sources that are found in regions which their density is above a threshold.
+% flat - Generate a super flat image from a set of flat images. A flat image will be generated for each Filter
+% fmaxs - fmaxs function                                                    timeseries Description: Given a matrix, find local maxima (in one of the columns) and return the maxima position and height.
+% folding - Folding a timeseries by some period Package: timeseries Description: Folding a time series into a period, and calculate the phase for each data point in the time series.
+% folding_solarsys - Folding a timeseries for a solar system object Package: timeseries Description: Folding a time series of a solar system object into a period, and calculate the phase for each data point in
+% for FITS file: %s\n',FunName ) ; - 
+% for FITS file: %s\n',FunName ) ; - 
+% for catalog: %s\n',FunName ) ; - 
+% for catalog: %s\n',FunName ) ; - 
+% fov - Get the GALEX field of view radius Package: VO.GALEX Description: Return GALEX field of view (FOV)
+% fresnel_occultation_filt - Polychromatic difftraction pattern by finite soirce Package: AstroUtil.Occultation Description: Calculates the diffraction pattern caused by a finite or point polychromatic source.
+% fresnel_occultation_fs - Monochromatic diffraction pattern by finite source Package: AstroUtil.Occultation Description: Calculate the diffraction pattern generated by a finite, non-point, monochromatic source.
+% fresnel_occultation_ps - Monchromatic diffraction pattern for finite source Package: AstroUtil.Occultation Description: Calculate the intensity pattern due to diffractive Fresnel occultation by a small circular object.
+% fresnelc - Fresnel cosine function Package: AstroUtil.Occultation Description: Return the Fresnel cosine function f(T): cos(0.5*pi*T^2)
+% fresnels - Fresnel sine function Package: AstroUtil.Occultation Description: Return the Fresnel sine function f(T): sin(0.5*pi*T^2)
+% frho_Callback - hObject    handle to frho (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% frho_CreateFcn - hObject    handle to frho (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% full_copy - Usage: new_obj = full_copy(obj). Full copy of a matlab object. Package: imUtil.util.class Description: Makes a deep copy of an object. Uses the byte-stream built in Matlab function used (but not officially
+% funCube - Apply function/s on a single cube
+% fun_binary_withVariance - Applay an operator on an array and its variance.
+% fun_cutouts - Apply a function thar returns a scalar to all cutouts in image around locations.
+% fun_gauss - 1-D Gaussian Package: astro.spec Description: Calculating a Gaussian function of the form: Y = Amplitude*exp( (X-W0)^2/(2*Sigma^2) )
+% fun_lorentzian - 1-D Lorentzian Package: astro.spec Description: Calculating a Lorentzian function of the form: Y = D.*Gamma./(pi.*( (X-X0).^2 + Gamma.^2 ))
+% fun_pcyg - 1-D simplistic P-Cygni line model Package: AstroUtil.spec Description: Calculating a P-Cygni profile composed of two Gaussians of the form:
+% fun_unary_withVariance - Applay an operator on an array and its variance.
+% fun_voigt - 1-D Voight profile Package: AstroUtil.spec Description: Calculate a Voigt line profile (convolution of a Gaussian and a Lorntzian).
+% functionalResponse - Fit the pixel response to light as a function of intensity in a cube of images Description: Given an AstroImage of flat field or dark images which have different mean intensity, fit some linear models to each model intensity vs. a user specified expected intensity or the mean value of
+% fwhm_fromBank - Measure the FWHM of an image by cross corr. with a Gaussian template bank Package: +imUtil.psf Description: Measure the FWHM of an image by cross corr. with a Gaussian template bank and choose the best FWHM by the mode of most
+% gaia_dr1_build_cat - Build the GAIA-DR1 fast access catalog Example: Counter=VO.prep.GAIA.gaia_dr1_build_cat
+% gaia_dr1_cat_columns - Get the GAIA-DR1 secondary catalog column names Description: Get the GAIA-DR1 secondary catalog column names
+% gaia_dr1_read_file - Read GAIA-DR1 file for reformatting purposses Description: Given a GAIA-DR1 CSV file name, read the file into a cell array and also return a matrix of selected columns of good entries.
+% gaia_dr1_readall2hdf5 - Create an HDF5 version of the GAIA-DR1 files with a subset of columns. Example: Count=VO.prep.GAIA.gaia_dr1_readall2hdf5
+% gaia_dr1_readall_select - Select GAIA sources in Dec zone for constructing GAIA catalog Pacakge: VO.prep.GAIA
+% gainCorrect - Divide image by gain and update header.
+% gainFromFlat - Estimate the gain from flat image/s in native units. Estimated by dividing the mean by the variance.
+% gauss - create a matrix or a cube of 2D normalized Gaussians Package: +imUtil.kernel2
+% gauss_grav_const - Gaussian gravitational constant for a system Package: celestial.Kepler Description: Get the analog of the Gaussian gravitational constant for a system with a given primary mass, secondary mass and
+% gc_mid_section - Mid point on great circle between two points Package: celestial.htm Description: Given two points on a sphere, find the central point lying on the the shortest great circle section connecting the
+% generate_timedelay_lc - Generate random power-law power spectrum light curve and its time delays. Package: astro.lensing Description: Generate random power-law power spectrum light curve, its time delays, total flux, and weighted mean position.
+% geoc2geod - Convert Geocentric coordinates to Geodetic coordinates Description: Convert Geocentric coordinates to Geodetic coordinates using specified reference ellipsoid.
+% geocentric2lsr - Geocentric or heliocentric velocity to velocity relative to the LSR Package: celestial.coo Description: Approximate conversion of geocentric or heliocentric velocity to velocity relative to the local standard of
+% geod2geoc - Convert Geodetic coordinates to Geocentric coordinates Package: celestial.Earth Description: Convert Geodetic coordinates to Geocentric coordinates using specified reference ellipsoid.
+% geostat_electrons_spec_flux - Return spectral model for electron flux in geostationary orbit Package: ultrasat Description: Return spectral model for electron flux in geostationary orbit.
+% getAstrometricCatalog - Get Astrometric catalog from local/external database and optionally apply proper motion, parallax and units conversions.
+% getByKey - get keyword value from an header in a cell format Package: @headCl Description: Given a 3 column cell array [Key, Val, Comment] search for a keyword name and return the sub header that
+% getColorStyle - 
+% getHTMLHeader - 
+% getUrlsFix - 
+% getValBySynonym - Return the first key/val in the list of synonyms that appears in the cell-header.
+% get_atime - Get current time, date, JD and LST. Package: celestial.time Description: Get current time, date, JD and LST.
+% get_cat - Search selected astronomical catalogs Package: VO.search Description: Search selected astronomical catalogs
+% get_colname - 
+% get_dss - Get link to and the FITS image of the DSS Package: VO.POSS Description: Get link to and the FITS image of a digital sky survey image (POSS-I/II, UKST survey). Read the FITS file into
+% get_env - attempt to read environment variable and print error if failes Package: @imUtil.util
+% get_files_gaia_dr1 - Get GAIA DR1 files from GAIA archive Package: VO.prep.GAIA Description: Get GAIA DR1 files from GAIA archive
+% get_horizons - Get an ephemerides for a solar system body from JPL horizons get_horizons function                                              ephem Description: get an ephemerides for a solar system body from the JPL
+% get_moon - Get Moon position (low accuracy) Package: celestial.SolarSys Description: Get Moon position (low accuracy).
+% get_orbit_files - Get asteroids/comets orbital elements from JPL, save locally and read. Package: celestial.SolarSys Description: Get asteroids and comets orbital elements from JPL and read into a matlab structure.
+% get_scattering_cross_section - Get the attenuation and scattering cross-sections from the NIST website. Package: VO.NIST Description: Get the attenuation and scattering cross-sections from the NIST website. Calculate opacity and cross section for
+% get_skytile_coo - - get_skytile_coo function                                    Catalogue Description: Assuming some sky tileing (see tile_the_sky.m) and optional sub tileing for each tile, search for all the
+% get_stack - Get links to PS1 corrected stack FITS images. Package: telescope.PS1 Description: Get link to PS1 FITS images.
+% get_sun - Get Sun position (low accuracy) Package: celestial.SolarSys Description: Get Sun position (low accuracy).
+% get_tgas_dr1 - Retrieve and format the GAIA-DR1 TGAS catalog Package: VO.prep.GAIA Description: Retrieve the GAIA DR1 TGAS catalog files and reformat it
+% get_transmission_curve - Read astronomical filters from WWW into an AstFilter object Package: VO.prep Description: Read astronomical filters from the filter profile service into an AstFilter object.
+% getverblevel - 
+% glsper_4github - Calculates The generalized Lomb-Scargle periodogram (Zechmeister 2009). Package: +timeseries Description: Calculates The generalized Lomb-Scargle periodogram (Zechmeister 2009).
+% gnomonic - tangential (gnomonic) projection - spherical to plannar Package: +imUtil.tan
+% gnomonic_inv - tangential (gnomonic) projection - spherical to planar Package: +imUtil.tan
+% growth_linear_perturbation - alculate the growth function of linear perurbations Package: astro.cosmo Description: Calculate the growth function of linear perurbations in various cosmological models.
+% gui_mainfcn - 
+% ha2alt - Hour angle to altitude and airmass Package: celestial.coo Description: Given Hour Angle as measured from the meridian, the source declination and the observer Geodetic latitude, calculate
+% ha2az - Convert hour angle and declination to azimuth, altitude and airmass Package: celestial.coo Description: Given Hour Angle as measured from the meridian, the source declination and the observer Geodetic latitude, calculate
+% hadec2azalt - Convert HA/Dec to Az/Alt Package: +celestial.coo
+% handle or a numeric scalar' ) ; - 
+% handle or a numeric scalar' ) ; - 
+% handle or a numeric scalar' ) ; - 
+% handle' ) ; - 
+% handle, char array, NaN, or empty' ) ; - 
+% hardie - The Hardie airmass formula Package: celestial.coo Description: Calculate airmass using the Hardie formula.
+% hardie_inv - Convert hardie airmass to altitude Package: celestial.coo Description: Inverse Hardie airmass function. Convert airmass to zenith distance.
+% hist - Plot the histogram of a single property in a single AstroImage object image.
+% hist2d - calculate the 2-D histogram of 2-D data set. Package: imUtil.patternMatch Description: calculate the 2-D histogram of 2-D data set.
+% histcounts - Return the histcounts of a single property in a single AstroImage object image.
+% hjd - hjd function                                                  timeseries Description: Convert Julian Day (UTC) to Helicentric/Barycentric Julian Day for geocentric observer.
+% horiz_coo - Celestial equatorial coordinates to horizontal coordinates Package: celestial.coo Description: Convert Right Ascension and Declination to horizontal coordinates or visa versa.
+% hst_acs_zp_apcorr - Aperture correction for HST/ACS filter and aperture radius. Package: VO.HST Description: Given aperture radius for photometry, and Hubble Space Telecsope (HST) ACS-WFC filter name, return the fraction,
+% htm_build - Build Hierarchical Triangular Mesh (HTM) structure Package: celestial.htm Description: Build Hierarchical Triangular Mesh (HTM) structure. This structure can be use for fast searches of data
+% htm_build_son - An auxilary function for htm_build Package: celestial.htm Description: An auxilary function for htm_build.m for building Hierarchical Triangular Mesh (HTM) structure.
+% htm_search_cone - Search for all HTM leafs interscting a small circle (cone search) Package: celestial.htm Description: Search for all HTM leafs interscting a small circle (i.e., cone search).
+% htm_search_point - Search for a single point-like coordinate in an HTM tree Package: celestial.htm Description: Search for a single point-like coordinate in an HTM tree.
+% htmcat_names - Get names of all HDF5/HTM catalogs in the /data/catsHTM/ directory. Package: VO.search Description: Get names of all HDF5/HTM catalogs in the /data/catsHTM/ directory.
+% htmcat_search - Cone earch on local HDF5/HTM catalog (OBSOLETE). Package: VO.search Description: Perform a cone search around RA/Dec on a local catalog in HDF5 format sorted into HTM.
+% hubble_z - The Hubble parameter as a function of redshift Package: astro.cosmo Description: Compute the Hubble parameter as a function of redshift. (Assuming matter dominated universe - Z<1000).
+% hydrogen_lines - The vacum wavelength of Hydrogen lines Package: AstroUtil.spec Description: Calculate the vacum wavelength of Hydrogen lines, given their shell numbers.
+% idctn - 
+% identifyFlaringPixels - Identify flaring pixels in a cube of images Searched by looking at (Cube-Mean)/Std>Threshold
+% identifySimilarImages - Search for sucessive images with a fraction of identical pixel values This is useful in order to identify problems with the detector firmware (i.e., some regions of the detector in two surcessive images are identical due to a readout
+% identify_neighbors - 
+% identify_neighbors - identify_neighbors: identifies all the neighbors of those nodes in nan_list, not including the nans themselves
+% identify_neighbors - identify_neighbors: identifies all the neighbors of those nodes in nan_list, not including the nans themselves
+% imTransform - Image transformation Example: TC=Tran2D; TC.ParY=zeros(1,13);  TC.ParX=zeros(1,13); TC.ParX(1:2) = 1; TC.ParX(5)=0.03; TC.ParX(7)=0.01;
+% image2subimages - Partition an AstroImage image into sub images
+% image_partitioning - Partition a 2D image into sub images. OBSOLETE: use imUtil.image.partition_subimages instead Package: ImUtil Description: Partition a 2D image into sub images.
+% image_server - Get SDSS image server URL Package: VO.SDSS Description: Get the SDSS image server URL
+% image_server - Get the GALEX image server URL Package: VO.GALEX Description: Get GALEX image server URL
+% images2cube - Convert the images in AstroImage object into a cube. Each data property (e.g., 'ImageData', 'BackData') produce a cube.
+% images2cube - Store a set of images of the same size in a cube. Package: imUtil.image Description: Given a cell array of images or a structure array that contains a field with image, convert it to a cube of
+% images_db_filename - Get the database of all the GALEX images file names Package: VO.GALEX Description: Get the GALEX images file name database
+% iminterp - Interpolate a 2D image over NaNs or mask image Package: mUtil.trans Description: In a 2-D image interpolate over NaNs or over pixels in which a bit mask has a specific bit equal true.
+% imlaplacian - Laplacian filter for a 2-D matrix Package: imUtil.filter Description: Calculate the laplacian of a 2-D image using a convolution kernel.
+% inPolygon - Return sources inside polygon
+% in_box - Check if celestial coordinates are in a box (approximate). Package: celestial Description: Check if celestial coordinates are in a box defined by four corners and its sides are great circles.
+% in_halfspace - Is point in half space Package: celestial.htm Description: Given a unit vector R and half space (N,C) test if the point is contained inside the half space (N dot R > C).
+% in_polysphere - Is point inside a convex spherical polygon Package: celestial.htm Description: Check if a list of positions are found within a convex polygon on the celestial sphere in which its sides are
+% ind2path - Convert index of the GALEX images DB file to GALEX image path Package: VO.GALEX Description: Convert index in the GALEX images file to GALEX images path.
+% ind2sub_fast - ind2sub fast version for 2D matrices Description: A fast version of ind2sub for 2D arrays. If a non 2D array is provided then will use the built in ind2sub function.
+% index2linetype - 
+% index2scalemethod - 
+% index2shiftmethod - 
+% index2sn_templatename - 
+% index2templatename - 
+% info - 
+% inherit - 
+% inpaint_nans - INPAINT_NANS: in-paints over nans in an array usage: B=INPAINT_NANS(A)           default method usage: B=INPAINT_NANS(A,method)    specify method used
+% inpaint_nans_bc - INPAINT_NANS_BC: in-paints over nans in an array, with spherical or toroidal boundary conditions usage: B=inpaint_nsns_bc(A)           default method usage: B=inpaint_nsns_bc(A,method)    specify method used usage: B=inpaint_nsns_bc(A,method,bcclass)    specify class of boundary conditions applied
+% inpaintn - 
+% insertKey - Insert key/val into a header in cell array format
+% inside_celestial_box - Check if coorduinates are within box Package: celestial.coo Description: Given a list of celestial coordinates, and a box center, width and height, where the box sides are parallel to the
+% install_cats - Install the data/+cats catalog directory Package: VO.prep Description: Install the data/+cats catalog directory. Download
+% integrand_jn_ellkappa - - integrand_jn_ellkappa function                                        glens Description: Calculate the integrand of J_n(x,y), for gravitational lensing softened elliptical mass distribution
+% interacting_sn_prop - Calculate the properties of CSM-ejecta interacting SN Package: astro.supernova Description: Calculate the properties of CSM-ejecta interacting SN based on the Ofek et al. (2014) formulae.
+% interpOverNan - interpolate AstroImage over NaN values
+% interp_coo - Interpolate celestial coordinates as a function of time Package: celestial.coo Description: Interpolate on celestial ccordinates as a function of time. Use the built in matlab interpolation functions.
+% interp_mag - Find best fit spectra from magnitudes and interpolate to other bands. Package: AtroUtil.spec Description: Given magnitude of an object find the best fit spectra (from a library of templates), and calculate the magnitude of
+% interp_sparse2full - Interpolate sparse image to a full image OBSOLETE: use imUtil.image.sparse2full instead. Package: imUtil.partition Description:
+% interpolant_mag - Interpolant from a time series of photometric observations in one band Package: AstroUtil.spec Description: Given a time series of observations take at a single band return an interpolant that allows to calculate the magnitude
+% inv_comoving_volume - Convert cosmological volume to redshift Package: AStroUtil.cosmo Description: Use the cosmological volume to calculate the corresponding redshift.
+% inv_disp_measure - Convert cosmological line of sight dispersion measure to redshift Package: astro.cosmo Description: Convert cosmological line of sight dispersion measure to redshift.
+% inv_e_z - 1/E(z) cosmological function Package: astro.cosmo Description: Calculate 1/E(z) cosmological function, in which E(z) is proportional to the time derivative of the
+% inv_lum_dist - Distance modulus to redshift Package: astro.cosmo Description: Given the distance modulus, use the luminosity distance to calculate the corresponding redshift.
+% ionization_potential - Return ionization potential for elemnt and ionization level. Package: astro.spec Description: Returm the ionization potential for a given element and ionization level.
+% iplane_rms - iplane_rms function                                                glens Description: Given a model parameters of a lens, and the images position, calculate the best source
+% iplane_rms_norm - iplane_rms_norm function                                           glens Description:   Given a model parameters of a lens, and the images position, calculate the best source
+% iplane_rms_smart - iplane_rms_smart function                                          glens Description: Given a model parameters of a lens, and the images position, calculate the best source
+% irsa_db_url - Return the URL for IRSA database query. Package: VO.IRSA Description: Return the URL for IRSA database query.
+% irsa_image_link - Construct links to ZTF images from properties structure Package: VO.ZTF Description: Construct links to ZTF images from properties structure.
+% irsa_query_ztf_images - Query ZTF images from the IRSA/IPAC database Package: VO.ZTF Description: Query ZTF images from the IRSA/IPAC database. Either raw, science, cal images can be queried by position and metadata.
+% irsa_set_cookies - Set user/pass cookies for IRSA query Package: VO.ZTF Description: Set user/pass cookies for IRSA query
+% irsa_table2prop - Table of queried ZTF image to properties structure Package: VO.ZTF Description: Table of queried ZTF image to properties structure.
+% isBias - Check and validate that a set of images in an AstroImage object are bias images
+% isDark - Check and validate that a set of images in an AstroImage object are dark images
+% isFlat - Check and validate that a set of images in an AstroImage object are flat images
+% is_coordinate_ok - Check that coordinates satisfy some observability conditions Package: celestial.coo Description: Check that J2000 equatorial coordinates satisfy some observability conditions including Az, Alt, HA.
+% is_rrlyr_sdss_colors - Is RR Lyr star candidate based on SDSS colors Package: astro.spec Description: Select RR Lyr star candidates based on their SDSS magnitudes in the u, g, and r-bands.
+% isaligned_all - 
+% iscell_all - 
+% iscolumnvector - 
+% iscompatible - 
+% iscompatible_all - 
+% iskw_import - 
+% islogical_all - 
+% ismatrixrow - 
+% ismatrixrow_all - 
+% ismymatrix - 
+% isnumeric_all - 
+% isord - 
+% isrowvector - 
+% issingle - 
+% issingle_all - 
+% issingleimport - 
+% issingleimport_all - 
+% isstruct_all - 
+% isvector_all - 
+% iter_cell - 
+% iter_cell - 
+% iter_cell - 
+% iter_cell - 
+% iter_cell - 
+% iter_cell - 
+% iter_struct - 
+% iter_struct - 
+% iter_struct - 
+% iter_struct - 
+% iter_struct - 
+% iter_struct - 
+% jd2date - Convert Julian days to Gregorian/Julian date Package: @Time Description: Convert Julian days to Gregorian/Julian date.
+% jd2mjd - Convert JD to MJD Package: celestial.time Description: Convert JD to MJD. See also: convert.time
+% jd2year - Convert JD to year Package: celestial.time Description: Convert Julian day to Julian or Besselian years. OBSOLETE: Use convert.time instead.
+% jpl_horizons - Get JPL horizons ephemeris for a solar system body. Package: celestial.SolarSys Description: Get JPL horizons ephemeris for a solar system body.
+% julday - Convert Julian/Gregorain date to JD Package: celestial.time Description: Convert Julian/Gregorian date to Julian Day. OBSOLETE: Use convert.date2jd instead.
+% julday1 - Convert Gregorian date in the range 1901 to 2099 to JD Package: celestial.time Description: Convert Gregorian date in the range 1901 to 2099 to Julian days (see also: julday.m).
+% jup_meridian - Low accuracy formula for Jupiter central meridian Package: celestial.SolarSys Description: Low accuracy formula for Jupiter central meridian.
+% jup_satcurve - Plot monthly curves of the position of the Galilean satellites Package: celestial.SolarSys Description: Plot monthly curves of the relative position of the Galilean satellites of Jupiter.
+% jupiter_map - Plot Jupiter image as observed from Earth at a given time Package: celestial.SolarSys Description: Plot Jupiter image as observed from Earth at a given time.
+% kappa_from_alpha - - kappa_from_alpha function                                             glens Description:   Calculate the surface density of a lens numerically from the deflection field.
+% kcorr - Calculate k-correction. Package: AstroUtil.spec Description: Calculate k-correction. Given a spectrum two filters, and their redshifts calculate the k-correction of the first
+% keck_obs_limits - Rise/set time for object in Keck observatory given telescope limits. Package: telescope.obs Description: Given a date and object celestial positions, calculate the rise and set time of an object in Keck observatory, given
+% kepler3law - Kepler 3rd law Package: celestial.Kepler Description: Calculate the velocity, semi-major axis and period of a system using the Kepler third law.
+% kepler_elliptic - Solve Kepler equation for elliptic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = E - e sin E) and find the true anomaly and radius vector for elliptical orbit (i.e., 0<=e<1).
+% kepler_elliptic_fast - Solve Kepler equatin (fast version) Package: celestial.Kepler Description: Fast solver for the Kepler equation for elliptic orbit. This is a simpler version of kepler_elliptic.m
+% kepler_hyperbolic - SOlve Kepler equation for hyperpolic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = e sinh H - H) and find the true anomaly and radius vector for hyperbolic orbit (i.e., e>1).
+% kepler_lowecc - A low eccentricity serise solution for the Kepler equation Package: celestial.Kepler Description: Solve the Kepler Equation for low eccentricity using a series approximation. This is typically better than 1"
+% kepler_parabolic - Solve the Kepler equation for Parabolic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = E - e sin E) and find the true anomaly (related to the eccentric anomaly, E) and radius
+% kilonova_multizone - Calculate the Waxman et al. analytic multizone kilonova model Package: astro.supernova Description: Calculate the Waxman et al. analytic multizone kilonova model.
+% kuiper_check - Parallax due to Earth and object motion of a solar system object Package: celestial.SolarSys Description: Given a date and coordinates of a celestial object, calculate the parallax due to the Earth motion (Par_E)
+% kwd_parent - 
+% lanczos - create a matrix or a cube of 2D normalized lanczis filter in each image Package: +imUtil.kernel2
+% lastSubEpochsPipeline - 
+% lensmodel_solvenorm - - lensmodel_solvenorm function                                        glens Description:    Given a lens model and images position solve for the best fit normalization
+% light_abberation - light_abberation function                                          ephem Description: Given an object observer-centric direction, corrected for light deflection in the natural frame (P1),
+% light_deflection - light_deflection function                                              ephem Description: Calculate the observer-centric direction of a planet, corrected for light deflection in the natural frame.
+% limb_darkening - Limb darkening function Package: AstroUtil.binary Description: Calculate the star luminosity per unit area as a function of its radius, and given the limb-darkening parameters.
+% line - create a matrix or a cube of 2D normalized corcular shape in each image Package: +imUtil.kernel2
+% linearity - Estimate the non-linearity of a detector using the imUtil.calib.pixel_flat_response function
+% lines_db - Search spectral line by name or wavelength and add ionization potential Package: AstroUtil.spec Description: Search spectral line by name or wavelength and add ionization potential information.
+% linfit_sc - Linear fitting with weights and sigma clipping Package: +imUtil.util.fit Description:
+% load2 - Load a mat file into a variable Package: imUtil.util.file Description: load a mat file containing a single variable to a variable name (rather than a structure, like load.m).
+% load_check - Load, but check if variable exist in workspace. Package: +imUtil.util.file Description: Load a matlab variable or file from disk (similar to the load.m command). However, before the variable is loaded the
+% load_file - 
+% load_file - 
+% load_yaml - 
+% local_CreateFcn - 
+% local_isInvokeActiveXCallback - 
+% local_isInvokeHGCallback - 
+% local_maxima - Identify local maxima above a threshold in a 2D image Package: @imUtil.image Description: This function identify local maxima, above some threshold, in an image, or alternatively, in a max over cube of images.
+% local_openfig - 
+% lookback_time - Compute the cosmological lookback time Package: astro.cosmo Description: Compute the cosmological lookback time, between two events in redshift z1 and z2, and given the cosmology.
+% loopLC_ztf_HDF_matched - SHORT DESCRIPTION HERE Package: VO Description:
+% lorentz_from_flux - Lower limit on Lorentz factor GRB Package: AstroUtil.GRB Description: Given a GRB flux, estimate a lower limit on the Lorentz factor og a GRB, assuming a power law spectrum.
+% lst - Local Sidereal Time Package: celestial.time Description: Local Sidereal Time, (mean or apparent), for vector of JDs and a given East Longitude.
+% lum_dist - Luminosity distance Package: astro.cosmo Description: Compute luminosity distance from redshift and cosmological parameters. Given the object spectra, calculate also the
+% luptitude - luptitude function                                             AstroSpec Description: Convert flux to luptitudes (asinh magnitudes). OBSOLETE: Use convert.luptitude instead.
+% m2c - datasize = size(data);  cells = mat2cell(data,ones(1,datasize(1)),ones(1,datasize(2)));
+% makematrices - 
+% mashup_query - SHORT DESCRIPTION HERE Package: VO.MAST Description:
+% maskSaturated - set mask bits for saturated and non-linear pixels
+% match - Match two catalogs in AstroCatalog objects This functin returens: a matched source catalog, and an unmatched source catalog. The matched catalog result has the same number of
+% match_cats - Match two spherical coordinates catalogs sorted by declination Package: VO.search Description: Given two spherical coordinate catalogs. - for each entry in the reference catalog (second input
+% match_catsHTM - Match an AstroCatalog object with catsHTM catalog
+% match_cats_pl - Match two planer coordinates catalogs sorted by Y Package: VO.search Description: Given two planer coordinate catalogs. - for each entry in the reference catalog (second input
+% match_coo - Match two lists by spherical coordinates. Package: celestial.search Description: Given two lists with spherical coordinates, search for objects in the second list associated with each object in
+% match_coo_nearest - Match two lists by spherical coordinates for nearest source only. Package: celestial.search Description: Given two lists with spherical coordinates, search for nearest object in the second list associated with each
+% match_scale_rot_shift - Affine transformation matching of the coordinate systems of two catalogs Package: imUtil.patternMatch Description: Given two catalogs that coordinadte systems are related by flip, scale, rotation and shift, search the the approximate
+% match_sources - Match sources in two catalogs with the same coordinates systems. Package: imUtil.cat Description: Match a catalog and reference catalog which are on the same 2-D coordinate system.
+% match_sources_xy - Match sources between Cat and Ref catalogs using their X/Y (planar) coordinates. Package: +imUtil.cat Description: Matched the sources in Cat to sources in Ref by planar X/Y coordinates.
+% matched2matrix - A matched AstroCatalog object into a matrix of epochs by index AstCat object to a matrix of matched sources. Description: Given an AstroCatalog object containing multiple elements, in which each element containing the same number of rows
+% matched_cat_residuals - Calculate the astrometric residuals and errors between two matched catalogs Package: imUtil.patternMatch Description: Given a catalog (Cat) and a reference catalog (Ref), both containing astrometric X/Y measurments of matched sources
+% matched_filter - Matched filter for 1-D time series Package: timeseries Description: Run a matched filter (North filter) for a 1-D series and return the possible peaks (signal) above a given threshold.
+% matchspec - A GUI utility to inspect and match spectrum with templates. Package: AstroUtil.spec Description: A GUI utility to inspect and match spectrum with templates.
+% matchspec_OpeningFcn - This function has no output args, see OutputFcn. hObject    handle to figure eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% matchspec_OutputFcn - varargout  cell array for returning output args (see VARARGOUT); hObject    handle to figure eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% matter_density - The mean matter density in the Universe. Package: astro.cosmo Description: Calculate the mean matter density in the Universe.
+% max - Return the max of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% mean - Return the mean of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% mean_plweighted - Power-law weighted mean of a time series. Package: timeseries Description:
+% mean_sigclip - Calculate the sigma-clipped mean of a dataset Package: imUtil.image Description: Calculate the sigma-clipped mean of a dataset with iterations.
+% measureFWHM - Estimate image seeing or focus state
+% measure_dimm - Example: IC = imCl.fits2imCl('D*20200816-06*.fit'); Cube=images2cube(IC);
+% median - Return the median of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% mergeCatalogs - 
+% merge_struct - 
+% mergeimports - 
+% meteor_multistation - Direction for detection of a meteor observed from another station Package: celestial.meteors Description: Given a list of observers geodetic coordinates in which the first point is a reference point; the azimuth and
+% meteors_db - Return a meteor shower database (incomplete) Package: celestial.meteors Description: Return a meteor showers database (not complete).
+% microlens_ps - Microlening light curve for a point source as a function of time Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source, as a function of time (assuming linear motion).
+% microlens_psb - Microlensing lightcurve for a point source as a function of angular dist Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source, in a list of a given source-lens distances.
+% microlens_psfs - Microlening light curve with finite source effect Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source.
+% microlens_pspar - Microlening light curve including annual parallax Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source, as a function of time include annual parallax effects.
+% microlens_template - SHORT DESCRIPTION HERE Package: AstroUtil Description:
+% mildrel_synchrotron - SHORT DESCRIPTION HERE Package: astro.supernova Description:
+% min - Return the min of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% minclp - minclp function                                                   timeseries Description: Search for periodicity in a time series, using the minimum-curve-length method. The program calculates the
+% mjd2jd - Convert MJD to JD Package: celestial.time Description: Convert MJD to JD. See also: convert.time
+% ml_filterbank - Generate microlensing template bank Package: AstroUtil Description: Generate microlensing template bank
+% mode - Mode and variance of a distribution Package: @imUtil.background Description: Calculate the mode and robust variance of an array. The mode is calculated by making an histogram and choosing
+% mode - Return the mode of AstroImage object images using imUtil.background.mode. The output is an array in which each element corresponds to an element in the AstroImage.
+% moment - Return the moment of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% moment2 - Calculate 1st, 2nd moments and (weighted) aperture photometry Package: @imUtil.image Description: Given a 2D image, or a 3D cube of image stamps, and X, Y coordinates of sources (or the center of the stamps),
+% month_name - Convert month number to name Package: celestial.time Description: Given a month number return a string with a month name.
+% moon_elp82 - ELP2000-82 ecliptic coordinates of the Moon Package: celestial.SolarSys Description: Calculate accurate ELP2000-82 ecliptic coordinates of the Moon, referred to the inertial mean ecliptic and equinox of
+% moon_ephem - ELP2000-82 Moon ephemeris Package: celestial.SolarSys Description: Calculate very accurate ELP2000-82 apparent coordinates of the moon as observed from one of the solar system planet's.
+% moon_illum - Low accuracy Moon illuminated fraction Package: celestial.SolarSys Description: Low accuracy Moon illuminated fraction
+% moon_librations - Moon's librations Package: celestial.SolarSys Description: Calculate the Moon's librations and P.A., including physical librations.
+% moon_phases - Return a list of moon phases in range of dates Package: celestial.SolarSys Description: Return a list of moon phases in range of dates.
+% moon_sky_brightness - Krisciunas & Schaefer (1991) sky brightness model due to the Moon Package: celestial.SolarSys Description: Given the date, object equatorial coordinates, and observer geodetic position, calculate the excess in
+% moon_sky_brightness_h - moon_sky_brightness_h function                                         ephem Description: Given the horizontal coordinates of the Moon and an object and the observer geodetic position, calculate the excess
+% mooncool - Low-accuracy topocentric equatorial coordinates of the Moon Package: celestial.SolarSys Description: Calculate low-accuracy topocentric equatorial coordinates of the Moon, referred to the equinox of date.
+% moonecool - Low-accuracy geocentric ecliptical coordinate of the Moon Package: celestial.SolarSys Description: Calculate low accuracy geocentric ecliptical coordinates of the Moon, referred to the mean equinox of date.
+% moonlight - Calculate the Moon illumination in Lux on horizontal surface Package: celestial.SolarSys Description: Calculate the Moon illumination in Lux on horizontal surface as a function of the Moon altitude, horizontal
+% navigator_link - Given J2000 equatorial coordinates get link to PS1 navigator image. Package: telescope.PS1 Description: Get link to PS1 navigator image
+% navigator_link - Given J2000 equatorial coordinates get link to SDSS navigator image. Package: VO.SDSS Description: Get link to SDSS navigator image
+% nearest_bright_star - Select N bright stars near a given coordinate Package: +celestial.stars
+% nearest_coo - nearest_coo function                                                   ephem Description: Given a list of coordinates (with arbitrary number of dimensions), search for the coordinate in list which is
+% ned_link - Get link to NED search by coordinates Package: VO.NED Description: Get link to NED search by coordinates
+% nhtm2level - Given number of HTM elements calculate number of levels. Package: celestial Description: Given number of HTM elements calculate number of HTM levels.
+% nickel56_decay - Energy production of Nickel56->Cobalt->Iron Package: astro.supernova Description: Calculate the energy production of Nicel56->Cobalt->Iron radioactive decay as a function of time.
+% noll_index - Return the Zernike index from the Noll index. Package: telescope.Optics Description: Calculate the Zernike indices given the Noll index and visa versa.
+% nutation - Intermidiate accuracy IAU 1984 nutation Package: celestial.coo Description: Calculate the Nutation in longitude and latitude, and the nutation rotation matrix.
+% nutation1980 - nutation1984 function                                              ephem Description: Calculate the IAU 1980 Nutation series for a set of JDs.
+% nutation2rotmat - nutation2rotmat function                                           ephem Description: Given nutation in longitude and obliquity (in radians) and JD, return the Nutation rotation matrix.
+% nutation_lowacc - nutation_lowacc function                                           ephem Description: Low accuracy (~1") calculation of the nutation.
+% obliquity - Calculate the obliquity of the Earth ecliptic. Package: celestial.coo Description: Calculate the obliquity of ecliptic, with respect to the mean equator of date, for a given julian day.
+% obs_coo - SHORT DESCRIPTION HERE Package: celestial Description:
+% observatory_coo - Geodetic coordinates of selected observatories Package: telescope.obs observatory_coo function                                           ephem Description: Return geodetic coordinates of an observatory.
+% obspl - GUI observations planner Package: telescope.obs Description: GUI Observation Planer. Plot Alt/Airmass and moon sky brightness as a function of time in night, or yearly
+% obstruction - Stellar obstruction due to the eclipse Package: AstroUtil.binary Description: Calculate stellar obstruction due to the eclipse given the stars radii, distance and limb darkening function of the
+% of time since it is allowed to observe the target - 
+% of time since it is allowed to observe the target - 
+% of time since it is allowed to observe the target - 
+% of time since it is allowed to observe the target - 
+% of time since it is allowed to observe the target - addOptional(InPar,'MainWFunPar', {0.8, 1, 0.03, 1, 0.5} );  t0, DecayExp, SoftFermi, BaseW, ExtraW
+% of time since it is allowed to observe the target - addOptional(InPar,'NightWFunPar',{30./1440, 1, 0.003, 1.5, 0.5});  t0, DecayExp, SoftFermi, BaseW, ExtraW
+% omega_m_lambda_lines - Selected lines in Omega_m-Omega_lambda diagram Package: astro.cosmo Description: Given a universe with \Omega_{m} and \Omega_{\Lambda} contributions, and given \Omega_{m} vector, find for
+% omega_z - Omega_m as a function of redshift Package: astro.cosmo Description: Calculate \Omega_{m} as a function of redshift z.
+% oneSigma - 
+% oneSigmaMove - 
+% optic_comparison - 
+% optimal_phot_aperture - Optimal aperture radius for aperture photometry of a Gaussian PSF. Package: telescope.sn Description: Given a Gaussian symmetric PSF and image background and readout noise. Estimate the radius of the photometric
+% orbelem2ephem - SHORT DESCRIPTION HERE Package: celestial Description:
+% orbit_pos - orbit_pos function                                                 ephem Description: Given an object true anomaly, radius vector, time and orbital elements and time, calculate its orbital position
+% overscan - Create overscan images and optionally subtract from images
+% parallactic2ha - Convert parallactic angle and declinatio to hour angle Package: celestial.coo Description: Convert parallactic angle, declination and latitude to hour angle. Note that there are two solutions, and the
+% parallactic_angle - parallactic_angle function                                             ephem Description: Calculate the parallactic angle of an object. The parallactic is defined as the angle between the local
+% partition_subimage - Partition image into sub images Package: mUtil.image Description: Partition image into sub images defined either by a CCDSEC matrix, or by imUtil.image.subimage_grid function.
+% pdm - Periodicity search using period dispersion minimization Package: timeseries Description: Periodicity search using phase dispersion minimization. The time series is folded into trail frequencies, and in
+% pdm_phot - pdm_phot function    Phase Dispersion Minimization to Photon arrival time data.
+% perform_import - 
+% period - Periodicity search in a non-equally spaced time series Package: timeseries Description: Periodicy search in a time series. This function can be used to run different types of periodicity searches and
+% period_complex - Fourier transform of non equally spaced time series Package: timeseries Description: Calculate the complex fourier transform of an unevenly spaced time series.
+% period_consistent - SHORT DESCRIPTION HERE Package: timeseries Description:
+% period_events - - period_events function                                           timeseries Description: Search for periodicity in a list of "time tagged" events. The search is done by folding the events
+% period_fft - Power spectrum of evenly spaced time series using fft Package: timeseries Description: Calculate power spectrum for evenly spaced time series using fast Fourier transform.
+% period_fitfourier - Fit a Fourier series to a time series Package: timeseries Description: Fit a polynomial and fourier series as a function of frequency to a time series.
+% period_mi - SHORT DESCRIPTION HERE Package: timeseries Description:
+% period_min_curve_length - Periodicity search using minimum curve length Package: timeseries Description: Search for periodicity in a time series, using the minimum-curve-length method. The program calculates the
+% period_norm - Normalized power spectrum of non equally spaced time series Package: timeseries Description: Calculate the normalized normal power spectrum of a times series. See period.m for a more flexiable function.
+% period_norm_bootstrap - Run bootstrap normal pertiodogram on a light curve. Package: timeseries Description:
+% period_norm_order2 - 2nd order harmonic power spectrum of non evenly spaced time series Package: timeseries Description: Calculate the normalized power spectrum of the second order of a times series (i.e., assuming that the first and second
+% period_norm_solarsys - Normalized power spectrum for a Solar System object Package: timeseries Description: Calculate the normalized normal power spectrum of a times series for a solar system object orbiting the Sun. Taking
+% period_normnl - Normzlied power spectrum using no loops (may be faster in some cases) Package: timeseries Description: Calculate the classical (Lomb) power spectrum of a time series using no loops.
+% period_np - SHORT DESCRIPTION HERE Package: timeseries Description:
+% period_pdm - SHORT DESCRIPTION HERE Package: timeseries Description:
+% period_plot - SHORT DESCRIPTION HERE Package: timeseries Description:
+% period_proper - SHORT DESCRIPTION HERE Package: timeseries Description:
+% period_scargle - Scargle power spectrum of non equally spaced time series Package: timeseries Description: Calculate the un-normalized Scargle power spectrum of a times series. See period.m for a more flexiable function.
+% period_scarglenl - Scargle power spectrum of non equally spaced time series / no loops Package: timeseries Description: Calculate the un-normalized Scargle power spectrum of a times series using no loops.
+% periodia - Classical power spectrum of non-evenly space time series (OBSOLETE) Package: timeseries Description: Classical power-spectrum of a non-evenly spaced time series. The power spectrum is normalized by the variance of the data.
+% periodis - Scargle periodogram. OBSOLETE: Use period.m instead. Package: timeseries Description: Lomb-Scargle periodigram. Calculate the Lomb-Scargle power spectrum for a time series.
+% periodit - Calculate the periodogram as a function of time (will be removed) Package: timeseries Description: Calculate periodogram as function of time. This script can be used for searchnig for long term varibility in
+% periodmulti_norm - Simultanous power spectrum of time series with common times Package: timeseries periodmulti_norm function                                     timeseries Description: Calculate the normal power spectrum of a set of multiple
+% perioent - Periodogram using information entropy Package: timeseries Description: Periodogram using information entropy. For each trail period, the phase-magnitude space is divided into m by m
+% phase_complex - Return the phase of complex numbers. Package: telescope.Optics Description: Given an N-D array of complex numbers, return the phase of each complex number
+% phot_event_me - phot_event_me function     Searching periodicity in time-tagged events using information entropy. For each trail period, the phase-magnitude space
+% photometricZP - Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog or AstroImage with a catalog, match the sources against a photometric catalog, and calculate the zero point (ZP) of the catalog.
+% pixel_flat_response - Fit the pixel response to light as a function of intensity in a cube of images Package: +imUtil.calib Description: Given a cube of flat field images which have different mean intensity, fit some linear models to each model intensity
+% pixscale - Get PTF pixel scale Package: VO.PTF Description: Return PTF pixel scale.
+% pixscale - Get SDSS pixel scale Package: VO.SDSS Description: Return SDSS pixel scale.
+% pixscale - Get the GALEX science image pixel scale. Package: VO.GALEX Description: Return GALEX pixel scale.
+% pl_rotation - Calculate planetary rotation parameters Package: celestial.SolarSys Description: Calculate planetary rotation parameters.
+% planar_sundial - Calculate and plot a planar sundial Package: celestial.SolarSys Description: Calculate and plot a planar sundial.
+% planet_ephem - planet_ephem function                                                ephem Description: Planetary ephemerids generator based on VSOP87.
+% planet_lowephem - Low-accuracy ephemeris of the planets (~1 arcmin) Package: celestial.SolarSys Description: Low accuracy ephemeris of the planets. Accurate to about ~1'.
+% planet_obj_conj - planets_obj_conj function                                            ephem Description:   Calculate planet-object conjunctions/occultations, In which two planets are occult or found within
+% planet_radius - Planet radius and flattening factor and angular diameter. Package: celestial.SolarSys Description: Get planetary radius and flattening factor, and calculate planet angular diameter.
+% planets_lunar_occultations - Search and calculates for lunar occultations of the planets Package: celestial.SolarSys Description: Calculate local circumstences for lunar occultations of Planets and asteroids.
+% planets_magnitude - Calculate the planets apparent magnitude Package: celestial.SolarSys Description: Calculate the planets apparent magnitude.
+% planets_rotation - Planet north pole, rotation rate and the primery meridian Package: celestial.SolarSys Description: Return Planet north pole, rotation rate and the primery meridian.
+% plants_object_conjunctions - Local circumstences for conjunctions of planets with a given object Package: celestial.SolarSys Description: Calculate local circumstences for conjunctions of planets with a given object.
+% ple_earth - Low-accuracy planetray ephemeris for Earth Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Earth. Calculate Earth heliocentric longitude, latitude and radius
+% ple_jupiter - Low accuracy planetray ephemeris for Jupiter. Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Jupiter. Calculate Jupiter heliocentric longitude, latitude and radius
+% ple_mars - Low-accuracy planetray ephemeris for Mars Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Mars. Calculate Mars heliocentric longitude latitude and radius vector
+% ple_mercury - Low accuracy ephemerides for Mercury Package: celestial.SolarSys Description: Low accuracy ephemerides for Mercury. Calculate Mercury heliocentric longitude, latitude and radius
+% ple_neptune - Low accuracy planetray ephemeris for Neptune Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Neptune. Calculate Neptune heliocentric longitude, latitude and radius
+% ple_planet - Low accuracy ephemeris for the main planets Package: celestial.SolarSys Description: Low accuracy ephemeris for the main planets. Given a planet name calculate its heliocentric coordinates
+% ple_saturn - Low accuracy planetray ephemeris for Saturn Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Saturn. Calculate Saturn heliocentric longitude, latitude and radius
+% ple_uranus - Low accuracy ephemeris for Uranus Package: celestial.SolarSys Description: Low accuracy ephemeris for Uranus. Calculate Uranus heliocentric longitude, latitude and radius vector
+% ple_venus - Low accuracy ephemeris for Venus Package: celestial.SolarSys Description: Low accuracy ephemeris for Venus. Calculate Venus heliocentric longitude, latitude and radius
+% plotCDF - = plot PDF contour which donate to 1,2,3 sigma using cell area =
+% plotGrid - Plot the likelihood grid calculated by calcGrid Package: AstroUtil.supernove.SOPRANOS Description: Plot the likelihood grid calculated by calcGrid.
+% plotMargProbEbv - = plot Ebv PDF =
+% plotMargProbFrho - = plot frho PDF =
+% plotMargProbMs - = plot Ms PDF =
+% plotMargProbt0 - = plot t0 PDF =
+% plotMargQuantity - plot marginalized quantities =
+% plotPDF - = plot raw PDF =
+% plotPvalue - = plot P value =
+% plot_eb_lc - Plot eclipsing binary light curve as a function of time. Package: AstroUtil.binary Description: Plot eclipsing binary light curve as a function of time.
+% plot_eb_lc_ph - Plot eclipsing binary light curve as a function of phase. Package: AstroUtil.binary Description: Plot eclipsing binary light curve as a function of phase.
+% plot_inspect_lc - plot and inspect light curve and power spectrum Package: timeseries Description:
+% plot_lens_data - - plot_lens_data function                                           glens Description: Given Image position and corresponding source position plot the image and source
+% plot_monthly_smap - Plot a monthly sky map Package: celestial.map Description: Plot a monthly sky map with a naked eye stars for a given time and observer Geodetic position. Optionaly mark planets
+% plot_period_folder - plot_period_folder function                                       timeseries Description: Given the power spectrum and light curve, let the user to interactively select peaks in the power spectrum, and
+% plot_smap - Given a star catalog plot star map Package: celestial.map Description: Given a star catalog plot star map with optional magnitude/color/type/proper motion ('/cy).
+% pm2space_motion - pm2space_motion function                                           ephem Description: Convert proper motion, radial velocity and parralax to space motion vector in the equatorial system.
+% pm2space_motion_rad - pm2space_motion function                                           ephem Description: Convert proper motion, radial velocity and parralax to space motion vector in the equatorial system.
+% pm_eq2gal - SHORT DESCRIPTION HERE Package: celestial Description:
+% pm_vector - pm_vector function                                                 ephem Description: Return the space motion vector given proper motion, parallax and radial velocity.
+% pointsource_lens - Microleninsg magnification, images positions and time delays (OBSOLETE) Package: AstroUtil.microlensing Description: Calculate the magnification and images positions for a point source lens, given the lens properties and impact
+% polar_alignment - Calculate the RA/Dec drift due to equatorial polar alignemnt error. Package: celestial Description: Given a set of Declination-drift observations over several hour angle and declinations, calculate the deviation of the
+% polar_alignment_drift - Calculate the RA/Dec drift due to equatorial polar alignemnt error. Package: celestial Description:
+% polar_alignment_tracking_error - Package: celestial.coo Description:
+% pole_from2points - Find pole of a great circle defined by two points on the sphere. Package: celestial.coo Description: Given two points on the celestial sphere (in any system) describing the equator of a coordinate system,
+% polysphere_poles - Given a spherical polygon vertces, find the poles of each of sides Package: celestial.htm Description: Given the longitude and latitude of a convex polygon on the sphere in which its sides are great circles, find the poles
+% polysphere_sort - Sort a convex spherical polygon Package: celestial.htm Description: Given an (unsorted) convex spherical polygon vertices, sort the vertices acording to their descending position angle as
+% polysubs - Fit and subtract polynomials from a timeseries [T,Y]. Package: timeseris Description: Subtract polynomial from a data set (no errors).
+% popupmenu_LineType_Callback - hObject    handle to popupmenu_LineType (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% popupmenu_LineType_CreateFcn - hObject    handle to popupmenu_LineType (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% popupmenu_LoadSNTemplate_Callback - hObject    handle to popupmenu_LoadSNTemplate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% popupmenu_LoadSNTemplate_CreateFcn - hObject    handle to popupmenu_LoadSNTemplate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% popupmenu_LoadTemplate_Callback - hObject    handle to popupmenu_LoadTemplate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% popupmenu_LoadTemplate_CreateFcn - hObject    handle to popupmenu_LoadTemplate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% popupmenu_MarkLines_Callback - hObject    handle to popupmenu_MarkLines (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% popupmenu_MarkLines_CreateFcn - hObject    handle to popupmenu_MarkLines (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% popupmenu_Scaling_Callback - hObject    handle to popupmenu_Scaling (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% popupmenu_Scaling_CreateFcn - hObject    handle to popupmenu_Scaling (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% popupmenu_ZeroShift_Callback - hObject    handle to popupmenu_ZeroShift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% popupmenu_ZeroShift_CreateFcn - hObject    handle to popupmenu_ZeroShift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% pos_orbit - pos_orbit function                                                 ephem Description: Given orbital elements, calculate the Geocentric position of the celestial body. The program can calculate the
+% position2elements - Convert position/velocity vectors to orbital elements. Package: celestial.Kepler Description: Convert date, position vector and velocity vector at a give ephoch to orbital elements at the same epoch.
+% pr_aitoff - Project coordinates using equal area Aitoff projection Package: celestial.proj Description: Project coordinates (longitude and latitude) using equal area Aitoff projection.
+% pr_albers - Albers Equal-Area projection. Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Albers Equal-Area projection. The coordinates are projected on
+% pr_azimuthal_equidist - Azimuthal equidistant projection. Package: celestial.proj Description: Project longitude and latitude using Azimuthal equidistant projection (constant radial scale).
+% pr_bonne - Bonne projection. Package: celestial.proj Description:  Project coordinates (longitude and latitude) using the Bonne projection.
+% pr_cassini - Cassini projection. Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Cassini projection.
+% pr_conic - Conic projection. Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Conic projection.
+% pr_cylindrical - pr_cylindrical function                                             AstroMap Description: Project coordinates (longitude and latitude) using a general cylindrical projection.
+% pr_gnomonic - pr_gnomonic function                                            AstroMap Description: Project coordinates (longitude and latitude) using the Gnomonic non conformal projection
+% pr_hammer - pr_hammer function                                                  AstroMap Description: Project coordinates (longitude and latitude) using the Hammer projection. The coordinates are projected on an ellipse
+% pr_hammer_aitoff - pr_hammer_aitoff function                                           AstroMap Description: Project coordinates (longitude and latitude) using equal area Hammer-Aitoff projection used in the FITS/WCS standard.
+% pr_ignomonic - roject coordinates using the inverse Gnomonic non conformal projection Package: celestial.proj Description: Project coordinates (X and Y) using the inverse Gnomonic non conformal projection,
+% pr_ihammer_aitoff - pr_ihammer_aitoff function                                          AstroMap Description: Project coordinates (longitude and latitude) using the inverse of the equal area Hammer-Aitoff projection used in the
+% pr_mercator - - pr_mercator function                                               AstroMap Description: Project coordinates (longitude and latitude) using the Mercator projection.
+% pr_mollweide - pr_mollweide function                                               AstroMap Description: Project coordinates (longitude and latitude) using the equal area Mollweide projection.
+% pr_parabolic - pr_parabolic function                                               AstroMap Description: Project coordinates (longitude and latitude) using the Parabolic projection.
+% pr_planis - planisphere projection. Package: celestial.proj Description: Project longitude and latitude using a 'planisphere projection'.
+% pr_polar - pr_polar function                                                   AstroMap Description: Project coordinates (longitude and latitude) using the polar projection (from north pole).
+% pr_sin - Slant ortographic (SIN) projection Package: celestial.proj Description: Slant ortographic (SIN) projection
+% pr_sinusoidal - pr_sinusoidal function                                              AstroMap Description: Project coordinates (longitude and latitude) using the Sinusoidal projection.
+% pr_stereographic - pr_stereographic function                                           AstroMap Description: Project coordinates (longitude and latitude) using the Stereographic projection.
+% pr_stereographic_polar - Project coordinates using the Stereographic polar projection Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Stereographic polar projection.
+% pr_xy - X-Y projection (no transformation). Package: celestial.proj Description: Project coordinates (longitude and latitude) to X-Y projection (no transformation).
+% precession - Calculate the Earth precession parameters Package: celestial.coo Description: Calculate the Earth precssion parameters as a function of JD.
+% predict_images - predict_images function                                        glens Description:
+% prep_2mass_htm - prepare 2MASS catalog in HDF5/HTM format
+% prep_DECaLS_htm - SHORT DESCRIPTION HERE Package: VO.prep Description:
+% prep_NOAO_master - SHORT DESCRIPTION HERE Package: VO.prep Description:
+% prep_atlas_htm - SHORT DESCRIPTION HERE Package: VO.prep Description:
+% prep_binary_asteroid - Create a table of bknown binary asteroids Package: VO.prep Description: Create a table of bknown binary asteroids
+% prep_cat_for_astrometry - Clean two catalogs and equalize their surface density Package: imUtil.patternMatch Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs by removing NaN coordinates,
+% prep_data_dir - Prepare interface functions for the catalogs in the data directory Package: VO.search Description: Prepare interface functions for the catalogs in the data directory
+% prep_data_dir - Prepare interface functions for the catalogs in the data directory Package: VO.search Description: Prepare interface functions for the catalogs in the data directory
+% prep_decals_htmcat - SHORT DESCRIPTION HERE Package: VO Description:
+% prep_dss_fc - - prep_dss_fc function                                               AstroMap Description: Prepare DSS finding charts, with labels, compass, and slits.
+% prep_gaiadr2_htm - SHORT DESCRIPTION HERE Package: VO Description:
+% prep_gaiadr2_htm - SHORT DESCRIPTION HERE Package: VO Description:
+% prep_gaiadre3_htm - SHORT DESCRIPTION HERE Package: VO Description:
+% prep_generic_htm - Prepare generic catsHTM catalog from declination zone catalogs Package: VO.prep Description: Prepare generic catsHTM catalog from declination zone catalogs.
+% prep_hst_images_catalog - SHORT DESCRIPTION HERE Package: VO Description:
+% prep_sdss_offset_htm - 
+% prep_ukidss_htm - 
+% prep_unWISE_htm - SHORT DESCRIPTION HERE Package: VO Description:
+% prep_wise_htm_cat - reformat the IRSA/WISE catalog files into an HDF5/HTM catalog
+% prepareSNdata - Prepare Observation data and ancillary data for a SN Package: AstroUtil.supernove.SOPRANOS Description: Prepare Observation data and ancillary data for a SN
+% prepare_LCs - Prepare Model light curves for interpolation Package: AstroUtil.supernove.SOPRANOS Description: Calculate model light curves grid for interpolation  by calcGrid using Sapir & Waxman 2017 shock cooling model.
+% processStyleInfo - 
+% process_import_field - 
+% projectcoo - projectcoo function                                             AstroMap Description: Project coordinates from longitude and latitude to X/Y using a specified projection.
+% projection - project Lon/Lat to X/Y using specified projection
+% projectionInv - project X/Y to Lon/Lat using specified projection
+% proper - 
+% proper_motion - Applay proper motion to a catalog Package: celestial.coo Description: Applay proper motion to a catalog
+% proper_motion_parallax - Applay proper motion and parallax to a catalog Package: celestial.coo Description: Applay proper motion to a catalog
+% proper_motion_sdss_ps1 - SHORT DESCRIPTION HERE Package: VO.search Description:
+% ps1_2_sdss_mag - PS1 magnitudes to PS1 magnitude using the Finkbeiner+2015 relations Package: VO Description: Convert PS1 magnitudes to PS1 magnitude using the Finkbeiner+2015 relations.
+% ps_lens - Calculate deflection, magnification and time delay for point mass lens Package: astro Description: Calculate deflection, magnification and time delay for point mass lens.
+% ps_whitening - ps_whitening function                                         timeseries Description: Whiten a time series using its power spectrum. I.e., ifft(fft(x)./abs(fft(x)))/
+% psf2cube - Construct a cube of PSF stamps from AstroImage
+% ptf_image2sim - Load PTF fits images and catalogs into a SIM object Package: VO.PTF Description: Load PTF fits images and catalogs into a SIM object. The catalog names are constructed from the file names.
+% pushbutton_AccretionDisk_Callback - hObject    handle to pushbutton_AccretionDisk (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% pushbutton_BlackBodyTemp_Callback - hObject    handle to pushbutton_BlackBodyTemp (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% pushbutton_CCF_Callback - hObject    handle to pushbutton_CCF (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% pushbutton_Color_Callback - hObject    handle to pushbutton_Color (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% pushbutton_Color_CreateFcn - hObject    handle to pushbutton_Color (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% pushbutton_GetFromCoo_Callback - hObject    handle to pushbutton_GetFromCoo (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% pushbutton_LoadSpecFromFile_Callback - hObject    handle to pushbutton_LoadSpecFromFile (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% pushbutton_LoadTemplateFromFile_Callback - hObject    handle to pushbutton_LoadTemplateFromFile (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% pushbutton_MeasureLines_Callback - hObject    handle to pushbutton_MeasureLines (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% quantile - Return the quantile of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% query_casjobs - Query MAST CasJobs service (requires casjobs.jar) Package: VO.MAST Description: Query the MAST CasJobs service (requires casjobs.jar) For casjobs.jar instellation see:
+% query_casjobs_mydb - Query MAST CasJobs service into MAST mydb (requires casjobs.jar) Package: VO.MAST Description: Query the MAST CasJobs service (requires casjobs.jar), but store the output in mydb.
+% query_casjobs_recur - Query MAST CasJobs service recursively for a box (requires casjobs.jar) Package: VO.MAST Description: Query the MAST CasJobs service recursively for a coordinates in a box (requires casjobs.jar). For non recursive query use
+% query_cat - Query IPAC/IRSA catalog. Package: VO.IRSA Description: Query IPAC/IRSA catalog.
+% radial_astrometric_microlensing - The astrometric deflection of the primary microleneing image. Package: AstroUtil.microlensing Description: Calculate the astrometric deflection of the primary microlensing image as a function of time.
+% radiobutton_RedshiftSpectrum_Callback - hObject    handle to radiobutton_RedshiftSpectrum (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% radiobutton_RedshiftTemplate_Callback - hObject    handle to radiobutton_RedshiftTemplate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% radiobutton_RedshiftTemplate_CreateFcn - hObject    handle to radiobutton_RedshiftTemplate (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% radiusForCenter - maximum radius between center and data points
+% radius_rms - 
+% random_time_sequence - Generate random times for an astronomical time series. Package: timeseries Description: Generate random times for an astronomical time series, including daily and annual gaps.
+% range - Return the range of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% read2AstroImage - Read W-FAST image from HDF5 file into an AstroImage and calibrate the image using the wfast calibration object (dark subtraction, flat correction). Populate the header, mask image, image, and interpolate over NaNs.
+% readNoiseFromBias - Estimate the read noise from bias mage/s in native units. The read noise is estimated by calculating the rms in small blocks (sub images) of a bias image, or by calculating the rms per pixel (in multiple images).
+% readPTFout - read PTF out file Package: AstroUtil.supernove.SOPRANOS Description: read PTF out file and read the matching GALEX data of the GALEX/PTF experiment.
+% readUVOTascii - readUVOTascii Import UVOT subtracted data from an ascii file. tab = readUVOTascii(FILENAME) Reads data from text file FILENAME for the default selection.
+% readZTF - read ZTF data file as exported from ZTF marshal Package: AstroUtil.supernove.SOPRANOS Description: read ZTF data file
+% readZTFtxt - read ZTF text file Package: AstroUtil.supernove.SOPRANOS Description: read ZTF text file
+% read_casjobs_table - Read SDSS CasJobs table into a matrix or table. Package: VO.util Description: Read SDSS CasJobs table into a matrix or table. If output is a matrix and some columns contains strings than
+% read_corot_file - Read CoRoT file Package: VO.CoRoT Description: Read CoRoT fits files.
+% read_corot_master - Read CoRoT master file Package: VO.CoRoT Description: Read the CoRoT master file - this file contains a list of all the CoRoT target stars with their mean properties.
+% read_csv_with_header - Read SDSS CasJobs table into a matrix or table. Package: VO.util Description: Read SDSS CasJobs table into a matrix or table. If output is a matrix and some columns contains strings than
+% read_ipac_table - Read IPAC/IRSA table format Package: VO.IRSA Description: Read IPAC/IRSA table format from file or string.
+% read_ipac_ztfforcedphot - Read ZTF forced photometry file Package: VO.ZTF Description: Read ZTF forced photometry file generated using VO.ZTF.wget_irsa_forcedphot_diff
+% read_lc_file - Read Kepler light curve FITS file. Package: VO.Kepler Description: Read kepler light curve fits file.
+% read_lensedQSO_db - Read garvitationaly lensed quasars database Package: VO.prep Description: Read garvitationaly lensed quasars database from: https://www.ast.cam.ac.uk/ioa/research/lensedquasars/index.html
+% read_mark_lc - Read PTF subtraction light curves generated by Mark S. program. Package: VO.PTF Description: Read PTF subtraction light curves generated by Mark S. program.
+% read_mpc_packed_epoch - Convert the MPC packed date format to JD Package: celestial.SolarSys Description: Convert the MPC packed date format to JD.
+% read_ned - 
+% read_sad - Read AIPS SAD files. Package: VO.VLA Description: Read AIPS SAD files.
+% read_sweep_brick_table - SHORT DESCRIPTION HERE Package: VO Description:
+% read_table - SHORT DESCRIPTION HERE Package: VO.TNS Description:
+% read_votable - XML VO table reader Package: VO.util Description: Simple XML (VO table) reader.
+% read_ztf_HDF_matched - Read ZTF matched light curves from local HDF5 light curve files. Package: VO.ZTF Description: Read ZTF matched light curves from local HDF5 light curve files. The HDF5 files are distributed as part of the catsHTM
+% read_ztf_HDF_matched_coo - Get ZTF/DR1 light curves for source by coordinates Package: VO.ZTF Description: Get ZTF/DR1 light curves for source by coordinates
+% read_ztf_ascii_matched_lc - Read ZTF ascii file of matched light curves Package: VO.ZTF Description: Read ZTF ascii file of matched light curves. Optionally save the data and meta data in an HDF5 file.
+% recurse - 
+% recurse - 
+% recurse - 
+% recurse - 
+% recurse - 
+% recurse - 
+% redisplay_spec - 
+% refellipsoid - Return data for a given reference ellipsoid of Earth. Package: celestial.Earth Description: Return data for a given reference ellipsoid of Earth.
+% refine_fit - Match sources in two catalogs and fit a positional transformation Package: imUtil.patternMatch Description: Given two catalogs of sources that have rougghly the same coordinate system (e.g., images are aligned to a few pixels
+% refraction - Estimate atmospheric refraction, in visible light. Package: celestial.coo Description: Estimate atmospheric refraction, in visible light.
+% refraction_coocor - Atmospheric refraction correction for equatorial coordinates. Package: celestial.coo Description: Calculate the correction in equatorial coordinates due to atmospheric refraction.
+% refraction_index - Return the refraction index as a function of wavelength Package: telescope.Optics Description: Return the refraction index as a function of wavelength for various materials.
+% refraction_wave - refraction_wave function                                           ephem Description: Calculate the wavelength-dependent atmospheric refraction and index of refraction based on Cox (1999) formula.
+% remove_edge_section - Remove a CCDSEC region located at an edge of another CCDSEC
+% replaceKey - Replace an cell-header keywords and values, or add if doesn't exist
+% replaceMaskedPixVal - Replace the values of image pixels with specific bit mask
+% replace_illegal_char - replace illegal characters in keyword names (e.g. '-'). Description: Given a 3 column cell array. Replace illegal characters in the first column. List of illegal characters:
+% resample_uniform - Uniform resampling of a non-evenly spaced time series. Package: timeseries Description: Uniform resampling of a non-evenly spaced time series.
+% resid_vs_mag - Fit residuals vs. mag and flag good data (not outliers). Package: +imUtil.calib Description: Give vectors of residuals vs. magnitude, calculate the std or residuls vs. magnitude and flag good data (i.e., not
+% rise_set - Calculate rise/set times Package: celestial.SolarSys Description: Given an object coordinates and observer position, calculate rise/set/transit times, and azimuth and altitude.
+% rmsflux_select - Select points in an flux/mag vs. rms like diagram Package: timeseries Description: Select points in an rms vs. flux like diagram. Bin the flux/mag vs. rms diagram by flux bins or by constant
+% rotm_coo - Rotation matrix for coordinate conversion Package: celestial.coo Description: Generate a rotation matrix for coordinate conversion and precession.
+% rstd - Return the rstd (robust std) of AstroImage object images using imUtil.background.rstd. The output is an array in which each element corresponds to an element in the AstroImage.
+% rstd - robust std (default is for a matrix) calculated using scaled iqr Package: @imUtil.background Description: robust std of an array. Note that using the imUtil.background.mode function is much faster.
+% run_ciao_command - RUN CIAO command on single or multiple, or all Chandra directories Package: +VO.Chandra
+% run_galex_sql - Run a GALEX command line SQL quary (OBSOLETE - see VO.MAST) Package: VO.GALEX Description: Run a GALEX command line SQL quary. Running the java command line tool.
+% run_sdss_sql - run_sdss_sql function                                               sdss Description: Run SQL query on SDSS database and retrieve the results into an array.
+% runmean - Running mean of un-evenly spaced time series Package: timeseries Description: Calculate the runing mean of an unevenly spaced time series with different weight functions and weight schemes.
+% runmean1 - Running mean on equally spaced 1-D vector Package: timeseries Description: running mean on a 1-D vector.
+% rv2ellipse - Convert radial velocity as a function of time to ellipse Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period convert it to a RV_Odd vs RV_Even (ellipse).
+% rvar - robust variance (default is for a matrix) calculated using scaled iqr Package: @imUtil.background Description: robust variance of an array. Note that using the imUtil.background.mode function is much faster.
+% s1plane_rms - s1plane_rms function                                               glens Description: Given a model parameters of a lens, and the images position corresponding to a single source,
+% satellite_mag - Satellite apparent magnitude Package: celestial Description: Satellite apparent magnitude
+% saturation_region - - Given star VT magnitude return saturation region and spike length in arcsec -
+% saturn_rings - Calculate the orientation angles for Saturn's rings Package: celestial.SolarSys Description: Calculate the orientation angles for Saturn's rings.
+% scale_spectrum - Scale spectrum by shift and stretch. Package: AstroUtil.spec Description: Scale spectrum by shift and stretch or a wavelength dependent factor (See also: find_shift_scale_spec.m).
+% scale_template - 
+% scan - 
+% scan - 
+% scan_cell - 
+% scan_cell_column - 
+% scan_cell_matrix - 
+% scan_cell_row - 
+% scan_cell_single - 
+% scan_char - 
+% scan_data - 
+% scan_datetime - 
+% scan_datetime - 
+% scan_list - 
+% scan_logical - 
+% scan_logical - 
+% scan_map - 
+% scan_numeric - 
+% scan_numeric - 
+% scan_ord - 
+% scan_ord_column - 
+% scan_ord_matrix - 
+% scan_ord_row - 
+% scan_ord_single - 
+% scan_string - 
+% scan_struct - 
+% sdss_coo_radec - Convert the SDSS great circles coordinate system to J2000 RA and Dec. Package: VO.SDSS Description: Convert the SDSS great circles coordinate system to J2000 right ascension and declination.
+% searchCatForKnownPM - Given a catalog of sources positions and times, and a specific position+proper motion, look for sources in the catalog that are found in the proper motion trajectory.
+% searchGALEXimg - Search GALEX images by coordinates Package: VO.GALEX Description: Search GALEX images by coordinates in the cats.GALEX.GALEXimg local catalog.
+% search_cat - search_cat function                                            Catalogue Description: Given a catalog with Long,Lat coordinates position, search for lines near a list of reference positions.
+% search_conj - Celestial conjunctions between moving objects Package: celestial.SolarSys Description: Search for conjunctions on the celestial sphere between two moving objects given thier coordinates as a function
+% search_conj_sm - Celestial conjunctions on the between moving and stationary objects Package: celestial.SolarSys Description: Search for conjunctions on the celestial sphere between a list of stationary points and a moving object given the
+% search_htm_coocat - search_htm_coocat function                                           htm Description:
+% search_htmcat - Search a local HTM/HDF5 catalog Description: Perform a cone search in an local catalog formatted in the HTM (Hiraricical Triangular Mesh) grid and stired in HDF5 format.
+% search_mhtm_cat - Search master HTM catalog Package: Catalog.search Description: A Master HTM catalog contains a list of HTM regions and the HDF file name containing the HTM region. This function can
+% search_sortedY_multi - Search a single X/Y in a catalog sorted by Y (planar geometry) Package: VO.search Description: A low level function for a single cone search in a [X, Y] array.
+% search_sortedlat - Search a single long/lat in a catalog sorted by latitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+% search_sortedlat_multi - Search a single long/lat in a catalog sorted by latitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+% search_sortedlat_multiNearest - Search a single long/lat in a catalog sorted by latitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+% search_sortedlong - Search a single long/lat in a catalog sorted by longitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+% selectNearEdges - construct a vector of matrix indices for pixels near the edge of the CCDSEC
+% select_maxima - Select some maxima out of list by some criteria Package: imUtil.patternMatch Description: Given a list of maxima, select a sub list by some criteria. For example, can be used to select N highest peaks, or all
+% selftest_yamlmatlab - This function tests consistency of YAMLMatlab, by default, the results are stored in selftest_report.html in current work folder.
+% sersic - create a matrix or a cube of 2D normalized Sersic functions Package: +imUtil.kernel2
+% server_ned - Resolve an astronomical object name into coordinates using NED. Package: VO.name Description: Resolve an astronomical object name into coordinates using NASA Extragalactic Database (NED).
+% server_simbad - Resolve an astronomical object name into coordinates using SIMBAD Package: VO.name Description: Resolve an astronomical object name into coordinates using SIMBAD database.
+% setElementStyle - global tokens links urls urlTargets   for debug only
+% set_random_bkg - choose random background
+% setverblevel - 
+% sf_interp - sf_interp function                                            timeseries Description: Interpolate a time series, and estimate the errors due to the interpolation using the structure function
+% sfr - Estimate the cosmic star formation rate as a function of redshift Description: Fit the measured star formation rate as a function of redshift and return its interpolated value in some requested redshifts.
+% shapiro_delay - Calculate the Shapiri time delay approximation (beta>ThetaE) Package: AstroUtil.microlensing Description: Calculate the Shapiri time delay approximation assuming the angle between the lens and the source is much larger
+% shapiro_delay_pm - The Shaprio time delay given proper motion between two stars. Package: AstroUtil.microlensing Description: The Shaprio time delay given proper motion between two stars.
+% shift2vel - Calculate the velocity from the red/blue shift (z). Package: AstroUtil.spec Description: Calculate the velocity from the red/blue shift (z).
+% shift_fft - Shift Image using the sub pixel Fourier shift theorem (sinc interp.) Package: imUtil.image Description: Shift an image using the FFT shift thorem. This works well when the image does not contain sharp artifacts.
+% shift_lanczos - Shift Image using the sub pixel Lanczos filter Package: imUtil.image Description: Shift an image using the Lanczos interpolation kernel. This is works for sub pixel shifts and can treat images
+% shift_spec - Transform a spectrum from the observed frame to the rest frame. Package: astro.spec Description: Transform a spectrum from the observed frame to the rest frame. If the redshift is negative then transform from the rest
+% showDemo - 
+% signal2noise_calc - 
+% simbad_url - Generate a SIMBAD URL for coordinates Package: VO.search Description: Generate a SIMBAD URL for coordinates
+% simulated_elc - Simulated photons light curve Package: timeseries Description: Given a model light curve, generate a list of time-tagged events that their rate follows the model light curve.
+% singleRaw2proc - Basic processing of a single raw image into a processed image Including: Reading the image Generate a mask image and mask saturated pixels
+% sky_area_above_am - Calculate sky area observable during the night above a specific airmass. Package: celestial.coo Description: Calculate sky area observable during the night above a specific airmass, and assuming each field is observable
+% sky_ebv - Get Galactic extinction for a list of coordinates Package: AstroUtil.spec Schlegel, Finkbeiner & Davis (1998) extinction maps. Use AstroUtil.spec.extinction to calculate the extinction.
+% skylight - Calculate the total sky illumination in Lux on horizontal surface Package: celestial.SolarSys Description: Calculate the total sky illumination due to the Sun, Moon, stars and air-glow, in Lux on horizontal surface as a
+% skymapper_cat_search - Cone search the SkyMapper online catalog. Package: VO.SkyMapper Description: Cone search the SkyMapper online catalog.
+% skymapper_cutout_link - Generate a URL link to SkyMapper image cutouts. Package: VO.SkyMapper Description: Generate a URL link to SkyMapper image cutouts.
+% slider2_Callback - hObject    handle to slider2 (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% slider2_CreateFcn - hObject    handle to slider2 (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% slider_Redshift_Callback - hObject    handle to slider_Redshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% slider_Redshift_CreateFcn - hObject    handle to slider_Redshift (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% sn_calc - A signal-to-noise calculator for astronomical telescopes. Package: telescope.sn Description: A signal-to-noise calculator for astronomical telescopes. Calculate S/N or limiting magnitude and field of view
+% sn_cooling_msw - sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+% sn_cooling_rw - Shock cooling light curve (Rabinak & Waxman 2011) Package: astro.supernova Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+% sn_cooling_sw - sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+% sn_det2signal - Convert detection S/N of a Gaussian PSF to signal Package: telescope.sn Description: Given detection S/N calculate the PSF signal.
+% sn_det_psf - Calculate S/N for detection of a Gaussian PSF Package: telescope.sn Description: Calculate the S/N (signal-to-noise ratio) for a point source with a symmetric Gaussian profile for PSF (optimal)
+% sn_phot2signal - Convert photometry S/N of a Gaussian source to signal Description: Given a target S/N, image background, readnoise and PSF Gaussian sigma, calculate the total count in PSF that will give the target S/N for PSF photometry.
+% sn_phot_aper - Calculate the aperture photometry S/N for a Gaussain source Package: telescope.sn Description: Calculate the S/N (signal-to-noise ratio) for a point source with a symmetric Gaussian profile for aperture
+% sn_phot_psf - Calculate photometry S/N of a Gaussian PSF Description: Calculate the S/N (signal-to-noise ratio) for a point source with a symmetric Gaussian profile for PSF (optimal) photometry.
+% sn_phot_psfn - Calculate photometry S/N of a numerical PSF Description: Calculate the S/N (signal-to-noise ratio) for a numerical PSF (optimal) photometry.
+% sn_spec - S/N calculator for long-slit spectra Package: telescope.sn Description: Simulate long-slit spectral observations and estimate the S/N per resolution element.
+% snr - 
+% snr - Signal-to-Noise ratio calculator using full spectral components. Package: telescope.sn Description: Given the spectra of the source and background components, calculate the S/N for PSF detection.
+% solarlong2jd - Time in which the Sun is in a given solar longitude Package: celestial.SolarSys Description: Calculate time in which the Sun is in a given solar longitude, using low accuracy formulae (15 min. precision).
+% solve_alignment6dof_problem - 
+% space - 
+% sparse2full - Resize/extend/magnify an image sampled at some specific very sparse points into a full image.
+% spec2photons - Spectrum to photon counts in band. Package: telescope.sn Description: Given a spectrum and the effective area of an instrument as a function of wavelength, calculate the the total recieved
+% spec_photon_counts - Spectrum to photon counts. OBSOLETE: Use telescope.sn.spec2photons. Package: astro.spec Description: Given a spectrum and the effective area of an instrument as a function of wavelength, calculate the the total recieved
+% specwin - Power spectrum window (use timeseries.period instead) Package: timeseries Description: Calculate the spectral window of a time series. OBSOLOETE: Use timeseries.period instead
+% sphere_dist - angular distance and position angle between two points on the sphere Package: celestial.coo Description: Calculate the angular distance and position angle between two points on the celestial sphere.
+% sphere_dist_cosd - Angular distance between a set of two cosine vector directions. Package: celestial.coo Description: Calculate the angular distance between a set of two cosine vector directions.
+% sphere_dist_fast - sphere_dist_fast function                                          ephem Description: Calculate the angular distance between two points on the celestial sphere. See sphere_dist.m (and built in distance.m)
+% sphere_dist_fast_thresh - sphere_dist_fast_thresh function                                   ephem Description: Calculate the angular distance between two points on the celestial sphere. See sphere_dist.m (and built in distance.m)
+% sphere_dist_thresh - sphere_dist_thresh function                                        ephem Description: Given Long and Lat coordinates and a reference coordinates (in radians) return a flag indicating if each point is
+% sphere_move - Applay offset to RA and Dec Package: +celestial.coo
+% sphere_offset - sphere_offset function                                             ephem Description: Calculate the offset needed to move from a point on the celesial sphere to a second point on the celestial sphere,
+% spherical_tri_area - spherical_tri_area function                                         AstroMap Description: Given three coordinates on a sphere, calculate the area of a spherical triangle defined by these three points.
+% spherical_triangle_circum_circle - Calculate the radius of the circum circle of a spherical triangle Package: celestial.coo
+% spherical_triangle_inscribed_circle - Calculate the radius of the inscribed circle of a spherical triangle Package: celestial.coo
+% splane_rms - splane_rms function                                                glens Description: Given a model parameters of a lens, and the images position, calculate the deflections
+% splane_rms_n - splane_rms_n function                                              glens Description:       Given a model parameters of a lens, and the images position, calculate the deflections
+% splane_rms_norm - splane_rms_norm function   Given a deflection field of a lens, and the images position, calculate the sources position. The program calculates the rms of the sources
+% splane_rms_norm1 - splane_rms_norm1 function                                          glens Description: Given a model parameters of a lens, and the images position, calculate the deflections
+% sprintf - 
+% sprintf_cell - 
+% src_number_count - The cumulative number of sources in the GALEX-NUV band at high Gal. lat. Package: VO.GALEX Description: A simplistic, order of magnitude estimate of the surfae area of sources in the GALEX-NUV band at high Galactic latitude
+% stackCube - Stack (coadd) a cube of images using various functions
+% star_ang_rad - Calculate empirical angular radii of stars from magnitude and colors. Package: AstroUtil.stars Description: Empirical angular radii of stars based on their magnitude and colors.
+% star_apparent_place - star_apparent_place function                                           ephem Description: Compute the apparent place of stars at a given epoch, given the star mean place, proper motion, parallax,
+% star_conjunctions - Calculate conjuctions between stars given their proper motion. Package: celestial.coo Description: Given a star with its coordinates, proper motion and optionally parallax and radial velocity, and a list of
+% star_conjunctions_montecarlo - SHORT DESCRIPTION HERE Package: celestial Description:
+% star_sptype_color - Spectral type to color Package: AstroUtil.star Description: Given a star spectral type and luminosity class, get the star color between any two filters.
+% stat2html - 
+% std - Return the std of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% stdfilt1 - Standart deviation filter Package: timeseries Description: One dimensional StD filter.
+% stellar_imf - The stellar initial mass function Package: AstroUtil.stars Description: Return the stellar initial mass function in a given mass range.
+% stellar_prop - 
+% stellar_tracks - Geneva stellar tracks as a function of time. Package: AstroUtil.stars Description: Given an initial mass and metllicity return the Geneva stellar tracks as a function of time.
+% stoch_time_delay - SHORT DESCRIPTION HERE Package: AstroUtil.microlensing Description:
+% str2date - Convert a date string (usinf datevec) to date vector
+% struct2orbitalel - struct2orbitalel function                                          ephem Description: Convert a structure array into an OrbitalEl class object.
+% sub2ind_fast - sub2ind fast version for 2D matrices Description: A fast version of sub2ind for 2D arrays.
+% subimage_boundries - Define boundries (ccdsec) for image subsections. Package: imUtil.partition Description: Given image size, block size or number of blocks divide define the bounderies of sub blocks.
+% subimage_grid - Partition image size into a grid of sub images Package: mUtil.image Description: Given the size of a two dimensional array (e.g., image), and a sub image size or the number of partitions in each
+% subimages2image - construct the full image from sub-images Package: mUtil.image
+% subtractOffset - Remove offset (constant) from AstroImage
+% subtract_back1d - subtract_back1d function                                             General Description: Subtract background level from a 1-D vector.
+% sun_ephem - Sun ephemeris POackage: celestial.SolarSys Description:  Sun ephemerids generator
+% sun_rise_set - Calculate Sun rise/set Package: celestial.SolarSys Description: Given the coordinates and observer position, calculate rise/set/transit/twilight times and azimuth and altitude
+% suncoo - Low-accuracy position of the Sun (0.01 deg in long). Package: celestial.SolarSys Description: Calculate the Sun equatorial coordinates using low accuracy formale. Accuracy : 0.01 deg. in long.
+% suncoo1 - Low-accuracy coordinates of the Sun (1950-2050 range) Package: celestial.SolarSys Description: Calculate the Sun equatorial coordinates using low accuracy formaulae for the range 1950 to 2050.
+% sundial_pars - -
+% sunlight - Calculate the Sun illumination in Lux on horizontal surface Package: celestial.SolarSys Description: Calculate the Sun illumination in Lux on horizontal surface as a function as its altitude in radians.
+% surface_density - Estimate surface density in catalog, optionally using convex hull Package: +imUtil.cat Description: Estimate the surface density and area that a catalog is covering. The area is estimated using either the box size,
+% sync_mildly_relativistic - Synchrotron emission from mildly relativistic ejecta interacting with ISM Package: astro.supernova Description:
+% synchrotron - SHORT DESCRIPTION HERE Package: astro.supernova Description:
+% synphot - Synthetic photometry of spectrum Package: astro.spec Description: Calculate synthetic photometry of a spectrum OBSOLETE: use AstroUtil.spec.synthetic_phot.m
+% synthetic_phot - Synthetic photometry of spectra Package: astro.spec Description: Synthetic photometry of spectra. Can calculate synthetic photometry in a single band to
+% sysrem - Apply the Tamuz et al. sysrem decomposition to a matrix of residuals Package: timeseries Description: Given a matrix of residuals (R_ij), of star i in image j, iteratively decompose the matrix by minimizing
+% t0_Callback - hObject    handle to t0 (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    structure with handles and user data (see GUIDATA)
+% t0_CreateFcn - hObject    handle to t0 (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% tai_utc - Get TAI-UTC (leap second) Package: celestial.time Description: Return the TAI-UTC time difference (leap second) for a vector of Julian days. Also return TT-UTC.
+% taper - Generate a taper function Package: timeseries Description: Generate a taper function for a timeseries. Taper function is a weight/window function in the time domain.
+% target_selection - Select a single target for one telescope Package: +celestial.scheduling Example: Res=celestial.scheduling.target_selection
+% tdb_tdt - Approximate TDB-TT Package: celestial.time Description: Calculate approximate difference between TDT and TDB time scales.
+% telescope_support - Construct an image of a telescope entrance pupil (support). Package: telescope.Optics Description: Construct an image of a telescope entrance pupil (support). For example, a clear circular pupil.
+% test_RY_FloatingPoints - 
+% test_RY_Import - 
+% test_RY_ImportDef - 
+% test_RY_ImportNonex - 
+% test_RY_Indentation - 
+% test_RY_Inheritance - 
+% test_RY_InheritanceLoop - 
+% test_RY_InheritanceMultiple - 
+% test_RY_Matrices - 
+% test_RY_SequenceMapping - 
+% test_RY_Simple - 
+% test_RY_Time - 
+% test_RY_TimeVariants - 
+% test_RY_Whitespaces - 
+% test_RY_usecase_01 - 
+% test_ReadYaml - this function tests reading in the yaml file
+% test_ReadYaml_DateTime - 
+% test_ReadYaml_SimpleStructure - 
+% test_WY_Universal - 
+% test_WriteYaml - 
+% test_mex_writematrix - 
+% test_mex_writematrix2 - 
+% test_phonebook - 
+% thiele_innes - Calculate the Thiele-Innes orbital elements Package: celestial.Kepler Description: Calculate the Thiele-Innes orbital elements.
+% thiele_innes2el - Thiele-Innes to orbital elements Package: celestial.Kepler Description: Calculate the orbital elements from the Thiele-Innes orbital elements.
+% threshold_fluctuations - Estimate the number of filtered local maxima above/below some threshold. Package: imUtil.filter Description: Estimate the two-sided false alarm rate for source detection in astronomical images. The function generate random images,
+% tile_the_sky - Tile the celestial sphere Package: celestial.coo Description: Tiling the celestial sphere with approximately equal area tiles.
+% to the list of built in - 
+% tocolumn - 
+% topocentric_vec - topocentric_vec function                                           ephem Description: Calculate the topocentric position and velocity vectors of an observer, with respect to the true equator and
+% torow - 
+% total_light - Primary total light given its radius and limb darkening. Package: AstroUtil.binary Description: Calculate the primary total light given its radius and limb darkening function or constant luminosity per unit area.
+% trace_spec - UNDER CONSTRUCTION
+% tranAffine - Apply affine transformation to an AstroCatalog object
+% tran_comoving_dist - Transverse comoving distance Package: astro.cosmo Description: Calculate the transverse comoving distance. Given the transverse comoving distance (D_M), the comoving distance
+% translient - 
+% tree_collect_leafs - Collect leafs in a tree Package: celestial.htm Description: Given a tree and a pointer to a node, collect all the leafs found at the last level below this node.
+% trim - Trim an image or a cube using CCDSEC coordinates. Pacakge: imUtilimage Description: Trim an image or a cube using CCDSEC coordinates.
+% trim_ccdsec - trim edges from a CCDSEC vector
+% true2eccentric_anomaly - True anomaly to eccentric anomaly Package: celestial.Kepler Description: Convert true anomaly to eccentric anomaly for elliptic orbit.
+% trueanom2pos - True anomaly, radius vector and orbital elements to cartezian position Package: celestial.Kepler Description: Given an object true anomaly, radius vector, time and orbital elements and time, calculate its orbital position
+% trueanom2vel - True anomaly, radius vector and orbital elements to position and velocity Package: celestial.Kepler Description: Given an object true anomaly, radius vector, their derivatives and orbital elements and time, calculate its
+% uipanel1_CreateFcn - hObject    handle to uipanel1 (see GCBO) eventdata  reserved - to be defined in a future version of MATLAB handles    empty - handles not created until after all CreateFcns called
+% unifiedSourcesCatalog - Match multiple catalogs and create a catalog of all unique (by position) sources. i.e., generate a list of all unique positions that appears in all the AstroCatalog object.
+% uniqueKey - Remove non-unique keywords from a cell header
+% unitTest - unitTest for +imProc.astrometry Example: imProc.astrometry.unitTest
+% unitTest - unitTest for +imProc.mask Example: imProc.mask.unitTest
+% unitTest - unitTest for +imProc.match Example: imProc.match.unitTest
+% unitTest - unitTest for +imProc.match Example: imProc.trans.unitTest
+% unitTest - unitTest for +imProc.register package Example: imProc.register.unitTest
+% unitTest - unitTest for imProc.calib Example: imProc.calib.unitTest
+% unitTest - unitTest for imProc.cat Example: imProc.cat.unitTest
+% unitTest - unitTest for imProc.image.Flat
+% unitTest - unitTest for imProc.instCharc Example: Result = imProc.instCharc.unitTest
+% unitTest - unitTest for the +imProc.background package Example: imProc.background.unitTest
+% unitTest - unitTest for the +imProc.image package
+% unitTest - unitTest for the +imProc.stat package Example: Result = imProc.stat.unitTest
+% unitTest - unitTest for the Stack class Example: Result = imProc.stack.unitTest
+% unpad_array - A simple unpadding of 2D matrices
+% updateCell_fromStruct - update cell header by adding elements in struct not in header Description: Given a 3 column cell array (i.e., cell header) and a structure with keywords and values. First make sure all the header keywords have no
+% updateTransient - 
+% upsilon_u - - upsilon_u function                                                    glens Description: Calculate the upsilon(u) function (Eq. 15 in Keeton 2001).
+% usnob1_map - Plot a finding chart using a local copy of the USNO-B2.0 Package: celestial.map Description: Plot a finding chart using a local copy of the USNO-B2.0 catalog. The user can select between b/w stars or color
+% ut1_utc - Return UT1-UTC (DUT1) Package: celestial.time Description: Return UT1-UTC (also known as DUT1).
+% validate_coo - Validate HA, Dec within Az,Alt and HA,Dec ranges. Package: +celestial.scheduling Description: Given a vectors of HA/Dec check for each coordinate if it complies with Az,Alt limit and withing HA/Dec ranges.
+% validstring - 
+% validstring - validstring: compares a string against a set of valid options usage: [str,errorclass] = validstring(arg,valid) If a direct hit, or any unambiguous shortening is found, that
+% var - Return the var of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+% vb_ephem - vb_ephem function                                                      ephem Description: Given orbital elements of a visual binary, calculate its ephemeris in a give dates.
+% vel2shift - Calculate the red/blue shift (z) from velocity. Package: AstroUtil.spec Description: Calculate the red/blue shift (z) from velocity.
+% vla_pbcorr - Calculate primary beam corrections for the VLA antena Package: VO.VLA Description: Calculate primary beam corrections for the VLA antena.
+% volumetric_rate_sn - SHORT DESCRIPTION HERE Package: telescope.sn Description:
+% wavefront2image - Construct an image from the wavefront Package: telescope.Optics Description: Construct a wavefront from a matrix representation of the wavefront, and calculate the image plane of a point source
+% weight_cadence - Calculate the cadence weight for a list of targets. Package: +celestial.scheduling Description: The cadence weight is a combination of two weights, based on the last time the target was observed during the night, and
+% weights_fun - 'exp' - A + B*exp(-t/C) 'fermi' - A + B/(1+ exp(-(t-C)/D))
+% wein - Wein law Package: AstroUtil.spec Description: Apply Wein law - return the peak wavelength of a black body at a given temperature.
+% wget_all - wget all Chandra observations in cats.X.ChandraObs Package: VO Description:
+% wget_all_catnames - Retrieve a list of all IPAC/IRSA public catalogs Package: VO.IRSA Description: Retrieve a list of all IPAC/IRSA public catalogs
+% wget_all_hsc - SHORT DESCRIPTION HERE Package: VO Description:
+% wget_all_ps1_dr1 - Prepare a local copy of the PS1-DR1 catalog Package: VO.MAST Example: VO.MAST.wget_all_ps1_dr1(false,0,300000)
+% wget_all_skymapper - SHORT DESCRIPTION HERE Package: VO Description:
+% wget_all_usnob1 - Retrieve USNO-B1 catalog from VizieR and format into HDF5/HTM (catsHTM) Package: VO.prep Description:
+% wget_cat_columns - Retrieve a list of all columns for an IPAC/IRSA public catalog Package: VO.IRSA Description: Given an IPAC/IRSA catalog name (see Catalog.IRSA.wget_all_catnames) retrieve all columns
+% wget_corrim - Get GALEX corrected images from image server Package: VO.GALEX Description: Get GALEX corrected images
+% wget_corrim - Get PTF corrected images from the IPAC archive Package: VO.PTF Description:  Given coordinates or PTF field+CCDID, get the link to the images and associated catalogs and mask files. The program
+% wget_corrim - Get WISE coadded Atlas image from coadd_id Package: VO.WISE Description: Given a WISE field ID coadd_id for Atlas Images, get the link to, and the WISE corrected image in FITS format.
+% wget_corrim - Get corrected SDSS image Package: VO.SDSS Description: Retrieve SDSS corrected images by Run, Rerun, CamCol, Field or RA/Dec.
+% wget_eop - Read or get the Earth orientation parameters file from IERS Package: celestial.time Description: Get the table of historical and predicted Earth orientation parameters (EOP) from the IERS web site.
+% wget_goes_data - wget GOES partcles flux data Package: ultrasat Description:
+% wget_hsc_sources - Query sources in the HST source catalog tables Package: VO.MAST Description: Query sources in the HST catalog tables. By default the query is done on a predefined columns in the SExtractor
+% wget_irsa_coockie - Get IRSA cookie for a user and password Package: VO.IRSA Description: Get IRSA cookie for a user and password
+% wget_irsa_forcedphot_diff - Send a forced photometry request to ZTF archive Package: VO.ZTF Description: Send a forced photometry on subtraction images request to ZTF archive.
+% wget_lat_weekly_data - Retrieve the Fermi/LAT weekly photon data in FITS format Package: VO.Fermi Description: Retrieve the last version of the Fermi/LAT weekly files from the HEASARC FTP site in FITS format.
+% wget_obsid - Get all the files associated with a Chandra ObsID Package: VO.Chandra Description: Get all the files associated with a Chandra ObsID The Chandra observations catalog is stored in
+% wget_obsid_old - Get all the files associated with a Chandra ObsID Package: VO.Chandra Description: Get all the files associated with a Chandra ObsID The Chandra observations catalog is stored in
+% wget_ps1_api - Query the PS1 catalog via the web API Package: VO Description: Query the PS1 catalog via the web API See API details in: https://catalogs.mast.stsci.edu/docs/panstarrs.html
+% wget_pulsar_cat - Read ATNF pulsar catalog from the web into an AstCat object. Package: VO.prep Description: Read ATNF pulsar catalog from the web into an AstCat object.
+% wget_sdss - Query SDSS PhotoPrimary table around specific coordinate. Package: VO.SDSS Description: Query SDSS PhotoPrimary table around specific coordinate. See VO.SDSS.run_sdss_sql.m for a more general queries.
+% wget_sdss_spec - wget SDSS FITS spectra and links Package: VO.SDSS Description: wget SDSS FITS spectra and links
+% wget_tai_utc - Get TAI-UTC from file or IERS website Package: celestial.time Description: Get the table of historical TAI-UTC time differences (leap second) from the IERS web site.
+% wget_ztf_images_irsa - Query and retrieve ZTF images from the IRSA archive Package: VO.ZTF Description: Query and retrieve ZTF images from the IRSA archive.
+% wget_ztf_phot - wget photometry and astrometry of a source/s from IRSA database. Package: VO.ZTF Description: wget photometry and astrometry of a source/s from IRSA database.
+% wmean_sigclip - Calculate the sigma-clipped weighted mean of a dataset Package: imUtil.image Description: Calculate the sigma-clipped weighted mean of a dataset with iterations.
+% worker_comm - PoolObj=parpool F=parfeval(@imUtil.tests.worker_comm,2,5) delete(PoolObj)
+% xcorr - Calculate the \chi2 and cross correlation between two time series. Package: timeseries Description: Calculate the \chi2 and cross correlation between two time series.
+% xcorr2_fft - Cross-correlation of two matrices using fft, and search local maxima. Package: imUtil.filter Description: Cross correlate two 2D images. If a single image is provided then calculate the autocorrelation function.
+% xray_abs - Bound-free absorption from neutral hydrogen column density. Package: AstroUtil.spec Description: Given the neutral Hydrogen column density, calculate the bound-free attenuation of X-rays as a function of wavelength
+% year2jd - Convert year to JD Package: celestial.time Description: Return the Julian day at Jan 1 st of a given list of years. See also: convert.time instead.
+% yearly_observability - Plot yearly observability chart Pacakge: telescope.obs Description: Plot a yearly observability chart for an object.
+% zer_cj_variance - The expectency of std of the atmospheric Zernike coefficients. Package: telescope.Optics Description: Return the expectency of standard deviation of the atmospheric Zernike c_j coefficients.
+% zernike_xy - A driver function for the external zerfun.m function. Package: telescope.Optics Description: A driver function for the external zerfun.m function. Given a list of zernike indices and a grid in the X-Y plan
+% zerwavefront2image - Wavefront from Zernike polynomials and calculate the image plane. Package: telescope.Optics Description: Construct a wavefront using Zernike polynomials, and calculate the image plane of a point source with a
+% zerwavefront2image_indiv - Wavefront from individual Zernike polynomials and calculate the image. Package: telescope.Optics Description: Construct a wavefront using Zernike polynomials, and calculate the image plane of a point source with a
+% zodiac_bck - Calculate the zodi calibrated spectrum and magnitude at a given position. Package: +ultrasat Description: Calculate the zodiacal calibrated spectrum and magnitude at a given sky position.
+% zodiac_bck - Zodiac background light (OBSOLETE). Package: astro.spec Description: Calculate the zodiac magnitude and flux in a given filter and sky position. The zodiac spectrum and position
+% zodiac_bck_V - Get the Zodiac V light surface brightness as a function of coordinates Package: @AstSpec Description: Calculate the zodiac V vand Vega magnitude for a sky.
+% zodiac_spectrum - Get the Zodiac light spectrum Package: @AstSpec Description: Return the zodiac spectrum as adopted from the HST STIS handbook. The high zodiacal ligh is defined where V=22.1
+% zp - Get the GALEX photometric zeropoint. Package: VO.GALEX Description: Return GALEX zeropoint for conversion of counts/second to AB mag.
+% zp_lsq - Example: Fzp   = 1 + rand(100,1); Fstar = rand(1,200).*3900 + 100; Flux = Fzp.*Fstar;
+% zp_sumFlux - Example: Fzp = rand(100,1).*1000; Flux = randn(100,200) + Fzp; Result = lcUtil.zp_sumFlux(Flux, 'MaxRelErr',[]);
+% ztfBands - Split the table into different bands and read the filter Obj Package: AstroUtil.supernove.SOPRANOS Description: Split the table into different bands and read the filter Obj
+% ztfBandsTxt - Split the table into different bands and read the filter Obj Package: AstroUtil.supernove.SOPRANOS Description: Split the table into different bands and read the filter Obj
+% ztf_filename2prop - Extract information from ZTF file name Package: +VO/+ZTF Description: Extract information and image properties from ZTF file name.
+% {};             % Parameters of BackSpec function - 

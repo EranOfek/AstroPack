@@ -1,0 +1,8 @@
+% class: FitsDb
+%
+% FitsDb - 
+% Open - 
+% msgLog (Static) - fprintf('fits: ');
+% read - 
+% readHeader - 
+% unitTest (Static) - 

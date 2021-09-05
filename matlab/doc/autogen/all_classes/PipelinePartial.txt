@@ -1,0 +1,5 @@
+% class: PipelinePartial
+%
+% PipelinePartial - 
+% run - 
+% unitTest (Static) - 

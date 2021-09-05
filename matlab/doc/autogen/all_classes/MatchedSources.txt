@@ -1,0 +1,21 @@
+% class: MatchedSources
+%
+% addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data Obj = addMatrix(Obj, Matrix, FieldName)
+% deleteMatrix - remove matrix and field name from an MatchedSources object
+% designMatrix - Generate a general purpose design matrix from an MatchedSources object Description: Construct a design matrix of the form: H = [FunCell{1}(Col1), FunCell{2}(Col2), ...] where the FunCell are user provided functionals,
+% designMatrixCalib (Static) - Generate the design matrix for relative photometric calibration Reference: Ofek+2011
+% get.Fields - getter for Fields
+% get.JD - getter for JD (return 1..Nepoch) if doesnt exist
+% get.Nepoch - getter for Nepoch
+% get.Nsrc - getter for Nsrc
+% getFieldNameDic - Get field name in MatchedSources Data properties that first appear in a dictionary (cell array).
+% getLC_ind - get the LC [JD, Mag] of a source by its index (column number)
+% getLonLat - Get data matrices containing the RA/Dec fields.
+% getMatrix - Get matrix using field name
+% notNanEpochs - Return a vector of logicals indicating epochs which do have any NaNs in their data.
+% notNanSources - Return a vector of logicals indicating soueces which do have any NaNs in theor data.
+% plotRMS - plot rms of a propery (field) vs. its mean.
+% read (Static) - read mat file or HDF5 file containing MatchedSources
+% summary - Summary of a specific field matrix in MatchedSources
+% unitTest (Static) - unitTest for MatchedSources class
+% write - Write a MatchedSources object to HDF5 or mat file
