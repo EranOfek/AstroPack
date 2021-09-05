@@ -70,16 +70,7 @@ classdef VirtImageManager < ComponentMap
      
     
     methods(Static) % Unit test
-        function Result = unitTest()
-            io.msgLog(LogLevel.Test, 'VirtImageManager test started');
-
-            Manager = VirtImageManager.getSingleton();
-            
-            % See tests in VirtImage.m
-            
-            io.msgLog(LogLevel.Test, 'VirtImageManager test passed');
-            Result = true;
-        end
+        Result = unitTest()
     end    
         
 end
