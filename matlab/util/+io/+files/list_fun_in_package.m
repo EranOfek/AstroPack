@@ -8,7 +8,7 @@ function DirS=list_fun_in_package(Package)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    May 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: DirS=Util.files.list_fun_in_package('AstroUtil.spec')
+% Example: DirS=io.files.list_fun_in_package('AstroUtil.spec')
 % Reliable: 2
 %--------------------------------------------------------------------------
 

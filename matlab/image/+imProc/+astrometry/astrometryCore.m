@@ -1,6 +1,7 @@
 function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % A core function for astrometry. Match pattern and fit transformation.
-    % Input  : - An AstroCatalog object, with sources X, Y positions.
+    % Input  : - An AstroImage with populated CatData or an AstroCatalog object,
+    %            with sources X, Y positions.
     %            This can be a multiple element object. In this case, the
     %            RA/Dec coordinate refers to all the images.
     %          * ...,key,val,...
@@ -123,13 +124,15 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %            RA/Dec columns for all the sources.
     %            The input catalog is modified only if two or more output
     %            arguments are requested.
-    %          - An AstroCatalog object containing the astrometric catalog
+    %          - An AstroImage or AstroCatalog object containing the astrometric catalog
     %            used, after applying proper motions, and queryRange.
+    %            If the input is AstroImage, this is an AstroImage with the
+    %            WCS and Headers updated with the new WCS.
     % Author : Eran Ofek (Jul 2021)
     % Example: Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
    
     arguments
-        Obj AstroCatalog
+        Obj 
         Args.RA
         Args.Dec
         Args.CooUnits                     = 'deg';
@@ -196,8 +199,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefColNamesDec               = AstroCatalog.DefNamesDec;
         
     end
-    RAD        = 180./pi;
-    ARCSEC_DEG = 3600;
+    RAD         = 180./pi;
+    ARCSEC_DEG  = 3600;
     % The name of the projected X/Y coordinates in the Reference astrometric catalog
     RefColNameX = 'X';
     RefColNameY = 'Y';
@@ -210,7 +213,12 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     if isempty(Args.CatRadius) && ischar(Args.CatName)
         % attempt to estimate CatRadius automatically
         % from 1st catalog only!
-        XY = getXY(Obj(1), 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
+        if isa(Obj, 'AstroImage')
+            XY = getXY(Obj(1).CatData, 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
+        else
+            % assuming Obj is AstroCatalog
+            XY = getXY(Obj(1), 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
+        end
         Args.CatRadius = sqrt(sum((range(XY).*max(Args.Scale)).^2,2));
         Args.CatRadius = convert.angular('arcsec', Args.CatRadiusUnits, Args.CatRadius);
     end
@@ -257,7 +265,16 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         % filter astrometric catalog
         % set CreateNewObj=true, because otherwise the Catalog will be overwritten
         % FFU: need to add column names...
-        [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(Obj(Iobj), ProjAstCat,...
+        
+        if isa(Obj, 'AstroImage')
+            Cat = Obj(Iobj).CatData;
+        elseif isa(Obj, 'AstroCatalog')
+            Cat = Obj(Iobj);
+        else
+            error('Unknown first input argument type - must be AstroImage or AstroCatalog');
+        end
+        
+        [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(Cat, ProjAstCat,...
                                                                                     'ColCatX',Args.CatColNamesX,...
                                                                                     'ColCatY',Args.CatColNamesY,...
                                                                                     'ColCatMag',Args.CatColNamesMag,...
@@ -273,7 +290,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         % Therefore, we should shift Cat to its own center
         if isempty(Args.ImageCenterXY)
             % attempt to identify ImageCenterXY automatically
-            XY = getXY(Obj(Iobj), 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
+            XY = getXY(Cat, 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
             Result(Iobj).ImageCenterXY = max(XY).*0.5;
         else
             Result(Iobj).ImageCenterXY = Args.ImageCenterXY;
@@ -440,13 +457,27 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             
             % add RA/Dec to the catalog
             if nargout>1
-                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Obj(Iobj).getCol(IndCatX), Obj(Iobj).getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
                 % Obj(Iobj).WCS = Result(Iobj).WCS;
                 % add WCS keys to header
                 % Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                 
                 % update RA/Dec on catalog
-                Obj(Iobj).insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
+                Cat.insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
+                
+                % update the Obj with the new CatData:
+                if isa(Obj, 'AstroImage')
+                    Obj(Iobj).CatData = Cat;
+                    
+                    % update WCS in AstroImage
+                    Obj(Iobj).WCS = Result(Iobj).WCS;
+                    
+                    % add WCS kesy to Header
+                    Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                else
+                    % assume Obj is AstroCatalog
+                    Obj(Iobj) = Cat;
+                end
             end
         end
 
