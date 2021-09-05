@@ -1,0 +1,7 @@
+% class: VirtImage
+%
+% VirtImage - @Todo: should we take care of VirtImage array?
+% delete - 
+% getData - 
+% setData - 
+% unitTest (Static) - 

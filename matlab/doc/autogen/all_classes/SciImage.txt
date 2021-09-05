@@ -1,0 +1,4 @@
+% class: SciImage
+%
+% SciImage - Constructor of SciImage class using the superclass (ImageComponent) constructor
+% unitTest (Static) - unitTest for BackImage class

@@ -1,0 +1,10 @@
+% class: PipelineInterface
+%
+% PipelineInterface - 
+% init - 
+% main - 
+% msglog - 
+% pollInputImage - 
+% processImage - 
+% run - 
+% unitTest (Static) - 

@@ -1,0 +1,9 @@
+% class: DbDriver
+%
+% DbDriver - 
+% close - Disconnect from database
+% copyDriverFile - Copy driver file to target path
+% delete - 
+% getDbDriver (Static) - 
+% open - 
+% unitTest (Static) - 

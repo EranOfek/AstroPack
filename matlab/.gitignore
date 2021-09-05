@@ -8,4 +8,5 @@
 *.log
 
 *.m$out.m
+*.m$bkp.m
 

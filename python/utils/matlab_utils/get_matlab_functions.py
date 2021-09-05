@@ -1,6 +1,13 @@
 # Automatic tool to extract functions from matlab source files
 # with their H1 comments.
 
+# Todo:
+#    Handle correctly static class functions that are defined in separate file
+#    Handle non-class functions
+#    Generate unitTest() skeleton with functions list in comments (by function order in file)
+#    Generate mlx skeleton (if possible), check if we can generate HTML and import it, or just text?
+#
+
 #
 # Outputs:
 # For each .m file - txt file with function list
@@ -10,7 +17,9 @@ from datetime import datetime
 
 ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
 AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
-UPDATE_M = True #False
+UPDATE_M = False #True
+UPDATE_M_OUT_FILE = False
+TRIM_TRAILING_SPACES = True
 
 
 # Log message to file
@@ -43,6 +52,8 @@ class MatlabProcessor:
         self.package_list = []
         self.class_list = []
         self.func_list = []
+        self.pkg_func_list = []
+        self.func_type = {}
         self.is_class_folder = False
         self.is_class_file = False
         self.class_fname = ''
@@ -56,7 +67,7 @@ class MatlabProcessor:
             if fn.startswith('+'):
                 if pkg_name != '':
                     pkg_name = pkg_name + '.'
-                pkg_name = pkg_name + fn
+                pkg_name = pkg_name + fn[1:]
 
         return pkg_name
 
@@ -76,12 +87,19 @@ class MatlabProcessor:
             line = line.replace('==', '').strip()
             words = line.split(' ')
             words_lower = line.lower().split(' ')
+
+            # Stop on special cases
             if 'example' in words_lower:
                 break
+            if len(words) > 0 and words[0] == 'Input':
+                break
+
             comment_line = ' '.join(words)
             comment = (comment + ' ' + comment_line).strip()
+
+            # Stop if comment is too long
             count = count + 1
-            if count >= 5 or len(comment) > 120:
+            if count >= 5 or len(comment) > 300:
                 break
 
         return comment
@@ -97,7 +115,7 @@ class MatlabProcessor:
         end_idx = lines.index('% #/functions', start_idx) if '% #/functions' in lines else -1
 
         if start_idx > -1 and end_idx > -1:
-            lines = lines[:start_idx] + lines[start_idx + 1:]
+            lines = lines[:start_idx] + lines[end_idx + 2:]
         else:
             start_idx = 0
 
@@ -119,10 +137,20 @@ class MatlabProcessor:
         lines.insert(start_idx + 2 + len(self.func_list), '%')
 
         # Write output file
-        out_fname = fname + '$out.m'        ##### Debug!
+        if UPDATE_M_OUT_FILE:
+            out_fname = fname + '$out.m'
+        else:
+            out_fname = fname
+            bkp_fname = fname + '$bkp.m'
+            if os.path.exists(bkp_fname):
+                os.remove(bkp_fname)
+            os.rename(fname, bkp_fname)
+
+
         with open(out_fname, 'wt') as f:
             for line in lines:
-                line = line.rstrip()
+                if TRIM_TRAILING_SPACES:
+                    line = line.rstrip()
                 f.write(line + '\n')
 
         log('update_m_file done: ')
@@ -135,16 +163,24 @@ class MatlabProcessor:
 
         # Sort the function list
         self.func_list.sort()
+        self.pkg_func_list.sort()
+
+
+        if len(self.func_list) > 0:
+            out_func_list = self.func_list
+        else:
+            out_func_list = self.pkg_func_list
 
         if self.is_class_folder:
-            out_fname = os.path.join(self.out_path, self.cur_class + '.txt')
+            out_fname = os.path.join(self.out_path, self.cur_package_class + '.txt')
         else:
-            out_fname = os.path.join(self.out_path, fn + '.txt')
+            pre, ext = os.path.splitext(fn)
+            out_fname = os.path.join(self.out_path, pre + '.txt')
 
         # Write function list file
         with open(out_fname, 'wt') as f:
             f.write('% class: {}\n%\n'.format(self.cur_class))
-            for line in self.func_list:
+            for line in out_func_list:
                 f.write(line + '\n')
 
         if UPDATE_M:
@@ -177,9 +213,11 @@ class MatlabProcessor:
             if class_name != self.cur_class:
                 cur_class = class_name
                 self.func_list = []
+                self.func_type = {}
         else:
             self.cur_class = ''
             self.func_list = []
+            self.func_type = {}
 
         # Check if we have packages
         pkg = self.get_package_from_path(self.cur_folder)
@@ -281,7 +319,7 @@ class MatlabProcessor:
 
                     if func_name != '':
 
-                        log_line('found function', line_num, line)
+                        #log_line('found function', line_num, line)
 
                         # Get comment
                         comment = self.get_comment(lines, line_num)
@@ -292,13 +330,16 @@ class MatlabProcessor:
                             outline = outline + ' (' + methods_type + ')'
 
                         outline = outline + ' - ' + comment
-                        self.func_list.append(outline)
+                        if self.cur_class != '' or self.is_class_folder:
+                            self.func_list.append(outline)
+                        else:
+                            self.pkg_func_list.append(outline)
 
             except:
                 log('exception parsing line: ' + line)
 
         # Update output only if not class folder
-        if not self.is_class_folder:
+        if not self.is_class_folder and self.cur_class != '':
             self.update_files(fname)
 
     # -----------------------------------------------------------------------
@@ -309,6 +350,7 @@ class MatlabProcessor:
 
         self.is_class_folder = False
         flist = glob.glob(os.path.join(path, '*.*'), recursive=False)
+        files_to_process = []
         for fname in flist:
             fname = fname.replace('\\', '/')
             fnlower = fname.lower()
@@ -318,7 +360,40 @@ class MatlabProcessor:
                 continue
 
             #
-            if fnlower.endswith('.m') and not fnlower.endswith('$out.m'):
+            if fnlower.endswith('.m') and not fnlower.endswith('$out.m') and not fnlower.endswith('bkp.m'):
+                files_to_process.append(fname)
+
+        # Found files
+        if len(files_to_process) > 0:
+
+            # Check if this is a class folder
+            self.cur_folder = path
+            cur_last = os.path.split(self.cur_folder)[1]
+            self.is_class_folder = False
+            if cur_last.startswith('@'):
+                self.is_class_folder = True
+                class_name = cur_last[1:]
+
+                # Set main class file name
+                self.class_fname = os.path.join(self.cur_folder, class_name + '.m').replace('\\', '/')
+
+                if class_name != self.cur_class:
+                    cur_class = class_name
+                    self.func_list = []
+                    self.func_type = {}
+
+                if os.path.exists(self.class_fname):
+                    for idx, fname in enumerate(files_to_process):
+                        _, fn = os.path.split(fname)
+                        if fn.lower() == class_name.lower() + '.m':
+                            files_to_process.pop(idx)
+                            files_to_process.insert(0, fname)
+                            break
+                else:
+                    log('Missing class file: '  + self.class_fname)
+
+            # Process files
+            for fname in files_to_process:
                 try:
                     log('Processing file: ' + fname)
                     self.process_file(fname)
@@ -333,12 +408,18 @@ class MatlabProcessor:
     # -----------------------------------------------------------------------
     # Process folder with recursion
     def process_tree(self, path):
-        folders = glob.glob(os.path.join(path, '*/'))
-        folders.insert(0, path)
+        path = path.replace('\\', '/')
+        folders = glob.glob(os.path.join(path, '**/'), recursive=True)
+        #folders.insert(0, path)
         for folder in folders:
+            folder = folder.replace('\\', '/')
 
             # Skip files in doc/autogen folder
             if 'doc/autogen' in folder.lower():
+                continue
+
+            tokens = folder.lower().split('/')
+            if 'unused' in tokens or 'obsolete' in tokens:
                 continue
 
             self.process_folder(folder)
@@ -392,8 +473,10 @@ def main():
 
     #
     proc = MatlabProcessor()
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/')
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/')
+    #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
 
 
 

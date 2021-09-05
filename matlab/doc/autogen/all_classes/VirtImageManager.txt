@@ -1,0 +1,9 @@
+% class: VirtImageManager
+%
+% VirtImageManager - 
+% add - 
+% delete - Destructor
+% getSingleton (Static) - 
+% release - 
+% remove - 
+% unitTest (Static) - 

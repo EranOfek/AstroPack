@@ -1,0 +1,8 @@
+% class: DarkImageManager
+%
+% DarkImageManager - 
+% init - 
+% processFolder - 
+% processNextImage - 
+% reset - 
+% unitTest (Static) - 
