@@ -6,7 +6,7 @@
 #    Handle non-class functions
 #    Generate unitTest() skeleton with functions list in comments (by function order in file)
 #    Generate mlx skeleton (if possible), check if we can generate HTML and import it, or just text?
-#
+#    MLX is Open Packaging Conventions, there are Python packages to manipulate it
 
 #
 # Outputs:
@@ -39,6 +39,37 @@ def log(msg, dt = False):
 def log_line(msg, line_num, line):
     log(msg + ' (line ' + str(line_num) + '): ' + line)
 
+# ===========================================================================
+
+class PackageData:
+
+    def __init__(self):
+        self.package_name = ''
+        self.class_list = {}
+        self.func_list = {}
+
+# ===========================================================================
+
+class ClassData:
+
+    def __init__(self):
+        self.class_name = ''
+        self.func_list = {}
+        self.prop_list = []
+
+# ===========================================================================
+
+class FunctionData:
+
+    def __init__(self):
+        self.function_name = ''
+        self.type = ''              # Static
+        self.file_name = ''         # Implementation file name
+        self.params = ''
+
+# ===========================================================================
+
+
 # ---------------------------------------------------------------------------
 class MatlabProcessor:
 
@@ -57,6 +88,8 @@ class MatlabProcessor:
         self.is_class_folder = False
         self.is_class_file = False
         self.class_fname = ''
+        self.unitTest_lines = []
+        self.mex_lines = []
 
     # -----------------------------------------------------------------------
     def get_package_from_path(self, path):
@@ -165,11 +198,13 @@ class MatlabProcessor:
         self.func_list.sort()
         self.pkg_func_list.sort()
 
+        out_func_list = self.func_list
 
-        if len(self.func_list) > 0:
-            out_func_list = self.func_list
-        else:
-            out_func_list = self.pkg_func_list
+        # Todo
+        #if len(self.func_list) > 0:
+        #    out_func_list = self.func_list
+        #else:
+        #    out_func_list = self.pkg_func_list
 
         if self.is_class_folder:
             out_fname = os.path.join(self.out_path, self.cur_package_class + '.txt')
@@ -190,8 +225,19 @@ class MatlabProcessor:
                 self.update_m_file(fname)
 
     # -----------------------------------------------------------------------
+    def write_mlx(self):
+        log('write_mlx')
+
+    # -----------------------------------------------------------------------
+    def write_unitTest(self):
+        log('write_unitTest')
+
+    # -----------------------------------------------------------------------
     # Process single .m file
     def process_file(self, fname):
+
+        if 'LogLevel' in fname:
+            log('LogLevel')
 
         fname = fname.replace('\\', '/')
         self.cur_fname = fname
@@ -261,6 +307,8 @@ class MatlabProcessor:
                     self.is_class_file = True
                     self.cur_class = tokens[1]
                     log_line('found classdef', line_num, line)
+
+                    self.func_list = []
 
                     # package.class
                     if self.cur_package != '':
@@ -419,10 +467,15 @@ class MatlabProcessor:
                 continue
 
             tokens = folder.lower().split('/')
-            if 'unused' in tokens or 'obsolete' in tokens:
-                continue
+            skip_folder = False
+            for tok in tokens:
+                tok = tok.replace('_', '')
+                if 'unused' in tok or 'obsolete' in tok:
+                    skip_folder = True
+                    break
 
-            self.process_folder(folder)
+            if not skip_folder:
+                self.process_folder(folder)
 
     # -----------------------------------------------------------------------
     def process(self, path):
@@ -474,6 +527,8 @@ def main():
     #
     proc = MatlabProcessor()
     proc.process('D:/Ultrasat/AstroPack.git/matlab/')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
+
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')

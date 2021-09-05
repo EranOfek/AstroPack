@@ -9,9 +9,10 @@ classdef AstroStore < Component
     % Singletone object
     
     properties (SetAccess = public)
-        ManageTimer = [];       % Timer to manage folders
-        DataPath = '';          % Data path (single, may be extened in the future to support multiple folder)
-        Db = []; %db.AstroDb = [];     %
+        ManageTimer = [];                   % Timer to manage folders
+        BasePath        = '/home/last';     %
+        DataPath        = '';               % Data path (single, may be extened in the future to support multiple folder)
+        Db = [];                            %db.AstroDb = [];          %
     end
     
 
@@ -95,6 +96,11 @@ classdef AstroStore < Component
             disp(datestr(Event.Data.time,'dd-mmm-yyyy HH:MM:SS.FFF'));
         end        
 
+        
+        function Result = getBasePath(Obj)
+            % Return storage base path, used by ImagePath
+            Result = Obj.BasePath;
+        end
     end
     
     
@@ -229,7 +235,7 @@ classdef AstroStore < Component
     
     %
     methods(Static)
-        function Result = get()
+        function Result = getSingleton()
             persistent Obj
             
             % Create if not exist yet

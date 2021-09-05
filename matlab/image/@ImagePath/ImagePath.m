@@ -1,59 +1,76 @@
 
-classdef ImagePath < Base % or from Component???
-    % Construct and parse image path used in storage, database, and headers
+classdef ImagePath < Component
+    % Construct and parse image path used in storage, database, and headers.
     % The file path is described in the LAST/ULTRASAT file naming convension document.
+    % File name format: 
+    % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
     properties
-        
-        Store = [] % db.AstroStore = []     % 
-        
+               
         % Each property is mapped to field in common_image_path table
-        Uuid            = [];           %
-        PkFieldName     = '';           % Primary key field name
+        PkFieldName     = '';           % Primary key field name, currently we use 
         TableName       = '';           %
         
         % Fields from file name
-        ProjName        = '';           % 
-        JD              = NaN;          % UTC start of exposure @Eran - UTC or JD???
-        TimeStr         = '';           % Time as appears in file name
-        Filter          = 'clear';      % 
-        FieldId         = '';           % 
-        CropId          = '';           % 
+        ProjName        = '';           % Examples: “ULTRASAT”, “LAST.1.12.4” (LAST node=1, mount=12, camera=4)
+        Time            = [];           %
+        JD              = [];           % UTC start of exposure @Eran - UTC or JD???
+        TimeStr         = '';           % Time as appears in file name (YYYYMMDD.HHMMSS.FFF)
+        Filter          = 'clear';      % Filter name
+        FieldId         = '';           % Sky position identifier, like field ID, object name, CCD I’d, sub image ID etc. May include CropId. Examples: 314.1.1 is field I’d 314, CCD 1, sub image 1.
+        Counter         = '';
+        CCDID           = '';
+        CropId          = '';           % Part of FieldId        
         Type            = 'sci';        % sci, bias, dark, domeflat, twflat, skyflat, fringe
         Level           = 'raw';        % log, raw, proc, stack, coadd, ref.
-        SubLevel        = '';           % Sub level
+        SubLevel        = '';           % n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
+        
+        %                               % Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
         Product         = 'im';         % Product: im, back, var, imflag, exp, Nim, psf, cat, spec.
         Version         = '1';          % Version (for multiple processing)
         FileType        = 'fits';       % fits / hdf5 / fits.gz
 
-        % Additional fields from database table
-        Timezone        = 2;            % Bias in hours, to generate folder name        
+        % Additional fields of database table that are not part of the file
+        % name. The use may fill them by setting these properties
+        
+        TimeZone        = 2;            % Bias in hours, to generate folder name        
         Title           = '';           % Text description
-        Metadata        = '';           % Other textual data
-        Telescope       = 'USAT';       % (ProjName) - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
-        Node            = '';           % (ProjName) - 
-        Mount           = '';           % (ProjName) - 
-        Camera          = '';           % (ProjName) - 
+        Metadata        = '';           % Additional metadata, such as key=value\n...
+        Telescope       = 'USAT';       % From ProjName - source instrument (last_xx/ultrasat) - LAST.<#>.<#>.<#> or ???
+        Node            = '';           % From ProjName - Node ID
+        Mount           = '';           % From ProjName - Monut ID
+        Camera          = '';           % From ProjName - Camera ID
 
-        % Misc
-        FormatFieldID   = '%06d';       %
-        FormatVersion   = '%03d';       %
+        % Path
+        % /data/ref/<area>/version<#>/ - All sky reference/coadd image -
+        % images/masks/catalogs/PSF - The area/region directory will be located below the version number.
+        % /data/coadd/<area>/<time++>/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods) - TBD
+        % /data/YYYY/MM/DD/raw/ - contains all the science and calibration raw data
+        % /data/YYYY/MM/DD/log/  - contains all the log files
+        % /data/YYYY/MM/DD/proc/<visit>/ - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs
+        % /data/YYYY/MM/DD/stacked/<visit> - contains all the processed coadd images (coaddition of images of the same field taken continuously only; e.g., 20x15s coadds) - images/masks/catalogs/PSF/subtraction products 
+        % /data/calib/bias/ - all master bias images, same for dark, flat, fringe
         RefVersion      = 1;            %
-        Area            = '';           %
+        Area            = '';           % 
         Visit           = '';           %
+        
+        % Fields formatting
+        FormatFieldID   = '%06d';       % @Eran?
+        FormatVersion   = '%03d';       %
                 
-        % Debug? or have it?
-        BasePath        = '/home/last'; % 
+        % 
+        BasePath        = '/home/last'; % Base storage path, should be updated from AstroStorage
         DataPath        = 'data';       %
         SubDir          = '';           % This is the area/location directory below the coadd/ref directory
-        FileName        = '';           %
-        Path            = '';           %
-        FullName        = '';           %
+        FileName        = '';           % Filename part
+        Path            = '';           % Path part 
+        FullName        = '';           % Full name Path/FileName
         
-        % Optional (@Todo discuss with @Eran)
-        SrcFileName     = '';
+        % Optional
+        SrcFileName     = '';           % Source file name (Debug?)
         
         %
-        DictKeyNames Dictionary             %
+        DictKeyNames Dictionary         % Dictionary, used to access Header keys
+        Store = []                      % Optional link to AstroStore        
     end
     
     
@@ -61,7 +78,10 @@ classdef ImagePath < Base % or from Component???
        
         function Obj = ImagePath(varargin)
             % Constructor
-            %Obj.Store = db.AstroStore.get();
+            
+            % Link to Store and get base path
+            Obj.Store = db.AstroStore.getSingleton();
+            Obj.BasePath = Obj.Store.getBasePath();
             
             % Load header key names mapping from configuation
             Obj.DictKeyNames = Dictionary.getDict('Header.ImagePath.KeyNames');
@@ -69,16 +89,18 @@ classdef ImagePath < Base % or from Component???
         
         
         function Result = setTestData(Obj)
-            % Set data for unit-test
+            % Set data for unit-test and debugging
   
             %DateStr = '2021-01-02 13:14:15.678';
             %DateUTC = datetime(DateStr, 'InputFormat', 'yyyy-MM-dd HH:mm:ss.SSS'); 
             
-            Obj.JD = juliandate(DateUTC);                        
+            Obj.JD = [];  %juliandate(DateUTC);                        
+            Obj.ProjName        = 'USAT';            
             Obj.Telescope       = 'USAT';            
             Obj.Node            = '';
-            Obj.JD              = 0;
-            Obj.Timezone        = 0;
+            Obj.Time            = [];
+            Obj.JD              = [];
+            Obj.TimeZone        = 2;
             Obj.Mount           = 'mnt01';
             Obj.Camera          = 'cam01';
 
@@ -88,11 +110,11 @@ classdef ImagePath < Base % or from Component???
             Obj.CropId          = 'crop001-001';
             
             % Image - Mandatoty fields
-            Obj.ImageType       = 'sci';
-            Obj.ImageLevel      = 'raw';
-            Obj.ImageSubLevel   = 'sub';
-            Obj.ImageProduct    = 'im';
-            Obj.ImageVer        = '1';
+            Obj.Type            = 'sci';
+            Obj.Level           = 'raw';
+            Obj.SubLevel        = 'sub';
+            Obj.Product         = 'im';
+            Obj.Version         = '1';
             Obj.FileType        = 'fits';
 
             % Debug? or have it?
@@ -112,11 +134,11 @@ classdef ImagePath < Base % or from Component???
     end
     
 
-
-    methods % Header
+    methods % Read/Write 
         
         function Result = readFromHeader(Obj, Header)
-            % Read data from AstroHeader
+            % Read data from AstroHeader, DictKeyNames is used to get the
+            % correct key names            
             % @TODO: @Eran - Validate field names in FITS header
             arguments
                 Obj
@@ -130,7 +152,7 @@ classdef ImagePath < Base % or from Component???
             Obj.Mount           = Header.getVal(Obj.DictKeyNames.Mount);
             Obj.Camera          = Header.getVal(Obj.DictKeyNames.Camera);
             Obj.JD              = Header.getVal(Obj.DictKeyNames.JD);
-            Obj.Timezone        = Header.getVal(Obj.DictKeyNames.Timezone);
+            Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TimeZone);
             Obj.Filter          = Header.getVal(Obj.DictKeyNames.Filter);
             Obj.FieldId         = Header.getVal(Obj.DictKeyNames.FieldId);
             Obj.CropId          = Header.getVal(Obj.DictKeyNames.CropId);
@@ -146,7 +168,8 @@ classdef ImagePath < Base % or from Component???
         
         
         function Result = writeToHeader(Obj, Header)
-            % Write data to AstroHeader            
+            % Write data to AstroHeader, DictKeyNames is used to get the
+            % correct key names            
             arguments
                 Obj
                 Header AstroHeader
@@ -154,28 +177,29 @@ classdef ImagePath < Base % or from Component???
             
             Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
             
-            Header.setVal(Obj.DictKeyNames.Telescope, Obj.Telescope);
-            Header.setVal(Obj.DictKeyNames.Node, Obj.Node);
-            Header.setVal(Obj.DictKeyNames.Mount, Obj.Mount);
-            Header.setVal(Obj.DictKeyNames.Camera, Obj.Camera);
-            Header.setVal(Obj.DictKeyNames.JD, Obj.JD);
-            Header.setVal(Obj.DictKeyNames.Timezone, Obj.Timezone);
-            Header.setVal(Obj.DictKeyNames.Filter, Obj.Filter);
-            Header.setVal(Obj.DictKeyNames.FieldId, Obj.FieldId);
-            Header.setVal(Obj.DictKeyNames.CropId, Obj.CropId);
-            Header.setVal(Obj.DictKeyNames.ImageType, Obj.ImageType);
-            Header.setVal(Obj.DictKeyNames.ImageLevel, Obj.ImageLevel);
+            Header.setVal(Obj.DictKeyNames.Telescope,   Obj.Telescope);
+            Header.setVal(Obj.DictKeyNames.Node,        Obj.Node);
+            Header.setVal(Obj.DictKeyNames.Mount,       Obj.Mount);
+            Header.setVal(Obj.DictKeyNames.Camera,      Obj.Camera);
+            Header.setVal(Obj.DictKeyNames.JD,          Obj.JD);
+            Header.setVal(Obj.DictKeyNames.TimeZone,    Obj.TimeZone);
+            Header.setVal(Obj.DictKeyNames.Filter,      Obj.Filter);
+            Header.setVal(Obj.DictKeyNames.FieldId,     Obj.FieldId);
+            Header.setVal(Obj.DictKeyNames.CropId,      Obj.CropId);
+            Header.setVal(Obj.DictKeyNames.ImageType,   Obj.ImageType);
+            Header.setVal(Obj.DictKeyNames.ImageLevel,  Obj.ImageLevel);
             Header.setVal(Obj.DictKeyNames.ImageSubLevel, Obj.ImageSubLevel);
-            Header.setVal(Obj.DictKeyNames.ImageProduct, Obj.ImageProduct);
-            Header.setVal(Obj.DictKeyNames.ImageVer, Obj.ImageVer);
-            Header.setVal(Obj.DictKeyNames.FileType, Obj.FileType);            
+            Header.setVal(Obj.DictKeyNames.ImageProduct,  Obj.ImageProduct);
+            Header.setVal(Obj.DictKeyNames.ImageVer,    Obj.ImageVer);
+            Header.setVal(Obj.DictKeyNames.FileType,    Obj.FileType);            
             
             Result = true;
         end        
         
         
         function Result = readFromDb(Obj, Query)
-            % Read data from database table (common_image_path table)
+            % Read data from database table, current record of Query.ResultSet
+            % Fields are defined in Google Sheet "common_image_path"
             arguments
                 Obj
                 Query io.db.DbQuery
@@ -188,11 +212,12 @@ classdef ImagePath < Base % or from Component???
         
         
         function Result = writeToDb(Obj, Query, Args)
-            % Insert/update data to database table (common_image_path table)
+            % Insert/update data to database table using the specified Query
+            % Fields are defined in Google Sheet "common_image_path"
             arguments
                 Obj
-                Query io.db.DbQuery
-                Args.Insert = True;
+                Query io.db.DbQuery     % @Todo? Get default Query from Store/Db? if empty?
+                Args.Insert = True;     % frue=Insert, false=Update
             end
             
             st = Obj.writeToStruct();
@@ -211,12 +236,13 @@ classdef ImagePath < Base % or from Component???
         
         function Result = readFromStruct(Obj, st)
             % Read data from struct or DbRecord (common_image_path table)
+            % Struct field names should match database fields
             Obj.Telescope       = st.tel;
             Obj.Node            = st.node;
             Obj.Mount           = st.mount;
             Obj.Camera          = st.camera;
             Obj.JD              = st.jd;
-            Obj.Timezone        = st.timezone;
+            Obj.TimeZone        = st.timezone;
             Obj.Filter          = st.filter;
             Obj.FieldId         = st.field_id;
             Obj.CropId          = st.crop_id;
@@ -238,7 +264,7 @@ classdef ImagePath < Base % or from Component???
             st.mount    = Obj.Mount;
             st.camera   = Obj.Camera;
             st.jd       = Obj.JD;
-            st.timezone = Obj.Timezone;
+            st.timezone = Obj.TimeZone;
             st.filter   = Obj.Filter;
             st.field_id = Obj.FieldId;
             st.crop_id  = Obj.CropId;
@@ -252,33 +278,39 @@ classdef ImagePath < Base % or from Component???
     end
     
     
-    methods % Make
+    methods % Construct
         
-        function Result = constructPathImp(Obj, Args)
+        function Result = constructPath(Obj, Args)
             % Construct image/catalog file path based on the LAST/ULTRASAT standard
             % Options are:
+            %
+            % Form 1:
             % /data/YYYY/MM/DD/raw/ - contains all the science raw data
             % /data/YYYY/MM/DD/log/  - contains all the log files
             % /data/YYYY/MM/DD/proc/ - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
             % /data/YYYY/MM/DD/calib/ - contains all the processed calibration images/variance/masks/catalogs
             % /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
+            %
+            % Form 2: 
             % /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
+            %
+            % Form 3: 
             % /data/coadd/area/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
             
-            % Example: Path=imUtil.util.file.construct_path
+            % Example: Path = imUtil.util.file.construct_path
             %          Path=imUtil.util.file.construct_path('Level','ref','SubDir','x')
             %          Path=imUtil.util.file.construct_path('Level','proc','Type','bias')
             arguments
                 Obj
-                Args.Base       = '/home/last';
+                Args.Base       = '/home/last';     %
                 Args.DataDir    = 'data';           %
                 Args.SubDir     = '';               %
-                Args.ProjName   = '';
-                Args.Time       = NaN;              % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
+                Args.ProjName   = '';               %
+                Args.Time       = [];               % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
 %                   format.Date, TimeZone} or {YYYY, MM, DD}, or []}
-                Args.TimeZone   = 2;  % Hours
-                Args.Type       = 'sci';
-                Args.Level      = 'raw';
+                Args.TimeZone   = 2;                % Hours
+                Args.Type       = 'sci';            %
+                Args.Level      = 'raw';            %
                 Args.FieldID    = '';               % (may be required for the <area#> (char or number) 
                 Args.FormatFieldID = '%05d';        %
                 Args.Area       = '';               %
@@ -287,100 +319,86 @@ classdef ImagePath < Base % or from Component???
                 Args.FormatRefVersion = '%03d';     % Format for numeric reference version
             end
             
-            % from Base
+            % Set properties from arguments, only properties that exist in
+            % Args are set
             Obj.setProps(Args);
             
+            % From this point we should work with Obj properties and not with Args
+            
             % Convert date to JD
-            if isempty(Args.Time)
+            if isempty(Obj.Time)
                 Obj.JD = celestial.time.julday;
             elseif ischar(Args.Time) || iscellstr(Args.Time)
-                Obj.JD = convert.time(Args.Time, 'StrDate', 'JD');
+                Obj.JD = convert.time(Obj.Time, 'StrDate', 'JD');
             else
-                % already in JD
-                Obj.JD = InPar.Date;
+                % Already in JD
+                %Obj.JD = InPar.JD;
             end    
 
-
-            switch Args.Level
+            % Check Level
+            switch Obj.Level
+                % /base/data/ref/<area>/version<#>/ - All sky reference/coadd image - images/masks/catalogs/PSF
                 case 'ref'
-                    if isnumeric(Args.RefVersion)
-                        Args.RefVersion = sprintf(Args.FormatRefVersion,InPar.RefVersion);
+                    
+                    % Convert to string with specified format
+                    if isnumeric(Obj.RefVersion)
+                        Obj.RefVersion = sprintf(Obj.FormatRefVersion, Obj.RefVersion);
                     end
+                        
+                    % 
+                    FPath = sprintf('%s%s%s%s', Obj.Base, filesep, Obj.DataDir, filesep, ...
+                        Obj.Level, filesep, Obj.Area, filesep, 'version', Obj.RefVersion, filesep, ...
+                        Obj.SubDir);
 
-                    DateDir = sprintf('%s%s%s%s%s', filesep, Args.Level, ...
-                                   filesep, 'version',InPar.RefVersion,...
-                                   filesep, InPar.SubDir);
-                               
+            
+                % /base/data/coadd/area/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
                 case 'coadd'
-                    DateDir = sprintf('%s%s%s%s%s',filesep,...
-                                   InPar.Level,...
-                                   filesep,...
-                                   InPar.SubDir);
-                otherwise
-        
+                    %FPath = sprintf('%s%s%s%s', Obj.Base, filesep, Obj.DataDir, filesep, ...
+                    %    Obj.Level,        );
 
-                    % check TimeZone!
-                    % convert to JD
-                    %JD = convert.time(InPar.Date,'StrDate','JD');
-                    [Y,M,D]=imUtil.util.file.date_directory(JD,InPar.TimeZone);
+            
+                % /data/YYYY/MM/DD/raw/ - contains all the science raw data                    
+                otherwise
+
+                    % Check TimeZone!
+                    % Convert to JD
+                    % JD = convert.time(InPar.Date, 'StrDate', 'JD');
+                    [Y,M,D] = imUtil.util.file.date_directory(Obj.JD, Obj.TimeZone);
 
                     %LocalJD = JD + InPar.TimeZone./24;
                     %FloorLocalJD = floor(LocalJD);
                     %FloorDate = celestial.time.jd2date(FloorLocalJD);
         
-                    YearDir = sprintf('%04d',Y);
-                    MDir   = sprintf('%02d',M);
-                    DDir   = sprintf('%02d',D);
-                    MDDir  = sprintf('%s%s%s',MDir,filesep,DDir);
+                    YearDir = sprintf('%04d', Y);
+                    MDir   = sprintf('%02d', M);
+                    DDir   = sprintf('%02d', D);
+                    MDDir  = sprintf('%s%s%s', MDir, filesep, DDir);
 
-                    if strcmp(InPar.Level,'proc') && ~strcmp(InPar.Type,'sci')
+                    if strcmp(Obj.Level, 'proc') && ~strcmp(Obj.Type, 'sci')
                         % calibration
-                        Level = 'calib';
+                        DLevel = 'calib';
                     else
-                        Level = InPar.Level;
+                        DLevel = Obj.Level;
                     end
 
-                    DateDir = sprintf('%s%s%s%s%s%s',filesep,...
-                      YearDir, filesep, MDDir, filesep, Level);
+                    DateDir = sprintf('%s%s%s%s%s%s', filesep, YearDir, filesep, MDDir, filesep, DLevel);
+                    
+
+                    FPath = sprintf('%s%s%s%s', Obj.Base, filesep, Obj.DataDir, DateDir);
+                    
             end
-
-
-            Path = sprintf('%s%s%s',Obj.Base, filesep, Obj.DataDir, DateDir);
    
             % Clean path from multiple /
-            Path = regexprep(Path, sprintf('%s{2,5}', filesep), '/');
-            msgLog(LogLevel.Debug, 'Path: %s', Path);
-            Result = Path;            
+            FPath = regexprep(FPath, sprintf('%s{2,5}', filesep), '/');
+            
+            Obj.msgLog(LogLevel.Debug, 'Path: %s', FPath);
+            Result = FPath;            
         end
         
 
         
-        function Result = constructFile(Args)
-            %
-            % Returns: string containing image name 
-            % Returns: string containing image path (if nargout>1, call constructPath)
-            arguments
-                Args.ProjName
-                Args.Date
-                %{TimeZone} or {YYYY, MM, DD} or [] (required for path) [Save in 2 properties: JD & DateStr]
-                Args.Filter
-                Args.FieldID % (char or number) [Saved as char]
-                Args.FieldID % format - default is %05d [Not in DB]
-                Args.Counter % (number) - if the user didn’t supply then apply auto increase (if AutoIncrease = true)
-                Args.AutoIncrease %- increase counter - default is true. [Not in DB]
-                Args.Type
-                Args.Level
-                Args.SubLevel %- default is ‘n’ [note that n will be replaced by “”, without “.” seperator)
-                Args.Product %
-                Args.Version % (char or number) [saved as char]
-                Args.Version %format - default is %03d. [Not in DB]
-                Args.FileType % - default is ‘fits’.
-                    
-            end
-            
-
+        function Result = constructFile(Obj, Args)
             % Construct image/catalog file name based on the LAST/ULTRASAT standard
-            % Package: +imUtil/+util/+file
             % Description: Return data product file name and path according to the
             %              LAST/ULTRASAT standard.
             %              <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
@@ -427,188 +445,148 @@ classdef ImagePath < Base % or from Component???
             % Output : -File name.
             %          - Path string.
             % Example: FileName=imUtil.util.file.construct_filename
-            %          [FileName,Path]=imUtil.util.file.construct_filename('FieldID',100)
-
-
-            addOptional(InPar,'ProjName','LAST.0.1');
-            addOptional(InPar,'Date',[]); % if empty use now | JD | full string
-            addOptional(InPar,'Filter','clear');
-            addOptional(InPar,'FieldID','');
-            addOptional(InPar,'FormatFieldID','%06d');
-            addOptional(InPar,'Type','sci');
-            addOptional(InPar,'Level','raw');
-            addOptional(InPar,'SubLevel','');
-            addOptional(InPar,'Product','im');
-            addOptional(InPar,'Version',1);
-            addOptional(InPar,'FormatVersion','%03d');
-            addOptional(InPar,'FileType','fits');
-            addOptional(InPar,'TimeZone',2);
-            addOptional(InPar,'RefVersion',1);
-            addOptional(InPar,'FormatRefVersion','%03d');
-            addOptional(InPar,'SubDir','');
-            addOptional(InPar,'DataDir','data');
-            addOptional(InPar,'Base','/home/last');
-
-            %<ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
-
-            if isempty(Args.Date)
-                Args.Date = celestial.time.julday;
+            %          [FileName,Path]=imUtil.util.file.construct_filename('FieldID',100)            
+            % Returns: string containing image name 
+            % Returns: string containing image path (if nargout>1, call constructPath)
+            arguments
+                Obj
+                Args.ProjName           % project name and telescope ID. Examples: 'ULTRASAT', 'LAST.1.12.4'
+                Args.Time               % %{TimeZone} or {YYYY, MM, DD} or [] (required for path) [Save in 2 properties: JD & TimeStr]
+                Args.Filter             % filter name, e.g., “clear”.
+                Args.FieldID            % (char or number) [Saved as char]
+                Args.FormatFieldID      % format - default is %05d [Not in DB]
+                Args.Counter            % (number) - if the user didn’t supply then apply auto increase (if AutoIncrease = true)
+                Args.CCDID              %
+                Args.CropId             %
+                Args.Type               %
+                Args.Level              %
+                Args.SubLevel           %- default is ‘n’ [note that n will be replaced by “”, without “.” seperator)
+                Args.Product            %
+                Args.Version            % (char or number) [saved as char]
+                Args.FormatVersion      % format - default is %03d. [Not in DB]
+                Args.FileType           % - default is ‘fits’.                    
             end
-
-            if isnumeric(Args.Date)
+            
+            % Set properties from arguments, only properties that exist in Args are set
+            Obj.setProps(Args);            
+            
+            % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+            if isempty(Obj.Time)
+                Obj.Time = celestial.time.julday;
+            end
+            
+            if isnumeric(Obj.Time)
                 % Assume JD
-                InPar.Date = convert.time(Args.Date, 'JD', 'StrDate');
-                InPar.Date = Args.Date{1};
+                StrDate = convert.time(Obj.Time, 'JD', 'StrDate');
+                Obj.TimeStr = StrDate{1};
+            elseif iscellstr(Obj.TimeStr)
+                Obj.TimeStr = Obj.TimeStr{1};
             end
-
-            if isnumeric(Args.FieldID)
-                InPar.FieldID = sprintf(Args.FormatFieldID, Args.FieldID);
-            end
-
-
-            Path = .construct_path('Date', Args.Date,...
-                                         'TimeZone', Args.TimeZone,...
-                                         'Level', Args.Level,...
-                                         'Type', Args.Type,...
-                                         'RefVersion', Args.RefVersion,...
-                                         'FormatRefVersion', Args.FormatRefVersion,...
-                                         'Base', Args.Base,
-                                        'DataDir', Args.DataDir,...
-                                         'SubDir', Args.SubDir,
-
-
-                Path = sprintf('%s%s', Path, filesep);
-
-                % Clean from multiple '/'
-                Path = regexprep(Path, sprintf('%s{2,5}', filesep), '/');
-
-
-                % Verify Type
-                switch Args.Type
-                    case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'wave'}
-                        % Ok
-                    otherwise
-                        error('Unknown Type option: %s', Args.Type);
-                end
-
-                % Verify Level
-                switch Args.Level
-                    case {'log', 'raw', 'proc', 'stack', 'ref', 'coadd'}
-                        % Ok
-                    otherwise
-                        error('Unknown Level option: %s', Args.Level);
-                end
-
-                if isempty(InPar.SubLevel)
-                    MergedLevel = InPar.Level;
-                else
-                    MergedLevel = sprintf('%s.%s',InPar.Level,InPar.SubLevel);    
-                end
-
-                % Verify Product
-                switch Args.Product
-                    case { 'im', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
-                        % Ok
-                    otherwise
-                        error('Unknown Product option: %s', Args.Product);
-                end
-
-                if isnumeric(Args.Version)
-                    Args.Version = sprintf(Args.FormatVersion, Args.Version);
-                end
-
-            % Remove '-' and ':' from date
-            if iscellstr(InPar.Date)
-                InPar.Date = InPar.Date{1};
-            end
-            InPar.Date = strrep(InPar.Date, '-', '');
-            InPar.Date = strrep(InPar.Date, 'T', '.');
-            InPar.Date = strrep(InPar.Date, ':' ,'');
-
-
-            FileName = sprintf('%s_%s_%s_%s_%s_%s_%s_%s.%s', Args.ProjName,...
-                           Args.Date,...
-                           Args.Filter,...
-                           Args.FieldID,...
-                           Args.Type,...
-                           MergedLevel,...
-                           Args.Product,...
-                           Args.Version,...
-                           Args.FileType);
-
-                  msgLog(LogLevel.Debug, 'FileName: %s', FileName);
-                  Result = FileName;
-
-        end
-                
-        
-        % <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
-        % <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>               
-        
-        % /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
-        % /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
-        % /data/coadd/area/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods) 
-        
-        function [FileName, Path] = makeFileName(Obj)
             
-            % Need to take care of separate folder names ??? @Eran
-            TimeUTC = datetime(Obj.JD, 'convertfrom', 'juliandate');
-            if Obj.Timezone ~= 0
-                TimeUTC = TimeUTC + Obj.Timezone;
+            % Remove '-' and ':' from date (StrDate: 'YYYY-MM-DDTHH:MM:SS.FFF')
+            Obj.TimeStr = strrep(Obj.TimeStr, '-', '');
+            Obj.TimeStr = strrep(Obj.TimeStr, 'T', '.');
+            Obj.TimeStr = strrep(Obj.TimeStr, ':', '');
+
+            if isnumeric(Obj.FieldId)
+                Obj.FieldID = sprintf(Obj.FormatFieldID, Obj.FieldID);
             end
-            TimeStr = datestr(TimeUTC, 'yyyymmdd.HHMMSS.FFF');
+
+            %
+            Obj.valiadateFields();
             
-            PrefixStr = sprintf('%s' , Obj.Telescope);
-            Obj.FileName    = FileName;
-            
-            if ~isempty(Obj.Store)
-                Path = Obj.Store.getDataPath(Obj);
-                Obj.Path = Path;
-                Obj.FullName = sprintf('%s%s%s', Path, filesep, FileName);
+
+            Path = ''; %Obj.constructPath();  
+
+%             'Date', Args.Date,...
+%                                          'TimeZone', Args.TimeZone,...
+%                                          'Level', Args.Level,...
+%                                          'Type', Args.Type,...
+%                                          'RefVersion', Args.RefVersion,...
+%                                          'FormatRefVersion', Args.FormatRefVersion,...
+%                                          'Base', Args.Base,
+%                                         'DataDir', Args.DataDir,...
+%                                          'SubDir', Args.SubDir,
+
+
+            if isempty(Obj.SubLevel)
+                MergedLevel = Obj.Level;
             else
-                Path = '';
-                Obj.FullName = FileName;
-                io.msgLog(LogLevel.Warning, 'ImagePath: Store is not set');
+                MergedLevel = sprintf('%s.%s', Obj.Level, Obj.SubLevel);    
             end
 
-            
-            Obj.Path        = Path;
-            
-        end
-        
-        
-    end
-    
-    
-    methods(Static) % Parsers
-              
-        function Result = path2struct(path)
-            %(static) - Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
-        end
-        
-        
-        function Result = filename2struct(fname)
-            %Convert a file name string to a structure with all available information
-        end
+            if isnumeric(Obj.Version)
+                Obj.Version = sprintf(Obj.FormatVersion, Obj.Version);
+            end
 
+            % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+            Obj.FileName = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s', Obj.ProjName, ...
+                           Obj.TimeStr, Obj.Filter, Obj.FieldId, Obj.Counter, Obj.CCDID, ...
+                           Obj.CropId, Obj.Type, MergedLevel, Obj.Product, Obj.Version, Obj.FileType);
 
+       
+                       
+            Obj.msgLog(LogLevel.Debug, 'FileName: %s', Obj.FileName);
+            Result = Obj.FileName;
+
+        end
+        
+        
         function Result = createFromDbQuery(Obj, Query)
             % Create ImagePath
             % @Todo
                 
         end
+
         
-        
-        function Result = constructPath(Args)
-            Result = ImagePath();
-            Result.construct(Args);
+    end
+    
+    
+    methods % Helpers
+        function Result = valiadateFields(Obj)
+            
+            Result = true;
+            
+            % Verify Type
+            switch Obj.Type
+                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'wave'}
+                    % Ok
+                otherwise
+                    error('Unknown Type option: %s', Obj.Type);
+            end
+
+            % Verify Level
+            switch Obj.Level
+                case {'log', 'raw', 'proc', 'stack', 'ref', 'coadd'}
+                    % Ok
+                otherwise
+                    error('Unknown Level option: %s', Obj.Level);
+            end
+
+            % Verify Product
+            switch Obj.Product
+                case { 'im', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
+                    % Ok
+                otherwise
+                    error('Unknown Product option: %s', Obj.Product);
+            end
+            
+        end
+    end
+    
+    
+    methods % Parsers
+              
+        function Result = parsePath(path)
+            % Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
         end
         
         
-        function Result = constructFileName(Args)
-            Result = ImagePath();
-            Result.construct(Args);
-        end        
+        function Result = parseFileName(fname)
+            % Convert a file name string to a structure with all available information
+        end
+
+
         
     end
             

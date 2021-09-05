@@ -1,17 +1,29 @@
 function Result = unitTest()
-    % ImagePath.unitTest
-    
+    % ImagePath.unitTest    
     io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
 
-    % Default
-    IP = ImagePath();
-    FileName = IP.makeFileName();
+    % constructFile
+    ip = ImagePath();
+    ip.setTestData();
+    FileName = ip.constructFile();
     assert(~isempty(FileName));
+    disp(FileName);
+    
+    % constructPath
+    %ip = ImagePath();
+    %Path = ip.constructPath('ProjName', 'ULTRASAT');
+    %disp(Path);
 
-    IP.setTestData();
-
-    s = IP.writeToStruct();
-    disp(s);
+            
+%     % Default
+%     IP = ImagePath();
+%     FileName = IP.makeFileName();
+%     assert(~isempty(FileName));
+% 
+%     IP.setTestData();
+% 
+%     s = IP.writeToStruct();
+%     disp(s);
 
 
     % Done
