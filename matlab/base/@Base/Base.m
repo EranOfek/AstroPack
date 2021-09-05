@@ -6,33 +6,42 @@
 %   copyProp - Copy specific properyies from one object to another
 %--------------------------------------------------------------------------
 
-% Making a DEEP Copy: Copy each property value and assign it to the new 
-% (copied) property. Recursively copy property values that reference handle 
+% #functions
+% Base - Constructor
+% copyObject - Copy by value an object and its content
+% copyProp - Copy the content of properties from object1 into object2.
+% createNewObj - A utility function for creation of an object new copy based on nargout
+% setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied
+% unitTest - Base.unitTest
+% #/functions
+%
+% Making a DEEP Copy: Copy each property value and assign it to the new
+% (copied) property. Recursively copy property values that reference handle
 % objects to copy all of the underlying data.
 %
-% Making a SHALLOW Copy: Copy each property value and assign it to the new 
-% (copied) property. If a property value is a handle, copy the handle but 
+% Making a SHALLOW Copy: Copy each property value and assign it to the new
+% (copied) property. If a property value is a handle, copy the handle but
 % not the underlying data.
 %
 % https://www.mathworks.com/help/matlab/ref/matlab.mixin.copyable-class.html
 % < matlab.mixin.Copyable
 
 classdef Base < handle
-    % Base class for all objects 
-    
+    % Base class for all objects
+
     % Properties
     properties (SetAccess = public)
         UserData    % Optional user data (any type)
     end
-    
-    %-------------------------------------------------------- 
+
+    %--------------------------------------------------------
     methods
         function Obj = Base()
-            % Constructor                
+            % Constructor
         end
     end
 
-    
+
     methods % Copy
         function NewObj = copyObject(Obj, Args)
             % Copy by value an object and its content
@@ -43,47 +52,47 @@ classdef Base < handle
             %                   default is {}.
             % Output : - A copy of the original object.
             % Example: NC=AC.copyObject('ClearProp',{'Catalog'});
-            
+
             arguments
                 Obj
                 Args.DeepCopy(1,1) logical          = true;
                 Args.ClearProp                      = {};
             end
-            
+
             if ~iscell(Args.ClearProp) && ~isstring(Args.ClearProp)
                 Args.ClearProp = {Args.ClearProp};
             end
-                
+
             % Deep copy
             if Args.DeepCopy
-                % Copy using serializing/deserializing (@FFU - Is there better/faster way?)                
+                % Copy using serializing/deserializing (@FFU - Is there better/faster way?)
                 ObjByteArray = getByteStreamFromArray(Obj);
                 NewObj       = getArrayFromByteStream(ObjByteArray);
-                
+
                 % @Chen @Todo: Generate unique UUID?
                 if isprop(Obj, 'Uuid')
-                    
+
                     % Generate new uuid, note that makeUuid() is a method
                     % of the Component class
                     for i=1:1:numel(NewObj)
                         if ~isempty(Obj(1).Uuid)
-                            NewObj(i).makeUuid();                        
+                            NewObj(i).makeUuid();
                         end
                     end
-                    
+
                     % Set MapKey
-                    for i=1:1:numel(NewObj)                    
+                    for i=1:1:numel(NewObj)
                         if ~isempty(Obj(1).MapKey)
                             NewObj(i).MapKey = NewObj(i).Uuid;
                         end
                     end
                 end
-                    
+
             % Shallow copy
             else
                 error('Base.copyObject: Shally copy is not supported yet');
             end
-            
+
             % Optionally clear specified properties
             Nobj  = numel(Obj);
             Nprop = numel(Args.ClearProp);
@@ -91,10 +100,10 @@ classdef Base < handle
                 for Iprop=1:1:Nprop
                     NewObj(Iobj).(Args.ClearProp{Iprop}) = [];
                 end
-            end                   
+            end
         end
-        
-        
+
+
         function Target = copyProp(Obj, Target, PropList)
             % Copy the content of properties from object1 into object2.
             % Input  : - Obj1 (from which to copy)
@@ -103,7 +112,7 @@ classdef Base < handle
             % Output : - Target object
             % Author : Eran Ofek (Apr 2021)
             % Example: Obj2 = copyProp(Obj1, Obj2, {'UserData'})
-           
+
             % Convert to cellarray
             if ischar(PropList)
                 PropList = {PropList};
@@ -118,8 +127,8 @@ classdef Base < handle
                 end
             end
         end
-        
-        
+
+
         function [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout, MinNargout)
             % A utility function for creation of an object new copy based
             % on nargout
@@ -136,11 +145,11 @@ classdef Base < handle
             %          - The new value of the CreateNewObj argument
             % Author : Eran Ofek (Jul 2021)
             % Example: [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout)
-            
+
             if nargin<4
                 MinNargout = 0;
             end
-            
+
             if isempty(CreateNewObj)
                 if Nargout>MinNargout
                     CreateNewObj = true;
@@ -152,14 +161,14 @@ classdef Base < handle
                 Result = Obj.copyObject;
             else
                 Result = Obj;
-            end            
+            end
         end
-        
+
     end
-    
-    
+
+
     methods
-        
+
         function Result = setProps(Obj, Args)
             % Copy fields of struct Args to class properties, non-existing properties are ignored
             % Return number of fields copied
@@ -173,12 +182,12 @@ classdef Base < handle
             end
         end
     end
-    
-    %----------------------------------------------------------------------   
+
+    %----------------------------------------------------------------------
     methods(Static) % Unit test
-        
+
         Result = unitTest()
             % unitTest for Base class
-    end    
-    
+    end
+
 end

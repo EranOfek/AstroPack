@@ -1,5 +1,13 @@
 % https://www.mathworks.com/matlabcentral/answers/370457-error-management-in-oop-framework
 
+% #functions
+% ObjException -
+% assert -
+% error -
+% getReport -
+% meth -
+% #/functions
+%
 classdef ObjException < MException
     methods
         function obj=ObjException(src,varargin)
@@ -7,7 +15,7 @@ classdef ObjException < MException
             obj.sourceObj=src;
         end
         function rep=getReport(obj,varargin)
-            rep=sprintf('Object Error on object %s\n%s', obj.sourceObj.name, getReport@MException(obj,varargin{:}));         
+            rep=sprintf('Object Error on object %s\n%s', obj.sourceObj.name, getReport@MException(obj,varargin{:}));
         end
     end
     properties
@@ -22,13 +30,13 @@ classdef testobj
             assert(obj,arg);
         end
         function assert(obj,cond,varargin)
-            if ~cond 
+            if ~cond
                 if nargin>2
                     ex=ObjException(obj,varargin{:});
                 else
                     ex=ObjException(obj,'testobj:AssertFailed','assertion failed');
                 end
-                throwAsCaller(ex);                
+                throwAsCaller(ex);
             end
         end
         function error(obj,varargin)
@@ -36,7 +44,7 @@ classdef testobj
             throwAsCaller(ex);
         end
     end
-    properties 
+    properties
         name
     end
 end
