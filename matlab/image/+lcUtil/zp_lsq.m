@@ -1,4 +1,4 @@
-function zp_lsq(MS, Args)
+function Result = zp_lsq(MS, Args)
     %
     % Example: Fzp   = 1 + rand(100,1);
     %          Fstar = rand(1,200).*3900 + 100; 
@@ -56,6 +56,7 @@ function zp_lsq(MS, Args)
 
         % remove bad sources
     end
+    
     
     
     %Fall = ~isnan(sum(FullResid,1))
