@@ -11,8 +11,7 @@
 % I.seeAvailableData      % print a table of all available datasets and description and size
 % I.install               % install all data sets [very large!]
 % I.install({'GAIA_SpecTemplate'}); % install specific datasets
-%
-
+% I.install({'+cats'}); % install specific datasets (and open tar file)
 
 
 classdef Installer < Base
@@ -75,11 +74,10 @@ classdef Installer < Base
             Nsd = numel(Struct.SubDir);
             Nu  = numel(Struct.URL);
             Ns  = numel(Struct.Size);
-            Nt  = numel(Struct.GetTar);
             Nsf = numel(Struct.SearchFile);
             Nd  = numel(Struct.Description);
             
-            if Ndn~=Nsd || Ndn~=Nu || Ndn~=Ns || Ndn~=Nt || Ndn~=Nsf || Ndn~=Nd
+            if Ndn~=Nsd || Ndn~=Nu || Ndn~=Ns || Ndn~=Nsf || Ndn~=Nd
                 error('DataName, SubDir, URL, Size, GetTar, SearchFiule, Description properties in inastaller config files must have the same number of elements');
             end
             
@@ -139,11 +137,14 @@ classdef Installer < Base
             Ndir = numel(DataName);
             
             for Idir=1:1:Ndir    
+                % Identify requested data set in config
+                Isel = find(strcmp(DataName{Idir}, Obj.ConfigStruct.DataName));
+                
                 % create dir for instellation
                 cd(sprintf('~%s',filesep));
                 cd(Obj.InstallationLocation);
 
-                Parts = regexp(Obj.ConfigStruct.SubDir{Idir}, filesep, 'split');
+                Parts = regexp(Obj.ConfigStruct.SubDir{Isel}, filesep, 'split');
 
                 Nparts = numel(Parts);
                 SubDir = '';
@@ -153,16 +154,36 @@ classdef Installer < Base
                     cd(Parts{Iparts});
                 end        
         
-                [List,IsDir,FileName] = www.find_urls(Obj.ConfigStruct.URL{Idir},'match', Obj.ConfigStruct.SearchFile{Idir});
-                List     = List(~IsDir);
-                FileName = FileName(~IsDir);
+                PartsURL = regexp(Obj.ConfigStruct.URL{Isel},'/','split');
+                switch lower(PartsURL{end})
+                    case {'index.html','index.htm'}
+                        % get all files in dir
+                
+                        [List,IsDir,FileName] = www.find_urls(Obj.ConfigStruct.URL{Isel},'match', Obj.ConfigStruct.SearchFile{Isel});
+                        List     = List(~IsDir);
+                        FileName = FileName(~IsDir);
+                    otherwise
+                        if ~isempty(strfind(PartsURL{end},'.tar')) 
+                            % tar file
+                            List     = Obj.ConfigStruct.URL(Isel);  % cell
+                            FileName = PartsURL{end};
+                        else
+                            error('File of unknown format');
+                        end
+                end
+                        
 
                 if numel(List)>0
                     % delete content before reload
                     if Args.Delete
                         delete('*');
                     end
-                    www.pwget(List(1:2), Args.wgetPars, Args.Npwget);
+                    www.pwget(List, Args.wgetPars, Args.Npwget);
+                    
+                    if ~isempty(strfind(FileName,'.tar')) 
+                        % open tar file
+                        untar(FileName);
+                    end
                 end
             end
             cd(PWD);
@@ -174,10 +195,9 @@ classdef Installer < Base
             
             Result = cell2table([Obj.ConfigStruct.DataName(:), ...
                    Obj.ConfigStruct.SubDir(:), ...
-                   Obj.ConfigStruct.GetTar(:), ...
                    Obj.ConfigStruct.Size(:), ...
                    Obj.ConfigStruct.Description(:),...
-                   Obj.ConfigStruct.URL(:)], 'VariableNames',{'DataName', 'SubDir', 'GetTar', 'Size [MB]', 'Description', 'URL'});
+                   Obj.ConfigStruct.URL(:)], 'VariableNames',{'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'});
             
         end
     end

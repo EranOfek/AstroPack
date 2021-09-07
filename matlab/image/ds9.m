@@ -1344,6 +1344,102 @@ classdef ds9 < handle
             end
             
         end
+        
+        function plotXY(Cat, MarkerColor, Args)
+            %
+            % Example: 
+            %          ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs');
+            %          ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y');
+            %          ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
+        
+            arguments
+                X
+                Y
+                MarkerColor        = [];
+                Args.MarkerSize    = 20;
+                Args.MarkerUnits   = 'pix';
+                Args.Color         = 'r';
+                Args.Marker        = 'o';       % 'o','s'
+                Args.Coo           = 'image';   % 'image'|'fk5','icrs'
+                Args.Width         = 1;
+                Args.Text          = '';
+                Args.Font          = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize      = 16;
+                Args.FontStyle     = 'normal';
+                Args.ColNameX      = AstroCatalog.DefNamesX;
+                Args.ColNameY      = AstroCatalog.DefNamesY;
+                Args.ColNameRA     = AstroCatalog.DefNamesRA;
+                Args.ColNameDec    = AstroCatalog.DefNamesDec;
+            end
+            
+            if isnumeric(Cat)
+                % do nothing - Cat is in the correct format
+            else
+                if isa(Cat, 'AstroImage')
+                    CatData = Cat.CatData;
+                elseif isa(Cat, 'AstroCatalog')
+                    CatData = Cat;
+                else
+                    error('Unknown Cat format option');
+                end
+                
+                switch lower(Args.CooType)
+                    case {'image','pix'}
+                        Cat = getXY(CatData, 'ColX',Args.ColNameX, 'ColY',Args.ColNameY);
+                    case {'icrs','fk5'}
+                        Cat = getLonLat(CatData, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
+                    case 'sphere'
+                        Cat = getLonLat(CatData, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
+                        Args.CooType = 'icrs';
+                    otherwise
+                        error('Unknown CooType option');
+                end
+            end
+            
+            if ~isempty(MarkerColor)
+                Args.Color  = MarkerColor(1);
+                Args.Marker = MarkerColr{2};
+            end
+            switch lower(Args.Color)
+                case {'r','red'}
+                    Args.Color = 'red';
+                case {'b','blue'}
+                    Args.Color = 'blue';
+                case {'w','white'}
+                    Args.Color = 'white';
+                case {'g','green'}
+                    Args.Color = 'green';
+                case {'k','black'}
+                    Args.Color = 'black';
+                case {'y','yellow'}
+                    Args.Color = 'yellow';
+                otherwise
+                    error('Unknown Color option');
+            end
+            switch lower(Args.Marker)
+                case {'o','circle'}
+                    Args.Marker = 'circle';
+                case {'s','box'}
+                    Args.Marker = 'box';
+                otherwise
+                    error('Unknown Marker option');
+            end    
+            
+            varargin = {'Coo',Args.Coo, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
+                        'Size',Args.Size, 'Width',Args.Width,...
+                        'Text',Args.Text, 'Font',Args.Font, 'FontSize', Args.FontSize, 'FontStyle',Args.FontStyle,...
+                        'ColNameX',Args.ColNameX, 'ColNameY',Args.ColNameY,...
+                        'ColNameRA',Args.ColNameRA, 'ColNameDec',Args.ColNameDec};
+            
+            
+            FileName = ds9.write_region(Cat, varargin{:});
+            ds9.load_region(FileName);
+            if (DeleteFile)
+                delete(FileName);
+                FileName = [];
+            end
+                      
+        end
                 
         % plot line by x/y coordinates
         function line_xy(X,Y,varargin)
