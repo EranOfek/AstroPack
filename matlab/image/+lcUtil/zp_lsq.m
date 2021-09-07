@@ -35,7 +35,7 @@ function Result = zp_lsq(MS, Args)
     [Nep, Nsrc] = size(Mag);
     
     H       = MatchedSources.designMatrixCalib(Nep, Nsrc);
-    Mag     = Mag(:);
+    %Mag     = Mag(:);
     InvVar  = 1./(MagErr.^2); 
     FlagSrc = ~isnan(Mag); 
     
@@ -48,23 +48,25 @@ function Result = zp_lsq(MS, Args)
             [Par, ParErr] = lscov(H(FlagSrc,:), Mag(FlagSrc), InvVar(FlagSrc));
         end
         
-        Resid = Mag - H*Par;
+        AllResid   = Mag(:) - H*Par;
         FitZP      = Par(Nsrc+(1:Nep));
         FitMeanMag = Par(1:Nsrc);
+        MeanMag    = mean(Mag, 1, 'omitnan');
         
-        Resid      = reshape(Resid, Nep, Nsrc);
-        Std        = std(Resid, [], 1, 'omitnan');
+        AllResid   = reshape(AllResid, Nep, Nsrc);
+        Std        = std(AllResid, [], 1, 'omitnan');
         
-        %semilogy(MeanMag,Std,'.')
-        %hold on;
-        [FlagSrc,Res] = imUtil.calib.resid_vs_mag(FitMeanMag(:),Std(:));
+        
+        % need another function calib.std_vs_mag
+        
+        [FlagSrc,Res] = imUtil.calib.resid_vs_mag(Mag(:), AllResid(:));
+        
+        %semilogy(FitMeanMag(:),Std(:),'.')
+        semilogy(MeanMag(:),Std(:),'.')
+        hold on;  
+        
     end
-    
-    semilogy(FitMeanMag(:),Std(:),'.')
-    hold on;  
-        
 
-    not working yet
         
 
             

@@ -1,4 +1,4 @@
-function [Flag,Res]=resid_vs_mag(Mag,Resid,varargin)
+function [Flag,Res]=resid_vs_mag(Mag, Resid, Args)
 % Fit residuals vs. mag and flag good data (not outliers).
 % Package: +imUtil.calib
 % Description: Give vectors of residuals vs. magnitude, calculate the std
@@ -48,50 +48,51 @@ function [Flag,Res]=resid_vs_mag(Mag,Resid,varargin)
 %      By: Eran O. Ofek                         Jun 2020
 % Example: Flag=imUtil.calib.resid_vs_mag(Mag,Resid);
 
-InPar = inputParser;
-addOptional(InPar,'MagRange',[]); 
-addOptional(InPar,'BinMethod','bin'); % 'bin' | 'poly'
-addOptional(InPar,'PolyDeg',3);
-addOptional(InPar,'BinSize',1);
-addOptional(InPar,'FunMean',@nanmedian);
-addOptional(InPar,'FunStd',@imUtil.background.rstd);
-addOptional(InPar,'InterpMethod','linear');
-addOptional(InPar,'ThresholdSigma',3);
-addOptional(InPar,'Plot',false);
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-if isempty(InPar.MagRange)
-    InPar.MagRange = [min(Mag), max(Mag)];
+arguments
+    Mag
+    Resid
+    Args.MagRange          = [];
+    Args.BinMethod         = 'bin';    % 'bin' | 'poly'
+    Args.PolyDeg           = 3;
+    Args.BinSize           = 1;
+    Args.FunMean           = @nanmedian;
+    Args.FunStd            = @imUtil.background.rstd;
+    Args.InterpMethod      = 'linear';
+    Args.ThresholdSigma    = 3;
+    Args.Plot(1,1) logical = false;
 end
 
-FlagMag = Mag>=InPar.MagRange(1) & Mag<=InPar.MagRange(2);
+
+if isempty(Args.MagRange)
+    Args.MagRange = [min(Mag), max(Mag)];
+end
+
+FlagMag = Mag>=Args.MagRange(1) & Mag<=Args.MagRange(2);
 %Mag     = Mag(FlagMag);
 %Resid   = Resid(FlagMag);
 
 Res.Mag              = Mag;
 Res.Resid            = Resid;
 
-switch lower(InPar.BinMethod)
+switch lower(Args.BinMethod)
     case 'fit'
         % fit polynomial to resid vs. mag
         
-        Par = polyfit(Mag,Resid,InPar.PolyDeg);
+        Par = polyfit(Mag, Resid, Args.PolyDeg);
         
-        Res.InterpMeanResid = polyval(Par,Mag);
-        Res.InterpStdResid = InPar.FunStd(DeltaResid);
-        Flag = (Resid - Res.InterpMeanResid)./Res.InterpStdResid < InPar.ThresholdSigma;
+        Res.InterpMeanResid = polyval(Par, Mag);
+        Res.InterpStdResid = Args.FunStd(DeltaResid);
+        Flag = (Resid - Res.InterpMeanResid)./Res.InterpStdResid < Args.ThresholdSigma;
 
     case 'bin'
         % binning of resid vs. mag
 
-        B = timeseries.binning([Mag, Resid],InPar.BinSize,InPar.MagRange,{'MidBin',InPar.FunMean,InPar.FunStd,@numel});
+        B = timeseries.binning([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
         % interpolate B over missing points
-        Res.InterpMeanResid = interp1(B(:,1),B(:,2),Mag,InPar.InterpMethod);
-        Res.InterpStdResid  = interp1(B(:,1),B(:,3),Mag,InPar.InterpMethod);
+        Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod);
+        Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod);
         
-        Flag = (Resid - Res.InterpMeanResid)./Res.InterpStdResid < InPar.ThresholdSigma & FlagMag;
+        Flag = (Resid - Res.InterpMeanResid)./Res.InterpStdResid < Args.ThresholdSigma & FlagMag;
 
     otherwise
         error('Unknown Method option');
@@ -99,7 +100,7 @@ end
 
 
 
-if InPar.Plot
+if Args.Plot
     % plot
    
     semilogy(Mag,Resid,'.','MarkerSize',1);
