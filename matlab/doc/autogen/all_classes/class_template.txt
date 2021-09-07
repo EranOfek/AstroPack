@@ -1,7 +1,0 @@
-% class: MyClass
-%
-% MyClass - 
-% delete - 
-% get.Data - 
-% set.Data - 
-% unitTest - 

@@ -1,7 +1,0 @@
-% class: testobj
-%
-% ObjException - 
-% assert - 
-% error - 
-% getReport - 
-% meth - 

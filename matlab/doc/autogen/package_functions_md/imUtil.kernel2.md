@@ -1,0 +1,33 @@
+# Package: imUtil.kernel2
+
+
+### imUtil.kernel2.annulus
+
+create a matrix or a cube of 2D normalized annulus shape in each image Package: +imUtil.kernel2
+
+
+### imUtil.kernel2.circ
+
+create a matrix or a cube of 2D normalized corcular shape in each image Package: +imUtil.kernel2
+
+
+### imUtil.kernel2.gauss
+
+create a matrix or a cube of 2D normalized Gaussians Package: +imUtil.kernel2
+
+
+### imUtil.kernel2.lanczos
+
+create a matrix or a cube of 2D normalized lanczis filter in each image Package: +imUtil.kernel2
+
+
+### imUtil.kernel2.line
+
+create a matrix or a cube of 2D normalized corcular shape in each image Package: +imUtil.kernel2
+
+
+### imUtil.kernel2.sersic
+
+create a matrix or a cube of 2D normalized Sersic functions Package: +imUtil.kernel2
+
+

@@ -1,4 +1,0 @@
-% class: VarImage
-%
-% VarImage - Constructor of VarImage class using the superclass (ImageComponent) constructor
-% unitTest (Static) - unitTest for VarImage class

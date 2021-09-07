@@ -1,0 +1,40 @@
+Package: VO.search
+
+astcat_search - Search an astronomical catalog formatted in HDF5/HTM/zones format Example: VO.search.astcat_search('FIRST',1,1,0.01)
+
+cat_cone - Cone search a local or online catalog. Package: VO.search Description: A uniform interface function for catalogs cone search. The catalog can be either a local catalog in the +cats
+
+catalog_interface - An interface auxilary to the catalogs in the data directory Package: VO.search Description: An auxilary function to interface the local catalogs in the data directory as well as external catalogs.
+
+get_cat - Search selected astronomical catalogs Package: VO.search Description: Search selected astronomical catalogs
+
+htmcat_names - Get names of all HDF5/HTM catalogs in the /data/catsHTM/ directory. Package: VO.search Description: Get names of all HDF5/HTM catalogs in the /data/catsHTM/ directory.
+
+htmcat_search - Cone earch on local HDF5/HTM catalog (OBSOLETE). Package: VO.search Description: Perform a cone search around RA/Dec on a local catalog in HDF5 format sorted into HTM.
+
+match_cats - Match two spherical coordinates catalogs sorted by declination Package: VO.search Description: Given two spherical coordinate catalogs. - for each entry in the reference catalog (second input
+
+match_cats_pl - Match two planer coordinates catalogs sorted by Y Package: VO.search Description: Given two planer coordinate catalogs. - for each entry in the reference catalog (second input
+
+prep_data_dir - Prepare interface functions for the catalogs in the data directory Package: VO.search Description: Prepare interface functions for the catalogs in the data directory
+
+proper_motion_sdss_ps1 - SHORT DESCRIPTION HERE Package: VO.search Description:
+
+search_cat - search_cat function                                            Catalogue Description: Given a catalog with Long,Lat coordinates position, search for lines near a list of reference positions.
+
+search_htmcat - Search a local HTM/HDF5 catalog Description: Perform a cone search in an local catalog formatted in the HTM (Hiraricical Triangular Mesh) grid and stired in HDF5 format.
+
+search_mhtm_cat - Search master HTM catalog Package: Catalog.search Description: A Master HTM catalog contains a list of HTM regions and the HDF file name containing the HTM region. This function can
+
+search_sortedY_multi - Search a single X/Y in a catalog sorted by Y (planar geometry) Package: VO.search Description: A low level function for a single cone search in a [X, Y] array.
+
+search_sortedlat - Search a single long/lat in a catalog sorted by latitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+
+search_sortedlat_multi - Search a single long/lat in a catalog sorted by latitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+
+search_sortedlat_multiNearest - Search a single long/lat in a catalog sorted by latitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+
+search_sortedlong - Search a single long/lat in a catalog sorted by longitude Package: VO.search Description: A low level function for a single cone search in a [Long, Lat] array.
+
+simbad_url - Generate a SIMBAD URL for coordinates Package: VO.search Description: Generate a SIMBAD URL for coordinates
+

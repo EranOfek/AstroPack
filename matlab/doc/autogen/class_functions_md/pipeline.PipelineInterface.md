@@ -1,0 +1,42 @@
+# Class: pipeline.PipelineInterface
+
+### PipelineInterface
+
+
+
+
+### init
+
+
+
+
+### main
+
+
+
+
+### msglog
+
+
+
+
+### pollInputImage
+
+
+
+
+### processImage
+
+
+
+
+### run
+
+
+
+
+### unitTest
+
+
+
+

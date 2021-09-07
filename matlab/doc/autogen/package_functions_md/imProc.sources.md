@@ -1,0 +1,8 @@
+# Package: imProc.sources
+
+
+### imProc.sources.findMeasureSources
+
+Basic sources finder and measurments on AstroImage object. This function uses the +imUtil.sources.find_sources function.
+
+

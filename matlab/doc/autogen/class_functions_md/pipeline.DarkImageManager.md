@@ -1,0 +1,32 @@
+# Class: pipeline.DarkImageManager
+
+### DarkImageManager
+
+
+
+
+### init
+
+
+
+
+### processFolder
+
+
+
+
+### processNextImage
+
+
+
+
+### reset
+
+
+
+
+### unitTest
+
+
+
+

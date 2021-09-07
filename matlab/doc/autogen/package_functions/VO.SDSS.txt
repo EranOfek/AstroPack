@@ -1,0 +1,20 @@
+Package: VO.SDSS
+
+coo2run - Convert J2000 equatorial coordinates to SDSS run/rerun/col/field ID. Package: VO.SDSS Description: Given celestial equatorial coordinates, find all SDSS Run/Rerun/Col/Field number ID that cover the coordinates.
+
+image_server - Get SDSS image server URL Package: VO.SDSS Description: Get the SDSS image server URL
+
+navigator_link - Given J2000 equatorial coordinates get link to SDSS navigator image. Package: VO.SDSS Description: Get link to SDSS navigator image
+
+pixscale - Get SDSS pixel scale Package: VO.SDSS Description: Return SDSS pixel scale.
+
+run_sdss_sql - run_sdss_sql function                                               sdss Description: Run SQL query on SDSS database and retrieve the results into an array.
+
+sdss_coo_radec - Convert the SDSS great circles coordinate system to J2000 RA and Dec. Package: VO.SDSS Description: Convert the SDSS great circles coordinate system to J2000 right ascension and declination.
+
+wget_corrim - Get corrected SDSS image Package: VO.SDSS Description: Retrieve SDSS corrected images by Run, Rerun, CamCol, Field or RA/Dec.
+
+wget_sdss - Query SDSS PhotoPrimary table around specific coordinate. Package: VO.SDSS Description: Query SDSS PhotoPrimary table around specific coordinate. See VO.SDSS.run_sdss_sql.m for a more general queries.
+
+wget_sdss_spec - wget SDSS FITS spectra and links Package: VO.SDSS Description: wget SDSS FITS spectra and links
+

@@ -1,0 +1,6 @@
+Package: imProc.psf
+
+measureFWHM - Estimate image seeing or focus state
+
+psf2cube - Construct a cube of PSF stamps from AstroImage
+

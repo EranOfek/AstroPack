@@ -1,5 +1,0 @@
-% class: PipelineComponent
-%
-% PipelineComponent - 
-% getFilesInFolder - 
-% unitTest (Static) - 

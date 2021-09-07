@@ -1,0 +1,7 @@
+# Class: astro.spec.InterpLC
+
+### InterpLC
+
+Interpolant from a time series of photometric observations in one band Package: astro.spec Description: Given a time series of observations take at a single band return an interpolant that allows to calculate the magnitude
+
+

@@ -1,0 +1,10 @@
+Package: VO.PS1
+
+add_meta_data2ps1 - SHORT DESCRIPTION HERE Package: VO.PS1 Description:
+
+get_stack - Get links to PS1 corrected stack FITS images. Package: telescope.PS1 Description: Get link to PS1 FITS images.
+
+navigator_link - Given J2000 equatorial coordinates get link to PS1 navigator image. Package: telescope.PS1 Description: Get link to PS1 navigator image
+
+ps1_2_sdss_mag - PS1 magnitudes to PS1 magnitude using the Finkbeiner+2015 relations Package: VO Description: Convert PS1 magnitudes to PS1 magnitude using the Finkbeiner+2015 relations.
+

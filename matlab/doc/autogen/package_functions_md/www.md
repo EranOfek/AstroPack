@@ -1,0 +1,73 @@
+# Package: www
+
+
+### www.cgibin_parse_query_str
+
+Break a URL parameters query string to parameter names and values. Package: www Description: Break a URL parameters query string to parameter names and values.
+
+
+### www.find_urls
+
+Read the URL content and extract all the links within the URL Package: www Description: Given a URL, read the URL content and extract all the links within the URL and return a cell array of all the links.
+
+
+### www.find_urls_ftp
+
+Find files in a FTP link Package: www Description: Make a list of files in an FTP link.
+
+
+### www.ftp_dir_list
+
+Return files URLs from FTP containing a file listing. Package: www Description: Given an FTP URL that contains only a file listing, return a cell array of all the files URLs.
+
+
+### www.html_page
+
+Create an HTML file Package: www Description: Create an HTML file. The file contains the necessery header and footer and a supplied content.
+
+
+### www.html_table
+
+Create an HTML table Package: www Description: Given a matlab matrix or cell array create an html page with the matrix in an html table.
+
+
+### www.mwget
+
+A wrapper around the wget command Package: www Description: A wrapper around the wget command. Retrieve a URL using the wget command.
+
+
+### www.parse_html_table
+
+Parse columns from an HTML table into matlab Package: www Description: Parse columns from an HTML table into matlab. The program can not parse tables with colspan parameter
+
+
+### www.parse_html_table_old
+
+Parse columns from an HTML table into matlab Package: www Description: Parse columns from an HTML table into matlab. The program can not parse tables with colspan parameter
+
+
+### www.pwget
+
+Parallel wget to retrieve multiple files simultanously Package: www Description: Parallel wget function designed to retrieve multiple files using parallel wget commands.
+
+
+### www.r_files_url
+
+Recursively get links to all files in www directory list. Package: www Description: Recursively get links to all files in www directory list. Given a URL that contains a directory tree with files,
+
+
+### www.rftpget
+
+Recursively retrieve the entire directory tree in an FTP site Package: www Description: A wrapper around the wget command designed to recursively retrieve the entire directory tree in an FTP site.
+
+
+### www.url2url_key_val
+
+SHORT DESCRIPTION HERE Package: www Description:
+
+
+### www.write_content_indexhtml
+
+SHORT DESCRIPTION HERE Package: www Description:
+
+

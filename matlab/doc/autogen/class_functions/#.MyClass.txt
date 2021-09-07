@@ -1,0 +1,12 @@
+Class: MyClass
+
+MyClass - 
+
+delete - 
+
+get.Data - 
+
+set.Data - 
+
+unitTest - 
+

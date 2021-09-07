@@ -1,0 +1,13 @@
+# Package: VO.WISE
+
+
+### VO.WISE.coo2coaddid
+
+Find all WISE coadd_id for a given coordinate. Package: VO.WISE Description: Given celestial equatorial coordinates, find all WISE coadd_id string ID that covers the coordinates.
+
+
+### VO.WISE.wget_corrim
+
+Get WISE coadded Atlas image from coadd_id Package: VO.WISE Description: Given a WISE field ID coadd_id for Atlas Images, get the link to, and the WISE corrected image in FITS format.
+
+

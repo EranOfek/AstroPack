@@ -1,0 +1,6 @@
+Class: VarImage
+
+VarImage - Constructor of VarImage class using the superclass (ImageComponent) constructor
+
+unitTest - unitTest for VarImage class
+

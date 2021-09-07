@@ -1,5 +1,0 @@
-% class: ImageDbManager
-%
-% ImageDbManager - 
-% getDbByFileName - 
-% unitTest (Static) - 

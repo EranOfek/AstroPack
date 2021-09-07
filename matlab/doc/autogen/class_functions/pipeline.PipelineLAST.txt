@@ -1,0 +1,34 @@
+Class: pipeline.PipelineLAST
+
+PipelineLAST - 
+
+process - 
+
+processScienseImage - 
+
+processScienseImageSeries - 
+
+process_AstrometrySubImages - AstrometrySubImages
+
+process_BackgroundEstimation - Background estimation
+
+process_DivideByFlat - DivideByFlat
+
+process_MaskSaturatedPixels - MaskSaturatedPixels
+
+process_PhotometricZeroPoint - PhotometricZeroPoint
+
+process_SaveProducts - SaveProducts (Image, Catalog)
+
+process_SourceFinding - Source finding
+
+process_SubImages - Sub images (54)
+
+process_SubtractDark - 
+
+process_UpdateCatalog - Update Catalog
+
+process_UpdateWcsCatalog - Update WCS, Catalog
+
+unitTest - 
+

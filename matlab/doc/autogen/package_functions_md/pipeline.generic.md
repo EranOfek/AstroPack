@@ -1,0 +1,13 @@
+# Package: pipeline.generic
+
+
+### pipeline.generic.mergeCatalogs
+
+
+
+
+### pipeline.generic.singleRaw2proc
+
+Basic processing of a single raw image into a processed image Including: Reading the image Generate a mask image and mask saturated pixels
+
+

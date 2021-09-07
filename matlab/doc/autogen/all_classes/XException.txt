@@ -1,8 +1,0 @@
-% class: testobj
-%
-% XException - 
-% assert - 
-% error - 
-% getReport - 
-% meth - 
-% unitTest (Static) - 

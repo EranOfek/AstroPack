@@ -1,0 +1,23 @@
+# Package: tools.math.symbolic
+
+
+### tools.math.symbolic.symbolic_poly
+
+Build a symbolic polynomial Package: Util.symbolic Description: Construct a symbolic polynomial with given orders
+
+
+### tools.math.symbolic.symerror
+
+Calculate symbolic errors Package: Util.symbolic Description: Given a symbolic expression and the variables in the expression, calculate the symbolic error function of the
+
+
+### tools.math.symbolic.symerror_calc
+
+Calculate and evaluate symbolic errors Package: tools.math.symbolic Description: Given a symbolic expression, the names of the variables in the expression and the value of the variables and errors,
+
+
+### tools.math.symbolic.sympoly2d_2orders
+
+Convert a 2D symbolic polynomials into vectors of orders and coef. Package: Util.symbolic Description: Convert a 2D symbolic polynomials into vectors of orders and coef.
+
+

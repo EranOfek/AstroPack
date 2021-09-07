@@ -1,0 +1,28 @@
+Package: astro.microlensing
+
+chi2_microlensing - chi^2 between microlensing observations and model Package: AstroUtil.microlensing Description: Calculate a \chi^2 for between a microlensing event light curve and a theoretical model light curve
+
+microlens_ps - Microlening light curve for a point source as a function of time Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source, as a function of time (assuming linear motion).
+
+microlens_psb - Microlensing lightcurve for a point source as a function of angular dist Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source, in a list of a given source-lens distances.
+
+microlens_psfs - Microlening light curve with finite source effect Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source.
+
+microlens_pspar - Microlening light curve including annual parallax Package: AstroUtil.microlensing Description: Calculate the microlensing light curve for a point source, as a function of time include annual parallax effects.
+
+microlens_template - SHORT DESCRIPTION HERE Package: AstroUtil Description:
+
+ml_filterbank - Generate microlensing template bank Package: AstroUtil Description: Generate microlensing template bank
+
+pointsource_lens - Microleninsg magnification, images positions and time delays (OBSOLETE) Package: AstroUtil.microlensing Description: Calculate the magnification and images positions for a point source lens, given the lens properties and impact
+
+ps_lens - Calculate deflection, magnification and time delay for point mass lens Package: astro Description: Calculate deflection, magnification and time delay for point mass lens.
+
+radial_astrometric_microlensing - The astrometric deflection of the primary microleneing image. Package: AstroUtil.microlensing Description: Calculate the astrometric deflection of the primary microlensing image as a function of time.
+
+shapiro_delay - Calculate the Shapiri time delay approximation (beta>ThetaE) Package: AstroUtil.microlensing Description: Calculate the Shapiri time delay approximation assuming the angle between the lens and the source is much larger
+
+shapiro_delay_pm - The Shaprio time delay given proper motion between two stars. Package: AstroUtil.microlensing Description: The Shaprio time delay given proper motion between two stars.
+
+stoch_time_delay - SHORT DESCRIPTION HERE Package: AstroUtil.microlensing Description:
+

@@ -1,0 +1,82 @@
+# Class: db.AstroStore
+
+### AstroStore
+
+
+
+
+### copyFileToStore
+
+Copy (or move) file to storage
+
+
+### createDestFolder
+
+Create destination folder
+
+
+### getBasePath
+
+Return storage base path, used by ImagePath
+
+
+### getDataPath
+
+Get path data folder Currently we just return our DataPath, without doing anythin with the specified Impath
+
+
+### getImageFileName
+
+Get full path to image
+
+
+### getImagePath
+
+Get full path to image
+
+
+### getSingleton
+
+
+
+
+### insertFile
+
+Insert file record to database @Todo: Need to define the table structure
+
+
+### manageTimerEvent
+
+Timer callback function
+
+
+### perfTest
+
+AstroStore.perfTest
+
+
+### setup
+
+Load settings from configuration Currently we work with single data folder, in the future we may enhance the functionality to support multiple data folders (need to decide the logic)
+
+
+### startTimer
+
+Setup and start timer https://www.mathworks.com/help/matlab/ref/timer-class.html https://www.mathworks.com/help/matlab/matlab_prog/timer-callback-functions.html
+
+
+### stopTimer
+
+Stop timer
+
+
+### stressTest
+
+AstroStore.stressTest
+
+
+### unitTest
+
+AstroStore.unitTest
+
+

@@ -1,0 +1,18 @@
+# Package: lcUtil
+
+
+### lcUtil.fitMotion
+
+fit Proper motion in RA/Dec to coordinates in MatchedSources object. Given a MatchedSources object with RA/Dec fields, fit proper motions using the celestial.pm.fitMultiProperMotion function.
+
+
+### lcUtil.zp_lsq
+
+Example: Fzp   = 1 + rand(100,1); Fstar = rand(1,200).*3900 + 100; Flux = Fzp.*Fstar;
+
+
+### lcUtil.zp_sumFlux
+
+Example: Fzp = rand(100,1).*1000; Flux = randn(100,200) + Fzp; Result = lcUtil.zp_sumFlux(Flux, 'MaxRelErr',[]);
+
+

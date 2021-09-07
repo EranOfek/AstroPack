@@ -1,0 +1,38 @@
+# Package: VO.Chandra
+
+
+### VO.Chandra.acis_psf
+
+Read and interpolate the Chandra ACIS-S/ACIS-I PSF. Package: VO.Chandra Description: Read and interpolate the Chandra ACIS-S/ACIS-I PSF from the Chandra CalDB files.
+
+
+### VO.Chandra.build_obsid_cat
+
+Construct a catalog of all Chandra observations Package: VO.Chandra Description: Construct a catalog of all Chandra observations by going over the entire Chandra image archive.
+
+
+### VO.Chandra.ciao_extractspec
+
+Prepare the ARF and MRF Chandra files required for X-ray spectroscopy. Package: VO.Chandra Description: Use Chandra/CIAO tasks to prepare the ARF and MRF files required for X-ray spectroscopy of a source.
+
+
+### VO.Chandra.run_ciao_command
+
+RUN CIAO command on single or multiple, or all Chandra directories Package: +VO.Chandra
+
+
+### VO.Chandra.wget_all
+
+wget all Chandra observations in cats.X.ChandraObs Package: VO Description:
+
+
+### VO.Chandra.wget_obsid
+
+Get all the files associated with a Chandra ObsID Package: VO.Chandra Description: Get all the files associated with a Chandra ObsID The Chandra observations catalog is stored in
+
+
+### VO.Chandra.wget_obsid_old
+
+Get all the files associated with a Chandra ObsID Package: VO.Chandra Description: Get all the files associated with a Chandra ObsID The Chandra observations catalog is stored in
+
+

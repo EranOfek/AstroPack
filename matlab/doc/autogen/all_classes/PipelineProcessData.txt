@@ -1,4 +1,0 @@
-% class: PipelineProcessData
-%
-% PipelineProcessData - 
-% unitTest (Static) - 

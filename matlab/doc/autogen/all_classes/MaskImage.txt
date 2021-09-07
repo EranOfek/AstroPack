@@ -1,7 +1,0 @@
-% class: MaskImage
-%
-% bitStat - Example: Stat = Bias.MaskData.bitStat
-% bitwise_cutouts - Apply bitwise operator to a cutouts
-% findBit - find pixels with some specific mask-bit open
-% maskSet - Set the value of a bit in a bit mask
-% unitTest (Static) - 

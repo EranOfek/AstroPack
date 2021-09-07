@@ -1,0 +1,44 @@
+Package: yaml
+
+GetYamlVals - this function converts data formatted in yaml style (cells containing timestamps and values) into matlab user friendly matrices.
+
+ReadYaml - 
+
+ReadYamlRaw - 
+
+TimeVals2Cell - creates a typical struct with field named by header. Values are cell of date and vals. synopsis: s = TimeVals2Cell(time,datavalues,header)
+
+WriteYaml - 
+
+datadump - 
+
+deflateimports - 
+
+doinheritance - 
+
+dosubstitution - 
+
+iscolumnvector - 
+
+ismymatrix - 
+
+isord - 
+
+isrowvector - 
+
+issingle - 
+
+kwd_parent - 
+
+makematrices - 
+
+merge_struct - 
+
+mergeimports - 
+
+selftest_yamlmatlab - This function tests consistency of YAMLMatlab, by default, the results are stored in selftest_report.html in current work folder.
+
+test_ReadYaml - this function tests reading in the yaml file
+
+test_WriteYaml - 
+

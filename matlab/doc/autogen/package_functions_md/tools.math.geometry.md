@@ -1,0 +1,68 @@
+# Package: tools.math.geometry
+
+
+### tools.math.geometry.boundingCircle
+
+fit the smallest-radius bounding circle to set of X, Y points
+
+
+### tools.math.geometry.cells_intersect_line
+
+Find cells in 2D grid that intersets a line. Package: Util.Geom Description: Given a grid defining the positions of cells in a 2-D plane and equation of a line in this plane, find all the cells in
+
+
+### tools.math.geometry.cross1_fast
+
+Fast version of cross product of two 3-elements vectors Package: Util.math Description: cross product of two 3-elements vectors. This is a fast version of the cross.m function. This function will work
+
+
+### tools.math.geometry.cross_fast
+
+Fast cross product of two 3-elements matrices Package: Util.math Description: cross product of two 3-columns matrices. This is a fast version of the cross.m function.
+
+
+### tools.math.geometry.curvlen
+
+Calculate the length of a curve numerically. Package: Util.Geom Description: Calculate the length of a curve by summing the distances (sqrt[X^2+Y^2]) between successive points.
+
+
+### tools.math.geometry.dist_box_edge
+
+Distance of points froma rectangular box. Package: Util.Geom Description: Given a rectangular box and a scalar position, calculate the distance to the nearest rectangular edge.
+
+
+### tools.math.geometry.dist_p2line
+
+Distance between point and a line. Package: Util.Geom Description: Calculate the minimum distance in a 2-d space between a line and a point.
+
+
+### tools.math.geometry.plane_dist
+
+Distance between points on a 2D plane. Package: Util.Geom Description: Calculate the planner distance and angle between points.
+
+
+### tools.math.geometry.plane_dist_thresh
+
+Check if the distance between points on a plane is below some value. Package: Util.Geom Description: Given X and Y coordinates and a reference coordinates return a flag indicating if each point is within a distance
+
+
+### tools.math.geometry.polysort
+
+Sort the vertices of convex polygon by position angle. Package: Util.Geom Description: Given an (unsorted) convex polygon vertices, sort the vertices acording to their position angle as measured from
+
+
+### tools.math.geometry.rotm
+
+Return a numeric or symbolic 3-D rotation matrix about the X, Y or Z axis Package: Util.Geom Description: Return a numeric or symbolic 3-D rotation matrix about the X, Y or Z axis.
+
+
+### tools.math.geometry.traj_mindist
+
+Time of minimum distance between two 2-D linear trajetories Package: Util.Geom Description: Given two linear trajectories in the 2-D plane (x and y position as function of time), calculate the time in which
+
+
+### tools.math.geometry.tri_equidist_center
+
+Poistion of circumscribed circle. Package: Util.Geom Description: Find the position of a  point found in equal distances from the verteces of a planer triangle.
+
+

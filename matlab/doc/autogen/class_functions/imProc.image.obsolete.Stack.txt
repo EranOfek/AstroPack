@@ -1,0 +1,18 @@
+Class: imProc.image.obsolete.Stack
+
+Stack - Constructor for a Match object
+
+applyUnaryFun - Applay scalar-unary function (e.g., function that returns a scalar) on AstroImage
+
+coadd - Coadd images in AstroImage object including pre/post normalization
+
+divideFactor - Divide factor (constant) from AstroImage
+
+funCube - Apply function/s on a single cube
+
+functionalResponse - Fit the pixel response to light as a function of intensity in a cube of images Description: Given an AstroImage of flat field or dark images which have different mean intensity, fit some linear models to each model intensity vs. a user specified expected intensity or the mean value of
+
+subtractOffset - Remove offset (constant) from AstroImage
+
+unitTest - unitTest for the Stack class Example: Result = imProc.image.Stack.unitTest
+

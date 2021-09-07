@@ -1,0 +1,32 @@
+# Class: db.FitsDb
+
+### FitsDb
+
+
+
+
+### Open
+
+
+
+
+### msgLog
+
+fprintf('fits: ');
+
+
+### read
+
+
+
+
+### readHeader
+
+
+
+
+### unitTest
+
+
+
+

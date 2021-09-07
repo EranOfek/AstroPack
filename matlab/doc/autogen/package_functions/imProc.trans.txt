@@ -1,0 +1,14 @@
+Package: imProc.trans
+
+fitPattern - Match two catalogs using stars pattern and return approximate transformation Description: Given two catalogs that coordinadte systems are related by flip, scale, rotation and shift, search the the approximate affine transformation
+
+fitTransformation - Fit an exact transformation between two matched catalogs The returned transformation is from the reference to the catalog.
+
+projection - project Lon/Lat to X/Y using specified projection
+
+projectionInv - project X/Y to Lon/Lat using specified projection
+
+tranAffine - Apply affine transformation to an AstroCatalog object
+
+unitTest - unitTest for +imProc.match Example: imProc.trans.unitTest
+

@@ -1,0 +1,27 @@
+# Class: imProc.image.obsolete.Flat
+
+### Flat
+
+Constructor for a Flat object
+
+
+### deflat
+
+Divide by flat (and construct if needed) from a list of images
+
+
+### flat
+
+Generate a super flat image from a set of flat images.
+
+
+### isFlat
+
+Check and validate that a set of images in an AstroImage object are flat images
+
+
+### unitTest
+
+unitTest for imProc.image.Flat
+
+

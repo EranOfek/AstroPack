@@ -1,0 +1,18 @@
+# Package: imUtil.sources
+
+
+### imUtil.sources.connected_prop
+
+Package: imUtil.sources Description:
+
+
+### imUtil.sources.find_crHT
+
+Find cosmic rays in a catalog using hypothesis testing Package: +imUtil.sources Description:
+
+
+### imUtil.sources.find_sources
+
+find sources in an image Package: imUtil.sources Description: Find sources in an image using a matched filter of template bank and calculate basic properties for all the sources
+
+
