@@ -32,15 +32,9 @@ classdef BackImage < ImageComponent
  
     
     methods (Static) % Unit-Test
-        function Result = unitTest()
+        Result = unitTest()
             % unitTest for BackImage class
-            
-            B = BackImage;
-            B = BackImage(B);
-            B = BackImage([2 2]);
-            
-            Result = true;
-        end
+
     end
     
 end

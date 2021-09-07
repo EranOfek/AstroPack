@@ -35,16 +35,11 @@ classdef SciImage < ImageComponent
 
     end
     
+    
     methods (Static) % Unit-Test
-        function Result = unitTest()
+        Result = unitTest()
             % unitTest for BackImage class
-            
-            B = SciImage;
-            B = SciImage(B);
-            B = SciImage([2 2]);
-            
-            Result = true;
-        end
+
     end
     
 end

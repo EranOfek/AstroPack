@@ -32,15 +32,9 @@ classdef VarImage < ImageComponent
  
     
     methods (Static) % Unit-Test
-        function Result = unitTest()
+        Result = unitTest()
             % unitTest for VarImage class
-            
-            B = VarImage;
-            B = VarImage(B);
-            B = VarImage([2 2]);
-            
-            Result = true;
-        end
+        
     end
     
 end
