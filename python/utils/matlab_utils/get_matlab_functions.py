@@ -40,18 +40,18 @@ def log_line(msg, line_num, line):
     log(msg + ' (line ' + str(line_num) + '): ' + line)
 
 # ===========================================================================
-
+# Data for each package
 class PackageData:
 
     def __init__(self):
         self.name = ''
         self.path = ''
-        self.class_list = {}
-        self.func_list = {}
+        self.class_dict = {}        # Currently unused
+        self.func_dict = {}
         self.comment = ''
 
 # ===========================================================================
-
+# Data for each class
 class ClassData:
 
     def __init__(self):
@@ -59,12 +59,12 @@ class ClassData:
         self.path = ''
         self.filename = ''
         self.func_dict = {}
-        self.prop_dict = {}
+        self.prop_dict = {}         # Currently unused
         self.comment = ''
         self.unitTest_lines = []
 
 # ===========================================================================
-
+# Data for each function (in package or class)
 class FunctionData:
 
     def __init__(self):
@@ -74,7 +74,8 @@ class FunctionData:
         self.params = ''
         self.comment = ''
 
-
+# ===========================================================================
+# Data for each class property (currently unused)
 class PropData:
 
     def __init__(self):
@@ -83,6 +84,8 @@ class PropData:
         self.comment = ''
 
 # ===========================================================================
+#                           MATLAB Source Code Processor
+# ===========================================================================
 
 class MatlabProcessor:
 
@@ -90,17 +93,18 @@ class MatlabProcessor:
         self.out_path = os.path.join(AUTOGEN_PATH, 'all_classes')
         self.cur_fname = ''
         self.cur_folder = ''
+        self.cur_package = ''
         self.cur_class = ''
         self.package_dict = {}
         self.class_dict = {}
         self.is_class_folder = False
         self.is_class_file = False
-        #self.mlx_lines = []
-
         self.package_list_filename = ''
         self.class_list_filename = ''
+        #self.mlx_lines = []
 
 
+    # -----------------------------------------------------------------------
     # Read lines from file
     def read_file(self, fname, fail_non_exist = False):
         lines = []
@@ -121,6 +125,7 @@ class MatlabProcessor:
                 f.write(line + '\n')
 
     # -----------------------------------------------------------------------
+    # Get package from dict, add if not exist
     def get_package(self, pkg_name, path = ''):
         if pkg_name in self.package_dict:
             pkg = self.package_dict[pkg_name]
@@ -134,6 +139,7 @@ class MatlabProcessor:
         return pkg
 
     # -----------------------------------------------------------------------
+    # Get class from dict, add if not exist
     def get_class(self, class_name, path = ''):
         if class_name in self.class_dict:
             cls = self.class_dict[class_name]
@@ -145,6 +151,7 @@ class MatlabProcessor:
             log('adding class: {} - folder: {}'.format(class_name, path))
 
         return cls
+
     # -----------------------------------------------------------------------
     # Get package name from path
     def get_package_from_path(self, path):
@@ -159,14 +166,17 @@ class MatlabProcessor:
 
         return pkg_name
 
-
+    # -----------------------------------------------------------------------
     # Get class name from path
     def get_class_from_path(self, path):
+        if path[-1] == '/':
+            path = path[0:-1]
         last = os.path.split(path)[1]
         if last.startswith('@'):
             return last[1:]
         else:
             return ''
+
     # -----------------------------------------------------------------------
     # Extract H1 comment from comment lines below the function/class line
     # function Result = openConn(Obj)
@@ -224,6 +234,7 @@ class MatlabProcessor:
         return lines, start_idx
 
     # -----------------------------------------------------------------------
+    # Write source code files
     def write_m_file(self, fname, lines):
 
         # Write output file
@@ -244,6 +255,8 @@ class MatlabProcessor:
                 f.write(line + '\n')
 
     # -----------------------------------------------------------------------
+    # Update source code file with info block
+    # @todo
     def update_class_m_file(self, fname):
 
         # Read source file
@@ -266,10 +279,11 @@ class MatlabProcessor:
         log('update_m_file done: ')
 
     # -----------------------------------------------------------------------
+    # @todo UNUSED
     def write_func_list_file(self, fname, header_lines, func_dict):
 
         # Sort the function list
-        func_list = func_dict.keys()
+        func_list = list(func_dict.keys())
         func_list.sort()
 
         # Write function list file
@@ -282,6 +296,7 @@ class MatlabProcessor:
                 f.write(func.name + '\n')
 
     # -----------------------------------------------------------------------
+    # @todo
     def update_files(self, fname):
 
         # Create output file
@@ -299,7 +314,7 @@ class MatlabProcessor:
             pre, ext = os.path.splitext(fn)
             out_fname = os.path.join(self.out_path, pre + '.txt')
 
-        write_func_list_file
+        #write_func_list_file
 
         # Write function list file
         with open(out_fname, 'wt') as f:
@@ -314,15 +329,17 @@ class MatlabProcessor:
                 self.update_m_file(fname)
 
     # -----------------------------------------------------------------------
+    # @todo
     def write_mlx(self):
         log('write_mlx')
 
     # -----------------------------------------------------------------------
+    # @todo
     def write_unitTest(self):
         log('write_unitTest')
 
     # -----------------------------------------------------------------------
-    #
+    # Clean source code line and prepare for token splitting
     def get_code_line(self, line):
         line = line.replace('/t', '    ').strip()
         if line.startswith('%'):
@@ -336,7 +353,7 @@ class MatlabProcessor:
         return line
 
     # -----------------------------------------------------------------------
-    # Process single .m file
+    # Find 'classdef', return class name
     def find_classdef(self, lines):
         class_name = ''
         for line_num, line in enumerate(lines):
@@ -346,13 +363,14 @@ class MatlabProcessor:
                 if tokens[0] == 'classdef':
                     class_name = tokens[1]
                     log_line('found classdef', line_num, line)
+                    break
             except:
                 log('exception parsing line: ' + line)
 
         return class_name
 
     # -----------------------------------------------------------------------
-    # Get function name
+    # Get function name from line
     # function Result = funcWithRet(Obj, FileName)
     # function funcWithoutRet()
     # Result = classFuncInOtherFile
@@ -367,11 +385,19 @@ class MatlabProcessor:
             if '=' in tokens:
                 func_name = code_line.split('=')[1].strip().split('(')[0].strip()
 
-            # Function witohut return values
+            # Function without return values
             else:
                 func_name = code_line.split('function')[1].strip().split('(')[0].strip()
 
         return func_name
+
+    # -----------------------------------------------------------------------
+    # Remove non-package prefix from names
+    def unpack_name(self, name):
+        if name.startswith('#.'):
+            name = name[2:]
+        return name
+
     # -----------------------------------------------------------------------
     # Process single .m file
     def process_file(self, fname):
@@ -388,7 +414,8 @@ class MatlabProcessor:
         # Check if we are inside a package
         pkg_name = self.get_package_from_path(fname)
         if pkg_name == '':
-            pkg_name = '_'
+            pkg_name = '#'
+        self.cur_package = pkg_name
         pkg = self.get_package(pkg_name, self.cur_folder)
 
         # Check if we are inside class folder
@@ -411,6 +438,7 @@ class MatlabProcessor:
         # Look for classdef
         class_name = self.find_classdef(lines)
         if class_name != '':
+            class_name = pkg_name + '.' + class_name
             self.cur_class = class_name
             self.process_class_file(lines)
         else:
@@ -420,8 +448,7 @@ class MatlabProcessor:
                 self.process_func_file(lines)
 
     # -----------------------------------------------------------------------
-
-    # Process single .m file
+    # Process main class file (the file with 'classdef')
     def process_class_file(self, lines):
 
         cls = self.get_class(self.cur_class)
@@ -445,27 +472,27 @@ class MatlabProcessor:
                         methods_type = new_methods_type
                         #outf.write('\n% methods ' + methods_type + '\n%\n')
 
-
                 # Get function name
                 else:
                     func_name = self.get_function_name(code_line)
                     if func_name != '':
                         #log_line('found function', line_num, line)
 
-                    if func_name in cls.func_dict:
-                        log_line('Duplicate function definition:', line_num, line)
-                        continue
+                        if func_name in cls.func_dict:
+                            log_line('Duplicate function definition:', line_num, line)
+                            continue
 
-                    func = FunctionData()
-                    func.name = func_name
-                    func.comment = self.get_comment(lines, line_num)
-                    cls.func_dict[func_name] = func
+                        func = FunctionData()
+                        func.name = func_name
+                        func.comment = self.get_comment(lines, line_num)
+                        cls.func_dict[func_name] = func
             except:
                 log('exception parsing line: ' + line)
 
         # Update output only if not class folder
         if not self.is_class_folder and self.cur_class != '':
-            self.update_files(fname)
+            pass
+            #self.update_files(fname)
 
     # -----------------------------------------------------------------------
     # Process class function file (file in class folder which is not the main class file)
@@ -489,11 +516,14 @@ class MatlabProcessor:
                         func.comment = self.get_comment(lines, line_num)
                         cls.func_dict[func_name] = func
 
+                        # Stop after the first function, so internal (unexposed) functions will not be listed
+                        break
+
             except:
                 log_line('process_func_file exception', line_num, line)
 
     # -----------------------------------------------------------------------
-    # Process function file
+    # Process function file (non-class)
     def process_func_file(self, lines):
 
         # Get package data
@@ -513,6 +543,9 @@ class MatlabProcessor:
                         func.comment = self.get_comment(lines, line_num)
                         pkg.func_dict[func_name] = func
 
+                        # Stop after the first function, so internal (unexposed) functions will not be listed
+                        break
+
             except:
                 log_line('process_func_file exception', line_num, line)
 
@@ -530,6 +563,7 @@ class MatlabProcessor:
         # Prepare list of files to process
         files_to_process = []
         for fname in flist:
+            fname = fname.replace('\\', '/')
             if self.should_process_file((fname)):
                 files_to_process.append(fname)
 
@@ -570,10 +604,11 @@ class MatlabProcessor:
 
         # Update output only if class folder
         if self.is_class_folder:
-
-            self.update_files()
+            pass
+            #self.update_files()
 
     # -----------------------------------------------------------------------
+    # Check if should process folder
     def should_process_folder(self, path):
         path = path.replace('\\', '/')
         process = True
@@ -594,7 +629,7 @@ class MatlabProcessor:
         return process
 
     # -----------------------------------------------------------------------
-    #
+    # Check if should process file
     def should_process_file(self, fname):
         process = False
         if self.should_process_folder(os.path.split(fname)[0]):
@@ -617,6 +652,80 @@ class MatlabProcessor:
                 self.process_folder(folder)
 
     # -----------------------------------------------------------------------
+    # Process all collected data and update output files
+    def process_data(self):
+
+        #
+        out_path_txt = os.path.join(AUTOGEN_PATH, 'package_functions')
+        out_path_md = os.path.join(AUTOGEN_PATH, 'package_functions_md')
+        package_list = list(self.package_dict.keys())
+        package_list.sort()
+        self.write_file(self.package_list_filename, package_list)
+        for pkg_name in package_list:
+            pkg = self.get_package(pkg_name)
+            func_list = list(pkg.func_dict.keys())
+            func_list.sort()
+            if len(func_list) == 0:
+                continue
+
+            lines = []
+            lines.append('Package: ' + self.unpack_name(pkg_name))
+            lines.append('')
+            md_lines = []
+            md_lines.append('# Package: ' + self.unpack_name(pkg_name))
+            md_lines.append('\n')
+            for func_name in func_list:
+                func = pkg.func_dict[func_name]
+                line = func.name + ' - ' + func.comment
+                lines.append(line + '\n')
+                md_lines.append('### ' + self.unpack_name(pkg_name + '.' + func.name) + '\n')
+                md_lines.append(func.comment + '\n\n')
+
+            pkg_fname_txt = os.path.join(out_path_txt, pkg_name + '.txt')
+            self.write_file(pkg_fname_txt, lines)
+            pkg_fname_md = os.path.join(out_path_md, pkg_name + '.md')
+            self.write_file(pkg_fname_md, md_lines)
+
+        # Update class list files
+        out_path_txt = os.path.join(AUTOGEN_PATH, 'class_functions')
+        out_path_md = os.path.join(AUTOGEN_PATH, 'class_functions_md')
+        class_list = list(self.class_dict.keys())
+        class_list.sort()
+        lines = class_list
+        for i, line in enumerate(lines):
+            lines[i] = self.unpack_name(line)
+        self.write_file(self.class_list_filename, lines)
+        for cls_name in class_list:
+            cls = self.get_class(cls_name)
+            func_list = list(cls.func_dict.keys())
+            func_list.sort()
+            if len(func_list) == 0:
+                continue
+
+            lines = []
+            lines.append('Class: ' + self.unpack_name(cls_name))
+            lines.append('')
+            md_lines = []
+            md_lines.append('# Class: ' + self.unpack_name(cls_name))
+            md_lines.append('')
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                line = func.name + ' - ' + func.comment
+                lines.append(line + '\n')
+                md_lines.append('### ' + func.name + '\n')
+                md_lines.append(func.comment + '\n\n')
+
+            cls_fname_txt = os.path.join(out_path_txt, cls_name + '.txt')
+            self.write_file(cls_fname_txt, lines)
+            cls_fname_md = os.path.join(out_path_md, cls_name + '.md')
+            self.write_file(cls_fname_md, md_lines)
+
+            # Update class files
+            if UPDATE_M:
+                pass
+
+    # -----------------------------------------------------------------------
+    # Main function
     def process(self, path):
 
         self.package_list_filename = os.path.join(AUTOGEN_PATH, 'package_list.txt')
@@ -633,15 +742,11 @@ class MatlabProcessor:
         self.process_tree(path)
         # process_file('c:/temp/DbQuery.m')
 
-        # Update package list files
-        package_list = self.package_dict.keys()
-        package_list.sort()
-        self.write_file(self.package_list_filename, package_list)
+        self.process_data()
 
-        # Update class list files
-        class_list = self.class_dict.keys()
-        class_list.sort()
-        self.write_file(self.class_list_filename, class_list)
+        #
+        #if UPDATE_M:
+        #    self.update_cl
 
 # ---------------------------------------------------------------------------
 def main():
@@ -657,11 +762,11 @@ def main():
 
     #
     proc = MatlabProcessor()
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab/')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
 
 
