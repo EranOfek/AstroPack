@@ -1,0 +1,13 @@
+# Package: VO.name
+
+
+### VO.name.server_ned
+
+Resolve an astronomical object name into coordinates using NED. Package: VO.name Description: Resolve an astronomical object name into coordinates using NASA Extragalactic Database (NED).
+
+
+### VO.name.server_simbad
+
+Resolve an astronomical object name into coordinates using SIMBAD Package: VO.name Description: Resolve an astronomical object name into coordinates using SIMBAD database.
+
+

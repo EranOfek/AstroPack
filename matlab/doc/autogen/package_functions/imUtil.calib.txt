@@ -1,0 +1,8 @@
+Package: imUtil.calib
+
+fit_overscan - fit the overscan region in an image and subtract Package: +imUtil.calib Description: Given an image and an the coordinates of the over scan region in CCDSEC format (i.e., [Xmin Xmax Ymin Ymax]),
+
+pixel_flat_response - Fit the pixel response to light as a function of intensity in a cube of images Package: +imUtil.calib Description: Given a cube of flat field images which have different mean intensity, fit some linear models to each model intensity
+
+resid_vs_mag - Fit residuals vs. mag and flag good data (not outliers). Package: +imUtil.calib Description: Give vectors of residuals vs. magnitude, calculate the std or residuls vs. magnitude and flag good data (i.e., not
+

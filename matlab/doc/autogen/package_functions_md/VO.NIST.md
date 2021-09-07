@@ -1,0 +1,8 @@
+# Package: VO.NIST
+
+
+### VO.NIST.get_scattering_cross_section
+
+Get the attenuation and scattering cross-sections from the NIST website. Package: VO.NIST Description: Get the attenuation and scattering cross-sections from the NIST website. Calculate opacity and cross section for
+
+

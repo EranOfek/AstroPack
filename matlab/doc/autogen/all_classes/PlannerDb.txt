@@ -1,7 +1,0 @@
-% class: PlannerDb
-%
-% PlannerDb - 
-% delete - 
-% getPlannerDb (Static) - 
-% open - 
-% unitTest (Static) - 

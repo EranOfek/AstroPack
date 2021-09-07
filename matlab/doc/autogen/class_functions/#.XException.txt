@@ -1,0 +1,14 @@
+Class: XException
+
+XException - 
+
+assert - 
+
+error - 
+
+getReport - 
+
+meth - 
+
+unitTest - 
+

@@ -1,4 +1,0 @@
-% class: classarg
-%
-% classarg - Constructor
-% test - 

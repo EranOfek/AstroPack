@@ -1,0 +1,22 @@
+# Class: pipeline.PipelineStateMachine
+
+### PipelineStateMachine
+
+
+
+
+### init
+
+
+
+
+### manage
+
+
+
+
+### unitTest
+
+
+
+

@@ -1,0 +1,228 @@
+# Package: astro.spec
+
+
+### astro.spec.accretion_disk
+
+theoretical spectrum of a optically thick, thin accretion disk Package: AstroUtil.spec Description: Calculate the theoretical spectrum of a optically thick, thin accretion disk given the mass of
+
+
+### astro.spec.accretion_disk_mag_c
+
+Optically thick, thin accretion disk magnitudes Package: astro.spec Description: Calculate the magnitude, in a given filter, of a optically-thick thin accretion disk model.
+
+
+### astro.spec.band_spectrum
+
+Band psectrum Package: astro.spec Description: Calculate an un-normalized Band-spectrum (Band et al. 1993).
+
+
+### astro.spec.black_body
+
+Black body spectrum Package: astro.spec Description: Black body spectrum. OBSOLETE: Use AstSpec.blackbody instead.
+
+
+### astro.spec.blackbody_bolmag
+
+Bolometric magnitude of black body spectrum Package: astro.spec Description: Calculate the bolometric magnitude of a black body spectrum, given its temperature, radius and distance.
+
+
+### astro.spec.blackbody_flux
+
+Flux of blackbody in some wavelength range Package: AstroUtil.spec Description: Calculate the flux, in a given wavelength range, of a black-body, given its temperature, radius and distance.
+
+
+### astro.spec.blackbody_mag_c
+
+Blackbody magnitude Package: astro.spec Description: Calculate the magnitude, in a given filter, of a black-body, given its temperature, radius and distance.
+
+
+### astro.spec.brightness_temp
+
+Brightness temperature Package: AstroUtil.spec Description: Calculate the brightness temperature.
+
+
+### astro.spec.calibrate_spec_using_phot
+
+calibrate_spec_using_phot function                             AstroSpec Description: Given a spectrum and a light curve in one or more bands, applay synthetic photometry to the spectrum to calibrate
+
+
+### astro.spec.cat_fit_template2phot
+
+SHORT DESCRIPTION HERE Package: AstroUtil Description:
+
+
+### astro.spec.chi2_bb_photometry
+
+Given photometric observations calculate \chi^2 for BB with a given T. Package: astro.spec Description: Given photometric observations calculate \chi^2 for a black body with a given effective temperature and angular
+
+
+### astro.spec.color2temp
+
+Usage: temp = color2temp(color, filter1, filter2, filter_system='GAIA', mag_system='AB') Use the difference between two color magnitudes to estimate the temperature, using Eran's AstroUtil.spec.blackbody_mag_c.
+
+
+### astro.spec.conv_vargauss
+
+Convolution with a Gaussian with a wavelngth dependent width Package: AstroUtil Description: Convolution with a Gaussian with a wavelngth dependent width.
+
+
+### astro.spec.eq_sampling
+
+Resample two [X,Y] lists to have the same sampling (x). Package: astro.spec Description: Given two lists, each contains [X,Y], equalize the sampling frequency of the two lists by interpolating both lists to
+
+
+### astro.spec.eq_temp
+
+Eqilibrium temperature of a body illuminated by a black-body radiation. Package: astro.spec Description: Calculate the eqilibrium temperature of a body illuminated by a black-body radiation.
+
+
+### astro.spec.extinction
+
+Extinction in band from E_{B-V} Package: astro.spec Description: Given the E_{B-V} and the wavelength or filter name calculate the extinction in magnitude.
+
+
+### astro.spec.find_shift_scale_spec
+
+Find best scale and additive shift to match two spectra Package: AstroUtil.spec Description: Given a spectrum and a reference spectrum [Wavelength, Flux] find the shift (a constant added to the data) and/or a
+
+
+### astro.spec.fit_bb
+
+Fit a blackbody to spectrum Package: astro.spec Description: Fit a black body spectrum to a list of spectral measurments, spectrum or photometric measurments.
+
+
+### astro.spec.fit_bb_photometry
+
+SHORT DESCRIPTION HERE Package: astro Description:
+
+
+### astro.spec.fit_specline
+
+Fit and measure flux of spectral line Package: AstroUtil.spec Description: Fit multiple profiles and measure flux of spectral line
+
+
+### astro.spec.fit_template2phot
+
+Fit a set of spectral templates to photometric observations of a source. Package: astro Description: Fit a set of spectral templates to photometric observations of a single source. Return the spectral template that best
+
+
+### astro.spec.fun_gauss
+
+1-D Gaussian Package: astro.spec Description: Calculating a Gaussian function of the form: Y = Amplitude*exp( (X-W0)^2/(2*Sigma^2) )
+
+
+### astro.spec.fun_lorentzian
+
+1-D Lorentzian Package: astro.spec Description: Calculating a Lorentzian function of the form: Y = D.*Gamma./(pi.*( (X-X0).^2 + Gamma.^2 ))
+
+
+### astro.spec.fun_pcyg
+
+1-D simplistic P-Cygni line model Package: AstroUtil.spec Description: Calculating a P-Cygni profile composed of two Gaussians of the form:
+
+
+### astro.spec.fun_voigt
+
+1-D Voight profile Package: AstroUtil.spec Description: Calculate a Voigt line profile (convolution of a Gaussian and a Lorntzian).
+
+
+### astro.spec.hydrogen_lines
+
+The vacum wavelength of Hydrogen lines Package: AstroUtil.spec Description: Calculate the vacum wavelength of Hydrogen lines, given their shell numbers.
+
+
+### astro.spec.interp_mag
+
+Find best fit spectra from magnitudes and interpolate to other bands. Package: AtroUtil.spec Description: Given magnitude of an object find the best fit spectra (from a library of templates), and calculate the magnitude of
+
+
+### astro.spec.interpolant_mag
+
+Interpolant from a time series of photometric observations in one band Package: AstroUtil.spec Description: Given a time series of observations take at a single band return an interpolant that allows to calculate the magnitude
+
+
+### astro.spec.ionization_potential
+
+Return ionization potential for elemnt and ionization level. Package: astro.spec Description: Returm the ionization potential for a given element and ionization level.
+
+
+### astro.spec.is_rrlyr_sdss_colors
+
+Is RR Lyr star candidate based on SDSS colors Package: astro.spec Description: Select RR Lyr star candidates based on their SDSS magnitudes in the u, g, and r-bands.
+
+
+### astro.spec.kcorr
+
+Calculate k-correction. Package: AstroUtil.spec Description: Calculate k-correction. Given a spectrum two filters, and their redshifts calculate the k-correction of the first
+
+
+### astro.spec.lines_db
+
+Search spectral line by name or wavelength and add ionization potential Package: AstroUtil.spec Description: Search spectral line by name or wavelength and add ionization potential information.
+
+
+### astro.spec.luptitude
+
+luptitude function                                             AstroSpec Description: Convert flux to luptitudes (asinh magnitudes). OBSOLETE: Use convert.luptitude instead.
+
+
+### astro.spec.matchspec
+
+A GUI utility to inspect and match spectrum with templates. Package: AstroUtil.spec Description: A GUI utility to inspect and match spectrum with templates.
+
+
+### astro.spec.scale_spectrum
+
+Scale spectrum by shift and stretch. Package: AstroUtil.spec Description: Scale spectrum by shift and stretch or a wavelength dependent factor (See also: find_shift_scale_spec.m).
+
+
+### astro.spec.shift2vel
+
+Calculate the velocity from the red/blue shift (z). Package: AstroUtil.spec Description: Calculate the velocity from the red/blue shift (z).
+
+
+### astro.spec.shift_spec
+
+Transform a spectrum from the observed frame to the rest frame. Package: astro.spec Description: Transform a spectrum from the observed frame to the rest frame. If the redshift is negative then transform from the rest
+
+
+### astro.spec.sky_ebv
+
+Get Galactic extinction for a list of coordinates Package: AstroUtil.spec Schlegel, Finkbeiner & Davis (1998) extinction maps. Use AstroUtil.spec.extinction to calculate the extinction.
+
+
+### astro.spec.spec_photon_counts
+
+Spectrum to photon counts. OBSOLETE: Use telescope.sn.spec2photons. Package: astro.spec Description: Given a spectrum and the effective area of an instrument as a function of wavelength, calculate the the total recieved
+
+
+### astro.spec.synphot
+
+Synthetic photometry of spectrum Package: astro.spec Description: Calculate synthetic photometry of a spectrum OBSOLETE: use AstroUtil.spec.synthetic_phot.m
+
+
+### astro.spec.synthetic_phot
+
+Synthetic photometry of spectra Package: astro.spec Description: Synthetic photometry of spectra. Can calculate synthetic photometry in a single band to
+
+
+### astro.spec.vel2shift
+
+Calculate the red/blue shift (z) from velocity. Package: AstroUtil.spec Description: Calculate the red/blue shift (z) from velocity.
+
+
+### astro.spec.wein
+
+Wein law Package: AstroUtil.spec Description: Apply Wein law - return the peak wavelength of a black body at a given temperature.
+
+
+### astro.spec.xray_abs
+
+Bound-free absorption from neutral hydrogen column density. Package: AstroUtil.spec Description: Given the neutral Hydrogen column density, calculate the bound-free attenuation of X-rays as a function of wavelength
+
+
+### astro.spec.zodiac_bck
+
+Zodiac background light (OBSOLETE). Package: astro.spec Description: Calculate the zodiac magnitude and flux in a given filter and sky position. The zodiac spectrum and position
+
+

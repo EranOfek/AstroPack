@@ -1,0 +1,23 @@
+# Package: imProc.instCharc
+
+
+### imProc.instCharc.gainFromFlat
+
+Estimate the gain from flat image/s in native units. Estimated by dividing the mean by the variance.
+
+
+### imProc.instCharc.linearity
+
+Estimate the non-linearity of a detector using the imUtil.calib.pixel_flat_response function
+
+
+### imProc.instCharc.readNoiseFromBias
+
+Estimate the read noise from bias mage/s in native units. The read noise is estimated by calculating the rms in small blocks (sub images) of a bias image, or by calculating the rms per pixel (in multiple images).
+
+
+### imProc.instCharc.unitTest
+
+unitTest for imProc.instCharc Example: Result = imProc.instCharc.unitTest
+
+

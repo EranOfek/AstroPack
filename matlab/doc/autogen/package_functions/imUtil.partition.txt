@@ -1,0 +1,8 @@
+Package: imUtil.partition
+
+image_partitioning - Partition a 2D image into sub images. OBSOLETE: use imUtil.image.partition_subimages instead Package: ImUtil Description: Partition a 2D image into sub images.
+
+interp_sparse2full - Interpolate sparse image to a full image OBSOLETE: use imUtil.image.sparse2full instead. Package: imUtil.partition Description:
+
+subimage_boundries - Define boundries (ccdsec) for image subsections. Package: imUtil.partition Description: Given image size, block size or number of blocks divide define the bounderies of sub blocks.
+

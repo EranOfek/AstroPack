@@ -1,0 +1,12 @@
+Class: ObjException
+
+ObjException - 
+
+assert - 
+
+error - 
+
+getReport - 
+
+meth - 
+

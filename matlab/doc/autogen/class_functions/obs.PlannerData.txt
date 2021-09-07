@@ -1,0 +1,14 @@
+Class: obs.PlannerData
+
+Equal - Compare two records, return true if equal
+
+PlannerData - 
+
+delete - 
+
+loadFile - Load specified file to property
+
+loadStruct - Load all struct fields
+
+unitTest - 
+

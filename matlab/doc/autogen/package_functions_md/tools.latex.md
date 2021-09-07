@@ -1,0 +1,8 @@
+# Package: tools.latex
+
+
+### tools.latex.latex_table
+
+Create a latex table from a data given in a cell array. Package: Util.LaTex Description: Create a latex table from a data given in a cell array.
+
+

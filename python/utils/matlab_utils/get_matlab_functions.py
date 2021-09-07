@@ -40,58 +40,120 @@ def log_line(msg, line_num, line):
     log(msg + ' (line ' + str(line_num) + '): ' + line)
 
 # ===========================================================================
-
+# Data for each package
 class PackageData:
 
     def __init__(self):
-        self.package_name = ''
-        self.class_list = {}
-        self.func_list = {}
+        self.name = ''
+        self.path = ''
+        self.class_dict = {}        # Currently unused
+        self.func_dict = {}
+        self.comment = ''
 
 # ===========================================================================
-
+# Data for each class
 class ClassData:
 
     def __init__(self):
-        self.class_name = ''
-        self.func_list = {}
-        self.prop_list = []
+        self.name = ''
+        self.path = ''
+        self.filename = ''
+        self.func_dict = {}
+        self.prop_dict = {}         # Currently unused
+        self.comment = ''
+        self.unitTest_lines = []
 
 # ===========================================================================
-
+# Data for each function (in package or class)
 class FunctionData:
 
     def __init__(self):
-        self.function_name = ''
+        self.name = ''
+        self.filename = ''
         self.type = ''              # Static
-        self.file_name = ''         # Implementation file name
         self.params = ''
+        self.comment = ''
 
 # ===========================================================================
+# Data for each class property (currently unused)
+class PropData:
 
+    def __init__(self):
+        self.name = ''
+        self.type = ''              # Datatype
+        self.comment = ''
 
-# ---------------------------------------------------------------------------
+# ===========================================================================
+#                           MATLAB Source Code Processor
+# ===========================================================================
+
 class MatlabProcessor:
 
     def __init__(self):
         self.out_path = os.path.join(AUTOGEN_PATH, 'all_classes')
         self.cur_fname = ''
         self.cur_folder = ''
-        self.cur_class = ''
         self.cur_package = ''
-        self.cur_package_class = ''
-        self.package_list = []
-        self.class_list = []
-        self.func_list = []
-        self.pkg_func_list = []
-        self.func_type = {}
+        self.cur_class = ''
+        self.package_dict = {}
+        self.class_dict = {}
         self.is_class_folder = False
         self.is_class_file = False
-        self.class_fname = ''
-        self.unitTest_lines = []
-        self.mex_lines = []
+        self.package_list_filename = ''
+        self.class_list_filename = ''
+        #self.mlx_lines = []
+
 
     # -----------------------------------------------------------------------
+    # Read lines from file
+    def read_file(self, fname, fail_non_exist = False):
+        lines = []
+        if os.path.exists(fname):
+            with open(fname) as f:
+                lines = f.read().splitlines()
+        elif fail_non_exist:
+            log('File not found: ' + fname)
+            raise Exception('File not found: ' + fname)
+
+        return lines
+
+
+    # Write lines
+    def write_file(self, fname, lines):
+        with open(fname, 'wt') as f:
+            for line in lines:
+                f.write(line + '\n')
+
+    # -----------------------------------------------------------------------
+    # Get package from dict, add if not exist
+    def get_package(self, pkg_name, path = ''):
+        if pkg_name in self.package_dict:
+            pkg = self.package_dict[pkg_name]
+        else:
+            pkg = PackageData()
+            pkg.name = pkg_name
+            pkg.path = path
+            self.package_dict[pkg_name] = pkg
+            log('adding package: {} - folder: {}'.format(pkg_name, path))
+
+        return pkg
+
+    # -----------------------------------------------------------------------
+    # Get class from dict, add if not exist
+    def get_class(self, class_name, path = ''):
+        if class_name in self.class_dict:
+            cls = self.class_dict[class_name]
+        else:
+            cls = ClassData()
+            cls.name = class_name
+            cls.path = path
+            self.class_dict[class_name] = cls
+            log('adding class: {} - folder: {}'.format(class_name, path))
+
+        return cls
+
+    # -----------------------------------------------------------------------
+    # Get package name from path
     def get_package_from_path(self, path):
         path = path.replace('\\', '/')
         names = path.split('/')
@@ -105,7 +167,18 @@ class MatlabProcessor:
         return pkg_name
 
     # -----------------------------------------------------------------------
-    # Extract H1 comment from comment lines below the function line
+    # Get class name from path
+    def get_class_from_path(self, path):
+        if path[-1] == '/':
+            path = path[0:-1]
+        last = os.path.split(path)[1]
+        if last.startswith('@'):
+            return last[1:]
+        else:
+            return ''
+
+    # -----------------------------------------------------------------------
+    # Extract H1 comment from comment lines below the function/class line
     # function Result = openConn(Obj)
     #    % Open connection, throw exception on failure
     def get_comment(self, lines, idx):
@@ -113,7 +186,10 @@ class MatlabProcessor:
 
         # Look for comment line below the function line
         count = 1
-        while lines[idx+count].strip().startswith('%'):
+        while idx + count < len(lines):
+            if not lines[idx+count].strip().startswith('%'):
+                break
+
             line = lines[idx+count].strip().replace('\t', ' ')
             line = line.replace('%', '').strip()
             line = line.replace('--', '').strip()
@@ -127,10 +203,11 @@ class MatlabProcessor:
             if len(words) > 0 and words[0] == 'Input':
                 break
 
+            # Append text to comment
             comment_line = ' '.join(words)
             comment = (comment + ' ' + comment_line).strip()
 
-            # Stop if comment is too long
+            # Stop if comment is too long, by number of lines, or by text length
             count = count + 1
             if count >= 5 or len(comment) > 300:
                 break
@@ -138,12 +215,8 @@ class MatlabProcessor:
         return comment
 
     # -----------------------------------------------------------------------
-    def update_m_file(self, fname):
-
-        # Read source file
-        with open(fname) as f:
-            lines = f.read().splitlines()
-
+    # Remove current info block and get index to line to insert
+    def new_info_block(self, lines):
         start_idx = lines.index('% #functions') if '% #functions' in lines else -1
         end_idx = lines.index('% #/functions', start_idx) if '% #/functions' in lines else -1
 
@@ -158,16 +231,11 @@ class MatlabProcessor:
                     start_idx = i+1
                     break
 
-        self.func_list.sort()
+        return lines, start_idx
 
-        # Insert functions list at to of file
-        #lines.insert(start_idx, '% #AutoGen')
-        lines.insert(start_idx+0, '% #functions')  # (auto-generated list python script)
-        for i, func in enumerate(self.func_list):
-            lines.insert(start_idx+i+1, func)
-
-        lines.insert(start_idx + 1 + len(self.func_list), '% #/functions')
-        lines.insert(start_idx + 2 + len(self.func_list), '%')
+    # -----------------------------------------------------------------------
+    # Write source code files
+    def write_m_file(self, fname, lines):
 
         # Write output file
         if UPDATE_M_OUT_FILE:
@@ -179,16 +247,56 @@ class MatlabProcessor:
                 os.remove(bkp_fname)
             os.rename(fname, bkp_fname)
 
-
+        log('write_m_file: '+ out_fname)
         with open(out_fname, 'wt') as f:
             for line in lines:
                 if TRIM_TRAILING_SPACES:
                     line = line.rstrip()
                 f.write(line + '\n')
 
+    # -----------------------------------------------------------------------
+    # Update source code file with info block
+    # @todo
+    def update_class_m_file(self, fname):
+
+        # Read source file
+        lines = self.read_file(fname)
+        lines, start_idx = self.new_info_block(lines)
+
+        self.func_list.sort()
+
+        # Insert functions list at to of file
+        #lines.insert(start_idx, '% #AutoGen')
+        lines.insert(start_idx+0, '% #functions')  # (auto-generated list python script)
+        for i, func in enumerate(self.func_list):
+            lines.insert(start_idx+i+1, func)
+
+        lines.insert(start_idx + 1 + len(self.func_list), '% #/functions')
+        lines.insert(start_idx + 2 + len(self.func_list), '%')
+
+        self.write_m_file(fname, lines)
+
         log('update_m_file done: ')
 
     # -----------------------------------------------------------------------
+    # @todo UNUSED
+    def write_func_list_file(self, fname, header_lines, func_dict):
+
+        # Sort the function list
+        func_list = list(func_dict.keys())
+        func_list.sort()
+
+        # Write function list file
+        with open(fname, 'wt') as f:
+            for line in header_lines:
+                f.write(line + '\n')
+
+            for func_name in func_list:
+                func = func_dict[func_name]
+                f.write(func.name + '\n')
+
+    # -----------------------------------------------------------------------
+    # @todo
     def update_files(self, fname):
 
         # Create output file
@@ -200,17 +308,13 @@ class MatlabProcessor:
 
         out_func_list = self.func_list
 
-        # Todo
-        #if len(self.func_list) > 0:
-        #    out_func_list = self.func_list
-        #else:
-        #    out_func_list = self.pkg_func_list
-
         if self.is_class_folder:
             out_fname = os.path.join(self.out_path, self.cur_package_class + '.txt')
         else:
             pre, ext = os.path.splitext(fn)
             out_fname = os.path.join(self.out_path, pre + '.txt')
+
+        #write_func_list_file
 
         # Write function list file
         with open(out_fname, 'wt') as f:
@@ -225,127 +329,140 @@ class MatlabProcessor:
                 self.update_m_file(fname)
 
     # -----------------------------------------------------------------------
+    # @todo
     def write_mlx(self):
         log('write_mlx')
 
     # -----------------------------------------------------------------------
+    # @todo
     def write_unitTest(self):
         log('write_unitTest')
+
+    # -----------------------------------------------------------------------
+    # Clean source code line and prepare for token splitting
+    def get_code_line(self, line):
+        line = line.replace('/t', '    ').strip()
+        if line.startswith('%'):
+            line = ''
+
+        # Add spaces for easy tokens split
+        line = line.replace('=', ' = ')
+        line = line.replace('(', ' ( ')
+        line = line.replace(')', ' ) ')
+
+        return line
+
+    # -----------------------------------------------------------------------
+    # Find 'classdef', return class name
+    def find_classdef(self, lines):
+        class_name = ''
+        for line_num, line in enumerate(lines):
+            try:
+                code_line = self.get_code_line(line)
+                tokens = code_line.split(' ')
+                if tokens[0] == 'classdef':
+                    class_name = tokens[1]
+                    log_line('found classdef', line_num, line)
+                    break
+            except:
+                log('exception parsing line: ' + line)
+
+        return class_name
+
+    # -----------------------------------------------------------------------
+    # Get function name from line
+    # function Result = funcWithRet(Obj, FileName)
+    # function funcWithoutRet()
+    # Result = classFuncInOtherFile
+    def get_function_name(self, code_line):
+        func_name = ''
+        tokens = code_line.split(' ')
+
+        # Found function keyword
+        if len(tokens) > 0 and tokens[0] == 'function':
+
+            # Function with return value(s)
+            if '=' in tokens:
+                func_name = code_line.split('=')[1].strip().split('(')[0].strip()
+
+            # Function without return values
+            else:
+                func_name = code_line.split('function')[1].strip().split('(')[0].strip()
+
+        return func_name
+
+    # -----------------------------------------------------------------------
+    # Remove non-package prefix from names
+    def unpack_name(self, name):
+        if name.startswith('#.'):
+            name = name[2:]
+        return name
 
     # -----------------------------------------------------------------------
     # Process single .m file
     def process_file(self, fname):
 
+        # Debug only
         if 'LogLevel' in fname:
             log('LogLevel')
 
         fname = fname.replace('\\', '/')
         self.cur_fname = fname
         self.cur_folder, self.cur_file = os.path.split(fname)
-        cur_last = os.path.split(self.cur_folder)[1]
-        #cur_f = os.path.splitext(self.cur_file)
+        #fn, ext = os.path.splitext(self.cur_file)
 
-        # Folder name is class
-        self.is_class_file = False
-        self.is_class_folder = False
-        if cur_last.startswith('@'):
+        # Check if we are inside a package
+        pkg_name = self.get_package_from_path(fname)
+        if pkg_name == '':
+            pkg_name = '#'
+        self.cur_package = pkg_name
+        pkg = self.get_package(pkg_name, self.cur_folder)
 
+        # Check if we are inside class folder
+        class_name = self.get_class_from_path(self.cur_folder)
+
+        if class_name != '':
             self.is_class_folder = True
-            class_name = cur_last[1:]
-
             # Set main class file name
             self.class_fname = os.path.join(self.cur_folder, class_name + '.m')
-
-            if class_name != self.cur_class:
-                cur_class = class_name
-                self.func_list = []
-                self.func_type = {}
         else:
-            self.cur_class = ''
-            self.func_list = []
-            self.func_type = {}
+            self.is_class_folder = False
 
-        # Check if we have packages
-        pkg = self.get_package_from_path(self.cur_folder)
-        if pkg != self.cur_package:
-            self.cur_package = pkg
+        is_class_file = self.is_class_folder
 
-        # Update package list
-        if pkg != '' and not pkg in self.package_list:
-            self.package_list.append(pkg)
-
-        # Read source file
-        with open(fname) as f:
-            lines = f.read().splitlines()
-
-        # Add empty lines at beginning and end to allow +/-1 indexing without exceptions
+        # Read source file, add empty lines at beginning and end to allow +/-1 indexing without exceptions
+        lines = self.read_file(fname)
         lines.insert(0, '')
         lines.append('')
 
-        # -------------------------------------------------------------------
         # Look for classdef
-        self.is_class_file = False
-        for line_num, line in enumerate(lines):
-            try:
-                # Skip comment lines
-                if line.strip().startswith('%'):
-                    continue
+        class_name = self.find_classdef(lines)
+        if class_name != '':
+            class_name = pkg_name + '.' + class_name
+            self.cur_class = class_name
+            self.process_class_file(lines)
+        else:
+            if self.is_class_folder:
+                self.process_class_func_file(lines)
+            else:
+                self.process_func_file(lines)
 
-                # Skip empty lines
-                line = line.replace('/t', '    ').strip()
-                if line == '':
-                    continue
+    # -----------------------------------------------------------------------
+    # Process main class file (the file with 'classdef')
+    def process_class_file(self, lines):
 
-                # Add spaces for easy split
-                line = line.replace('=', ' = ')
-                line = line.replace('(', ' ( ')
-                line = line.replace(')', ' ) ')
-                tokens = line.split(' ')
+        cls = self.get_class(self.cur_class)
 
-                # classdef
-                if tokens[0] == 'classdef':
-                    self.is_class_file = True
-                    self.cur_class = tokens[1]
-                    log_line('found classdef', line_num, line)
-
-                    self.func_list = []
-
-                    # package.class
-                    if self.cur_package != '':
-                        self.cur_package_class = self.cur_package + '.' + self.cur_class
-                    else:
-                        self.cur_package_class = self.cur_class
-
-                    # Update class list
-                    if not self.cur_package_class in self.class_list:
-                        self.class_list.append(self.cur_package_class)
-
-            except:
-                log('exception parsing line: ' + line)
-
-        # -------------------------------------------------------------------
-
-        # Process .m source file line by line
         methods_type = ''
         for line_num, line in enumerate(lines):
             try:
-                # Skip comment lines
-                if line.strip().startswith('%'):
+                code_line = self.get_code_line(line)
+                tokens = code_line.split(' ')
+                if len(tokens) == 0:
                     continue
-
-                # Skip empty lines
-                line = line.replace('/t', '    ').strip()
-                if line == '':
-                    continue
-
-                # Add spaces for easy split
-                line = line.replace('=', ' = ')
-                line = line.replace('(', ' ( ')
-                line = line.replace(')', ' ) ')
-                tokens = line.split(' ')
 
                 # methods
-                if 'methods' in tokens:
+                if tokens[0] == 'methods':
                     new_methods_type = ''
                     if 'Static' in tokens:
                         new_methods_type = 'Static'
@@ -355,162 +472,281 @@ class MatlabProcessor:
                         methods_type = new_methods_type
                         #outf.write('\n% methods ' + methods_type + '\n%\n')
 
-
                 # Get function name
-                if 'function' in tokens:
-
-                    # Get name
-                    if '=' in line:
-                        func_name = line.split('=')[1].strip().split('(')[0].strip()
-                    else:
-                        func_name = line.split('function')[1].strip().split('(')[0].strip()
-
+                else:
+                    func_name = self.get_function_name(code_line)
                     if func_name != '':
-
                         #log_line('found function', line_num, line)
 
-                        # Get comment
-                        comment = self.get_comment(lines, line_num)
+                        if func_name in cls.func_dict:
+                            log_line('Duplicate function definition:', line_num, line)
+                            continue
 
-                        # Prepare output line
-                        outline = '% ' + func_name
-                        if methods_type != '':
-                            outline = outline + ' (' + methods_type + ')'
-
-                        outline = outline + ' - ' + comment
-                        if self.cur_class != '' or self.is_class_folder:
-                            self.func_list.append(outline)
-                        else:
-                            self.pkg_func_list.append(outline)
-
+                        func = FunctionData()
+                        func.name = func_name
+                        func.comment = self.get_comment(lines, line_num)
+                        cls.func_dict[func_name] = func
             except:
                 log('exception parsing line: ' + line)
 
         # Update output only if not class folder
         if not self.is_class_folder and self.cur_class != '':
-            self.update_files(fname)
+            pass
+            #self.update_files(fname)
+
+    # -----------------------------------------------------------------------
+    # Process class function file (file in class folder which is not the main class file)
+    def process_class_func_file(self, lines):
+
+        # Get class data
+        cls = self.get_class(self.cur_class)
+
+        #
+        for line_num, line in enumerate(lines):
+            try:
+                code_line = self.get_code_line(line)
+                func_name = self.get_function_name(code_line)
+                if func_name != '':
+                    # log_line('found function', line_num, line)
+                    if func_name in cls.func_dict:
+                        log_line('Already defined:', line_num, line)
+                    else:
+                        func = FunctionData()
+                        func.name = func_name
+                        func.comment = self.get_comment(lines, line_num)
+                        cls.func_dict[func_name] = func
+
+                        # Stop after the first function, so internal (unexposed) functions will not be listed
+                        break
+
+            except:
+                log_line('process_func_file exception', line_num, line)
+
+    # -----------------------------------------------------------------------
+    # Process function file (non-class)
+    def process_func_file(self, lines):
+
+        # Get package data
+        pkg = self.get_package(self.cur_package)
+
+        for line_num, line in enumerate(lines):
+            try:
+                code_line = self.get_code_line(line)
+                func_name = self.get_function_name(code_line)
+                if func_name != '':
+                    # log_line('found function', line_num, line)
+                    if func_name in pkg.func_dict:
+                        log_line('Duplicate function definition:', line_num, line)
+                    else:
+                        func = FunctionData()
+                        func.name = func_name
+                        func.comment = self.get_comment(lines, line_num)
+                        pkg.func_dict[func_name] = func
+
+                        # Stop after the first function, so internal (unexposed) functions will not be listed
+                        break
+
+            except:
+                log_line('process_func_file exception', line_num, line)
 
     # -----------------------------------------------------------------------
     # Process folder files (without recursion)
     def process_folder(self, path):
-        path = path.replace('\\', '/')
-        log('process_folder: ' + path)
+        if not self.should_process_folder((path)):
+            return
 
-        self.is_class_folder = False
+        # Get files list without recursion
+        path = path.replace('\\', '/')
         flist = glob.glob(os.path.join(path, '*.*'), recursive=False)
+        log('process_folder: {}, files found: {}'.format(path, len(flist)))
+
+        # Prepare list of files to process
         files_to_process = []
         for fname in flist:
             fname = fname.replace('\\', '/')
-            fnlower = fname.lower()
-
-            # Skip files in doc/autogen folder
-            if 'doc/autogen' in fnlower:
-                continue
-
-            #
-            if fnlower.endswith('.m') and not fnlower.endswith('$out.m') and not fnlower.endswith('bkp.m'):
+            if self.should_process_file((fname)):
                 files_to_process.append(fname)
 
         # Found files
-        if len(files_to_process) > 0:
+        if len(files_to_process) == 0:
+            return
 
-            # Check if this is a class folder
-            self.cur_folder = path
-            cur_last = os.path.split(self.cur_folder)[1]
-            self.is_class_folder = False
-            if cur_last.startswith('@'):
-                self.is_class_folder = True
-                class_name = cur_last[1:]
+        # Check if this is a class folder
+        self.cur_folder = path
+        class_name = self.get_class_from_path(path)
+        class_fname = ''
+        self.is_class_folder = class_name != ''
+        if self.is_class_folder:
 
-                # Set main class file name
-                self.class_fname = os.path.join(self.cur_folder, class_name + '.m').replace('\\', '/')
+            # Set main class file name
+            class_fname = os.path.join(self.cur_folder, class_name + '.m').replace('\\', '/')
 
-                if class_name != self.cur_class:
-                    cur_class = class_name
-                    self.func_list = []
-                    self.func_type = {}
+            # Move class_fname to top of list
+            if os.path.exists(class_fname):
+                for idx, fname in enumerate(files_to_process):
+                    _, fn = os.path.split(fname)
+                    if fn.lower() == class_name.lower() + '.m':
+                        files_to_process.pop(idx)
+                        files_to_process.insert(0, fname)
+                        break
+            else:
+                log('Missing class file: '  + class_fname)
 
-                if os.path.exists(self.class_fname):
-                    for idx, fname in enumerate(files_to_process):
-                        _, fn = os.path.split(fname)
-                        if fn.lower() == class_name.lower() + '.m':
-                            files_to_process.pop(idx)
-                            files_to_process.insert(0, fname)
-                            break
-                else:
-                    log('Missing class file: '  + self.class_fname)
 
-            # Process files
-            for fname in files_to_process:
-                try:
-                    log('Processing file: ' + fname)
-                    self.process_file(fname)
-                except:
-                    log('Exception processing file: ' + fname)
+        # Process files
+        for fname in files_to_process:
+            try:
+                log('Processing file: ' + fname)
+                self.process_file(fname)
+            except:
+                log('Exception processing file: ' + fname)
 
 
         # Update output only if class folder
         if self.is_class_folder:
-            self.update_files('')
+            pass
+            #self.update_files()
 
+    # -----------------------------------------------------------------------
+    # Check if should process folder
+    def should_process_folder(self, path):
+        path = path.replace('\\', '/')
+        process = True
+
+        # Skip files in doc/autogen folder
+        if 'doc/autogen' in path.lower():
+            process = False
+
+        # Skip unused/obsolete/temp files
+        skip = ['unused', 'obsolete', 'old', 'temp', 'bkp', 'backup']
+        tokens = path.lower().split('/')
+        for tok in tokens:
+            tok = tok.replace('_', '')
+            if tok in skip:
+                process = False
+                break
+
+        return process
+
+    # -----------------------------------------------------------------------
+    # Check if should process file
+    def should_process_file(self, fname):
+        process = False
+        if self.should_process_folder(os.path.split(fname)[0]):
+            fnlower = fname.lower()
+            if fnlower.endswith('.m') and not fnlower.endswith('$out.m') and not fnlower.endswith('bkp.m'):
+                process = True
+
+        return process
     # -----------------------------------------------------------------------
     # Process folder with recursion
     def process_tree(self, path):
+
+        # Get list of folders under path
         path = path.replace('\\', '/')
         folders = glob.glob(os.path.join(path, '**/'), recursive=True)
-        #folders.insert(0, path)
+        log('process_tree: {}, folders found: {}'.format(path, len(folders)))
+
         for folder in folders:
-            folder = folder.replace('\\', '/')
-
-            # Skip files in doc/autogen folder
-            if 'doc/autogen' in folder.lower():
-                continue
-
-            tokens = folder.lower().split('/')
-            skip_folder = False
-            for tok in tokens:
-                tok = tok.replace('_', '')
-                if 'unused' in tok or 'obsolete' in tok:
-                    skip_folder = True
-                    break
-
-            if not skip_folder:
+            if self.should_process_folder(path):
                 self.process_folder(folder)
 
     # -----------------------------------------------------------------------
+    # Process all collected data and update output files
+    def process_data(self):
+
+        #
+        out_path_txt = os.path.join(AUTOGEN_PATH, 'package_functions')
+        out_path_md = os.path.join(AUTOGEN_PATH, 'package_functions_md')
+        package_list = list(self.package_dict.keys())
+        package_list.sort()
+        self.write_file(self.package_list_filename, package_list)
+        for pkg_name in package_list:
+            pkg = self.get_package(pkg_name)
+            func_list = list(pkg.func_dict.keys())
+            func_list.sort()
+            if len(func_list) == 0:
+                continue
+
+            lines = []
+            lines.append('Package: ' + self.unpack_name(pkg_name))
+            lines.append('')
+            md_lines = []
+            md_lines.append('# Package: ' + self.unpack_name(pkg_name))
+            md_lines.append('\n')
+            for func_name in func_list:
+                func = pkg.func_dict[func_name]
+                line = func.name + ' - ' + func.comment
+                lines.append(line + '\n')
+                md_lines.append('### ' + self.unpack_name(pkg_name + '.' + func.name) + '\n')
+                md_lines.append(func.comment + '\n\n')
+
+            pkg_fname_txt = os.path.join(out_path_txt, pkg_name + '.txt')
+            self.write_file(pkg_fname_txt, lines)
+            pkg_fname_md = os.path.join(out_path_md, pkg_name + '.md')
+            self.write_file(pkg_fname_md, md_lines)
+
+        # Update class list files
+        out_path_txt = os.path.join(AUTOGEN_PATH, 'class_functions')
+        out_path_md = os.path.join(AUTOGEN_PATH, 'class_functions_md')
+        class_list = list(self.class_dict.keys())
+        class_list.sort()
+        lines = class_list
+        for i, line in enumerate(lines):
+            lines[i] = self.unpack_name(line)
+        self.write_file(self.class_list_filename, lines)
+        for cls_name in class_list:
+            cls = self.get_class(cls_name)
+            func_list = list(cls.func_dict.keys())
+            func_list.sort()
+            if len(func_list) == 0:
+                continue
+
+            lines = []
+            lines.append('Class: ' + self.unpack_name(cls_name))
+            lines.append('')
+            md_lines = []
+            md_lines.append('# Class: ' + self.unpack_name(cls_name))
+            md_lines.append('')
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                line = func.name + ' - ' + func.comment
+                lines.append(line + '\n')
+                md_lines.append('### ' + func.name + '\n')
+                md_lines.append(func.comment + '\n\n')
+
+            cls_fname_txt = os.path.join(out_path_txt, cls_name + '.txt')
+            self.write_file(cls_fname_txt, lines)
+            cls_fname_md = os.path.join(out_path_md, cls_name + '.md')
+            self.write_file(cls_fname_md, md_lines)
+
+            # Update class files
+            if UPDATE_M:
+                pass
+
+    # -----------------------------------------------------------------------
+    # Main function
     def process(self, path):
 
-        package_list_filename = os.path.join(AUTOGEN_PATH, 'package_list.txt')
-        class_list_filename = os.path.join(AUTOGEN_PATH, 'class_list.txt')
+        self.package_list_filename = os.path.join(AUTOGEN_PATH, 'package_list.txt')
+        self.class_list_filename = os.path.join(AUTOGEN_PATH, 'class_list.txt')
 
-        # Load current package _list
-        if os.path.exists(package_list_filename):
-            with open(package_list_filename) as f:
-                self.package_list = f.read().splitlines()
-
-        # Load current class_list
-        if os.path.exists(class_list_filename):
-            with open(class_list_filename) as f:
-                self.class_list = f.read().splitlines()
+        # Load current package and class list
+        package_list = self.read_file(self.package_list_filename)
+        for pkg in package_list:
+            self.get_package(pkg)
+        for cls in package_list:
+            self.get_class(cls)
 
         # Process folders tree
         self.process_tree(path)
         # process_file('c:/temp/DbQuery.m')
 
-        # Update package list files
-        self.package_list.sort()
-        with open(package_list_filename, 'wt') as f:
-            for line in self.package_list:
-                f.write(line)
-                f.write('\n')
+        self.process_data()
 
-        # Update class list files
-        self.class_list.sort()
-        with open(class_list_filename, 'wt') as f:
-            for line in self.class_list:
-                f.write(line)
-                f.write('\n')
-
+        #
+        #if UPDATE_M:
+        #    self.update_cl
 
 # ---------------------------------------------------------------------------
 def main():

@@ -1,4 +1,0 @@
-% class: UnitTest
-%
-% unitTest (Static) - 
-% unit_Test - unitTest for the Dark class Example: Result = imProc.dark.unitTest

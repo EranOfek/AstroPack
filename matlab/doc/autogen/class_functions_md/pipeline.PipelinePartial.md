@@ -1,0 +1,17 @@
+# Class: pipeline.PipelinePartial
+
+### PipelinePartial
+
+
+
+
+### run
+
+
+
+
+### unitTest
+
+
+
+

@@ -1,0 +1,13 @@
+# Package: celestial.pm
+
+
+### celestial.pm.fitMultiProperMotion
+
+Simultanoulsy (fast) fit proper motion and stationary model to observations The fit is done in RA/Dec space, and no cos(delta) is applied Perform hypothesis testing between the proper motion and stationary models.
+
+
+### celestial.pm.searchCatForKnownPM
+
+Given a catalog of sources positions and times, and a specific position+proper motion, look for sources in the catalog that are found in the proper motion trajectory.
+
+

@@ -1,0 +1,58 @@
+Class: ImageComponent
+
+ImageComponent - ImageComponent constructor
+
+background - Estimate the background and variance of an ImageComponent
+
+cast - Cast the image data in ImageComponent (transform to a new type)
+
+coadd - coadd images in an ImageComponent object including pre/post normalization and variance
+
+crop - Crop an ImageComponent object. Either apply multiple trims to a single image, or a single trime to multiple images, or multiple trims to multiple images (one to one). Update also the CCDSEC propery.
+
+cutouts - Break a single image to a cube of cutouts around given positions including optional sub pixel shift.
+
+funBinary - Apply a binary operator to ImageComponent objects CCDSEC is updated according to CCDSEC1.
+
+funCutouts - Apply function (that returns a scalar) on image cutouts
+
+funStack - Simple stack (coadd) images in an ImageComponent object without pre/post normalization
+
+funUnary - funUnary on ImageComponent Update CCDSEC accordingly.
+
+funUnaryScalar - funUnary on ImageComponent returning an array of scalars (one scalar per image)
+
+get.Cols - 
+
+get.Image - getter for Image (rescale Data)
+
+get.Rows - 
+
+getImageByKey - 
+
+image2subimages - break an image in a single element ImageComponent into sub images.
+
+imageComponent2AstroImage - Convert an ImageComponet to AstroImage
+
+images2cube - Generate a cube of images from ImageComponent object
+
+imresize - resize image data using matlab imresize function
+
+imrotate - Apply imrotate (image rotation) in ImageComponent object Set CCDSEC to [].
+
+isemptyImage - Check if images data in ImageComponent are empty (true if empty). Result is an array (element per image element). Example: IC = ImageComponent({rand(0,1), rand(10,12)}); isemptyImage(IC)
+
+replace - Replace values in range in image with a new value and generate a flag image of replaced pixels
+
+set.Data - setter for Data - store in Data
+
+set.Image - setter for image - store in Data and set Scale to []
+
+sizeImage - get size of all images/data
+
+subimages2image - break image to sub images
+
+subtractBack - subtract background from an ImageComponent If this is a SciImage, then also set the IsBackSubtracted to true.
+
+unitTest - unitTest for ImageComponent
+

@@ -1,4 +1,0 @@
-% class: AstroDbOper
-%
-% AstroDbOper - Obj.setName('AstroImageDb')
-% unitTest (Static) - 

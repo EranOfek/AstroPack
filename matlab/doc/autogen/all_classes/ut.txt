@@ -1,4 +1,0 @@
-% class: ut
-%
-% bpush (Static) - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-% test (Static) - Run all unit tests

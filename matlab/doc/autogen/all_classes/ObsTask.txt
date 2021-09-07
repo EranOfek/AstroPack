@@ -1,7 +1,0 @@
-% class: ObsPlan
-%
-% ObsPlan - 
-% delete - 
-% getPlannerDb (Static) - 
-% open - 
-% unitTest (Static) - 

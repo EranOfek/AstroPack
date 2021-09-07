@@ -1,0 +1,8 @@
+# Package: imUtil.util.fits
+
+
+### imUtil.util.fits.fitswrite
+
+Write a FITS file with a single image in HDU=1 Package: +imUtil.util.fits
+
+

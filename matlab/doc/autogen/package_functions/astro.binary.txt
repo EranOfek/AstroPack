@@ -1,0 +1,34 @@
+Package: astro.binary
+
+astrometric_binary - Predict astrometric binary position Package: AstroUtil.binary Description: Given orbital elements of an astrometric binary, predicts its sky position as a function of time.
+
+binary_reflection_effect - reflection effect from a star with unit illumination on mirror Package: AstroUtil.binary Description: Calculate the reflection effect from a star with unit illumination on mirror (star) with radius R2.
+
+binary_rv - Binary star radial velocity (RV) Package : AstroUtil.binary Description: Calculate binary star radial velocity as a function of time.
+
+chi2_astrometric_binary - Find astrometric binary elements from observations Package: AstroUtil.binary Description: Given the astrometric observations of a binary and its eccentricity, Time of periastron and period, fit linearly
+
+coalescence_gw_time - Calculate the coalescence time for a binary stars due to GW emission Package: +AstroUtil.binary
+
+eb_demo - GUI Eclipsing Binary light-curve demo. Package: AstroUtil.binary Description: GUI Eclipsing Binary light-curve demo.
+
+eb_light_curve - Eclipsing binary light curve as a function of time. Package: AstroUtil.binary Description: Calculate eclipsing binary light curve as a function of time.
+
+equipot - Calculate the gravitational potential of a binary star on a grid. Package: AstroUtil.stars Description: Calculate two body equipotanials map.
+
+fit_astrometric_binary - Fit an elliptical-orbit binary orbit to astrometric data. Package: AstroUtil.binary Description: Fit an elliptical-orbit binary orbit to astrometric data. The fit has 7 free parameters, 4 of which (omega, Omega, i,
+
+fit_rv_ellipse - Fit radial velocity to ellipse as a function of period Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period, fit an ellipse and calculate the RMS as a function
+
+limb_darkening - Limb darkening function Package: AstroUtil.binary Description: Calculate the star luminosity per unit area as a function of its radius, and given the limb-darkening parameters.
+
+obstruction - Stellar obstruction due to the eclipse Package: AstroUtil.binary Description: Calculate stellar obstruction due to the eclipse given the stars radii, distance and limb darkening function of the
+
+plot_eb_lc - Plot eclipsing binary light curve as a function of time. Package: AstroUtil.binary Description: Plot eclipsing binary light curve as a function of time.
+
+plot_eb_lc_ph - Plot eclipsing binary light curve as a function of phase. Package: AstroUtil.binary Description: Plot eclipsing binary light curve as a function of phase.
+
+rv2ellipse - Convert radial velocity as a function of time to ellipse Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period convert it to a RV_Odd vs RV_Even (ellipse).
+
+total_light - Primary total light given its radius and limb darkening. Package: AstroUtil.binary Description: Calculate the primary total light given its radius and limb darkening function or constant luminosity per unit area.
+

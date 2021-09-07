@@ -1,0 +1,43 @@
+# Package: imUtil.background
+
+
+### imUtil.background.annulus_filter
+
+Apply annului filters to an image Package: @imUtil.background
+
+
+### imUtil.background.background
+
+Estimate the background and its variance for an astronomical image Package: @imUtil.background Description: A wrapper function for estimating the background and background variance of an imaage in a matrix form.
+
+
+### imUtil.background.collapse_stat
+
+Collapse an image on one dimension and calc line statistics Package: @imUtil.background Description: Collapse an image on one dimension and calculate the line statistics including smooth background level, and std
+
+
+### imUtil.background.fill_sparse
+
+given a list of sparse 2D positions and values, fill an image by interp Package: @imUtil.background
+
+
+### imUtil.background.flag_badcol
+
+Flag a bad column/row in an image Package: @imUtil.background Description: Flag a column/row which background/noise level is high.
+
+
+### imUtil.background.mode
+
+Mode and variance of a distribution Package: @imUtil.background Description: Calculate the mode and robust variance of an array. The mode is calculated by making an histogram and choosing
+
+
+### imUtil.background.rstd
+
+robust std (default is for a matrix) calculated using scaled iqr Package: @imUtil.background Description: robust std of an array. Note that using the imUtil.background.mode function is much faster.
+
+
+### imUtil.background.rvar
+
+robust variance (default is for a matrix) calculated using scaled iqr Package: @imUtil.background Description: robust variance of an array. Note that using the imUtil.background.mode function is much faster.
+
+

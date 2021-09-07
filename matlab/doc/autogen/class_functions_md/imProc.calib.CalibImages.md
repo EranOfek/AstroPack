@@ -1,0 +1,42 @@
+# Class: imProc.calib.CalibImages
+
+### CalibImages
+
+
+
+
+### calibrate
+
+Perform basic calibration (bias, flat, etc) to input images Perform the following steps on an image: Create a mask image Flag staturated pixels in mask
+
+
+### checkObjImageSize
+
+Check the validity of the size of CalibImages object and input image This function will return an error if not one of the following: size(Image)size(Obj) or (numel(Obj)1 and numel(Image)>1)');
+
+
+### createBias
+
+create master bias using imProc.dark.bias and store in CalibImages object.
+
+
+### createFlat
+
+
+
+
+### debias
+
+Subtract bias image from an image and update mask
+
+
+### overscan
+
+Subtract and remove overscan bias from image.
+
+
+### readCalibImages
+
+
+
+

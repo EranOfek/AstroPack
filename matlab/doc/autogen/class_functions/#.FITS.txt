@@ -1,0 +1,36 @@
+Class: FITS
+
+FITS - FITS object constructor
+
+delete_keys - Delete a lits of keywords from a list of FITS headers Package: @FITS (Static) Description: Delete a list of header keywords from a list of FITS images.
+
+get_keys - Get keywords value from a single FITS header Package: @FITS (Static function) Description: Get the values of specific keywords from a single FITS file header. Use only for existing keywords.
+
+mget_keys - Get header keywords value from multiple FITS Package: @FITS (Static) Description: Get the values of specific keywords from a list of FITS files header.
+
+numHDU - return the number of HDUs in a FITS file
+
+numHDU1 - return the number of HDUs in a single FITS file A static function of FITS class
+
+read - Read all FITS file to a FITS object
+
+read1 - Read a single image from a FITS file A static function of FITS class
+
+read2cube - Read a list of FITS images into a cube (multiple file names or multiple HDUs) Static function
+
+read2sim - Description: Read FITS images into SIM object. Can read N-dimensional images. Can also read multi extension files.
+
+readHeader - Read an header into a three column cell array
+
+readHeader1 - Read a single header from a FITS file (Static) A static function of FITS class
+
+readTable - Read binary or ascii multiple FITS table into a FITS object. Package: @FITS (Static) Description: Read binary or ascii FITS tables into a a FITS object.
+
+readTable1 - Read binary or ascii single FITS table Package: @FITS (Static) Description: Read binary or ascii FITS tables into a table.
+
+unitTest - unitTest for the FITS class
+
+write - Write or append an image into FITS file. Static function The image may have N-dimensions. Append will write multi extension FITS image.
+
+write_keys - Insert or update FITS header keywords Package: @FITS (Static) Description: Insert new, or update existing FITS header keywords in a list of FITS images.
+

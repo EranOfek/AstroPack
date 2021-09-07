@@ -1,0 +1,22 @@
+# Class: io.FuncLog
+
+### FuncLog
+
+Constructor
+
+
+### delete
+
+Destructor
+
+
+### unitTest
+
+
+
+
+### unitTestHelper1
+
+Test auto-destructor
+
+

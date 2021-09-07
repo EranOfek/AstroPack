@@ -1,0 +1,38 @@
+# Package: astro.stars
+
+
+### astro.stars.ang_radius_from_color
+
+Estimate angular radius and color temperature from a set of magnitudes Package: +AstroUtil.stars
+
+
+### astro.stars.ang_radius_from_temp
+
+Calculate the angular size of a star given its mag, extinction and temp Package: +AstroUtil.stars
+
+
+### astro.stars.equipot
+
+Calculate the gravitational potential of a binary star on a grid. Package: AstroUtil.stars Description: Calculate two body equipotanials map.
+
+
+### astro.stars.star_ang_rad
+
+Calculate empirical angular radii of stars from magnitude and colors. Package: AstroUtil.stars Description: Empirical angular radii of stars based on their magnitude and colors.
+
+
+### astro.stars.star_sptype_color
+
+Spectral type to color Package: AstroUtil.star Description: Given a star spectral type and luminosity class, get the star color between any two filters.
+
+
+### astro.stars.stellar_imf
+
+The stellar initial mass function Package: AstroUtil.stars Description: Return the stellar initial mass function in a given mass range.
+
+
+### astro.stars.stellar_tracks
+
+Geneva stellar tracks as a function of time. Package: AstroUtil.stars Description: Given an initial mass and metllicity return the Geneva stellar tracks as a function of time.
+
+

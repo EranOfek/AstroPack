@@ -1,6 +1,0 @@
-% class: ImageIO
-%
-% ImageIO - Construct an ImageIO object with optionaly reading data.
-% read1 (Static) - read a single image/table file with header in fits/hdf5/other format
-% unitTest (Static) - unitTest for ImageIO class
-% write1 (Static) - Write a single data array into a file

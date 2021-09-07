@@ -1,0 +1,8 @@
+# Package: VO.Kepler
+
+
+### VO.Kepler.read_lc_file
+
+Read Kepler light curve FITS file. Package: VO.Kepler Description: Read kepler light curve fits file.
+
+

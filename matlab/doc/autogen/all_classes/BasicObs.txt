@@ -1,7 +1,0 @@
-% class: BasicObs
-%
-% BasicObs - 
-% delete - 
-% getPlannerDb (Static) - 
-% open - 
-% unitTest (Static) - 
