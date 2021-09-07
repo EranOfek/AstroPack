@@ -198,73 +198,19 @@ classdef SharedMem < Component
                     
     % Unit test
     methods(Static)
-        function Result = unitTestServerSide()
+        Result = unitTestServerSide()
             % Simple test (without header) - write current time string to shared memory
 
-            io.msgLog(LogLevel.Test, 'cpp side (server)')
-            sm = SharedMemory()
-            sm.open(FILENAME)
-            while true
-                msg = datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S.%f')  # [:-3]
-                print(msg)
-                buf = bytes(msg, 'ascii')
-                sm.write(0, buf)
-                time.sleep(0.1)
-            end
-        end
 
-
-        function Result = unitTestClientSide()
+        Result = unitTestClientSide()
             % Simple test - read string from shared memory
-            log('python side (client)')
-            sm = SharedMemory()
-            sm.open(FILENAME)
-            while true
-                buf = sm.read(0, 100)
-                if len(buf) > 0
-                    s = buf.decode('ascii')
-                    s = s.replace('\x00', '')
-                    if len(s) > 0
-                        log('rcv: ' + s)
-                    end
-                end
-                time.sleep(0.01)
-            end
-        end
         
         
-        function Result = unitTestClientSideBuf()
+        Result = unitTestClientSideBuf()
             % Read next buffer from shared-memory queue
-            log('python side (client)')
-            sm = SharedMemory()
-            sm.open(FILENAME)
-            last_put_counter = 0
-            while true
-                buf, put_counter, w, h = sm.get_buf()
-                if buf
-                    print('get_buf: put_counter: {}, len: {}, w: {}, h: {}, buf[0]: {}'.format(put_counter, len(buf), w, h, buf[0]))
-                    if put_counter != last_put_counter+1:
-                        print('GAP IN put_counter: {}, last: {}'.format(put_counter, last_put_counter))
-                    end
 
-                    last_put_counter = put_counter
-                    frame, grabbed = sm.buf_to_frame(buf, w, h)
-                end
-                time.sleep(0.001)
-            end
-        end
-    end        
-    
-    
-    % Unit test
-    methods(Static)
-        function Result = unitTest()
-            io.msgStyle(LogLevel.Test, '@start', 'SharedMem test started')
-               
-            
-            io.msgStyle(LogLevel.Test, '@passed', 'SharedMem test passed')
-            Result = true;
-        end
+        Result = unitTest()
+
     end    
              
     
