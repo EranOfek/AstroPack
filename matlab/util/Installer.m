@@ -155,23 +155,24 @@ classdef Installer < Base
                 end        
         
                 PartsURL = regexp(Obj.ConfigStruct.URL{Isel},'/','split');
-                switch lower(PartsURL{end})
-                    case {'index.html','index.htm'}
-                        % get all files in dir
-                
-                        [List,IsDir,FileName] = www.find_urls(Obj.ConfigStruct.URL{Isel},'match', Obj.ConfigStruct.SearchFile{Isel});
-                        List     = List(~IsDir);
-                        FileName = FileName(~IsDir);
-                    otherwise
-                        if ~isempty(strfind(PartsURL{end},'.tar')) 
-                            % tar file
+                if iscell(PartsURL)
+                    % URL is a cell array of files URL
+                    List = Obj.ConfigStruct.URL{Isel};
+                    FileName = '*';
+                else
+                    switch lower(PartsURL{end})
+                        case {'index.html','index.htm'}
+                            % get all files in dir
+
+                            [List,IsDir,FileName] = www.find_urls(Obj.ConfigStruct.URL{Isel},'match', Obj.ConfigStruct.SearchFile{Isel});
+                            List     = List(~IsDir);
+                            FileName = FileName(~IsDir);
+                        otherwise
+                            % direct file loading
                             List     = Obj.ConfigStruct.URL(Isel);  % cell
                             FileName = PartsURL{end};
-                        else
-                            error('File of unknown format');
-                        end
+                    end
                 end
-                        
 
                 if numel(List)>0
                     % delete content before reload
@@ -183,7 +184,13 @@ classdef Installer < Base
                     if ~isempty(strfind(FileName,'.tar')) 
                         % open tar file
                         untar(FileName);
+                    else
+                        % do nothing
                     end
+                    pause(5);
+                    io.files.files_arrived([], 10);
+                    gunzip('*.gz');
+                    delete('*.gz');
                 end
             end
             cd(PWD);
