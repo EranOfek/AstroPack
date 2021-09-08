@@ -22,7 +22,7 @@ classdef AstroCatalog < AstroTable
         DefNamesPMDec cell               = {'PMDec'};
         DefNamesRV cell                  = {'RV'};
         DefNamesPlx cell                 = {'Plx'};
-        DefNamesMag cell                 = {'Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2'};
+        DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2'};
     end
   
     
