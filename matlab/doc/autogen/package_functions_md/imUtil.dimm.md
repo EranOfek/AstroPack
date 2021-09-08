@@ -6,3 +6,10 @@
 Example: IC = imCl.fits2imCl('D*20200816-06*.fit'); Cube=images2cube(IC);
 
 
+    
+      
+    Example:  
+    IC = imCl.fits2imCl('D*20200816-06*.fit');  
+    Cube=images2cube(IC);  
+      
+      

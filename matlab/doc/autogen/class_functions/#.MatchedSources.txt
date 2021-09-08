@@ -32,6 +32,8 @@ plotRMS - plot rms of a propery (field) vs. its mean.
 
 read - read mat file or HDF5 file containing MatchedSources
 
+statSummary - Calculate statistical summary properties of a data property in a MatchedSources object.
+
 summary - Summary of a specific field matrix in MatchedSources
 
 unitTest - unitTest for MatchedSources class
