@@ -7,7 +7,7 @@
 %
 % Author : Eran Ofek (Sep 2021)
 % Examples:
-% I = Install;  % create installer object
+% I = Installer;  % create installer object
 % I.seeAvailableData      % print a table of all available datasets and description and size
 % I.install               % install all data sets [very large!]
 % I.install({'GAIA_SpecTemplate'}); % install specific datasets
