@@ -61,6 +61,7 @@ class ClassData:
         self.func_dict = {}
         self.prop_dict = {}         # Currently unused
         self.comment = ''
+        self.long_comment = ''
         self.unitTest_lines = []
 
 # ===========================================================================
@@ -73,6 +74,7 @@ class FunctionData:
         self.type = ''              # Static
         self.params = ''
         self.comment = ''
+        self.long_comment = ''
 
 # ===========================================================================
 # Data for each class property (currently unused)
@@ -181,16 +183,23 @@ class MatlabProcessor:
     # Extract H1 comment from comment lines below the function/class line
     # function Result = openConn(Obj)
     #    % Open connection, throw exception on failure
-    def get_comment(self, lines, idx):
+    def get_comment(self, lines, idx, short = True):
         comment = ''
 
         # Look for comment line below the function line
         count = 1
         while idx + count < len(lines):
-            if not lines[idx+count].strip().startswith('%'):
-                break
+            line = lines[idx + count].strip().replace('\t', ' ')
 
-            line = lines[idx+count].strip().replace('\t', ' ')
+            if short:
+                # Stop on non-comment line or empty line
+                if not lines[idx+count].strip().startswith('%'):
+                    break
+            else:
+                # Stop on non-comment line (assuming it is a code)
+                if not lines[idx+count].strip().startswith('%') and line.strip() != '':
+                    break
+
             line = line.replace('%', '').strip()
             line = line.replace('--', '').strip()
             line = line.replace('==', '').strip()
@@ -198,18 +207,24 @@ class MatlabProcessor:
             words_lower = line.lower().split(' ')
 
             # Stop on special cases
-            if 'example' in words_lower:
-                break
-            if len(words) > 0 and words[0] == 'Input':
-                break
+            if short:
+                if 'example' in words_lower:
+                    break
+                if len(words) > 0 and words[0] == 'Input':
+                    break
 
-            # Append text to comment
-            comment_line = ' '.join(words)
-            comment = (comment + ' ' + comment_line).strip()
+                # Append text to comment
+                comment_line = ' '.join(words)
+                comment = (comment + ' ' + comment_line).strip()
+            else:
+                # Append text to comment, use double-space for new line in MD file
+                comment_line = line + '  ' #' '.join(words)
+                comment = (comment + '\n' + comment_line) #.strip()
+
 
             # Stop if comment is too long, by number of lines, or by text length
             count = count + 1
-            if count >= 5 or len(comment) > 300:
+            if short and (count >= 5 or len(comment) > 300):
                 break
 
         return comment
@@ -452,6 +467,7 @@ class MatlabProcessor:
     def process_class_file(self, lines):
 
         cls = self.get_class(self.cur_class)
+        cls.long_comment = self.get_comment(lines, 0, False)
 
         methods_type = ''
         for line_num, line in enumerate(lines):
@@ -485,6 +501,7 @@ class MatlabProcessor:
                         func = FunctionData()
                         func.name = func_name
                         func.comment = self.get_comment(lines, line_num)
+                        func.long_comment = self.get_comment(lines, line_num, short=False)
                         cls.func_dict[func_name] = func
             except:
                 log('exception parsing line: ' + line)
@@ -514,6 +531,7 @@ class MatlabProcessor:
                         func = FunctionData()
                         func.name = func_name
                         func.comment = self.get_comment(lines, line_num)
+                        func.long_comment = self.get_comment(lines, line_num, short=False)
                         cls.func_dict[func_name] = func
 
                         # Stop after the first function, so internal (unexposed) functions will not be listed
@@ -541,6 +559,7 @@ class MatlabProcessor:
                         func = FunctionData()
                         func.name = func_name
                         func.comment = self.get_comment(lines, line_num)
+                        func.long_comment = self.get_comment(lines, line_num, short=False)
                         pkg.func_dict[func_name] = func
 
                         # Stop after the first function, so internal (unexposed) functions will not be listed
@@ -652,6 +671,11 @@ class MatlabProcessor:
                 self.process_folder(folder)
 
     # -----------------------------------------------------------------------
+    def append_indent(self, lines, new_lines):
+        for line in new_lines:
+            lines.append('    ' + line)
+
+    # -----------------------------------------------------------------------
     # Process all collected data and update output files
     def process_data(self):
 
@@ -680,6 +704,7 @@ class MatlabProcessor:
                 lines.append(line + '\n')
                 md_lines.append('### ' + self.unpack_name(pkg_name + '.' + func.name) + '\n')
                 md_lines.append(func.comment + '\n\n')
+                self.append_indent(md_lines, func.long_comment.split('\n'))
 
             pkg_fname_txt = os.path.join(out_path_txt, pkg_name + '.txt')
             self.write_file(pkg_fname_txt, lines)
@@ -691,11 +716,15 @@ class MatlabProcessor:
         out_path_md = os.path.join(AUTOGEN_PATH, 'class_functions_md')
         class_list = list(self.class_dict.keys())
         class_list.sort()
-        lines = class_list
+        lines = class_list.copy()
         for i, line in enumerate(lines):
             lines[i] = self.unpack_name(line)
         self.write_file(self.class_list_filename, lines)
         for cls_name in class_list:
+
+            #if 'AstroHeader' in cls_name:
+            #    log('break')
+
             cls = self.get_class(cls_name)
             func_list = list(cls.func_dict.keys())
             func_list.sort()
@@ -708,12 +737,15 @@ class MatlabProcessor:
             md_lines = []
             md_lines.append('# Class: ' + self.unpack_name(cls_name))
             md_lines.append('')
+            md_lines.append(cls.comment + '\n')
+            self.append_indent(md_lines, cls.long_comment.split('\n'))
             for func_name in func_list:
                 func = cls.func_dict[func_name]
                 line = func.name + ' - ' + func.comment
                 lines.append(line + '\n')
                 md_lines.append('### ' + func.name + '\n')
                 md_lines.append(func.comment + '\n\n')
+                self.append_indent(md_lines, func.long_comment.split('\n'))
 
             cls_fname_txt = os.path.join(out_path_txt, cls_name + '.txt')
             self.write_file(cls_fname_txt, lines)
@@ -735,7 +767,11 @@ class MatlabProcessor:
         package_list = self.read_file(self.package_list_filename)
         for pkg in package_list:
             self.get_package(pkg)
-        for cls in package_list:
+
+        class_list = self.read_file(self.class_list_filename)
+        for cls in class_list:
+            if not '.' in cls:
+                cls = '#.' + cls
             self.get_class(cls)
 
         # Process folders tree
@@ -762,7 +798,7 @@ def main():
 
     #
     proc = MatlabProcessor()
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab') #/image/@AstroHeader/')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
