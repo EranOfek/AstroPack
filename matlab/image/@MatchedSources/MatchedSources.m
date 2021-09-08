@@ -784,6 +784,49 @@ classdef MatchedSources < Component
         
     end
     
+    methods  % statistics and functions
+       function Result = statSummary(Obj, FieldNameDic)
+            % Calculate statistical summary properties of a data property in a
+            % MatchedSources object.
+            % Input  : - A MatchedSources object.
+            %          - A cell array of dictionary field names for the
+            %            data property for which to calculate statistics.
+            % Output : - A structure array with the column wise (sources)
+            %            basic statistcs properties for the sources in data
+            %            properties. E.g., the mean, median, std, etc, for
+            %            each source.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          Result = statSummary(MS);
+
+            arguments
+                Obj 
+                FieldNameDic                = AstroCatalog.DefNamesMag;
+            end
+
+            % get field name from dictionary
+            [FieldName] = getFieldNameDic(Obj, FieldNameDic);
+
+            % get Mag matrix
+            Data = getMatrix(Obj, FieldName);
+
+            N = numel(Obj);
+            for I=1:1:N
+                % calc statistics
+                Result(I).Mean     = mean(Data, 1, 'omitnan');
+                Result(I).Median   = median(Data, 1, 'omitnan');
+                Result(I).Std      = std(Data, [], 1, 'omitnan');
+                Result(I).RStd     = imUtil.background.rstd(Data, 1);
+                Result(I).Range    = range(Data, 1);
+                Result(I).Min      = min(Data, [], 1, 'omitnan');
+                Result(I).Max      = max(Data, [], 1, 'omitnan');
+            end
+
+       end 
+        
+    end
     
     methods % plot
         function H = plotRMS(Obj, Args)
