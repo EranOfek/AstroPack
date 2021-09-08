@@ -86,6 +86,8 @@ pan - Set the pan (cursor location) of an image in ds9 Package: @ds9 Description
 
 plot - Generate and plot a region file from a list of coordinates Package: @ds9 Description: Generate and plot a region file from a list of coordinates.
 
+plotXY - Example: ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs'); ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y');
+
 plotc - Generate and plot a region file from a list of celestial coordinates Package: @ds9
 
 psprint - Print a postscript file into current directory Package: @ds9 Description: Print a postscript file into current directory.

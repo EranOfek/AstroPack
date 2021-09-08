@@ -32,6 +32,8 @@ dcf1 - dcf1 function                                                 timeseries 
 
 extract_phase - Extract observations take at some phase range Package: timeseries Description: Given a time series, extract observation made in a given phases range. The phase and epoch is defined by the user.
 
+fitPolyHyp - Hypothesis testing between fitting polynomials of various degrees to a matrix of light curves (with unknown errors).
+
 fit_polys_deltachi2 - Fit polynomials of various orders to a time series and calculate chi^2 Package: timeseries Description: Fit polynomials of various orders to a time series and calculate chi^2 and rms for each polynomial fit.
 
 fmaxs - fmaxs function                                                    timeseries Description: Given a matrix, find local maxima (in one of the columns) and return the maxima position and height.

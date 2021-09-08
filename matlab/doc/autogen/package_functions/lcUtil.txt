@@ -2,7 +2,9 @@ Package: lcUtil
 
 fitMotion - fit Proper motion in RA/Dec to coordinates in MatchedSources object. Given a MatchedSources object with RA/Dec fields, fit proper motions using the celestial.pm.fitMultiProperMotion function.
 
-zp_lsq - Example: Fzp   = 1 + rand(100,1); Fstar = rand(1,200).*3900 + 100; Flux = Fzp.*Fstar;
+fitPolyHyp - Hypothesis testing between fitting polynomials of various degrees to a matrix of light curves in a MatchedSources object (with unknown errors). Like timeseries.fitPolyHyp, but for a MatchedSources class.
+
+zp_lsq - Apply a relative photometry least square ZP solution to a light curve in MatchedSources object.
 
 zp_sumFlux - Example: Fzp = rand(100,1).*1000; Flux = randn(100,200) + Fzp; Result = lcUtil.zp_sumFlux(Flux, 'MaxRelErr',[]);
 
