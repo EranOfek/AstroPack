@@ -1,6 +1,7 @@
 function Data=get_orbit_files(Read,OutType)
 % Get asteroids/comets orbital elements from JPL, save locally and read.
 % Package: celestial.SolarSys
+%    OBSOLETE: see Installer/install and Installer.readElementsFileJPL
 % Description: Get asteroids and comets orbital elements from JPL
 %              and read into a matlab structure.
 % Input  : - 'wget','get' - get the latest orbital elements file from JPL

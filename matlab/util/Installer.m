@@ -86,6 +86,83 @@ classdef Installer < Base
         end
     end
     
+    methods (Static)
+        function T = readElementsFileJPL(FileName, Type)
+            % Read JPL orbital elements file
+            % Input  : - File name.
+            %            The file name is assumed to be in the data/
+            %            directory as indicated in the Installer.yml config
+            %            file.
+            %          - File type: 'comet' | 'number' | 'unnum'
+            %            If empty, will automatically figure out the file
+            %            yppe. Default is [].
+            % Output : - Table with orbital elements.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: T = Installer.readElementsFileJPL('ELEMENTS.COMET');
+            %          T = Installer.readElementsFileJPL('ELEMENTS.NUMBR');
+            %          T = Installer.readElementsFileJPL('ELEMENTS.UNNUM');
+            
+            arguments
+                FileName char
+                Type             = [];
+            end
+            
+            % CD to data directory
+            PWD = pwd;
+            I = Installer;
+            Ind = find(strcmp(I.ConfigStruct.DataName, 'MinorPlanets'));
+            cd(I.ConfigStruct.InstallationLocation);
+            cd(I.ConfigStruct.SubDir{Ind});
+                        
+            FID = fopen(FileName,'r');
+            Line = fgetl(FID);
+            fclose(FID);
+            ColNames = regexp(Line, '\s*', 'split');
+            ColNames = ColNames(~cellfun(@isempty, ColNames));
+            
+            if isempty(Type)
+                SplitedFileName = split(FileName, '.');
+                Type            = SplitedFileName{2};
+            end
+                
+                
+            switch lower(Type)
+                case 'comet'
+                    % comets file
+                    Format = '%43s %f %f %f %f %f %f %f %s\n';
+                    ColNames = ColNames(2:end);
+                    ColNames{1} = 'Designation';
+                case {'numbr','number'}
+                    % numbered asteroids file
+                    Format = '%f %17s %f %f %f %f %f %f %f %f %f %s\n';
+                case 'unnum'
+                    % un-numbered asteroids file
+                    Format = '%12s %f %f %f %f %f %f %f %f %f %s\n';
+            end
+            
+            FID = fopen(FileName,'r');
+            C = textscan(FID, Format, 'Delimiter','\t', 'Headerlines',2);
+            fclose(FID);
+            
+            T = table(C{:});
+            
+            T.Properties.VariableNames = ColNames;
+            if any(strcmp(T.Properties.VariableNames, 'Designation'))
+                T.Designation = strtrim(T.Designation);
+            end
+            if any(strcmp(T.Properties.VariableNames, 'Name'))
+                T.Name = strtrim(T.Name);
+            end
+            if any(strcmp(T.Properties.VariableNames, 'Ref'))
+                T.Ref = strtrim(T.Ref);
+            end
+            
+            cd(PWD);
+            
+        end
+        
+    end
+    
     methods % main functions
         function install(Obj, DataName, Args)
             % Install AstroPack data directories from AstroPack repository
