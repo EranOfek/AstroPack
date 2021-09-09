@@ -86,6 +86,7 @@ classdef Installer < Base
         end
     end
     
+<<<<<<< HEAD:matlab/util/Installer.m
     methods (Static)
         function T = readElementsFileJPL(FileName, Type)
             % Read JPL orbital elements file
@@ -163,6 +164,9 @@ classdef Installer < Base
         
     end
     
+=======
+	
+>>>>>>> 3f7b04f4e6078c8b15620f7947adcb7ed7658446:matlab/util/@Installer/Installer.m
     methods % main functions
         function install(Obj, DataName, Args)
             % Install AstroPack data directories from AstroPack repository
@@ -285,5 +289,12 @@ classdef Installer < Base
             
         end
     end
+	
+    
+    methods(Static) % unitTest
+        Result = unitTest(Obj)
+            % Dictionary unit test
+            
+   end	
     
 end

@@ -232,12 +232,12 @@ classdef AstroWCS < Component
            end
            
            for Ix = 1:1:Naxis
-               AddCell = {sprintf('CTYPE%d',Ix), Obj.CTYPE(Ix), 'WCS projection type for this axis'};
+               AddCell = {sprintf('CTYPE%d',Ix), Obj.CTYPE{Ix}, 'WCS projection type for this axis'};
                KeyCell = [KeyCell; AddCell];
            end
            
            for Ix = 1:1:Naxis
-               AddCell = {sprintf('CUNIT%d',Ix), Obj.CUNIT(Ix), 'Axis unit '};
+               AddCell = {sprintf('CUNIT%d',Ix), Obj.CUNIT{Ix}, 'Axis unit '};
                KeyCell = [KeyCell; AddCell];
            end
 

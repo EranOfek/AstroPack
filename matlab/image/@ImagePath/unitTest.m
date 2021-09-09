@@ -1,18 +1,18 @@
 function Result = unitTest()
-    % ImagePath.unitTest    
+    % ImagePath.unitTest        
     io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
 
     % constructFile
     ip = ImagePath();
-    ip.setTestData();
+    ExpectedResult = ip.setTestData();
     FileName = ip.constructFile();
-    assert(~isempty(FileName));
+    assert(strcmp(FileName, ExpectedResult));
     disp(FileName);
     
     % constructPath
-    %ip = ImagePath();
-    %Path = ip.constructPath('ProjName', 'ULTRASAT');
-    %disp(Path);
+    ip = ImagePath();
+    Path = ip.constructPath('ProjName', 'ULTRASAT');
+    disp(Path);
 
             
 %     % Default

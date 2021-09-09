@@ -24,9 +24,9 @@ function [SucessFlag, QualitySummary] = assessAstrometricQuality(ResFit, Args)
         Args.MinNumSrc            = 10;
         Args.MinUsedSrcFrac       = 0.2;
         
-        Args.MinRMS               = 0.3./3600;    % deg
-        Args.MinAssymRMS          = 0.2./3600;    % deg
-        Args.MinErrOnMean         = 0.05./3600;   % deg
+        Args.MinRMS               = 0.7./3600;    % deg
+        Args.MinAssymRMS          = 0.5./3600;    % deg
+        Args.MinErrOnMean         = 0.25./3600;   % deg
     end
     
     Nfit = numel(ResFit);

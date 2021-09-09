@@ -1353,8 +1353,7 @@ classdef ds9 < handle
             %          ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
         
             arguments
-                X
-                Y
+                Cat
                 MarkerColor        = [];
                 Args.MarkerSize    = 20;
                 Args.MarkerUnits   = 'pix';
