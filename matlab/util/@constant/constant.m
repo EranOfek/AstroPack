@@ -1498,6 +1498,13 @@ classdef constant
         end
         
     end % static
-    
+
+
+    % Unit test
+    methods(Static)   
+        Result = unitTest()
+
+    end    	
+
 end % end class
             

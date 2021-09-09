@@ -861,9 +861,13 @@ classdef HDF5
         
     end % end methods
     
-    methods
-        
-    end % end methods
+    
+    % Unit test
+    methods(Static)   
+        Result = unitTest()
+
+    end    	
+	
 end
 
             

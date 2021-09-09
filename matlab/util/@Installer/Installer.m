@@ -86,6 +86,7 @@ classdef Installer < Base
         end
     end
     
+	
     methods % main functions
         function install(Obj, DataName, Args)
             % Install AstroPack data directories from AstroPack repository
@@ -208,5 +209,12 @@ classdef Installer < Base
             
         end
     end
+	
+    
+    methods(Static) % unitTest
+        Result = unitTest(Obj)
+            % Dictionary unit test
+            
+   end	
     
 end

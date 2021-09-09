@@ -1593,6 +1593,13 @@ classdef convert
             
         end
     end
-    
+
+
+    % Unit test
+    methods(Static)   
+        Result = unitTest()
+
+    end    	
+
 end % end class
             
