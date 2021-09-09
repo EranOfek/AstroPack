@@ -1,3 +1,7 @@
+% Eran - if you use this file, please write here a comment
+%
+%
+
 % Unit testing using matlab plugins
 % Produces code coverage reports
 % 
@@ -67,3 +71,4 @@ classdef UnitTest < matlab.unittest.TestCase
         end
     end
 end
+

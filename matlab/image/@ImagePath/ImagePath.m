@@ -90,15 +90,13 @@ classdef ImagePath < Component
         
         function Result = setTestData(Obj)
             % Set data for unit-test and debugging
-  
-            %DateStr = '2021-01-02 13:14:15.678';
-            %DateUTC = datetime(DateStr, 'InputFormat', 'yyyy-MM-dd HH:mm:ss.SSS'); 
+            % The result should be: USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits
             
             Obj.JD = [];  %juliandate(DateUTC);                        
             Obj.ProjName        = 'USAT';            
             Obj.Telescope       = 'USAT';            
             Obj.Node            = '';
-            Obj.Time            = [];
+            Obj.Time            = '2021-09-09T12:34:56.789';
             Obj.JD              = [];
             Obj.TimeZone        = 2;
             Obj.Mount           = 'mnt01';
@@ -106,15 +104,18 @@ classdef ImagePath < Component
 
             % Filter and Field
             Obj.Filter          = 'clear';
-            Obj.FieldId         = 'fld1';
-            Obj.CropId          = 'crop001-001';
+            Obj.FieldId         = 'fld';
+            Obj.Counter         = 'cnt';
+            Obj.CCDID           = 'ccdid';
+            
+            Obj.CropId          = 'crop';
             
             % Image - Mandatoty fields
             Obj.Type            = 'sci';
             Obj.Level           = 'raw';
             Obj.SubLevel        = 'sub';
             Obj.Product         = 'im';
-            Obj.Version         = '1';
+            Obj.Version         = 'ver1';
             Obj.FileType        = 'fits';
 
             % Debug? or have it?
@@ -129,7 +130,7 @@ classdef ImagePath < Component
             Obj.Metadata        = '';       
             Obj.TableName       = 'processed_cropped_images';       
 
-            Result = true;
+            Result = 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits';
         end
     end
     
@@ -471,16 +472,20 @@ classdef ImagePath < Component
             Obj.setProps(Args);            
             
             % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+            
+            % Use current time
             if isempty(Obj.Time)
                 Obj.Time = celestial.time.julday;
             end
             
-            if isnumeric(Obj.Time)
-                % Assume JD
+            % Convert number to string (assume JD)
+            if isnumeric(Obj.Time)                
                 StrDate = convert.time(Obj.Time, 'JD', 'StrDate');
                 Obj.TimeStr = StrDate{1};
-            elseif iscellstr(Obj.TimeStr)
-                Obj.TimeStr = Obj.TimeStr{1};
+            elseif ischar(Obj.Time)
+                Obj.TimeStr = Obj.Time;
+            elseif iscellstr(Obj.Time)
+                Obj.TimeStr = Obj.Time{1};
             end
             
             % Remove '-' and ':' from date (StrDate: 'YYYY-MM-DDTHH:MM:SS.FFF')
@@ -488,14 +493,15 @@ classdef ImagePath < Component
             Obj.TimeStr = strrep(Obj.TimeStr, 'T', '.');
             Obj.TimeStr = strrep(Obj.TimeStr, ':', '');
 
-            if isnumeric(Obj.FieldId)
+            % FieldID, use specified formatting if numeric
+            if isnumeric(Obj.FieldId) && ~isempty(Obj.FormatFieldID)
                 Obj.FieldID = sprintf(Obj.FormatFieldID, Obj.FieldID);
             end
 
-            %
+            % Validate field values
             Obj.valiadateFields();
             
-
+            % Get path
             Path = ''; %Obj.constructPath();  
 
 %             'Date', Args.Date,...
@@ -509,23 +515,26 @@ classdef ImagePath < Component
 %                                          'SubDir', Args.SubDir,
 
 
+            % Level / Level.SubLevel
             if isempty(Obj.SubLevel)
                 MergedLevel = Obj.Level;
             else
                 MergedLevel = sprintf('%s.%s', Obj.Level, Obj.SubLevel);    
             end
 
-            if isnumeric(Obj.Version)
+            % Format version if numeric
+            if isnumeric(Obj.Version) && ~isempty(Obj.FormatVersion)
                 Obj.Version = sprintf(Obj.FormatVersion, Obj.Version);
             end
 
+            % Prepare the final result
             % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
             Obj.FileName = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s', Obj.ProjName, ...
                            Obj.TimeStr, Obj.Filter, Obj.FieldId, Obj.Counter, Obj.CCDID, ...
                            Obj.CropId, Obj.Type, MergedLevel, Obj.Product, Obj.Version, Obj.FileType);
 
        
-                       
+            % Done
             Obj.msgLog(LogLevel.Debug, 'FileName: %s', Obj.FileName);
             Result = Obj.FileName;
 
@@ -548,6 +557,7 @@ classdef ImagePath < Component
             Result = true;
             
             % Verify Type
+            Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
             switch Obj.Type
                 case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'wave'}
                     % Ok
@@ -556,6 +566,7 @@ classdef ImagePath < Component
             end
 
             % Verify Level
+            Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
             switch Obj.Level
                 case {'log', 'raw', 'proc', 'stack', 'ref', 'coadd'}
                     % Ok
@@ -564,6 +575,7 @@ classdef ImagePath < Component
             end
 
             % Verify Product
+            Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
                 case { 'im', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
                     % Ok
