@@ -134,7 +134,6 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             % Estimate RA/Dec of SubImage center
             CenterX = (Args.CCDSEC(Iim,2) - Args.CCDSEC(Iim,1)).*0.5;
             CenterY = (Args.CCDSEC(Iim,4) - Args.CCDSEC(Iim,3)).*0.5;
-           
             [RA, Dec] = RefWCS.xy2sky(CenterX, CenterY, 'OutUnits','deg', 'includeDistortion',false);
             
             %got here - there is a problem
@@ -142,7 +141,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             
             
             
-            
+            [Iim, Iref]
             [ResultFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim).CatData,...
                                                                                                      'RA',RA,...
                                                                                                      'Dec',Dec,...
@@ -150,24 +149,31 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
                                                                                                      'CatName',CatName,...
                                                                                                      'Scale',Args.Scale,...
                                                                                                      Args.astrometryCoreArgs{:});
+            % populate the WCS in the AstroImage
+            ResultObj(Iim).WCS = ResultFit(Iim).WCS;
+            
+            ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
+            ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
+            ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
+            ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
             
             
             
-            
-            [ResultRefineFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData,...
-                                                                                                       'WCS',RefWCS, ...
-                                                                                                       'RA',RA,...
-                                                                                                       'Dec',Dec,...
-                                                                                                       'CooUnits','deg',...
-                                                                                                       'CatName',CatName,...                     
-                                                                                                       Args.astrometryCoreArgs{:});
-            
+%             [ResultRefineFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData,...
+%                                                                                                        'WCS',RefWCS, ...
+%                                                                                                        'RA',RA,...
+%                                                                                                        'Dec',Dec,...
+%                                                                                                        'CooUnits','deg',...
+%                                                                                                        'CatName',CatName,...                     
+%                                                                                                        Args.astrometryCoreArgs{:});
+%             
             % check qulity of solution
-            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
             
         end
     
-    
+    Sucess
     end
     
 end
