@@ -371,7 +371,8 @@ classdef UnitTester < handle
             % Skip self
             %MyFileName = mfilename('fullpath');
 
-
+            % Check if class folder
+            
             % Read file to Lines{}
             fid = fopen(FileName);
             Line = fgetl(fid);
@@ -382,7 +383,7 @@ classdef UnitTester < handle
             end
             fclose(fid);
 
-            % Search class name
+            % Search classdef
             ClassName = '';
             for i=1:length(Lines)
                 % Check that it is not a comment
@@ -412,7 +413,11 @@ classdef UnitTester < handle
 
                     items = split(Line, '%');
                     items = split(items{1}, 'function Result = unitTest()');
-                    if length(items) > 1
+                    
+                    % unitTest in separate file
+                    items2 = split(items{1}, 'Result = unitTest()');
+                    
+                    if length(items) > 1 || length(items2) > 1
                         %if lower(items{1}) == 'unitTest('
                             Obj.msgLog(LogLevel.Test, 'Found unitTest(): %s', Line);
                             haveUnitTest = true;
@@ -439,8 +444,6 @@ classdef UnitTester < handle
 
             % classdef not found, single function file?
             else
-                % @Todo
-                return;
 
                 % Search unitTest() function
                 haveUnitTest = false;
@@ -451,23 +454,22 @@ classdef UnitTester < handle
                     Line = Lines{i};
 
                     items = split(Line, '%');
-                    items = split(items{1}, 'function ');
-                    if length(items) > 1
-                        items = split(items{2}, '=');
-
-                        items = split(items{2}, ' ');
-
+                    items = split(items{1}, 'function Result = unitTest()');
+                    if length(items) > 1 || length(items2) > 1
                         %if lower(items{1}) == 'unitTest('
+                            Obj.msgLog(LogLevel.Test, 'Found unitTest(): %s', Line);
                             haveFunc = true;
-                            %break;
+                            haveUnitTest = true;
+                            break;
                         %end
                     end
                 end
 
+                
                 if haveFunc && haveUnitTest
                     % Call unitTest
-                    Func = ClassName + ".unitTest();"';
-                    Result = eval(Func);
+                    Func = PackageName + ".unitTest();"';
+                    %Result = eval(Func);
                     %Result = (ClassName).unitTest();
                 else
                 end

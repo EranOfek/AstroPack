@@ -119,7 +119,7 @@ classdef ImagePath < Component
             Obj.FileType        = 'fits';
 
             % Debug? or have it?
-            Obj.BasePath        = '/data/store';
+            %Obj.BasePath        = '/data/store';
             Obj.FileName        = '';
             Obj.Path            = '';       
             Obj.FullName        = '';       
@@ -306,18 +306,13 @@ classdef ImagePath < Component
                 Args.Base       = '/home/last';     %
                 Args.DataDir    = 'data';           %
                 Args.SubDir     = '';               %
-                Args.ProjName   = '';               %
                 Args.Time       = [];               % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
 %                   format.Date, TimeZone} or {YYYY, MM, DD}, or []}
                 Args.TimeZone   = 2;                % Hours
-                Args.Type       = 'sci';            %
                 Args.Level      = 'raw';            %
-                Args.FieldID    = '';               % (may be required for the <area#> (char or number) 
-                Args.FormatFieldID = '%05d';        %
+                Args.SubLevel   = '';
                 Args.Area       = '';               %
-                Args.Visit      = '';               %
-                Args.RefVersion = 1;                % Reference image version
-                Args.FormatRefVersion = '%03d';     % Format for numeric reference version
+                Args.Version    = '1';              % Reference image version
             end
             
             % Set properties from arguments, only properties that exist in
@@ -327,67 +322,47 @@ classdef ImagePath < Component
             % From this point we should work with Obj properties and not with Args
             
             % Convert date to JD
-            if isempty(Obj.Time)
-                Obj.JD = celestial.time.julday;
-            elseif ischar(Args.Time) || iscellstr(Args.Time)
-                Obj.JD = convert.time(Obj.Time, 'StrDate', 'JD');
-            else
-                % Already in JD
-                %Obj.JD = InPar.JD;
-            end    
+            Obj.setTime();
+            
+            % Check TimeZone!
+            % Convert to JD
+            % JD = convert.time(InPar.Date, 'StrDate', 'JD');
+            [Year, Month, Day] = imUtil.util.file.date_directory(Obj.JD, Obj.TimeZone);
+            YMD = sprintf('%04d%s%02d%s%02d', Year, filesep, Month, filesep, Day);
+            
+            UseYMD = false;
+            PreDate = '';
+            PostDate = '';
 
             % Check Level
             switch Obj.Level
                 % /base/data/ref/<area>/version<#>/ - All sky reference/coadd image - images/masks/catalogs/PSF
-                case 'ref'
-                    
-                    % Convert to string with specified format
-                    if isnumeric(Obj.RefVersion)
-                        Obj.RefVersion = sprintf(Obj.FormatRefVersion, Obj.RefVersion);
-                    end
+                case { 'ref', 'coadd' }
+                    PostDate = sprintf('%s%s%s%s', Obj.Level, filesep, Obj.Area, ...
+                        filesep, Obj.Version);
                         
-                    % 
-                    FPath = sprintf('%s%s%s%s', Obj.Base, filesep, Obj.DataDir, filesep, ...
-                        Obj.Level, filesep, Obj.Area, filesep, 'version', Obj.RefVersion, filesep, ...
-                        Obj.SubDir);
-
+                case { 'raw', 'log', 'proc', 'stacked'}
+                    UseYMD = true;                     
+                    PostDate = Obj.Level;                    
+                
+                case { 'calib' }
+                    PostDate = sprintf('%s%s%s', Obj.Level, filesep, Obj.SubLevel);
             
-                % /base/data/coadd/area/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
-                case 'coadd'
-                    %FPath = sprintf('%s%s%s%s', Obj.Base, filesep, Obj.DataDir, filesep, ...
-                    %    Obj.Level,        );
-
-            
-                % /data/YYYY/MM/DD/raw/ - contains all the science raw data                    
                 otherwise
-
-                    % Check TimeZone!
-                    % Convert to JD
-                    % JD = convert.time(InPar.Date, 'StrDate', 'JD');
-                    [Y,M,D] = imUtil.util.file.date_directory(Obj.JD, Obj.TimeZone);
-
-                    %LocalJD = JD + InPar.TimeZone./24;
-                    %FloorLocalJD = floor(LocalJD);
-                    %FloorDate = celestial.time.jd2date(FloorLocalJD);
-        
-                    YearDir = sprintf('%04d', Y);
-                    MDir   = sprintf('%02d', M);
-                    DDir   = sprintf('%02d', D);
-                    MDDir  = sprintf('%s%s%s', MDir, filesep, DDir);
-
-                    if strcmp(Obj.Level, 'proc') && ~strcmp(Obj.Type, 'sci')
-                        % calibration
-                        DLevel = 'calib';
-                    else
-                        DLevel = Obj.Level;
-                    end
-
-                    DateDir = sprintf('%s%s%s%s%s%s', filesep, YearDir, filesep, MDDir, filesep, DLevel);
-                    
-
-                    FPath = sprintf('%s%s%s%s', Obj.Base, filesep, Obj.DataDir, DateDir);
+                    error('Unknown path Level: %s', Obj.Level);
                     
             end
+
+            %
+            if UseYMD
+                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
+                   Obj.DataPath, filesep, PreDate, filesep, YMD, filesep, PostDate, ...
+                   filesep, Obj.SubDir);
+            else
+                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
+                   Obj.DataPath, filesep, PostDate, filesep, filesep, Obj.SubDir);
+                
+            end                      
    
             % Clean path from multiple /
             FPath = regexprep(FPath, sprintf('%s{2,5}', filesep), '/');
@@ -473,26 +448,9 @@ classdef ImagePath < Component
             
             % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
             
-            % Use current time
-            if isempty(Obj.Time)
-                Obj.Time = celestial.time.julday;
-            end
+            %
+            Obj.setTime();
             
-            % Convert number to string (assume JD)
-            if isnumeric(Obj.Time)                
-                StrDate = convert.time(Obj.Time, 'JD', 'StrDate');
-                Obj.TimeStr = StrDate{1};
-            elseif ischar(Obj.Time)
-                Obj.TimeStr = Obj.Time;
-            elseif iscellstr(Obj.Time)
-                Obj.TimeStr = Obj.Time{1};
-            end
-            
-            % Remove '-' and ':' from date (StrDate: 'YYYY-MM-DDTHH:MM:SS.FFF')
-            Obj.TimeStr = strrep(Obj.TimeStr, '-', '');
-            Obj.TimeStr = strrep(Obj.TimeStr, 'T', '.');
-            Obj.TimeStr = strrep(Obj.TimeStr, ':', '');
-
             % FieldID, use specified formatting if numeric
             if isnumeric(Obj.FieldId) && ~isempty(Obj.FormatFieldID)
                 Obj.FieldID = sprintf(Obj.FormatFieldID, Obj.FieldID);
@@ -502,18 +460,7 @@ classdef ImagePath < Component
             Obj.valiadateFields();
             
             % Get path
-            Path = ''; %Obj.constructPath();  
-
-%             'Date', Args.Date,...
-%                                          'TimeZone', Args.TimeZone,...
-%                                          'Level', Args.Level,...
-%                                          'Type', Args.Type,...
-%                                          'RefVersion', Args.RefVersion,...
-%                                          'FormatRefVersion', Args.FormatRefVersion,...
-%                                          'Base', Args.Base,
-%                                         'DataDir', Args.DataDir,...
-%                                          'SubDir', Args.SubDir,
-
+            Path = ''; %Obj.constructPath();
 
             % Level / Level.SubLevel
             if isempty(Obj.SubLevel)
@@ -551,7 +498,37 @@ classdef ImagePath < Component
     end
     
     
-    methods % Helpers
+    methods % Helpers (for internal use)
+        
+        function Result = setTime(Obj)
+            
+            % Use current time
+            if isempty(Obj.Time)
+                Obj.Time = celestial.time.julday;
+            end
+            
+            % Convert number to string (assume JD)
+            if isnumeric(Obj.Time)                
+                StrDate = convert.time(Obj.Time, 'JD', 'StrDate');
+                Obj.TimeStr = StrDate{1};
+                Obj.JD = Obj.Time;
+            elseif ischar(Obj.Time)
+                Obj.TimeStr = Obj.Time;
+                Obj.JD = convert.time(Obj.Time, 'StrDate', 'JD');
+            elseif iscellstr(Obj.Time)
+                Obj.TimeStr = Obj.Time{1};
+                Obj.JD = convert.time(Obj.Time, 'StrDate', 'JD');
+            end
+
+            % Remove '-' and ':' from date (StrDate: 'YYYY-MM-DDTHH:MM:SS.FFF')
+            Obj.TimeStr = strrep(Obj.TimeStr, '-', '');
+            Obj.TimeStr = strrep(Obj.TimeStr, 'T', '.');
+            Obj.TimeStr = strrep(Obj.TimeStr, ':', '');
+            
+            Result = true;
+        end
+            
+            
         function Result = valiadateFields(Obj)
             
             Result = true;
