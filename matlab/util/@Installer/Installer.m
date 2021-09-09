@@ -86,7 +86,6 @@ classdef Installer < Base
         end
     end
     
-<<<<<<< HEAD:matlab/util/Installer.m
     methods (Static)
         function T = readElementsFileJPL(FileName, Type)
             % Read JPL orbital elements file
@@ -136,6 +135,8 @@ classdef Installer < Base
                 case {'numbr','number'}
                     % numbered asteroids file
                     Format = '%f %17s %f %f %f %f %f %f %f %f %f %s\n';
+                    ColNames{1} = 'Number';
+                    ColNames{2} = 'Designation';
                 case 'unnum'
                     % un-numbered asteroids file
                     Format = '%12s %f %f %f %f %f %f %f %f %f %s\n';
@@ -163,10 +164,8 @@ classdef Installer < Base
         end
         
     end
-    
-=======
+   
 	
->>>>>>> 3f7b04f4e6078c8b15620f7947adcb7ed7658446:matlab/util/@Installer/Installer.m
     methods % main functions
         function install(Obj, DataName, Args)
             % Install AstroPack data directories from AstroPack repository
