@@ -11,7 +11,10 @@ function Result = unitTest()
     
     % constructPath
     ip = ImagePath();
-    Path = ip.constructPath('ProjName', 'ULTRASAT');
+    ExpectedResult = ip.setTestData();
+    ip.Level = 'proc';
+    ip.SubDir = 'subdir';
+    Path = ip.constructPath();
     disp(Path);
 
             
