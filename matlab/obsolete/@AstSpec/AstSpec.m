@@ -964,7 +964,7 @@ classdef AstSpec < HEAD
                 % do nothing
             end
             
-            Dir = Util.files.which_dir(mfilename);
+            Dir = io.files.which_dir(mfilename);
             SpecDir = 'SpecGalQSO';
             DirPath = sprintf('~/matlab/data/spec/%s%s',SpecDir,filesep);
             
@@ -987,7 +987,7 @@ classdef AstSpec < HEAD
                     % add .txt to Name
                     Name = sprintf('%s.txt',Name);
                 end
-                Spec = Util.IO.load2(sprintf('%s%s',DirPath,Name));
+                Spec = io.files.load2(sprintf('%s%s',DirPath,Name));
                 switch lower(OutType)
                     case 'mat'
                         AstS = Spec;
