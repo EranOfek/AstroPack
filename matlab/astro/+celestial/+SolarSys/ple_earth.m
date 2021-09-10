@@ -28,9 +28,9 @@ SizeDate = size(Date);
 N        = SizeDate(1);
 ColN     = SizeDate(2);
 
-if (ColN==4),
+if (ColN==4)
    JD = celestial.time.julday(Date);
-elseif (ColN==1),
+elseif (ColN==1)
    JD = Date;
 else
    error('Illigal number of columns in date matrix');

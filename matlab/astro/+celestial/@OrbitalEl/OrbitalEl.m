@@ -18,6 +18,9 @@ classdef OrbitalEl < handle
         MagPar
         MagType = 'HG';
        
+        AngUnits  = 'deg';
+        LenUnits  = 'au';
+        TimeUnits = 'day';  % must be days!
         K = 0.017202098950000; % Gaussian Gravitational Constant
         Ref
     end
@@ -46,6 +49,9 @@ classdef OrbitalEl < handle
                 Args.Mepoch       = [];
                 Args.MagPar       = [];
                 Args.MagType      = 'HG';
+                Args.AngUnits     = 'deg';
+                Args.LenUnits     = 'au';
+                Args.TimeUnits    = 'day';
                 Args.K            = 0.017202098950000; % Gaussian Gravitational Constant
                 Args.Ref          = '';
             end
@@ -88,8 +94,8 @@ classdef OrbitalEl < handle
         function Result = get.Tp(Obj)
             % getter for periapsis time [JD]
             
-            if isempty(Obj.Tp) && (~isempty(Obj.M) && ~isempty(Obj.A))
-                Obj.Tp = Obj.Epoch + Obj.Mepoch./Obj.meanMotion;
+            if isempty(Obj.Tp) && (~isempty(Obj.Mepoch) && ~isempty(Obj.A))
+                Obj.Tp = Obj.Epoch - Obj.Mepoch./Obj.meanMotion(Obj.AngUnits);
             end
             Result = Obj.Tp;
             
@@ -324,12 +330,16 @@ classdef OrbitalEl < handle
             % Solve the Kepler equation for OrbitalEl object.
             %   For elliptic, parabolic, and hyperbolic orbits
             % Input  : - A single element OrbitalEl object.
-            %          - Vector or scalar of times.
+            %          - Vector or scalar of times (e.g. JD).
+            %            The time of periastron will be subtracted from
+            %            this time.
             %          * ...,key,val,...
             %            'Tol' - Tolerance. Default is 1e-8 (radians).
             %            'K' - Gaussian gravitational constant.
             %                  If empty, then use OrbitalEl object default.
             %                  Default is [].
+            %            'SubTp' - A logical indicating if to subtract the
+            %                   time of periapsis. Default is true.
             % Output : - Vctor of True anomaly [rad].
             %          - Vecor of radius vector [au].
             %          - Vector of Eccentric anomaly [rad].
@@ -345,6 +355,7 @@ classdef OrbitalEl < handle
                 Time
                 Args.Tol      = 1e-8;
                 Args.K        = [];  % use Obj default
+                Args.SubTp(1,1) logical = true;
             end
             
             if ~isempty(Args.K)
@@ -353,6 +364,9 @@ classdef OrbitalEl < handle
             
             Nel  = numEl(Obj);
             Time = Time(:).*ones(Nel,1);
+            if Args.SubTp
+                Time = Time - Obj.Tp;
+            end
             Nu   = zeros(Nel, 1);
             R    = zeros(Nel, 1);
             E    = zeros(Nel, 1);
@@ -392,13 +406,15 @@ classdef OrbitalEl < handle
                 R
                 AngUnits   = 'rad';
             end
+            RAD = 180./pi;
             
             if (nargin<3)
                 % calc radius vector
                 R = trueAnom2radius(OrbEl, Nu, AngUnits);
             end
             
-            [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node, Obj.W, Obj.Incl);
+            Nu = convert.angular(AngUnits, 'rad', Nu);
+            [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node./RAD, Obj.W./RAD, Obj.Incl./RAD);
         end
 
     end
@@ -406,15 +422,55 @@ classdef OrbitalEl < handle
     methods % ephemerides
         function ephem(Obj, Time, Args)
             %
-            
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
+            %          JD = celestial.time.julday([9 9 2021])
+            %          ephem(OrbEl, JD)
+            %
             arguments
                 Obj(1,1)
                 Time
-                Args.Tol
+                Args.Tol     = 1e-8;
             end
             
-            [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time, Args.Tol);
+            [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time, 'Tol',Args.Tol);
+            % target ecliptic Heliocentric rect. position
             [Xtarget, Ytarget, Ztarget] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+            
+            % verified
+            %RAD = 180./pi;
+            %atan2(Ytarget, Xtarget).*RAD
+            %atan(Ztarget./sqrt(Xtarget.^2 + Ytarget.^2)).*RAD
+            
+            
+            [Coo,Vel]=celestial.SolarSys.calc_vsop87(Time, 'Earth', 'e', 'E');
+            Xobs    = Coo(1,:).';
+            Yobs    = Coo(2,:).';
+            Zobs    = Coo(3,:).';
+            XobsDot = Vel(1,:).';
+            YobsDot = Vel(2,:).';
+            ZobsDot = Vel(3,:).';
+            
+            X = Xtarget - Xobs;
+            Y = Ytarget - Yobs;
+            Z = Ztarget - Zobs;
+            
+            Lon = atan2(Y, X);
+            Lat = atan(Z./sqrt(X.^2 + Y.^2));
+            RotMat = celestial.coo.rotm_coo('E');
+            Eq = RotMat * [X(:).'; Y(:).'; Z(:).'];
+            Xeq = Eq(1,:).';
+            Yeq = Eq(2,:).';
+            Zeq = Eq(3,:).';
+            
+            R     = sqrt(Xtarget.^2 + Ytarget.^2 + Ztarget.^2);
+            Delta = sqrt(X.^2 + Y.^2 + Z.^2);
+            
+            RA  = atan2(Yeq, Xeq);
+            Dec = atan(Zeq./sqrt(Xeq.^2 + Yeq.^2));
+            
+            [RA, Dec].*180./pi
+            R
+            Delta
             
             
         end

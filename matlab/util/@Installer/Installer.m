@@ -261,16 +261,23 @@ classdef Installer < Base
                     end
                     www.pwget(List, Args.wgetPars, Args.Npwget);
                     
-                    if ~isempty(strfind(FileName,'.tar')) 
-                        % open tar file
-                        untar(FileName);
-                    else
-                        % do nothing
-                    end
+                    
                     pause(5);
                     io.files.files_arrived([], 10);
-                    gunzip('*.gz');
-                    delete('*.gz');
+                    F = dir('*.gz');
+                    for I=1:1:numel(F)
+                        gunzip(F(I).name);
+                    end
+                    F = dir('*.tar');
+                    for I=1:1:numel(F)
+                        untar(F(I).name);
+                    end
+                    try
+                        delete('*.gz');
+                    end
+                    try
+                        delete('*.tar');
+                    end
                 end
             end
             cd(PWD);
