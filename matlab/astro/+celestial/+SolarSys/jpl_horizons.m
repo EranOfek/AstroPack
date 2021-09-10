@@ -101,19 +101,19 @@ Data = webread(UrlCommand,InPar.WebOptions);
 
 % read header
 Lines = regexp(Data,'\n','split');
-Iline = find(~Util.cell.isempty_cell(strfind(Lines,'Date__')));
+Iline = find(~tools.cell.isempty_cell(strfind(Lines,'Date__')));
 ColCell = regexp(Lines(Iline),',','split');
 if isempty(ColCell)
     Cat = AstCat;
    return  
 end
-ColCell = Util.string.spacedel(ColCell{1});
+ColCell = tools.string.spacedel(ColCell{1});
 Ncol    = numel(ColCell);
 
 % read table
 Tmp    = regexp(Data,'\$\$SOE(?<data>.+)\$\$EOE','names');
 Table  = Tmp.data;
-Format = Util.string.str_duplicate('%s ',Ncol);
+Format = tools.string.str_duplicate('%s ',Ncol);
 Format = sprintf('%s\n',Format);
 C = textscan(Table,Format,'Delimiter',',');
 
@@ -238,8 +238,11 @@ for Icol=1:1:Ncol
     end
 end
 
-Cat = AstCat;
-Cat.(CatField) = [C{:}];
-Cat.(ColCellField)  = ColCell;
-Cat.(ColUnitsField) = ColUnits;
-Cat = colcell2col(Cat);
+% save as AstroCatalo
+Cat = AstroCatalog({[C{:}]}, 'ColNames', ColCell, 'ColUnits',ColUnits);
+
+% Cat = AstCat;
+% Cat.(CatField) = [C{:}];
+% Cat.(ColCellField)  = ColCell;
+% Cat.(ColUnitsField) = ColUnits;
+% Cat = colcell2col(Cat);

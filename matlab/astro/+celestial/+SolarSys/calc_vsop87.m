@@ -154,9 +154,9 @@ Vel     = zeros(3,N);
 Coo_dt1 = zeros(3,N);
 Coo_dt2 = zeros(3,N);
 
-for CooInd=1:1:3,
+for CooInd=1:1:3
    J = find(Var==CooInd);
-   for I=1:1:N,
+   for I=1:1:N
       % calc coordinates per time
       Coo(CooInd,I) = sum((T(I).^(Pow(J))).*VSOP87(J,A_Col).*cos(VSOP87(J,B_Col) + VSOP87(J,C_Col).*T(I)));
 
@@ -169,7 +169,7 @@ for CooInd=1:1:3,
 end
 
 Vel = 0.5.*(Coo_dt2 - Coo_dt1)./Dts;
-if (CooType=='S'),
+if (CooType=='S')
    Coo(1:2,:) = (Coo(1:2,:)./(2.*pi) - floor(Coo(1:2,:)./(2.*pi))).*2.*pi;
    Ip = find(Coo(2,:)>pi);
    Coo(2,Ip) = Coo(2,Ip) - 2.*pi;

@@ -27,9 +27,9 @@ function [Geoc,GeocCart]=geod2geoc(Geod,RefEllips)
 % Example: [Geoc,GeocCart]=celestial.Earth.geod2geoc([1 1 100]);
 % Reliable: 2
 %--------------------------------------------------------------------------
-if (nargin==1),
+if (nargin==1)
    RefEllips  = 'WGS84';
-elseif (nargin==2),
+elseif (nargin==2)
    % do nothing
 else
    error('Illegal number of input arguments');
@@ -37,7 +37,7 @@ end
 RAD    = 180./pi;
 ARCSEC = 1./(3600.*RAD);       % arcsec in radians
 N = length(Geod(:,1));
-if (length(Geod(1,:))==2),
+if (length(Geod(1,:))==2)
    Geod = [Geod, zeros(N,1)];
 end
 

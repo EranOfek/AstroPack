@@ -366,6 +366,7 @@ classdef OrbitalEl < handle
             
             Nel  = numEl(Obj);
             Time = Time(:).*ones(Nel,1);
+            Ntime = numel(Time);
             if Args.SubTp
                 Time = Time - Obj.Tp;
             end
@@ -376,13 +377,16 @@ classdef OrbitalEl < handle
             M    = nan(Nel, 1);
             
             Flag = Obj.Eccen<1;
+            Flag = Flag & true(Ntime,1);
             [Nu(Flag),R(Flag),E(Flag),Vel(Flag),M(Flag)] = celestial.Kepler.kepler_elliptic(Time(Flag), Obj.PeriDist(Flag), Obj.Eccen(Flag), Obj.K, Args.Tol);
         
             Flag = Obj.Eccen==1;
+            Flag = Flag & true(Ntime,1);
             % E is S
             [Nu(Flag),R(Flag),E(Flag),Vel(Flag)] = celestial.Kepler.kepler_parabolic(Time(Flag), Obj.PeriDist(Flag), Obj.K);
             
             Flag = Obj.Eccen>1;
+            Flag = Flag & true(Ntime,1);
             % E is H
             [Nu(Flag),R(Flag),E(Flag),Vel(Flag)] = celestial.Kepler.kepler_hyperbolic(Time(Flag), Obj.PeriDist(Flag), Obj.Eccen(Flag), Obj.K, Args.Tol);
             
@@ -423,69 +427,134 @@ classdef OrbitalEl < handle
     end
     
     methods % ephemerides
-        function ephem(Obj, Time, Args)
-            %
+        function Cat = ephem(Obj, Time, Args)
+            % Calculate epjemerides for OrbitalEl object.
+            %   For definitions and formulae, see Explanatory Supplement to the Astronomical
+            %   Alamanac (Seidelmann 2006), chapter 3.313, p. 148.
+            % Input  : -
+            % Output : -
+            % Author : Eran Ofek (Sep 2021)
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
             %          JD = celestial.time.julday([9 9 2021])
             %          ephem(OrbEl, JD)
             %
+            % JD = celestial.time.julday([1 9 2021]);
+            % Coo=[-116.865./RAD 33.3563./RAD 2000]
+            % OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
+            % CatE = ephem(OrbEl, JD, 'GeoPos',Coo)
+            
+            % [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
+            
             arguments
                 Obj(1,1)
                 Time
                 Args.Tol     = 1e-8;
+                Args.TolLT   = 1e-6;
+                Args.Abberation(1,1) logical = false;
+                Args.GeoPos  = [];  % [] - topocentric  ; [rad, rad, m]
+                Args.RefEllipsoid   = 'WGS84';
             end
+            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
-            [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time, 'Tol',Args.Tol);
-            % target ecliptic Heliocentric rect. position
-            [Xtarget, Ytarget, Ztarget] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+            Nt      = numel(Time);
+            Ntarget = numEl(Obj);
+            if ~(Nt==1 || Ntarget==1)
+                error('Number of epochs or number of targets must be 1');
+            end
+            Ncat = max(Nt, Ntarget);
             
-            % verified
-            %RAD = 180./pi;
-            %atan2(Ytarget, Xtarget).*RAD
-            %atan(Ztarget./sqrt(Xtarget.^2 + Ytarget.^2)).*RAD
+            ColNames      = {'Designation','Number','JD', 'RA', 'Dec', 'R', 'Delta'};
+            ColUnits      = {'','','day','rad','rad', 'au','au'};
+            Col           = cell2struct(num2cell(1:1:numel(ColNames)),ColNames,2);
+            CatS          = struct('Designation',cell(Ncat,1),...
+                                   'Number',nan(Ncat,1),...
+                                   'JD',nan(Ncat,1),...
+                                   'RA',nan(Ncat,1),...
+                                   'Dec',nan(Ncat,1),...
+                                   'R',nan(Ncat,1),...
+                                   'Delta',nan(Ncat,1));
+                               
+            for It=1:1:Nt  <-- remove this loop
+
+                LightTimeNotConverged = true;
+                LightTime             = 0;
+                Iter                  = 0;
+                while LightTimeNotConverged
+                    Iter = Iter + 1;
+                    [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime, 'Tol',Args.Tol);
+                    % target ecliptic Heliocentric rect. position
+                    [Xtarget, Ytarget, Ztarget] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+                    [U_B] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+                    U_B   = U_B.';  % a 3 X N matrix
+
+                    % verified
+                    %RAD = 180./pi;
+                    %atan2(Ytarget, Xtarget).*RAD
+                    %atan(Ztarget./sqrt(Xtarget.^2 + Ytarget.^2)).*RAD
+
+                    % rectangular ecliptic coordinates of Earth with equinox of J2000
+                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time(It), 'Earth', 'a', 'd');
+
+                    Gau = celestial.coo.topocentricVector(Time(It), Args.GeoPos, 'OutUnits','au',...
+                                                                             'RefEllipsoid',Args.RefEllipsoid,...
+                                                                             'Convert2ecliptic',true,...
+                                                                             'Equinox','J2000');
+
+                    E_H = E_H + Gau;
+
+                    U = U_B - E_H;  % U_B(t-tau)
+                    % Q = U_B - S_B; % U_B(t-tau) - S_B(t-tau)
+
+                    Delta = sqrt(sum(U.^2, 1));
+
+                    PrevLightTime = LightTime;
+                    LightTime = Delta./Caud;
+                    % more accuratly - use:
+                    % celestial.Kepler.LightTimeCorrection
+
+                    if all(abs(LightTime - PrevLightTime))<Args.TolLT
+                        LightTimeNotConverged = false;
+                    end
+                end
+                R     = sqrt(sum(U_B.^2, 1));
+
+                % ignore light deflection
+                if Args.Abberation
+                    % Abberation of light
+                    % Vel should be in the Barycentric system, but here we
+                    % approximate it in the Heliocentric system
+                    P       = U./Delta;
+                    V       = E_dotH./Caud;
+                    AbsV    = sqrt(sum(V.^2, 1));
+                    InvBeta = sqrt(1- AbsV.^2);
+                    F1      = dot(P, V);
+                    F2      = 1 + F1./(1 + InvBeta);
+
+                    % The abberated position of the body in the geocentric inertial
+                    % frame that is moving with velocioty V of the Earth relative
+                    % to the natural frame:
+
+                    U2 = (InvBeta.*U + F2.*Delta.*V)./(1 + F1);
+                else
+                    U2 = U;
+                end
+
+                % Rotate from Ecliptic to Equatorial reference frame
+                RotMat = celestial.coo.rotm_coo('E');
+                Equatorial_U2 = RotMat * U2;
+
+                RA  = atan2(Equatorial_U2(2,:), Equatorial_U2(1,:));
+                Dec = atan(Equatorial_U2(3,:)./sqrt( Equatorial_U2(1,:).^2 + Equatorial_U2(2,:).^2  ));
+                
+                  
+            end
+            %celestial.coo.convertdms(RA,'r','SH')
+            %celestial.coo.convertdms(Dec,'R','SD')
+            % geocentric  05 39 59.38 +11 02 53.3
+            % topocentric 05 39 59.53 +11 02 51.9
+            CatE = [RA(:), Dec(:)];
             
-            
-            % convert target coordinates to Equatorial
-            
-            
-            % rectangular ecliptic coordinates of Earth with equinox of J2000
-            [Coo,Vel]=celestial.SolarSys.calc_vsop87(Time, 'Earth', 'e', 'e');
-            Xobs    = Coo(1,:).';
-            Yobs    = Coo(2,:).';
-            Zobs    = Coo(3,:).';
-            XobsDot = Vel(1,:).';
-            YobsDot = Vel(2,:).';
-            ZobsDot = Vel(3,:).';
-            
-            X = Xtarget - Xobs;
-            Y = Ytarget - Yobs;
-            Z = Ztarget - Zobs;
-            
-            Lon = atan2(Y, X);
-            Lat = atan(Z./sqrt(X.^2 + Y.^2));
-            
-            RotMat = celestial.coo.rotm_coo('E');
-            
-            [OutLong,OutLat,TotRot]=celestial.coo.convert_coo(Lon, Lat, 'e', 'J2000.0')
-            [OutLong, OutLat].*180./pi
-            
-            
-            Eq = RotMat * [X(:).'; Y(:).'; Z(:).'];
-            Xeq = Eq(1,:).';
-            Yeq = Eq(2,:).';
-            Zeq = Eq(3,:).';
-            
-            R     = sqrt(Xtarget.^2 + Ytarget.^2 + Ztarget.^2);
-            Delta = sqrt(X.^2 + Y.^2 + Z.^2);
-            
-            RA  = atan2(Yeq, Xeq);
-            Dec = atan(Zeq./sqrt(Xeq.^2 + Yeq.^2));
-            
-            [RA, Dec].*180./pi
-            R
-            Delta
-            
-            
+            %Cat = AstroCatalog({Cat}, 'ColNames', ColNames, 'ColUnits', ColUnits);
         end
     end
     

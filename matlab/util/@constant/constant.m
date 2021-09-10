@@ -1,5 +1,5 @@
 %--------------------------------------------------------------------------
-% constant class                                                     class
+% constant class                                                    class
 % Description: A static class for physical and astrophysical constants.
 %              This class include many static function for constants.
 %              Type "constant." followed by <tab> to see the full list of
