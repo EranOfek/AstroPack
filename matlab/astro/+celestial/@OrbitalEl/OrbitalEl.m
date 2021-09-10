@@ -18,6 +18,7 @@ classdef OrbitalEl < handle
         MagPar
         MagType = 'HG';
        
+        Equinox   = 'J2000.0';
         AngUnits  = 'deg';
         LenUnits  = 'au';
         TimeUnits = 'day';  % must be days!
@@ -49,6 +50,7 @@ classdef OrbitalEl < handle
                 Args.Mepoch       = [];
                 Args.MagPar       = [];
                 Args.MagType      = 'HG';
+                Args.Equinox      = 'J2000.0';
                 Args.AngUnits     = 'deg';
                 Args.LenUnits     = 'au';
                 Args.TimeUnits    = 'day';
@@ -414,7 +416,8 @@ classdef OrbitalEl < handle
             end
             
             Nu = convert.angular(AngUnits, 'rad', Nu);
-            [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node./RAD, Obj.W./RAD, Obj.Incl./RAD);
+            Factor = convert.angular(Obj.AngUnits, 'rad', 1);
+            [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node.*Factor, Obj.W.*Factor, Obj.Incl.*Factor);
         end
 
     end
@@ -442,7 +445,11 @@ classdef OrbitalEl < handle
             %atan(Ztarget./sqrt(Xtarget.^2 + Ytarget.^2)).*RAD
             
             
-            [Coo,Vel]=celestial.SolarSys.calc_vsop87(Time, 'Earth', 'e', 'E');
+            % convert target coordinates to Equatorial
+            
+            
+            % rectangular ecliptic coordinates of Earth with equinox of J2000
+            [Coo,Vel]=celestial.SolarSys.calc_vsop87(Time, 'Earth', 'e', 'e');
             Xobs    = Coo(1,:).';
             Yobs    = Coo(2,:).';
             Zobs    = Coo(3,:).';
@@ -456,7 +463,13 @@ classdef OrbitalEl < handle
             
             Lon = atan2(Y, X);
             Lat = atan(Z./sqrt(X.^2 + Y.^2));
+            
             RotMat = celestial.coo.rotm_coo('E');
+            
+            [OutLong,OutLat,TotRot]=celestial.coo.convert_coo(Lon, Lat, 'e', 'J2000.0')
+            [OutLong, OutLat].*180./pi
+            
+            
             Eq = RotMat * [X(:).'; Y(:).'; Z(:).'];
             Xeq = Eq(1,:).';
             Yeq = Eq(2,:).';

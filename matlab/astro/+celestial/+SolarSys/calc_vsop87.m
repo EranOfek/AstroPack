@@ -37,9 +37,9 @@ function [Coo,Vel]=calc_vsop87(JD_TT, ObjectName, VSOP_Type, OutCooType)
 % Reliable: 2
 %------------------------------------------------------------------------------
 
-if (nargin==3),
+if (nargin==3)
    OutCooType = 'd';
-elseif (nargin==4),
+elseif (nargin==4)
    % do nothing
 else
    error('Illegal number of input arguments');
