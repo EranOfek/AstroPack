@@ -290,6 +290,70 @@ classdef OrbitalEl < handle
             
         end
 
+        function V=r2vel(Obj, R, TimeUnits)
+            % Calculate orbital velocity from radius vector
+            % Description: Calculate orbital velocity from radius vector
+            %              Correct only for e<1
+            % Input  : - A single elements OrbitalEl object.
+            %          - Radius vector
+            %          - TimeUnits. Default is 'day'
+            % Output : - Velocity (default units au/day)
+            % Author : Eran Ofek (Sep 2021)
+            % Example: V=r2vel(OrbEl(1), 1); % [au/day]
+            %          V=r2vel(OrbEl(1), 1, 's').*constant.au./1e5; %[km/s]
+            arguments
+                Obj(1,1)
+                R
+                TimeUnits    = 'day';
+            end
+            
+            V = (sqrt(2).*2.*pi.*Obj.A ./ period(Obj,TimeUnits)).*sqrt( 1./R - 1./(2.*Obj.A) );
+        end
+
+        function varargout=trueAnom2rectPos(Obj, Nu, R, AngUnits)
+            % True anomaly and radius vector to rectangular position
+            % Description: True anomaly to rectangular position
+            % Input  : - OrbitalEl object.
+            %          - True anomaly [rad].
+            %          - Optional radius vector. If not given will be
+            %            calculated from the True anaomaly.
+            %          - Angilar units. Default is 'rad'.
+            % Output : * Either a single 3 column matrix of [X,Y,Z] or 
+            %            X,Y,Z. Units the same as the radius vector units.
+            % Example: BodyPos = trueAnom2rectPos(OrbEl(1), 1, 1)
+            %          [x,y,z] = trueAnom2rectPos(OrbEl(1), 1, 1)
+            
+            arguments
+                Obj(1,1)
+                Nu
+                R
+                AngUnits   = 'rad';
+            end
+            
+            if (nargin<3)
+                % calc radius vector
+                R = trueAnom2radius(OrbEl, Nu, AngUnits);
+            end
+            
+            [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node, Obj.W, Obj.Incl);
+        end
+
+        
+    end
+    
+    methods % conversion
+        
+        function TI=thiele_innes(Obj)
+            % Convert orbital elements to Thiele-Innes elements
+            % Description: Convert orbital elements to Thiele-Innes
+            %              orbital elements.
+            % Input  : - OrbitalEl object
+            % Output : - Structure array with Thiele-Innes elements.
+            % See also: celestial.Kepler.thiele_innes2el.m
+            % Example: TI=thiele_innes(OrbEl(1));
+            
+            TI=celestial.Kepler.thiele_innes(Obj.A, Obj.W, Obj.Node, Obj.Incl);
+        end
 
     end
     
