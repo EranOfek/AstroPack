@@ -17,7 +17,6 @@ classdef OrbitalEl < handle
         Mepoch   % Mean Anomaly at Epoch
         MagPar
         MagType = 'HG';
-        
        
         K = 0.017202098950000; % Gaussian Gravitational Constant
         Ref
@@ -44,7 +43,7 @@ classdef OrbitalEl < handle
                 Args.Eccen        = [];
                 Args.Tp           = [];
                 Args.Epoch        = [];
-                Args.M            = [];
+                Args.Mepoch       = [];
                 Args.MagPar       = [];
                 Args.MagType      = 'HG';
                 Args.K            = 0.017202098950000; % Gaussian Gravitational Constant
@@ -98,6 +97,17 @@ classdef OrbitalEl < handle
     end
     
     methods % basic functions
+        function Result = numEl(Obj)
+            % Return the number or orbital elements in each OrbitalEl
+            % element.
+           
+            Nobj   = numel(Obj);
+            Result = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = numel(Obj(Iobj).Node);
+            end
+        end
+        
         function Result = meanMotion(Obj, AngUnits)
             % Return the mean motion [deg/day]
             % Input  : - A single element OrbitalEl object
@@ -310,6 +320,59 @@ classdef OrbitalEl < handle
             V = (sqrt(2).*2.*pi.*Obj.A ./ period(Obj,TimeUnits)).*sqrt( 1./R - 1./(2.*Obj.A) );
         end
 
+        function [Nu, R, E, Vel, M] = keplerSolve(Obj, Time, Args)
+            % Solve the Kepler equation for OrbitalEl object.
+            %   For elliptic, parabolic, and hyperbolic orbits
+            % Input  : - A single element OrbitalEl object.
+            %          - Vector or scalar of times.
+            %          * ...,key,val,...
+            %            'Tol' - Tolerance. Default is 1e-8 (radians).
+            %            'K' - Gaussian gravitational constant.
+            %                  If empty, then use OrbitalEl object default.
+            %                  Default is [].
+            % Output : - Vctor of True anomaly [rad].
+            %          - Vecor of radius vector [au].
+            %          - Vector of Eccentric anomaly [rad].
+            %          - Vector of velocity [au/day].
+            %          - Vector of Mean anomaly [rad]. NaN for parabolic or
+            %            hyperbolic.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
+            %          [Nu, R, E, Vel, M] = keplerSolve(OrbEl(1), 2451545)
+            
+            arguments
+                Obj(1,1)
+                Time
+                Args.Tol      = 1e-8;
+                Args.K        = [];  % use Obj default
+            end
+            
+            if ~isempty(Args.K)
+                Obj.K = Args.K;
+            end
+            
+            Nel  = numEl(Obj);
+            Time = Time(:).*ones(Nel,1);
+            Nu   = zeros(Nel, 1);
+            R    = zeros(Nel, 1);
+            E    = zeros(Nel, 1);
+            Vel  = zeros(Nel, 1);
+            M    = nan(Nel, 1);
+            
+            Flag = Obj.Eccen<1;
+            [Nu(Flag),R(Flag),E(Flag),Vel(Flag),M(Flag)] = celestial.Kepler.kepler_elliptic(Time(Flag), Obj.PeriDist(Flag), Obj.Eccen(Flag), Obj.K, Args.Tol);
+        
+            Flag = Obj.Eccen==1;
+            % E is S
+            [Nu(Flag),R(Flag),E(Flag),Vel(Flag)] = celestial.Kepler.kepler_parabolic(Time(Flag), Obj.PeriDist(Flag), Obj.K);
+            
+            Flag = Obj.Eccen>1;
+            % E is H
+            [Nu(Flag),R(Flag),E(Flag),Vel(Flag)] = celestial.Kepler.kepler_hyperbolic(Time(Flag), Obj.PeriDist(Flag), Obj.Eccen(Flag), Obj.K, Args.Tol);
+            
+            
+        end
+            
         function varargout=trueAnom2rectPos(Obj, Nu, R, AngUnits)
             % True anomaly and radius vector to rectangular position
             % Description: True anomaly to rectangular position
@@ -338,7 +401,23 @@ classdef OrbitalEl < handle
             [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node, Obj.W, Obj.Incl);
         end
 
-        
+    end
+    
+    methods % ephemerides
+        function ephem(Obj, Time, Args)
+            %
+            
+            arguments
+                Obj(1,1)
+                Time
+                Args.Tol
+            end
+            
+            [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time, Args.Tol);
+            [Xtarget, Ytarget, Ztarget] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+            
+            
+        end
     end
     
     methods % conversion
