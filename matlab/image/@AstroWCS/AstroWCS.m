@@ -13,8 +13,8 @@ classdef AstroWCS < Component
         CTYPE(1,:)   cell   = {'',''};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
         CUNIT(1,:)   cell   = {'',''};
         RADESYS      char   = 'ICRS';
-        LONPOLE      double = 0; 
-        LATPOLE      double = 90;
+        LONPOLE      double = 180;%0; 
+        LATPOLE      double = 0;%90;
         EQUINOX      double = 2000.0;
         CRPIX(1,:)   double = [0 0];
         CRVAL(1,:)   double = [1 1];
