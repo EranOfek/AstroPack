@@ -742,6 +742,23 @@ classdef OrbitalEl < Base
             % topocentric 05 39 59.53 +11 02 51.9
             
         end
+        
+        function Result = searchMinorPlanetsNearPosition(Obj, RA, Dec, Fov, Args)
+            % TBD
+            
+            arguments
+                Obj
+                RA
+                Dec
+                Fov
+                Args.MagLimit       = Inf;
+                Args.GeoPos         = [];
+                Args.RefEllipsoid   = 'WGS84';
+            end
+            
+            
+            
+        end
     end
     
     methods % conversion
