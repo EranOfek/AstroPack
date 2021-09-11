@@ -5,7 +5,7 @@ function Mag=asteroid_magnitude(R,Delta,Beta,H,G)
 %              Valid for phase angles (Beta) in range 0 to 120 deg.
 % Input  : - MP-Sun distance in au.
 %          - MP-observer distance in au.
-%          - Phase angle in radians.
+%          - Phase angle in radians (Sun-Target-Observer angle).
 %          - The mean absolute visual magnitude (H).
 %          - The slope parameter (G), default is 0.15.
 % Output : - The minor planet visual magnitude.
@@ -15,9 +15,10 @@ function Mag=asteroid_magnitude(R,Delta,Beta,H,G)
 % Example: Mag=celestial.SolarSys.asteroid_magnitude(3,2,0,15,0.15)
 % Reliable: 2
 %--------------------------------------------------------------------------
-if (nargin==4),
+
+if (nargin==4)
    G = 0.15;
-elseif (nargin==5),
+elseif (nargin==5)
    % do nothing
 else
    error('Illigal number of input arguments');
