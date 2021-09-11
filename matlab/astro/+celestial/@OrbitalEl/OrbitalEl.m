@@ -554,7 +554,7 @@ classdef OrbitalEl < Base
             % Input  : - A single element OrbitalEl object.
             %            This object may include multiple orbital elements
             %            in vectors of parameters.
-            %          - A vector of times. 
+            %          - A vector of JD in the TDT time scale.
             %            If the input OrbitalEl object contains multiple
             %            orbital elements, then the length of the vector of
             %            times may be 1 or equal to the number of orbital
