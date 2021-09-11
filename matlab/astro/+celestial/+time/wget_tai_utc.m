@@ -24,7 +24,7 @@ if (nargin==0)
    Read = Def.Read;
 end
 
-Dir     = Util.files.which_dir('celestial.time.wget_tai_utc');
+Dir     = io.files.which_dir('celestial.time.wget_tai_utc');
 Dir     = sprintf('%s%s..%s..%s..%sdata%sSolarSystem%s',Dir,filesep,filesep,filesep,filesep,filesep,filesep);
 
 switch lower(Read)
@@ -58,7 +58,7 @@ switch lower(Read)
         % save data
         save(sprintf('%sTAI_UTC.mat',Dir),'TAI_UTC');
     case 'use'
-        TAI_UTC = Util.IO.load2(sprintf('%sTAI_UTC.mat',Dir));
+        TAI_UTC = io.files.load2(sprintf('%sTAI_UTC.mat',Dir));
     otherwise
         error('Unknown Read option');
 end

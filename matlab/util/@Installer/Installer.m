@@ -163,6 +163,31 @@ classdef Installer < Base
             
         end
         
+        function T = readIERS_EOP(FileName)
+            % Read IERS Earth Orientation File 'finals2000A.data.csv'
+            %   documentation: http://hpiers.obspm.fr/eoppc/bul/bulb/explanatory.html
+            %   http://maia.usno.navy.mil
+            %   http://www.iers.org/nn_10968/IERS/EN/DataProducts/EarthOrientationData/eop.html?__nnn=true
+            %   x_pole/y_pole:  Celestial Ephemeris Pole (CEP) relative to the International Reference Pole (IRP) are defined as x and y
+            %   dPsi/dEps - offset relative to IAU 1980 Theory of Nutation
+            % Input  : - File name to read. Default is 'finals2000A.data.csv'.
+            % Output : - A table containing the file.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: T = Installer.readIERS_EOP
+            
+            arguments
+                FileName = 'finals2000A.data.csv';
+            end
+            
+            PWD = pwd;
+            
+            I = Installer;
+            cd(I.ConfigStruct.InstallationLocation);
+            IndTime = strcmp(I.ConfigStruct.DataName,'Time');
+            cd(I.ConfigStruct.SubDir{IndTime});
+            
+            T = readtable(FileName);
+        end
     end
    
 	

@@ -1,5 +1,5 @@
 
-classdef OrbitalEl < handle
+classdef OrbitalEl < Base
     % OrbitalEl class for storing and manipulating orbital elements
 
     % Properties
@@ -114,6 +114,43 @@ classdef OrbitalEl < handle
             for Iobj=1:1:Nobj
                 Result(Iobj) = numel(Obj(Iobj).Node);
             end
+        end
+        
+        function Result = selectFlag(Obj, Flag, CreateNewObj)
+            % Select specific orbital-elements (targets) from an OrbitalEl object.
+            % Input  : - A single element OrbitalEl object that may contain
+            %            multiple orbital elements.
+            %          - A vector of logical flags, or indices to select
+            %            from the OrbitalEl input object.
+            %          - Indicate if to create a new deep copy of the object.
+            %            [], true, false.
+            %            If true, create new deep copy
+            %            If false, return pointer to object
+            %            If [] and Nargout==0 then do not create new copy.
+            %            Otherwise, create new copy.
+            % Output : - An OrbitalEl object with the selected orbits.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+            %          Res   = selectFlag(OrbEl, 1, true);
+            
+            arguments
+                Obj(1,1)
+                Flag
+                CreateNewObj      = [];
+            end
+            
+            [Result] = createNewObj(Obj, CreateNewObj, nargout);
+            
+            Ne    = numEl(Result);
+            Prop  = fieldnames(Result);
+            Nprop = numel(Prop);
+            for Iprop=1:1:Nprop
+                Ndata = size(Result.(Prop{Iprop}), 1);
+                if Ndata==Ne
+                    Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
+                end
+            end
+            
         end
         
         function Result = meanMotion(Obj, AngUnits)
@@ -546,6 +583,13 @@ classdef OrbitalEl < handle
             %                   'mat' - a matrix
             %                   'AstroCatalog' - An AstroCatalog object.
             %                   Default is 'AstroCatalog'
+            %            'MaxIterLT' - Maximum numbre of iterations for
+            %                   light-time corrections. Default is 5.
+            %                   0 will force to no ligh-time correction
+            %                   (e.g., for quick calculation).
+            %            'IncludeMag' - A logical indicating if to include
+            %                   magnitude in output catalog.
+            %                   Default is true.
             % Output : - Output ephemerides with the following columns:
             %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
             %            and units:
@@ -562,6 +606,8 @@ classdef OrbitalEl < handle
             % CatE = ephem(OrbElA, JD, 'GeoPos',Coo)
             % [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
             
+            % tic;CatE = ephem(OrbElA, JD, 'GeoPos',Coo,'MaxIterLT',0);toc
+            
             arguments
                 Obj(1,1)
                 Time
@@ -571,6 +617,8 @@ classdef OrbitalEl < handle
                 Args.GeoPos                  = [];  % [] - topocentric  ; [rad, rad, m]
                 Args.RefEllipsoid            = 'WGS84';
                 Args.OutType                 = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
+                Args.MaxIterLT               = 5;  % use 0 for quick and dirty
+                Args.IncludeMag(1,1) logical = true;  % use false to speed up
             end
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
@@ -583,7 +631,7 @@ classdef OrbitalEl < handle
             
             ColNames      = {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'};
             ColUnits      = {'day','deg','deg', 'au','au','deg','deg','mag'};
-            Cat           = zeros(Ncat, numel(ColNames));
+            Cat           = nan(Ncat, numel(ColNames));
 
             for It=1:1:Nt
                 LightTimeNotConverged = true;
@@ -622,7 +670,7 @@ classdef OrbitalEl < handle
                     % more accuratly - use:
                     % celestial.Kepler.LightTimeCorrection
 
-                    if all(abs(LightTime - PrevLightTime))<Args.TolLT
+                    if all(abs(LightTime - PrevLightTime))<Args.TolLT || Iter>Args.MaxIterLT
                         LightTimeNotConverged = false;
                     end
                 end
@@ -649,7 +697,11 @@ classdef OrbitalEl < handle
                 % Observer-Target-Sun
                 Ang_STO = acosd((R.^2 + Delta.^2 - Rsun.^2)./(2.*R.*Delta));   % [deg]
                 
-                Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
+                if Args.IncludeMag
+                    Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
+                else
+                    Mag = nan(size(RA));
+                end
                 
                 if Nt==1
                     % single time, multiple elements
