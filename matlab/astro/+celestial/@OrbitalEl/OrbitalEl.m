@@ -744,7 +744,7 @@ classdef OrbitalEl < Base
         end
         
         function Result = searchMinorPlanetsNearPosition(Obj, RA, Dec, Fov, Args)
-            % TBD
+            % TBD - maybe should be static? or external?
             
             arguments
                 Obj
