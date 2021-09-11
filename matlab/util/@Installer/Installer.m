@@ -179,12 +179,11 @@ classdef Installer < Base
                 FileName = 'finals2000A.data.csv';
             end
             
-            PWD = pwd;
-            
-            I = Installer;
-            cd(I.ConfigStruct.InstallationLocation);
-            IndTime = strcmp(I.ConfigStruct.DataName,'Time');
-            cd(I.ConfigStruct.SubDir{IndTime});
+            %PWD = pwd;
+            %I = Installer;
+            %cd(I.ConfigStruct.InstallationLocation);
+            %IndTime = strcmp(I.ConfigStruct.DataName,'Time');
+            %cd(I.ConfigStruct.SubDir{IndTime});
             
             T = readtable(FileName);
         end

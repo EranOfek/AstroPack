@@ -568,6 +568,9 @@ classdef OrbitalEl < Base
             %                   equation. Default is 1e-8.
             %            'TolLT' - Tolerance [day] for the light-time
             %                   correction iterations. Default is 1e-6.
+            %            'OutUnitsDeg' - A logical indicating if to list
+            %                   the RA and Dec in degrees. If false list in
+            %                   radians. Default is true.
             %            'Aberration' - A logical indicating if to include
             %                   aberration of light. Default is false.
             %                   Note that for the default (false) the
@@ -597,29 +600,36 @@ classdef OrbitalEl < Base
             % Author : Eran Ofek (Sep 2021)
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
             %          JD = celestial.time.julday([9 9 2021])
-            %          ephem(OrbEl, JD)
+            %          Cat = ephem(OrbEl, JD +(1:1:100)')
+            %          
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+            %          Cat = ephem(OrbEl, JD);
+            %          CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0);toc
             %
-            % JD = celestial.time.julday([19 9 2021]);
-            % Coo=[-116.865./RAD 33.3563./RAD 2000]
-            % OrbEl1 = celestial.OrbitalEl.loadSolarSystem([],9804);
-            % OrbElA = celestial.OrbitalEl.loadSolarSystem('num');
-            % CatE = ephem(OrbElA, JD, 'GeoPos',Coo)
-            % [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
-            
-            % tic;CatE = ephem(OrbElA, JD, 'GeoPos',Coo,'MaxIterLT',0);toc
+            %     compare to JPL
+            %          JD = celestial.time.julday([19 9 2021])+(0:1./24:1)';
+            %          Coo=[-116.865./RAD 33.3563./RAD 2000]
+            %          OrbEl1 = celestial.OrbitalEl.loadSolarSystem([],9804);
+            %          CatE = ephem(OrbEl1, JD, 'GeoPos',Coo, 'OutUnitsDeg',false)
+            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
+            %          % RA nd Dec diff between JPL and ephem:
+            %          [CatE.Catalog(:,2) - CatJPL.Catalog(:,2), CatE.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
+            %          
             
             arguments
                 Obj(1,1)
                 Time
-                Args.Tol                     = 1e-8;   % [rad]
-                Args.TolLT                   = 1e-6;   % [day]
-                Args.Aberration(1,1) logical = false;
-                Args.GeoPos                  = [];  % [] - topocentric  ; [rad, rad, m]
-                Args.RefEllipsoid            = 'WGS84';
-                Args.OutType                 = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
-                Args.MaxIterLT               = 5;  % use 0 for quick and dirty
-                Args.IncludeMag(1,1) logical = true;  % use false to speed up
+                Args.Tol                      = 1e-8;   % [rad]
+                Args.TolLT                    = 1e-6;   % [day]
+                Args.OutUnitsDeg(1,1) logical = true;
+                Args.Aberration(1,1) logical  = false;
+                Args.GeoPos                   = [];  % [] - topocentric  ; [rad, rad, m]
+                Args.RefEllipsoid             = 'WGS84';
+                Args.OutType                  = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
+                Args.MaxIterLT                = 5;  % use 0 for quick and dirty
+                Args.IncludeMag(1,1) logical  = true;  % use false to speed up
             end
+            RAD  = 180./pi;
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
             Nt      = numel(Time);
@@ -686,9 +696,14 @@ classdef OrbitalEl < Base
                 % Rotate from Ecliptic to Equatorial reference frame
                 RotMat = celestial.coo.rotm_coo('E');
                 Equatorial_U2 = RotMat * U2;
-
-                RA  = atan2d(Equatorial_U2(2,:), Equatorial_U2(1,:));
-                Dec = atand(Equatorial_U2(3,:)./sqrt( Equatorial_U2(1,:).^2 + Equatorial_U2(2,:).^2  ));
+                
+                RA  = atan2(Equatorial_U2(2,:), Equatorial_U2(1,:));
+                Dec = atan(Equatorial_U2(3,:)./sqrt( Equatorial_U2(1,:).^2 + Equatorial_U2(2,:).^2  ));
+                
+                if Args.OutUnitsDeg
+                    RA  = RA.*RAD;
+                    Dec = Dec.*RAD;
+                end
                 
                 % calculate angles
                 Rsun = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
