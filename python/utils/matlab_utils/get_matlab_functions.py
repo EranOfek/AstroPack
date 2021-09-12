@@ -7,10 +7,19 @@
 #    Generate unitTest() skeleton with functions list in comments (by function order in file)
 #    Generate mlx skeleton (if possible), check if we can generate HTML and import it, or just text?
 #    MLX is Open Packaging Conventions, there are Python packages to manipulate it
-
+#
+# Generate HTML:
+#   https://webhome.weizmann.ac.il/home/eofek/matlab/FunList.html
+#
+# Markdown -> HTML:
+#   https://www.digitalocean.com/community/tutorials/how-to-use-python-markdown-to-convert-markdown-text-to-html
+#   https://www.kite.com/python/examples/2545/markdown-convert-markdown-text-to-html
+#   https://pypi.org/project/md-to-html/
+#
 #
 # Outputs:
 # For each .m file - txt file with function list
+#
 
 import os, glob, argparse
 from datetime import datetime
@@ -342,6 +351,11 @@ class MatlabProcessor:
                 self.update_m_file(self.class_fname)
             else:
                 self.update_m_file(fname)
+
+    # -----------------------------------------------------------------------
+    # @todo
+    def write_html(self):
+        log('write_html')
 
     # -----------------------------------------------------------------------
     # @todo

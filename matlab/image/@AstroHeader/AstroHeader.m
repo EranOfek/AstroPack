@@ -451,7 +451,7 @@ classdef AstroHeader < Component
             %          * ...,key,val,...
             %            'UseDict' - Indicating if to use dictionary or to
             %                   perform an exact search. Default is true.
-            %            'CaseSens' - Default is true.
+            %            'CaseSens' - Default is false.
             %            'SearchAlgo' - ['strcmp'] | 'regexp'.
             %                   or 'last' match.
             %            'Fill' - Fill value for the keyword Val, in case that the
@@ -491,7 +491,7 @@ classdef AstroHeader < Component
                 Obj(1,1)
                 KeySynonym
                 Args.UseDict(1,1) logical              = true;
-                Args.CaseSens(1,1) logical             = true;
+                Args.CaseSens(1,1) logical             = false;         % False because FITS keywords are upper-case
                 Args.SearchAlgo char                   = 'strcmp';
                 Args.Fill                              = NaN;
                 Args.Val2Num(1,1) logical              = true;
