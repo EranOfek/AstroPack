@@ -386,6 +386,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 
                 
                 % fitWCS will set CRVAL to RAdeg/Decdeg and will "fit"
+                % Note that Xcat/Ycat were rescaled, so their new Scale=1
                 % CRPIX...
                 [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
@@ -408,7 +409,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                        'ThresholdSigma',Args.ThresholdSigma);
         
         
+               ParWCS.CD = ParWCS.CD .* Args.Scale; % NOT GOOD ENOUGH!!!! need to rescale also the PV?!
                Result(Iobj).ParWCS(Isol) = ParWCS;
+               
                
                % ResQuality
                % Calculate the rms as a function of position

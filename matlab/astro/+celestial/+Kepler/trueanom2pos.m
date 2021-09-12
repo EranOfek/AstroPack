@@ -25,9 +25,22 @@ function varargout=trueanom2pos(R,Ni,Omega,OmP,Inc)
 % Reliable: 1
 %------------------------------------------------------------------------------
 
-X = R.*(cos(OmP+Ni).*cos(Omega) - sin(OmP+Ni).*sin(Omega).*cos(Inc));
-Y = R.*(cos(OmP+Ni).*sin(Omega) + sin(OmP+Ni).*cos(Omega).*cos(Inc));
-Z = R.*sin(OmP+Ni).*sin(Inc);
+
+% X = R.*(cos(OmP+Ni).*cos(Omega) - sin(OmP+Ni).*sin(Omega).*cos(Inc));
+% Y = R.*(cos(OmP+Ni).*sin(Omega) + sin(OmP+Ni).*cos(Omega).*cos(Inc));
+% Z = R.*sin(OmP+Ni).*sin(Inc);
+
+% Faster to calculate:
+C_OmPNi = cos(OmP+Ni);
+S_OmPNi = sin(OmP+Ni);
+S_Omega = sin(Omega);
+C_Omega = cos(Omega);
+C_Inc   = cos(Inc);
+
+X = R.*(C_OmPNi.*C_Omega - S_OmPNi.*S_Omega.*C_Inc);
+Y = R.*(C_OmPNi.*S_Omega + S_OmPNi.*C_Omega.*C_Inc);
+Z = R.*S_OmPNi.*sin(Inc);
+
 
 if (nargout==1)
    varargout{1} = [X,Y,Z];

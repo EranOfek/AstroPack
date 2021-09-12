@@ -153,6 +153,63 @@ classdef OrbitalEl < Base
             
         end
         
+        function Result = merge(Obj)
+            % 
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
+            %          O = merge(OrbEl);
+            
+            SpecialProp = {'MagPar'};
+            ConCatProp  = {'Number','Designation','Node','W','Incl','Epoch','Tp','Mepoch','Ref'};
+            SingleProp  = {'Equinox','AngUnits','LenUnits','TimeUnits','K','UserData'};
+            NccProp     = numel(ConCatProp);
+            NsProp      = numel(SingleProp);
+            NspProp     = numel(SpecialProp);
+            Nobj = numel(Obj);
+            Result = celestial.OrbitalEl;
+            for Iobj=1:1:Nobj
+                for Icc=1:1:NccProp
+                    if isempty(Obj(Iobj).(ConCatProp{Icc}))
+                        Nel = numEl(Obj(Iobj));
+                        Obj(Iobj).(ConCatProp{Icc}) = nan(Nel,1);
+                    end
+                    Result.(ConCatProp{Icc}) = [Result.(ConCatProp{Icc}); Obj(Iobj).(ConCatProp{Icc})];
+                end
+                
+                for Isp=1:1:1NspProp
+                    Nel = numEl(Obj(Iobj));
+                    switch size((Obj(Iobj).(ConCatProp{Icc}),1)
+                        case 0
+                            Obj(Iobj).(ConCatProp{Icc}) = nan(Nel,1);
+                        case 1
+                            
+                        
+                    end
+                    
+                end
+                
+                for Is=1:1:NsProp
+                    if Iobj==1
+                        Result.(SingleProp{Is}) = Obj(Iobj).(SingleProp{Is});
+                    end
+                    if ~isempty(Obj(Iobj).(SingleProp{Is}))
+                        if isnumeric(Obj(Iobj).(SingleProp{Is}))
+                            if Result.(SingleProp{Is})~=Obj(Iobj).(SingleProp{Is})
+                                error('Prop %s betweein element %d and %d are not equal',SingleProp{Is},1,Is);
+                            end
+                        else
+                            if ~strcmp(Result.(SingleProp{Is}), Obj(Iobj).(SingleProp{Is}))
+                                error('Prop %s betweein element %d and %d are not equal',SingleProp{Is},1,Is);
+                            end
+                        end
+                    end
+                end
+            end
+            
+        end
+        
+    end
+    
+    methods % Keplerian orbit functions
         function Result = meanMotion(Obj, AngUnits)
             % Return the mean motion [deg/day]
             % Input  : - A single element OrbitalEl object
@@ -468,8 +525,11 @@ classdef OrbitalEl < Base
             %          - Angilar units. Default is 'rad'.
             % Output : * Either a single 3 column matrix of [X,Y,Z] or 
             %            X,Y,Z. Units the same as the radius vector units.
-            % Example: BodyPos = trueAnom2rectPos(OrbEl(1), 1, 1)
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+            %          BodyPos = trueAnom2rectPos(OrbEl(1), 1, 1)
             %          [x,y,z] = trueAnom2rectPos(OrbEl(1), 1, 1)
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num',9804);
+            %          BodyPos = trueAnom2rectPos(OrbEl, [1;2], [1;2])
             
             arguments
                 Obj(1,1)
@@ -604,7 +664,7 @@ classdef OrbitalEl < Base
             %          
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
             %          Cat = ephem(OrbEl, JD);
-            %          CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0);toc
+            %          tic;CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc
             %
             %     compare to JPL
             %          JD = celestial.time.julday([19 9 2021])+(0:1./24:1)';
@@ -743,17 +803,33 @@ classdef OrbitalEl < Base
             
         end
         
-        function Result = searchMinorPlanetsNearPosition(Obj, RA, Dec, Fov, Args)
+        function Result = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
             % TBD - maybe should be static? or external?
             
             arguments
                 Obj
+                JD
                 RA
                 Dec
-                Fov
-                Args.MagLimit       = Inf;
-                Args.GeoPos         = [];
-                Args.RefEllipsoid   = 'WGS84';
+                SearchRadius           = 1000;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.CooUnits          = 'deg';
+                Args.MagLimit          = Inf;
+                Args.GeoPos            = [];
+                Args.RefEllipsoid      = 'WGS84';
+            end
+            
+            Nobj = numel(Obj);
+            Cat  = AstroCatalog(size(Obj));
+            for Iobj=1:1:Nobj
+                % quick and dirty
+                Cat(Iobj) = ephem(OrbEl(Iobj), JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);
+            end
+          
+            
+            Ncoo = numel(RA);
+            for Icoo=1:1:Ncoo
+            
             end
             
             
