@@ -740,6 +740,9 @@ classdef AstroTable < Component
             if ~iscell(NewColNames) && ~isstring(NewColNames)
                 NewColNames = {NewColNames};
             end
+            if ~iscell(NewColUnits) && ~isstring(NewColUnits)
+                NewColUnits = {NewColUnits};
+            end
            
             
             Nobj = numel(Obj);
@@ -781,8 +784,8 @@ classdef AstroTable < Component
                     ColInd            = colname2ind(Obj(Iobj), Pos);
                     Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data, ColInd);
                    
-                    Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
-                    Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, NewColUnits, ColInd);
+                    Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames(:).', NewColNames, ColInd);
+                    Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits(:).', NewColUnits, ColInd);
                 end
             end
         end

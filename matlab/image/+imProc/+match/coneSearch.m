@@ -110,7 +110,7 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
             CooType = CooType{1};
         else
             CooType = Args.CooType;
-            [ColX, ColY] = getColCooForCooType(Obj(Iobj), CooType);
+            [ColX, ColY] = getColCooForCooType(CatObj(Iobj), CooType);
         end
         
         if ~CatObj(Iobj).IsSorted
@@ -143,7 +143,7 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
         AllDist  = convert.angular('rad', Args.DistUnits, AllDist);
         Result(Iobj).Catalog = Out;
         if Args.AddDistCol
-            Result(Iobj).insertCol(AllDist, Args.DistColPos, Args.DistColName);
+            Result(Iobj).insertCol(AllDist, Args.DistColPos, Args.DistColName, Args.DistUnits);
         end
     end
 end

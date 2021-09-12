@@ -813,6 +813,8 @@ classdef OrbitalEl < Base
             % Example: OrbEl= celestial.OrbitalEl.loadSolarSystem;
             %          Result = searchMinorPlanetsNearPosition(OrbEl, 2451545, 0, 0, 1000)
             
+% problem in line 717 : Nu is complex
+
             arguments
                 Obj
                 JD
