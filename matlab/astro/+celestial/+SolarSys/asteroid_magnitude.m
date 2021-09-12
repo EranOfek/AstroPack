@@ -8,6 +8,7 @@ function Mag=asteroid_magnitude(R,Delta,Beta,H,G)
 %          - Phase angle in radians (Sun-Target-Observer angle).
 %          - The mean absolute visual magnitude (H).
 %          - The slope parameter (G), default is 0.15.
+%            If G is NaN, then G is ignored and only H is used.
 % Output : - The minor planet visual magnitude.
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Oct 2001
@@ -16,18 +17,22 @@ function Mag=asteroid_magnitude(R,Delta,Beta,H,G)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if (nargin==4)
-   G = 0.15;
-elseif (nargin==5)
-   % do nothing
-else
-   error('Illigal number of input arguments');
+arguments
+    R
+    Delta
+    Beta
+    H
+    G     = 0.15;
 end
+
+INNG = ~isnan(G);
 
 Phi1 = exp(-3.33.*tan(0.5.*Beta).^0.63);
 Phi2 = exp(-1.87.*tan(0.5.*Beta).^1.22);
 
-Mag = H + 5.*log10(R.*Delta) - 2.5.*log10((1-G).*Phi1 + G.*Phi2);
+Mag = H + 5.*log10(R.*Delta);
+Mag(INNG) = Mag(INNG)- 2.5.*log10((1-G(INNG)).*Phi1(INNG) + G(INNG).*Phi2(INNG));
+
 
 
 

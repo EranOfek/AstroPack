@@ -154,37 +154,28 @@ classdef OrbitalEl < Base
         end
         
         function Result = merge(Obj)
-            % 
+            % Merge the orbital elements in several elements of the OrbitalEl object.
+            %   This function is custom made for merging the JPL
+            %   epehmerides, and may fail in other cases.
+            % Input  : - An OrbitalEl object, with multiple elements.
+            % Output : - A merged OrbitalEl objt with a single element.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
             %          O = merge(OrbEl);
             
-            SpecialProp = {'MagPar'};
-            ConCatProp  = {'Number','Designation','Node','W','Incl','Epoch','Tp','Mepoch','Ref'};
+            ConCatProp  = {'Number','Designation','Node','W','Incl','Epoch','Tp','Mepoch','Ref','MagPar'};
             SingleProp  = {'Equinox','AngUnits','LenUnits','TimeUnits','K','UserData'};
             NccProp     = numel(ConCatProp);
             NsProp      = numel(SingleProp);
-            NspProp     = numel(SpecialProp);
             Nobj = numel(Obj);
             Result = celestial.OrbitalEl;
             for Iobj=1:1:Nobj
                 for Icc=1:1:NccProp
                     if isempty(Obj(Iobj).(ConCatProp{Icc}))
                         Nel = numEl(Obj(Iobj));
-                        Obj(Iobj).(ConCatProp{Icc}) = nan(Nel,1);
+                        Ncol = size(Obj(1).(ConCatProp{Icc}),2);
+                        Obj(Iobj).(ConCatProp{Icc}) = nan(Nel, Ncol);
                     end
                     Result.(ConCatProp{Icc}) = [Result.(ConCatProp{Icc}); Obj(Iobj).(ConCatProp{Icc})];
-                end
-                
-                for Isp=1:1:1NspProp
-                    Nel = numEl(Obj(Iobj));
-                    switch size((Obj(Iobj).(ConCatProp{Icc}),1)
-                        case 0
-                            Obj(Iobj).(ConCatProp{Icc}) = nan(Nel,1);
-                        case 1
-                            
-                        
-                    end
-                    
                 end
                 
                 for Is=1:1:NsProp
@@ -593,7 +584,17 @@ classdef OrbitalEl < Base
                 switch lower(Args.MagType)
                     case 'hg'
                         % H-G magnitude
-                        Mag = celestial.SolarSys.asteroid_magnitude(R, Delta, Phase ,Args.MagPar(:,1), Args.MagPar(:,2));
+                        switch size(Args.MagPar,2)
+                            case 2
+                                Mag = celestial.SolarSys.asteroid_magnitude(R, Delta, Phase, Args.MagPar(:,1), Args.MagPar(:,2));
+                            case 1
+                                Mag = celestial.SolarSys.asteroid_magnitude(R, Delta, Phase, Args.MagPar(:,1), nan(size(Args.MagPar(:,1))));
+                            case 0
+                                Mag = nan(size(Obj.Incl));
+                            otherwise
+                                error('Unknown MagPar size option');
+                        end
+                                
                     otherwise
                         error('Unknown planetray magnitude algorithm');
                 end
@@ -700,7 +701,11 @@ classdef OrbitalEl < Base
             Ncat = max(Nt, Ntarget);
             
             ColNames      = {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'};
-            ColUnits      = {'day','deg','deg', 'au','au','deg','deg','mag'};
+            if Args.OutUnitsDeg
+                ColUnits      = {'day','deg','deg', 'au','au','deg','deg','mag'};
+            else
+                ColUnits      = {'day','rad','rad', 'au','au','deg','deg','mag'};
+            end
             Cat           = nan(Ncat, numel(ColNames));
 
             for It=1:1:Nt
@@ -805,35 +810,67 @@ classdef OrbitalEl < Base
         
         function Result = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
             % TBD - maybe should be static? or external?
+            % Example: OrbEl= celestial.OrbitalEl.loadSolarSystem;
+            %          Result = searchMinorPlanetsNearPosition(OrbEl, 2451545, 0, 0, 1000)
             
             arguments
                 Obj
                 JD
                 RA
                 Dec
-                SearchRadius           = 1000;
-                Args.SearchRadiusUnits = 'arcsec';
-                Args.CooUnits          = 'deg';
-                Args.MagLimit          = Inf;
-                Args.GeoPos            = [];
-                Args.RefEllipsoid      = 'WGS84';
+                SearchRadius             = 1000;
+                Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
+                Args.SearchRadiusUnits   = 'arcsec';
+                Args.CooUnits            = 'deg';
+                Args.MagLimit            = Inf;
+                Args.GeoPos              = [];
+                Args.RefEllipsoid        = 'WGS84';
+                Args.OutUnitsDeg logical = true;
+                Args.coneSearchArgs cell = {};
             end
             
-            Nobj = numel(Obj);
-            Cat  = AstroCatalog(size(Obj));
+            SearchRadiusRAD      = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+            QuickSearchBufferRAD = convert.angular(Args.SearchRadiusUnits, 'rad', Args.QuickSearchBuffer);
+            
+            if isinf(Args.MagLimit)
+                IncludeMag = false;
+            else
+                IncludeMag = true;
+            end
+            
+            ObjNew = Obj.copyObject;
+            
+            Nobj = numel(ObjNew);
+            
+            % quick and dirty
             for Iobj=1:1:Nobj
-                % quick and dirty
-                Cat(Iobj) = ephem(OrbEl(Iobj), JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);
+                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',0, 'IncludeMag',IncludeMag, 'OutUnitsDeg',false, 'OutType','mat');
+                Dist   = celestial.coo.sphere_dist_fast(RA, Dec, Cat(:,2), Cat(:,3));
+                % within search radius and MagLimit
+                % RA - col 2
+                % Dec - col 3
+                % Mag - col 8
+                Flag   = Dist<(SearchRadiusRAD + QuickSearchBufferRAD) & (Cat(:,8)<Args.MagLimit | isnan(Cat(:,8)));
+            
+                ObjNew(Iobj).selectFlag(Flag);
             end
-          
-            
-            Ncoo = numel(RA);
-            for Icoo=1:1:Ncoo
-            
+                
+            % accurate search on selected sample:
+            for Iobj=1:1:Nobj
+                Result = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
+                                              'RefEllipsoid',Args.RefEllipsoid,...
+                                              'OutUnitsDeg',false,...
+                                              'OutUnitsDeg',Args.OutUnitsDeg);
             end
             
+            [Result] = imProc.match.coneSearch(Result, [RA, Dec], 'CooType','sphere',...
+                                                  'Radius',SearchRadiusRAD,...
+                                                  'RadiusUnits','rad',...
+                                                  'CooUnits',Args.CooUnits,...
+                                                  'CreateNewObj',false,...
+                                                  Args.coneSearchArgs{:});
             
-            
+                        
         end
     end
     
