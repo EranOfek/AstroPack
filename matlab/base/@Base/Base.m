@@ -33,7 +33,7 @@
 %               to coordinate actions across the system.
 %
 
-classdef Base < handle
+classdef Base < matlab.mixin.Copyable  % <handle
     % Base class for all objects
 
     % Properties
@@ -106,6 +106,32 @@ classdef Base < handle
             for Iobj=1:1:Nobj
                 for Iprop=1:1:Nprop
                     NewObj(Iobj).(Args.ClearProp{Iprop}) = [];
+                end
+            end
+        end
+
+        function NewObj = copyRec(Obj)
+            % doesn't work
+            arguments
+                Obj
+            end
+
+            PropList = metaclass(Obj);
+            
+            FN  = {PropList.PropertyList.Name};
+            CopyProp = ~[PropList.PropertyList.Dependent] & ~[PropList.PropertyList.Transient];
+            Nfn = numel(FN);
+            for Ifn=1:1:Nfn
+                if CopyProp(Ifn)
+                    if isobject(Obj.(FN{Ifn}))
+                        if isa(Obj.(FN{Ifn}), 'Configuration') || isa(Obj.(FN{Ifn}), 'MsgLogger') 
+                            NewObj.(FN{Ifn}) = Obj.(FN{Ifn});
+                        else
+                            NewObj.(FN{Ifn}) = copyRec(Obj.(FN{Ifn}));
+                        end
+                    else
+                        NewObj.(FN{Ifn}) = Obj.(FN{Ifn});
+                    end
                 end
             end
         end
