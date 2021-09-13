@@ -1,15 +1,17 @@
 
 classdef ImagePath < Component
-    % Construct and parse image path used in storage, database, and headers.
+    % Construct and parse (@Todo) image path used in storage, database, and headers.
     % The file path is described in the LAST/ULTRASAT file naming convension document.
-    % File name format: 
-    % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+    % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+    % Example: 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits'
     properties  % Separate to Hidden props
         
         % Fields from file name
-        % 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits'
+        % These fields are the input parameters for getPath() and
+        % getFileName()
         ProjName        = '';           % Examples: “ULTRASAT”, “LAST.1.12.4” (LAST node=1, mount=12, camera=4)
-        Time            = [];           %
+        Time            = [];           % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
+%      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}
         TimeZone        = 2;            % Bias in hours, to generate folder name                
         Filter          = 'clear';      % Filter name
         FieldId         = '';           % Sky position identifier, like field ID, object name, CCD I’d, sub image ID etc. May include CropId. Examples: 314.1.1 is field I’d 314, CCD 1, sub image 1.
@@ -18,9 +20,9 @@ classdef ImagePath < Component
         CropId          = '';           % Part of FieldId        
         Type            = 'sci';        % sci, bias, dark, domeflat, twflat, skyflat, fringe
         Level           = 'raw';        % log, raw, proc, stack, coadd, ref.
-        SubLevel        = '';           % n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
-        
-        %                               % Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
+        SubLevel        = '';           % Subleve, see below:
+            % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
+            % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
         Product         = 'im';         % Product: im, back, var, imflag, exp, Nim, psf, cat, spec.
         Version         = '1';          % Version (for multiple processing)
         FileType        = 'fits';       % fits / hdf5 / fits.gz
@@ -34,18 +36,21 @@ classdef ImagePath < Component
         % /data/YYYY/MM/DD/proc/<visit>/ - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs
         % /data/YYYY/MM/DD/stacked/<visit> - contains all the processed coadd images (coaddition of images of the same field taken continuously only; e.g., 20x15s coadds) - images/masks/catalogs/PSF/subtraction products 
         % /data/calib/bias/ - all master bias images, same for dark, flat, fringe
-        RefVersion      = 1;            %
-        Area            = '';           % 
+        RefVersion      = 1;            % Used by genPath()
+        Area            = '';           % Used by genPath()
         
         % Fields formatting
-        FormatFieldID   = '%06d';       % @Eran?
+        FormatFieldID   = '%06d';       % @Eran? Do we need it?
         FormatVersion   = '%03d';       %
                 
         % 
         BasePath        = '/home/last'; % Base storage path, should be updated from AstroStorage
         DataPath        = 'data';       %
         SubDir          = '';           % This is the area/location directory below the coadd/ref directory
-        
+    end
+    
+    
+    properties(Hidden)
         % Generated from Obj.Time
         JD              = [];           % UTC start of exposure @Eran - UTC or JD???
         TimeStr         = '';           % Time as appears in file name (YYYYMMDD.HHMMSS.FFF)       
@@ -71,10 +76,8 @@ classdef ImagePath < Component
         
         
         function [ResultPath, ResultFileName] = setTestData(Obj)
-            % Set data for unit-test and debugging
-            % The result should be: USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits
+            % Set data for unit-test and debugging, return expected result
             
-            Obj.JD = [];  %juliandate(DateUTC);                        
             Obj.ProjName        = 'USAT';            
             Obj.Time            = '2021-09-09T12:34:56.789';
             Obj.TimeZone        = 2;
@@ -89,175 +92,39 @@ classdef ImagePath < Component
             Obj.Product         = 'im';
             Obj.Version         = 'ver1';
             Obj.FileType        = 'fits';
-
+            Obj.SubDir          = 'subdir';
+            
             % Debug? or have it?
-            %Obj.BasePath        = '/data/store';
-            Obj.Path            = '';                   
-            Obj.FileName        = '';
-            Obj.FullName        = '';       
+            Obj.BasePath        = '/home/last';
+            Obj.DataPath        = 'data';                   
 
-            ResultPath = '/home/last/data/...';
+            ResultPath = '/home/last/data/.../subdir';
             ResultFileName = 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits';
         end
     end
     
-
-    methods % Read/Write 
+      
+    methods % Generate Path & FileName
         
-        function Result = readFromHeader(Obj, Header)
-            % Read data from AstroHeader, DictKeyNames is used to get the
-            % correct key names            
-            % @TODO: @Eran - Validate field names in FITS header
-            arguments
-                Obj
-                Header AstroHeader
-            end
-            
-            Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
-            
-            % Remove
-            Obj.Telescope       = Header.getVal(Obj.DictKeyNames.Telescope);
-            Obj.Node            = Header.getVal(Obj.DictKeyNames.Node);
-            Obj.Mount           = Header.getVal(Obj.DictKeyNames.Mount);
-            Obj.Camera          = Header.getVal(Obj.DictKeyNames.Camera);
-            
-            
-            Obj.JD              = Header.getVal(Obj.DictKeyNames.JD);
-            Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TimeZone);
-            Obj.Filter          = Header.getVal(Obj.DictKeyNames.Filter);
-            Obj.FieldId         = Header.getVal(Obj.DictKeyNames.FieldId);
-            Obj.Counter         = Header.getVal(Obj.DictKeyNames.Counter);
-            Obj.CCDID           = Header.getVal(Obj.DictKeyNames.CCDID);
-            Obj.CropId          = Header.getVal(Obj.DictKeyNames.CropId);
-            Obj.Type            = Header.getVal(Obj.DictKeyNames.Type);
-            Obj.Level           = Header.getVal(Obj.DictKeyNames.Level);
-            Obj.SubLevel        = Header.getVal(Obj.DictKeyNames.SubLevel);
-            Obj.Product         = Header.getVal(Obj.DictKeyNames.Product);
-            Obj.ImageVer        = Header.getVal(Obj.DictKeyNames.Version);
-            Obj.FileType        = Header.getVal(Obj.DictKeyNames.FileType);
-
-            Result = true;
-        end
-        
-        
-        function Result = writeToHeader(Obj, Header)
-            % Write data to AstroHeader, DictKeyNames is used to get the
-            % correct key names            
-            arguments
-                Obj
-                Header AstroHeader
-            end
-            
-            Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
-            
-            % Remove
-            Header.setVal(Obj.DictKeyNames.Telescope,   Obj.Telescope);
-            Header.setVal(Obj.DictKeyNames.Node,        Obj.Node);
-            Header.setVal(Obj.DictKeyNames.Mount,       Obj.Mount);
-            Header.setVal(Obj.DictKeyNames.Camera,      Obj.Camera);
-            
-            
-            Header.setVal(Obj.DictKeyNames.JD,          Obj.JD);
-            Header.setVal(Obj.DictKeyNames.TimeZone,    Obj.TimeZone);
-            Header.setVal(Obj.DictKeyNames.Filter,      Obj.Filter);
-            Header.setVal(Obj.DictKeyNames.FieldId,     Obj.FieldId);
-            Header.setVal(Obj.DictKeyNames.Counter,     Obj.Counter);
-            Header.setVal(Obj.DictKeyNames.CCDID,       Obj.CCDID);                        
-            Header.setVal(Obj.DictKeyNames.CropId,      Obj.CropId);
-            Header.setVal(Obj.DictKeyNames.Type,        Obj.Type);
-            Header.setVal(Obj.DictKeyNames.Level,       Obj.Level);
-            Header.setVal(Obj.DictKeyNames.SubLevel,    Obj.SubLevel);
-            Header.setVal(Obj.DictKeyNames.Product,     Obj.Product);
-            Header.setVal(Obj.DictKeyNames.Version,     Obj.Version);
-            Header.setVal(Obj.DictKeyNames.FileType,    Obj.FileType);            
-            
-            Result = true;
-        end        
-        
-        
-        function Result = readFromDb(Obj, Query)
-            % Read data from database table, current record of Query.ResultSet
-            % Fields are defined in Google Sheet "common_image_path"
-            arguments
-                Obj
-                Query io.db.DbQuery
-            end            
-            
-            Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
-            st = Query.getRecord();
-            Result = Obj.readFromStruct(st);
-        end
-        
-        
-        function Result = readFromStruct(Obj, st)
-            % Read data from struct or DbRecord (common_image_path table)
-            % Struct field names should match database fields
-            Obj.Telescope       = st.tel;
-            Obj.Node            = st.node;
-            Obj.Mount           = st.mount;
-            Obj.Camera          = st.camera;
-            
-            
-            Obj.JD              = st.jd;
-            Obj.TimeZone        = st.timezone;
-            Obj.Filter          = st.filter;
-            Obj.FieldId         = st.field_id;
-            Obj.CropId          = st.crop_id;
-            Obj.ImageType       = st.imtype;
-            Obj.ImageLevel      = st.imlevel;
-            Obj.ImageSubLevel   = st.imslevel;
-            Obj.ImageProduct    = st.improd;
-            Obj.ImageVer        = st.imver;
-            Obj.FileType        = st.filetype;
-            Result = true;
-        end
-        
-        
-        function st = writeToStruct(Obj)
-            % Write data fields to struct (common_image_path table)            
-            st = struct;
-            st.tel      = Obj.Telescope;
-            st.node     = Obj.Node;
-            st.mount    = Obj.Mount;
-            st.camera   = Obj.Camera;
-            st.jd       = Obj.JD;
-            st.timezone = Obj.TimeZone;
-            st.filter   = Obj.Filter;
-            st.field_id = Obj.FieldId;
-            st.crop_id  = Obj.CropId;
-            st.imtype   = Obj.ImageType;
-            st.imlevel  = Obj.ImageLevel;
-            st.imslevel = Obj.ImageSubLevel;
-            st.improd   = Obj.ImageProduct;
-            st.imver    = Obj.ImageVer;
-            st.filetype = Obj.FileType;
-        end        
-    end
-    
-    
-    methods % Construct
-        
-        % Replace 'construct' with something shorter
         function Result = genPath(Obj, Args)
             % Construct image/catalog file path based on the LAST/ULTRASAT standard
             % Options are:
             %
             % Form 1:
-            % /data/YYYY/MM/DD/raw/ - contains all the science raw data
-            % /data/YYYY/MM/DD/log/  - contains all the log files
-            % /data/YYYY/MM/DD/proc/ - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
-            % /data/YYYY/MM/DD/calib/ - contains all the processed calibration images/variance/masks/catalogs
+            % /data/YYYY/MM/DD/raw/     - contains all the science raw data
+            % /data/YYYY/MM/DD/log/     - contains all the log files
+            % /data/YYYY/MM/DD/proc/    - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
+            % /data/YYYY/MM/DD/calib/   - contains all the processed calibration images/variance/masks/catalogs
             % /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
             %
             % Form 2: 
             % /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
             %
             % Form 3: 
-            % /data/coadd/area/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
-            
-            % Example: Path = imUtil.util.file.construct_path
-            %          Path=imUtil.util.file.construct_path('Level','ref','SubDir','x')
-            %          Path=imUtil.util.file.construct_path('Level','proc','Type','bias')
+            % /data/coadd/area/          - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
+            %
+            % Example: Path=imUtil.util.file.genPath('Level','ref','SubDir','x')
+            %
             arguments
                 Obj
                 Args.Base       = '/home/last';     %
@@ -270,18 +137,13 @@ classdef ImagePath < Component
                 Args.Area       = '';               %
             end
             
-            % Set properties from arguments, only properties that exist in
-            % Args are set
+            % Set properties from arguments, only properties that exist in Args are set
             Obj.setProps(Args);
-            
-            % From this point we should work with Obj properties and not with Args
-            
-            % Convert date to JD
+                        
+            % Convert Time to JD and TimeStr
             Obj.setTime();
             
-            % Check TimeZone!
-            % Convert to JD
-            % JD = convert.time(InPar.Date, 'StrDate', 'JD');
+            % Generate YMD based on JD and TimeZone
             [Year, Month, Day] = imUtil.util.file.date_directory(Obj.JD, Obj.TimeZone);
             YMD = sprintf('%04d%s%02d%s%02d', Year, filesep, Month, filesep, Day);
             
@@ -394,11 +256,10 @@ classdef ImagePath < Component
                 Args.Product            %
                 Args.Version            % (char or number) [saved as char]
                 Args.FormatVersion      % format - default is %03d. [Not in DB]
-                Args.FileType           % - default is ‘fits’.                    
-                
+                Args.FileType           % - default is ‘fits’.                                    
                 Args.TimeZone = 2;      %
-                Args.Area
-                Args.FullPath logical = false;
+                Args.Area               % Used when FullPath is true
+                Args.FullPath = false;  %
             end
             
             % Set properties from arguments, only properties that exist in Args are set
@@ -406,7 +267,7 @@ classdef ImagePath < Component
             
             % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
             
-            %
+            % Set JD and TimeStr
             Obj.setTime();
             
             % FieldID, use specified formatting if numeric
@@ -449,14 +310,139 @@ classdef ImagePath < Component
         end
         
         
-        function Result = createFromDbQuery(Obj, Query)
-            % Create ImagePath
+        function Result = genFromDbQuery(Obj, Query)
+            % Generate ImagePath current record of Query.ResultSet
             % @Todo
                 
         end
-
         
     end
+    
+   
+    methods % Read/Write from Header and Struct
+        
+        function Result = readFromHeader(Obj, Header)
+            % Read data from AstroHeader, DictKeyNames is used to get the
+            % correct key names            
+            % @TODO: @Eran - Validate field names in FITS header
+            arguments
+                Obj
+                Header AstroHeader
+            end
+            
+            Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
+                                
+            Obj.ProjName        = Header.getVal(Obj.DictKeyNames.ProjName);
+            Obj.JD              = Header.getVal(Obj.DictKeyNames.JD);
+            Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TimeZone);
+            Obj.Filter          = Header.getVal(Obj.DictKeyNames.Filter);
+            Obj.FieldId         = Header.getVal(Obj.DictKeyNames.FieldId);
+            Obj.Counter         = Header.getVal(Obj.DictKeyNames.Counter);
+            Obj.CCDID           = Header.getVal(Obj.DictKeyNames.CCDID);
+            Obj.CropId          = Header.getVal(Obj.DictKeyNames.CropId);
+            Obj.Type            = Header.getVal(Obj.DictKeyNames.Type);
+            Obj.Level           = Header.getVal(Obj.DictKeyNames.Level);
+            Obj.SubLevel        = Header.getVal(Obj.DictKeyNames.SubLevel);
+            Obj.Product         = Header.getVal(Obj.DictKeyNames.Product);
+            Obj.Version         = Header.getVal(Obj.DictKeyNames.Version);
+            Obj.FileType        = Header.getVal(Obj.DictKeyNames.FileType);
+            Obj.SubDir          = Header.getVal(Obj.DictKeyNames.SubDir);
+
+            Result = true;
+        end
+        
+        
+        function Result = writeToHeader(Obj, Header)
+            % Write data to AstroHeader, DictKeyNames is used to get the
+            % correct key names            
+            arguments
+                Obj
+                Header AstroHeader
+            end
+            
+            Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
+                 
+            Header.setVal(Obj.DictKeyNames.JD,          Obj.JD);
+            Header.setVal(Obj.DictKeyNames.TimeZone,    Obj.TimeZone);
+            Header.setVal(Obj.DictKeyNames.Filter,      Obj.Filter);
+            Header.setVal(Obj.DictKeyNames.FieldId,     Obj.FieldId);
+            Header.setVal(Obj.DictKeyNames.Counter,     Obj.Counter);
+            Header.setVal(Obj.DictKeyNames.CCDID,       Obj.CCDID);                        
+            Header.setVal(Obj.DictKeyNames.CropId,      Obj.CropId);
+            Header.setVal(Obj.DictKeyNames.Type,        Obj.Type);
+            Header.setVal(Obj.DictKeyNames.Level,       Obj.Level);
+            Header.setVal(Obj.DictKeyNames.SubLevel,    Obj.SubLevel);
+            Header.setVal(Obj.DictKeyNames.Product,     Obj.Product);
+            Header.setVal(Obj.DictKeyNames.Version,     Obj.Version);
+            Header.setVal(Obj.DictKeyNames.FileType,    Obj.FileType);
+            Header.setVal(Obj.DictKeyNames.SubDir,      Obj.SubDir);            
+            
+            Result = true;
+        end        
+        
+        
+        function Result = readFromDb(Obj, Query)
+            % Read data from database table, current record of Query.ResultSet
+            % Fields are defined in Google Sheet "common_image_path"
+            arguments
+                Obj
+                Query io.db.DbQuery
+            end            
+            
+            Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
+            st = Query.getRecord();
+            Result = Obj.readFromStruct(st);
+        end
+        
+    end
+    
+    
+    methods % Additional
+        function Result = readFromStruct(Obj, st)
+            % Read data from struct or DbRecord (common_image_path table)
+            % Struct field names should match database fields
+            Obj.Telescope       = st.tel;
+            Obj.Node            = st.node;
+            Obj.Mount           = st.mount;
+            Obj.Camera          = st.camera;
+            
+            
+            Obj.JD              = st.jd;
+            Obj.TimeZone        = st.timezone;
+            Obj.Filter          = st.filter;
+            Obj.FieldId         = st.field_id;
+            Obj.CropId          = st.crop_id;
+            Obj.ImageType       = st.imtype;
+            Obj.ImageLevel      = st.imlevel;
+            Obj.ImageSubLevel   = st.imslevel;
+            Obj.ImageProduct    = st.improd;
+            Obj.ImageVer        = st.imver;
+            Obj.FileType        = st.filetype;
+            Result = true;
+        end
+        
+        
+        function st = writeToStruct(Obj)
+            % Write data fields to struct (common_image_path table)            
+            st = struct;
+            st.tel      = Obj.Telescope;
+            st.node     = Obj.Node;
+            st.mount    = Obj.Mount;
+            st.camera   = Obj.Camera;
+            st.jd       = Obj.JD;
+            st.timezone = Obj.TimeZone;
+            st.filter   = Obj.Filter;
+            st.field_id = Obj.FieldId;
+            st.crop_id  = Obj.CropId;
+            st.imtype   = Obj.ImageType;
+            st.imlevel  = Obj.ImageLevel;
+            st.imslevel = Obj.ImageSubLevel;
+            st.improd   = Obj.ImageProduct;
+            st.imver    = Obj.ImageVer;
+            st.filetype = Obj.FileType;
+        end        
+    end
+    
     
     
     methods % Helpers (for internal use)
