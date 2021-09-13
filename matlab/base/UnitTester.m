@@ -201,7 +201,7 @@ classdef UnitTester < handle
             Result = Obj.testCore();
 
             % Run unit-tests in .m files
-            Result = Obj.runFolder(Obj.SourcePath);
+            Result = Obj.processFolder(Obj.SourcePath);
 
             % Show report
             Obj.report();
@@ -292,7 +292,8 @@ classdef UnitTester < handle
 
 
         function Result = runTest(Obj, Target)
-            % Run single unit test
+            % Run single unit test, Target is class name
+            % Example: runTest('ImagePath')
             Result = false;
 
             % Check if already tested
@@ -331,11 +332,10 @@ classdef UnitTester < handle
         end
 
 
-        function Result = runFolder(Obj, Path)
-            % Load specify folder to properties
-            % Note: Recursive function
+        function Result = processFolder(Obj, Path)
+            % Recursivly call processFile()
 
-            %Obj.msgLog(LogLevel.Test, 'UnitTester.runFolder: %s', Path);
+            %Obj.msgLog(LogLevel.Test, 'UnitTester.processFolder: %s', Path);
 
             % Scan all .m files in folder
             List = dir(fullfile(Path, '*'));
@@ -346,7 +346,7 @@ classdef UnitTester < handle
                 if List(i).isdir
                     if fname ~= "." && fname ~= ".."
                         FolderName = fullfile(List(i).folder, List(i).name);
-                        Obj.runFolder(FolderName);
+                        Obj.processFolder(FolderName);
                     end
 
                 % Process .m file
@@ -354,7 +354,7 @@ classdef UnitTester < handle
                     [path, name, ext] = fileparts(fname);
                     if ext == ".m"
                         FileName = fullfile(List(i).folder, List(i).name);
-                        Obj.runFile(FileName);
+                        Obj.processFile(FileName);
                     end
                 end
             end
@@ -364,9 +364,9 @@ classdef UnitTester < handle
 
 
 
-        function Result = runFile(Obj, FileName)
+        function Result = processFile(Obj, FileName)
 
-            %Obj.msgLog(LogLevel.Test, 'UnitTester.runFile: %s', FileName);
+            %Obj.msgLog(LogLevel.Test, 'UnitTester.processFile: %s', FileName);
 
             % Skip self
             %MyFileName = mfilename('fullpath');
@@ -476,10 +476,20 @@ classdef UnitTester < handle
 
             end
         end
+        
+        
+        function Result = processClassFile(Obj, FileName)
+        end
+        
 
+        
+        function Result = processNonClassFile(Obj, FileName)
+        end
 
+        
+        
         function Result = isTested(Obj, Target)
-            % Check if already tested
+            % Check if already tested by inspecting at Obj.TestList
 
             if any(strcmp(Obj.TestList, Target))
                 Result = true;
