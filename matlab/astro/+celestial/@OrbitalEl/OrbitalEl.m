@@ -99,6 +99,12 @@ classdef OrbitalEl < Base
             if isempty(Obj.Tp) && (~isempty(Obj.Mepoch) && ~isempty(Obj.A))
                 Obj.Tp = Obj.Epoch - Obj.Mepoch./Obj.meanMotion(Obj.AngUnits);
             end
+            
+            % BUG: It is not clear to me what is the definition of the Mean
+            % Anomaly for e>1 (appears in the JPL files).
+            % Meanwhile take real component.
+            Obj.Tp = real(Obj.Tp);
+            
             Result = Obj.Tp;
             
         end
@@ -445,8 +451,8 @@ classdef OrbitalEl < Base
             arguments
                 Obj(1,1)
                 Time
-                Args.Tol      = 1e-8;
-                Args.K        = [];  % use Obj default
+                Args.Tol                = 1e-8;
+                Args.K                  = [];  % use Obj default
                 Args.SubTp(1,1) logical = true;
             end
             
@@ -455,6 +461,7 @@ classdef OrbitalEl < Base
             end
             
             Nel  = numEl(Obj);
+           
             Time = Time(:);
             Ntime = numel(Time);
             Nout  = max(Nel, Ntime);
@@ -813,7 +820,6 @@ classdef OrbitalEl < Base
             % Example: OrbEl= celestial.OrbitalEl.loadSolarSystem;
             %          Result = searchMinorPlanetsNearPosition(OrbEl, 2451545, 0, 0, 1000)
             
-% problem in line 717 : Nu is complex
 
             arguments
                 Obj
@@ -840,7 +846,8 @@ classdef OrbitalEl < Base
                 IncludeMag = true;
             end
             
-            ObjNew = Obj.copyObject;
+            %ObjNew = Obj.copyObject;   % very slow
+            ObjNew = Obj;
             
             Nobj = numel(ObjNew);
             
@@ -859,7 +866,7 @@ classdef OrbitalEl < Base
                 
             % accurate search on selected sample:
             for Iobj=1:1:Nobj
-                Result = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
+                Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
                                               'RefEllipsoid',Args.RefEllipsoid,...
                                               'OutUnitsDeg',false,...
                                               'OutUnitsDeg',Args.OutUnitsDeg);

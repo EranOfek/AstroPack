@@ -29,9 +29,9 @@ function [Nu,R,S,Vel]=kepler_parabolic(T,Q,K)
 % Example: [Nu,R,S]=celestial.Kepler.kepler_parabolic([7.0;7.8],0.1);
 % Reliable: 2
 %--------------------------------------------------------------------------
-if (nargin==2),
+if (nargin==2)
    K   = 0.017202098950000;
-elseif (nargin==3),
+elseif (nargin==3)
    % do nothing
 else
    error('Illigal number of input arguments');

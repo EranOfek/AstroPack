@@ -102,48 +102,52 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
         Result = CatObj;
     end
 
+    SizeCat = sizeCatalog(CatObj);
+    
     Nobj = numel(CatObj);
     for Iobj=1:1:Nobj
-        
-        if isempty(Args.CooType)
-            [CooType, ~, ColX, ColY] = getCooType(CatObj(Iobj));
-            CooType = CooType{1};
-        else
-            CooType = Args.CooType;
-            [ColX, ColY] = getColCooForCooType(CatObj(Iobj), CooType);
-        end
-        
-        if ~CatObj(Iobj).IsSorted
-            CatObj(Iobj).sortrows(ColY);
-        end
-        
-        switch lower(CooType)
-            case 'sphere'
-                [Ind,Flag] = VO.search.search_sortedlat_multi(getLonLat(CatObj(Iobj),'rad'),...
-                                                            CooRad(:,1), CooRad(:,2), RadiusRad, [],...
-                                                            @celestial.coo.sphere_dist_fast);
-            case 'pix'
-                [Ind,Flag] = VO.search.search_sortedlat_multi(getXY(CatObj(Iobj)),...
-                                                            Coo(:,1), Coo(:,2), RadiusRad, [],...
-                                                            @tools.math.geometry.plane_dist);
+        if SizeCat(Iobj)>0   % otherwise empty - skip
+            
+            if isempty(Args.CooType)
+                [CooType, ~, ColX, ColY] = getCooType(CatObj(Iobj));
+                CooType = CooType{1};
+            else
+                CooType = Args.CooType;
+                [ColX, ColY] = getColCooForCooType(CatObj(Iobj), CooType);
+            end
 
-            otherwise
-                error('Unknown CooType option');
-        end
+            if ~CatObj(Iobj).IsSorted
+                CatObj(Iobj).sortrows(ColY);
+            end
+
+            switch lower(CooType)
+                case 'sphere'
+                    [Ind,Flag] = VO.search.search_sortedlat_multi(getLonLat(CatObj(Iobj),'rad'),...
+                                                                CooRad(:,1), CooRad(:,2), RadiusRad, [],...
+                                                                @celestial.coo.sphere_dist_fast);
+                case 'pix'
+                    [Ind,Flag] = VO.search.search_sortedlat_multi(getXY(CatObj(Iobj)),...
+                                                                Coo(:,1), Coo(:,2), RadiusRad, [],...
+                                                                @tools.math.geometry.plane_dist);
+
+                otherwise
+                    error('Unknown CooType option');
+            end
 
 
-        % what to do with the found objects
-        Ncoo = numel(Ind);
-        Out     = zeros(0, size(CatObj(Iobj).Catalog,2));
-        AllDist = zeros(0,1);
-        for Icoo=1:1:Ncoo
-            Out     = [Out; CatObj(Iobj).Catalog(Ind(Icoo).Ind,:)];
-            AllDist = [AllDist; Ind(Icoo).Dist]; 
-        end
-        AllDist  = convert.angular('rad', Args.DistUnits, AllDist);
-        Result(Iobj).Catalog = Out;
-        if Args.AddDistCol
-            Result(Iobj).insertCol(AllDist, Args.DistColPos, Args.DistColName, Args.DistUnits);
+            % what to do with the found objects
+            Ncoo = numel(Ind);
+            Out     = zeros(0, size(CatObj(Iobj).Catalog,2));
+            AllDist = zeros(0,1);
+            for Icoo=1:1:Ncoo
+                Out     = [Out; CatObj(Iobj).Catalog(Ind(Icoo).Ind,:)];
+                AllDist = [AllDist; Ind(Icoo).Dist]; 
+            end
+            AllDist  = convert.angular('rad', Args.DistUnits, AllDist);
+            Result(Iobj).Catalog = Out;
+            if Args.AddDistCol
+                Result(Iobj).insertCol(AllDist, Args.DistColPos, Args.DistColName, Args.DistUnits);
+            end
         end
     end
 end
