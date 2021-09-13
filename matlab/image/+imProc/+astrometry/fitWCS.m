@@ -130,8 +130,8 @@ function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Dec
             CD         = CD.*ScaleASpix./ARCSEC_DEG;   % [deg]
 
             % Apply affine transformation on Xcat, Ycat
-            Xsi  = CD(1,1).*(Xcat - CRPIX1) + CD(1,2).*(Ycat - CRPIX2);
-            Eta  = CD(2,1).*(Xcat - CRPIX1) + CD(2,2).*(Ycat - CRPIX2);
+            Xsi  = CD(1,1).*(Xcat - CRPIX1) + CD(1,2).*(Ycat - CRPIX2);   % [deg]
+            Eta  = CD(2,1).*(Xcat - CRPIX1) + CD(2,2).*(Ycat - CRPIX2);   % [deg]
 
             % convert Xref, Yref to deg
             XrefT = Xref.*ScaleASpix./ARCSEC_DEG;   % [deg]
@@ -162,6 +162,7 @@ function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Dec
                                     'FunStd',Args.FunStd,...
                                     'InterpMethod',Args.InterpMethod,...
                                     'ThresholdSigma',Args.ThresholdSigma);
+                                'a'
 
         case 'tran2d'
             % a full Tran2D solution, where the observations

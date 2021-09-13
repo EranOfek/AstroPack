@@ -207,7 +207,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     
     RotationEdges = (Args.RotationRange(1):Args.RotationStep:Args.RotationRange(2));
     % mean value of projection scale:
-    ProjectionScale = (180./pi) .* 3600 ./ mean(Args.Scale);
+    ProjectionScale = (180./pi) .* 3600 ./ mean(Args.Scale);  % [pix/radian]
     NormScale = Args.Scale./mean(Args.Scale);
         
     if isempty(Args.CatRadius) && ischar(Args.CatName)
@@ -251,10 +251,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % set CreateNewObj=true, because AstrometricCat is an output argument.
     %   MUST ALWATS BE true, otherwise, this operation may overide the
     %   existing AstrometricCat in the matlab session
-    
-    % AstroWCS.alphadelta2phitheta
-    % native2interm
-    
+    % Units of X/Y positions in the ProjAstCat are pixels!
     ProjAstCat = imProc.trans.projection(AstrometricCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                    'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                    'CreateNewObj',true);
@@ -307,6 +304,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         % FFU: CatColNamesX/Y are for both Cat and Ref!!
         % NormScale - is the scale normalized to 1 (as the new ref was
         % sacled)
+        % 'Scale' NormScale
         [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
                                                                           'Scale',NormScale,...
                                                                           'HistRotEdges',RotationEdges,...
@@ -388,9 +386,15 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 % fitWCS will set CRVAL to RAdeg/Decdeg and will "fit"
                 % Note that Xcat/Ycat were rescaled, so their new Scale=1
                 % CRPIX...
+                %Xcat = Xcat.*Args.Scale;
+                %Ycat = Ycat.*Args.Scale;
+                %Xref = Xref.*Args.Scale;
+                %Yref = Yref.*Args.Scale;
+                % 'Scale', ResPattern.Sol.Scale(Isol),...
+                
                 [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
-                                                       'Scale',ResPattern.Sol.Scale(Isol),...
+                                                       'Scale',ResPattern.Sol.Scale(Isol).*Args.Scale,...
                                                        'ProjType',Args.ProjType,...
                                                        'TranMethod',Args.TranMethod,...
                                                        'Tran',Args.Tran,...
@@ -409,7 +413,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                        'ThresholdSigma',Args.ThresholdSigma);
         
         
-               ParWCS.CD = ParWCS.CD .* Args.Scale; % NOT GOOD ENOUGH!!!! need to rescale also the PV?!
+               ParWCS.CD = ParWCS.CD; % .* Args.Scale; % NOT GOOD ENOUGH!!!! need to rescale also the PV?!
                Result(Iobj).ParWCS(Isol) = ParWCS;
                
                
