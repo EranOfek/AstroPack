@@ -241,7 +241,7 @@ classdef OrbitalEl < Base
                 Units     = 'day';
             end
             
-            Result = 2.*pi .* (Obj.A).^1.5 ./ Obj.K;  % days
+            Result = 2.*pi .* abs(Obj.A).^1.5 ./ Obj.K;  % days
             switch lower(Units)
                 case 'day'
                     % do nothing
@@ -683,6 +683,10 @@ classdef OrbitalEl < Base
             %          % RA nd Dec diff between JPL and ephem:
             %          [CatE.Catalog(:,2) - CatJPL.Catalog(:,2), CatE.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
             %          
+% BUG : hyperbolic/parabolic orbit
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');   
+            %          Cat = ephem(OrbEl, JD, 'OutUnitsDeg',false);          
+            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
             
             arguments
                 Obj(1,1)
@@ -818,7 +822,50 @@ classdef OrbitalEl < Base
         end
         
         function Result = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
-            % TBD - maybe should be static? or external?
+            % Search all minor planets/comets near position on a specific date.
+            %   Given an OrbitalEl object with multiple elements, in which
+            %   each elements contains vectors of multiple orbital
+            %   elements, generate epehmerides and search for all minor
+            %   planets and comets that are near position (cone search).
+            %   The search is done in two steps. In the first iteration,
+            %   rough positions are calculated for all orbital elements,
+            %   while in the second iteration accurate positions are
+            %   calculated for the objects near the position.
+            % Input  : - An OrbitalEl object (multiple elements supported).
+            %          - JD in TDB time scale.
+            %          - J2000.0 R.A. of the position to search.
+            %            Units are either 'deg'|'rad' (controlled via the
+            %            'CooUnits' key/val).
+            %          - J2000.0 Dec. of the position to search.
+            %          - Search Radius. Default is 1000.
+            %          * ...,key,val,...
+            %            'SearchRadiusUnits' - Search Radius units.
+            %                   Default is 'arcsec'.
+            %            'CooUnits' - Search coordinate units.
+            %                   Default is 'deg'.
+            %            'MagLimit' - Magnitude limit. Default is Inf.
+            %            'GeoPos' - Geodetic position of the observer (on
+            %                   Earth). [Lon (rad), Lat (rad), Height (m)].
+            %                   If empty, then calculate geocentric
+            %                   positions. Default is [].
+            %            'RefEllipsoid' - Reference ellipsoid for the
+            %                   geodetic positions. Default is 'WGS84'.
+            %            'OutUnitsDeg' - A logical indicating if the output
+            %                   objects coordinates are in degrees (true)
+            %                   or radians (false). Default is true.
+            %            'coneSearchArgs' - A cell array of additional
+            %                   arguments to pass to imProc.match.coneSearch
+            %                   Default is {}.
+            %            'QuickSearchBuffer' - In the first iteration the
+            %                   search radius is increased by this amount.
+            %                   Default is 500 (units given by the
+            %                   'SearchRadiusUnits' key/val).
+            % Output : - An AstroCatalog object with the ephemerides of the
+            %            minor planets / comets found near the search
+            %            position. The number of elements are equal to the
+            %            number of elements in the input OrbitalEl object.
+            %            You can merge the results using AstroTable/merge.
+            % Author : Eran Ofek (Sep 2021)
             % Example: OrbEl= celestial.OrbitalEl.loadSolarSystem;
             %          Result = searchMinorPlanetsNearPosition(OrbEl, 2451545, 0, 0, 1000)
             
@@ -829,7 +876,6 @@ classdef OrbitalEl < Base
                 RA
                 Dec
                 SearchRadius             = 1000;
-                Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
                 Args.SearchRadiusUnits   = 'arcsec';
                 Args.CooUnits            = 'deg';
                 Args.MagLimit            = Inf;
@@ -837,6 +883,7 @@ classdef OrbitalEl < Base
                 Args.RefEllipsoid        = 'WGS84';
                 Args.OutUnitsDeg logical = true;
                 Args.coneSearchArgs cell = {};
+                Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
             end
             
             SearchRadiusRAD      = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
@@ -849,7 +896,7 @@ classdef OrbitalEl < Base
             end
             
             %ObjNew = Obj.copyObject;   % very slow
-            ObjNew = Obj;
+            ObjNew = Obj.copy;
             
             Nobj = numel(ObjNew);
             
