@@ -95,6 +95,17 @@ class PropData:
         self.comment = ''
 
 # ===========================================================================
+# Data for each class property (currently unused)
+class BookmarkData:
+
+    def __init__(self):
+        self.name = ''
+        self.type = ''              # @Todo, @TBD, @Future
+        self.comment = ''
+        self.filename = ''
+        self.line_num = 0
+
+# ===========================================================================
 #                           MATLAB Source Code Processor
 # ===========================================================================
 
@@ -112,6 +123,7 @@ class MatlabProcessor:
         self.is_class_file = False
         self.package_list_filename = ''
         self.class_list_filename = ''
+        self.todo_list = []
         #self.mlx_lines = []
 
 
