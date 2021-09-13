@@ -772,6 +772,8 @@ classdef OrbitalEl < Base
                 RA  = atan2(Equatorial_U2(2,:), Equatorial_U2(1,:));
                 Dec = atan(Equatorial_U2(3,:)./sqrt( Equatorial_U2(1,:).^2 + Equatorial_U2(2,:).^2  ));
                 
+                RA = mod(RA, 2.*pi);
+                
                 if Args.OutUnitsDeg
                     RA  = RA.*RAD;
                     Dec = Dec.*RAD;
