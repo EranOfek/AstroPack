@@ -7,37 +7,37 @@ classdef AstroWCS < Component
     
     % Add comments
     properties (Access = public)
-%        Exist(1,1)   logical = false; % removed
-        NAXIS(1,1)   uint8  = 2;
-        WCSAXES(1,1) uint8  = 2;        
-        CTYPE(1,:)   cell   = {'',''};   % e.g., 'RA---TAN', 'SIP', 'TPV', 'ZPN'
-        CUNIT(1,:)   cell   = {'',''};
-        RADESYS      char   = 'ICRS';
-        LONPOLE      double = 180;%0; 
-        LATPOLE      double = 0;%90;
-        EQUINOX      double = 2000.0;
-        CRPIX(1,:)   double = [0 0];
-        CRVAL(1,:)   double = [1 1];
-        CD           double = [1 0;0 1];
+        NAXIS(1,1)   uint8  = 2;            % Number of axes
+        WCSAXES(1,1) uint8  = 2;            % WCS dimensionality
+        CTYPE(1,:)   cell   = {'',''};      % WCS projection type, e.g., 'RA---TAN', 'RA-TAN-SIP', 'RA---TPV', 'RA---ZPN'
+        CUNIT(1,:)   cell   = {'',''};      % Axis unit, e.g., 'deg'
+        RADESYS      char   = 'ICRS';       % Astrometric system
+        LONPOLE      double = 180;          % Native Longitude of the Celestial Pole. Default for Zenithal projection 
+        LATPOLE      double = 0;            % Native Latitude of the Celestial Pole
+        EQUINOX      double = 2000.0;       % EQUINOX
+        CRPIX(1,:)   double = [0 0];        % Reference pixel
+        CRVAL(1,:)   double = [1 1];        % World coordinate of reference pixel
+        CD           double = [1 0;0 1];    % Linear projection matrix
         
-        PV                 = AstroWCS.DefPVstruct; 
-        RevPV              = AstroWCS.DefPVstruct; 
+        PV                 = AstroWCS.DefPVstruct;      % Struct of projection distortion
+        RevPV              = AstroWCS.DefPVstruct;      % Struct of reverse projection distortion
 
     end     
     
     properties (GetAccess = public)
-        ProjType     char   = 'none';
-        ProjClass    char   = 'none';
-        CooName(1,:) cell   = {'',''};
+        ProjType     char   = 'none';       % Projection type, e.g., 'TAN', 'TAN-SIP', 'TPV', 'ZPN'
+        ProjClass    char   = 'none';       % Projection class, e.g., 'Zenithal'
+        CooName(1,:) cell   = {'',''};      % Corrdinate name, e.g., 'RA', 'Dec'
         
-        AlphaP(1,1)  double = NaN;
-        DeltaP(1,1)  double = NaN;
-        PhiP(1,1)    double = NaN;
+        % See definitions in Calabretta & Greisen 2002, \aap, 395, 1077. doi:10.1051/0004-6361:20021327
+        AlphaP(1,1)  double = NaN;          % Celestial longitude of the native pole
+        DeltaP(1,1)  double = NaN;          % Celestial latitude of the native pole
+        PhiP(1,1)    double = NaN;          % Native Longitude of the Celestial Pole
         
-        Alpha0(1,1)  double = NaN;
-        Delta0(1,1)  double = NaN;
-        Phi0(1,1)    double = NaN;
-        Theta0(1,1)  double = NaN;
+        Alpha0(1,1)  double = NaN;          % Celestial longitude of the fiducial point
+        Delta0(1,1)  double = NaN;          % Celestial latitude of the fiducial point
+        Phi0(1,1)    double = NaN;          %
+        Theta0(1,1)  double = NaN;          %
         
         Tran2D(1,1) Tran2D   = [];       
         
@@ -47,12 +47,6 @@ classdef AstroWCS < Component
         DefPVstruct         = struct('KeyNamesX',[],'PolyCoefX',[],'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyX_Rdeg',[],...
                                      'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);         
     end   
-        
-    % Future
-%         gridLon     % a cube: e.g., Long = [X,Y,Color]
-%         gridLat     % a cube: e.g., Lat  = [X,Y,Color]
-%         gridCoo     % a cell array of {X,Y,...} - column per axes 
-%         gridAxes = {'RA','Dec','Color'}
     
   
     
@@ -253,7 +247,7 @@ classdef AstroWCS < Component
            end
               
            for Ix = 1:Naxis
-               AddCell = {sprintf('CRVAL%d',Ix), Obj.CRVAL(Ix), 'World coordinate on this axis'};
+               AddCell = {sprintf('CRVAL%d',Ix), Obj.CRVAL(Ix), 'World coordinate of reference pixel on this axis'};
                KeyCell = [KeyCell; AddCell];
            end
            

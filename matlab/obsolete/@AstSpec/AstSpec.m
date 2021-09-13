@@ -2591,10 +2591,10 @@ classdef AstSpec < HEAD
                 if (~isempty(AstS(Is).Wave) && ~isempty(AstS(Is).Int))
                     if (isempty(AstS(Is).Err))
                         % no errors provided
-                        [Res(Is),SpecBB(Is)] = AstroUtil.spec.fit_bb([AstS(Is).Wave,AstS(Is).Int],varargin{:});
+                        [Res(Is),SpecBB(Is)] = astro.spec.fit_bb([AstS(Is).Wave,AstS(Is).Int],varargin{:});
                     else
                         % error are provided 
-                        [Res(Is),SpecBB(Is)] = AstroUtil.spec.fit_bb([AstS(Is).Wave,AstS(Is).Int,AstS(Is).Err],varargin{:});
+                        [Res(Is),SpecBB(Is)] = astro.spec.fit_bb([AstS(Is).Wave,AstS(Is).Int,AstS(Is).Err],varargin{:});
                     end
                 end
             end
@@ -2701,7 +2701,7 @@ classdef AstSpec < HEAD
             %          and the .Int and .Err fields are corrected.
             % Example: AS=shift_vel(A,1000,'w')
             
-            Z = AstroUtil.spec.vel2shift(Vel);
+            Z = astro.spec.vel2shift(Vel);
             
             AS=shift(AS,Z,MethodF);
         end
@@ -2772,7 +2772,7 @@ classdef AstSpec < HEAD
             
             for Is=1:1:Ns
                 % for each spectrum
-                [Mag(Is),Flag(Is),EffW(Is)]=AstroUtil.spec.synphot([AS(Is).Wave, AS(Is).Int],varargin{:});
+                [Mag(Is),Flag(Is),EffW(Is)]=astro.spec.synphot([AS(Is).Wave, AS(Is).Int],varargin{:});
                 
             end
         end
@@ -2798,7 +2798,7 @@ classdef AstSpec < HEAD
             
             for Is=1:1:Ns
                 % for each spectrum
-                [Mag(Is),Flag(Is),EffW(Is)]=AstroUtil.spec.synthetic_phot([AS(Is).Wave, AS(Is).Int],varargin{:});
+                [Mag(Is),Flag(Is),EffW(Is)]=astro.spec.synthetic_phot([AS(Is).Wave, AS(Is).Int],varargin{:});
                 
             end
             
@@ -3229,7 +3229,7 @@ classdef AstSpec < HEAD
                     Conv = convert.units('ang','micron',1);
                     warning('Assume wavelength for AstSpec %d is in ang',Is);
                 end
-                Ext = AstroUtil.spec.extinction(abs(Ebv(Is)),AS(Is).Wave.*Conv,[],R);
+                Ext = astro.spec.extinction(abs(Ebv(Is)),AS(Is).Wave.*Conv,[],R);
                 if (~isempty(AS(Is).Int))
                     % apply extinction to .Int
                     AS(Is).Int = AS(Is).Int.*10.^(-sign(Ebv(Is)).*0.4.*Ext);

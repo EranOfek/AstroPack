@@ -109,7 +109,7 @@ end
     
 
 % extinction curve
-% A_w = AstroUtil.spec.extinction(InPar.Ebv,InPar.Wave./1e4); % extinction per wave [mag]
+% A_w = astro.spec.extinction(InPar.Ebv,InPar.Wave./1e4); % extinction per wave [mag]
     
 % BackSpec = AstSpec(3);
 % RAD=180./pi;
@@ -192,12 +192,12 @@ if isempty(InPar.CalibFilterFamily) || isempty(InPar.CalibFilter) || isempty(InP
     InPar.CalibMagSys       = InPar.MagSys;
 end
 
-[Mag,Flag] = AstroUtil.spec.synphot(TargetSpec,InPar.CalibFilterFamily,InPar.CalibFilter,InPar.CalibMagSys);
+[Mag,Flag] = astro.spec.synphot(TargetSpec,InPar.CalibFilterFamily,InPar.CalibFilter,InPar.CalibMagSys);
 Factor    = 10.^(-0.4.*(Mag-InPar.Mag));
 TargetSpec(:,2) = TargetSpec(:,2)./Factor;
 
 % magnitude in requested band
-[MagInBand,Flag] = AstroUtil.spec.synphot(TargetSpec,InPar.FilterFamily,InPar.Filter,InPar.MagSys);
+[MagInBand,Flag] = astro.spec.synphot(TargetSpec,InPar.FilterFamily,InPar.Filter,InPar.MagSys);
 
 
 

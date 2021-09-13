@@ -52,7 +52,7 @@ BackSpec = AstSpec(4);
 % Zodiac background
 [Spec]=ultrasat.zodiac_bck(InPar.RA,InPar.Dec,InPar.Date,'Wave',InPar.Wave);
 if ~isempty(InPar.ZodiMagV) %calibrate to ZodiMagV, if given
-    Mag   = AstroUtil.spec.synphot([Spec.Wave, Spec.Spec],'Johnson','V','Vega');
+    Mag   = astro.spec.synphot([Spec.Wave, Spec.Spec],'Johnson','V','Vega');
     Spec.Spec = Spec.Spec.*10.^(0.4.*(Mag - InPar.ZodiMagV));
 end
 %InPar.BackSpec = [Spec.Wave,Spec.Spec];
