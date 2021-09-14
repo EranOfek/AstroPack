@@ -1399,6 +1399,46 @@ classdef AstroHeader < Component
         end
         
         % getObsCoo
+        function [Lon, Lat, Alt] = getObsCoo(Obj, Args)
+            % Get Observatory geodetic position from Header
+            % Input  : - An AstroHeader object (multi element supported).
+            %          * ...,key,avl,...
+            %            'KeyLon' - Obs. Longitude main keyword dictionary
+            %                   name. Default is 'OBSLON'.
+            %            'KeyLat' - Obs. Latitude main keyword dictionary
+            %                   name. Default is 'OBSLAT'.
+            %            'KeyAlt' - Obs. Altitude main keyword dictionary
+            %                   name. Default is 'OBSALT'.
+            %            'IsInputAlt' - IsInputAlt argument to pass to
+            %                   getVal. If true, will search keyword name
+            %                   in alternate names list. Default is false.
+            % Output : - An array of longitudes.
+            %          - An array of latitudes.
+            %          - An array of altitudes.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: H = AstroHeader('PTF_Cropped.fits');
+            %          [Lon, Lat, Height] = getObsCoo(H)
+
+            arguments
+                Obj
+                Args.KeyLon     = 'OBSLON';
+                Args.KeyLat     = 'OBSLAT';
+                Args.KeyHeight  = 'OBSEL';
+                Args.IsInputAlt = false;
+            end
+
+            Nobj = numel(Obj);
+            Lon  = nan(size(Obj));
+            Lat  = nan(size(Obj));
+            Alt  = nan(size(Obj));
+
+            for Iobj=1:1:Nobj
+                Lon(Iobj)    = getVal(Obj(Iobj), Args.KeyLon, 'IsInputAlt',Args.IsInputAlt);
+                Lat(Iobj)    = getVal(Obj(Iobj), Args.KeyLat, 'IsInputAlt',Args.IsInputAlt);
+                Alt(Iobj)    = getVal(Obj(Iobj), Args.KeyHeight, 'IsInputAlt',Args.IsInputAlt);
+            end
+
+        end
         
         % getCoo
         
