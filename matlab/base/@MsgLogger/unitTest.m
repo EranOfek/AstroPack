@@ -29,6 +29,7 @@ function Result = unitTest()
     M.msgLog(LogLevel.Debug,   'Test: %d', uint32(LogLevel.Debug));
     M.msgLog(LogLevel.Info,    'Test: %d', uint32(LogLevel.Info));
     M.msgLog(LogLevel.Warning, 'Test: %d', uint32(LogLevel.Warning));
+    M.msgLog(LogLevel.Assert,  'Test: %d', uint32(LogLevel.Assert));
     M.msgLog(LogLevel.Error,   'Test: %d', uint32(LogLevel.Error));
     M.msgLog(LogLevel.Fatal,   'Test: %d', uint32(LogLevel.Fatal));            
     M.msgLog(LogLevel.None,    'Test: %d', uint32(LogLevel.None));

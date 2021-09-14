@@ -6,15 +6,6 @@
 %   copyProp - Copy specific properyies from one object to another
 %--------------------------------------------------------------------------
 
-% #functions
-% Base - Constructor
-% copyObject - Copy by value an object and its content
-% copyProp - Copy the content of properties from object1 into object2.
-% createNewObj - A utility function for creation of an object new copy based on nargout
-% setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied
-% unitTest - Base.unitTest
-% #/functions
-%
 % Making a DEEP Copy: Copy each property value and assign it to the new
 % (copied) property. Recursively copy property values that reference handle
 % objects to copy all of the underlying data.
@@ -32,15 +23,13 @@
 %               "single" instance. This is useful when exactly one object is needed 
 %               to coordinate actions across the system.
 %
-%--------------------------------------------------------------------------
+
 % 
-% Consider using HandleCompatible to allow inheritace by both handle
-% and value classes:
-%
+% Condier using (HandleCompatible)
 % https://www.mathworks.com/help/matlab/matlab_oop/supporting-both-handle-and-value-subclasses-handlecompatible.html
 % https://www.mathworks.com/help/matlab/matlab_oop/how-to-define-handle-compatible-classes-1.html
 
-classdef Base < matlab.mixin.Copyable  % < handle
+classdef HandleBase < matlab.mixin.Copyable  % <handle
     % Base class for all objects
 
     % Properties
@@ -50,7 +39,7 @@ classdef Base < matlab.mixin.Copyable  % < handle
 
     %--------------------------------------------------------
     methods
-        function Obj = Base()
+        function Obj = HandleBase()
             % Constructor
         end
     end
