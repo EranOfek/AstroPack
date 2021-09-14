@@ -1,5 +1,11 @@
-% Currently supporting Proj types: TAN, TAN-SIP, TPV
-% WCSAXES>2 Not supported yet
+% Astronomical World Coordinate System (WCS) container class
+%       This class provides a container for WCS data, 
+%       as well as basic functionality with WCS (xy2sky, sky2xy, create from header/tran2d, convert to header).
+% See the follwoing papers for general definitions:
+%       Greisen & Calabretta 2002, \aap, 395, 1061. doi:10.1051/0004-6361:20021326
+%       Calabretta & Greisen 2002, \aap, 395, 1077. doi:10.1051/0004-6361:20021327
+% Currently supporting only Proj types: TAN, TAN-SIP, TPV
+% Currently not supporting WCSAXES>2 
 
 classdef AstroWCS < Component
     % Component should contain:
