@@ -1405,7 +1405,7 @@ classdef AstroWCS < Component
         end
         
         function PV = build_PV_from_Tran2D(Tran2D,ProjType,set_rev)
-            % Construct a PV (distoration) structure from Tran2D.
+            % Construct a PV (distoration) structure from Tran2D object.
             % Input  : - Tran2D object.
             %          - Projection type, e.g., 'tpv, 'tan-sip'
             %          - Set the RevPV distortion names. Option for
