@@ -2,22 +2,24 @@
 classdef ImagePath < Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
     % The file path is described in the LAST/ULTRASAT file naming convension document.
+    %
+    % Path format (@Todo add from gdoc):
+    % /base/data/YYYY/MM/DD/raw/ - contains all the science and calibration raw data
+    %
     % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
     % Example: 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits'
-    properties  % Separate to Hidden props
+    
+    properties       
+        % These fields are the input parameters for getPath() and getFileName()
         
-        % Fields from file name
-        % These fields are the input parameters for getPath() and
-        % getFileName()
         ProjName        = '';           % Examples: “ULTRASAT”, “LAST.1.12.4” (LAST node=1, mount=12, camera=4)
-        Time            = [];           % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
-%      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}
+        Time            = [];           % Empty: current time, Numeric: time as JD, char: YYYY-MM-DDTHH:MM:SS.FFF, cell: {YYYY, MM, DD}
         TimeZone        = 2;            % Bias in hours, to generate folder name                
         Filter          = 'clear';      % Filter name
         FieldId         = '';           % Sky position identifier, like field ID, object name, CCD I’d, sub image ID etc. May include CropId. Examples: 314.1.1 is field I’d 314, CCD 1, sub image 1.
-        Counter         = '';           %
-        CCDID           = '';           %
-        CropId          = '';           % Part of FieldId        
+        Counter         = '';           % Counter
+        CCDID           = '';           % CCD ID
+        CropId          = '';           % Used with sub-images
         Type            = 'sci';        % sci, bias, dark, domeflat, twflat, skyflat, fringe
         Level           = 'raw';        % log, raw, proc, stack, coadd, ref.
         SubLevel        = '';           % Subleve, see below:
@@ -25,28 +27,19 @@ classdef ImagePath < Component
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
         Product         = 'im';         % Product: im, back, var, imflag, exp, Nim, psf, cat, spec.
         Version         = '1';          % Version (for multiple processing)
-        FileType        = 'fits';       % fits / hdf5 / fits.gz
-    
-        % Path
-        % /data/ref/<area>/version<#>/ - All sky reference/coadd image -
-        % images/masks/catalogs/PSF - The area/region directory will be located below the version number.
-        % /data/coadd/<area>/<time++>/ - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods) - TBD
-        % /data/YYYY/MM/DD/raw/ - contains all the science and calibration raw data
-        % /data/YYYY/MM/DD/log/  - contains all the log files
-        % /data/YYYY/MM/DD/proc/<visit>/ - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs
-        % /data/YYYY/MM/DD/stacked/<visit> - contains all the processed coadd images (coaddition of images of the same field taken continuously only; e.g., 20x15s coadds) - images/masks/catalogs/PSF/subtraction products 
-        % /data/calib/bias/ - all master bias images, same for dark, flat, fringe
-        RefVersion      = 1;            % Used by genPath()
+        FileType        = 'fits';       % fits / hdf5 / fits.gz          
         Area            = '';           % Used by genPath()
+        SubDir          = '';           % This is the area/location directory below the coadd/ref directory
         
         % Fields formatting
-        FormatFieldID   = '%06d';       % @Eran? Do we need it?
+        FormatFieldID   = '%06d';       %
+        FormatCCDID     = '03d';        % 
+        FormatCropId    = '03d';        %
         FormatVersion   = '%03d';       %
-                
-        % 
-        BasePath        = '/home/last'; % Base storage path, should be updated from AstroStorage
-        DataPath        = 'data';       %
-        SubDir          = '';           % This is the area/location directory below the coadd/ref directory
+        
+        % Defaults should be loaded from configuration
+        BasePath        = '/home/last'; % Base storage path
+        DataPath        = 'data';       % Parent folder under BasePath
     end
     
     
@@ -146,7 +139,7 @@ classdef ImagePath < Component
             % Generate YMD based on JD and TimeZone
             [Year, Month, Day] = imUtil.util.file.date_directory(Obj.JD, Obj.TimeZone);
             YMD = sprintf('%04d%s%02d%s%02d', Year, filesep, Month, filesep, Day);
-            
+                       
             UseYMD = false;
             PreDate = '';
             PostDate = '';
@@ -194,9 +187,9 @@ classdef ImagePath < Component
             % Description: Return data product file name and path according to the
             %              LAST/ULTRASAT standard.
             %              <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
-            % Input  : * Pairs of ...,key,val,... Possible keywords include:
+            % Input  : * Pairs of ..., key,val, ... Possible keywords include:
             %            'ProjName' - Default is 'LAST.0.1'.
-            %            'Date' - If empty, then will use current computer time, and
+            %            'Time' - If empty, then will use current computer time, and
             %                   will assume the time is in UTC.
             %                   If numeric then assume the time is in JD, if char then
             %                   assume the time is in the YYYY-MM-DDTHH:MM:SS.FFF
@@ -205,8 +198,7 @@ classdef ImagePath < Component
             %            'TimeZone' - Time zone [hours]. Default is 2.
             %            'Filter' - Default is 'clear'.
             %            'FieldID' - Default is ''.
-            %            'FormatFieldID' - Formatting of FieldID if is given as number.
-            %                   Default is '%06d'.
+            
             %            'Type' - either bias, dark, domeflat, twflat, skyflat, fringe,
             %                   sci, wave.
             %                   Default is 'sci'.
@@ -224,18 +216,17 @@ classdef ImagePath < Component
             %            'Product' - either: im, back, var, imflag, exp, Nim, psf, cat, spec.
             %                   Default is 'im'.
             %            'Version' - Default is 1.
-            %            'FormatVersion' - Formatting of Version if is given as number.
+            
             %                   Default is '%03d'.
             %            'FileType' - Default is 'fits'.
-            %            'RefVersion' - Reference image version. Default is 1.
-            %            'FormatRefVersion' - Format for numeric reference version.
-            %                   Default is '%03d'.
             %            'SubDir' - This is the area/location directory below the
             %                   coadd/ref directory. Default is ''.
             %            'DataDir' - Default is 'data'.
             %            'Base' - Default is '/home/last'.
-            % Output : -File name.
-            %          - Path string.
+            
+            %            'FormatFieldID' - Formatting of FieldID if is given as number. Default is '%06d'.            
+            %            'FormatVersion' - Formatting of Version if is given as number.            
+            % Output : File name or path and file name (if Args.FullPath is true)
             % Example: FileName=imUtil.util.file.construct_filename
             %          [FileName,Path]=imUtil.util.file.construct_filename('FieldID',100)            
             % Returns: string containing image name 
@@ -246,7 +237,6 @@ classdef ImagePath < Component
                 Args.Time               % %{TimeZone} or {YYYY, MM, DD} or [] (required for path) [Save in 2 properties: JD & TimeStr]
                 Args.Filter             % filter name, e.g., “clear”.
                 Args.FieldID            % (char or number) [Saved as char]
-                Args.FormatFieldID      % format - default is %05d [Not in DB]
                 Args.Counter            % (number) - if the user didn’t supply then apply auto increase (if AutoIncrease = true)
                 Args.CCDID              %
                 Args.CropId             %
@@ -255,11 +245,14 @@ classdef ImagePath < Component
                 Args.SubLevel           %- default is ‘n’ [note that n will be replaced by “”, without “.” seperator)
                 Args.Product            %
                 Args.Version            % (char or number) [saved as char]
-                Args.FormatVersion      % format - default is %03d. [Not in DB]
                 Args.FileType           % - default is ‘fits’.                                    
                 Args.TimeZone = 2;      %
                 Args.Area               % Used when FullPath is true
-                Args.FullPath = false;  %
+                Args.FullPath = false;  %               
+                Args.FormatFieldID      %
+                Args.FormatCCDID        %
+                Args.FormatCropId       %
+                Args.FormatVersion      %
             end
             
             % Set properties from arguments, only properties that exist in Args are set
@@ -270,11 +263,12 @@ classdef ImagePath < Component
             % Set JD and TimeStr
             Obj.setTime();
             
-            % FieldID, use specified formatting if numeric
-            if isnumeric(Obj.FieldId) && ~isempty(Obj.FormatFieldID)
-                Obj.FieldID = sprintf(Obj.FormatFieldID, Obj.FieldID);
-            end
-
+            % Format numeric fields
+            Obj.FieldID  = Obj.formatNumeric(Obj.FieldID, Obj.FormatFieldID);                   
+            Obj.CCDID    = Obj.formatNumeric(Obj.CCDID, Obj.FormatCCDID);
+            Obj.CropId   = Obj.formatNumeric(Obj.CropId, Obj.FormatCropId);
+            Obj.Version  = Obj.formatNumeric(Obj.Version, Obj.FormatVersion);
+            
             % Validate field values
             Obj.valiadateFields();
             
@@ -289,11 +283,6 @@ classdef ImagePath < Component
                 MergedLevel = Obj.Level;
             else
                 MergedLevel = sprintf('%s.%s', Obj.Level, Obj.SubLevel);    
-            end
-
-            % Format version if numeric
-            if isnumeric(Obj.Version) && ~isempty(Obj.FormatVersion)
-                Obj.Version = sprintf(Obj.FormatVersion, Obj.Version);
             end
 
             % Prepare the final result
@@ -512,6 +501,16 @@ classdef ImagePath < Component
                     error('Unknown Product option: %s', Obj.Product);
             end
             
+        end
+        
+        
+        function Result = formatNumeric(Obj, Value, Format)
+            if isnumeric(Value) && ~isempty(Format)
+                Result = sprintf(Format, Value);
+            else
+                Result = Value;
+            end
+
         end
     end
     

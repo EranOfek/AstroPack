@@ -13,13 +13,18 @@ function Result = unitTest()
 
     % Test copyProp()
     c = Base();
-    a.copyProp(c, {'UserData'});
+    
+    % If Base is non-handle class, 'a.copyProp(c, {'UserData'})' does not
+    % work, and we need 'c = a.copyProp(c, {'UserData'})'
+    c = a.copyProp(c, {'UserData'});
     assert(a.UserData == c.UserData);
 
     % Test setProps
     a = Base();
     s = struct;
     args.UserData = 7;
+    
+    % Does not work if Base is not handle
     a.setProps(args);
     assert(a.UserData == args.UserData);
 
