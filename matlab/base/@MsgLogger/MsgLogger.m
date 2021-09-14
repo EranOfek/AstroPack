@@ -49,7 +49,7 @@ classdef MsgLogger < handle
             end
 
             % Always use msgStyle to print errors in red color
-            if Level == LogLevel.Error || Level == LogLevel.Fatal
+            if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert
                 Obj.msgStyle(Level, '@error', varargin{:});
                 return
             end
@@ -116,7 +116,7 @@ classdef MsgLogger < handle
                 Result = false;
 
             % Error - always use log
-            elseif Level == LogLevel.Error || Level == LogLevel.Fatal
+            elseif Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert
                 Result = true;
 
             % Warning - always log
@@ -145,6 +145,8 @@ classdef MsgLogger < handle
 					s = 'FTL';
 				case LogLevel.Error
 					s = 'ERR';
+				case LogLevel.Assert
+					s = 'ASR';
 				case LogLevel.Warning
 					s = 'WRN';
 				case LogLevel.Info

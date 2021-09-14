@@ -8,7 +8,8 @@
 #    Generate mlx skeleton (if possible), check if we can generate HTML and import it, or just text?
 #    MLX is Open Packaging Conventions, there are Python packages to manipulate it
 #
-# Generate HTML:
+# Generate HTML - see Eran's page:
+#
 #   https://webhome.weizmann.ac.il/home/eofek/matlab/FunList.html
 #
 # Markdown -> HTML:
