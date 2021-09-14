@@ -821,7 +821,7 @@ classdef OrbitalEl < Base
             
         end
         
-        function Result = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
+        function [Result, Names] = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
             % Search all minor planets/comets near position on a specific date.
             %   Given an OrbitalEl object with multiple elements, in which
             %   each elements contains vectors of multiple orbital
@@ -865,9 +865,11 @@ classdef OrbitalEl < Base
             %            position. The number of elements are equal to the
             %            number of elements in the input OrbitalEl object.
             %            You can merge the results using AstroTable/merge.
+            %          - A structure array (element per Result element)
+            %            with the selected minor planets 'Number' and 'Designation'.
             % Author : Eran Ofek (Sep 2021)
             % Example: OrbEl= celestial.OrbitalEl.loadSolarSystem;
-            %          Result = searchMinorPlanetsNearPosition(OrbEl, 2451545, 0, 0, 1000)
+            %          [Result, Names] = searchMinorPlanetsNearPosition(OrbEl, 2451545, 0, 0, 1000)
             
 
             arguments
@@ -912,21 +914,39 @@ classdef OrbitalEl < Base
             
                 ObjNew(Iobj).selectFlag(Flag);
             end
-                
+            
             % accurate search on selected sample:
             for Iobj=1:1:Nobj
-                Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
-                                              'RefEllipsoid',Args.RefEllipsoid,...
-                                              'OutUnitsDeg',false,...
-                                              'OutUnitsDeg',Args.OutUnitsDeg);
+                if  numEl(ObjNew(Iobj))==0
+                    Flag = [];
+                    Result(Iobj) = AstroCatalog;
+                else
+                    Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
+                                                  'RefEllipsoid',Args.RefEllipsoid,...
+                                                  'OutUnitsDeg',false,...
+                                                  'OutUnitsDeg',Args.OutUnitsDeg);
+
+
+                    [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
+                                                      'Radius',SearchRadiusRAD,...
+                                                      'RadiusUnits','rad',...
+                                                      'CooUnits',Args.CooUnits,...
+                                                      'CreateNewObj',false,...
+                                                      Args.coneSearchArgs{:});
+                end
+                if isempty(ObjNew(Iobj).Number)
+                    Names(Iobj).Number      = nan(sizeCatalog(Result(Iobj)));
+                else
+                    Names(Iobj).Number      = ObjNew(Iobj).Number(Flag);
+                end
+                if isempty(ObjNew(Iobj).Designation)
+                    Names(Iobj).Designation = cell(sizeCatalog(Result(Iobj)));
+                else
+                    Names(Iobj).Designation = ObjNew(Iobj).Designation(Flag);
+                end                          
             end
             
-            [Result] = imProc.match.coneSearch(Result, [RA, Dec], 'CooType','sphere',...
-                                                  'Radius',SearchRadiusRAD,...
-                                                  'RadiusUnits','rad',...
-                                                  'CooUnits',Args.CooUnits,...
-                                                  'CreateNewObj',false,...
-                                                  Args.coneSearchArgs{:});
+            
             
                         
         end
