@@ -166,7 +166,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.StepX(1,1)                   = 2;
         Args.StepY(1,1)                   = 2;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
-        Args.SearchRadius(1,1)            = 5;   
+        Args.SearchRadius(1,1)            = 8;   
         Args.FilterSigma                  = 3;
         
         
@@ -292,7 +292,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         else
             Result(Iobj).ImageCenterXY = Args.ImageCenterXY;
         end
-        imProc.trans.tranAffine(FilteredCat, -Result(Iobj).ImageCenterXY, true); %[-1024 -2048],true);
+        FilteredCat = imProc.trans.tranAffine(FilteredCat, -Result(Iobj).ImageCenterXY, true, 'CreateNewObj',false); %[-1024 -2048],true);
   
         % debuging
         %figure(1); FilteredCat.plotSources; axis([-200 50 -400 100]);
@@ -345,14 +345,24 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                 'ColY',RefColNameY);
 
                 % match sources based on X/Y positions:
+                % SearchRadius is in arcsec, while catalogs are in pixels
                 [MatchedCat,UM,TUM] = imProc.match.match(FilteredCat, TransformedProjAstCat,...
-                                                 'Radius',Args.SearchRadius,...
+                                                 'Radius',Args.SearchRadius.*mean(Args.Scale),...
                                                  'CooType','pix',...
                                                  'AddIndInRef',false,...
                                                  'ColCatX',Args.CatColNamesX,...
                                                  'ColCatY',Args.CatColNamesY,...
                                                  'ColRefX',RefColNameX,...
                                                  'ColRefY',RefColNameY);
+                                             
+                % DEBUGING:
+                % FilteredCat.plot({'X','Y'},'o')          
+                % hold on
+                % TransformedProjAstCat.plot({'X','Y'},'.')
+                % MatchedCat.plot({'X','Y'},'o','MarkerSize',15)
+                % axis([-600 600 -600 600])
+
+                
                 % Count the number of matches
                 Flag = ~isnan(MatchedCat.Catalog(:,1));
                 Nmatches = sum(Flag);
