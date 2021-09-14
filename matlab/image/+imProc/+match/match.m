@@ -29,7 +29,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %            'RadiusUnits' - Search radius units (if spherical
     %                   coordinates search). Default is 'arcsec'.
     %            'AddIndInRef' - A logical indicating if to add a
-    %                   column to  Obj1 that include the index of
+    %                   column to Obj1 that include the index of
     %                   the source in the reference catalog (Obj2).
     %                   Default is true.
     %            'IndInRefColName' - The column name of the Index
