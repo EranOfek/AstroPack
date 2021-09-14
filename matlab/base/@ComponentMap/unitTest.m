@@ -6,7 +6,7 @@ function Result = unitTest()
     Map = ComponentMap;
     assert(Map.getCount() == 0);
 
-    Comp1 = Component;
+    Comp1 = HandleComponent;
     Map.add(Comp1);
     assert(Map.getCount() == 1);
     assert(~isempty(Map.find(Comp1.MapKey)));

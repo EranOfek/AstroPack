@@ -26,14 +26,14 @@ classdef HandleComponent < HandleBase & Component
 
     % Properties
     properties (SetAccess = public)
-        Name   = []                % Name string
-        Owner  = []                % Indicates the component that is responsible for streaming and freeing this component
-        Uuid   = []                % Global unique ID, generated with java.util.UUID.randomUUID()
-        Tag    = []                % Optional tag (i.e. for events handling)
-        MapKey = []                % Used with ComponentMap class
-        Config Configuration       % Configuration, deafult is system configuration
-        Log MsgLogger              % Logger, default is system logger
-        DebugMode = true           % DebugMode
+%         Name   = []                % Name string
+%         Owner  = []                % Indicates the component that is responsible for streaming and freeing this component
+%         Uuid   = []                % Global unique ID, generated with java.util.UUID.randomUUID()
+%         Tag    = []                % Optional tag (i.e. for events handling)
+%         MapKey = []                % Used with ComponentMap class
+%         Config Configuration       % Configuration, deafult is system configuration
+%         Log MsgLogger              % Logger, default is system logger
+%         DebugMode = true           % DebugMode
     end
 
     %--------------------------------------------------------

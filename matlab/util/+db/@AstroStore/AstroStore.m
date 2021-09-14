@@ -5,7 +5,7 @@
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part1
 % https://undocumentedmatlab.com/articles/explicit-multi-threading-in-matlab-part2
 
-classdef AstroStore < Component
+classdef AstroStore < HandleComponent
     % Singletone object
     
     properties (SetAccess = public)

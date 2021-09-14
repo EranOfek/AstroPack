@@ -14,7 +14,7 @@
 % I.install({'+cats'}); % install specific datasets (and open tar file)
 
 
-classdef Installer < Base
+classdef Installer < HandleComponent % Base
     % Installer class
     
     % Properties

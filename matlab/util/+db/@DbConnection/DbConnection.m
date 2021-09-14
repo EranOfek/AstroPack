@@ -4,7 +4,7 @@
 %
 % Used internally by DbQuery
 
-classdef DbConnection < Component
+classdef DbConnection < HandleComponent
     
     % Properties
     properties (SetAccess = public)            

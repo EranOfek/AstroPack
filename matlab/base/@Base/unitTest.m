@@ -25,7 +25,7 @@ function Result = unitTest()
     args.UserData = 7;
     
     % Does not work if Base is not handle
-    a.setProps(args);
+    a = a.setProps(args);
     assert(a.UserData == args.UserData);
 
     io.msgLog(LogLevel.Test, 'Base test passed');

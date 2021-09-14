@@ -104,8 +104,10 @@ function Result = unitTest()
     % deleteKey
     io.msgLog(LogLevel.Test, 'testing AstroHeader deleteKey')
     H=AstroHeader('WFPC2ASSNu5780205bx.fits');
-    deleteKey(H,{'EXPTIME','A','COMMENT'});
-    deleteKey(H,{'EXPTIME','A','SKYSUB\d'}); % use regexp
+    
+    % @Chen, need H = for non-handle class
+    H = deleteKey(H,{'EXPTIME','A','COMMENT'});
+    H = deleteKey(H,{'EXPTIME','A','SKYSUB\d'}); % use regexp
     if ~isnan(getVal(H,'COMMENT'))
         error('Key value should be NaN');
     end

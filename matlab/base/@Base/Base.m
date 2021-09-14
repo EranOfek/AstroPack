@@ -39,8 +39,15 @@
 %
 % https://www.mathworks.com/help/matlab/matlab_oop/supporting-both-handle-and-value-subclasses-handlecompatible.html
 % https://www.mathworks.com/help/matlab/matlab_oop/how-to-define-handle-compatible-classes-1.html
+%
+% https://www.mathworks.com/matlabcentral/answers/431064-changing-variable-properties-in-class-by-method
 
-classdef Base < matlab.mixin.Copyable  % < handle
+% classdef Base < matlab.mixin.Copyable  % < handle
+
+
+classdef (HandleCompatible) Base  % < matlab.mixin.Copyable  % < handle
+
+%classdef Base  % < matlab.mixin.Copyable  % < handle
     % Base class for all objects
 
     % Properties
@@ -220,6 +227,7 @@ classdef Base < matlab.mixin.Copyable  % < handle
                     Result = Result + 1;
                 end
             end
+            Result = Obj;
         end
     end
 

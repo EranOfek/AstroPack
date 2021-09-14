@@ -3,7 +3,7 @@
 %Glb = [];
 
 
-classdef Db < Component
+classdef Db < HandleComponent
     
     % Properties
     properties (SetAccess = public)            

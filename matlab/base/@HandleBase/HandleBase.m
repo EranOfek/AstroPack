@@ -29,12 +29,14 @@
 % https://www.mathworks.com/help/matlab/matlab_oop/supporting-both-handle-and-value-subclasses-handlecompatible.html
 % https://www.mathworks.com/help/matlab/matlab_oop/how-to-define-handle-compatible-classes-1.html
 
-classdef HandleBase < matlab.mixin.Copyable  % <handle
+%classdef HandleBase < matlab.mixin.Copyable & Base % <handle
+
+classdef HandleBase < handle & Base % <handle
     % Base class for all objects
 
     % Properties
     properties (SetAccess = public)
-        UserData    % Optional user data (any type)
+        %UserData    % Optional user data (any type)
     end
 
     %--------------------------------------------------------

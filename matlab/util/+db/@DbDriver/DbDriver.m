@@ -18,7 +18,7 @@
 % We currently use postgresql-42.2.19.jar
 %--------------------------------------------------------------------------
 
-classdef DbDriver < Component
+classdef DbDriver < HandleComponent
     % Database Driver Class
     
     % Properties

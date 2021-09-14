@@ -18,7 +18,7 @@
 %   Use unittest__tables from GDrive to test
 %
 
-classdef DbQuery < Component
+classdef DbQuery < HandleComponent
     
     % Properties
     properties (SetAccess = public)            

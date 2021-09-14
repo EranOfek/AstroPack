@@ -1,8 +1,9 @@
-% Database record with dynamic properties
-% Similar to struct, but based on dynamicprops class
-% Used by DbQuery with select and insert SQL operations.
 
-classdef DbRecord < dynamicprops
+classdef DbRecord < handle % < dynamicprops
+    % Database record with dynamic properties, similar to struct, but based on dynamicprops class
+    % Used by DbQuery with select and insert SQL operations.    
+    % dynamicprops is an abstract class derived from the handle class. 
+    % Subclass dynamicprops to define classes that support dynamic properties. 
     
     % Properties
     properties (SetAccess = public)
@@ -11,6 +12,7 @@ classdef DbRecord < dynamicprops
         KeyField_    = ''           % Key field(s)
         Uuid_        = ''           % Used when UseUuid is true
         UseUuid_     = false        % True to use Uuid, otherwise the faster SerialStr is used
+        Data struct                 % 
     end
     
     %-------------------------------------------------------- 
@@ -20,6 +22,7 @@ classdef DbRecord < dynamicprops
             %   DbRecord()          - Create new empty record object
             %   DbRecord(DbQuery)   - Create object linked to specified query
             
+            Obj.Data = struct;
             
             % Generate unique id, as Uuid or SerialStr (more compact and fast)
             if Obj.UseUuid_
@@ -53,8 +56,8 @@ classdef DbRecord < dynamicprops
             try
                 [~, name, ~] = fileparts(FileName);
                 PropName = name;
-                if isprop(Obj, PropName)
-                %if isfield(Obj.Data, PropName)
+                %if isprop(Obj, PropName)
+                if isfield(Obj.Data, PropName)
                     io.msgLog(LogLevel.Warning, 'Property already exist: %s', PropName);
                 else
                     io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);                    
@@ -78,10 +81,11 @@ classdef DbRecord < dynamicprops
                 % int, double, char, bool, string
                 if isnumeric(Struct.(Field)) || ischar(Struct.(Field)) || ...
                    islogical(Struct.(Field)) || isstring(Struct.(Field))
-                    if ~isprop(Obj, Field)
-                        Obj.addprop(Field);
-                    end
-                    Obj.(Field) = Struct.(Field);
+                    %if ~isprop(Obj, Field)
+                    %    Obj.addprop(Field);
+                    %end
+                    %Obj.(Field) = Struct.(Field);
+                    Obj.Data.(Field) = Struct.(Field);
                     
                 % Not supported
                 else
@@ -97,11 +101,13 @@ classdef DbRecord < dynamicprops
             % Field names ending with '_' are ignored
             
             Struct = struct;
-            PropNames = properties(Obj);
+            %PropNames = properties(Obj);
+            PropNames = fieldnames(Obj.Data);
             for i = 1:numel(PropNames)
                 Prop = PropNames{i};     
                 if ~endsWith(Prop, '_')
-                    Struct.(Prop) = Obj.(Prop);
+                    %Struct.(Prop) = Obj.(Prop);
+                    Struct.(Prop) = Obj.Data.(Prop);
                 end
             end
         end
@@ -111,7 +117,8 @@ classdef DbRecord < dynamicprops
             % Get list of field names, properties ending with '_' are excluded
             
             Result = {};
-            PropNames = properties(Obj);
+            %PropNames = properties(Obj);
+            PropNames = fieldnames(Obj.Data);
             for i = 1:numel(PropNames)
                 Prop = PropNames{i};     
                 if ~endsWith(Prop, '_')
@@ -132,14 +139,18 @@ classdef DbRecord < dynamicprops
             % Compare two records, return true if equal
             
             Result = false;
-            Props = properties(Obj);
-            Others = properties(Other);
+            Props = fieldnames(Obj.Data);
+            Others = fieldnames(Other.Data);            
+            %Props = properties(Obj);
+            %Others = properties(Other);
             if numel(Props) == numel(Others)
                 Result = true;
                 for i = 1:numel(Props)
                     Prop = Props{i};
-                    if isprop(Other, Prop)
-                        if Obj.(Prop) ~= Other.(Prop)
+                    if isfield(Other.Data, Prop)
+                    %if isprop(Other, Prop)
+                        if Obj.Data.(Prop) ~= Other.Data.(Prop)
+                        %if Obj.(Prop) ~= Other.(Prop)
                             Result = false;
                             break;
                         end                                        

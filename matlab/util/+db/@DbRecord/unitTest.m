@@ -9,9 +9,9 @@ function Result = unitTest()
     S.MyZ = 3;
     R = db.DbRecord;
     R.loadStruct(S);
-    assert(R.MyX == S.MyX);
-    assert(R.MyY == S.MyY);
-    assert(R.MyX ~= S.MyY);
+    assert(R.Data.MyX == S.MyX);
+    assert(R.Data.MyY == S.MyY);
+    assert(R.Data.MyX ~= S.MyY);
 
     % Convert to struct
     Q = db.DbRecord;

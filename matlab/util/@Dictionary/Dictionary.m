@@ -3,7 +3,7 @@
 % Author: Eran Ofek (March 2021)
 % Example: D=Dictionary; D.unitTest
 
-classdef Dictionary < Component
+classdef Dictionary < HandleComponent
     
     properties (Dependent, SetAccess = private)
         NameParts 

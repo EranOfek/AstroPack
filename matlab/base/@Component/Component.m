@@ -36,7 +36,7 @@
 % unitTest - Component.unitTest
 % #/functions
 %
-classdef Component < Base
+classdef (HandleCompatible) Component < Base
     % Parent class for all components
 
     % Properties

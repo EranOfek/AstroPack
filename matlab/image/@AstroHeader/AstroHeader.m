@@ -138,7 +138,7 @@ classdef AstroHeader < Component
     end
     
     methods % setters/getters
-        function KeyS=get.Key(Obj)
+        function KeyS = get.Key(Obj)
             % getter for Key, generate key structure array if needed
             
             Iobj = 1;
@@ -157,7 +157,7 @@ classdef AstroHeader < Component
             
         end
         
-        function set.Data(Obj,HeaderCell)
+        function Obj = set.Data(Obj,HeaderCell)
             % setter for the header data / set IsKeyUpToDate to false
            
             Obj.Data = HeaderCell; 

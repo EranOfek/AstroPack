@@ -5,7 +5,7 @@
 % Author: Eran Ofek (March 2021)
 % Example: BD=BitDictionary; D.unitTest
 
-classdef BitDictionary < Component
+classdef BitDictionary < HandleComponent
     properties
         BitDictName char     = '';   % BitDictionary name - e.g., 'HeaderKeySynonyms'
         Dic table            = table();    % Name, Description, BitInd
