@@ -1,5 +1,4 @@
-
-% TODO Next - Documentation
+% Currently supporting Proj types: TAN, TAN-SIP, TPV
 % WCSAXES>2 Not supported yet
 
 classdef AstroWCS < Component
@@ -36,56 +35,58 @@ classdef AstroWCS < Component
         
         Alpha0(1,1)  double = NaN;          % Celestial longitude of the fiducial point
         Delta0(1,1)  double = NaN;          % Celestial latitude of the fiducial point
-        Phi0(1,1)    double = NaN;          %
-        Theta0(1,1)  double = NaN;          %
+        Phi0(1,1)    double = NaN;          % Native longitude of the fiducial point
+        Theta0(1,1)  double = NaN;          % Native latitude of the fiducial point
         
-        Tran2D(1,1) Tran2D   = [];       
+        Tran2D(1,1) Tran2D   = [];          % Objcet of an astrometric transformation class
         
     end
     
     properties (Hidden, Constant)
         DefPVstruct         = struct('KeyNamesX',[],'PolyCoefX',[],'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyX_Rdeg',[],...
                                      'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);         
+                                            % Default structure of projection distortion coefficients
     end   
-    
-  
     
 %======================================================================    
     
     methods
-   %======== Constructor and general functions =========        
-        
-        % Constructor
-        function Obj = AstroWCS(Headers)
-            % Construct AstroWCS object and populate it with headers
-            % Input  : - Either a vector of the the size of the empty
-            %            AstroWCS object (e.g., [2 2]).
-            %            OR a cell array of AstrHeaders.
-            % Output : - An AstroWCS object with populated fields.
-            % Author : Yossi Shvartzvald (June 2021)
-            % Example: 
-            
-            arguments
-                Headers      = 1;   % name or array size
-            end
-            
-            if isnumeric(Headers)
-                % create an empty AstroWCS object
-                List = cell(Headers);
-            elseif iscell(Headers)
-                List = Headers;
-            end
+   %======== Constructor  =========        
 
+        function Obj = AstroWCS(Nobj)
+            % Basic constructor for AstroWCS class. User should usually use AstroWCS.header2wcs or AstroWCS.tran2wcs
+            % Input  : - A vector of the requested size of the empty
+            %            AstroWCS object (e.g., [2 2]).
+            % Output : - An AstroWCS object with fields populated with the defaults.
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example: 
+            %          AW = AstroWCS(1);
+            %          AW = AstroWCS([2 2]);
+
+            arguments
+                Nobj      = 1;   % array size
+            end
+            
+            % create an empty AstroWCS object
+            List = cell(Nobj);
             Nh = numel(List);
             for Ih=1:1:Nh
-                Obj(Ih).ProjType = ''; % TODO change
+                Obj(Ih).Tran2D = [];
             end            
             Obj = reshape(Obj,size(List));
             
         end
         
+   %======== General functions =========           
+        
         function Obj = populate_projMeta(Obj)
-            
+            % Populate projection metadata (Alpha0,Delta0,AlphaP,DeltaP,Phi0,Theta0,PhiP) 
+            % Input  : - AstroWCS object.
+            % Output : - AstroWCS object with populated metadata fields.
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example: 
+            %          AW = AstroWCS(1); AW.populate_projMeta;
+                     
              switch lower(Obj.ProjClass)
                 case 'none'
                     Obj.Alpha0 = Obj.CRVAL(1);
@@ -98,7 +99,6 @@ classdef AstroWCS < Component
                     Obj.PhiP   = NaN;
 
                 case 'zenithal'
-
                     Obj.Alpha0 = Obj.CRVAL(1);
                     Obj.Delta0 = Obj.CRVAL(2);
                     Obj.AlphaP = Obj.CRVAL(1);
@@ -123,12 +123,15 @@ classdef AstroWCS < Component
    %======== Functions to construct AstroWCS from AstroHeader =========
         
         function Obj = read_ctype(Obj)
-            % Use Obj.CTYPE to fill the fields ProjType, ProjClass,
-            % CooName, and CUNIT (if empty)
+            % Read Obj.CTYPE to populate the fields: ProjType, ProjClass, CooName, and CUNIT (if empty or nan)
+            % Input  : - AstroWCS object.
+            % Output : - AstroWCS object with populated fields.
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example: 
+            %          AW = AstroWCS(1); AW.CTYPE = {'RA---TAN' 'DEC--TAN'}; AW.read_ctype;
             
             ProjTypeDict = Dictionary('DictName','WCS.ProjType');
             CunitDict = Dictionary('DictName','WCS.CUNIT');            
-            
       
             ctype = Obj.CTYPE;
             
@@ -166,7 +169,7 @@ classdef AstroWCS < Component
             
             
             % if CUNIT is not given in the header, fill from dictionary
-            Funit = tools.cell.isnan_cell(Obj.CUNIT);
+            Funit = tools.cell.isnan_cell(Obj.CUNIT) | tools.cell.isempty_cell(Obj.CUNIT);
             Obj.CUNIT(Funit) = coounit(Funit);
             
         end
@@ -174,11 +177,13 @@ classdef AstroWCS < Component
    %======== Functions to construct AstroHeader from AstroWCS ========= 
    
        function Header = wcs2head(Obj,Header)
-            % Convert AstroWCS object to AstroHeader key/par
-            % Description:
-            % Input  : - A AstroWCS object.
-            %          - Optional AstroHeader in which to update key/par
-            % Output : - An AstroHeader object with the WCS keywords.           
+            % Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
+            % Input  : - AstroWCS object.
+            %          - Optional AstroHeader object in which to update key/par
+            % Output : - AstroHeader object with the WCS keywords
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example: 
+            %          AW = AstroWCS(1); AH = AW.wcs2head;      
 
             arguments
                 Obj
@@ -190,6 +195,14 @@ classdef AstroWCS < Component
        end
    
        function KeyCell = wcs2keyCell(Obj)
+            % Create a cell array of WCS fields from AstroWCS object
+            % Input  : - AstroWCS object.
+            % Output : - Cell array of {keyname, keyval, description}
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example: 
+            %          AW = AstroWCS(1); KeyCell = AW.wcs2keyCell;      
+         
+           % Initiate cell array
            KeyCell = cell(0,3);
            
            %Add field by field
@@ -295,21 +308,28 @@ classdef AstroWCS < Component
    %======== Functions for related to xy2sky =========
    
         function [Alpha, Delta]  = xy2sky(Obj,PX,PY,Args)         
-        % Convert X/Y pixel coordinates to celestial coordinates
-        % Description: Convert X/Y pixel coordinates to celestial
-        %              coordinates.
-        % Input  : - A single element AstroWCS object
-        %          - A matrix of pixel X coordinates.
-        %            If next argument is not provided then this is a
-        %            two or more column matrix of [PX,PY,...]
-        %          - A matrix of pixel Y coordinates.
-        %          - OutUnits 
-        % Output : - A two column matrix of [RA,Dec](e.g. [Alpha, Delta]) or a matrix of RA
-        %            coordinates.
-        %          - A matrix of Dec coordinates.
-        %            If not asked for, then the first output will be a
-        %            two column matrix.
-
+            % Convert pixel coordinates to celestial coordinates
+            % Input  : - A single element AstroWCS object
+            %          - A matrix of pixel X coordinates.
+            %            If next argument is not provided or empty then this is a
+            %            two or more column matrix of [PX,PY,...]
+            %          - A matrix of pixel Y coordinates.
+            %          * ...,key,val,...      
+            %            'OutUnits'          - Output units. Default is 'deg'.
+            %            'includeDistortion' - Flag to include distoration. 
+            %                                  Default is: true.
+            %            'useTran2D'         - Flag to use Tran2D object directly.
+            %                                  Currently not supported.
+            %                                  Default is: false.
+            % Output : - A two column matrix of [Alpha, Delta] or a matrix of 
+            %            Alpha coordinates.
+            %          - A matrix of Delta coordinates.
+            %            If not asked for, then the first output will be a
+            %            two column matrix.
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example: [Alpha,Delta] = Obj.xy2sky(1,1);
+            %          
+        
             arguments
                 Obj
                 PX
@@ -324,7 +344,7 @@ classdef AstroWCS < Component
             end
 
             if numel(Obj)~=1
-                error('Works only on a single element wcsCl object');
+                error('Works only on a single element AstroWCS object');
             end
 
             if Obj.WCSAXES>2
@@ -336,7 +356,7 @@ classdef AstroWCS < Component
                 PX = PX(:,1);
             end
 
-            % pixel to intermediate (in units of CUNIT); including distortion
+            % pixel to intermediate (in units of CUNIT) including distortion
             [Xd,Yd] = Obj.pix2interm(PX,PY,Args.includeDistortion);
             
             % intermediate to native
@@ -349,18 +369,21 @@ classdef AstroWCS < Component
               
         
         function [X,Y]=pix2interm(Obj,PX,PY,includeDistortion)
-        % Convert pixel coordinates (P) to intermediate coordinates (X) -
-        % ADDED DISTORTION
-        % Input  : - A single element AstroWCS object
-        %          - A matrix of pixel X coordinate.
-        %            If next argument is not provided then this is a
-        %            two column matrix of [PX,PY].
-        %          - A matrix of pixel Y coordinate.
-        % Output : - A matrix of X intermediate coordinate.
-        %          - A matrix of Y intermediate coordinate.
-        %            The intermediate coordinates units are specified in
-        %            CUNIT.
-        % Example: [X,Y]=pix2interm(Obj,1,1);
+            % Convert pixel coordinates (P) to intermediate coordinates (X), if requested also include distortion
+            % Input  : - A single element AstroWCS object
+            %          - A matrix of pixel X coordinate.
+            %            If next argument is not provided then this is a
+            %            two column matrix of [PX,PY].
+            %          - A matrix of pixel Y coordinate.
+            %            'includeDistortion' - Flag to include distoration. 
+            %                                  Default is: true.
+            % Output : - A matrix of X intermediate coordinate.
+            %          - A matrix of Y intermediate coordinate.
+            %            The intermediate coordinates units are specified in
+            %            CUNIT.
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example: [X,Y]= Obj.pix2interm(1,1);
+
         
             arguments
                 Obj
@@ -416,18 +439,21 @@ classdef AstroWCS < Component
         
         
         function [Phi,Theta]=interm2native(Obj,X,Y,Args)
-            % project coordinates: intermediate to native
-            % Input  : - A AstroWCS object
+            % Project intermediate coordinates to native coordinates
+            % Input  : - AstroWCS object
             %          - A matrix of intermediate X coordinate.
-            %            If next argument (Y) is not orovided then this
+            %            If next argument (Y) is not orovided or empty then this
             %            is a two column matrix of [X,Y].
             %          - A matrix of intermediate Y coordinate. 
-            %          - Input intermediate coordinates units {'rad'|'deg'}.
-            %            Default is 'deg'.
-            %          - Output native coordinates units. Default is 'deg'.
+            %          * ...,key,val,...      
+            %            'InUnits '  - Input intermediate coordinates units. 
+            %                          Default is 'deg'.
+            %            'OutUnits ' - Output native coordinates units. 
+            %                          Default is 'deg'.
             % Output : - A matrix of native Phi coordinate.
             %          - A matrix of native Theta coordinate.
-            % Example: [Phi,Theta]=interm2native(Obj,100,100)
+            % Author : Yossi Shvartzvald (August 2021)            
+            % Example: [Phi,Theta]=Obj.interm2native(100,100);
 
             arguments
                 Obj
@@ -475,27 +501,25 @@ classdef AstroWCS < Component
             Theta = Theta.*ConvFactor;
             Phi   = Phi.*ConvFactor;
 
-
         end
         
     
         function [Alpha,Delta]=native2celestial(Obj,Phi,Theta,Args)
-            % convert native coordinates to celestial coordinates
-            % Description: Convert spherical native coordinates
-            %              (phi, theta) to spherical celestial
-            %              coordinates (alpha, delta).
+            % Convert native coordinates to celestial coordinates
             % Input  : - A single element AstroWCS object.
             %          - A matrix of phi (native) coordinates.
             %            If the next input argument is empty, then this is
             %            a two column matrix of [phi,theta] coordinates.
             %          - A matrix of Theta (native) coordinates.
-            %          - Input native coordinate units {'rad'|'deg'}
-            %            Default is 'deg'.
-            %          - Output celestial coordinate units {'rad'|'deg'}
-            %            Default is 'deg'.
+            %          * ...,key,val,...      
+            %            'InUnits '  - Input intermediate coordinates units. 
+            %                          Default is 'deg'.
+            %            'OutUnits ' - Output native coordinates units. 
+            %                          Default is 'deg'.
             % Output : - A matrix of celestial (Alpha) coordinates.
             %          - A matrix of celestial (Delta) coordinates.
-            % Example: [Alpha,Delta]=native2celestial(Obj,[1 1],[2 2])
+            % Author : Yossi Shvartzvald (August 2021)                
+            % Example: [Alpha,Delta] = Obj.native2celestial([1 1],[2 2]);
 
             arguments
                 Obj
@@ -538,27 +562,24 @@ classdef AstroWCS < Component
    %======== Functions for related to sky2xy =========   
    
         function [PX,PY]  = sky2xy(Obj,Alpha,Delta,Args)            
-            % convert celestial coordinates to pixel coordinates
-            % Description: Convert celestial coordinates that are in the
-            %              reference frmae of CTYPE, RADESYS and EQUNOX,
-            %              to pixel [X,Y] coordinates.
-            % Input  : - A single element wcsCl object
-            %          - Either longitude, or a two column matrix of
-            %            [Lognitude, Latitude].
-            %            This can also be a sexagesimal string or a cell
-            %            array of longitude strings.
-            %          - Either latitude, or empty. If empty, then assume
-            %            that the previous argument contains [Long,Lat].
-            %            This can also be a string or cell arraey of
-            %            latitude sexagesimals.
-            %          - Input coordinates units {'rad'|'deg'}
-            %            Default is 'deg'
-            % Output : * Pixel coordinates. If one input argument then this
-            %            is a two column matrix of pixel coordinates [X,Y].
-            %            If two arguments, then these are X and Y,
-            %            respectively.
-            % Example: [X,Y] = coo2xy(Obj,100,10,'deg')
-
+            % Convert celestial coordinates to pixel coordinates
+            % Input  : - A single element AstroWCS object
+            %          - A matrix of Alpha coordinates.
+            %            If next argument is not provided or empty then this is a
+            %            two or more column matrix of [Alpha,...]
+            %          - A matrix of pixel Delta coordinates. 
+            %          * ...,key,val,...  
+            %            'InUnits'          - Output units. Default is 'deg'.
+            %            'includeDistortion' - Flag to include distoration. 
+            %                                  Default is: true.
+            %            'useTran2D'         - Flag to use Tran2D object directly.
+            %                                  Currently not supported.
+            %                                  Default is: false.
+            % Output : - A matrix of PX coordinates.
+            %          - A matrix of PY coordinates.
+            % Author : Yossi Shvartzvald (August 2021)            
+            % Example: [PX,PY] = Obj.coo2xy(Obj,100,10);
+            
             arguments
                 Obj
                 Alpha
@@ -591,7 +612,6 @@ classdef AstroWCS < Component
                 Args.InUnits = 'rad';
             end
 
-
             % celestial to native
             [Phi,Theta] = Obj.celestial2native(Alpha(:),Delta(:),'InUnits',Args.InUnits,'OutUnits','rad');
             
@@ -605,11 +625,9 @@ classdef AstroWCS < Component
             PY = reshape(PY,size(Alpha));
         end      
         
+        
         function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,Args)            
-            % convert celestial coordinates to native coordinates
-            % Description: Convert sphericall celestial coordinates
-            %              (alpha, delta) or cosine directions to native
-            %              spherical coordinates.
+            % Convert celestial coordinates to native coordinates
             % Input  : - A single element AstroWCS object.
             %          - A matrix of longiudes (Alpha).
             %            If the next input argument (matrix of latitude)
@@ -617,16 +635,16 @@ classdef AstroWCS < Component
             %            [alpha,delta] coordinates
             %            or a three column matrix of cosine directions.
             %          - A matrix of latitudes (Delta).
-            %          - Input celestial coordinate units {'rad'|'deg'}
-            %            Default is 'deg'.
-            %            If input coordinates are in cosine direction, then
-            %            this argument is ignored.
-            %          - Output native coordinate units {'rad'|'deg'}
-            %            Default is 'deg'.
+            %          * ...,key,val,...      
+            %            'InUnits '  - Input intermediate coordinates units. 
+            %                          Default is 'deg'.
+            %            'OutUnits ' - Output native coordinates units. 
+            %                          Default is 'deg'.
             % Output : - A matrix of native Phi coordinate.
             %          - A matrix of native Theta coordinate.
-            % Example: [Phi,Theta]=celestial2native(W,[1 1],[2 2])
-
+            % Author : Yossi Shvartzvald (August 2021)                
+            % Example: [Phi,Theta]=Obj.celestial2native([1 1],[2 2]);
+            
             arguments
                 Obj
                 Alpha
@@ -674,23 +692,27 @@ classdef AstroWCS < Component
         end
    
         function [X,Y]=native2interm(Obj,Phi,Theta,Args)
-            % project coordinates: native to intermediate
+            % Project native coordinates to intermediate coordinates
             % Input  : - A AstroWCS object
             %          - A matrix of native Phi coordinate.
             %            If the next input argument (Theta) is not provided
             %            then this is a two column matrix of [Phi,Theta]
             %            native coordinates.
             %          - A matrix of native Theta coordinate.
-            %          - Input native coordinates units {'rad'|'deg'}.
-            %            Default is 'deg'.
+            %          * ...,key,val,...      
+            %            'InUnits '  - Input intermediate coordinates units. 
+            %                          Default is 'deg'.
+            %            'OutUnits ' - Output native coordinates units. 
+            %                          Default is 'deg'.
             % Output : - A matrix of X intermediate pixel coordinate.
             %          - A matrix of Y intermediate pixel coordinate.
-            % Example: [X,Y]=native2interm(Obj,100,100)
-
+            % Author : Yossi Shvartzvald (August 2021)               
+            % Example: [X,Y]=Obj.native2interm(100,100);
+         
             arguments
                 Obj
                 Phi
-                Theta                       = [];
+                Theta                   = [];
                 Args.InUnits            = 'deg';
                 Args.OutUnits           = 'deg';              
             end               
@@ -741,16 +763,19 @@ classdef AstroWCS < Component
         end    
         
         function [PX,PY]=interm2pix(Obj,X,Y,includeDistortion)
-            % Convert intermediate pixel coordinates to pixel coordinates
+            % Convert intermediate pixel coordinates to pixel coordinates, if requested also include distortion
             % Input  : - A single element AstroWCS object.
             %          - A matrix of X intermediate pixel coordinate.
             %            If next argument (Y) is not provided then this is
             %            a two column matrix of [X,Y].
             %          - A matrix of Y intermeditae pixel coordinate.
+            %            'includeDistortion' - Flag to include distoration. 
+            %                                  Default is: true.            
             % Output : - A matrix of X pixel coordinate.
             %          - A matrix of Y pixel coordinate.
-            % Example: [P1,P2]=interm2pix(Obj,1,1)
-
+            % Author : Yossi Shvartzvald (August 2021)            
+            % Example: [PX,PY]=Obj.interm2pix(1,1)
+            
             arguments
                 Obj
                 X
@@ -1662,296 +1687,7 @@ classdef AstroWCS < Component
        
     end
 
-    
-   %======================================================================    
-   %==================OLD FUNCTIONS=======================================
-   %======================================================================    
-    
-    
-    methods
-        function Obj=fill(Obj,Force)
-            % Fill ProjType, ProjClass, Coo, AlphaP, DeltaP in wcsCl object
-            % Package: @wcsCl (basic)
-            % Input  : - A wcsCl object
-            %          - A logical indicating if to re-fill the values even
-            %            if exist. Default is true.
-            % Output : - A wcsCl object
-            % Example: Obj.fill
 
-            if nargin<2
-                Force = true;
-            end
-
-            Nw = numel(Obj);
-            for Iw=1:1:Nw
-                if Force || isempty(Obj(Iw).ProjType) || isempty(Obj(Iw).ProjClass) || isnan(Obj(Iw).AlphaP) || isnan(Obj(Iw).DeltaP)
-                    % fill missing values
-
-                    N = numel(Obj(Iw).CTYPE);
-                    Coo  = cell(1,N);
-                    Proj = cell(1,N);
-                    for I=1:1:N
-                        if isempty(Obj(Iw).CTYPE{I})
-                            Proj{I} = 'none';
-                            Coo{I}  = 'unknown';
-                        else
-
-                            Coo{I} = strrep(Obj(Iw).CTYPE{I}(1:4),'-','');
-                            if numel(Obj(Iw).CTYPE{I})<5
-                                Proj{I} = 'none';
-                            else
-                                Proj{I} = strrep(Obj(Iw).CTYPE{I}(5:end),'-','');
-                            end
-
-                            if I>1
-                                if ~(strcmp(Proj{I},Proj{1}) || strcmp(Proj{I},'none'))
-                                    error('Projection of all axes must be the same unless none');
-                                end
-                            end
-                        end
-                    end
-
-                    Obj(Iw).ProjType  = Proj{1};
-                    Obj(Iw).CooName   = Coo;
-                    Obj(Iw).ProjClass = wcsCl.classify_projection(Proj{1});
-
-
-        %                     if ~(strcmp(Obj(Iw).CTYPE{1}(1:2),'RA') || strcmp(Obj(Iw).CTYPE{1}(3:4),'LON'))
-        %                         error('Support only cases in which CTYPE1 contains longitudes');
-        %                     end
-        %                     if ~(strcmp(Obj(Iw).CTYPE{2}(1:3),'DEC') || strcmp(Obj(Iw).CTYPE{2}(3:4),'LAT'))
-        %                         error('Support only cases in which CTYPE2 contains latitude');
-        %                     end
-
-                     switch lower(Obj(Iw).ProjClass)
-                        case 'none'
-                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
-                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
-                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
-                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
-
-                            Obj(Iw).Phi0   = NaN;
-                            Obj(Iw).Theta0 = NaN;
-                            Obj(Iw).PhiP   = NaN;
-
-                        case 'zenithal'
-
-                            Obj(Iw).Alpha0 = Obj(Iw).CRVAL(1);
-                            Obj(Iw).Delta0 = Obj(Iw).CRVAL(2);
-                            Obj(Iw).AlphaP = Obj(Iw).CRVAL(1);
-                            Obj(Iw).DeltaP = Obj(Iw).CRVAL(2);
-
-                            Units = strtrim(Obj(Iw).CUNIT{1});
-                            ConvFactor = convert.angular('deg',Units);
-
-                            Obj(Iw).Phi0   = 0.*ConvFactor;
-                            Obj(Iw).Theta0 = 90.*ConvFactor;
-
-                            if Obj(Iw).Delta0>=Obj(Iw).Theta0
-                                Obj(Iw).PhiP = 0.*ConvFactor;
-                            else
-                                Obj(Iw).PhiP = 180.*ConvFactor;
-                            end
-
-                        otherwise
-                            error('Unsupported projection class (%s)',Obj(Iw).ProjClass);
-                     end
-
-                end
-
-            end
-
-        end
-
-        function [Flag,Obj]=iswcsOk(Obj)
-            % check minimal content of wcsCl object and update Exist property
-            % Package: @wcsCl (Static)
-            % Input  : - A wcsCl object.
-            % Output : - An array of logical flags for each wcsCl element indicating if
-            %            the wcsCl is likely valid.
-            %          - A wcsCl object with the Exist property updated.
-            % Example: [Flag,Obj]=wcsCl.iswcsOk(Obj)
-
-            N = numel(Obj);
-            Flag = false(size(Obj));
-            for I=1:1:N
-                Flag(I) = ~isempty(Obj(I).NAXIS) && ~isnan(Obj(I).NAXIS);
-                Ntype = numel(Obj(I).CTYPE);
-                for Itype=1:1:Ntype
-                    if numel(Obj(I).CTYPE{Itype})>=5
-                        Flag(I) = Flag(I);
-                    else
-                        Flag(I) = false(I);
-                    end
-                end
-
-                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRPIX)) && all(~isnan(Obj(I).CRPIX));
-                Flag(I) = Flag(I) && all(~isempty(Obj(I).CRVAL)) && all(~isnan(Obj(I).CRVAL));
-                Flag(I) = Flag(I) && all(~isempty(Obj(I).CD(:))) && all(~isnan(Obj(I).CD(:)));
-
-                Obj(I).Exist = Flag(I);
-            end
-        end
-       
-    end
-
-    %======================================================================
-    
-    methods (Static)
-
-        % FFU
-        function [X,Y]     = grid_coo2xy(gridCoo,gridLon,gridLat,varargin)
-
-            error('bug')
-
-            % convert XY coo to Long/Lat using a matrix grid
-            % Package: @wcsCl (Static, basic mapping functions)
-            % Description: given a matrix/cube of Lon/Lat grid coordinates
-            %              as a function of X,Y and additional; e.g.,
-            %              color) coordinaes, convert X,Y,color to Lon,Lat.
-            % Input  : - (gridCoo) Either a cell array in which each
-            %            element contains the X/Y/color coordinates of a
-            %            grid, or a matrix in which each column represent
-            %            the grid coordinates.
-            %            Alternatively, this can be a row vector in which
-            %            is element is the coordinate of the end of the
-            %            grid array and assuming the array start at 1.
-            %          - A grid of longitudes. This is a matrix, or a cube
-            %            in which the number of dimensions is equal to the
-            %            number of columns/elements in gridCoo.
-            %            This cube contains the value of longitude at the
-            %            specified grid points.
-            %          - A grid of latitudes (the same as the previous
-            %            argument, but for the latitude).
-            %          * Argument per axes (e.g., x,y,color) for which to
-            %            interpolate the lon/lat.
-            %          * Additional parameters to pass to interpn.
-            %            (e.g., 'makima').
-            %            Default is 'linear'.
-            % Output : - Interpolated longitudes.
-            %            Return NaN if out of grid.
-            %          - Interpolated latitudes.
-            % Example: gridCoo = [1024 1024 3]; gridLon=rand(10,10,3);
-            %          [X,Y]=wcsCl.grid_xy2coo(gridCoo,gridLon,gridLon,2,2,1)
-            %          % in 2D
-            %          [gridLon,gridLat] = meshgrid((1:1:10),(1:1:10));
-            %          [X,Y]=wcsCl.grid_coo2xy([1024 1024],gridLon,gridLat,2,2)
-
-            if isnumeric(gridCoo)
-                Ncol = size(gridCoo,2);
-                if size(gridCoo,1)==1
-                    % a row vector
-                    SizeGrid = size(gridLon);
-                    Step = (gridCoo-1)./(SizeGrid-1);
-                    for Icol=1:1:Ncol
-                        Tmp{Icol} = (1:Step(Icol):gridCoo(Icol)).';
-                    end
-
-                else
-
-                    % convert gridCoo to cell array
-
-                    Tmp  = cell(1,Ncol);
-                    for Icol=1:1:Ncol
-                        Tmp{Icol} = gridCoo(:,Icol);
-                    end
-                end
-                gridCoo = Tmp;
-            end
-
-            Naxes = numel(gridCoo);
-
-            if numel(varargin)<Naxes
-                error('Number of requested coordinates is smaller than the dimension of the grid');
-            else
-                if numel(varargin)==Naxes
-                    % use default interpolation
-                    varargin{end+1} = 'linear'; %'makima';
-                end
-            end
-
-            [Mat{1:1:Naxes}] = ngrid(gridCoo{:});
-
-            [X] = interpn(gridLon,gridLat,Mat{1},varargin{1:Naxes},varargin{Naxes+1:end});
-            [Y] = interpn(gridLon,gridLat,Mat{2},varargin{1:Naxes},varargin{Naxes+1:end});
-
-        end
-
-        % FFU
-        function [Lon,Lat] = grid_xy2coo(gridCoo,gridLon,gridLat,varargin)
-            % convert XY coo to Long/Lat using a matrix grid
-            % Package: @wcsCl (Static, basic mapping functions)
-            % Description: given a matrix/cube of Lon/Lat grid coordinates
-            %              as a function of X,Y and additional; e.g.,
-            %              color) coordinaes, convert X,Y,color to Lon,Lat.
-            % Input  : - (gridCoo) Either a cell array in which each
-            %            element contains the X/Y/color coordinates of a
-            %            grid, or a matrix in which each column represent
-            %            the grid coordinates.
-            %            Alternatively, this can be a row vector in which
-            %            is element is the coordinate of the end of the
-            %            grid array and assuming the array start at 1.
-            %          - A grid of longitudes. This is a matrix, or a cube
-            %            in which the number of dimensions is equal to the
-            %            number of columns/elements in gridCoo.
-            %            This cube contains the value of longitude at the
-            %            specified grid points.
-            %          - A grid of latitudes (the same as the previous
-            %            argument, but for the latitude).
-            %          * Argument per axes (e.g., x,y,color) for which to
-            %            interpolate the lon/lat.
-            %          * Additional parameters to pass to interpn.
-            %            (e.g., 'makima').
-            %            Default is 'linear'.
-            % Output : - Interpolated longitudes.
-            %            Return NaN if out of grid.
-            %          - Interpolated latitudes.
-            % Example: gridCoo = [1024 1024 3]; gridLon=rand(10,10,3);
-            %          [Lon,Lat]=wcsCl.grid_xy2coo(gridCoo,gridLon,gridLon,2,2,1)
-            %          % in 2D
-            %          [gridLon,gridLat] = meshgrid((1:1:10),(1:1:10));
-            %          [Lon,Lat]=wcsCl.grid_xy2coo([1024 1024],gridLon,gridLat,2,2)
-
-            if isnumeric(gridCoo)
-                Ncol = size(gridCoo,2);
-                if size(gridCoo,1)==1
-                    % a row vector
-                    SizeGrid = size(gridLon);
-                    Step = (gridCoo-1)./(SizeGrid-1);
-                    for Icol=1:1:Ncol
-                        Tmp{Icol} = (1:Step(Icol):gridCoo(Icol)).';
-                    end
-
-                else
-
-                    % convert gridCoo to cell array
-
-                    Tmp  = cell(1,Ncol);
-                    for Icol=1:1:Ncol
-                        Tmp{Icol} = gridCoo(:,Icol);
-                    end
-                end
-                gridCoo = Tmp;
-            end
-
-            Naxes = numel(gridCoo);
-
-            if numel(varargin)<Naxes
-                error('Number of requested coordinates is smaller than the dimension of the grid');
-            else
-                if numel(varargin)==Naxes
-                    % use default interpolation
-                    varargin{end+1} = 'linear'; %'makima';
-                end
-            end
-            Lon = interpn(gridCoo{:},gridLon,varargin{1:Naxes},varargin{Naxes+1:end});
-            Lat = interpn(gridCoo{:},gridLat,varargin{1:Naxes},varargin{Naxes+1:end});
-
-        end
-        
-    end          
-       
-    
     %========================Unit-Test======================================    
     
     methods (Static) % Unit-Test
