@@ -145,7 +145,7 @@ function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Dec
             ParWCS.CTYPE  = {sprintf('RA---%s',upper(Args.ProjType)), sprintf('DEC--%s',upper(Args.ProjType))};
             ParWCS.NAXIS  = 2;
 
-            Tran = Tran1;
+            %Tran = Tran1;
             
             [Tran, ResFit] = fitAstrometricTran(Args.Tran,...
                                     XrefT, YrefT,...
