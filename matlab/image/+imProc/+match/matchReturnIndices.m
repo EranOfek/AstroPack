@@ -58,7 +58,6 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         Obj2
         Args.Radius                      = 5;
         Args.RadiusUnits                 = 'arcsec';
-        
         % if given will override ColX/ColY
         Args.CooType                     = 'pix';   % MUST BE SPECIFIED: 'pix' | 'sphere'
         Args.ColCatX                     = [];
@@ -117,6 +116,11 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
             error('Input Obj2 is of unsupported class');
         end
 
+        if ~Cat1.IsSorted
+            [~, ColY] = getColCooForCooType(Cat1, Args.CooType);
+            Cat1.sortrows(ColY);
+        end
+
         switch lower(CommonCooType{Imax})
             case 'sphere'
                 DistFun = @celestial.coo.sphere_dist_fast;
@@ -136,11 +140,6 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
                 error('Unknown CooType option');
         end   
 
-        if ~Cat1.IsSorted
-            [~, ColY] = getColCooForCooType(Cat1, Args.CooType);
-            Cat1.sortrows(ColY);
-        end
-
         % match
         [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest(Coo1,...
                                                     Coo2(:,1), Coo2(:,2), RadiusRad, DistFun);
@@ -157,5 +156,6 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         Result(Imax).Obj1_IndInObj2  = IndInObj2;
         Result(Imax).Obj1_FlagNearest = CatFlagNearest;
         Result(Imax).Obj1_FlagAll     = CatFlagAll;
+
     end
 end

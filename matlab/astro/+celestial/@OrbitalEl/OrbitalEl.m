@@ -100,9 +100,6 @@ classdef OrbitalEl < Base
                 Obj.Tp = Obj.Epoch - Obj.Mepoch./Obj.meanMotion(Obj.AngUnits);
             end
             
-            % BUG: It is not clear to me what is the definition of the Mean
-            % Anomaly for e>1 (appears in the JPL files).
-            % Meanwhile take real component.
             Obj.Tp = real(Obj.Tp);
             
             Result = Obj.Tp;
@@ -924,11 +921,12 @@ classdef OrbitalEl < Base
             end
             
             % accurate search on selected sample:
+            Result = AstroCatalog(size(ObjNew));
             for Iobj=1:1:Nobj
                 if  numEl(ObjNew(Iobj))==0
                     Flag = [];
-                    Result(Iobj) = AstroCatalog;
                 else
+                  
                     Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
                                                   'RefEllipsoid',Args.RefEllipsoid,...
                                                   'OutUnitsDeg',false,...
@@ -974,6 +972,7 @@ classdef OrbitalEl < Base
             TI=celestial.Kepler.thiele_innes(Obj.A, Obj.W, Obj.Node, Obj.Incl);
         end
 
+        
     end
     
     methods (Static)   % upload orbital elenments
