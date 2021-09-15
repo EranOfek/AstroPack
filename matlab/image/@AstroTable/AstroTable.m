@@ -384,6 +384,140 @@ classdef AstroTable < Component
             end
 
         end
+
+       function Result = selectLines(Obj, FlagI, Args)
+            % Select rows from Matrix, including optional NaN filling and reordering.
+            %       There are 2 related functions: insertLines and
+            %       selectLines:
+            %       selectLines is useful for operations like:
+            %           Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+            %           Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
+            %       insertLines is useful for operations like:
+            %           Obj1(FlagInd,:) = Obj2(FlagInd2,:)
+            %           Obj1 = NaN; Obj1(FlagInd,:) = Obj2(FlagInd2,:) insert NaN to Obj1 when appear in FlagInd
+            % Input  : - A matrix.
+            %          - A vector of logicals or aindices.
+            %            In the case that this is a vector of logicals, no
+            %            NaNs are allowed, and the function will return the
+            %            lines with logical true.
+            %            In case this is a vector of indices (NaNs are
+            %            allowed), the corresponding lines will be
+            %            returned.
+            %          * ...,key,val,...
+            %            'IgnoreNaN' - A logical indicating if to ignore
+            %                   the NaNs in the vector of indices.
+            %                   Default is false.
+            % Output : - Matrix with selected (and optionaly filled with
+            %            NaNs) lines.
+            % Author : Eran Ofek (Sep 2021)
+            % Example : Table = (1:1:5).'; Table = [Table, rand(size(Table))];
+            %           Result = AstroTable.selectLines(Table, [1;2])
+            %           Result = AstroTable.selectLines(Table, [2 3 2])
+            %           Result = AstroTable.selectLines(Table, [true, true, false, true, false])
+            %           Result = AstroTable.selectLines(Table, [2 3 2 NaN],'IgnoreNaN',true)
+            %           Result = AstroTable.selectLines(Table, [2 3 NaN 2 NaN],'IgnoreNaN',false)
+
+            arguments
+                Obj
+                FlagI
+                Args.IgnoreNaN(1,1) logical   = false;
+            end
+
+            if any(isnan(FlagI))
+                % NaN may be treated by two differeny ways:
+                % 1. ignored
+                % 2. filled by lines with NaNs
+
+                if Args.IgnoreNaN
+                    % remove NaNs from FlagI
+                    FlagI = FlagI(~isnan(FlagI));
+                    % Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+                    Result = Obj(FlagI,:);
+                else
+                    % do not ignore NaNs
+                    % Lines with NaNs will be filled with NaNs rows
+                    [~,Ncol] = size(Obj);
+                    NFI   = numel(FlagI);
+                    Result   = nan(NFI, Ncol);
+
+                    % remove NaNs from FlagI
+                    IndF  = ~isnan(FlagI);
+                    FlagI = FlagI(IndF);
+                    % Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
+                    % initialzie Result with NaNs
+                    Result         = nan(NFI, Ncol);
+                    Result(IndF,:) = Obj(FlagI, :);
+                end
+            else
+                % Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+                Result = Obj(FlagI,:);
+            end
+        end
+
+       function Result = insertLines(Obj1, Obj2, FlagI, FlagI2, Args)
+            % Insert rows from Matrix2 to Matrix1, including optional NaN filling and reordering.
+            %       There are 2 related functions: insertLines and
+            %       selectLines:
+            %       selectLines is useful for operations like:
+            %           Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+            %           Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
+            %       insertLines is useful for operations like:
+            %           Obj1(FlagInd,:) = Obj2(FlagInd2,:) % keep original values in Obj1
+            %           Obj1 = NaN; Obj1(FlagInd,:) = Obj2(FlagInd2,:) insert NaN to Obj1 when appear in FlagInd
+            % Input  : - A first matrix.
+            %          - A second matrix in which the number of coloumns is
+            %            equal or larger than the number of columns in the
+            %            first matrix. 
+            %          - Indices in first matrix in which to put the lines
+            %            from the second matrix.
+            %          - Indices of lines in the second matrix to use.
+            %          * ...,key,val,...
+            %            'FillNaN' - A logical indicating if to fill
+            %                   missing values with NaNs or to use orginal
+            %                   values as appear in the 1st object.
+            %                   Default is true.
+            % Output : - A matrix which size is like that of the first
+            %            matrix, in which lines from the second matrix were
+            %            inserted.
+            %            The number of columns in the output matrix is
+            %            equal to the number of columns in the first
+            %            matrix.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Table = (1:1:5).'; Table = [Table, rand(size(Table))];
+            %          Table2 = (1:1:4).'; Table2 = [Table2, rand(size(Table2,1),2)];
+            %          Result = AstroTable.insertLines(Table, Table2(3:4,:), [1 2])
+            %          Result = AstroTable.insertLines(Table, Table2(3:4,:), [1 2],'FillNaN',false)
+
+            arguments
+                Obj1
+                Obj2
+                FlagI
+                FlagI2                        = [];  % p[ - use all
+                Args.FillNaN(1,1) logical     = true;  % false - use original values in Obj1
+            end
+
+            % remove NaNs
+            FlagI = FlagI(~isnan(FlagI));
+
+            if isempty(FlagI2)
+                FlagI2 = true(size(Obj2,1), 1);
+            end
+
+            Ncol1 = size(Obj1,2);
+            Ncol2 = size(Obj2,2);
+            
+            if Args.FillNaN
+                Result           = nan(size(Obj1));
+                Result(FlagI, 1:Ncol1) = Obj2(FlagI2, 1:Ncol1);
+            else
+                if Ncol2<Ncol1
+                    error('When FillNaN=false, number of columns in second matrix must be >/>= from number of columns in first matrix');
+                end
+                Result = Obj1;
+                Result(FlagI, :) = Obj2(FlagI2, 1:Ncol1);
+            end
+
+        end
     end
     
     
@@ -401,7 +535,6 @@ classdef AstroTable < Component
                 
         end
         
-        
         function Result = isemptyCatalog(Obj)
             % Return true if Catalog data in AstroTable object is empty, otherwise false.
             % example: Result = isemptyCatalog(Obj)
@@ -414,7 +547,6 @@ classdef AstroTable < Component
             
         end
     
-        
         function Obj = deleteCatalog(Obj)
             % delete the content of an AstroTable object
             % Example: Result = deleteCatalog(Obj)
@@ -449,7 +581,6 @@ classdef AstroTable < Component
             end
             
         end
-        
         
         function ColInd = colname2ind(Obj, ColName, FillValue)
             % Convert column names to column indices
@@ -510,7 +641,6 @@ classdef AstroTable < Component
             end
         end
         
-        
         function ColName = colind2name(Obj, ColInd)
             % Return column names corresponding to column indices
             % Input  : - A single element AstroCatlog object
@@ -526,7 +656,6 @@ classdef AstroTable < Component
                 ColName = Obj.ColNames(ColInd);
             end
         end
-        
         
         function [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(Obj, ColNames)
             % Given a list of column names, select the first that appear in Table
@@ -552,7 +681,6 @@ classdef AstroTable < Component
             ColName           = colind2name(Obj, ColInd);
         end
         
-        
         function St = col2struct(Obj)
             % return structure array with column names in field and index in values.
             % Example: col2struct(A)
@@ -566,7 +694,6 @@ classdef AstroTable < Component
             
         end
     
-        
         function Result = isColIdentical(Obj, ColNames)
             % Check if ColNames in an AstroTable object is identical to another ColNames
             % Package: @AstroTable
@@ -587,7 +714,6 @@ classdef AstroTable < Component
         end
         
     end
-    
     
     methods  % columns get/edit
         function [Result, Units] = getCol(Obj, Columns, OutputIsTable, UpdateAstroTable, Args)
@@ -657,7 +783,6 @@ classdef AstroTable < Component
             
         end
         
-        
         function [Result, Units, Ind] = getColDic(Obj, Columns)
             % get a single Column data from a dictionary of column names
             % Input  : - A single-element AstroTable object.
@@ -688,7 +813,6 @@ classdef AstroTable < Component
             
         end
         
-        
         function Obj = array2table(Obj)
             % Convert catalog data in AstroTable to table format
             
@@ -702,7 +826,6 @@ classdef AstroTable < Component
             end
         end
         
-        
         function Obj = table2array(Obj)
             % Convert catalog data in AstroTable to array format
             
@@ -713,7 +836,6 @@ classdef AstroTable < Component
                 end
             end
         end
-        
         
         function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits)
             % Insert columns to AstroTable object
@@ -790,7 +912,6 @@ classdef AstroTable < Component
             end
         end
         
-        
         function Obj = replaceColNames(Obj,OldNames,NewNames)
             % Replace column names in AstroTable object
             % Input  : - An AstroTable object.
@@ -812,7 +933,6 @@ classdef AstroTable < Component
             end
             
         end
-        
         
         function Obj = replaceCol(Obj, NewData, ColNames, Pos)
             % replace (or insert) columns in AstroTable
@@ -871,7 +991,6 @@ classdef AstroTable < Component
             end
         end
         
-        
         function Obj = deleteCol(Obj, Columns)
             % Delete columns fron an AstroTable object.
             % Input  : - An AstroTable object.
@@ -897,7 +1016,6 @@ classdef AstroTable < Component
             end
         end
         
-       
         function NewObj = merge(Obj,Columns,Args)
             % Merge table/matrices in multiple AstroTable elements
             % Input  : - An AstroTable object.
@@ -955,7 +1073,7 @@ classdef AstroTable < Component
         
     end
     
-    methods  % sort and flip
+    methods  % sort, flip, select
         
         function Obj = sortrows(Obj,SortByColumn)
             % Sort AstroTable objects by some column names/indices
@@ -1003,6 +1121,188 @@ classdef AstroTable < Component
             
         end
         
+        function Result = insertRows(Obj1, Obj2, FlagInd, FlagInd2, Args)
+            % Insert rows from Obj2 into Obj1 (e.g., Obj1(FlagInd,: ) = Obj2)
+            %       There are 2 related functions: insertRows and
+            %       selectRows:
+            %       AstroTable/selectRows is useful for operations like:
+            %           Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+            %           Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
+            %       AstroTable/insertRows is useful for operations like:
+            %           Obj1(FlagInd,:) = Obj2(FlagInd2,:)
+            %           Obj1 = NaN; Obj1(FlagInd,:) = Obj2(FlagInd2,:) insert NaN to Obj1 when appear in FlagInd
+            % Input  : - An AstroTable object (multi elements supported).
+            %          - An AstroTable object (multi elements supported).
+            %            The insertion of columns is between corresponding
+            %            elements of the two AstroTable objects.
+            %            Either one to one, or one to many.
+            %          - Indices in first matrix in which to put the lines
+            %            from the second matrix.
+            %            Alternatively, this can be a cell array of vectors
+            %            in which each cell corresponds to an element in
+            %            the input object.
+            %            Or, this can be a structure array, in which each
+            %            element corresponds to an element in the input object.
+            %            The structure field containing the vector is
+            %            specified by the 'StructFieldName' key/val
+            %            argument.
+            %          - Indices of lines in the second matrix to use.
+            %            Alternatively, a structure, or cell.
+            %          * ...,key,val,...
+            %            'FillNaN' - A logical indicating if to fill
+            %                   missing values with NaNs or to use orginal
+            %                   values as appear in the 1st object.
+            %                   Default is true.
+            %            'StructFieldName' - If the second input argument is
+            %                   a structure, then this is the field name
+            %                   that contains the vector of indices.
+            %                   Default is 'Obj2_IndInObj1'.
+            % Output : - An AstroTable/AstroCatalog object (same class as
+            %            first input object), which contain the resulted
+            %            object (new copy).
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Table = (1:1:5).'; Table = [Table, rand(size(Table))];
+            %          AT = AstroTable({Table});
+            %          Table2 = (1:1:4).'; Table2 = [Table2, rand(size(Table2,1),2)];
+            %          AT2 = AstroTable({Table2});
+            %          Result = insertRows(AT, AT2, [1 2 3 4 5],[4 3 2 1 1]);
+            %          Result = insertRows(AT, AT2, [1 2 3 4 ],[4 3 2 1 ]);
+
+            arguments
+                Obj1
+                Obj2
+                FlagInd
+                FlagInd2                      = [];  % p[ - use all
+                Args.FillNaN(1,1) logical     = true;  % false - use original values in Obj1
+                Args.StructFieldName         = 'Obj2_IndInObj1';
+            end
+
+
+            N1     = numel(Obj1);
+            N2     = numel(Obj2);
+            Nmax   = max(N1, N2);
+            if isa(Obj1, 'AstroCatalog')
+                Result = AstroCatalog([Nmax,1]);
+            else
+                Result = AstroTable([Nmax,1]);
+            end
+
+            Nflag  = numel(FlagInd);
+            Nflag2 = numel(FlagInd2);
+            for Iobj=1:1:Nmax
+                I1 = min(Iobj, N1);
+                I2 = min(Iobj, N2);
+
+                % for each element in the AstroTable
+                % Treat FlagInd (struct array, cell, vector)
+                if isstruct(FlagInd)
+                    Iflag = min(Iobj, Nflag);
+                    FlagI = FlagInd(Iflag).(Args.StructFieldName);
+                elseif iscell(FlagInd)
+                    Iflag = min(Iobj, Nflag);
+                    FlagI = FlagInd{Iflag};
+                else
+                    % vector
+                    FlagI = FlagInd;
+                end
+
+                if isstruct(FlagInd2)
+                    Iflag = min(Iobj, Nflag2);
+                    FlagI2 = FlagInd2(Iflag).(Args.StructFieldName);
+                elseif iscell(FlagInd2)
+                    Iflag = min(Iobj, Nflag2);
+                    FlagI2 = FlagInd2{Iflag};
+                else
+                    % vector
+                    FlagI2 = FlagInd2;
+                end
+
+                Result(Iobj).Catalog = AstroTable.insertLines(Obj1(I1).Catalog, Obj2(I2).Catalog, FlagI, FlagI2, 'FillNaN',Args.FillNaN);
+                
+            end
+        
+        end
+
+        function Result = selectRows(Obj, FlagInd, Args)
+            % Select rows from AstroTable object, including optional NaN filling and reordering.
+            %       There are 2 related functions: insertRows and
+            %       selectRows:
+            %       AstroTable/selectRows is useful for operations like:
+            %           Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+            %           Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
+            %       AstroTable/insertRows is useful for operations like:
+            %           Obj1(FlagInd,:) = Obj2(FlagInd2,:)
+            %           Obj1 = NaN; Obj1(FlagInd,:) = Obj2(FlagInd2,:) insert NaN to Obj1 when appear in FlagInd
+            % Input  : - An AstroTable object (multi elements supported).
+            %          - A vector of logicals or indices.
+            %            In the case that this is a vector of logicals, no
+            %            NaNs are allowed, and the function will return the
+            %            lines with logical true.
+            %            In case this is a vector of indices (NaNs are
+            %            allowed), the corresponding lines will be
+            %            returned.
+            %            Alternatively, this can be a cell array of vectors
+            %            in which each cell corresponds to an element in
+            %            the input object.
+            %            Or, this can be a structure array, in which each
+            %            element corresponds to an element in the input object.
+            %            The structure field containing the vector is
+            %            specified by the 'StructFieldName' key/val
+            %            argument.
+            %          * ...,key,val,...
+            %            'IgnoreNaN' - A logical indicating if to ignore
+            %                   the NaNs in the vector of indices.
+            %                   Default is false.
+            %            'StructFieldName' - If the second input argument is
+            %                   a structure, then this is the field name
+            %                   that contains the vector of indices.
+            %                   Default is 'Obj2_IndInObj1'.
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy.
+            %                   Default is [].
+            % Output : - An AstroTable object with the selected (and optionaly filled with
+            %            NaNs) lines.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Table = (1:1:5).'; Table = [Table, rand(size(Table))];
+            %          AT = AstroTable({Table});
+            %          Result = selectRows(AT, [1;2])
+            %          Result = selectRows(AT, [2 3 2])
+            %          Result = selectRows(AT, [true, true, false, true, false])
+            %          Result = selectRows(AT, [2 3 2 NaN],'IgnoreNaN',true)
+            %          Result = selectRows(AT, [2 3 NaN 2 NaN],'IgnoreNaN',false)
+            
+            arguments
+                Obj
+                FlagInd
+                Args.IgnoreNaN(1,1) logical  = false;
+                Args.StructFieldName         = 'Obj2_IndInObj1';
+                Args.CreateNewObj            = [];
+            end
+
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout);
+
+            Nflag = numel(FlagInd);
+            Nobj  = numel(Obj);
+            for Iobj=1:1:Nobj
+                % for each element in the AstroTable
+                % Treat FlagInd (struct array, cell, vector)
+                if isstruct(FlagInd)
+                    Iflag = min(Iobj, Nflag);
+                    FlagI = FlagInd(Iflag).(Args.StructFieldName);
+                elseif iscell(FlagInd)
+                    Iflag = min(Iobj, Nflag);
+                    FlagI = FlagInd{Iflag};
+                else
+                    % vector
+                    FlagI = FlagInd;
+                end
+
+                Result(Iobj).Catalog = AstroTable.selectLines(Obj(Iobj).Catalog, FlagI, 'IgnoreNaN',Args.IgnoreNaN);
+            end
+        end
     end
     
     methods % applay functions and overloads
@@ -1255,8 +1555,11 @@ classdef AstroTable < Component
             
         end
     
-        
+    end
+
+    methods % read/write
         function Result = csvWrite(Obj, FileName)
+            % who wrote this? missing help
             csvwrite(FileName, Obj.Catalog);
             Result = true;
         end
@@ -1329,7 +1632,6 @@ classdef AstroTable < Component
                 hold off;
             end                        
         end
-        
         
         function varargout = plot(Obj, ColXY, varargin)
             % plot function for AstroTable objects
