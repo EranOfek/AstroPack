@@ -447,6 +447,13 @@ classdef OrbitalEl < Base
             %          [Nu, R, E, Vel, M] = keplerSolve(OrbElA(1), 2451545)
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
             %          [Nu, R, E, Vel, M] = keplerSolve(OrbEl(1), 2451545+(1:1:10)')
+            %     Test parabolic orbit
+            %          E1.Tp = celestial.time.julday([14 4 1998 0.4358]);
+            %          E1.PeriDist = 1.487469;
+            %          JD = celestial.time.julday([ 5 8 1998]);
+            %          E1.W=1; E1.Incl=1; E1.Node=1; E1.Eccen=1;
+            %          [Nu, R, E, Vel, M] = keplerSolve(E1, JD);
+            %          % Nu should be 66.78862 deg, R=2.133911
             
             arguments
                 Obj(1,1)
@@ -682,12 +689,13 @@ classdef OrbitalEl < Base
             %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
             %          % RA nd Dec diff between JPL and ephem:
             %          [CatE.Catalog(:,2) - CatJPL.Catalog(:,2), CatE.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
-            %          
-% BUG : hyperbolic/parabolic orbit
+            %     hyperbolic orbit
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');   
-            %          Cat = ephem(OrbEl, JD, 'OutUnitsDeg',false);          
-            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
-            
+            %          JD = celestial.time.julday([1 1 2018 0]);
+            %          Cat = ephem(OrbEl, JD+(0:1./24:1), 'OutUnitsDeg',false);          
+            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','A/2017 U1','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
+            %          [Cat.Catalog(:,2) - CatJPL.Catalog(:,2), Cat.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
+
             arguments
                 Obj(1,1)
                 Time
