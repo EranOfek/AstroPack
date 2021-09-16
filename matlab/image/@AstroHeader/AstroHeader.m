@@ -1423,7 +1423,7 @@ classdef AstroHeader < Component
                 Obj
                 Args.KeyLon     = 'OBSLON';
                 Args.KeyLat     = 'OBSLAT';
-                Args.KeyHeight  = 'OBSEL';
+                Args.KeyAlt     = 'OBSEL';
                 Args.IsInputAlt = false;
             end
 
