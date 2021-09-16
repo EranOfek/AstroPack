@@ -202,7 +202,7 @@ classdef OrbitalEl < Base
         end
         
     end
-    
+
     methods % Keplerian orbit functions
         function Result = meanMotion(Obj, AngUnits)
             % Return the mean motion [deg/day]
@@ -973,6 +973,58 @@ classdef OrbitalEl < Base
         end
 
         
+    end
+
+    methods % display and organize
+        function Result = table(Obj)
+            % Generate a matlab table or orbital elements from OrbitalEl object.
+            % Input  : - An OrbitalEl object.
+            % Output : - A table.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: E=celestial.OrbitalEl.loadSolarSystem;
+            %          table(E)
+
+            arguments
+                Obj
+            end
+
+            Nobj = numel(Obj);
+            Nel  = numEl(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).Number)
+                    Number = nan(Nel(Iobj),1);
+                else
+                    Number = Obj(Iobj).Number;
+                end
+                if isempty(Obj(Iobj).Designation)
+                    Designation = cell(Nel(Iobj),1);
+                else
+                    Designation = Obj(Iobj).Designation;
+                end
+
+                T = table(Number,...
+                               Designation,...
+                               Obj(Iobj).Node,...
+                               Obj(Iobj).W,...
+                               Obj(Iobj).Incl,...
+                               Obj(Iobj).A,...
+                               Obj(Iobj).PeriDist,...
+                               Obj(Iobj).Eccen,...
+                               Obj(Iobj).Tp);
+                T.Properties.VariableNames = {'Number','Designation','Node','W','Incl','A','PeriDist','Eccen','Tp'};
+                if Iobj==1
+                    Result = T;
+                else
+                    Result = [Result; T];
+                end
+
+             end
+             
+
+                        
+
+        end
+
     end
     
     methods (Static)   % upload orbital elenments

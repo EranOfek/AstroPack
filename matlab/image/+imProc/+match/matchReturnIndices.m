@@ -1,5 +1,5 @@
 function Result = matchReturnIndices(Obj1, Obj2, Args)
-    % Match two catalogs in AstroCatalog objects
+    % Match two catalogs in AstroCatalog objects and return the matched indices.
     %       This is a basic utility function that returns the two-directional
     %       indices of the matched sources.
     %       This function is used by the more advanced matching programs.
