@@ -326,6 +326,10 @@ classdef AstroTable < Component
             [Nrow,Ncol]   = size(OldArray);
             [NrowI,NcolI] = size(NewData);
             
+            if istable(OldArray) && ~istable(NewData)
+                % convert NewData to table
+                NewData = array2table(NewData);
+            end
             if ~strcmp(class(OldArray),class(NewData))
                 error('First two input arguments must be of the same class');
             end

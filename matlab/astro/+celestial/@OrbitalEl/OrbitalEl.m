@@ -665,6 +665,12 @@ classdef OrbitalEl < Base
             %            'IncludeMag' - A logical indicating if to include
             %                   magnitude in output catalog.
             %                   Default is true.
+            %            'AddDesignation' - A logical indicating if to add
+            %                   the asteroid designation (in the last
+            %                   column) to the output.
+            %                   If true, then the output will be in a
+            %                   format of table instead of a matrix.
+            %                   Default is true.
             % Output : - Output ephemerides with the following columns:
             %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
             %            and units:
@@ -696,15 +702,16 @@ classdef OrbitalEl < Base
             arguments
                 Obj(1,1)
                 Time
-                Args.Tol                      = 1e-8;   % [rad]
-                Args.TolLT                    = 1e-6;   % [day]
-                Args.OutUnitsDeg(1,1) logical = true;
-                Args.Aberration(1,1) logical  = false;
-                Args.GeoPos                   = [];  % [] - topocentric  ; [rad, rad, m]
-                Args.RefEllipsoid             = 'WGS84';
-                Args.OutType                  = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
-                Args.MaxIterLT                = 5;  % use 0 for quick and dirty
-                Args.IncludeMag(1,1) logical  = true;  % use false to speed up
+                Args.Tol                         = 1e-8;   % [rad]
+                Args.TolLT                       = 1e-6;   % [day]
+                Args.OutUnitsDeg(1,1) logical    = true;
+                Args.Aberration(1,1) logical     = false;
+                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
+                Args.RefEllipsoid                = 'WGS84';
+                Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
+                Args.MaxIterLT                   = 5;  % use 0 for quick and dirty
+                Args.IncludeMag(1,1) logical     = true;  % use false to speed up
+                Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
             end
             RAD  = 180./pi;
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
@@ -810,6 +817,20 @@ classdef OrbitalEl < Base
                 end
             end
             
+             if Args.AddDesignation
+                Cat = array2table(Cat);
+                if Nt>1
+                    % assume a single asteroid ephemerides -
+                    % duplicate name
+                    [NameCell{1:1:Nt}] = deal(Obj.Designation{1});
+                else
+                    NameCell = Obj.Designation;
+                end
+                Cat = [Cat, NameCell(:)];
+                ColNames = {ColNames{:}, 'Designation'};
+                ColUnits = {ColUnits{:}, ''};
+            end
+
             switch lower(Args.OutType)
                 case 'mat'
                     Result = Cat;
@@ -861,6 +882,12 @@ classdef OrbitalEl < Base
             %            'coneSearchArgs' - A cell array of additional
             %                   arguments to pass to imProc.match.coneSearch
             %                   Default is {}.
+            %            'AddDesignation' - A logical indicating if to add
+            %                   the asteroid designation (in the last
+            %                   column) to the output.
+            %                   If true, then the output will be in a
+            %                   format of table instead of a matrix.
+            %                   Default is true.
             %            'QuickSearchBuffer' - In the first iteration the
             %                   search radius is increased by this amount.
             %                   Default is 500 (units given by the
@@ -890,6 +917,7 @@ classdef OrbitalEl < Base
                 Args.RefEllipsoid        = 'WGS84';
                 Args.OutUnitsDeg logical = true;
                 Args.coneSearchArgs cell = {};
+                Args.AddDesignation(1,1) logical = true;
                 Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
             end
             
@@ -909,7 +937,7 @@ classdef OrbitalEl < Base
             
             % quick and dirty
             for Iobj=1:1:Nobj
-                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',0, 'IncludeMag',IncludeMag, 'OutUnitsDeg',false, 'OutType','mat');
+                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',0, 'IncludeMag',IncludeMag, 'OutUnitsDeg',false, 'OutType','mat', 'AddDesignation',false);
                 Dist   = celestial.coo.sphere_dist_fast(RA, Dec, Cat(:,2), Cat(:,3));
                 % within search radius and MagLimit
                 % RA - col 2
@@ -930,6 +958,7 @@ classdef OrbitalEl < Base
                     Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
                                                   'RefEllipsoid',Args.RefEllipsoid,...
                                                   'OutUnitsDeg',false,...
+                                                  'AddDesignation',Args.AddDesignation,...
                                                   'OutUnitsDeg',Args.OutUnitsDeg);
 
 

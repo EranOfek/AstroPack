@@ -137,10 +137,14 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
 
             % what to do with the found objects
             Ncoo = numel(Ind);
-            Out     = zeros(0, size(CatObj(Iobj).Catalog,2));
+            %Out     = zeros(0, size(CatObj(Iobj).Catalog,2));
             AllDist = zeros(0,1);
             for Icoo=1:1:Ncoo
-                Out     = [Out; CatObj(Iobj).Catalog(Ind(Icoo).Ind,:)];
+                if Icoo==1
+                    Out = CatObj(Iobj).Catalog(Ind(Icoo).Ind,:);
+                else
+                    Out     = [Out; CatObj(Iobj).Catalog(Ind(Icoo).Ind,:)];
+                end
                 AllDist = [AllDist; Ind(Icoo).Dist]; 
             end
             AllDist  = convert.angular('rad', Args.DistUnits, AllDist);
