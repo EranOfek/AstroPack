@@ -161,9 +161,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
 %             ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
 %             ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
 %             ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
-            
-            
-            
+                        
             
             [ResultRefineFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData,...
                                                                                                        'WCS',RefWCS, ...
