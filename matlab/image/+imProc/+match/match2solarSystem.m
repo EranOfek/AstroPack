@@ -1,7 +1,8 @@
 function Result = match2solarSystem(Obj, Args)
     %
     % Example: Cat = ephem(OrbEl, JD, 'AddDesignation',false);
-    %          Cat1 = AstroCatalog({rand(10,8)});
+    %          R = rand(10,8); R(:,2:3) = R(:,2:3) + [82 11];
+    %          Cat1 = AstroCatalog({R});
     %          Cat2  = merge([Cat;Cat1]);
     %          Result = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[]);
     
@@ -29,6 +30,8 @@ function Result = match2solarSystem(Obj, Args)
         Args.AddColNmatch(1,1) logical     = true;
         Args.ColNmatchPos                  = Inf;
         Args.ColNmatchName                 = 'Nmatch';
+
+        Args.AddColDesignation(1,1) logical = true;
 
     end
     RAD = 180./pi;
@@ -86,7 +89,7 @@ function Result = match2solarSystem(Obj, Args)
         end
         
         % get bounding box
-        [RA, Dec, FOV_Radius] = boundingCircle(Obj(Iobj), 'OutUnits','rad' ,'CooTy[e','sphere');
+        [RA, Dec, FOV_Radius] = boundingCircle(Obj(Iobj), 'OutUnits','rad' ,'CooType','sphere');
         
         % search all asteroids within bounding box
         if isa(Args.OrbEl, 'AstroCatalog')
@@ -107,28 +110,29 @@ function Result = match2solarSystem(Obj, Args)
 
         
         % merge ResultNear
+        % NOTE: Obj may be modified and returned sorted
         ResInd = imProc.match.matchReturnIndices(Obj(Iobj), ResultNear, 'CooType','sphere',...
                                                                         'Radius',Args.SearchRadius,...
                                                                         'RadiusUnits',Args.SearchRadiusUnits);
         
-        SourcesWhichAreMP(Iobj) = selectRows(Obj(Iobj),ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
+        SourcesWhichAreMP(Iobj) = selectRows(Obj(Iobj), ResInd(Iobj).Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
 
+        LinesNN = ~isnan(ResInd(Iobj).Obj2_IndInObj1);
         % add columns: Dist, Nmatch, Designation
         if Args.AddColDist
-            Dist = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist);
+            Dist = convert.angular('rad', Args.ColDistUnits, ResInd(Iobj).Obj2_Dist(LinesNN));
             SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
         end
         
         if Args.AddColNmatch
-            SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), ResInd.Obj2_NmatchObj1, Args.ColNmatchPos, Args.ColNmatchName, '');
+            SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), ResInd(Iobj).Obj2_NmatchObj1(LinesNN), Args.ColNmatchPos, Args.ColNmatchName, '');
         end
 
         if Args.AddColDesignation
-            
+            Desig = getCol(ResultNear(Iobj), 'Designation', 'SelectRows',LinesNN);
+error('insertCol need to take care of cells/tables')
+            SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Desig, Inf, 'Designation', '');
         end
-        
-        
-        
-    
     end
+    Result = merge(SourcesWhichAreMP);
 end

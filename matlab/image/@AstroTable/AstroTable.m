@@ -734,6 +734,9 @@ classdef AstroTable < Component
             %            Default is false.
             %          * ...,key,val,...
             %            ' UseDict' - unsupported
+            %            'SelectRows' - A vector of indices or logicals of
+            %                   rows to select. If NaN, select all rows.
+            %                   Default is NaN.
             % Output : - A matrix or a table containing the selected
             %            columns.
             %          - A cell array of units corresponding to the
@@ -749,6 +752,7 @@ classdef AstroTable < Component
                 OutputIsTable(1,1) logical         = false;
                 UpdateAstroTable(1,1) logical      = false;
                 Args.UseDict(1,1) logical          = true;
+                Args.SelectRows                    = NaN;
             end
                 
             
@@ -785,6 +789,9 @@ classdef AstroTable < Component
                 Obj.Catalog = Result;
             end
             
+            if ~isnan(Args.SelectRows)
+                Result = Result(Args.SelectRows, :);
+            end
         end
         
         function [Result, Units, Ind] = getColDic(Obj, Columns)
