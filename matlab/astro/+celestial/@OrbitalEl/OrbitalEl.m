@@ -162,10 +162,11 @@ classdef OrbitalEl < Base
             %   epehmerides, and may fail in other cases.
             % Input  : - An OrbitalEl object, with multiple elements.
             % Output : - A merged OrbitalEl objt with a single element.
+            %            This is always a new copy.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
             %          O = merge(OrbEl);
             
-            ConCatProp  = {'Number','Designation','Node','W','Incl','Epoch','Tp','Mepoch','Ref','MagPar'};
+            ConCatProp  = {'Number','Designation','Node','W','Incl','Eccen','PeriDist','A','Epoch','Tp','Mepoch','Ref','MagPar'};
             SingleProp  = {'Equinox','AngUnits','LenUnits','TimeUnits','K','UserData'};
             NccProp     = numel(ConCatProp);
             NsProp      = numel(SingleProp);
