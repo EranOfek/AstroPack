@@ -228,6 +228,13 @@ function SourcesWhichAreMP = match2solarSystem(Obj, Args)
             Desig = getCol(ResultNear(Iobj), 'Designation', 'SelectRows',LinesNN);
             SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Desig, Args.ColDesigPos, Args.ColDesigName, '');
         end
+
+        % adding a column to Obj(Iobj) indicating if there is a match to a
+        % minor planet
+Args.AddMP2input = true;
+        if Args.AddMP2input
+
+        end
     end
 
 end
