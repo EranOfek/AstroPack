@@ -1,4 +1,4 @@
-function SourcesWhichAreMP = match2solarSystem(Obj, Args)
+function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
     % Match an AstroCatalog object sources to Solar System objects.
     %       This is done using the celestial.OrbitalEl class.
     %       For each source in the AstroCatalog, search for minor planets
@@ -73,11 +73,27 @@ function SourcesWhichAreMP = match2solarSystem(Obj, Args)
     %            'CreateNewObj' - {false|true} Indicating if to create a
     %                   new copy of the input Astrocatalog object.
     %                   Default is true.
+    %       If nargout>1, then add, for each
+    %       source in the input AstroCatalog object, the
+    %       angular distance to the nearest minor planet (NaN if no match).
+    %            'SourcesColDistPos' - The position of the ang. dist.
+    %                   column that will be added to the input AstroCatalog
+    %                   object. Default is Inf.
+    %            'SourcesColDistName' - The name of the ang. dist.
+    %                   column that will be added to the input AstroCatalog
+    %                   object. Default is 'DistMP.
+    %            'SourcesColDistUnits' - The units of the ang. dist. added
+    %                   to the input AstroCatalog object. 
+    %                   Default is 'arcsec'.
     % Output : - An AstroCatalog object containing only the sources in the
     %            input AstroCatalog that are matched with minor planets.
     %            Possibly adding ang. dist, Nmatch, and minor planet
     %            designation to the output.
-    %          - 
+    %          - If a second output is requested, then the input
+    %            AstroCatalog object will be modified (see 'CreateNewObj'
+    %            argument). The modified object may be sorted and may
+    %            include additional information on the angular distance to
+    %            the nearest minor planet.
     % Author : Eran Ofek (Sep 2021)
     % Example: Cat = ephem(OrbEl, JD, 'AddDesignation',false);
     %          R = rand(10,8); R(:,2:3) = R(:,2:3) + [82 11];
@@ -87,6 +103,7 @@ function SourcesWhichAreMP = match2solarSystem(Obj, Args)
     %          Result = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[]);
     %          O = celestial.OrbitalEl.loadSolarSystem;
     %          Result = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[], 'OrbEl',O);
+    %          [Result, CatOut] = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[], 'OrbEl',O);
     
     arguments
         Obj                                              % AstroCatalog | AstroImage
@@ -118,6 +135,10 @@ function SourcesWhichAreMP = match2solarSystem(Obj, Args)
         Args.ColDesigName                   = 'Designation';
 
         Args.CreateNewObj(1,1) logical      = true;
+
+        Args.SourcesColDistPos              = Inf;
+        Args.SourcesColDistName             = 'DistMP';
+        Args.SourcesColDistUnits            = 'arcsec';
 
     end
     RAD = 180./pi;
@@ -231,9 +252,28 @@ function SourcesWhichAreMP = match2solarSystem(Obj, Args)
 
         % adding a column to Obj(Iobj) indicating if there is a match to a
         % minor planet
-Args.AddMP2input = true;
-        if Args.AddMP2input
+        if nargout>1
 
+            Tmp=ResInd.Obj1_IndInObj2;
+            IsnanTmp = isnan(Tmp);
+            if all(IsnanTmp)
+                % no asteroid - add nan column
+                Obj_DistCol = nan(size(ResInd.Obj1_FlagNearest));
+            else
+                Tmp(IsnanTmp) = 1;   
+                Obj_DistCol = ResInd.Obj2_Dist(Tmp);
+                Obj_DistCol = convert.angular('rad', Args.SourcesColDistUnits, Obj_DistCol);
+            end
+            insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
+
+            % return the Cat into the original input object
+            if isa(Obj, 'AstroImage')
+                Obj(Iobj).CatData = Cat;
+            elseif isa(Obj, 'AstroCatalog')
+                Obj(Iobj) = Cat;
+            else
+                error('Unknwon first input object type (must be AstroImage or AstroCatalog)');
+            end
         end
     end
 
