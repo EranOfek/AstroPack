@@ -1,5 +1,5 @@
 function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
-    % Match an AstroCatalog object sources to Solar System objects.
+    % Match sources in AstroCatalog object to Solar System objects.
     %       This is done using the celestial.OrbitalEl class.
     %       For each source in the AstroCatalog, search for minor planets
     %       at the same position and epoch.
