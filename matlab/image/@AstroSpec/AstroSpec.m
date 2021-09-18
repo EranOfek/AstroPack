@@ -406,6 +406,7 @@ classdef AstroSpec < Component
             % Author : Eran Ofek (Aug 2021)
             % Example: Spec = AstroSpec.synspecGAIA
             %          Spec = AstroSpec.synspecGAIA('Temp',[5750 5500 5550],'Grav',[4.5]);
+            %          Spec = AstroSpec.synspecGAIA('Temp',[3500:1000:1e4],'Grav',[4.5]);
             
             arguments
                 Args.Temp           = 5750;
@@ -497,6 +498,79 @@ classdef AstroSpec < Component
             
         end
 
+        function Result = specGalQSO(Name, OutType)
+            % Get galaxy/qso template spectrum from ../spec/SpecGalQSO/ data directory.
+            % Description: Get Galaxy or QSO spectral template from local
+            %              database.
+            % Input  : - If empty, will return all available file names.
+            %            If a single file name, then load it.
+            %            If 'all', then return all spectra.
+            %          - Output type: 'astrospec'|'mat'. Default is
+            %            'AstroSpec'.
+            % Output : - An AstroSoec object or a matrix with the requested
+            %            spectrum. If the first argument is empty then this
+            %            is a cell array of available file names.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AstroSpec.specGalQSO
+            %          A=AstroSpec.specGalQSO('QSO_NIR');
+            %          A=AstroSpec.specGalQSO('all');
+            % Reliable: 2
+            
+            arguments
+                Name      = [];
+                OutType   = 'AstroSpec';
+            end
+            DataName = 'SpecGalQSO';
+            Suffix   = '.txt';
+            I = Installer;
+            
+            
+            if isempty(Name)
+                % return all available file names
+                Files = I.getFilesInDataDir(DataName);
+                Result = {Files.name};
+            else
+                switch lower(Name)
+                    case 'all'
+                        % load all spectra
+                        Files = I.getFilesInDataDir(DataName);
+                        Name = {Files.name};
+                end
+                if ischar(Name)
+                    Name = {Name};
+                end
+
+                Nd = numel(Name);
+                
+                Dir = I.getDataDir(DataName);
+                Iast = 0;
+                for Id=1:1:Nd
+                    if strcmp(Name{Id}, 'ReadMe')
+                        % ignore
+                    else
+                        Iast = Iast + 1;
+                        FullName = sprintf('%s%s%s', Dir, filesep, Name{Id});
+                        if strcmp(FullName(end-3:end),Suffix)
+                            % file name already contains suffix
+                        else
+                            % add suffix
+                            FullName = sprintf('%s%s',FullName,Suffix);
+                        end
+                        Spec = io.files.load2(FullName);
+
+                        switch lower(OutType)
+                            case 'mat'
+                                Result = Spec;
+                            case 'astrospec'
+                                Result(Iast) = AstroSpec({Spec});
+                            otherwise
+                                error('Unknown OutType option');
+                        end
+                    end
+                end
+            end
+
+        end
         
     end
     
