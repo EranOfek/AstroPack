@@ -572,6 +572,8 @@ classdef AstroSpec < Component
 
         end
         
+        
+
     end
     
     methods  % resampling, sort, interpolation
