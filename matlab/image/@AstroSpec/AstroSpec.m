@@ -496,6 +496,8 @@ classdef AstroSpec < Component
             cd(PWD);
             
         end
+
+        
     end
     
     methods  % resampling, sort, interpolation

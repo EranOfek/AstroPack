@@ -259,7 +259,8 @@ classdef Installer < Base
                 end        
         
                 PartsURL = regexp(Obj.ConfigStruct.URL{Isel},'/','split');
-                if iscell(PartsURL)
+                PartsEND = regexp(PartsURL{end},'.','split');
+                if iscell(PartsURL{1})
                     % URL is a cell array of files URL
                     List = Obj.ConfigStruct.URL{Isel};
                     FileName = '*';
