@@ -572,7 +572,81 @@ classdef AstroSpec < Component
 
         end
         
-        
+        function [Result, FilesList] = specStarsPickles(SpType, LumClass, OutType)
+            % Load Pickles stellar spectra into an AstroSpec object
+            % Input  : - Spectral type - e.g., 'G', 'G2',...
+            %            or file name.
+            %            If empty, then return a cell array of all
+            %            available spectra names. Default is [].
+            %          - Luminosity class. e.g., 'V'. If empty, return all.
+            %            Default is ''.
+            %          - Output type: 'mat' | ['AstroSpec'].
+            % Output : - An AstroSpec object containing the requested
+            %            spectra.
+            %          - A cell array of all file names in the Pickles data
+            %            directory.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: [~,List] = AstroSpec.specStarsPickles
+            %          Result = AstroSpec.specStarsPickles('wg8iii.mat')
+            %          Result = AstroSpec.specStarsPickles('G')
+            %          Result = AstroSpec.specStarsPickles('G','V')
+            %          Result = AstroSpec.specStarsPickles('G2')
+            %          Result = AstroSpec.specStarsPickles('G2','V')
+
+            arguments
+                SpType    = [];            % [] - return list
+                LumClass  = '';            % luminosity class.
+                OutType   = 'AstroSpec';   % 'AstroSpec' | 'mat'
+            end
+
+            DataName = 'PicklesStellarSpec';
+
+            I = Installer;
+            [Files, Dir] = I.getFilesInDataDir(DataName);
+            FilesList = {Files.name};
+            if isempty(SpType)
+                % get list of all spectra
+                Result = [];
+            else
+                if ~contains(SpType,'.mat')
+                    % not a single file
+                    % Spectral type
+                    if isempty(LumClass)
+                        LumClass = '[iv]+';
+                    else
+                        LumClass = lower(LumClass);
+                    end
+
+                    if numel(SpType)==1
+                        Template = sprintf('uk%s\\d+%s.mat',lower(SpType), LumClass);
+                    else
+                        Template = sprintf('uk%s%s.mat',lower(SpType), LumClass);
+                    end
+                    RE = regexp(FilesList, Template, 'match');
+                    Files = FilesList(~cellfun(@isempty, RE));
+
+                else
+                    % load a single file
+                    Files = {SpType};
+                end
+                % load all files
+
+                Nf = numel(Files);
+                for If=1:1:Nf
+                    Mat        = io.files.load2(Files{If});
+                    switch lower(OutType)
+                        case 'astrospec'
+                            Result(If) = AstroSpec({Mat});
+                        case 'mat'
+                            Result = Mat;
+                        otherwise
+                            error('Unknwon OutType option');
+                    end
+                end
+            end
+
+
+        end
 
     end
     

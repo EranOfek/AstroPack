@@ -337,12 +337,13 @@ classdef Installer < Base
             end
         end
 
-        function Files = getFilesInDataDir(Obj, Name)
+        function [Files, Dir] = getFilesInDataDir(Obj, Name)
             % Return all file names in directory associated with DataName
             % Input  : - Installre object.
             %          - DataName
             % Output : - dir-function like output of all the file names in
             %            the data directory. Directories are removed.
+            %          - Data dir containing the files.
             % Author : Eran Ofek (Sep 2021)
             % Example: I = Insatller; I.getFilesInDataDir('SpecGalQSO')
 
