@@ -423,7 +423,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                        'ThresholdSigma',Args.ThresholdSigma);
         
         
-               ParWCS.CD = ParWCS.CD; % .* Args.Scale; % NOT GOOD ENOUGH!!!! need to rescale also the PV?!
+               %ParWCS.CD = ParWCS.CD; % .* Args.Scale; % NOT GOOD ENOUGH!!!! need to rescale also the PV?!
                Result(Iobj).ParWCS(Isol) = ParWCS;
                
                

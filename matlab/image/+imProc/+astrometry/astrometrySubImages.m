@@ -173,7 +173,9 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             
             % check qulity of solution
             %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
-            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            
+            Sucess(Iim) = true;
+            %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
             
         end
     

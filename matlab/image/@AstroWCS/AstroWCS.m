@@ -48,6 +48,15 @@ classdef AstroWCS < Component
         
     end
     
+%     properties  % quality of solution
+%         Success(1,1) logical   = false;
+%         ErrorOnMean            = NaN;
+%         AssymRMS               = NaN;
+%         Ngood                  = NaN;
+%         ResFit                 = [];     % structure with additional information.
+%         
+%     end
+    
     properties (Hidden, Constant)
         DefPVstruct         = struct('KeyNamesX',[],'PolyCoefX',[],'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyX_Rdeg',[],...
                                      'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);         
