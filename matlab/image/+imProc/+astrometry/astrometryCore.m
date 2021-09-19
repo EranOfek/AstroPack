@@ -132,7 +132,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % Example: Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
    
     arguments
-        Obj 
+        Obj                                   % AstroImage or AstroCatalaog
         Args.RA
         Args.Dec
         Args.CooUnits                     = 'deg';

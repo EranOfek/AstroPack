@@ -48,26 +48,26 @@ classdef AstroWCS < Component
         
     end
     
-%     properties  % quality of solution
-%         Success(1,1) logical   = false;
-%         ErrorOnMean            = NaN;
-%         AssymRMS               = NaN;
-%         Ngood                  = NaN;
-%         ResFit                 = [];     % structure with additional information.
-%         
-%     end
+    
+    properties  % quality of solution
+        % why is this here? In principle this can be located in Tran2D.
+        % However, Tran2D describes only part of the full transformaion.
+        Success(1,1) logical   = false;  % is astrometry solution reasnoable
+        ErrorOnMean            = NaN;    % assymptotic-rms/sqrt(Ngood)
+        AssymRMS               = NaN;    % assymptotic-rms
+        Ngood                  = NaN;    % number of good matches used for the solution
+        Resid                  = [];
+        RefMag                 = [];
+        ResFit                 = [];     % structure with additional information. % setter will attempt to populate the other properties
+    end
     
     properties (Hidden, Constant)
         DefPVstruct         = struct('KeyNamesX',[],'PolyCoefX',[],'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyX_Rdeg',[],...
                                      'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);         
                                             % Default structure of projection distortion coefficients
     end   
-    
-%======================================================================    
-    
-    methods
-   %======== Constructor  =========        
-
+        
+    methods  % Constructor
         function Obj = AstroWCS(Nobj)
             % Basic constructor for AstroWCS class. User should usually use AstroWCS.header2wcs or AstroWCS.tran2wcs
             % Input  : - A vector of the requested size of the empty
@@ -92,8 +92,19 @@ classdef AstroWCS < Component
             
         end
         
-   %======== General functions =========           
-        
+    end
+
+    methods  % setters/getter
+        function Obj = set.ResFit(Obj, ResFit)
+            % setter for ResFit - will automatically populate related properties
+
+            Obj.ResFit  = ResFit;
+            Obj         = tools.struct.copyProp(ResFit, Obj, {'ErrorOnMean','AssymRMS','Ngood','Resid','RefMag'};
+            
+        end
+    end
+
+    methods  % General functions
         function Obj = populate_projMeta(Obj)
             % Populate projection metadata (Alpha0,Delta0,AlphaP,DeltaP,Phi0,Theta0,PhiP) 
             % Input  : - AstroWCS object.
@@ -135,7 +146,9 @@ classdef AstroWCS < Component
              end            
         end        
         
-   %======== Functions to construct AstroWCS from AstroHeader =========
+    end
+
+    methods   % Functions to construct AstroWCS from AstroHeader
         
         function Obj = read_ctype(Obj)
             % Read Obj.CTYPE to populate the fields: ProjType, ProjClass, CooName, and CUNIT (if empty or nan)
@@ -189,7 +202,9 @@ classdef AstroWCS < Component
             
         end
 
-   %======== Functions to construct AstroHeader from AstroWCS ========= 
+    end
+
+    methods    % Functions to construct AstroHeader from AstroWCS
    
        function Header = wcs2head(Obj,Header)
             % Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
@@ -320,7 +335,9 @@ classdef AstroWCS < Component
           
        end
         
-   %======== Functions for related to xy2sky =========
+    end
+
+    methods   % Functions related to xy2sky
    
         function [Alpha, Delta]  = xy2sky(Obj,PX,PY,Args)         
             % Convert pixel coordinates to celestial coordinates
@@ -382,7 +399,6 @@ classdef AstroWCS < Component
     
         end
               
-        
         function [X,Y]=pix2interm(Obj,PX,PY,includeDistortion)
             % Convert pixel coordinates (P) to intermediate coordinates (X), if requested also include distortion
             % Input  : - A single element AstroWCS object
@@ -452,7 +468,6 @@ classdef AstroWCS < Component
 
         end
         
-        
         function [Phi,Theta]=interm2native(Obj,X,Y,Args)
             % Project intermediate coordinates to native coordinates
             % Input  : - AstroWCS object
@@ -518,7 +533,6 @@ classdef AstroWCS < Component
 
         end
         
-    
         function [Alpha,Delta]=native2celestial(Obj,Phi,Theta,Args)
             % Convert native coordinates to celestial coordinates
             % Input  : - A single element AstroWCS object.
@@ -573,9 +587,9 @@ classdef AstroWCS < Component
 
         end    
         
-        
-   %======== Functions for related to sky2xy =========   
+    end    
    
+    methods  % Functions related to sky2xy
         function [PX,PY]  = sky2xy(Obj,Alpha,Delta,Args)            
             % Convert celestial coordinates to pixel coordinates
             % Input  : - A single element AstroWCS object
@@ -639,7 +653,6 @@ classdef AstroWCS < Component
             PX = reshape(PX,size(Delta));
             PY = reshape(PY,size(Alpha));
         end      
-        
         
         function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,Args)            
             % Convert celestial coordinates to native coordinates
@@ -926,9 +939,7 @@ classdef AstroWCS < Component
              % populate proj Meta
             Obj.populate_projMeta;
         end
-        
-        
-        
+                
         function [radesys,equinox] =read_radesys_equinox(Header)
             % Read from AstroHeader the RADESYS and EQUINOX. If any are missing fill with deafults.
             % Input  : - AstroHeader object.
@@ -970,9 +981,7 @@ classdef AstroWCS < Component
             end
             
         end
-        
-        
-        
+                
         function CD = build_CD(Header,Naxis)
             % Construct the CD matrix from AstroHeader. Either directly CD matrix, or PC+CDELT, or CDELT
             % Input  : - AstroHeader object.
@@ -1731,7 +1740,6 @@ classdef AstroWCS < Component
 
         end
         
-
         function [X,Y]  = backwardDistortion(PV,Xd,Yd,Args)  
             % Apply reverse (i.e. backward) distortion to X,Y coordinates using the PV sturcture 
             % Input  : - PV structure (following AstroWCS.DefPVstruct)

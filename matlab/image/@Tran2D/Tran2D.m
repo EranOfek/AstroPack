@@ -940,6 +940,7 @@ classdef Tran2D < handle
                 Res.AssymRMS_RMS = TmpStd(MinMeanInd);
             end
             Res.ResResid = ResResid;
+            Res.ErrorOnMean = Res.AssymRMS ./ sqrt(Res.Ngood);
 
         end
         
