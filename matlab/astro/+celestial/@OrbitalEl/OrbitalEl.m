@@ -100,9 +100,6 @@ classdef OrbitalEl < Base
                 Obj.Tp = Obj.Epoch - Obj.Mepoch./Obj.meanMotion(Obj.AngUnits);
             end
             
-            % BUG: It is not clear to me what is the definition of the Mean
-            % Anomaly for e>1 (appears in the JPL files).
-            % Meanwhile take real component.
             Obj.Tp = real(Obj.Tp);
             
             Result = Obj.Tp;
@@ -165,10 +162,11 @@ classdef OrbitalEl < Base
             %   epehmerides, and may fail in other cases.
             % Input  : - An OrbitalEl object, with multiple elements.
             % Output : - A merged OrbitalEl objt with a single element.
+            %            This is always a new copy.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
             %          O = merge(OrbEl);
             
-            ConCatProp  = {'Number','Designation','Node','W','Incl','Epoch','Tp','Mepoch','Ref','MagPar'};
+            ConCatProp  = {'Number','Designation','Node','W','Incl','Eccen','PeriDist','A','Epoch','Tp','Mepoch','Ref','MagPar'};
             SingleProp  = {'Equinox','AngUnits','LenUnits','TimeUnits','K','UserData'};
             NccProp     = numel(ConCatProp);
             NsProp      = numel(SingleProp);
@@ -205,7 +203,7 @@ classdef OrbitalEl < Base
         end
         
     end
-    
+
     methods % Keplerian orbit functions
         function Result = meanMotion(Obj, AngUnits)
             % Return the mean motion [deg/day]
@@ -447,6 +445,13 @@ classdef OrbitalEl < Base
             %          [Nu, R, E, Vel, M] = keplerSolve(OrbElA(1), 2451545)
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
             %          [Nu, R, E, Vel, M] = keplerSolve(OrbEl(1), 2451545+(1:1:10)')
+            %     Test parabolic orbit
+            %          E1.Tp = celestial.time.julday([14 4 1998 0.4358]);
+            %          E1.PeriDist = 1.487469;
+            %          JD = celestial.time.julday([ 5 8 1998]);
+            %          E1.W=1; E1.Incl=1; E1.Node=1; E1.Eccen=1;
+            %          [Nu, R, E, Vel, M] = keplerSolve(E1, JD);
+            %          % Nu should be 66.78862 deg, R=2.133911
             
             arguments
                 Obj(1,1)
@@ -661,6 +666,12 @@ classdef OrbitalEl < Base
             %            'IncludeMag' - A logical indicating if to include
             %                   magnitude in output catalog.
             %                   Default is true.
+            %            'AddDesignation' - A logical indicating if to add
+            %                   the asteroid designation (in the last
+            %                   column) to the output.
+            %                   If true, then the output will be in a
+            %                   format of table instead of a matrix.
+            %                   Default is true.
             % Output : - Output ephemerides with the following columns:
             %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
             %            and units:
@@ -682,24 +693,26 @@ classdef OrbitalEl < Base
             %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
             %          % RA nd Dec diff between JPL and ephem:
             %          [CatE.Catalog(:,2) - CatJPL.Catalog(:,2), CatE.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
-            %          
-% BUG : hyperbolic/parabolic orbit
+            %     hyperbolic orbit
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');   
-            %          Cat = ephem(OrbEl, JD, 'OutUnitsDeg',false);          
-            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
-            
+            %          JD = celestial.time.julday([1 1 2018 0]);
+            %          Cat = ephem(OrbEl, JD+(0:1./24:1), 'OutUnitsDeg',false);          
+            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','A/2017 U1','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
+            %          [Cat.Catalog(:,2) - CatJPL.Catalog(:,2), Cat.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
+
             arguments
                 Obj(1,1)
                 Time
-                Args.Tol                      = 1e-8;   % [rad]
-                Args.TolLT                    = 1e-6;   % [day]
-                Args.OutUnitsDeg(1,1) logical = true;
-                Args.Aberration(1,1) logical  = false;
-                Args.GeoPos                   = [];  % [] - topocentric  ; [rad, rad, m]
-                Args.RefEllipsoid             = 'WGS84';
-                Args.OutType                  = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
-                Args.MaxIterLT                = 5;  % use 0 for quick and dirty
-                Args.IncludeMag(1,1) logical  = true;  % use false to speed up
+                Args.Tol                         = 1e-8;   % [rad]
+                Args.TolLT                       = 1e-6;   % [day]
+                Args.OutUnitsDeg(1,1) logical    = true;
+                Args.Aberration(1,1) logical     = false;
+                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
+                Args.RefEllipsoid                = 'WGS84';
+                Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
+                Args.MaxIterLT                   = 5;  % use 0 for quick and dirty
+                Args.IncludeMag(1,1) logical     = true;  % use false to speed up
+                Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
             end
             RAD  = 180./pi;
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
@@ -805,6 +818,20 @@ classdef OrbitalEl < Base
                 end
             end
             
+             if Args.AddDesignation
+                Cat = array2table(Cat);
+                if Nt>1
+                    % assume a single asteroid ephemerides -
+                    % duplicate name
+                    [NameCell{1:1:Nt}] = deal(Obj.Designation{1});
+                else
+                    NameCell = Obj.Designation;
+                end
+                Cat = [Cat, NameCell(:)];
+                ColNames = {ColNames{:}, 'Designation'};
+                ColUnits = {ColUnits{:}, ''};
+            end
+
             switch lower(Args.OutType)
                 case 'mat'
                     Result = Cat;
@@ -856,6 +883,12 @@ classdef OrbitalEl < Base
             %            'coneSearchArgs' - A cell array of additional
             %                   arguments to pass to imProc.match.coneSearch
             %                   Default is {}.
+            %            'AddDesignation' - A logical indicating if to add
+            %                   the asteroid designation (in the last
+            %                   column) to the output.
+            %                   If true, then the output will be in a
+            %                   format of table instead of a matrix.
+            %                   Default is true.
             %            'QuickSearchBuffer' - In the first iteration the
             %                   search radius is increased by this amount.
             %                   Default is 500 (units given by the
@@ -885,6 +918,7 @@ classdef OrbitalEl < Base
                 Args.RefEllipsoid        = 'WGS84';
                 Args.OutUnitsDeg logical = true;
                 Args.coneSearchArgs cell = {};
+                Args.AddDesignation(1,1) logical = true;
                 Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
             end
             
@@ -904,7 +938,7 @@ classdef OrbitalEl < Base
             
             % quick and dirty
             for Iobj=1:1:Nobj
-                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',0, 'IncludeMag',IncludeMag, 'OutUnitsDeg',false, 'OutType','mat');
+                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',0, 'IncludeMag',IncludeMag, 'OutUnitsDeg',false, 'OutType','mat', 'AddDesignation',false);
                 Dist   = celestial.coo.sphere_dist_fast(RA, Dec, Cat(:,2), Cat(:,3));
                 % within search radius and MagLimit
                 % RA - col 2
@@ -916,14 +950,16 @@ classdef OrbitalEl < Base
             end
             
             % accurate search on selected sample:
+            Result = AstroCatalog(size(ObjNew));
             for Iobj=1:1:Nobj
                 if  numEl(ObjNew(Iobj))==0
                     Flag = [];
-                    Result(Iobj) = AstroCatalog;
                 else
+                  
                     Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
                                                   'RefEllipsoid',Args.RefEllipsoid,...
                                                   'OutUnitsDeg',false,...
+                                                  'AddDesignation',Args.AddDesignation,...
                                                   'OutUnitsDeg',Args.OutUnitsDeg);
 
 
@@ -964,6 +1000,59 @@ classdef OrbitalEl < Base
             % Example: TI=thiele_innes(OrbEl(1));
             
             TI=celestial.Kepler.thiele_innes(Obj.A, Obj.W, Obj.Node, Obj.Incl);
+        end
+
+        
+    end
+
+    methods % display and organize
+        function Result = table(Obj)
+            % Generate a matlab table or orbital elements from OrbitalEl object.
+            % Input  : - An OrbitalEl object.
+            % Output : - A table.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: E=celestial.OrbitalEl.loadSolarSystem;
+            %          table(E)
+
+            arguments
+                Obj
+            end
+
+            Nobj = numel(Obj);
+            Nel  = numEl(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).Number)
+                    Number = nan(Nel(Iobj),1);
+                else
+                    Number = Obj(Iobj).Number;
+                end
+                if isempty(Obj(Iobj).Designation)
+                    Designation = cell(Nel(Iobj),1);
+                else
+                    Designation = Obj(Iobj).Designation;
+                end
+
+                T = table(Number,...
+                               Designation,...
+                               Obj(Iobj).Node,...
+                               Obj(Iobj).W,...
+                               Obj(Iobj).Incl,...
+                               Obj(Iobj).A,...
+                               Obj(Iobj).PeriDist,...
+                               Obj(Iobj).Eccen,...
+                               Obj(Iobj).Tp);
+                T.Properties.VariableNames = {'Number','Designation','Node','W','Incl','A','PeriDist','Eccen','Tp'};
+                if Iobj==1
+                    Result = T;
+                else
+                    Result = [Result; T];
+                end
+
+             end
+             
+
+                        
+
         end
 
     end

@@ -335,7 +335,7 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
                 NC = size(Aper.AperPhot,2);
                 if isempty(FluxErrAper)
                     AperPhot    = Aper.AperPhot.*Args.Gain;
-                    FluxErrAper = sqrt(AperPhot + Aper.AnnulusStd.^2)./AperPhot;
+                    FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
                 end
                 Cat(:,K:K+NC-1) = FluxErrAper;
                 [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:NC)));
@@ -351,7 +351,7 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
                 NC = size(Aper.AperPhot,2);
                 if isempty(FluxErrAper)
                     AperPhot    = Aper.AperPhot.*Args.Gain;
-                    FluxErrAper = sqrt(AperPhot + Aper.AnnulusStd.^2)./AperPhot;
+                    FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
                 end
                 Cat(:,K:K+NC-1) = 1.086 .* FluxErrAper;
                 [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));

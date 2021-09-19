@@ -259,7 +259,8 @@ classdef Installer < Base
                 end        
         
                 PartsURL = regexp(Obj.ConfigStruct.URL{Isel},'/','split');
-                if iscell(PartsURL)
+                PartsEND = regexp(PartsURL{end},'.','split');
+                if iscell(PartsURL{1})
                     % URL is a cell array of files URL
                     List = Obj.ConfigStruct.URL{Isel};
                     FileName = '*';
@@ -317,6 +318,40 @@ classdef Installer < Base
                    Obj.ConfigStruct.Description(:),...
                    Obj.ConfigStruct.URL(:)], 'VariableNames',{'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'});
             
+        end
+
+        function Dir = getDataDir(Obj, Name)
+            % Get data directory name
+            % DataName of data directory as appear in Insataller/seeAvailableData
+            % Input  : - Installre object.
+            %          - DataName
+            % Output : - Directory name. Return empty if not found.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: I = Insatller; I.getDataDir('Time')
+
+            Ind = find(strcmp(Obj.ConfigStruct.DataName, Name));
+            if isempty(Ind)
+                Dir = [];
+            else
+                Dir  = sprintf('%s%s%s' ,Obj.ConfigStruct.InstallationLocation, filesep, Obj.ConfigStruct.SubDir{Ind});
+            end
+        end
+
+        function Files = getFilesInDataDir(Obj, Name)
+            % Return all file names in directory associated with DataName
+            % Input  : - Installre object.
+            %          - DataName
+            % Output : - dir-function like output of all the file names in
+            %            the data directory. Directories are removed.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: I = Insatller; I.getFilesInDataDir('SpecGalQSO')
+
+            Dir = getDataDir(Obj, Name);
+            PWD = pwd;
+            cd(Dir);
+            Files = dir('*');
+            Files = Files(~[Files.isdir]);
+
         end
     end
 	

@@ -9,6 +9,8 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %       contains NaNs.
     %       The sources in Obj1 that doesn't have counterparts in
     %       Obj2 are listed in the unmatched catalog.
+    %       The angular distance and index of the source in Obj1 may be
+    %       added to the matched catalog.
     %       Also return a catalog of TruelyUnMatchedObj.
     %       This exclude not only the nearest source within the
     %       search radius, but all the sources in Obj1 which have
@@ -27,7 +29,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %            'RadiusUnits' - Search radius units (if spherical
     %                   coordinates search). Default is 'arcsec'.
     %            'AddIndInRef' - A logical indicating if to add a
-    %                   column to  Obj1 that include the index of
+    %                   column to Obj1 that include the index of
     %                   the source in the reference catalog (Obj2).
     %                   Default is true.
     %            'IndInRefColName' - The column name of the Index
