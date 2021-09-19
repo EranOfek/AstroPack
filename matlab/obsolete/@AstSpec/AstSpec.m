@@ -300,7 +300,7 @@ classdef AstSpec < HEAD
             DefV.IntUnits         = 'erg*cm^{-2}*s^{-1}*Ang^{-1}';
             InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
-            [~,List] = Util.files.create_list(File,NaN);
+            [~,List] = io.files.create_list(File,NaN);
             Nl       = numel(List);
 
             ColNames = InPar.ColNames(1:1:InPar.MaxCol);
@@ -325,7 +325,7 @@ classdef AstSpec < HEAD
                 % for each file
 
                 % read mat file
-                Mat = Util.IO.load2(List{Il});
+                Mat = io.files.load2(List{Il});
 
 
                 % check type
@@ -429,7 +429,7 @@ classdef AstSpec < HEAD
                     AS   = AstSpec(Nmax,1);
             end
             
-            MSDir      = Util.files.which_dir(mfilename);
+            MSDir      = io.files.which_dir(mfilename);
             %DirLocation = sprintf('%s%s..%s..%s%s%s%s%s',MSDir,filesep,filesep,filesep,'data',filesep,'GAIA_SpecTemplates',filesep);
             %DirLocation = sprintf('%s%s..%s..%s..%s%s%s%s%s',MSDir,filesep,filesep,filesep,filesep,'data',filesep,'GAIA_SpecTemplates',filesep);
             DirLocation = sprintf('%s%s..%s..%s%s%s%s%s%s%s',MSDir,filesep,filesep,filesep,'data',filesep,'spec',filesep,'GAIA_SpecTemplate',filesep);
@@ -444,9 +444,9 @@ classdef AstSpec < HEAD
                 end
 
                 SpecName = sprintf('%sT%05dG%02d%s%02dV%03d%s',DirLocation,round(Temp(Is)),round(Grav(Is).*10),MetalSign,round(abs(Metal(Is)).*10),round(Rot(Is)),DefaultPars);
-                W        = Util.IO.load2(sprintf('%s%s',DirLocation,WaveFileName));
+                W        = io.files.load2(sprintf('%s%s',DirLocation,WaveFileName));
                 
-                SpecMat  = [W, Util.IO.load2(SpecName)];
+                SpecMat  = [W, io.files.load2(SpecName)];
 
                 switch lower(OutType)
                     case 'astspec'
@@ -482,7 +482,7 @@ classdef AstSpec < HEAD
             % Reliable: 2
             %--------------------------------------------------------------------------
 
-            MSDir      = Util.files.which_dir(mfilename);
+            MSDir      = io.files.which_dir(mfilename);
             %DirLocation = sprintf('%s%s..%s..%s%s%s%s%s',MSDir,filesep,filesep,filesep,'data',filesep,'GAIA_SpecTemplates',filesep);
             %DirLocation = sprintf('%s%s..%s..%s..%s%s%s%s%s',MSDir,filesep,filesep,filesep,filesep,'data',filesep,'GAIA_SpecTemplates',filesep);
             DirLocation = sprintf('%s%s..%s..%s%s%s%s%s%s%s',MSDir,filesep,filesep,filesep,'data',filesep,'spec',filesep,'GAIA_SpecTemplate',filesep);
@@ -491,13 +491,13 @@ classdef AstSpec < HEAD
             cd(DirLocation);
             
             WaveFileName = 'GAIA_Wave1A.mat';
-            W        = Util.IO.load2(sprintf('%s%s',DirLocation,WaveFileName));
+            W        = io.files.load2(sprintf('%s%s',DirLocation,WaveFileName));
             
             Files = dir('T*.mat');
             Nf    = numel(Files);
             Spec  = AstSpec(Nf,1);
             for If=1:1:Nf
-                SpecMat  = [W, Util.IO.load2(Files(If).name)];
+                SpecMat  = [W, io.files.load2(Files(If).name)];
             
                 Spec(If)=AstSpec.mat2spec(SpecMat,{'Wave','Int'},{'Ang','erg*cm^-2 *s^-1*Ang^-1'});
                 Spec(If).z = 0;
@@ -889,7 +889,7 @@ classdef AstSpec < HEAD
             PWD    = pwd;
             cd(DirPic);
 
-            [~,List] = Util.files.create_list('uk*.mat',NaN);
+            [~,List] = io.files.create_list('uk*.mat',NaN);
             RE  = regexp(List,'uk(?<SpClass>[obafgkm]+)(?<SpNum>\d+)(?<SpLum>\w+)','names');
             Nre = numel(RE);
 
@@ -1032,7 +1032,7 @@ classdef AstSpec < HEAD
             
             
             if (isempty(Name))
-                Dir = Util.files.list_fun_in_package('cats.spec.AtmoExtinction');
+                Dir = io.files.list_fun_in_package('cats.spec.AtmoExtinction');
                 AllFiles = Dir.m;
                 % show all spectral template available
                 
