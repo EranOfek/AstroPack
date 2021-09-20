@@ -802,6 +802,38 @@ classdef AstroTable < Component
             end
         end
         
+        function Result = getCol2struct(Obj, ColNames, Args)
+            % Get columns from AstroTable and return them in a structure array.
+            % Input  : - An AstroTable object.
+            %          - A cell array of column names.
+            %          * ...,key,val,...
+            %            'SelectRows'  - A vector of indices or logicals of
+            %                   rows to select. If NaN, select all rows.
+            %                   Default is NaN.
+            % Output : - A structure array (element per AstroTable element)
+            %            with field for each selected column. Each field
+            %            contains thr column data.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AT = AstroTable({rand(1000,2)},'ColNames',{'a','b'});
+            %          S  = getCol2struct(AT, {'a'});
+
+            arguments
+                Obj
+                ColNames cell
+                Args.SelectRows    = NaN;
+            end
+
+            Ncol = numel(ColNames);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Data = getCol(Obj, ColNames, 'SelectRows',Args.SelectRows);
+                for Icol=1:1:Ncol
+                    Result(Iobj).(ColNames{Icol}) = Data(:,Icol);
+                end
+            end
+    
+        end
+
         function [Result, Units, Ind] = getColDic(Obj, Columns)
             % get a single Column data from a dictionary of column names
             % Input  : - A single-element AstroTable object.

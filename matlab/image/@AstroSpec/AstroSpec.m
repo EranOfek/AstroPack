@@ -1083,6 +1083,10 @@ classdef AstroSpec < Component
             %            'Ebv' - E_{B-V} [mag] extinction to apply to
             %                   spectra. Default is 0.
             %            'R' - R_V to use for extinction. Default is 3.08.
+            %            'IsOutMat' - A logical indicating if the output is
+            %                   structure array (true) or matrix (false) of
+            %                   [Spec, Band].
+            %                   Default is false.
             % Output : - A structure array of syntheic magnitudes.
             %            Element per object element, and ach filter is
             %            stored in a field with its name.
@@ -1109,6 +1113,7 @@ classdef AstroSpec < Component
                 Args.Algo     = 'cos';
                 Args.Ebv      = 0;
                 Args.R        = 3.08;
+                Args.IsOutMat logical  = false;
             end
            
             [FilterCell, Name] = AstroSpec.read2FilterMatrix(FilterFamily, FilterName);
@@ -1124,6 +1129,14 @@ classdef AstroSpec < Component
                     Result(Iobj).(Name{Iname})     = Mag;
                     Flag(Iobj).(Name{Iname})       = FiltFlag;
                 end
+            end
+            if Args.IsOutMat
+                % convert to matrix
+                Out = nan(Nobj, Nname);
+                for Iname=1:1:Nname
+                    Out(:,Iname) = [Result.(Name{Iname})].';
+                end
+                Result = Out;
             end
         end
 
@@ -1277,6 +1290,73 @@ classdef AstroSpec < Component
                 Result(Imax).Chi2  = sum((Result(Imax).Resid./ScaledErr).^2);
                 
             end
+        end
+
+        function Result = fitMag(ModelSpec, Mag, Family, Bands, Args)
+            % Fit AstroSpec spectra to observed magnitudes in some bands.
+            % Input  : - An AstroSpec object. Each spectra in this object
+            %            is regarded as a model spectra that will be fitted
+            %            to some observed magnitudes, and the best spectral
+            %            template will be returned.
+            %          - A matrix of magnitudes [Source X Band].
+            %            Each line corresponds to one source that will be
+            %            fitted against all the model spectra. Each column
+            %            corresponds to a band in which the source was
+            %            observed.
+            %          - Band family name (e.g., 'SDSS').
+            %          - A cell array of band names (e.g., {'g','r'}).
+            %          * ...,key,val,...
+            %            'MagErr' - A matrix of magnitude errors
+            %                   corresponding to the magnitude matrix.
+            %                   Default is 0.01.
+            %            'MagSys' - Mag system: ['AB'] | 'Vega'
+            %            'Device' - Device ['photon'] | 'bol'
+            %            'Algo' - Algorithm - see astro.spec.synphot
+            %                   Default is 'cos'
+            % Output : - A structure with the following fields:
+            %            .IndBest - A vector (one element per source).
+            %                   For each source this gives the index of the 
+            %                   best fitted spectral template.
+            %            .BestChi2 - A vector (one per source) of the best
+            %                   fitted \chi^2 value.
+            %            .BestMeanDiff - A vector (one per source) of the
+            %                   best fitted magnitude mean difference
+            %                   (normalization).
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Spec = AstroSpec.synspecGAIA('Temp',[4000:100:8000],'Grav',[4.5]);
+            %          M = synphot(Spec(10:11),'SDSS',{'g','r','i'}, 'IsOutMat',true); 
+            %          Result = fitMag(Spec, M + 50, 'SDSS',{'g','r','i'});
+
+            arguments
+                ModelSpec
+                Mag          % [Source, Band] matrix
+                Family
+                Bands cell   % cell array of bands
+                Args.MagErr   = 0.01;
+                Args.MagSys   = 'AB';
+                Args.Device   = 'photon';
+                Args.Algo     = 'cos';
+            end
+        
+            Nspec         = numel(ModelSpec);
+            [Nsrc, Nband] = size(Mag);
+            if Nband~=numel(Bands)
+                error('Number of columns in Magnitude matrix must be equal to the number of bands');
+            end
+
+            Result.IndBest      = nan(Nsrc,1);
+            Result.BestChi2     = nan(Nsrc,1);
+            Result.BestMeanDiff = nan(Nsrc,1);
+
+            SynMagMat = synphot(ModelSpec, Family, Bands, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo, 'IsOutMat',true);
+            for Isrc=1:1:Nsrc
+                Diff = Mag(Isrc,:) - SynMagMat;
+                MeanDiff = mean(Diff, 2);
+                Chi2 = sum(((Diff - MeanDiff)./Args.MagErr).^2, 2);
+                [Result.BestChi2(Isrc), Result.IndBest(Isrc)] = min(Chi2);
+                Result.BestMeanDiff(Isrc) = MeanDiff(Result.IndBest(Isrc));
+            end
+
         end
     end
     
