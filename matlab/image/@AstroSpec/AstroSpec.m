@@ -292,7 +292,7 @@ classdef AstroSpec < Component
             % Output : - A cell array of filter transmissions.
             %          - A cell array of filter names.
             % Author : Eran Ofek (Aug 2021)
-            % Example: [FilterCell, Name] = AstroSpec.read2FilterMatrix(Family, Name)
+            % Example: [FilterCell, Name] = AstroSpec.read2FilterMatrix('SDSS', 'g')
             
             if ischar(Name)
                 Name = {Name};
@@ -1052,7 +1052,6 @@ classdef AstroSpec < Component
             %          Spec.interpOverNan;
             %          [Result, Flag, FilterWave] = synphot(Spec, T, 'F55');
 
-            
             arguments
                 Obj
                 FilterFamily       % AstroFilter object, Name, Matrix

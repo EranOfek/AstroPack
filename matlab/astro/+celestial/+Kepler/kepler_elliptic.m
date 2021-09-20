@@ -115,11 +115,11 @@ I = 0;
 %while max(abs( E1(IndUnsolved)-E0(IndUnsolved) ))>Tol,
 while (any(abs(E1-E0)>Tol))
    I = I + 1;
-%   [I, length(IndUnsolved)]
 
-%    E0(IndUnsolved) = E1(IndUnsolved);
-%    E1(IndUnsolved) = E0(IndUnsolved) + ...
-%                     (M(IndUnsolved) + Ecc(IndUnsolved).*sin(E0(IndUnsolved)) - E0(IndUnsolved))./(1 - Ecc(IndUnsolved).*cos(E0(IndUnsolved)));
+   %[I, length(IndUnsolved)]
+   %E0(IndUnsolved) = E1(IndUnsolved);
+   %E1(IndUnsolved) = E0(IndUnsolved) + ...
+   %                 (M(IndUnsolved) + Ecc(IndUnsolved).*sin(E0(IndUnsolved)) - E0(IndUnsolved))./(1 - Ecc(IndUnsolved).*cos(E0(IndUnsolved)));
 
     E0 = E1;
     E1 = E0 + (M + Ecc.*sin(E0) - E0)./(1 - Ecc.*cos(E0));
@@ -146,4 +146,3 @@ A   = Q./(1-Ecc);
 Vel = K.*sqrt(2).*sqrt(1./R - 1./(2.*A));
 
 %dNudt = N.*sqrt(1-Ecc.^2)./((1-Ecc.*cos(E)).^2);
-

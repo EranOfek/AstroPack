@@ -192,8 +192,20 @@ classdef AstFilter
                     end
                 else
                     % both band and family are provided
-                    IndF = find(BehavFun({AstFilterCat.band},Band) & ...
-                                BehavFun({AstFilterCat.family},Family));
+                    if ischar(Band)
+                        Band = {Band};
+                    end
+                    if ischar(Family)
+                        Family = {Family};
+                    end
+                    Nfam  = numel(Family);
+                    Nband = numel(Band);
+                    IndF = [];
+                    for Iband=1:1:Nband
+                        Ifam = min(Iband, Nfam);
+                        IndF = [IndF; find(BehavFun({AstFilterCat.band},Band{Iband}) & ...
+                                    BehavFun({AstFilterCat.family},Family{Ifam}))];
+                    end
                 end
             end
             AstF = AstFilterCat(IndF);
