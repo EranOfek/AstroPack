@@ -969,6 +969,53 @@ classdef AstroSpec < Component
             
         end
         
+        function Result = scaleFlux(Obj, Factor, Args)
+            % Scale (multiply) flux properties by some factor.
+            % Input  : - An AstroSpec object.
+            %          - Scaling factor by which to multiply the flux
+            %            properties. If scaler, then multiply all spectra.
+            %            Alternatively, this can be a vector with the same
+            %            number of elements as in the AstroSpec object.
+            %            In this case, each spectrum will multiply by the
+            %            corresponding scale factor.
+            %          * ...,key,val,...
+            %            'DataProp' - A cell array of data properties on
+            %                   which to apply the function.
+            %                   Default is {'Flux', 'FluxErr', 'Back'}.
+            %            'CreateNewObj' -  [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec objec after aplying the scale.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          scaleFlux(AS, 2)
+            %          scaleFlux(AS, [2,3])
+
+            arguments
+                Obj
+                Factor
+                Args.DataProp             = {'Flux', 'FluxErr', 'Back'};
+                Args.CreateNewObj         = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+           
+            Nfactor = numel(Factor);
+            Nobj = numel(Obj);
+            Nd   = numel(Args.DataProp);
+            for Iobj=1:1:Nobj
+                Ifactor = min(Iobj, Nfactor);
+                for Id=1:1:Nd
+                    if ~isempty(Obj(Iobj).(Args.DataProp{Id}))
+                        Result(Iobj).(Args.DataProp{Id}) = Obj(Iobj).(Args.DataProp{Id}) .* Factor(Ifactor);
+                    end
+                end
+            end
+
+        end
+
         function Result = interpLogSpace(Obj, Args)
             % Interpolate an AstroSpec object into a logarithmic wavelength grid.
             % Input  : - An AstroSpec object.            
@@ -1078,6 +1125,44 @@ classdef AstroSpec < Component
                     Flag(Iobj).(Name{Iname})       = FiltFlag;
                 end
             end
+        end
+
+        function Result = scaleSynphot(Obj, Mag, FilterFamily, FilterName, Args)
+            % Scale spectrum such that its synthetic magnitude will be forced to some value.
+            % Input  : - An AstroSpec object (multi elements supported)
+            %          - Magnitude - Each spectrum will be scaled such that
+            %            its synthetic mag will be equal to this mag.
+            %            This can be a scalar (for all spectra), or vector
+            %            of elements per spectra.
+            %          - A cell of filter family names, an AstFilter
+            %            object, or a matrix of transmissions.
+            %          - A cell array of filter names. The output structure
+            %            will have a field name for each one of these names.
+            %          * ...,key,val,...
+            %            'MagSys' - Mag system: ['AB'] | 'Vega'
+            %            'Device' - Device ['photon'] | 'bol'
+            %            'Algo' - Algorithm - see astro.spec.synphot
+            %                   Default is 'cos'
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          Mag  = synphot(AS,'SDSS','r')
+            %          R  = scaleSynphot(AS, 20, 'SDSS','r')
+            %          Mag  = synphot(R,'SDSS','r')
+            arguments
+                Obj
+                Mag
+                FilterFamily
+                FilterName
+                Args.MagSys   = 'AB';
+                Args.Device   = 'photon';
+                Args.Algo     = 'cos';
+                Args.CreateNewObj = [];
+            end
+
+            MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo);
+            MagSynVec = [MagSyn.(FilterName)];
+            Factor = 10.^(-0.4.*(Mag - MagSynVec));
+            Result = scaleFlux(Obj, Factor, 'CreateNewObj',Args.CreateNewObj);
         end
     end
     
