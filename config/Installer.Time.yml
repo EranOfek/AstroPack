@@ -1,0 +1,8 @@
+InstallationLocation : '~/matlab/data'
+# The following are cell arrays of entry per dataset
+DataName             : 'Time'
+SubDir               : 'SolarSystem/Time'
+URL                  : ['https://datacenter.iers.org/data/csv/finals2000A.data.csv']
+Size                 : 1805
+SearchFile           : ''
+Description          : 'Time and Earth Rotation Orientation Parameters'

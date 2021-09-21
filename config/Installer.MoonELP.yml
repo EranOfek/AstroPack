@@ -1,0 +1,8 @@
+InstallationLocation : '~/matlab/data'
+# The following are cell arrays of entry per dataset
+DataName             : 'MoonELP'
+SubDir               : 'SolarSystem/ELP'
+URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/ELP.tar']
+Size                 : 0.5
+SearchFile           : ''
+Description          : 'Moon Ephemerides ELP'
