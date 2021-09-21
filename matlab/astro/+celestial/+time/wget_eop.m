@@ -1,6 +1,7 @@
 function EOP=wget_eop(Read)
 % Read or get the Earth orientation parameters file from IERS
 % Package: celestial.time
+%   OBSOLETE: see Installer/readIERS_EOP class.
 % Description: Get the table of historical and predicted Earth orientation
 %              parameters (EOP) from the IERS web site.
 % Input  : - 'get' - get the latest EOP data from the IERS website and
