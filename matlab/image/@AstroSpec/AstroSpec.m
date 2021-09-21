@@ -979,6 +979,10 @@ classdef AstroSpec < Component
             %            In this case, each spectrum will multiply by the
             %            corresponding scale factor.
             %          * ...,key,val,...
+            %            'IsMagFactor' - A logical indicating if the
+            %                   scaling factor is in magnitude units.
+            %                   If true, then Factor will be set to:
+            %                   10.^(-0.4*Factor). Default is false.
             %            'DataProp' - A cell array of data properties on
             %                   which to apply the function.
             %                   Default is {'Flux', 'FluxErr', 'Back'}.
@@ -996,12 +1000,17 @@ classdef AstroSpec < Component
             arguments
                 Obj
                 Factor
-                Args.DataProp             = {'Flux', 'FluxErr', 'Back'};
-                Args.CreateNewObj         = [];
+                Args.IsMagFactor(1,1) logical = false;
+                Args.DataProp                 = {'Flux', 'FluxErr', 'Back'};
+                Args.CreateNewObj             = [];
             end
             
             [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
-           
+
+            if Args.IsMagFactor
+                Factor = 10.^(-0.4.*Factor);
+            end
+
             Nfactor = numel(Factor);
             Nobj = numel(Obj);
             Nd   = numel(Args.DataProp);
@@ -1292,7 +1301,7 @@ classdef AstroSpec < Component
             end
         end
 
-        function Result = fitMag(ModelSpec, Mag, Family, Bands, Args)
+        function [Result, ScaledBestModelSpec] = fitMag(ModelSpec, Mag, Family, Bands, Args)
             % Fit AstroSpec spectra to observed magnitudes in some bands.
             % Input  : - An AstroSpec object. Each spectra in this object
             %            is regarded as a model spectra that will be fitted
@@ -1314,14 +1323,16 @@ classdef AstroSpec < Component
             %            'Algo' - Algorithm - see astro.spec.synphot
             %                   Default is 'cos'
             % Output : - A structure with the following fields:
-            %            .IndBest - A vector (one element per source).
+            %            .IndBestChi2 - A vector (one element per source).
             %                   For each source this gives the index of the 
-            %                   best fitted spectral template.
+            %                   best fitted (chi2) spectral template.
             %            .BestChi2 - A vector (one per source) of the best
             %                   fitted \chi^2 value.
             %            .BestMeanDiff - A vector (one per source) of the
             %                   best fitted magnitude mean difference
             %                   (normalization).
+            %          - An AstroSpec object with the best fit model
+            %            spectra scaled to match the input magnitudes.
             % Author : Eran Ofek (Sep 2021)
             % Example: Spec = AstroSpec.synspecGAIA('Temp',[4000:100:8000],'Grav',[4.5]);
             %          M = synphot(Spec(10:11),'SDSS',{'g','r','i'}, 'IsOutMat',true); 
@@ -1344,19 +1355,39 @@ classdef AstroSpec < Component
                 error('Number of columns in Magnitude matrix must be equal to the number of bands');
             end
 
-            Result.IndBest      = nan(Nsrc,1);
+            Result.IndBestChi2  = nan(Nsrc,1);
             Result.BestChi2     = nan(Nsrc,1);
             Result.BestMeanDiff = nan(Nsrc,1);
+            Result.IndBestRMS   = nan(Nsrc,1);
+            Result.BestRMS      = nan(Nsrc,1);
 
             SynMagMat = synphot(ModelSpec, Family, Bands, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo, 'IsOutMat',true);
             for Isrc=1:1:Nsrc
+                % Fit mag difference (L2 minimization)                
                 Diff = Mag(Isrc,:) - SynMagMat;
-                MeanDiff = mean(Diff, 2);
-                Chi2 = sum(((Diff - MeanDiff)./Args.MagErr).^2, 2);
-                [Result.BestChi2(Isrc), Result.IndBest(Isrc)] = min(Chi2);
-                Result.BestMeanDiff(Isrc) = MeanDiff(Result.IndBest(Isrc));
+                MeanDiff  = [ones(Nband,1) \ Diff.'].';
+
+                %MeanDiff = mean(Diff, 2);
+                Chi2                 = sum(((Diff - MeanDiff)./Args.MagErr).^2, 2);
+                [Result.BestChi2(Isrc), Result.IndBestChi2(Isrc)] = min(Chi2);
+                Result.BestMeanDiff(Isrc)           = MeanDiff(Result.IndBestChi2(Isrc));
+                AllStd = std(Diff,[],2,'omitnan');
+                [Result.BestRMS(Isrc), Result.IndBestRMS(Isrc)] = min(AllStd);
             end
 
+            if nargout>1
+                % Return also the scaled (by mean diff) best fitted
+                % ModelSpec
+
+                % when switching to non-handle objects - replace this...
+                for I=1:1:numel(Result.IndBestChi2)
+                    ScaledBestModelSpec(I) = ModelSpec(Result.IndBestChi2(I)).copyObject;
+                end
+                % Can't use the next line due to handle-object behavior!!
+                %ScaledBestModelSpec = ModelSpec(Result.IndBestChi2);
+
+                ScaledBestModelSpec = scaleFlux(ScaledBestModelSpec, Result.BestMeanDiff, 'IsMagFactor',true);
+            end
         end
     end
     

@@ -99,7 +99,7 @@ classdef AstroWCS < Component
             % setter for ResFit - will automatically populate related properties
 
             Obj.ResFit  = ResFit;
-            Obj         = tools.struct.copyProp(ResFit, Obj, {'ErrorOnMean','AssymRMS','Ngood','Resid','RefMag'};
+            Obj         = tools.struct.copyProp(ResFit, Obj, {'ErrorOnMean','AssymRMS','Ngood','Resid','RefMag'});
             
         end
     end
