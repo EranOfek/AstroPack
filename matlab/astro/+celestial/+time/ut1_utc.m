@@ -32,7 +32,7 @@ function [UT1mUTC, TblEOP] = ut1_utc(JD, WhereToGet, FillVal)
     end
 
     % load table
-    TblEOP = Ins.readIERS_EOP;
+    TblEOP = Ins.readIERS_EOP(1);
     MJD    = convert.time(JD, 'JD', 'MJD');
 
     UT1mUTC = interp1(TblEOP.MJD, TblEOP.UT1_UTC, MJD, 'linear',NaN);

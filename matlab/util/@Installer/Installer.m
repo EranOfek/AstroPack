@@ -10,83 +10,163 @@
 % I = Installer;  % create installer object
 % I.seeAvailableData      % print a table of all available datasets and description and size
 % I.install               % install all data sets [very large!]
+% I.install({'Time','MinorPlanets'});
 % I.install({'GAIA_SpecTemplate'}); % install specific datasets
 % I.install({'+cats'}); % install specific datasets (and open tar file)
 
 
-classdef Installer < Base
+classdef Installer < Component
     % Installer class
     
     % Properties
     properties (SetAccess = public)
-        InstallationLocation      = [];     
+        DataName                 
+        InstallationLocation
+        SubDir
+        URL
+        Size
+        SearchFile
+        Description
         ConfigFile
-        ConfigStruct
     end
     
     %-------------------------------------------------------- 
     methods % constructor
-        function Obj = Installer(ConfigFileName)
+        function Obj = Installer(DataName)
             % constructor for the Installre class (a utility class for
             % AstroPack installation
             
             arguments 
-                ConfigFileName  = 'Installer.yml';
+                DataName  = [];  % 
             end
+
+            if isnumeric(DataName) && ~isempty(DataName)
+                Obj.DataName = [];
+            else
+                if isempty(DataName)
+                    % load all files
+                    DataName = fieldnames(Obj.Config.Data.Installer);
+                    if isempty(DataName)
+                        error('Installer yml files are not loaded into configuration');
+                    end
+                end
             
-            % populate the ConfigStruct field
-            Obj.ConfigFile = ConfigFileName;
-            
+                Ndn = numel(DataName);
+                ConfigStruct = Obj.Config.Data.Installer;
+                for Idn=1:1:Ndn
+                    Obj(Idn) = Installer(1);
+                    Obj(Idn).DataName             = ConfigStruct.(DataName{Idn}).DataName;
+                    Obj(Idn).InstallationLocation = ConfigStruct.(DataName{Idn}).InstallationLocation;
+                    Obj(Idn).SubDir               = ConfigStruct.(DataName{Idn}).SubDir;
+                    Obj(Idn).URL                  = ConfigStruct.(DataName{Idn}).URL;
+                    Obj(Idn).Size                 = ConfigStruct.(DataName{Idn}).Size;
+                    Obj(Idn).SearchFile           = ConfigStruct.(DataName{Idn}).SearchFile;
+                    Obj(Idn).Description          = ConfigStruct.(DataName{Idn}).Description;
+                end
+            end
             
         end
     end
     
     
     methods % setters/getters
-        function Result = get.InstallationLocation(Obj)
-            % getter for InstallationLocation
-            if isempty(Obj.InstallationLocation)
-                % get from ConfigStruct
-                Result = Obj.ConfigStruct.InstallationLocation;
-                Obj.InstallationLocation = Result;
-            else
-                Result = Obj.InstallationLocation;
-            end
-        end
-        
-        function Obj = set.ConfigFile(Obj, ConfigFileName)
-            % setter for ConfigFile - read config into ConfigStruct prop
-            Obj.ConfigFile   = ConfigFileName;
-            
-            Config = Configuration;
-            FullFileName = sprintf('%s%s%s', Config.Path, filesep, ConfigFileName);
-            
-            Config.loadFile(FullFileName, 'Field',false);
-            Obj.ConfigStruct = Config.Data;
-            clear Config;
-            
-        end
-        
-        function Obj = set.ConfigStruct(Obj, Struct)
-            % setter for ConfigStruct - check validity of properties
-           
-            Ndn = numel(Struct.DataName);
-            Nsd = numel(Struct.SubDir);
-            Nu  = numel(Struct.URL);
-            Ns  = numel(Struct.Size);
-            Nsf = numel(Struct.SearchFile);
-            Nd  = numel(Struct.Description);
-            
-            if Ndn~=Nsd || Ndn~=Nu || Ndn~=Ns || Ndn~=Nsf || Ndn~=Nd
-                error('DataName, SubDir, URL, Size, GetTar, SearchFiule, Description properties in inastaller config files must have the same number of elements');
-            end
-            
-            Obj.ConfigStruct = Struct;
-            
-        end
+    
+       
     end
     
     methods (Static)
+        function installSingle(DataStruct, Args)
+            % Install single DataName (utility function for install)
+            % Input  : - A structure with the DataName, SubDir, URL,
+            %            SearchFile fields fot the data to install
+            % Author : Eran Ofek (Sep 2021)
+        
+            arguments
+                DataStruct
+                Args.Delete(1,1) logical  = true;
+                Args.Npwget               = 10;
+                Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
+            end
+            
+            
+            if ~isunix && ~ismac
+                % assume windows - replace / with \
+                DataStruct.InstellationLocation = strrep(DataStruct.InstallationLocation,'/',filesep);
+                DataStruct.SubDir = strrep(DataStruct.SubDir,'/',filesep);
+            else
+                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation,'\',filesep);
+                DataStruct.SubDir               = strrep(DataStruct.SubDir,'\',filesep);
+            end
+    
+
+            PWD = pwd;
+            cd('~/');
+            mkdir(DataStruct.InstallationLocation);
+            
+            % create dir for instellation
+            cd(sprintf('~%s',filesep));
+            cd(DataStruct.InstallationLocation);
+
+            Parts = regexp(DataStruct.SubDir, filesep, 'split');
+
+            Nparts = numel(Parts);
+            SubDir = '';
+            for Iparts=1:1:Nparts
+                SubDir = sprintf('%s%s%s',SubDir,filesep,Parts{Iparts});
+                mkdir(Parts{Iparts});
+                cd(Parts{Iparts});
+            end        
+        
+            PartsURL = regexp(DataStruct.URL,'/','split');
+            PartsEND = regexp(PartsURL{end},'.','split');
+            if iscell(PartsURL{1})
+                % URL is a cell array of files URL
+                List = DataStruct.URL;
+                FileName = '*';
+            else
+                switch lower(PartsURL{end})
+                    case {'index.html','index.htm'}
+                        % get all files in dir
+
+                        [List, IsDir, FileName] = www.find_urls(DataStruct.URL, 'match', DataStruct.SearchFile);
+                        List     = List(~IsDir);
+                        FileName = FileName(~IsDir);
+                    otherwise
+                        % direct file loading
+                        List     = DataStruct.URL;  % cell
+                        FileName = PartsURL{end};
+                end
+            end
+
+            if numel(List)>0
+                % delete content before reload
+                if Args.Delete
+                    delete('*');
+                end
+                www.pwget(List, Args.wgetPars, Args.Npwget);
+
+
+                pause(5);
+                io.files.files_arrived([], 10);
+                F = dir('*.gz');
+                for I=1:1:numel(F)
+                    gunzip(F(I).name);
+                end
+                F = dir('*.tar');
+                for I=1:1:numel(F)
+                    untar(F(I).name);
+                end
+                try
+                    delete('*.gz');
+                end
+                try
+                    delete('*.tar');
+                end
+            end
+            cd(PWD);
+            
+        end
+        
         function T = readElementsFileJPL(FileName, Type)
             % Read JPL orbital elements file
             % Input  : - File name.
@@ -163,21 +243,35 @@ classdef Installer < Base
             
         end
         
-        function T = readIERS_EOP(FileName)
-            % Read IERS Earth Orientation File 'finals2000A.data.csv'
+        function [T1, T2, T3] = readIERS_EOP(FileInd)
+            % Read all IERS Earth Orientation File 'finals2000A.data.csv'
             %   documentation: http://hpiers.obspm.fr/eoppc/bul/bulb/explanatory.html
             %   http://maia.usno.navy.mil
             %   http://www.iers.org/nn_10968/IERS/EN/DataProducts/EarthOrientationData/eop.html?__nnn=true
             %   x_pole/y_pole:  Celestial Ephemeris Pole (CEP) relative to the International Reference Pole (IRP) are defined as x and y
             %   dPsi/dEps - offset relative to IAU 1980 Theory of Nutation
-            % Input  : - File name to read. Default is 'finals2000A.data.csv'.
-            % Output : - A table containing the file.
+            %       Utilities to use these files are available in the
+            %       celestial.time package.
+            % Input  : - File indices to read [1 2 3]. If not provided read
+            %            all files.
+            % Output : - The 'finals2000A table including
+            %            UT1-UTC, X-pole, Y-pole, dPsi, dEpsilon, etc.
+            %            from 1992 till ~3 months predictions into the future.
+            %          - The EOP_14_C04_IAU1980_one_file_1962-now.txt file.
+            %            Similar to finals, but from 1962 till now.
+            %          - The EOP_C01_IAU2000_1846-now.txt file.
+            %            First 6 columns from 1846 till now, including
+            %            UT1-TAI.
             % Author : Eran Ofek (Sep 2021)
-            % Example: T = Installer.readIERS_EOP
+            % Example: [T1, T2, T3] = Installer.readIERS_EOP
             
             arguments
-                FileName = 'finals2000A.data.csv';
+                FileInd = [1 2 3];
             end
+            
+            Finals   = 'finals2000A.data.csv';
+            EOP_1962 = 'EOP_14_C04_IAU1980_one_file_1962-now.txt';
+            EOP_1846 = 'EOP_C01_IAU2000_1846-now.txt';
             
             %PWD = pwd;
             %I = Installer;
@@ -185,7 +279,35 @@ classdef Installer < Base
             %IndTime = strcmp(I.ConfigStruct.DataName,'Time');
             %cd(I.ConfigStruct.SubDir{IndTime});
             
-            T = readtable(FileName);
+            if any(FileInd==1)
+                T1 = readtable(Finals);
+            else
+                T1 = [];
+            end
+            
+            
+            if any(FileInd==2)
+                T2 = readtable(EOP_1962);
+                ColNames = {'Year','Month','Day','MJD','x','y','UT1_UTC','LOD','dPsi','dEps',      'xErr','yErr',    'UT1_UTCErr','LOD_Err','dPsiErr','dEpsilonErr'};
+                ColUnits = {'',   '',     '',   'day','arcsec','arcsec','s','s','arcsec','arcsec','arcsec','arcsec','s','s','arcsec','arcsec'};
+                T2.Properties.VariableNames = ColNames;
+                T2.Properties.VariableUnits = ColUnits;
+            else
+                T2 = [];
+            end
+            
+            if any(FileInd==3)
+                T3 = readtable(EOP_1846,'ReadVariableNames',false);
+                T3 = T3(:,1:6);
+                ColNames = {'MJD','PM_X','PM_Y','UT1_TAI','DX','DY'};
+                ColUnits = {'day','arcsec','arcsec','s','arcsec','arcsec'};
+                T3.Properties.VariableNames = ColNames;
+                T3.Properties.VariableUnits = ColUnits;
+            else
+                T3 = [];
+            end
+            
+            
         end
 
         function prep_cats(Args)
@@ -269,14 +391,35 @@ classdef Installer < Base
    
 	
     methods % main functions
+        function Ind = search(Obj, DataName)
+            % Search data name in Installer object
+            % Input  : - An Installer object
+            %          - data name to search (e.g., 'Time')
+            %            ir a cell array of data names.
+            % Output : - Index of found data name in Installer object
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Ind = search(I, 'MinorPlanets')
+            %          Ind = search(I, {'Time','MinorPlanets'})
+            
+            if ischar(DataName)
+                DataName = {DataName};
+            end
+            
+            Ind = find(ismember({Obj.DataName}, DataName));
+        end
+            
         function install(Obj, DataName, Args)
             % Install AstroPack data directories from AstroPack repository
-            % Input  : - An iInstaller object.
+            % Input  : - An Installer object.
             %          - A DataName to install (e.g., 'GAIA_SpecTemplate'),
             %            or a cell array of data names. If empty, install
             %            all data names in ConfigStruct.
             %            Default is empty.
             %          * ...,key,val,...
+            %            'DataName' - A DataName to install (e.g., 'GAIA_SpecTemplate'),
+            %                   or a cell array of data names. If empty, install
+            %                   all data names in ConfigStruct.
+            %                   Default is empty.
             %            'Delete' - A logical indicating if to delete
             %                   data before installation.
             %                   Default is true.
@@ -284,117 +427,47 @@ classdef Installer < Base
             %            'wgetPars' - A cell array of additional wget
             %                   arguments. Default is '-q -o /dev/null -U Mozilla --no-check-certificate'.
             % Author : Eran Ofek (Sep 2021)
-            % Example: I = Installer; I.install
+            % Example: I = Installer;
+            %          I.install   % install all
+            %          I(5).install % install the 5th data name: PicklesStellarSpec
+            %          I.install('Time'); % install the Time data name
+            %          I.install({'Time','MinorPlanets'})
+            
             
             arguments
                 Obj
-                DataName                  = [];
+                DataName                  = {};
                 Args.Delete(1,1) logical  = true;
                 Args.Npwget               = 10;
                 Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
             end
 
+            if ischar(DataName)
+                DataName = {DataName};
+            end
+            
+            Nobj = numel(Obj);
             if isempty(DataName)
-                DataName = Obj.ConfigStruct.DataName;
+                Ind = (1:1:Nobj);
             else
-                if ischar(DataName)
-                    DataName = {DataName};
-                end
+                Ind = Obj.search(DataName);
             end
-            
-            if ~isunix && ~ismac
-                % assume windows - replace / with \
-                Obj.InstellationLocation = strrep(Obj.InstallationLocation,'/',filesep);
-                Obj.CoonfigStruct.SubDir = strrep(Obj.ConfigStructSubDir,'/',filesep);
-            else
-                Obj.InstallationLocation = strrep(Obj.InstallationLocation,'\',filesep);
-                Obj.ConfigStruct.SubDir  = strrep(Obj.ConfigStruct.SubDir,'\',filesep);
-            end
-    
-
-            PWD = pwd;
-            cd('~/');
-            mkdir(Obj.InstallationLocation);
-
-            Ndir = numel(DataName);
-            
-            for Idir=1:1:Ndir    
-                % Identify requested data set in config
-                Isel = find(strcmp(DataName{Idir}, Obj.ConfigStruct.DataName));
                 
-                % create dir for instellation
-                cd(sprintf('~%s',filesep));
-                cd(Obj.InstallationLocation);
-
-                Parts = regexp(Obj.ConfigStruct.SubDir{Isel}, filesep, 'split');
-
-                Nparts = numel(Parts);
-                SubDir = '';
-                for Iparts=1:1:Nparts
-                    SubDir = sprintf('%s%s%s',SubDir,filesep,Parts{Iparts});
-                    mkdir(Parts{Iparts});
-                    cd(Parts{Iparts});
-                end        
-        
-                PartsURL = regexp(Obj.ConfigStruct.URL{Isel},'/','split');
-                PartsEND = regexp(PartsURL{end},'.','split');
-                if iscell(PartsURL{1})
-                    % URL is a cell array of files URL
-                    List = Obj.ConfigStruct.URL{Isel};
-                    FileName = '*';
-                else
-                    switch lower(PartsURL{end})
-                        case {'index.html','index.htm'}
-                            % get all files in dir
-
-                            [List,IsDir,FileName] = www.find_urls(Obj.ConfigStruct.URL{Isel},'match', Obj.ConfigStruct.SearchFile{Isel});
-                            List     = List(~IsDir);
-                            FileName = FileName(~IsDir);
-                        otherwise
-                            % direct file loading
-                            List     = Obj.ConfigStruct.URL(Isel);  % cell
-                            FileName = PartsURL{end};
-                    end
-                end
-
-                if numel(List)>0
-                    % delete content before reload
-                    if Args.Delete
-                        delete('*');
-                    end
-                    www.pwget(List, Args.wgetPars, Args.Npwget);
-                    
-                    
-                    pause(5);
-                    io.files.files_arrived([], 10);
-                    F = dir('*.gz');
-                    for I=1:1:numel(F)
-                        gunzip(F(I).name);
-                    end
-                    F = dir('*.tar');
-                    for I=1:1:numel(F)
-                        untar(F(I).name);
-                    end
-                    try
-                        delete('*.gz');
-                    end
-                    try
-                        delete('*.tar');
-                    end
-                end
+            for I=1:1:numel(Ind)
+                Iobj = Ind(I);
+                Installer.installSingle(Obj(Iobj), 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
             end
-            cd(PWD);
         end
         
         function Result = seeAvailableData(Obj)
             % print a table of available data sets
             % Example: I = Installer; I.seeAvailableData
             
-            Result = cell2table([Obj.ConfigStruct.DataName(:), ...
-                   Obj.ConfigStruct.SubDir(:), ...
-                   Obj.ConfigStruct.Size(:), ...
-                   Obj.ConfigStruct.Description(:),...
-                   Obj.ConfigStruct.URL(:)], 'VariableNames',{'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'});
+            Result = cell2table([{Obj.DataName}', ...
+                   {Obj.SubDir}', ...
+                   {Obj.Size}', ...
+                   {Obj.Description}',...
+                   {Obj.URL}'], 'VariableNames',{'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'});
             
         end
 
@@ -407,11 +480,11 @@ classdef Installer < Base
             % Author : Eran Ofek (Sep 2021)
             % Example: I = Insatller; I.getDataDir('Time')
 
-            Ind = find(strcmp(Obj.ConfigStruct.DataName, Name));
+            Ind = search(Obj, Name);
             if isempty(Ind)
                 Dir = [];
             else
-                Dir  = sprintf('%s%s%s' ,Obj.ConfigStruct.InstallationLocation, filesep, Obj.ConfigStruct.SubDir{Ind});
+                Dir  = sprintf('%s%s%s' ,Obj(Ind).InstallationLocation, filesep, Obj(Ind).SubDir);
             end
         end
 
