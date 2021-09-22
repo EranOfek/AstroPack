@@ -13,7 +13,7 @@ function Result = unitTest()
     Dec    = 1;     % rad
     Radius = 1000;  % arcsec
     % get catalog
-    Cont   = true;
+    LocalDisk   = false;
     try
         Ref    = catsHTM.cone_search('GAIAEDR3', RA, Dec, Radius, 'OutType','AstroCatalog');
     catch
@@ -52,7 +52,7 @@ function Result = unitTest()
     RAD = 180./pi;
     %CatG = catsHTM.cone_search('GAIAEDR3', 149.1026601./RAD, 69.4547688./RAD, 1400, 'OutType','AstroCatalog');
     
-    if Cont
+    if ~LocalDisk
         % if GAIA-EDR3 catalog is available locally
         [Result, AI.CatData, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
         AI = AI.propagateWCS;
@@ -66,10 +66,10 @@ function Result = unitTest()
     else
         % GAIA catalog is not available locally
         load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
-        Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
+        [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
         
         % test with bad initial conditions
-        [Result] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);
+        [Result, AI] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);
         
     end
     
