@@ -192,12 +192,12 @@ if isempty(InPar.CalibFilterFamily) || isempty(InPar.CalibFilter) || isempty(InP
     InPar.CalibMagSys       = InPar.MagSys;
 end
 
-[Mag,Flag] = astro.spec.synphot(TargetSpec,InPar.CalibFilterFamily,InPar.CalibFilter,InPar.CalibMagSys);
+[Mag,Flag] = astro.spec.synthetic_phot(TargetSpec,InPar.CalibFilterFamily,InPar.CalibFilter,InPar.CalibMagSys);
 Factor    = 10.^(-0.4.*(Mag-InPar.Mag));
 TargetSpec(:,2) = TargetSpec(:,2)./Factor;
 
 % magnitude in requested band
-[MagInBand,Flag] = astro.spec.synphot(TargetSpec,InPar.FilterFamily,InPar.Filter,InPar.MagSys);
+[MagInBand,Flag] = astro.spec.synthetic_phot(TargetSpec,InPar.FilterFamily,InPar.Filter,InPar.MagSys);
 
 
 
