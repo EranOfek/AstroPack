@@ -241,28 +241,29 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         if isa(Obj, 'AstroImage')
             Cat = Obj(Iobj).CatData.copyObject;
             % Args.WCS order of priority:
-            if isempty(Args.WCS)
-                % attempt to get WCS from WCS or HeaderData fields
-                if Obj(Iobj).WCS.Success
-                    % good WCS found - use it
-                    WCS = Obj(Iobj).WCS.copyObject;
-                    Nwcs = 1;
-                else
-                    % get WCS from header
-                    WCS = AstroWCS.header2wcs(Obj(Iobj).HeaderData);
-                    Nwcs = 1;
-                end
+            if isempty(Args.Header)
+                Header = Obj(Iobj).Header;
             else
-                WCS = Args.WCS;
+                if isempty(Args.Header)
+                    Header = [];
+                else
+                    Header = Args.Header(min(Nhead, Iobj));
+                end
+            end
+            if isempty(Args.WCS)
+                WCS    = Obj(Iobj).WCS;
+            else
+                if isempty(Args.WCS)
+                    WCS = [];
+                else
+                    WCS    = Args.WCS(min(Nwcs, Iobj));
+                end
             end
         elseif isa(Obj, 'AstroCatalog')
             Cat = Obj(Iobj).copyObject;
             % Args.WCS order of priority:
-            if isempty(Args.WCS)
-                WCS = [];
-            else
-                WCS = Args.WCS;
-            end
+            Header = Args.Header(min(Nhead, Iobj));
+            WCS    = Args.WCS(min(Nwcs, Iobj));
         else
             error('Unsupported input class. First input must be AstroCatalog or AstroImage');
         end
@@ -272,6 +273,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         [Ycat,~,IndCatY] = getColDic(Cat, Args.CatColNamesY);
 
         % Args.WCS order of priority:
+        
         
 %         if ~isempty(Args.Header)
 %             % convert AstroHeader to AstroWCS
