@@ -1087,15 +1087,17 @@ classdef AstroSpec < Component
             %          * ...,key,val,...
             %            'MagSys' - Mag system: ['AB'] | 'Vega'
             %            'Device' - Device ['photon'] | 'bol'
-            %            'Algo' - Algorithm - see astro.spec.synphot
-            %                   Default is 'cos'
-            %            'Ebv' - E_{B-V} [mag] extinction to apply to
-            %                   spectra. Default is 0.
-            %            'R' - R_V to use for extinction. Default is 3.08.
+            %            'SpecFluxUnits' - Default is 'cgs/A'
+            %            'SpecWaveUnits' - Default is 'A'
+            %            'InterpMethod' - Default is 'linear'.
             %            'IsOutMat' - A logical indicating if the output is
             %                   structure array (true) or matrix (false) of
             %                   [Spec, Band].
             %                   Default is false.
+            %               Not supported yet
+            %            'Ebv' - E_{B-V} [mag] extinction to apply to
+            %                   spectra. Default is 0.
+            %            'R' - R_V to use for extinction. Default is 3.08.
             % Output : - A structure array of syntheic magnitudes.
             %            Element per object element, and ach filter is
             %            stored in a field with its name.
@@ -1118,10 +1120,13 @@ classdef AstroSpec < Component
                 FilterName         % numer in Result
                 
                 Args.MagSys   = 'AB';
-                Args.Device   = 'photon';
-                Args.Algo     = 'cos';
-                Args.Ebv      = 0;
-                Args.R        = 3.08;
+                Args.Device   = 'photon';   % 'bol' | 'photon'
+                Args.SpecFluxUnits        = 'cgs/A';
+                Args.SpecWaveUnits        = 'A';
+                Args.InterpMethod         = 'linear';
+                %Args.Algo     = 'cos';
+                %Args.Ebv      = 0;
+                %Args.R        = 3.08;
                 Args.IsOutMat logical  = false;
             end
            
@@ -1134,7 +1139,13 @@ classdef AstroSpec < Component
                 Spec = [Obj(Iobj).Wave(:), Obj(Iobj).Flux(:)];
                 
                 for Iname=1:1:Nname
-                    [Mag, FiltFlag, FilterWave(Iname)] = astro.spec.synphot(Spec, FilterCell{Iname}, [], Args.MagSys, Args.Algo, Args.Ebv, Args.R, Args.Device);
+                    [Mag, FiltFlag, FilterWave(Iname)] = astro.spec.synthetic_phot(Spec, FilterCell{Iname}, [], Args.MagSys,...
+                                                                                'Device',Args.Device,...
+                                                                                'SpecFluxUnits',Args.SpecFluxUnits,...
+                                                                                'SpecWaveUnits',Args.SpecWaveUnits,...
+                                                                                'InterpMethod',Args.InterpMethod);
+
+                    
                     Result(Iobj).(Name{Iname})     = Mag;
                     Flag(Iobj).(Name{Iname})       = FiltFlag;
                 end
