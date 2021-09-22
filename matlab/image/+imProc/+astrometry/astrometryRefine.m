@@ -230,40 +230,35 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     % Case 2. Use AstroWCS
     % Case 3. Use AstroHeader
     
+    % If Header is provided then convert to WCS
+    if ~isempty(Args.Header)
+        Args.WCS = AstroWCS.header2wcs(Args.Header);
+    end
+    
     Nobj  = numel(Obj);
-    Nhead = numel(Args.Header);
     Nwcs  = numel(Args.WCS);
     CooFromBoundingCircle = false;
     AstrometricCat        = AstroCatalog(size(Obj));  % []
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
+        Iwcs = min(Iobj, Nwcs);
         
         if isa(Obj, 'AstroImage')
             Cat = Obj(Iobj).CatData.copyObject;
             % Args.WCS order of priority:
-            if isempty(Args.Header)
-                Header = Obj(Iobj).Header;
-            else
-                if isempty(Args.Header)
-                    Header = [];
-                else
-                    Header = Args.Header(min(Nhead, Iobj));
-                end
-            end
             if isempty(Args.WCS)
-                WCS    = Obj(Iobj).WCS;
+                % get WCS from AstroImage
+                WCS = Obj(Iobj).WCS;
             else
-                if isempty(Args.WCS)
-                    WCS = [];
-                else
-                    WCS    = Args.WCS(min(Nwcs, Iobj));
-                end
+                WCS = Args.WCS(Iwcs);
             end
         elseif isa(Obj, 'AstroCatalog')
             Cat = Obj(Iobj).copyObject;
-            % Args.WCS order of priority:
-            Header = Args.Header(min(Nhead, Iobj));
-            WCS    = Args.WCS(min(Nwcs, Iobj));
+            if isempty(Args.WCS)
+                WCS = [];
+            else
+                WCS = Args.WCS(Iwcs);
+            end
         else
             error('Unsupported input class. First input must be AstroCatalog or AstroImage');
         end
@@ -271,32 +266,20 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         % get X/Y columns from catalog
         [Xcat,~,IndCatX] = getColDic(Cat, Args.CatColNamesX);
         [Ycat,~,IndCatY] = getColDic(Cat, Args.CatColNamesY);
-
-        % Args.WCS order of priority:
-        
-        
-%         if ~isempty(Args.Header)
-%             % convert AstroHeader to AstroWCS
-%             % populate Args.WCS
-%             Ihead = min(Iobj, Nhead);
-%             Args.WCS = AstroWCS.header2wcs(Args.Header(Ihead));
-%             Nwcs     = 1;
-%         end
         
         if isempty(WCS)
             % assume RA/Dec are available in AstroCatalog
             [SrcRA, SrcDec] = getLonLat(Cat, 'rad');
         else
             % Convert X/Y to RA/Dec using AstroWCS
-            Iwcs = min(Iobj, Nwcs);
-            [SrcRA, SrcDec] = WCS(Iwcs).xy2sky(Xcat, Ycat, 'OutUnits','rad',...
-                                                           'includeDistortion',Args.IncludeDistortions);
+            [SrcRA, SrcDec] = WCS.xy2sky(Xcat, Ycat, 'OutUnits','rad',...
+                                                     'includeDistortion',Args.IncludeDistortions);
             % add approximate RA, Dec to new copy of catalog
             Cat = insertCol(Cat, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
         end
     
         if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
-            if isempty(Args.WCS)
+            if isempty(WCS)
                 % estimate RA/Dec of center of catalog from catalog itself
                 CircleUnits         = 'deg';
                 [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','pix','OutUnits',CircleUnits); 
@@ -306,7 +289,6 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
             else
                 % estimate from image center and WCS
                 error('not yet available');
-                
             end
             CooFromBoundingCircle = true;
         else
