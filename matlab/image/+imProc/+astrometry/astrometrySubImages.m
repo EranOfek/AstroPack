@@ -9,7 +9,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
     % Example:
    
     arguments
-        Obj                    % AstroImage array with catalogs
+        Obj AstroImage                    % AstroImage array with catalogs
         Args.CCDSEC(:,4)
         Args.CenterXY                            = [];  % [X,Y] pix Center of Full image, If empty, calculate from CCDSEC
         Args.RA
@@ -80,7 +80,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             % FFU: estimate RA/Dec for center of image
             
             
-            [ResultFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim).CatData,...
+            [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim),...
                                                                                                      'RA',Args.RA,...
                                                                                                      'Dec',Args.Dec,...
                                                                                                      'CooUnits',Args.CooUnits,...
@@ -89,7 +89,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
                                                                                                      Args.astrometryCoreArgs{:});
             
             % populate the WCS in the AstroImage
-            ResultObj(Iim).WCS = ResultFit(Iim).WCS;
+            %ResultObj(Iim).WCS = ResultFit(Iim).WCS;
             
             ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
             ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
@@ -97,7 +97,8 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
             
             % check qulity of solution
-            [Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            Sucess(Iim) = ResultFit(Iim).WCS.Success;
+            %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
            
         else
             % run astrometryRefine
@@ -163,7 +164,7 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
 %             ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
                         
             
-            [ResultRefineFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim).CatData,...
+            [ResultRefineFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
                                                                                                        'WCS',RefWCS, ...
                                                                                                        'RA',RA,...
                                                                                                        'Dec',Dec,...
@@ -173,13 +174,13 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
             
             % check qulity of solution
             %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
             
-            Sucess(Iim) = true;
             %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
             
         end
     
-    Sucess
+    
     end
     
 end

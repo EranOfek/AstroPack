@@ -40,67 +40,66 @@ function Result = unitTest()
         %AI.crop([500 1500 1500 2500]);   % image saved as FITS_Cropped.fits
     end
     
-    % test on real image
+    
+    
+    % test on real image distributed with AstroPack
     AI = AstroImage('PTF_Cropped.fits');
-
     % detect sources in image
     imProc.background.background(AI,'VarFun','fromback');
     imProc.sources.findMeasureSources(AI);
     %ds9(AI)
     %ds9.plot(AI.CatData.Catalog(:,1:2))
-
     RAD = 180./pi;
     %CatG = catsHTM.cone_search('GAIAEDR3', 149.1026601./RAD, 69.4547688./RAD, 1400, 'OutType','AstroCatalog');
+    
     if Cont
+        % if GAIA-EDR3 catalog is available locally
+        [Result, AI.CatData, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
+        AI = AI.propagateWCS;
+        
+        % test with bad initial conditions
         [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
+        
+        [Result, AI, AstrometricCat] = imProc.astrometry.astrometryCore(AI, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
+        
         % save AstrometricCat_PTF_Cropped.mat AstrometricCat
+    else
+        % GAIA catalog is not available locally
+        load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
+        Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
+        
+        % test with bad initial conditions
+        [Result] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);
+        
     end
     
     % perform offline testing - i.e., GAIA catalog is not available via
     % catsHTM
-    load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
-    
-    Result = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
-   
     Out = imProc.astrometry.addCoordinates2catalog(AI,'WCS',Result.WCS,'UpdateCoo',true);
-    
-    
+        
     [SucessFlag, QualitySummary] = imProc.astrometry.assessAstrometricQuality(Result.ResFit)
-    
-    [Result,~,AI.CatData] = imProc.astrometry.astrometryCore(AI.CatData, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
-    
-    % test bad initial conditions
-    if Cont
-        [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
-    end
-    % re use existing AstrometricCat
-    [Result] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);
-    % automatically find CatRadius
-    [Result] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat, 'CatRadius',[]);
-    % work on two catalogs
-    if Cont
-        [Result, AstrometricCat] = imProc.astrometry.astrometryCore([AI.CatData, AI.CatData], 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
-    end
-    
-    % timing
-    %tic;
-    %for I=1:1:30
-    %    [Result, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
-    %end
-    %toc
-    
     
     % astrometryCheck  
     R = imProc.astrometry.astrometryCheck(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat)
+    
     
     % astrometryRefine
     % 1. why RR.ResFit rms are (seems) in arcsec??? or else, while in Result they are
     % in deg
     % TODO: go over code - note that the match is done in RA/Dec - compare
     % to Core
-    RR = imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
+    RR = imProc.astrometry.astrometryRefine(AI, 'WCS',[], 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
     
+    AI = AstroImage('PTF_Cropped.fits');
+    % detect sources in image
+    imProc.background.background(AI,'VarFun','fromback');
+    imProc.sources.findMeasureSources(AI);
+    
+    [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.01, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
+    
+    AI.WCS = AstroWCS.header2wcs(AI.HeaderData);
+    RR = imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',AI.WCS, 'RA',149.1026601, 'Dec',69.4547688);
     
     
     AI = AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');

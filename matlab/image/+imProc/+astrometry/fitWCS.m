@@ -1,4 +1,4 @@
-function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg, Args)
+function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg, Args)
     % Perform the Tran2D.fitAstrometricTran and prepare the WCS info
     %   This is an auxilary function that performs the fitting stage
     %   between an astrometric catalog and an image catalog, and return the
@@ -51,6 +51,9 @@ function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Dec
     %            'InterpMethod' - Interpolation method. Default is 'linear'.
     %            'ThresholdSigma' - Threshold in sigmas (std) for flagging good
     %                   data. Default is 3.
+    %            'TestNbin' - Number of binx in each dimensions, when
+    %                   counting the number of good sources as a function of
+    %                   position in the image. Default is 3.
     % Output : - The Tran2D object with the fitted transformations
     %          - (ParWCS) A structure with some of the parameters required
     %            in order to build the WCS.
@@ -86,7 +89,10 @@ function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Dec
         Args.FunStd
         Args.InterpMethod
         Args.ThresholdSigma
-        
+        Args.TestNbin             = 3;
+        Args.RegionalMaxMedianRMS = 1;     % arcsec OR pix?
+        Args.RegionalMaxWithNoSrc = 0;
+        Args.MaxErrorOnMean       = 0.05;  % arcsec OR pix?
     end
     ARCSEC_DEG = 3600;
 
@@ -200,8 +206,23 @@ function [Tran, ParWCS, ResFit] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Dec
             error('Unknown TranMethod option');
     end
 
-
+    ResFit.SrcX  = Xcat + Args.ImageCenterXY(1);
+    ResFit.SrcY  = Ycat + Args.ImageCenterXY(2);
     
+    if nargout>3
+        % Generate an AstroWCS - doesnt work for the tran2d option
+        KeyValWCS = namedargs2cell(ParWCS);
+        WCS = AstroWCS.tran2wcs(Tran, KeyValWCS{:});
+        WCS.ResFit   = ResFit;
+        
+        % sucess
+        WCS = populateSucess(WCS, 'TestNbin',Args.TestNbin,...
+                                  'RegionalMaxMedianRMS',Args.RegionalMaxMedianRMS,...
+                                  'RegionalMaxWithNoSrc',Args.RegionalMaxWithNoSrc,...
+                                  'MaxErrorOnMean',Args.MaxErrorOnMean);
+      
+        
+    end
     
 end
     

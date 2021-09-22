@@ -890,6 +890,69 @@ classdef AstroImage < Component
             
         end
         
+        function Obj = propagateWCS(Obj, Args)
+            % Given An AstroImage with WCS property, propagate it to the header and catalog
+            % Input  : - An AstroImage object with populated WCS.
+            %          * ...,key,val,...
+            %            'OutCatCooUnits' - Units of RA/Dec added to catalog.
+            %                   Default is 'deg'.
+            %            'OutCatColRA' - RA Column name added to catalog.
+            %                   Default is 'RA'.
+            %            'OutCatColDec' - Dec Column name added to catalog.
+            %                   Default is 'Dec'.
+            %            'OutCatColPos' - Position of RA/Dec columns added to catalog.
+            %                   Default is Inf.
+            %            'OnlyIfSuccess' - Propagate WCS to header and
+            %                   catalog only if WCS.Success==true.
+            %                   Default is true.
+            %            'UpdateCat' - Update catalog. Default is true.
+            %            'UpdateHead' - Update header. Default is true.
+            % Output - An AstroImage object with the Catalog and Header
+            %          updated with the WCS information.
+            % Author : Eran Ofek (Sep 2021)
+            
+            arguments
+                Obj
+                
+                Args.OutCatCooUnits             = 'deg';
+                Args.OutCatColRA                = 'RA';
+                Args.OutCatColDec               = 'Dec';
+                Args.OutCatColPos               = Inf;
+                Args.OnlyIfSuccess logical      = true;  % propogate only if Success=true
+                Args.UpdateCat logical          = true;
+                Args.UpdateHead logical         = true;
+            end
+            
+            
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Args.OnlyIfSuccess
+                    Propagate = Obj(Iobj).WCS.Success;
+                else
+                    Propagate = true;
+                end
+                        
+                if Propagate
+                    % update the Obj with the new CatData:
+                    if Args.UpdateCat
+                        XY = getXY(Obj(Iobj).CatData);
+                        [ObjSrcRA, ObjSrcDec] = xy2sky(Obj(Iobj).WCS, XY(:,1), XY(:,2),...
+                                                                      'OutUnits',Args.OutCatCooUnits);
+                        Obj(Iobj).CatData = insertCol(Obj(Iobj).CatData, [ObjSrcRA, ObjSrcDec],...
+                                                      Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                    end
+
+                    if Args.UpdateHead
+                        % add WCS kesy to Header
+                        Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                    end
+                end
+            end
+           
+            
+        end
+        
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
         end

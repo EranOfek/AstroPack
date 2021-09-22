@@ -192,6 +192,11 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.OutCatColDec                 = 'Dec';
         Args.OutCatColPos                 = Inf;
         
+        Args.TestNbin             = 3;
+        Args.RegionalMaxMedianRMS = 1;     % arcsec OR pix?
+        Args.RegionalMaxWithNoSrc = 0;
+        Args.MaxErrorOnMean       = 0.05;  % arcsec OR pix?
+        
         Args.CatColNamesX                 = AstroCatalog.DefNamesX;
         Args.CatColNamesY                 = AstroCatalog.DefNamesY;
         Args.CatColNamesMag               = AstroCatalog.DefNamesMag;
@@ -422,25 +427,24 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                        'InterpMethod',Args.InterpMethod,...
                                                        'ThresholdSigma',Args.ThresholdSigma);
         
-        
-               %ParWCS.CD = ParWCS.CD; % .* Args.Scale; % NOT GOOD ENOUGH!!!! need to rescale also the PV?!
-               Result(Iobj).ParWCS(Isol) = ParWCS;
+                Result(Iobj).ParWCS(Isol) = ParWCS;
                
-               
-               % ResQuality
-               % Calculate the rms as a function of position
-               Xorig = Xcat+Result.ImageCenterXY(1);
-               Yorig = Ycat+Result.ImageCenterXY(2);
-               [BinN, BinMean, BinMedian] = tools.math.stat.bin2dFun(Xorig, Yorig, ResFit.Resid.*3600, 'Step',256);
-               Result(Iobj).ResQuality.Xorig      = Xorig;
-               Result(Iobj).ResQuality.Yorig      = Yorig;
-               Result(Iobj).ResQuality.Resid      = ResFit.Resid.*ARCSEC_DEG;
-               Result(Iobj).ResQuality.ResidX     = ResFit.ResidX.*ARCSEC_DEG;
-               Result(Iobj).ResQuality.ResidY     = ResFit.ResidY.*ARCSEC_DEG;
-               Result(Iobj).ResQuality.BinN       = BinN;
-               Result(Iobj).ResQuality.BinMean    = BinMean;
-               Result(Iobj).ResQuality.BinMedian  = BinMedian;
-               Result(Iobj).ResQuality.Nmatch     = sum(~isnan(ResFit.ResidX));
+%                
+%                
+%                % ResQuality
+%                % Calculate the rms as a function of position
+%                Xorig = Xcat+Result.ImageCenterXY(1);
+%                Yorig = Ycat+Result.ImageCenterXY(2);
+%                [BinN, BinMean, BinMedian] = tools.math.stat.bin2dFun(Xorig, Yorig, ResFit.Resid.*3600, 'Step',256);
+%                Result(Iobj).ResQuality.Xorig      = Xorig;
+%                Result(Iobj).ResQuality.Yorig      = Yorig;
+%                Result(Iobj).ResQuality.Resid      = ResFit.Resid.*ARCSEC_DEG;
+%                Result(Iobj).ResQuality.ResidX     = ResFit.ResidX.*ARCSEC_DEG;
+%                Result(Iobj).ResQuality.ResidY     = ResFit.ResidY.*ARCSEC_DEG;
+%                Result(Iobj).ResQuality.BinN       = BinN;
+%                Result(Iobj).ResQuality.BinMean    = BinMean;
+%                Result(Iobj).ResQuality.BinMedian  = BinMedian;
+%                Result(Iobj).ResQuality.Nmatch     = sum(~isnan(ResFit.ResidX));
                
                %plot(Xorig, ResFit.Resid.*3600,'.')
                %plot(Yorig, ResFit.Resid.*3600,'.')
@@ -452,13 +456,13 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 Result(Iobj).ResFit(Isol)     = ResFit;
 
                 
-                %
-                Step = 10;
-                CXY = Result(Iobj).ImageCenterXY;
-                VecX = (-CXY(1):Step:CXY(1));
-                VecY = (-CXY(2):Step:CXY(2));
-                [MatX, MatY] = meshgrid(VecX, VecY);
-                
+%                 %
+%                 Step = 10;
+%                 CXY = Result(Iobj).ImageCenterXY;
+%                 VecX = (-CXY(1):Step:CXY(1));
+%                 VecY = (-CXY(2):Step:CXY(2));
+%                 [MatX, MatY] = meshgrid(VecX, VecY);
+%                 
                 %[x,y]=backward(Result(Iobj).Tran(1),[MatX(:), MatY(:)]);
                 
             end
@@ -467,21 +471,26 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             %[Result(Iobj).Res.RMS]
             Result(Iobj).ErrorOnMean = [Result(Iobj).ResFit.AssymRMS_mag]./sqrt([Result(Iobj).ResFit.Ngood]);
             [~,Result(Iobj).BestInd] = min(Result(Iobj).ErrorOnMean);
-
-            % Generate AstroWCS for best solution
-            StructWCS = Result(Iobj).ParWCS(Result(Iobj).BestInd);
-            KeyValWCS = namedargs2cell(StructWCS);
-            Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran(Result(Iobj).BestInd), KeyValWCS{:});
+            Ibest = Result(Iobj).BestInd;
             
+            % Generate AstroWCS for best solution
+            StructWCS = Result(Iobj).ParWCS(Ibest);
+            KeyValWCS = namedargs2cell(StructWCS);
+            Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran(Ibest), KeyValWCS{:});
+            
+            
+            Result(Iobj).WCS.ResFit   = Result(Iobj).ResFit(Ibest);
+            Result(Iobj).WCS          = populateSucess(Result(Iobj).WCS, 'TestNbin',Args.TestNbin,...
+                                                                         'RegionalMaxMedianRMS',Args.RegionalMaxMedianRMS,...
+                                                                         'RegionalMaxWithNoSrc',Args.RegionalMaxWithNoSrc,...
+                                                                         'MaxErrorOnMean',Args.MaxErrorOnMean);
+
+                        
             % add RA/Dec to the catalog
             if nargout>1
+                % update RA/Dec in catalog
                 [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
-                % Obj(Iobj).WCS = Result(Iobj).WCS;
-                % add WCS keys to header
-                % Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
-                
-                % update RA/Dec on catalog
-                Cat.insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
+                Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
                 
                 % update the Obj with the new CatData:
                 if isa(Obj, 'AstroImage')

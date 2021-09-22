@@ -58,6 +58,9 @@ classdef AstroWCS < Component
         Ngood                  = NaN;    % number of good matches used for the solution
         Resid                  = [];
         RefMag                 = [];
+        RefColor               = [];
+        SrcX                   = [];
+        SrcY                   = [];
         ResFit                 = [];     % structure with additional information. % setter will attempt to populate the other properties
     end
     
@@ -99,7 +102,9 @@ classdef AstroWCS < Component
             % setter for ResFit - will automatically populate related properties
 
             Obj.ResFit  = ResFit;
-            Obj         = tools.struct.copyProp(ResFit, Obj, {'ErrorOnMean','AssymRMS','Ngood','Resid','RefMag'});
+            Obj         = tools.struct.copyProp(ResFit, Obj, {'ErrorOnMean','AssymRMS','Ngood','Resid','RefMag','SrcX','SrcY'});
+            
+            % populate the sucess flag
             
         end
     end
@@ -146,6 +151,44 @@ classdef AstroWCS < Component
              end            
         end        
         
+        function Obj = populateSucess(Obj, Args)
+            % Populate the sucess flag in the AstroWCS object
+            %   The success flag indicate if the WCS solution and residuals
+            %   are reasnoble.
+            % Input  : - An AstroWCS object (single element)
+            %          * ...,key,val,...
+            %            'TestNbin' - Number of bins in each dim of the 2D hist
+            %                   by which to calculate the regional
+            %                   residuals. Default is 3.
+            %            'RegionalMaxMedianRMS' - Maximal regional RMS
+            %                   [pix/arcsec???]. Default is 1
+            %            'RegionalMaxWithNoSrc' - Max number of regions
+            %                   with less than 2 matches. Default is 0.
+            %            'MaxErrorOnMean' - Max error on th mean.
+            %                   [pix/arcsec???]. Default is 0.05.
+            % Output : - An AstroWCS object with the Success property
+            %            populated.
+            % Author : Eran Ofek (Sep 2021)
+            
+            arguments
+                Obj(1,1)
+                Args.TestNbin                 = 3;
+                Args.RegionalMaxMedianRMS     = 1;     % arcsec OR pix?
+                Args.RegionalMaxWithNoSrc     = 0;
+                Args.MaxErrorOnMean           = 0.05;  % arcsec OR pix?
+            end
+            ARCSEC_DEG = 3600;
+            
+            % sucess
+            ImSize = min(range(Obj.ResFit.SrcX), range(Obj.ResFit.SrcY));
+            Step   = ImSize./Args.TestNbin;
+
+            [BinN, ~, BinMedian] = tools.math.stat.bin2dFun(Obj.ResFit.SrcX, Obj.ResFit.SrcY, Obj.ResFit.Resid.*ARCSEC_DEG, 'Step',Step);
+
+            Obj.Success = max(BinMedian,[],'all') < Args.RegionalMaxMedianRMS && ...
+                          sum(BinN<2,'all') <= Args.RegionalMaxWithNoSrc && ...
+                          Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+        end
     end
 
     methods   % Functions to construct AstroWCS from AstroHeader
@@ -938,6 +981,9 @@ classdef AstroWCS < Component
 
              % populate proj Meta
             Obj.populate_projMeta;
+            
+            % assume header solution is good
+            Obj.Success = true;
         end
                 
         function [radesys,equinox] =read_radesys_equinox(Header)
