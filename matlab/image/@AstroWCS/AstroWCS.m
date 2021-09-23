@@ -6,6 +6,8 @@
 %       Calabretta & Greisen 2002, \aap, 395, 1077. doi:10.1051/0004-6361:20021327
 % Currently supporting only Proj types: TAN, TAN-SIP, TPV
 % Currently not supporting WCSAXES>2 
+%
+% TODO: modify tran2wcs to work with arrays. update unittest to check header2wcs with arrays
 
 classdef AstroWCS < Component
     % Component should contain:
