@@ -2,7 +2,7 @@ InstallationLocation : '~/matlab/data'
 # The following are cell arrays of entry per dataset
 DataName             : 'Atmosphere'
 SubDir               : 'SolarSystem/Atmosphere'
-URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/Atmosphere/Atmosphere.tar']
+URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Atmosphere/Atmosphere.tar']
 Size                 : 0.09
 SearchFile           : ''
 Description          : 'Earth Atmosphere and Extinction'
