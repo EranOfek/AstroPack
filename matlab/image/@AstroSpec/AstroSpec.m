@@ -648,6 +648,84 @@ classdef AstroSpec < Component
 
         end
 
+        function Trans = atmosphericExtinction(File, Args)
+            % Return Atmospheric extinction
+            %   The extinction im mag/transmission is provided in the Flux
+            %   field.
+            % Input  : - A file name from which to read transmission.
+            %            If empty, will return list of available files (in
+            %            dir-like output).
+            %            Options include: 'VLT' | 'KPNO' | 'SNfactory'
+            %            Default is 'VLT'.
+            %          * ...,key,val,...
+            %            'AM' - AirMass in which to return extinction.
+            %                   Default is 1.
+            %            'Wave' - Wavelength grid [Ang] in which to return the
+            %                   output. If empty, will use default.
+            %                   Default is [].
+            %            'InterpMethod' - Interpolation method.
+            %                   Default is 'linear'.
+            %            'OutType' - ['AstroSpec'] | 'mat'.
+            %            'OutUnits' -  ['mag'] | 'trans'
+            %                   'trans' is transmission.
+            % Output : - Extinction as a function of wavelength.
+            %            [Wave(Ang), Extinction(mag/trans)].
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Trans = AstroSpec.atmosphericExtinction([])
+            %          Trans = AstroSpec.atmosphericExtinction
+            %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',2,'OutUnits','trans')
+            %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',2,'OutUnits','trans','OutType','mat')
+           
+            arguments
+                File                  = 'VLT';    % [] - show all; 'KPNO' | 'SNfactory' | 'VLT'
+                Args.AM               = 1;
+                Args.Wave             = [];       % [] - use original wave grid
+                Args.InterpMethod     = 'linear';
+                Args.OutType          = 'AstroSpec';  % 'astrospec' | 'mat'
+                Args.OutUnits         = 'mag';    % 'mag' | 'trans'
+            end
+            DataName = 'Atmosphere';
+            
+            Ins = Installer;
+            if isempty(File)
+                Trans = Ins.getFilesInDataDir(DataName);
+            else
+                [Files, Dir] = Ins.getFilesInDataDir(DataName);
+                PWD = pwd;
+                cd(Dir);
+                
+                Ind   = contains({Files.name}, File);
+                Data = io.files.load2(Files(Ind).name);  % [Wave(Ang), Extinc(Mag)]
+                
+                if ~isempty(Args.Wave)
+                    % interpolate transission into a new grid
+                    Data = [Args.Wave(:), interp1(Data(:,1), Data(:,2), Args.Wave(:), Args.InterpMethod)];
+                end
+                
+                % apply AirMass
+                if Args.AM~=1
+                    Data(:,2) = Data(:,2).*Args.AM;
+                end
+                
+                switch lower(Args.OutUnits)
+                    case 'mag'
+                        % do nothing
+                    case 'trans'
+                        Data(:,2) = 10.^(-0.4.*Data(:,2));
+                    otherwise
+                        error('Unknown OutUnits option');
+                end
+                
+                switch lower(Args.OutType)
+                    case 'mat'
+                        Trans = Data;
+                    case 'astrospec'
+                        Trans = AstroSpec({Data});
+                    otherwise
+                        error('Unknown OutType option');
+                end
+            end
+        end
     end
     
     methods  % resampling, sort, interpolation
