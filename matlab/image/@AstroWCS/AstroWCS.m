@@ -913,7 +913,7 @@ classdef AstroWCS < Component
 
    %======== Functions to construct AstroWCS from AstroHeader =========
         
-        function Obj = header2wcs(AH)
+        function Result = header2wcs(AH)
             % Create and populate an AstroWCS object from an AstroHeader object
             % Input  : - AstroHeader object.           
             % Output : - AstroWCS object.
