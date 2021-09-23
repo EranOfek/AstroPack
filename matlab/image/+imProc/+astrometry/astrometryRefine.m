@@ -280,16 +280,21 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         end
     
         if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
+            CircleUnits         = 'deg';
             if isempty(WCS)
                 % estimate RA/Dec of center of catalog from catalog itself
-                CircleUnits         = 'deg';
-                [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','pix','OutUnits',CircleUnits); 
+                [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','sphere','OutUnits',CircleUnits); 
 
                 Args.CooUnits       = CircleUnits;
                 Args.CatRadiusUnits = CircleUnits;
             else
                 % estimate from image center and WCS
-                error('not yet available');
+                [CenterX, CenterY, CenterRadius] = boundingCircle(Cat,'CooType','pix');
+                [Args.RA, Args.Dec] = xy2sky(WCS, CenterX, CenterY, 'OutUnits',CircleUnits,...
+                                              'includeDistortion',Args.IncludeDistortions);
+                Args.CatRadius      = CenterRadius .* Args.Scale;
+                Args.CatRadiusUnits = 'arcsec';
+                Args.CooUnits       = CircleUnits;
             end
             CooFromBoundingCircle = true;
         else
@@ -339,7 +344,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         % filter Ref - remove sources with neighboors
         if Args.RemoveNeighboors
             % sort AstrometricCat
-            AstrometricCat(Iobj).sortrows('Dec');
+            AstrometricCat(Iobj) = sortrows(AstrometricCat(Iobj), 'Dec');
             
             UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat(Iobj), Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
         else
@@ -353,6 +358,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
                                                                                        'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                        'CreateNewObj',true);
      
+        Cat = sortrows(Cat, 'Dec');
         % match the RA/Dec against an external catalog
         % sources in MatchedCat corresponds to sources in ProjAstCat
         [MatchedCat,UM,TUM] = imProc.match.match(Cat, ProjAstCat,...
@@ -381,9 +387,12 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         Mag  = getColDic(ProjAstCat, Args.RefColNameMag);
         
         % fit
-                
+        % Note that in astrometryCore, we use for scale = ResPattern.Sol.Scale(Isol).*Args.Scale,...
+        % ImageCenterXY is [0,0] because now the images are assumed to be
+        % alligned
+        
         [Tran, ParWCS, ResFit, WCS] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
-                                                       'ImageCenterXY',WCS.CRPIX,...
+                                                       'ImageCenterXY',[0 0],...
                                                        'Scale',Scale,...
                                                        'ProjType',Args.ProjType,...
                                                        'TranMethod',Args.TranMethod,...
@@ -417,6 +426,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         if nargout>1
             % update RA/Dec in catalog
             [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+            Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
             Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
         
 
@@ -425,7 +435,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
                 % update WCS in AstroImage
                 Obj(Iobj).WCS = Result(Iobj).WCS;
                 % add WCS kesy to Header
-                Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
             elseif isa(Obj, 'AstroCatalog')
                 Obj(Iobj)         = Cat;
             else

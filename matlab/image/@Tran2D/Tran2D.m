@@ -149,13 +149,13 @@ classdef Tran2D < handle
             %            Tran2D.selected_trans for options).
             %            Each transformation will populate one element.
             %            Alternatively, this is a number of elements.
-            %            Default is 'cheby1_3_c1'.
+            %            Default is 'cheby1_3'.
             % Output : - A Tran2D object
             % Example: TC=Tran2D
             %          TC=Tran2D(2)
             %          TC=Tran2D('cheby1_3_c1','cheby1_2');
 
-            Def.Trans = 'cheby1_3_c1';
+            Def.Trans = 'cheby1_3';
             if nargin==0
                 varargin{1} = Def.Trans;
             end

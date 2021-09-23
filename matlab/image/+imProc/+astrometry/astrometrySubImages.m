@@ -132,10 +132,6 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
                 CatName = Args.CatName;
             end
             
-            % Estimate RA/Dec of SubImage center
-            CenterX = (Args.CCDSEC(Iim,2) - Args.CCDSEC(Iim,1)).*0.5;
-            CenterY = (Args.CCDSEC(Iim,4) - Args.CCDSEC(Iim,3)).*0.5;
-            [RA, Dec] = RefWCS.xy2sky(CenterX, CenterY, 'OutUnits','deg', 'includeDistortion',false);
             
             %got here - there is a problem
             %at seems that NsrcDep = 0????
@@ -163,23 +159,61 @@ function [ResultObj, ResultFit, AstrometricCat] = astrometrySubImages(Obj, Args)
 %             ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
 %             ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
                         
+            % DEBUGING
+            % ResultObj(Iim).WCS = RefWCS;
+            % ResultObj(Iim).HeaderData = wcs2header(RefWCS);
+            % ds9(ResultObj(Iim))
+%             tic;
+%             [ResultRefineFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
+%                                                                                                        'WCS',RefWCS, ...
+%                                                                                                        'SearchRadius',5,...
+%                                                                                                        'Scale',Args.Scale,...
+%                                                                                                        'RA',[],...
+%                                                                                                        'Dec',[],...
+%                                                                                                        'CooUnits','deg',...
+%                                                                                                        'CatName',CatName,...  
+%                                                                                                        'IncludeDistortions',true,...
+%                                                                                                        Args.astrometryCoreArgs{:});
+%             
+%                                                                                                    toc
+%                                                                                                    
+              
+              tic;     
+              
+            % Estimate RA/Dec of SubImage center
+            CenterX = (Args.CCDSEC(Iim,2) - Args.CCDSEC(Iim,1)).*0.5;
+            CenterY = (Args.CCDSEC(Iim,4) - Args.CCDSEC(Iim,3)).*0.5;
+            [RA, Dec] = RefWCS.xy2sky(CenterX, CenterY, 'OutUnits',Args.CooUnits, 'includeDistortion',false);
             
-            [ResultRefineFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
-                                                                                                       'WCS',RefWCS, ...
-                                                                                                       'RA',RA,...
-                                                                                                       'Dec',Dec,...
-                                                                                                       'CooUnits','deg',...
-                                                                                                       'CatName',CatName,...                     
-                                                                                                       Args.astrometryCoreArgs{:});
+            [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim),...
+                                                                                                     'RA',RA,...
+                                                                                                     'Dec',Dec,...
+                                                                                                     'RangeX',[-500 500],...
+                                                                                                     'RangeY',[-500 500],...
+                                                                                                     'CooUnits',Args.CooUnits,...
+                                                                                                     'CatName',CatName,...
+                                                                                                     'Scale',Args.Scale,...
+                                                                                                     Args.astrometryCoreArgs{:});
             
+            % populate the WCS in the AstroImage
+            %ResultObj(Iim).WCS = ResultFit(Iim).WCS;
+            
+            ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
+            ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
+            ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
+            ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
+            
+                toc
+                
             % check qulity of solution
             %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            ResultRefineFit(Iim).WCS.Success
             Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
             
             %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
             
         end
-    
+        
     
     end
     

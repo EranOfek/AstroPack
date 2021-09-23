@@ -1057,11 +1057,12 @@ classdef AstroTable < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 ColInd = colname2ind(Obj(Iobj), Columns);
+                ColInd = ColInd(~isnan(ColInd));
                 Obj(Iobj).Catalog(:,ColInd) = [];
-                if ~isempty(Obj(Iobj).ColNames)
+                if ~isempty(Obj(Iobj).ColNames) && ~isempty(ColInd)
                     Obj(Iobj).ColNames(ColInd) = [];
                 end
-                if ~isempty(Obj(Iobj).ColUnits)
+                if ~isempty(Obj(Iobj).ColUnits) && ~isempty(ColInd)
                     Obj(Iobj).ColUnits(ColInd) = [];
                 end
             end

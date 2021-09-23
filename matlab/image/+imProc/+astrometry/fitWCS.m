@@ -102,12 +102,19 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
             % The following fitting attempt to mimic the order
             % of the TAN-TPV transformation
 
-
+            ScaleASpix = Args.Scale;   % "/pix
+            % convert Xref, Yref to deg
+            ScalingDegInPix = ScaleASpix./ARCSEC_DEG;
+            
+            XrefT = Xref.*ScalingDegInPix;   % [deg]
+            YrefT = Yref.*ScalingDegInPix;   % [deg]
+            
+            
             % fit affine transformation (only)
             % Units are "pixels"
             Tran1 = Tran2D('poly1');
             % note that independent and dependent coordinates change
-            % order
+            % order            
             [Tran1, ResFit] = fitAstrometricTran(Tran1,...
                                     Xref, Yref,...
                                     Xcat, Ycat,...
@@ -127,21 +134,68 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
                                     'InterpMethod',Args.InterpMethod,...
                                     'ThresholdSigma',Args.ThresholdSigma);
             %
-            CRPIX1     = Tran1.ParX(1);
-            CRPIX2     = Tran1.ParY(1);
+            Tran1.ParX(1) = Tran1.ParX(1) ./ ScalingDegInPix;
+            Tran1.ParY(1) = Tran1.ParY(1) ./ ScalingDegInPix;
+            
+            CRPIX1     = Tran1.ParX(1); %./ScalingDegInPix;
+            CRPIX2     = Tran1.ParY(1); %./ScalingDegInPix;
             % CD matrix
             CD         = [Tran1.ParX(2:3).'; Tran1.ParY(2:3).'];  % [pix]
             % measured scale in arcsec/pix
-            ScaleASpix = Args.Scale;   % "/pix
+            
+            % no need this anymore because CD is already in [deg]
             CD         = CD.*ScaleASpix./ARCSEC_DEG;   % [deg]
+            
+            
+            
+            
+            
+            
+            
+            
+            if 1==0
+            % fit affine transformation (only)
+            % Units are "pixels"
+            Tran1 = Tran2D('poly1');
+            % note that independent and dependent coordinates change
+            % order            
+            [Tran1, ResFit] = fitAstrometricTran(Tran1,...
+                                    XrefT, YrefT,...
+                                    Xcat, Ycat,...
+                                    'UseFlag',Args.UseFlag,...
+                                    'ExtraData',[],...
+                                    'Mag',Mag,...
+                                    'ErrPos',Args.ErrPos,...
+                                    'Niter',2,...
+                                    'FitMethod',Args.FitMethod,...
+                                    'MaxResid',Args.MaxResid,...
+                                    'MagRange',Args.MagRange,...
+                                    'BinMethod',Args.BinMethod,...
+                                    'PolyDeg',Args.PolyDeg,...
+                                    'BinSize',Args.BinSize,...
+                                    'FunMean',Args.FunMean,...
+                                    'FunStd',Args.FunStd,...
+                                    'InterpMethod',Args.InterpMethod,...
+                                    'ThresholdSigma',Args.ThresholdSigma);
+            %
+            Tran1.ParX(1) = Tran1.ParX(1) ./ ScalingDegInPix;
+            Tran1.ParY(1) = Tran1.ParY(1) ./ ScalingDegInPix;
+            
+            CRPIX1     = Tran1.ParX(1); %./ScalingDegInPix;
+            CRPIX2     = Tran1.ParY(1); %./ScalingDegInPix;
+            % CD matrix
+            CD         = [Tran1.ParX(2:3).'; Tran1.ParY(2:3).'];  % [deg]
+            % measured scale in arcsec/pix
+            end
+            
+            % no need this anymore because CD is already in [deg]
+            %CD         = CD.*ScaleASpix./ARCSEC_DEG;   % [deg]
 
             % Apply affine transformation on Xcat, Ycat
             Xsi  = CD(1,1).*(Xcat - CRPIX1) + CD(1,2).*(Ycat - CRPIX2);   % [deg]
             Eta  = CD(2,1).*(Xcat - CRPIX1) + CD(2,2).*(Ycat - CRPIX2);   % [deg]
 
-            % convert Xref, Yref to deg
-            XrefT = Xref.*ScaleASpix./ARCSEC_DEG;   % [deg]
-            YrefT = Yref.*ScaleASpix./ARCSEC_DEG;   % [deg]
+            
 
             % parameters from which to construct WCS
             ParWCS.CRPIX  = [CRPIX1, CRPIX2] + Args.ImageCenterXY(:).';
@@ -151,8 +205,12 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
             ParWCS.CTYPE  = {sprintf('RA---%s',upper(Args.ProjType)), sprintf('DEC--%s',upper(Args.ProjType))};
             ParWCS.NAXIS  = 2;
 
+            Tran1.ParX = zeros(1,3);
+            Tran1.ParY = zeros(1,3);
+            
             %Tran = Tran1;
             
+            if 1==1
             [Tran, ResFit] = fitAstrometricTran(Args.Tran,...
                                     XrefT, YrefT,...
                                     Xsi, Eta,...
@@ -170,7 +228,8 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
                                     'FunStd',Args.FunStd,...
                                     'InterpMethod',Args.InterpMethod,...
                                     'ThresholdSigma',Args.ThresholdSigma);
-
+            end
+            
         case 'tran2d'
             % a full Tran2D solution, where the observations
             % are the independent variable

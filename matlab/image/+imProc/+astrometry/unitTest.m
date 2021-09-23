@@ -88,7 +88,7 @@ function Result = unitTest()
     % in deg
     % TODO: go over code - note that the match is done in RA/Dec - compare
     % to Core
-    RR = imProc.astrometry.astrometryRefine(AI, 'WCS',[], 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
+    [RR, AI] = imProc.astrometry.astrometryRefine(AI, 'WCS',[], 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
     
     AI = AstroImage('PTF_Cropped.fits');
@@ -128,6 +128,8 @@ function Result = unitTest()
     Dec = celestial.coo.convertdms(Dec,'SD','d');
     
     [Result, NewSI32] = imProc.astrometry.astrometryCore(SI(32), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2');
+    
+    [Result, NewSI32] = imProc.astrometry.astrometryRefine(NewSI32, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2');
     
     
     % astrometrySubImages

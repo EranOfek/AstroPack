@@ -500,7 +500,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     Obj(Iobj).WCS = Result(Iobj).WCS;
                     
                     % add WCS kesy to Header
-                    Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                    Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                 else
                     % assume Obj is AstroCatalog
                     Obj(Iobj) = Cat;

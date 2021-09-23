@@ -251,14 +251,14 @@ classdef AstroWCS < Component
 
     methods    % Functions to construct AstroHeader from AstroWCS
    
-       function Header = wcs2head(Obj,Header)
+       function Header = wcs2header(Obj,Header)
             % Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
             % Input  : - AstroWCS object.
             %          - Optional AstroHeader object in which to update key/par
             % Output : - AstroHeader object with the WCS keywords
             % Author : Yossi Shvartzvald (August 2021)
             % Example: 
-            %          AW = AstroWCS(1); AH = AW.wcs2head;      
+            %          AW = AstroWCS(1); AH = AW.wcs2header;      
 
             arguments
                 Obj
