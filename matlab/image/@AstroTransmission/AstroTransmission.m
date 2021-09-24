@@ -152,8 +152,6 @@ classdef AstroTransmission < Component
     
     methods (Static)  % read spectra from spectral libraries
 
-        
-
         function Trans = atmosphericExtinction(File, Args)
             % Return Atmospheric extinction
             %   The extinction im mag/transmission is provided in the Flux
@@ -258,7 +256,7 @@ classdef AstroTransmission < Component
         % REQUIRE EDITING
         
         function Result = sort(Obj, Args)
-            % Sort elements of AstroSpec object by wavelength
+            % Sort elements of AstroTransmission object by wavelength
             % Input  : - An AstroSpec object.
             %          * ...,key,val,...
             %            'CreateNewObj' - [], true, false.
