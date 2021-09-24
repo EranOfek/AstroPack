@@ -1572,7 +1572,7 @@ classdef AstroSpec < Component
             Result.IndBestRMS   = nan(Nsrc,1);
             Result.BestRMS      = nan(Nsrc,1);
 
-            SynMagMat = synphot(ModelSpec, Family, Bands, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo, 'IsOutMat',true);
+            SynMagMat = synphot(ModelSpec, Family, Bands, 'MagSys',Args.MagSys, 'Device',Args.Device, 'IsOutMat',true);
             for Isrc=1:1:Nsrc
                 % Fit mag difference (L2 minimization)                
                 Diff = Mag(Isrc,:) - SynMagMat;
