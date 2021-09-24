@@ -659,6 +659,8 @@ classdef AstroSpec < Component
             %            Default is 'VLT'.
             %          * ...,key,val,...
             %            'AM' - AirMass in which to return extinction.
+            %                   If a vector then AstroSpec output is an
+            %                   array.
             %                   Default is 1.
             %            'Wave' - Wavelength grid [Ang] in which to return the
             %                   output. If empty, will use default.
@@ -670,11 +672,14 @@ classdef AstroSpec < Component
             %                   'trans' is transmission.
             % Output : - Extinction as a function of wavelength.
             %            [Wave(Ang), Extinction(mag/trans)].
+            %            If AM is a vector and OutType='mat', will return
+            %            only the last requested AM.
             % Author : Eran Ofek (Sep 2021)
             % Example: Trans = AstroSpec.atmosphericExtinction([])
             %          Trans = AstroSpec.atmosphericExtinction
             %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',2,'OutUnits','trans')
             %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',2,'OutUnits','trans','OutType','mat')
+            %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',[2 3]);
            
             arguments
                 File                  = 'VLT';    % [] - show all; 'KPNO' | 'SNfactory' | 'VLT'
@@ -703,26 +708,32 @@ classdef AstroSpec < Component
                 end
                 
                 % apply AirMass
-                if Args.AM~=1
-                    Data(:,2) = Data(:,2).*Args.AM;
-                end
+                DataN = Data;
                 
-                switch lower(Args.OutUnits)
-                    case 'mag'
-                        % do nothing
-                    case 'trans'
-                        Data(:,2) = 10.^(-0.4.*Data(:,2));
-                    otherwise
-                        error('Unknown OutUnits option');
-                end
+                Nam = numel(Args.AM);
+                for Iam=1:1:Nam
                 
-                switch lower(Args.OutType)
-                    case 'mat'
-                        Trans = Data;
-                    case 'astrospec'
-                        Trans = AstroSpec({Data});
-                    otherwise
-                        error('Unknown OutType option');
+                    if Args.AM(Iam)~=1
+                        DataN(:,2) = DataN(:,2).*Args.AM(Iam);
+                    end
+
+                    switch lower(Args.OutUnits)
+                        case 'mag'
+                            % do nothing
+                        case 'trans'
+                            DataN(:,2) = 10.^(-0.4.*DataN(:,2));
+                        otherwise
+                            error('Unknown OutUnits option');
+                    end
+
+                    switch lower(Args.OutType)
+                        case 'mat'
+                            Trans = DataN;
+                        case 'astrospec'
+                            Trans(Iam) = AstroSpec({DataN});
+                        otherwise
+                            error('Unknown OutType option');
+                    end
                 end
             end
         end
@@ -990,6 +1001,56 @@ classdef AstroSpec < Component
             end
         end
         
+        function Result = interpLogSpace(Obj, Args)
+            % Interpolate an AstroSpec object into a logarithmic wavelength grid.
+            % Input  : - An AstroSpec object.            
+            %          * ...,key,val,...
+            %            'Res' - Resolution (Dlambda/lambda) to use fot the
+            %                   log-spacing. If empty, estimate using
+            %                   wave-diff. Default is [].
+            %            'Method' - Interpolation method. See interp1 for
+            %                   options. Default is 'linear'.
+            %            'ExtraArgs' - A cell array of additional arguments
+            %                   to pass to interp1. Default is {}.
+            %            'CreateNewObj' - [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec object with logarithmic spaced
+            %            wavelength grid.
+            % Output : - An AstroSpec object with the interpolated spectra.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: Spec = AstroSpec.synspecGAIA('Temp',[5750],'Grav',[4.5]);
+            %          Result = interpLogSpace(Spec);
+            
+            arguments
+                Obj
+                Args.Res               = [];
+                Args.Method            = 'linear';
+                Args.ExtraArgs cell    = {};
+                Args.CreateNewObj      = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Args.Res)
+                    % estimate resolution
+                    Res = min(Obj(Iobj).Wave(1:end-1)./diff(Obj(Iobj).Wave));
+                    Res = Res .* log10(max(Obj(Iobj).Wave));
+                else
+                    Res = Args.Res .* log10(max(Obj(Iobj).Wave));
+                end
+                
+                NewWave = logspace(log10(min(Obj(Iobj).Wave)), log10(max(Obj(Iobj).Wave)), ceil(Res));
+                
+                Result(Iobj) = interp1(Result(Iobj), NewWave, 'Method',Args.Method, 'ExtraArgs',Args.ExtraArgs{:}, 'RemoveNan',true, 'CreateNewObj',false);
+            end
+            
+        end
+        
         function Result = length(Obj)
             % Return length of each spectrum in AstroSpec object
             % Input  : - An AstroSpec object.
@@ -1004,6 +1065,10 @@ classdef AstroSpec < Component
                 Result(Iobj) = numel(Obj(Iobj).Wave);
             end
         end
+        
+    end
+    
+    methods % Flux operators
         
         function Result = funFlux(Obj, Fun, Args)
             % Apply a function to the Flux, FluxErr, Back columns.
@@ -1103,54 +1168,111 @@ classdef AstroSpec < Component
 
         end
 
-        function Result = interpLogSpace(Obj, Args)
-            % Interpolate an AstroSpec object into a logarithmic wavelength grid.
-            % Input  : - An AstroSpec object.            
+        function Result = funBinary(Obj1, Obj2, Fun, Args)
+            % Perform a binary operation on two AstroSpec objects
+            %   The operation is applied one to one or one to many.
+            % Input  : - An AstroSpec object (multi elements supported).
+            %          - An AstroSpec object (multi elements supported).
+            %          - Function handle for operator (e.g., @plus, @times).
             %          * ...,key,val,...
-            %            'Res' - Resolution (Dlambda/lambda) to use fot the
-            %                   log-spacing. If empty, estimate using
-            %                   wave-diff. Default is [].
-            %            'Method' - Interpolation method. See interp1 for
-            %                   options. Default is 'linear'.
-            %            'ExtraArgs' - A cell array of additional arguments
-            %                   to pass to interp1. Default is {}.
-            %            'CreateNewObj' - [], true, false.
-            %                   If true, create new deep copy
-            %                   If false, return pointer to object
-            %                   If [] and Nargout==0 then do not create new copy.
-            %                   Otherwise, create new copy. Default is [].
-            % Output : - An AstroSpec object with logarithmic spaced
-            %            wavelength grid.
-            % Output : - An AstroSpec object with the interpolated spectra.
-            % Author : Eran Ofek (Aug 2021)
-            % Example: Spec = AstroSpec.synspecGAIA('Temp',[5750],'Grav',[4.5]);
-            %          Result = interpLogSpace(Spec);
+            %            'AddArgs' - A cell array of additional arguments
+            %                   to pass to the function. Default is {}.
+            %            'Prop' - A cell array of properties on which to
+            %                   apply the operator.
+            %                   Default is {'Flux','FluxErr','Back','Mask'}.
+            %            'KeepOnlyOverlap' - A logical indicating if to
+            %                   keep only overlaping region (true).
+            %                   If false, will return the wavelength grid
+            %                   of the first input AstroSpec argument.
+            %                   Default is false.
+            %            'InterpMethod' - Default is 'linear'.
+            % Output : - An AstroSpec object.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.specStarsPickles('M','V')
+            %          Res = funBinary(AS,AS(1), @plus)
             
             arguments
-                Obj
-                Args.Res               = [];
-                Args.Method            = 'linear';
-                Args.ExtraArgs cell    = {};
-                Args.CreateNewObj      = [];
+                Obj1
+                Obj2
+                Fun function_handle
+                Args.AddArgs cell             = {};
+                Args.Prop cell                = {'Flux','FluxErr','Back','Mask'};
+                Args.KeepOnlyOverlap logical  = false;
+                Args.InterpMethod             = 'linear';
             end
             
-            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+            Nprop = numel(Args.Prop);
             
-            Nobj = numel(Obj);
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            
+            Nobj = max(Nobj1, Nobj2);
+            Result = AstroSpec([Nobj,1]);
             for Iobj=1:1:Nobj
-                if isempty(Args.Res)
-                    % estimate resolution
-                    Res = min(Obj(Iobj).Wave(1:end-1)./diff(Obj(Iobj).Wave));
-                    Res = Res .* log10(max(Obj(Iobj).Wave));
+                Iobj1 = min(Iobj, Nobj1);
+                Iobj2 = min(Iobj, Nobj2);
+                
+                if Args.KeepOnlyOverlap
+                    [New1, New2] = interpAndKeepOverlap(Obj1(Iobj1), Obj2(Iobj2), 'Method',Args.InterpMethod, 'CreateNewObj',true);
                 else
-                    Res = Args.Res .* log10(max(Obj(Iobj).Wave));
+                    New2 = interp1(Obj2, Obj1(Iobj1).Wave, 'Method',Args.InterpMethod, 'CreateNewObj',true);
+                    New1 = Obj1(Iobj1).copyObject;
                 end
                 
-                NewWave = logspace(log10(min(Obj(Iobj).Wave)), log10(max(Obj(Iobj).Wave)), ceil(Res));
-                
-                Result(Iobj) = interp1(Result(Iobj), NewWave, 'Method',Args.Method, 'ExtraArgs',Args.ExtraArgs{:}, 'RemoveNan',true, 'CreateNewObj',false);
+                Result(Iobj) = New1;
+                for Iprop=1:1:Nprop
+                    if ~isempty(Result(Iobj).(Args.Prop{Iprop}))
+                        Result(Iobj).(Args.Prop{Iprop}) = Fun(New1.(Args.Prop{Iprop}), New2.(Args.Prop{Iprop}), Args.AddArgs{:});
+                    end
+                end
+            end
+        end
+    end
+    
+    
+    methods % extinction
+        function [Result, TranAM] = applyAtmosphericExt(Spec, OutAM, InAM, Args)
+            % Apply atmospheric extinction (airmass) to AstroSpec object.
+            %   One to one, or one to many.
+            % Input  : - An AstroSpec object.
+            %          - Output airmass.
+            %          - Input airmass (of the AstroSpec object).
+            %            Default is 0.
+            %          * ...,key,val,...
+            %            'File' - A file name from which to read transmission.
+            %                   If empty, will return list of available files (in
+            %                   dir-like output).
+            %                   Options include: 'VLT' | 'KPNO' | 'SNfactory'
+            %                   Default is 'VLT'.
+            %            'Prop' - A cell array of properties on which to
+            %                   apply the operator.
+            %                   Default is {'Flux','FluxErr','Back','Mask'}.
+            %            'KeepOnlyOverlap' - A logical indicating if to
+            %                   keep only overlaping region (true).
+            %                   If false, will return the wavelength grid
+            %                   of the first input AstroSpec argument.
+            %                   Default is false.
+            %            'InterpMethod' - Default is 'linear'.
+            % Output : - An AstroSpec object.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.specStarsPickles('M','V')
+            %          Res = applyAtmosphericExt(AS, 1.4)
+            
+            arguments
+                Spec
+                OutAM
+                InAM                             = 0;
+                Args.File                        = 'VLT';
+                Args.Prop                        = {'Flux','FluxErr','Back','Mask'};
+                Args.KeepOnlyOverlap logical     = false;
+                Args.InterpMethod                = 'linear';
             end
             
+            DiffAM = OutAM - InAM;
+            TranAM = AstroSpec.atmosphericExtinction(Args.File, 'AM',DiffAM, 'OutUnits','trans','OutType','AstroSpec', 'Wave',[]);
+            
+            Result = funBinary(Spec, TranAM, @times, 'Prop',Args.Prop, 'KeepOnlyOverlap',Args.KeepOnlyOverlap, 'InterpMethod',Args.InterpMethod);
+                
         end
     end
     
