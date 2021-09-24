@@ -93,7 +93,7 @@ Nim = numel(Ind);
 
 % for each image field
 
-LinkSt = Util.struct.struct_def({'FileName','Link','Band','ImageType'},0,0);
+LinkSt = tools.struct.struct_def({'FileName','Link','Band','ImageType'},0,0);
 
 for Iim=1:1:Nim
     % for each image
