@@ -120,28 +120,13 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
                                                             'RadiusUnits',Args.radiusUnits);
         end
         
-        if nargout>1
-            % catalog of selected sources in Obj that has matches in CatH [size like CatH)]
-            FlagNN = ~isnan(ResInd.Obj2_IndInObj1);
-            SelObj(Iobj) = selectRows(Obj(Iobj), IndObj);
-            % add Dist/Nmatch to SelObj
-            if Args.AddColDist
-                DistData     = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist(FlagNN));
-                SelObj(Iobj) = insertCol(SelObj(Iobj), DistData, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
-            end
-            if Args.AddColNmatch
-                SelObj(Iobj) = insertCol(SelObj(Iobj), ResInd.Obj2_NmatchObj1(FlagNN) , Args.ColNmatchPos, Args.ColNmatchName, '');
-            end
-        end
-        
-        % Obj, but with extra columns indicating if there is a match in CatH
-        if Args.AddColDist
-            DistData     = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist(FlagNN));
-            Result(Iobj) = insertCol(Result(Iobj), ResInd.Obj2_Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
-        end
-        if Args.AddColNmatch
-            Result(Iobj) = insertCol(Result(Iobj), ResInd.Obj2_NmatchObj1 , Args.ColNmatchPos, Args.ColNmatchName, '');
-        end
+        [Result(Iobj), SelObj] = insertCol_matchIndices(Result(Iobj), ResInd, 'AddColDist',Args.AddColDist,...
+                                                                              'ColDistPos',Args.ColDistPos,...
+                                                                              'ColDistName',Args.ColDistName,...
+                                                                              'ColDistUnits',Args.ColDistUnits,...
+                                                                              'AddColNmatch',Args.AddColNmatch,...
+                                                                              'ColNmatchPos',Args.ColNmatchPos,...
+                                                                              'ColNmatchName',Args.ColNmatchName);
         
         
 %         % match sources
