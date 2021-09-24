@@ -118,26 +118,27 @@ classdef Installer < Component
             end        
         
             PartsURL = regexp(DataStruct.URL,'/','split');
-            PartsEND = regexp(PartsURL{end},'.','split');
-            if iscell(PartsURL{1})
-                % URL is a cell array of files URL
-                List = DataStruct.URL;
-                FileName = '*';
-            else
-                switch lower(PartsURL{end})
+            Nfile    = numel(DataStruct.URL);
+            if Nfile==1
+                % check if file is index.html
+                switch lower(PartsURL{1}{end})
                     case {'index.html','index.htm'}
                         % get all files in dir
 
-                        [List, IsDir, FileName] = www.find_urls(DataStruct.URL, 'match', DataStruct.SearchFile);
+                        [List, IsDir, FileName] = www.find_urls(DataStruct.URL{1}, 'match', DataStruct.SearchFile);
                         List     = List(~IsDir);
                         FileName = FileName(~IsDir);
                     otherwise
                         % direct file loading
                         List     = DataStruct.URL;  % cell
-                        FileName = PartsURL{end};
+                        FileName = PartsURL{1}{end};
                 end
+            else
+                % retrieve individual files (index.html is not supported)
+                List     = DataStruct.URL;
+                FileName = '*';
             end
-
+            
             if numel(List)>0
                 % delete content before reload
                 if Args.Delete
