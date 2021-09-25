@@ -6,6 +6,21 @@
 % getCam(Camera) - type='qe
 % getCoating(Coating)
 % getAM(AM, File) - Type=am
+
+% Celestron BrightStar-XLT schmidt coatings:
+% 400 0.7
+% 450 0.85
+% 500 0.88
+% 520 0.89
+% 550 0.88
+% 600 0.87
+% 650 0.85
+% 700 0.80
+% 750 0.75
+% 800 0.7  (extrapolated)
+% 850 0.65
+% 900 0.6
+% 1000 0.5
 % 
 
 classdef AstroTransmission < Component

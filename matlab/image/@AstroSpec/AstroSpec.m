@@ -1074,6 +1074,7 @@ classdef AstroSpec < Component
             % Apply a function to the Flux, FluxErr, Back columns.
             % Input  : - An AstroSpec object.
             %          - A function handle to apply.
+            %            If empty, then do nothing.
             %          * ...,key,val,...
             %            'FunArgs' - A cell array of additional arguments to pass to
             %                   the function.
@@ -1092,7 +1093,7 @@ classdef AstroSpec < Component
             
             arguments
                 Obj
-                Fun function_handle
+                Fun                       % if empty do nothing
                 Args.FunArgs cell         = {};
                 Args.DataProp             = {'Flux', 'FluxErr', 'Back'};
                 Args.CreateNewObj         = [];
@@ -1100,12 +1101,14 @@ classdef AstroSpec < Component
             
             [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
            
-            Nobj = numel(Obj);
-            Nd   = numel(Args.DataProp);
-            for Iobj=1:1:Nobj
-                for Id=1:1:Nd
-                    if ~isempty(Obj(Iobj).(Args.DataProp{Id}))
-                        Result(Iobj).(Args.DataProp{Id}) = Fun(Obj(Iobj).(Args.DataProp{Id}), Args.FunArgs{:});
+            if ~isempty(Fun)
+                Nobj = numel(Obj);
+                Nd   = numel(Args.DataProp);
+                for Iobj=1:1:Nobj
+                    for Id=1:1:Nd
+                        if ~isempty(Obj(Iobj).(Args.DataProp{Id}))
+                            Result(Iobj).(Args.DataProp{Id}) = Fun(Obj(Iobj).(Args.DataProp{Id}), Args.FunArgs{:});
+                        end
                     end
                 end
             end
@@ -1439,6 +1442,7 @@ classdef AstroSpec < Component
             arguments
                 Obj                     % AstroSpec
                 ModelSpec               % AstroSpec to fit to Obj
+                Args.RelErrModel                     = 0.05;
                 Args.InterpModel2spec(1,1) logical   = true;
                 Args.FunFlux                         = [];
                 Args.FunArgs cell                    = {};
@@ -1507,6 +1511,10 @@ classdef AstroSpec < Component
                 Result(Imax).Resid = NewObj.Flux - ScaledModel;
                 Result(Imax).Ratio = NewObj.Flux ./ ScaledModel;
                 Result(Imax).Std   = std(Result(Imax).Resid);
+                if isempty(ScaledErr)
+                    ScaledErr = 0;
+                end
+                ScaledErr = sqrt(ScaledErr.^2 + (ScaledModel.*Args.RelErrModel).^2);
                 Result(Imax).Chi2  = sum((Result(Imax).Resid./ScaledErr).^2);
                 
             end
