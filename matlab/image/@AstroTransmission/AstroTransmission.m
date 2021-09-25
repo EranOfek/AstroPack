@@ -1,11 +1,19 @@
 
+% use case thoughts:
+% get(Telescope, Camera, Family, Filter, <type>, <AM>)
+% getTel(Telescope) - telescope only
+% getFilt(Family, Filter) - in this case 'type'=filter
+% getCam(Camera) - type='qe
+% getCoating(Coating)
+% getAM(AM, File) - Type=am
+% 
 
 classdef AstroTransmission < Component
     properties
         Family      = '';
         Band        = '';
         
-        Type            % 'filter' | 'telescope' | 'qe' | 'am' | 'ism' | 'sys'=filter+telescope+qe | 'int'=filter+telescope+qe+am
+        Type            % 'filter' | 'telescope' | 'cam' | 'coating' | 'am' | 'ism' | 'sys'=filter+telescope+qe | 'int'=filter+telescope+qe+am
         Telescope   = '';    % '' - only filter
         Camera      = '';    % '' - only filter
         Extinction  = 'VLT';
