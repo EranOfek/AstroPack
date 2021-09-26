@@ -4,4 +4,5 @@
 % properties even if they themselves derived from copyable: 
 % "In making a shallow copy, MATLAB® does not call copy recursively on any handles 
 % contained in property values." 
+
 % You actually have to override the copyElement to make the copy yourself

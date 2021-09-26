@@ -7,7 +7,7 @@ classdef ShallowCp < handle
    
    methods
       function obj = ShallowCp(val)
-         % ...
+         obj.ShProp = val;
       end
 	  
    end

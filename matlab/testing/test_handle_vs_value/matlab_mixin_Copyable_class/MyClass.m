@@ -3,4 +3,3 @@ classdef MyClass < matlab.mixin.Copyable
       Prop
    end
 end
-

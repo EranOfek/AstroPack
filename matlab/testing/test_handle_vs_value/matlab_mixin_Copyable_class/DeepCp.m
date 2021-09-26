@@ -7,7 +7,7 @@ classdef DeepCp < matlab.mixin.Copyable
    
    methods
       function obj = DeepCp(val)
-         % ...
+         obj.DpProp = val;
       end
 	  
 	  

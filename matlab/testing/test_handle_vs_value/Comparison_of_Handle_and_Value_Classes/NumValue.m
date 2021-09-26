@@ -1,4 +1,3 @@
-
 classdef NumValue
    properties
       Number = 1

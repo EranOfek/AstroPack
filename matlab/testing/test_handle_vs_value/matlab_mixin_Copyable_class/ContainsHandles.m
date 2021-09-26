@@ -11,7 +11,7 @@ classdef ContainsHandles < matlab.mixin.Copyable
    
    methods
    
-      function obj = ContainsHandles(val1,val2,deepobj,shallowobj)
+      function obj = ContainsHandles(val1, val2, deepobj, shallowobj)
          if nargin > 0
             obj.Prop1 = val1;
             obj.Prop2 = val2;
