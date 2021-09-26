@@ -166,7 +166,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.StepX(1,1)                   = 2;
         Args.StepY(1,1)                   = 2;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
-        Args.SearchRadius(1,1)            = 8;   
+        Args.SearchRadius(1,1)            = 6;   
         Args.FilterSigma                  = 3;
         
         
@@ -210,6 +210,16 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     RefColNameX = 'X';
     RefColNameY = 'Y';
     
+    % get EpochOut
+    if isempty(Args.EpochOut)
+        if isa(Obj, 'AstroImage')
+            Args.EpochOut = julday(Obj);
+            if any(isnan(Args.EpochOut))
+                Args.EpochOut = [];
+            end
+        end
+    end
+
     RotationEdges = (Args.RotationRange(1):Args.RotationStep:Args.RotationRange(2));
     % mean value of projection scale:
     ProjectionScale = (180./pi) .* 3600 ./ mean(Args.Scale);  % [pix/radian]

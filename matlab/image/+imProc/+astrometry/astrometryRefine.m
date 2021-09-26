@@ -219,6 +219,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     CatColNameRA  = 'RA';
     CatColNameDec = 'Dec';
     
+    Args.CreateNewObj = false;
+    
     if Args.CreateNewObj
         Obj = ObjAC.copyObject;
     else

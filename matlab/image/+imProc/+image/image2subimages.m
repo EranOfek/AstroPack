@@ -120,6 +120,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
 
     if ~isnan(Nsub)
         % set the Mask data for edge and overlapping pixels
+        
 
         % update the header
         KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC','ORIGUSEC','UNIQSEC'};
