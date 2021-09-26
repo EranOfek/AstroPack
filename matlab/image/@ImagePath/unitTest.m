@@ -16,7 +16,7 @@ function Result = unitTest()
     ip.SubDir = 'subdir';
     Path = ip.getPath();
     disp(Path);
-    assert(Path == ExpectedResult
+    assert(Path == ExpectedResult);
 
             
 %     % Default

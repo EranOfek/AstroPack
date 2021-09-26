@@ -15,7 +15,7 @@
 % unitTest - ComponentMap.unitTest
 % #/functions
 %
-classdef ComponentMap < Base
+classdef ComponentMap < handle
 
     % Properties
     properties (SetAccess = public)
