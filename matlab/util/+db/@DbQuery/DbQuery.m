@@ -404,7 +404,7 @@ classdef DbQuery < Component
         
         function Result = select(Obj, Fields, TableName, Args)
             % Execute: SELECT Fields FROM TableName
-            
+            % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
             arguments 
                 Obj
                 Fields
