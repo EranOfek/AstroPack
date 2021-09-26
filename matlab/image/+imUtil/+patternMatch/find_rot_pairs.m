@@ -146,7 +146,9 @@ CatDist  = sqrt(CatDiffX.^2 + CatDiffY.^2);
 CatTan   = atan(CatDiffY./CatDiffX);
 %CatTan   = atan2(CatDiffY,CatDiffX);
 % calc histograms
+% slower
 CatHist = histcounts2((CatDist(:)), CatTan(:).*RAD, InPar.HistDistEdges, InPar.HistRotEdges);
+%CatHist = tools.array.hist2d_fast((CatDist(:)), CatTan(:).*RAD, InPar.HistDistEdges, InPar.HistRotEdges);
 
 
 

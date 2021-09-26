@@ -1,5 +1,6 @@
 function [Mat,VecX,VecY,BinX,BinY]=hist2d(Xv,Yv,RangeX,RangeY,StepX,StepY)
 % calculate the 2-D histogram of 2-D data set.
+%       A faster version is in: tools.array.hist2d_fast
 % Package: imUtil.patternMatch
 % Description: calculate the 2-D histogram of 2-D data set.
 % Input  : - Vector of X coordinates.

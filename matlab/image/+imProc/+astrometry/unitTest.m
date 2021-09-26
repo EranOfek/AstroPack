@@ -66,7 +66,12 @@ function Result = unitTest()
     else
         % GAIA catalog is not available locally
         load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
-        [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat);
+        
+        Tran = Tran2D;
+        Tran.symPoly;
+        JD = AI.julday;
+        
+        [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat, 'Tran',Tran, 'EpochOut',JD);
         
         % test with bad initial conditions
         [Result, AI] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);
