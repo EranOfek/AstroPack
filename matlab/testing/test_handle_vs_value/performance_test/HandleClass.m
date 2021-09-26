@@ -6,6 +6,7 @@ classdef HandleClass < matlab.mixin.Copyable % handle
         Mat1
         Mat2
         Mat3
+        Small
         Uuid
     end
 
@@ -18,6 +19,7 @@ classdef HandleClass < matlab.mixin.Copyable % handle
                 Obj.Mat1 = ones(1000, 10000);
                 Obj.Mat2 = ones(1000, 10000);
                 Obj.Mat3 = ones(1000, 10000);                
+                Obj.Small = ones(100, 100);
             end
             
             % Generate Uuid using java package
