@@ -292,7 +292,7 @@ classdef AstroSpec < Component
             % Output : - A cell array of filter transmissions.
             %          - A cell array of filter names.
             % Author : Eran Ofek (Aug 2021)
-            % Example: [FilterCell, Name] = AstroSpec.read2FilterMatrix(Family, Name)
+            % Example: [FilterCell, Name] = AstroSpec.read2FilterMatrix('SDSS', 'g')
             
             if ischar(Name)
                 Name = {Name};
@@ -572,8 +572,171 @@ classdef AstroSpec < Component
 
         end
         
-        
+        function [Result, FilesList] = specStarsPickles(SpType, LumClass, OutType)
+            % Load Pickles stellar spectra into an AstroSpec object
+            % Input  : - Spectral type - e.g., 'G', 'G2',...
+            %            or file name.
+            %            If empty, then return a cell array of all
+            %            available spectra names. Default is [].
+            %          - Luminosity class. e.g., 'V'. If empty, return all.
+            %            Default is ''.
+            %          - Output type: 'mat' | ['AstroSpec'].
+            % Output : - An AstroSpec object containing the requested
+            %            spectra.
+            %          - A cell array of all file names in the Pickles data
+            %            directory.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: [~,List] = AstroSpec.specStarsPickles
+            %          Result = AstroSpec.specStarsPickles('wg8iii.mat')
+            %          Result = AstroSpec.specStarsPickles('G')
+            %          Result = AstroSpec.specStarsPickles('G','V')
+            %          Result = AstroSpec.specStarsPickles('G2')
+            %          Result = AstroSpec.specStarsPickles('G2','V')
 
+            arguments
+                SpType    = [];            % [] - return list
+                LumClass  = '';            % luminosity class.
+                OutType   = 'AstroSpec';   % 'AstroSpec' | 'mat'
+            end
+
+            DataName = 'PicklesStellarSpec';
+
+            I = Installer;
+            [Files, Dir] = I.getFilesInDataDir(DataName);
+            FilesList = {Files.name};
+            if isempty(SpType)
+                % get list of all spectra
+                Result = [];
+            else
+                if ~contains(SpType,'.mat')
+                    % not a single file
+                    % Spectral type
+                    if isempty(LumClass)
+                        LumClass = '[iv]+';
+                    else
+                        LumClass = lower(LumClass);
+                    end
+
+                    if numel(SpType)==1
+                        Template = sprintf('uk%s\\d+%s.mat',lower(SpType), LumClass);
+                    else
+                        Template = sprintf('uk%s%s.mat',lower(SpType), LumClass);
+                    end
+                    RE = regexp(FilesList, Template, 'match');
+                    Files = FilesList(~cellfun(@isempty, RE));
+
+                else
+                    % load a single file
+                    Files = {SpType};
+                end
+                % load all files
+
+                Nf = numel(Files);
+                for If=1:1:Nf
+                    Mat        = io.files.load2(Files{If});
+                    switch lower(OutType)
+                        case 'astrospec'
+                            Result(If) = AstroSpec({Mat});
+                        case 'mat'
+                            Result = Mat;
+                        otherwise
+                            error('Unknwon OutType option');
+                    end
+                end
+            end
+
+
+        end
+
+        function Trans = atmosphericExtinction(File, Args)
+            % Return Atmospheric extinction
+            %   The extinction im mag/transmission is provided in the Flux
+            %   field.
+            % Input  : - A file name from which to read transmission.
+            %            If empty, will return list of available files (in
+            %            dir-like output).
+            %            Options include: 'VLT' | 'KPNO' | 'SNfactory'
+            %            Default is 'VLT'.
+            %          * ...,key,val,...
+            %            'AM' - AirMass in which to return extinction.
+            %                   If a vector then AstroSpec output is an
+            %                   array.
+            %                   Default is 1.
+            %            'Wave' - Wavelength grid [Ang] in which to return the
+            %                   output. If empty, will use default.
+            %                   Default is [].
+            %            'InterpMethod' - Interpolation method.
+            %                   Default is 'linear'.
+            %            'OutType' - ['AstroSpec'] | 'mat'.
+            %            'OutUnits' -  ['mag'] | 'trans'
+            %                   'trans' is transmission.
+            % Output : - Extinction as a function of wavelength.
+            %            [Wave(Ang), Extinction(mag/trans)].
+            %            If AM is a vector and OutType='mat', will return
+            %            only the last requested AM.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Trans = AstroSpec.atmosphericExtinction([])
+            %          Trans = AstroSpec.atmosphericExtinction
+            %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',2,'OutUnits','trans')
+            %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',2,'OutUnits','trans','OutType','mat')
+            %          Trans = AstroSpec.atmosphericExtinction('VLT','AM',[2 3]);
+           
+            arguments
+                File                  = 'VLT';    % [] - show all; 'KPNO' | 'SNfactory' | 'VLT'
+                Args.AM               = 1;
+                Args.Wave             = [];       % [] - use original wave grid
+                Args.InterpMethod     = 'linear';
+                Args.OutType          = 'AstroSpec';  % 'astrospec' | 'mat'
+                Args.OutUnits         = 'mag';    % 'mag' | 'trans'
+            end
+            DataName = 'Atmosphere';
+            
+            Ins = Installer;
+            if isempty(File)
+                Trans = Ins.getFilesInDataDir(DataName);
+            else
+                [Files, Dir] = Ins.getFilesInDataDir(DataName);
+                PWD = pwd;
+                cd(Dir);
+                
+                Ind   = contains({Files.name}, File);
+                Data = io.files.load2(Files(Ind).name);  % [Wave(Ang), Extinc(Mag)]
+                
+                if ~isempty(Args.Wave)
+                    % interpolate transission into a new grid
+                    Data = [Args.Wave(:), interp1(Data(:,1), Data(:,2), Args.Wave(:), Args.InterpMethod)];
+                end
+                
+                % apply AirMass
+                DataN = Data;
+                
+                Nam = numel(Args.AM);
+                for Iam=1:1:Nam
+                
+                    if Args.AM(Iam)~=1
+                        DataN(:,2) = DataN(:,2).*Args.AM(Iam);
+                    end
+
+                    switch lower(Args.OutUnits)
+                        case 'mag'
+                            % do nothing
+                        case 'trans'
+                            DataN(:,2) = 10.^(-0.4.*DataN(:,2));
+                        otherwise
+                            error('Unknown OutUnits option');
+                    end
+
+                    switch lower(Args.OutType)
+                        case 'mat'
+                            Trans = DataN;
+                        case 'astrospec'
+                            Trans(Iam) = AstroSpec({DataN});
+                        otherwise
+                            error('Unknown OutType option');
+                    end
+                end
+            end
+        end
     end
     
     methods  % resampling, sort, interpolation
@@ -838,63 +1001,6 @@ classdef AstroSpec < Component
             end
         end
         
-        function Result = length(Obj)
-            % Return length of each spectrum in AstroSpec object
-            % Input  : - An AstroSpec object.
-            % Output : - A vector of lengths of each spectrum.
-            % Author : Eran Ofek (Aug 2021)
-            % Example: AS = AstroSpec({rand(100,3)});
-            %          AS.length
-           
-            Nobj   = numel(Obj);
-            Result = nan(size(Obj));
-            for Iobj=1:1:Nobj
-                Result(Iobj) = numel(Obj(Iobj).Wave);
-            end
-        end
-        
-        function Result = funFlux(Obj, Fun, Args)
-            % Apply a function to the Flux, FluxErr, Back columns.
-            % Input  : - An AstroSpec object.
-            %          - A function handle to apply.
-            %          * ...,key,val,...
-            %            'FunArgs' - A cell array of additional arguments to pass to
-            %                   the function.
-            %            'DataProp' - A cell array of data properties on
-            %                   which to apply the function.
-            %                   Default is {'Flux', 'FluxErr', 'Back'}.
-            %            'CreateNewObj' -  [], true, false.
-            %                   If true, create new deep copy
-            %                   If false, return pointer to object
-            %                   If [] and Nargout==0 then do not create new copy.
-            %                   Otherwise, create new copy. Default is [].
-            % Output : - An AstroSpec objec after aplying the function.
-            % Author : Eran Ofek (Aug 2021)
-            % Example:  Spec = AstroSpec.synspecGAIA('Temp',[5750 5500 5550],'Grav',[4.5]);
-            %           Res  = funFlux(Spec, @log10);
-            
-            arguments
-                Obj
-                Fun function_handle
-                Args.FunArgs cell         = {};
-                Args.DataProp             = {'Flux', 'FluxErr', 'Back'};
-                Args.CreateNewObj         = [];
-            end
-            
-            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
-           
-            Nobj = numel(Obj);
-            Nd   = numel(Args.DataProp);
-            for Iobj=1:1:Nobj
-                for Id=1:1:Nd
-                    if ~isempty(Obj(Iobj).(Args.DataProp{Id}))
-                        Result(Iobj).(Args.DataProp{Id}) = Fun(Obj(Iobj).(Args.DataProp{Id}), Args.FunArgs{:});
-                    end
-                end
-            end
-            
-        end
-        
         function Result = interpLogSpace(Obj, Args)
             % Interpolate an AstroSpec object into a logarithmic wavelength grid.
             % Input  : - An AstroSpec object.            
@@ -944,6 +1050,233 @@ classdef AstroSpec < Component
             end
             
         end
+        
+        function Result = length(Obj)
+            % Return length of each spectrum in AstroSpec object
+            % Input  : - An AstroSpec object.
+            % Output : - A vector of lengths of each spectrum.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: AS = AstroSpec({rand(100,3)});
+            %          AS.length
+           
+            Nobj   = numel(Obj);
+            Result = nan(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = numel(Obj(Iobj).Wave);
+            end
+        end
+        
+    end
+    
+    methods % Flux operators
+        
+        function Result = funFlux(Obj, Fun, Args)
+            % Apply a function to the Flux, FluxErr, Back columns.
+            % Input  : - An AstroSpec object.
+            %          - A function handle to apply.
+            %            If empty, then do nothing.
+            %          * ...,key,val,...
+            %            'FunArgs' - A cell array of additional arguments to pass to
+            %                   the function.
+            %            'DataProp' - A cell array of data properties on
+            %                   which to apply the function.
+            %                   Default is {'Flux', 'FluxErr', 'Back'}.
+            %            'CreateNewObj' -  [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec objec after aplying the function.
+            % Author : Eran Ofek (Aug 2021)
+            % Example:  Spec = AstroSpec.synspecGAIA('Temp',[5750 5500 5550],'Grav',[4.5]);
+            %           Res  = funFlux(Spec, @log10);
+            
+            arguments
+                Obj
+                Fun                       % if empty do nothing
+                Args.FunArgs cell         = {};
+                Args.DataProp             = {'Flux', 'FluxErr', 'Back'};
+                Args.CreateNewObj         = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+           
+            if ~isempty(Fun)
+                Nobj = numel(Obj);
+                Nd   = numel(Args.DataProp);
+                for Iobj=1:1:Nobj
+                    for Id=1:1:Nd
+                        if ~isempty(Obj(Iobj).(Args.DataProp{Id}))
+                            Result(Iobj).(Args.DataProp{Id}) = Fun(Obj(Iobj).(Args.DataProp{Id}), Args.FunArgs{:});
+                        end
+                    end
+                end
+            end
+            
+        end
+        
+        function Result = scaleFlux(Obj, Factor, Args)
+            % Scale (multiply) flux properties by some factor.
+            % Input  : - An AstroSpec object.
+            %          - Scaling factor by which to multiply the flux
+            %            properties. If scaler, then multiply all spectra.
+            %            Alternatively, this can be a vector with the same
+            %            number of elements as in the AstroSpec object.
+            %            In this case, each spectrum will multiply by the
+            %            corresponding scale factor.
+            %          * ...,key,val,...
+            %            'IsMagFactor' - A logical indicating if the
+            %                   scaling factor is in magnitude units.
+            %                   If true, then Factor will be set to:
+            %                   10.^(-0.4*Factor). Default is false.
+            %            'DataProp' - A cell array of data properties on
+            %                   which to apply the function.
+            %                   Default is {'Flux', 'FluxErr', 'Back'}.
+            %            'CreateNewObj' -  [], true, false.
+            %                   If true, create new deep copy
+            %                   If false, return pointer to object
+            %                   If [] and Nargout==0 then do not create new copy.
+            %                   Otherwise, create new copy. Default is [].
+            % Output : - An AstroSpec objec after aplying the scale.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          scaleFlux(AS, 2)
+            %          scaleFlux(AS, [2,3])
+
+            arguments
+                Obj
+                Factor
+                Args.IsMagFactor(1,1) logical = false;
+                Args.DataProp                 = {'Flux', 'FluxErr', 'Back'};
+                Args.CreateNewObj             = [];
+            end
+            
+            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+
+            if Args.IsMagFactor
+                Factor = 10.^(-0.4.*Factor);
+            end
+
+            Nfactor = numel(Factor);
+            Nobj = numel(Obj);
+            Nd   = numel(Args.DataProp);
+            for Iobj=1:1:Nobj
+                Ifactor = min(Iobj, Nfactor);
+                for Id=1:1:Nd
+                    if ~isempty(Obj(Iobj).(Args.DataProp{Id}))
+                        Result(Iobj).(Args.DataProp{Id}) = Obj(Iobj).(Args.DataProp{Id}) .* Factor(Ifactor);
+                    end
+                end
+            end
+
+        end
+
+        function Result = funBinary(Obj1, Obj2, Fun, Args)
+            % Perform a binary operation on two AstroSpec objects
+            %   The operation is applied one to one or one to many.
+            % Input  : - An AstroSpec object (multi elements supported).
+            %          - An AstroSpec object (multi elements supported).
+            %          - Function handle for operator (e.g., @plus, @times).
+            %          * ...,key,val,...
+            %            'AddArgs' - A cell array of additional arguments
+            %                   to pass to the function. Default is {}.
+            %            'Prop' - A cell array of properties on which to
+            %                   apply the operator.
+            %                   Default is {'Flux','FluxErr','Back','Mask'}.
+            %            'KeepOnlyOverlap' - A logical indicating if to
+            %                   keep only overlaping region (true).
+            %                   If false, will return the wavelength grid
+            %                   of the first input AstroSpec argument.
+            %                   Default is false.
+            %            'InterpMethod' - Default is 'linear'.
+            % Output : - An AstroSpec object.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.specStarsPickles('M','V')
+            %          Res = funBinary(AS,AS(1), @plus)
+            
+            arguments
+                Obj1
+                Obj2
+                Fun function_handle
+                Args.AddArgs cell             = {};
+                Args.Prop cell                = {'Flux','FluxErr','Back','Mask'};
+                Args.KeepOnlyOverlap logical  = false;
+                Args.InterpMethod             = 'linear';
+            end
+            
+            Nprop = numel(Args.Prop);
+            
+            Nobj1 = numel(Obj1);
+            Nobj2 = numel(Obj2);
+            
+            Nobj = max(Nobj1, Nobj2);
+            Result = AstroSpec([Nobj,1]);
+            for Iobj=1:1:Nobj
+                Iobj1 = min(Iobj, Nobj1);
+                Iobj2 = min(Iobj, Nobj2);
+                
+                if Args.KeepOnlyOverlap
+                    [New1, New2] = interpAndKeepOverlap(Obj1(Iobj1), Obj2(Iobj2), 'Method',Args.InterpMethod, 'CreateNewObj',true);
+                else
+                    New2 = interp1(Obj2, Obj1(Iobj1).Wave, 'Method',Args.InterpMethod, 'CreateNewObj',true);
+                    New1 = Obj1(Iobj1).copyObject;
+                end
+                
+                Result(Iobj) = New1;
+                for Iprop=1:1:Nprop
+                    if ~isempty(Result(Iobj).(Args.Prop{Iprop}))
+                        Result(Iobj).(Args.Prop{Iprop}) = Fun(New1.(Args.Prop{Iprop}), New2.(Args.Prop{Iprop}), Args.AddArgs{:});
+                    end
+                end
+            end
+        end
+    end
+    
+    
+    methods % extinction
+        function [Result, TranAM] = applyAtmosphericExt(Spec, OutAM, InAM, Args)
+            % Apply atmospheric extinction (airmass) to AstroSpec object.
+            %   One to one, or one to many.
+            % Input  : - An AstroSpec object.
+            %          - Output airmass.
+            %          - Input airmass (of the AstroSpec object).
+            %            Default is 0.
+            %          * ...,key,val,...
+            %            'File' - A file name from which to read transmission.
+            %                   If empty, will return list of available files (in
+            %                   dir-like output).
+            %                   Options include: 'VLT' | 'KPNO' | 'SNfactory'
+            %                   Default is 'VLT'.
+            %            'Prop' - A cell array of properties on which to
+            %                   apply the operator.
+            %                   Default is {'Flux','FluxErr','Back','Mask'}.
+            %            'KeepOnlyOverlap' - A logical indicating if to
+            %                   keep only overlaping region (true).
+            %                   If false, will return the wavelength grid
+            %                   of the first input AstroSpec argument.
+            %                   Default is false.
+            %            'InterpMethod' - Default is 'linear'.
+            % Output : - An AstroSpec object.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.specStarsPickles('M','V')
+            %          Res = applyAtmosphericExt(AS, 1.4)
+            
+            arguments
+                Spec
+                OutAM
+                InAM                             = 0;
+                Args.File                        = 'VLT';
+                Args.Prop                        = {'Flux','FluxErr','Back','Mask'};
+                Args.KeepOnlyOverlap logical     = false;
+                Args.InterpMethod                = 'linear';
+            end
+            
+            DiffAM = OutAM - InAM;
+            TranAM = AstroSpec.atmosphericExtinction(Args.File, 'AM',DiffAM, 'OutUnits','trans','OutType','AstroSpec', 'Wave',[]);
+            
+            Result = funBinary(Spec, TranAM, @times, 'Prop',Args.Prop, 'KeepOnlyOverlap',Args.KeepOnlyOverlap, 'InterpMethod',Args.InterpMethod);
+                
+        end
     end
     
     methods % synthetic photometry
@@ -957,8 +1290,14 @@ classdef AstroSpec < Component
             %          * ...,key,val,...
             %            'MagSys' - Mag system: ['AB'] | 'Vega'
             %            'Device' - Device ['photon'] | 'bol'
-            %            'Algo' - Algorithm - see astro.spec.synphot
-            %                   Default is 'cos'
+            %            'SpecFluxUnits' - Default is 'cgs/A'
+            %            'SpecWaveUnits' - Default is 'A'
+            %            'InterpMethod' - Default is 'linear'.
+            %            'IsOutMat' - A logical indicating if the output is
+            %                   structure array (true) or matrix (false) of
+            %                   [Spec, Band].
+            %                   Default is false.
+            %               Not supported yet
             %            'Ebv' - E_{B-V} [mag] extinction to apply to
             %                   spectra. Default is 0.
             %            'R' - R_V to use for extinction. Default is 3.08.
@@ -978,17 +1317,20 @@ classdef AstroSpec < Component
             %          Spec.interpOverNan;
             %          [Result, Flag, FilterWave] = synphot(Spec, T, 'F55');
 
-            
             arguments
                 Obj
                 FilterFamily       % AstroFilter object, Name, Matrix
                 FilterName         % numer in Result
                 
                 Args.MagSys   = 'AB';
-                Args.Device   = 'photon';
-                Args.Algo     = 'cos';
-                Args.Ebv      = 0;
-                Args.R        = 3.08;
+                Args.Device   = 'photon';   % 'bol' | 'photon'
+                Args.SpecFluxUnits        = 'cgs/A';
+                Args.SpecWaveUnits        = 'A';
+                Args.InterpMethod         = 'linear';
+                %Args.Algo     = 'cos';
+                %Args.Ebv      = 0;
+                %Args.R        = 3.08;
+                Args.IsOutMat logical  = false;
             end
            
             [FilterCell, Name] = AstroSpec.read2FilterMatrix(FilterFamily, FilterName);
@@ -1000,11 +1342,63 @@ classdef AstroSpec < Component
                 Spec = [Obj(Iobj).Wave(:), Obj(Iobj).Flux(:)];
                 
                 for Iname=1:1:Nname
-                    [Mag, FiltFlag, FilterWave(Iname)] = astro.spec.synphot(Spec, FilterCell{Iname}, [], Args.MagSys, Args.Algo, Args.Ebv, Args.R, Args.Device);
+                    [Mag, FiltFlag, FilterWave(Iname)] = astro.spec.synthetic_phot(Spec, FilterCell{Iname}, [], Args.MagSys,...
+                                                                                'Device',Args.Device,...
+                                                                                'SpecFluxUnits',Args.SpecFluxUnits,...
+                                                                                'SpecWaveUnits',Args.SpecWaveUnits,...
+                                                                                'InterpMethod',Args.InterpMethod);
+
+                    
                     Result(Iobj).(Name{Iname})     = Mag;
                     Flag(Iobj).(Name{Iname})       = FiltFlag;
                 end
             end
+            if Args.IsOutMat
+                % convert to matrix
+                Out = nan(Nobj, Nname);
+                for Iname=1:1:Nname
+                    Out(:,Iname) = [Result.(Name{Iname})].';
+                end
+                Result = Out;
+            end
+        end
+
+        function Result = scaleSynphot(Obj, Mag, FilterFamily, FilterName, Args)
+            % Scale spectrum such that its synthetic magnitude will be forced to some value.
+            % Input  : - An AstroSpec object (multi elements supported)
+            %          - Magnitude - Each spectrum will be scaled such that
+            %            its synthetic mag will be equal to this mag.
+            %            This can be a scalar (for all spectra), or vector
+            %            of elements per spectra.
+            %          - A cell of filter family names, an AstFilter
+            %            object, or a matrix of transmissions.
+            %          - A cell array of filter names. The output structure
+            %            will have a field name for each one of these names.
+            %          * ...,key,val,...
+            %            'MagSys' - Mag system: ['AB'] | 'Vega'
+            %            'Device' - Device ['photon'] | 'bol'
+            %            'Algo' - Algorithm - see astro.spec.synphot
+            %                   Default is 'cos'
+            % Author : Eran Ofek (Sep 2021)
+            % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          Mag  = synphot(AS,'SDSS','r')
+            %          R  = scaleSynphot(AS, 20, 'SDSS','r')
+            %          Mag  = synphot(R,'SDSS','r')
+            arguments
+                Obj
+                Mag
+                FilterFamily
+                FilterName
+                Args.MagSys   = 'AB';
+                Args.Device   = 'photon';
+                Args.Algo     = 'cos';
+                Args.CreateNewObj = [];
+            end
+
+            MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo);
+            MagSynVec = [MagSyn.(FilterName)];
+            Factor = 10.^(-0.4.*(Mag - MagSynVec));
+            Result = scaleFlux(Obj, Factor, 'CreateNewObj',Args.CreateNewObj);
         end
     end
     
@@ -1048,6 +1442,7 @@ classdef AstroSpec < Component
             arguments
                 Obj                     % AstroSpec
                 ModelSpec               % AstroSpec to fit to Obj
+                Args.RelErrModel                     = 0.05;
                 Args.InterpModel2spec(1,1) logical   = true;
                 Args.FunFlux                         = [];
                 Args.FunArgs cell                    = {};
@@ -1116,8 +1511,101 @@ classdef AstroSpec < Component
                 Result(Imax).Resid = NewObj.Flux - ScaledModel;
                 Result(Imax).Ratio = NewObj.Flux ./ ScaledModel;
                 Result(Imax).Std   = std(Result(Imax).Resid);
+                if isempty(ScaledErr)
+                    ScaledErr = 0;
+                end
+                ScaledErr = sqrt(ScaledErr.^2 + (ScaledModel.*Args.RelErrModel).^2);
                 Result(Imax).Chi2  = sum((Result(Imax).Resid./ScaledErr).^2);
                 
+            end
+        end
+
+        function [Result, ScaledBestModelSpec] = fitMag(ModelSpec, Mag, Family, Bands, Args)
+            % Fit AstroSpec spectra to observed magnitudes in some bands.
+            % Input  : - An AstroSpec object. Each spectra in this object
+            %            is regarded as a model spectra that will be fitted
+            %            to some observed magnitudes, and the best spectral
+            %            template will be returned.
+            %          - A matrix of magnitudes [Source X Band].
+            %            Each line corresponds to one source that will be
+            %            fitted against all the model spectra. Each column
+            %            corresponds to a band in which the source was
+            %            observed.
+            %          - Band family name (e.g., 'SDSS').
+            %          - A cell array of band names (e.g., {'g','r'}).
+            %          * ...,key,val,...
+            %            'MagErr' - A matrix of magnitude errors
+            %                   corresponding to the magnitude matrix.
+            %                   Default is 0.01.
+            %            'MagSys' - Mag system: ['AB'] | 'Vega'
+            %            'Device' - Device ['photon'] | 'bol'
+            %            'Algo' - Algorithm - see astro.spec.synphot
+            %                   Default is 'cos'
+            % Output : - A structure with the following fields:
+            %            .IndBestChi2 - A vector (one element per source).
+            %                   For each source this gives the index of the 
+            %                   best fitted (chi2) spectral template.
+            %            .BestChi2 - A vector (one per source) of the best
+            %                   fitted \chi^2 value.
+            %            .BestMeanDiff - A vector (one per source) of the
+            %                   best fitted magnitude mean difference
+            %                   (normalization).
+            %          - An AstroSpec object with the best fit model
+            %            spectra scaled to match the input magnitudes.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Spec = AstroSpec.synspecGAIA('Temp',[4000:100:8000],'Grav',[4.5]);
+            %          M = synphot(Spec(10:11),'SDSS',{'g','r','i'}, 'IsOutMat',true); 
+            %          Result = fitMag(Spec, M + 50, 'SDSS',{'g','r','i'});
+
+            arguments
+                ModelSpec
+                Mag          % [Source, Band] matrix
+                Family
+                Bands cell   % cell array of bands
+                Args.MagErr   = 0.01;
+                Args.MagSys   = 'AB';
+                Args.Device   = 'photon';
+                Args.Algo     = 'cos';
+            end
+        
+            Nspec         = numel(ModelSpec);
+            [Nsrc, Nband] = size(Mag);
+            if Nband~=numel(Bands)
+                error('Number of columns in Magnitude matrix must be equal to the number of bands');
+            end
+
+            Result.IndBestChi2  = nan(Nsrc,1);
+            Result.BestChi2     = nan(Nsrc,1);
+            Result.BestMeanDiff = nan(Nsrc,1);
+            Result.IndBestRMS   = nan(Nsrc,1);
+            Result.BestRMS      = nan(Nsrc,1);
+
+            SynMagMat = synphot(ModelSpec, Family, Bands, 'MagSys',Args.MagSys, 'Device',Args.Device, 'IsOutMat',true);
+            for Isrc=1:1:Nsrc
+                % Fit mag difference (L2 minimization)                
+                Diff = Mag(Isrc,:) - SynMagMat;
+                MeanDiff  = [ones(Nband,1) \ Diff.'].';
+
+                %MeanDiff = mean(Diff, 2);
+                Chi2                 = sum(((Diff - MeanDiff)./Args.MagErr).^2, 2);
+                [Result.BestChi2(Isrc), Result.IndBestChi2(Isrc)] = min(Chi2);
+                Result.BestMeanDiff(Isrc)           = MeanDiff(Result.IndBestChi2(Isrc));
+                AllStd = std(Diff,[],2,'omitnan');
+                [Result.BestRMS(Isrc), Result.IndBestRMS(Isrc)] = min(AllStd);
+            end
+
+            if nargout>1
+                % Return also the scaled (by mean diff) best fitted
+                % ModelSpec
+
+                % when switching to non-handle objects - replace this...
+                for I=1:1:numel(Result.IndBestChi2)
+                    ScaledBestModelSpec(I) = ModelSpec(Result.IndBestChi2(I)).copyObject;
+                end
+                % Can't use the next line due to handle-object behavior!!
+                %ScaledBestModelSpec = ModelSpec(Result.IndBestChi2);
+
+                ScaledBestModelSpec = scaleFlux(ScaledBestModelSpec, Result.BestMeanDiff, 'IsMagFactor',true);
             end
         end
     end

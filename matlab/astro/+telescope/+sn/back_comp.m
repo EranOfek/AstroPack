@@ -52,7 +52,7 @@ BackSpec = AstSpec(4);
 % Zodiac background
 [Spec]=ultrasat.zodiac_bck(InPar.RA,InPar.Dec,InPar.Date,'Wave',InPar.Wave);
 if ~isempty(InPar.ZodiMagV) %calibrate to ZodiMagV, if given
-    Mag   = astro.spec.synphot([Spec.Wave, Spec.Spec],'Johnson','V','Vega');
+    Mag   = astro.spec.synthetic_phot([Spec.Wave, Spec.Spec],'Johnson','V','Vega');
     Spec.Spec = Spec.Spec.*10.^(0.4.*(Mag - InPar.ZodiMagV));
 end
 %InPar.BackSpec = [Spec.Wave,Spec.Spec];
@@ -75,7 +75,7 @@ SG = AstSpec.get_galspec(InPar.HostType);
 % extrapolate host spectrum to the IR
 SG.Wave(end+1) = 25000;
 SG.Int(end+1)  = SG.Int(end);
-FactorHost = 10.^(-0.4.*(InPar.HostMag - synphot(SG,'SDSS','r','AB')));
+FactorHost = 10.^(-0.4.*(InPar.HostMag - synthetic_phot(SG,'SDSS','r','AB')));
 SG.Int = SG.Int.*FactorHost;
 %synphot(SG,'SDSS','r','AB');
 SG.Int = SG.Int./InPar.PsfEffAreaAS;  % surface brightness

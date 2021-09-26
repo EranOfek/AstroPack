@@ -1,0 +1,8 @@
+InstallationLocation : '~/matlab/data'
+# The following are cell arrays of entry per dataset
+DataName             : 'VSOPE87'
+SubDir               : 'SolarSystem/VSOPE87'
+URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/VSOPE87.tar']
+Size                 : 41
+SearchFile           : ''
+Description          : 'Solar system VSOPE87 ephmerides'

@@ -133,6 +133,9 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % match against external catalogs
     if Args.MatchExternal
+        % 1. Add columns for matched sources
+        
+        % 2. generate a new catalog of only matched sources
         
     end
     

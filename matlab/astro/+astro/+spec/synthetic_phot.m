@@ -32,7 +32,7 @@ function [Mag,Cover,F]=synthetic_phot(Spec,FilterFamily,FilterName,MagSystem,var
 %     By : Eran O. Ofek                    Aug 2019
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: S=astro.get_pickles;
-%          SS=astro.blackbody(5770,(2000:1:10000)');
+%          SS=AstSpec.black_body(5770,(2000:1:10000)');
 %          SS.Int = SS.Int.*4.*pi.*constant.SunR.^2./(4.*pi.*(10.*constant.pc).^2);
 %          [Mag,Cover,F]=astro.spec.synthetic_phot([SS.Wave, SS.Int],'SDSS','g','AB');
 % Reliable: 2
@@ -124,7 +124,7 @@ switch lower(MagSystem)
             case'photon'
                 NormTran = trapz(Freq,Tran(:,2)./Freq);
                 NormTranNN = trapz(Freq(NN),Tran(NN,2)./Freq(NN));
-                Fnu      = trapz(Freq(NN),SpecFnu(NN,:).*Tran(NN,2)./Freq)./NormTran;
+                Fnu      = trapz(Freq(NN),SpecFnu(NN,:).*Tran(NN,2)./Freq(NN))./NormTran;
             otherwise
                 error('Unknown Device option');
         end

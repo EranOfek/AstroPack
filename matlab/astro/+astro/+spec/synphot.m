@@ -37,8 +37,8 @@ function [Mag,Flag,FiltEffWave]=synphot(Spec,FiltFam,FiltName,MagSys,Algo,Ebv,R,
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Comments: The 'Poz' option requires basic_synthetic_photometry.m 
 %           by: Dovi Poznanski.
-% Example: [Mag,Flag]=synphot(Spec,'SDSS','r','AB');
-%          [Mag,Flag]=synphot(Spec,'SDSS','r','AB',[],0.1); % apply extinction
+% Example: [Mag,Flag]=astro.spec.synphot(Spec,'SDSS','r','AB');
+%          [Mag,Flag]=astro.spec.synphot(Spec,'SDSS','r','AB',[],0.1); % apply extinction
 % Reliable: 1
 %------------------------------------------------------------------------------
 InterpMethod = 'linear';

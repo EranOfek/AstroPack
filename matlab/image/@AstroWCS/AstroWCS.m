@@ -6,6 +6,8 @@
 %       Calabretta & Greisen 2002, \aap, 395, 1077. doi:10.1051/0004-6361:20021327
 % Currently supporting only Proj types: TAN, TAN-SIP, TPV
 % Currently not supporting WCSAXES>2 
+%
+% TODO: modify tran2wcs to work with arrays. update unittest to check header2wcs with arrays
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -48,17 +50,29 @@ classdef AstroWCS < Component
         
     end
     
+    
+    properties  % quality of solution
+        % why is this here? In principle this can be located in Tran2D.
+        % However, Tran2D describes only part of the full transformaion.
+        Success(1,1) logical   = false;  % is astrometry solution reasnoable
+        ErrorOnMean            = NaN;    % assymptotic-rms/sqrt(Ngood)
+        AssymRMS               = NaN;    % assymptotic-rms
+        Ngood                  = NaN;    % number of good matches used for the solution
+        Resid                  = [];
+        RefMag                 = [];
+        RefColor               = [];
+        SrcX                   = [];
+        SrcY                   = [];
+        ResFit                 = [];     % structure with additional information. % setter will attempt to populate the other properties
+    end
+    
     properties (Hidden, Constant)
         DefPVstruct         = struct('KeyNamesX',[],'PolyCoefX',[],'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyX_Rdeg',[],...
                                      'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);         
                                             % Default structure of projection distortion coefficients
     end   
-    
-%======================================================================    
-    
-    methods
-   %======== Constructor  =========        
-
+        
+    methods  % Constructor
         function Obj = AstroWCS(Nobj)
             % Basic constructor for AstroWCS class. User should usually use AstroWCS.header2wcs or AstroWCS.tran2wcs
             % Input  : - A vector of the requested size of the empty
@@ -83,8 +97,21 @@ classdef AstroWCS < Component
             
         end
         
-   %======== General functions =========           
-        
+    end
+
+    methods  % setters/getter
+        function Obj = set.ResFit(Obj, ResFit)
+            % setter for ResFit - will automatically populate related properties
+
+            Obj.ResFit  = ResFit;
+            Obj         = tools.struct.copyProp(ResFit, Obj, {'ErrorOnMean','AssymRMS','Ngood','Resid','RefMag','SrcX','SrcY'});
+            
+            % populate the sucess flag
+            
+        end
+    end
+
+    methods  % General functions
         function Obj = populate_projMeta(Obj)
             % Populate projection metadata (Alpha0,Delta0,AlphaP,DeltaP,Phi0,Theta0,PhiP) 
             % Input  : - AstroWCS object.
@@ -126,7 +153,47 @@ classdef AstroWCS < Component
              end            
         end        
         
-   %======== Functions to construct AstroWCS from AstroHeader =========
+        function Obj = populateSucess(Obj, Args)
+            % Populate the sucess flag in the AstroWCS object
+            %   The success flag indicate if the WCS solution and residuals
+            %   are reasnoble.
+            % Input  : - An AstroWCS object (single element)
+            %          * ...,key,val,...
+            %            'TestNbin' - Number of bins in each dim of the 2D hist
+            %                   by which to calculate the regional
+            %                   residuals. Default is 3.
+            %            'RegionalMaxMedianRMS' - Maximal regional RMS
+            %                   [pix/arcsec???]. Default is 1
+            %            'RegionalMaxWithNoSrc' - Max number of regions
+            %                   with less than 2 matches. Default is 0.
+            %            'MaxErrorOnMean' - Max error on th mean.
+            %                   [pix/arcsec???]. Default is 0.05.
+            % Output : - An AstroWCS object with the Success property
+            %            populated.
+            % Author : Eran Ofek (Sep 2021)
+            
+            arguments
+                Obj(1,1)
+                Args.TestNbin                 = 3;
+                Args.RegionalMaxMedianRMS     = 1;     % arcsec OR pix?
+                Args.RegionalMaxWithNoSrc     = 0;
+                Args.MaxErrorOnMean           = 0.05;  % arcsec OR pix?
+            end
+            ARCSEC_DEG = 3600;
+            
+            % sucess
+            ImSize = min(range(Obj.ResFit.SrcX), range(Obj.ResFit.SrcY));
+            Step   = ImSize./Args.TestNbin;
+
+            [BinN, ~, BinMedian] = tools.math.stat.bin2dFun(Obj.ResFit.SrcX, Obj.ResFit.SrcY, Obj.ResFit.Resid.*ARCSEC_DEG, 'Step',Step);
+
+            Obj.Success = max(BinMedian,[],'all') < Args.RegionalMaxMedianRMS && ...
+                          sum(BinN<2,'all') <= Args.RegionalMaxWithNoSrc && ...
+                          Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+        end
+    end
+
+    methods   % Functions to construct AstroWCS from AstroHeader
         
         function Obj = read_ctype(Obj)
             % Read Obj.CTYPE to populate the fields: ProjType, ProjClass, CooName, and CUNIT (if empty or nan)
@@ -180,16 +247,18 @@ classdef AstroWCS < Component
             
         end
 
-   %======== Functions to construct AstroHeader from AstroWCS ========= 
+    end
+
+    methods    % Functions to construct AstroHeader from AstroWCS
    
-       function Header = wcs2head(Obj,Header)
+       function Header = wcs2header(Obj,Header)
             % Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
             % Input  : - AstroWCS object.
             %          - Optional AstroHeader object in which to update key/par
             % Output : - AstroHeader object with the WCS keywords
             % Author : Yossi Shvartzvald (August 2021)
             % Example: 
-            %          AW = AstroWCS(1); AH = AW.wcs2head;      
+            %          AW = AstroWCS(1); AH = AW.wcs2header;      
 
             arguments
                 Obj
@@ -311,7 +380,9 @@ classdef AstroWCS < Component
           
        end
         
-   %======== Functions for related to xy2sky =========
+    end
+
+    methods   % Functions related to xy2sky
    
         function [Alpha, Delta]  = xy2sky(Obj,PX,PY,Args)         
             % Convert pixel coordinates to celestial coordinates
@@ -373,7 +444,6 @@ classdef AstroWCS < Component
     
         end
               
-        
         function [X,Y]=pix2interm(Obj,PX,PY,includeDistortion)
             % Convert pixel coordinates (P) to intermediate coordinates (X), if requested also include distortion
             % Input  : - A single element AstroWCS object
@@ -443,7 +513,6 @@ classdef AstroWCS < Component
 
         end
         
-        
         function [Phi,Theta]=interm2native(Obj,X,Y,Args)
             % Project intermediate coordinates to native coordinates
             % Input  : - AstroWCS object
@@ -509,7 +578,6 @@ classdef AstroWCS < Component
 
         end
         
-    
         function [Alpha,Delta]=native2celestial(Obj,Phi,Theta,Args)
             % Convert native coordinates to celestial coordinates
             % Input  : - A single element AstroWCS object.
@@ -564,9 +632,9 @@ classdef AstroWCS < Component
 
         end    
         
-        
-   %======== Functions for related to sky2xy =========   
+    end    
    
+    methods  % Functions related to sky2xy
         function [PX,PY]  = sky2xy(Obj,Alpha,Delta,Args)            
             % Convert celestial coordinates to pixel coordinates
             % Input  : - A single element AstroWCS object
@@ -630,7 +698,6 @@ classdef AstroWCS < Component
             PX = reshape(PX,size(Delta));
             PY = reshape(PY,size(Alpha));
         end      
-        
         
         function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,Args)            
             % Convert celestial coordinates to native coordinates
@@ -848,7 +915,7 @@ classdef AstroWCS < Component
 
    %======== Functions to construct AstroWCS from AstroHeader =========
         
-        function Obj = header2wcs(Header)
+        function Result = header2wcs(AH)
             % Create and populate an AstroWCS object from an AstroHeader object
             % Input  : - AstroHeader object.           
             % Output : - AstroWCS object.
@@ -856,70 +923,72 @@ classdef AstroWCS < Component
             % Example: 
             %           AH = AstroHeader(Im_name); AW = AstroWCS.header2wcs(AH);            
             
-            Obj = AstroWCS(1);
-            AH = Header;
+            Nobj   = numel(AH);
+            Result = AstroWCS(size(AH)); 
+            for Iobj=1:1:Nobj
             
-            % Read number of axes
-            % if WCSAXES is not available use NAXIS as default
-            Obj.NAXIS = AH.getVal('NAXIS');
-            Obj.WCSAXES = AH.getVal('WCSAXES');
-            if (Obj.WCSAXES==0)
-                Obj.WCSAXES = Obj.NAXIS;
+                % Read number of axes
+                % if WCSAXES is not available use NAXIS as default
+                Result(Iobj).NAXIS = AH(Iobj).getVal('NAXIS');
+                Result(Iobj).WCSAXES = AH(Iobj).getVal('WCSAXES');
+                if (Result(Iobj).WCSAXES==0)
+                    Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
+                end
+            
+                Naxis = Result(Iobj).WCSAXES;
+
+                % prepare mutli axis keys
+                KeyCtype = cell(1,Naxis);
+                KeyCunit = cell(1,Naxis);
+                KeyCrpix = cell(1,Naxis);
+                KeyCrval = cell(1,Naxis);
+                for Iaxis1 = 1:1:Naxis
+                    KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
+                    KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1); 
+                    KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
+                    KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
+                end
+
+                % Get CTYPE and transalte to projection information (ProjType,
+                % ProjClass) and CooName and CUNIT
+                Result(Iobj).CTYPE = AH(Iobj).getCellKey(KeyCtype);
+                Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);                
+                Result(Iobj).read_ctype;
+            
+                [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
+                % Get base WCS info
+
+                if AH(Iobj).isKeyExist('LONPOLE')
+                    Result(Iobj).LONPOLE = AH(Iobj).getVal('LONPOLE');
+                end
+                if AH(Iobj).isKeyExist('LATPOLE')
+                    Result(Iobj).LATPOLE = AH(Iobj).getVal('LATPOLE');
+                end            
+
+
+                Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
+                Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
+
+                Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
+
+                % Read distortions   
+
+                % look for PV coeficients
+                Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
+
+                % For TAN-SIP try to get RevPV (TODO generlize)
+                if strcmpi(Result(Iobj).ProjType,'tan-sip')
+                    Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
+                end
+
+                % populate proj Meta
+                Result(Iobj).populate_projMeta;
+
+                % assume header solution is good
+                Result(Iobj).Success = true;
             end
-            
-            Naxis = Obj.WCSAXES;
-
-            % prepare mutli axis keys
-            KeyCtype = cell(1,Naxis);
-            KeyCunit = cell(1,Naxis);
-            KeyCrpix = cell(1,Naxis);
-            KeyCrval = cell(1,Naxis);
-            for Iaxis1 = 1:1:Naxis
-                KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
-                KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1); 
-                KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
-                KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
-            end
-
-            % Get CTYPE and transalte to projection information (ProjType,
-            % ProjClass) and CooName and CUNIT
-            Obj.CTYPE = AH.getCellKey(KeyCtype);
-            Obj.CUNIT = AH.getCellKey(KeyCunit);                
-            Obj.read_ctype;
-            
-            [Obj.RADESYS,Obj.EQUINOX] = Obj.read_radesys_equinox(AH);
-            % Get base WCS info
-
-            if AH.isKeyExist('LONPOLE')
-                Obj.LONPOLE = AH.getVal('LONPOLE');
-            end
-            if AH.isKeyExist('LATPOLE')
-                Obj.LATPOLE = AH.getVal('LATPOLE');
-            end            
-
-            
-            Obj.CRPIX = cell2mat(AH.getCellKey(KeyCrpix));
-            Obj.CRVAL = cell2mat(AH.getCellKey(KeyCrval));
-            
-            Obj.CD = Obj.build_CD(AH,Naxis);
-            
-            % Read distortions   
-            
-            % look for PV coeficients
-            Obj.PV = Obj.build_PV_from_Header(AH,Obj.ProjType);
-            
-            % For TAN-SIP try to get RevPV (TODO generlize)
-            if strcmpi(Obj.ProjType,'tan-sip')
-                Obj.RevPV = AstroWCS.build_TANSIP_from_Header(Header,true);
-            end
-
-
-             % populate proj Meta
-            Obj.populate_projMeta;
         end
-        
-        
-        
+                
         function [radesys,equinox] =read_radesys_equinox(Header)
             % Read from AstroHeader the RADESYS and EQUINOX. If any are missing fill with deafults.
             % Input  : - AstroHeader object.
@@ -961,9 +1030,7 @@ classdef AstroWCS < Component
             end
             
         end
-        
-        
-        
+                
         function CD = build_CD(Header,Naxis)
             % Construct the CD matrix from AstroHeader. Either directly CD matrix, or PC+CDELT, or CDELT
             % Input  : - AstroHeader object.
@@ -1722,7 +1789,6 @@ classdef AstroWCS < Component
 
         end
         
-
         function [X,Y]  = backwardDistortion(PV,Xd,Yd,Args)  
             % Apply reverse (i.e. backward) distortion to X,Y coordinates using the PV sturcture 
             % Input  : - PV structure (following AstroWCS.DefPVstruct)

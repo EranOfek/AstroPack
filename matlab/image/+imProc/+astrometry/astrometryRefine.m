@@ -4,7 +4,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     %   WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec
     %   coordinates. The coordinates should be good to a few arcseconds.
     %   For no solutions use imProc.astrometry.astrometryCore.
-    % Input  : - An AstroCatalog object (multiple elements supported).
+    % Input  : - An AstroCatalog or AstroImage object (multiple elements supported).
     %          * ...,key,val,...
     %            'SearchRadius' - Sources search radius [arcsec].
     %                   Default is 3.
@@ -149,7 +149,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     % Example: RR = imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
     arguments
-        ObjAC AstroCatalog
+        ObjAC 
         Args.Header                             = []; % If given convert to AstroWCS
         Args.WCS                                = []; % If given generate RA/Dec for sources
         
@@ -230,50 +230,71 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     % Case 2. Use AstroWCS
     % Case 3. Use AstroHeader
     
+    % If Header is provided then convert to WCS
+    if ~isempty(Args.Header)
+        Args.WCS = AstroWCS.header2wcs(Args.Header);
+    end
+    
     Nobj  = numel(Obj);
-    Nhead = numel(Args.Header);
     Nwcs  = numel(Args.WCS);
     CooFromBoundingCircle = false;
     AstrometricCat        = AstroCatalog(size(Obj));  % []
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
+        Iwcs = min(Iobj, Nwcs);
+        
+        if isa(Obj, 'AstroImage')
+            Cat = Obj(Iobj).CatData.copyObject;
+            % Args.WCS order of priority:
+            if isempty(Args.WCS)
+                % get WCS from AstroImage
+                WCS = Obj(Iobj).WCS;
+            else
+                WCS = Args.WCS(Iwcs);
+            end
+        elseif isa(Obj, 'AstroCatalog')
+            Cat = Obj(Iobj).copyObject;
+            if isempty(Args.WCS)
+                WCS = [];
+            else
+                WCS = Args.WCS(Iwcs);
+            end
+        else
+            error('Unsupported input class. First input must be AstroCatalog or AstroImage');
+        end
         
         % get X/Y columns from catalog
-        [Xcat,~,IndCatX] = getColDic(Obj(Iobj), Args.CatColNamesX);
-        [Ycat,~,IndCatY] = getColDic(Obj(Iobj), Args.CatColNamesY);
-
-        if ~isempty(Args.Header)
-            % convert AstroHeader to AstroWCS
-            % populate Args.WCS
-            Ihead = min(Iobj, Nhead);
-            Args.WCS = AstroWCS.header2wcs(Args.Header(Ihead));
-            Nwcs     = 1;
-        end
-        if isempty(Args.WCS)
+        [Xcat,~,IndCatX] = getColDic(Cat, Args.CatColNamesX);
+        [Ycat,~,IndCatY] = getColDic(Cat, Args.CatColNamesY);
+        
+        if isempty(WCS)
             % assume RA/Dec are available in AstroCatalog
-            [SrcRA, SrcDec] = getLonLat(Obj(Iobj), 'rad');
+            [SrcRA, SrcDec] = getLonLat(Cat, 'rad');
         else
             % Convert X/Y to RA/Dec using AstroWCS
-            Iwcs = min(Iobj, Nwcs);
-            [SrcRA, SrcDec] = Args.WCS(Iwcs).xy2sky(Xcat, Ycat, 'OutUnits','rad',...
-                                                                'includeDistortion',Args.IncludeDistortions);
+            [SrcRA, SrcDec] = WCS.xy2sky(Xcat, Ycat, 'OutUnits','rad',...
+                                                     'includeDistortion',Args.IncludeDistortions);
             % add approximate RA, Dec to new copy of catalog
-            Obj = insertCol(Obj, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
-                
+            Cat = deleteCol(Cat, {CatColNameRA, CatColNameDec});
+            Cat = insertCol(Cat, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
         end
     
         if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
-            if isempty(Args.WCS)
+            CircleUnits         = 'deg';
+            if isempty(WCS)
                 % estimate RA/Dec of center of catalog from catalog itself
-                CircleUnits         = 'deg';
-                [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Obj(Iobj),'CooType','pix','OutUnits',CircleUnits); 
+                [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','sphere','OutUnits',CircleUnits); 
 
                 Args.CooUnits       = CircleUnits;
                 Args.CatRadiusUnits = CircleUnits;
             else
                 % estimate from image center and WCS
-                error('not yet available');
-                
+                [CenterX, CenterY, CenterRadius] = boundingCircle(Cat,'CooType','pix');
+                [Args.RA, Args.Dec] = xy2sky(WCS, CenterX, CenterY, 'OutUnits',CircleUnits,...
+                                              'includeDistortion',Args.IncludeDistortions);
+                Args.CatRadius      = CenterRadius .* Args.Scale;
+                Args.CatRadiusUnits = 'arcsec';
+                Args.CooUnits       = CircleUnits;
             end
             CooFromBoundingCircle = true;
         else
@@ -323,7 +344,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         % filter Ref - remove sources with neighboors
         if Args.RemoveNeighboors
             % sort AstrometricCat
-            AstrometricCat(Iobj).sortrows('Dec');
+            AstrometricCat(Iobj) = sortrows(AstrometricCat(Iobj), 'Dec');
             
             UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat(Iobj), Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
         else
@@ -337,9 +358,10 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
                                                                                        'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                        'CreateNewObj',true);
      
+        Cat = sortrows(Cat, 'Dec');
         % match the RA/Dec against an external catalog
         % sources in MatchedCat corresponds to sources in ProjAstCat
-        [MatchedCat,UM,TUM] = imProc.match.match(Obj(Iobj), ProjAstCat,...
+        [MatchedCat,UM,TUM] = imProc.match.match(Cat, ProjAstCat,...
                                                      'Radius',Args.SearchRadius,...
                                                      'RadiusUnits','arcsec',...
                                                      'CooType','sphere',...
@@ -365,11 +387,12 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         Mag  = getColDic(ProjAstCat, Args.RefColNameMag);
         
         % fit
+        % Note that in astrometryCore, we use for scale = ResPattern.Sol.Scale(Isol).*Args.Scale,...
+        % ImageCenterXY is [0,0] because now the images are assumed to be
+        % alligned
         
-        % why do we need ImageCenterXY ?  Args.WCS.CRPIX <<---?????????
-        
-        [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
-                                                       'ImageCenterXY',Args.WCS.CRPIX,...
+        [Tran, ParWCS, ResFit, WCS] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
+                                                       'ImageCenterXY',[0 0],...
                                                        'Scale',Scale,...
                                                        'ProjType',Args.ProjType,...
                                                        'TranMethod',Args.TranMethod,...
@@ -396,16 +419,29 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         Result(Iobj).ResFit     = ResFit;
         
         % create an AstroWCS object
-        KeyValWCS = namedargs2cell(Result(Iobj).ParWCS);
-        Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran, KeyValWCS{:});
+        %KeyValWCS = namedargs2cell(Result(Iobj).ParWCS);
+        Result(Iobj).WCS = WCS;  %AstroWCS.tran2wcs(Result(Iobj).Tran, KeyValWCS{:});
 
         % add RA/Dec to the catalog
-        if nargout>2
-            [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Obj(Iobj).getCol(IndCatX), Obj(Iobj).getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
-            Obj(Iobj).insertCol([ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits})
-        end
-
+        if nargout>1
+            % update RA/Dec in catalog
+            [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+            Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
+            Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
         
+
+            if isa(Obj, 'AstroImage')
+                Obj(Iobj).CatData = Cat;
+                % update WCS in AstroImage
+                Obj(Iobj).WCS = Result(Iobj).WCS;
+                % add WCS kesy to Header
+                Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+            elseif isa(Obj, 'AstroCatalog')
+                Obj(Iobj)         = Cat;
+            else
+                error('Unsupported input class. First input must be AstroCatalog or AstroImage');
+            end
+        end
     end
                 
 end

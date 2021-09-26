@@ -348,7 +348,7 @@ classdef convert
                     Val = Val./10;
                 case 'micrometer'
                     Val = Val.*1e-4;
-                case 'ang'
+                case {'a','ang'}
                     Val = Val.*1e-8;
                 case 'km'
                     Val = Val.*1e5;
@@ -384,7 +384,7 @@ classdef convert
                     Val = Val.*10;
                 case 'micrometer'
                     Val = Val.*1e4;
-                case 'ang'
+                case {'a','ang'}
                     Val = Val.*1e8;
                 case 'km'
                     Val = Val.*1e-5;

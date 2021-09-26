@@ -211,7 +211,7 @@ classdef AstCat < HEAD
                 end
             end
             
-            [Data,Att]=Util.IO.loadh(FileName,CatName,'s');
+            [Data,Att]=io.files.loadh(FileName,CatName,'s');
             
             FN  = fieldnames(Data);
             Nfn = numel(FN);

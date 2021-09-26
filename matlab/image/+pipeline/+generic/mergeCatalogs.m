@@ -95,6 +95,9 @@ function Result = mergeCatalogs(Obj, Args)
     
     % photometric variability properties
     
+    % lcUtil.fitPolyHyp
+    
+    
     % Photometric template matching
     
     % treat unmatched sources

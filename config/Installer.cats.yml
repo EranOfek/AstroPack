@@ -1,0 +1,8 @@
+InstallationLocation : '~/matlab/data'
+# The following are cell arrays of entry per dataset
+DataName             : 'cats'
+SubDir               : '+cats'
+URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/+cats/cats.tar']
+Size                 : 54000
+SearchFile           : 'cats.tar'
+Description          : '+cats medium-size catalogs'

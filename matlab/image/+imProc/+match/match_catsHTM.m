@@ -1,4 +1,4 @@
-function [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = match_catsHTM(Obj, CatName, Args)
+function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     % Match an AstroCatalog object with catsHTM catalog
     % Input  : - An AstroCatalog or an AstroImage object (multi
     %            elements supported). The AStroCatalog object will
@@ -28,13 +28,18 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = match_catsHTM(Obj, 
     %            'catsHTMisRef' - A logical indicating if the
     %                   catsHTM catalog is treated as the reference
     %                   catalog. Default is false.
-    %                   If true, then the number of sources of the matched
-    %                   catalog is like the catsHTM object, while
-    %                   false the size is like the input object.
-    % Output : - A matched AstroCatalog object. See Match.match.
-    %          - An unatched AstroCatalog object. See Match.match.
-    %          - A truely unatched AstroCatalog object. See Match.match.
-    %          - The catsHTM AstroCatalog object.
+    %                   If true, then the output is the same but for the catsHTM catalog.
+    %            'AddColDist' - Default is true.
+    %            'ColDistPos' - Default is Inf.
+    %            'ColDistName' - Default is 'Dist'.
+    %            'ColDistUnits' - Default is 'arcsec'.
+    %            'AddColNmatch' - Default is true.
+    %            'ColNmatchPos' - Default is Inf.
+    %            'ColNmatchName' - Default is 'Nmatch'.
+    % Output : - The input catalog with added columns for the nearest match
+    %            in the catsHTM catalog.
+    %          - Select lines only from the input catalog. Only sources
+    %            with matches are selected.
     % Author : Eran Ofek (Apr 2021)
     % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
     %          M = imProc.cat.Match;
@@ -52,6 +57,14 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = match_catsHTM(Obj, 
         Args.CatRadiusUnits      = 'arcsec';
         Args.Con                 = {};
         Args.catsHTMisRef        = false;
+        
+        Args.AddColDist logical   = true;
+        Args.ColDistPos           = Inf;
+        Args.ColDistName          = 'Dist';
+        Args.ColDistUnits         = 'arcsec';
+        Args.AddColNmatch logical = true;
+        Args.ColNmatchPos         = Inf;
+        Args.ColNmatchName        = 'Nmatch';
     end
 
     % convert AstroImage to AstroCatalog
@@ -75,7 +88,12 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = match_catsHTM(Obj, 
 
     Nobj = numel(Obj);
     MatchedObj = AstroCatalog(size(Obj));
-
+    
+    Result     = Obj.copyObject;
+    if nargout>1
+        SelObj     = AstroCatalog(size(Obj));
+    end
+    
     CatH = AstroCatalog(size(Obj));  % output of catsHTM
     for Iobj=1:1:Nobj
         if isempty(Args.Coo) || isempty(Args.CatRadius)
@@ -90,13 +108,33 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = match_catsHTM(Obj, 
         end
         Icoo = 1;
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
-        CatH.getCooTypeAuto;
-        % match sources
-        if Args.catsHTMisRef
-            [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(Obj, CatH, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
-        else
-            [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(CatH, Obj, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
+
+        if catsHTMisRef
+            ResInd = imProc.match.matchReturnIndices(Obj, CatH, 'CooType','sphere',...
+                                                            'Radius',Args.Radius,...
+                                                            'RadiusUnits',Args.radiusUnits);
+        else                                          
+            % default!
+            ResInd = imProc.match.matchReturnIndices(CatH, Obj, 'CooType','sphere',...
+                                                            'Radius',Args.Radius,...
+                                                            'RadiusUnits',Args.radiusUnits);
         end
+        
+        [Result(Iobj), SelObj] = insertCol_matchIndices(Result(Iobj), ResInd, 'AddColDist',Args.AddColDist,...
+                                                                              'ColDistPos',Args.ColDistPos,...
+                                                                              'ColDistName',Args.ColDistName,...
+                                                                              'ColDistUnits',Args.ColDistUnits,...
+                                                                              'AddColNmatch',Args.AddColNmatch,...
+                                                                              'ColNmatchPos',Args.ColNmatchPos,...
+                                                                              'ColNmatchName',Args.ColNmatchName);
+        
+        
+%         % match sources
+%         if Args.catsHTMisRef
+%             [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(Obj, CatH, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
+%         else
+%             [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(CatH, Obj, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
+%         end
 
     end
 end
