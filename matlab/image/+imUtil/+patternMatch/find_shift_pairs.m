@@ -208,11 +208,10 @@ for Iflip=1:1:Nflip
     
     % generate a 2D histogram of X and Y distances
     % slower
-    %     tic;
-    [H2,VecX,VecY] = imUtil.patternMatch.hist2d(Dx(:),Dy(:),InPar.RangeX,InPar.RangeY,InPar.StepX,InPar.StepY);
-    %     toc
-    %[H21,VecX1,VecY1] = tools.array.hist2d_fast(Dx(:),Dy(:), (InPar.RangeX(1):InPar.StepX:InPar.RangeX(2)),...
-    %                                                      (InPar.RangeY(1):InPar.StepY:InPar.RangeY(2)), false );
+    %[H2,VecX,VecY] = imUtil.patternMatch.hist2d(Dx(:),Dy(:),InPar.RangeX,InPar.RangeY,InPar.StepX,InPar.StepY);
+    % Note that X/Y are reversed!
+    [H2,VecY,VecX] = tools.array.hist2d_fast(Dy(:),Dx(:),InPar.RangeY,InPar.RangeX,InPar.StepY,InPar.StepX);
+    
     
     % filter H2
     if ~isempty(InPar.FilterSigma)

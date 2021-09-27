@@ -141,7 +141,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.CatRadius                    = 1400;
         Args.CatRadiusUnits               = 'arcsec'
         Args.Con                          = {};
-        
+                
         Args.RefColNameMag                = {'Mag_BP','Mag'};
         Args.RefRangeMag                  = [12 19.5];
         Args.RefColNamePlx                = {'Plx'};
@@ -165,7 +165,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RangeY(1,2)                  = [-1000 1000];
         Args.StepX(1,1)                   = 2;
         Args.StepY(1,1)                   = 2;
-        Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
+        Args.Flip(:,2)                    = [1 -1]; %; 1 -1;-1 1;-1 -1]; % [1 -1]
         Args.SearchRadius(1,1)            = 6;   
         Args.FilterSigma                  = 3;
         
@@ -286,6 +286,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             error('Unknown first input argument type - must be AstroImage or AstroCatalog');
         end
         
+        % can we add here CreateNewObj=false ? Answer: no - this is messing
+        % up the catalog in a bad way - not fully understood
+        % ProjAstCat is not used anymore 
         [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(Cat, ProjAstCat,...
                                                                                     'ColCatX',Args.CatColNamesX,...
                                                                                     'ColCatY',Args.CatColNamesY,...
@@ -500,9 +503,10 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             if nargout>1
                 % update RA/Dec in catalog
                 [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+                % insert or replace
                 Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
                 
-                % update the Obj with the new CatData:
+                % update the Obj with the new CatData and new header:
                 if isa(Obj, 'AstroImage')
                     Obj(Iobj).CatData = Cat;
                     
@@ -510,6 +514,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     Obj(Iobj).WCS = Result(Iobj).WCS;
                     
                     % add WCS kesy to Header
+                    Obj(Iobj).HeaderData.Data = [];
+                    warning('header deleted!!')
                     Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                 else
                     % assume Obj is AstroCatalog

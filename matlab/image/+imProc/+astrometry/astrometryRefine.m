@@ -277,7 +277,6 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
             [SrcRA, SrcDec] = WCS.xy2sky(Xcat, Ycat, 'OutUnits','rad',...
                                                      'includeDistortion',Args.IncludeDistortions);
             % add approximate RA, Dec to new copy of catalog
-            Cat = deleteCol(Cat, {CatColNameRA, CatColNameDec});
             Cat = insertCol(Cat, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
         end
     
@@ -428,7 +427,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         if nargout>1
             % update RA/Dec in catalog
             [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
-            Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
+            %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
+            %No need - done in insertCol
             Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
         
 

@@ -79,11 +79,9 @@ if isempty(InPar.CCDSEC)
 end
 
 Ncat = size(Cat,1);
-[Mat,~,~,BinX,BinY] = imUtil.patternMatch.hist2d(Cat(:,InPar.ColX),Cat(:,InPar.ColY), InPar.CCDSEC(1:2),InPar.CCDSEC(3:4), InPar.StepX, InPar.StepY);
-% [Mat1,~,~,BinX1,BinY1] = tools.array.hist2d_fast(Cat(:,InPar.ColX), Cat(:,InPar.ColY),...
-%                                                  (InPar.CCDSEC(1):InPar.StepX:InPar.CCDSEC(2)),...
-%                                                  (InPar.CCDSEC(3):InPar.StepY:InPar.CCDSEC(4)), false );
-%     
+%[Mat,~,~,BinX,BinY] = imUtil.patternMatch.hist2d(Cat(:,InPar.ColX),Cat(:,InPar.ColY), InPar.CCDSEC(1:2),InPar.CCDSEC(3:4), InPar.StepX, InPar.StepY);
+[Mat,~,~,BinY,BinX] = tools.array.hist2d_fast(Cat(:,InPar.ColY),Cat(:,InPar.ColX), InPar.CCDSEC(3:4),InPar.CCDSEC(1:2), InPar.StepY, InPar.StepX);
+
 
 
 Flag = false(Ncat,1);

@@ -154,7 +154,10 @@ CatDiffY = CatDiffY(Fc);
 CatDist  = sqrt(CatDiffX.^2 + CatDiffY.^2);
 CatTan   = atan(CatDiffY./CatDiffX);
 % calc histograms
-CatHist = histcounts2(log10(CatDist(:)),CatTan(:).*RAD, LogHistDistEdges,InPar.HistRotEdges);    
+%CatHist = histcounts2(log10(CatDist(:)),CatTan(:).*RAD, LogHistDistEdges,InPar.HistRotEdges);    
+% faster
+CatHist = tools.array.hist2d_fast(log10(CatDist(:)),CatTan(:).*RAD, LogHistDistEdges,InPar.HistRotEdges);    
+
 % make sure that CatHist doesn't contain zeros
 Rep0Val = min((1-sum(CatHist==0,'all')./numel(CatHist)).^2,0.5);
 CatHist(CatHist==0) = Rep0Val;

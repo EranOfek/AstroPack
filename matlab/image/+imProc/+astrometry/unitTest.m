@@ -70,8 +70,13 @@ function Result = unitTest()
         Tran = Tran2D;
         Tran.symPoly;
         JD = AI.julday;
-        
+          
+        tic;
+        for I=1:1:100
         [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat, 'Tran',Tran, 'EpochOut',JD);
+        end
+        toc
+        
         
         % test with bad initial conditions
         [Result, AI] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);

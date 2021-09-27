@@ -917,6 +917,8 @@ classdef AstroTable < Component
                 NewColUnits = {NewColUnits};
             end
            
+            % delete before insertion
+            Obj = deleteCol(Obj, NewColNames);
             
             Nobj = numel(Obj);
             if isa(Data,'AstroTable')

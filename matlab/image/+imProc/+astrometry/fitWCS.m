@@ -96,7 +96,6 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
     end
     ARCSEC_DEG = 3600;
 
-
     switch lower(Args.TranMethod)
         case 'tan'
             % simple-TAN with no iterations!!
@@ -151,6 +150,7 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
             ResFit.ResidX = RefRA  - Hx*ParX;
             ResFit.ResidY = RefDec - Hy*ParY;
             ResFit.Resid  = sqrt(ResFit.ResidX.^2 + ResFit.ResidY.^2);
+            ResFit.FlagSrc      = Flag;
             
             ResFit.Ngood        = sum(Flag);
             ResFit.AssymRMS_mag = NaN;
