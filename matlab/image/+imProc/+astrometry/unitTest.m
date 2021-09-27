@@ -98,8 +98,16 @@ function Result = unitTest()
     % in deg
     % TODO: go over code - note that the match is done in RA/Dec - compare
     % to Core
-    [RR, AI] = imProc.astrometry.astrometryRefine(AI, 'WCS',[], 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
+    Tran = Tran2D;
+    Tran.symPoly;
+    JD = AI.julday;
+          
+    tic;
+    for I=1:1:1000
+    [RR, AI] = imProc.astrometry.astrometryRefine(AI, 'WCS',[], 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688,'Tran',Tran,'EpochOut',JD);
+    end
+    toc
     
     AI = AstroImage('PTF_Cropped.fits');
     % detect sources in image
