@@ -67,10 +67,12 @@ function Result = unitTest()
         % GAIA catalog is not available locally
         load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
         
-        Tran = Tran2D;
+        Tran = Tran2D('poly3');
         Tran.symPoly;
         JD = AI.julday;
           
+        [Result] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat, 'Tran',Tran, 'EpochOut',JD);
+        
         tic;
         for I=1:1:100
         [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat, 'Tran',Tran, 'EpochOut',JD);
@@ -99,7 +101,7 @@ function Result = unitTest()
     % TODO: go over code - note that the match is done in RA/Dec - compare
     % to Core
     
-    Tran = Tran2D;
+    Tran = Tran2D('poly4');
     Tran.symPoly;
     JD = AI.julday;
           
