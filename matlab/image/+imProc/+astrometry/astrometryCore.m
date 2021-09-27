@@ -525,7 +525,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     
                     % add WCS kesy to Header
                     Obj(Iobj).HeaderData.Data = [];
-                    %warning('header deleted!!')
+                    warning('header deleted!!')
                     Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                 else
                     % assume Obj is AstroCatalog
