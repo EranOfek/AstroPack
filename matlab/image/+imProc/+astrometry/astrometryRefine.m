@@ -60,7 +60,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     %            'BinSize' - Bin size for binning. Default is 1 (mag).
     %            'FunMean' - A function handle to use when calculating the mean
     %                   of the data in each bin.
-    %                   Default is @nanmedian.
+    %                   Default is @tools.math.stat.nanmedian.
     %            'FunStd' - A function handle to use when calculating the std
     %                   of the data in each bin, or when calculating the global
     %                   std after the polynomial fit.
@@ -173,7 +173,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         Args.BinMethod                          = 'bin';
         Args.PolyDeg                            = 3;
         Args.BinSize                            = 1;
-        Args.FunMean                            = @nanmedian;
+        Args.FunMean                            = @tools.math.stat.nanmedian;
         Args.FunStd                             = @imUtil.background.rstd;
         Args.InterpMethod                       = 'linear';
         Args.ThresholdSigma                     = 3;

@@ -19,10 +19,10 @@ function [OverScan,ImageOSS,X,Y]=fit_overscan(Image,varargin)
 %                   Default is empty.
 %            'MeanFun' - A function handle for collapsing the overscan
 %                   region over the 'Dim' dimension.
-%                   Default is @nanmedian.
+%                   Default is @median.
 %            'MeanFunPar' - A cell array of additional parameters to pass
 %                   to the 'MeanFun'. If the dimension is given, then it
-%                   must be 1. Default is {}.
+%                   must be 1. Default is {1,'omitnan'}.
 %            'SmoothFun' - A function handle to use for smoothing the
 %                   collapsed overscan vector.
 %                   If empty, then do not smooth.

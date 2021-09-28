@@ -106,7 +106,7 @@ function Result = unitTest()
     JD = AI.julday;
           
     tic;
-    for I=1:1:1000
+    for I=1:1:10
     [RR, AI] = imProc.astrometry.astrometryRefine(AI, 'WCS',[], 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688,'Tran',Tran,'EpochOut',JD);
     end
     toc

@@ -34,9 +34,10 @@ function Result = functionalResponse(ImObj, Args)
     %            'MeanFun' - If 'Intensity' is not porovided, this is a function
     %                   handle that will operate on each image in the cube in
     %                   order to calculate its mean value.
-    %                   Default is @nanmedian.
+    %                   Default is @median.
     %            'MeanFunPar' - A cella array of additional parameters to pass
     %                   to the 'MeanFun' function handle.
+    %                   Default is {[1, 2]'omitnan'}.
     %            'Intensity' - A vector if intensities for each image in the
     %                   cube. This can be the mean intensity of each image
     %                   (after gain correction), or exposure time (if flat is
@@ -92,8 +93,8 @@ function Result = functionalResponse(ImObj, Args)
         Args.DataPropIn char               = 'Data';
         Args.Gain                          = 1;   % if char array then this is a header keyword name
         Args.ReadNoise                     = 5;   % if char array then this is a header keyword name
-        Args.MeanFun function_handle       = @nanmedian
-        Args.MeanFunPar cell               = {[1 2]};
+        Args.MeanFun function_handle       = @median
+        Args.MeanFunPar cell               = {[1 2],'omitnan'};
         Args.Intensity                     = [];  % if char array then this is a header keyword name (e.g., 'EXPTIME')
         Args.Model cell                    = {'c+x','c+x+x^2','x+x^2'};
     end

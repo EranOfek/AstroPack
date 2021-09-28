@@ -20,7 +20,7 @@ function Result = readNoiseFromBias(Obj, Args)
     %                   the blck. Default is @imProc.stat.rstd.
     %            'BlockMeanFun' - Function handle for calculating the global
     %                   readnoise from the blocks readnoise.
-    %                   Default is @nanmedian.
+    %                   Default is @tools.math.stat.nanmedian.
     %            'BlockMeanStdFun' - Function handle for calculating the rms
     %                   of the global readnoise.
     %                   Default is @imUtil.background.rstd.
@@ -52,7 +52,7 @@ function Result = readNoiseFromBias(Obj, Args)
         % Block method args:
         Args.BlockSize                       = [32 32];
         Args.BlockStdFun function_handle     = @imProc.stat.rstd;  % Std = Fun(AstroImage)
-        Args.BlockMeanFun function_handle    = @nanmedian;
+        Args.BlockMeanFun function_handle    = @tools.math.stat.nanmedian;
         Args.BlockMeanStdFun function_handle = @imUtil.background.rstd;
         
         % pix method args:
