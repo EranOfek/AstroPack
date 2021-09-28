@@ -24,7 +24,7 @@ function [Flag,Res]=resid_vs_mag(Mag, Resid, Args)
 %            'BinSize' - Bin size for binning. Default is 1 (mag).
 %            'FunMean' - A function handle to use when calculating the mean
 %                   of the data in each bin.
-%                   Default is @nanmedian.
+%                   Default is @tools.math.stat.nanmedian.
 %            'FunStd' - A function handle to use when calculating the std
 %                   of the data in each bin, or when calculating the global
 %                   std after the polynomial fit.
@@ -55,7 +55,7 @@ arguments
     Args.BinMethod         = 'bin';    % 'bin' | 'poly'
     Args.PolyDeg           = 3;
     Args.BinSize           = 1;
-    Args.FunMean           = @nanmedian;
+    Args.FunMean           = @tools.math.stat.nanmedian;
     Args.FunStd            = @imUtil.background.rstd;
     Args.InterpMethod      = 'linear';
     Args.ThresholdSigma    = 3;
@@ -87,7 +87,7 @@ switch lower(Args.BinMethod)
     case 'bin'
         % binning of resid vs. mag
 
-        B = timeseries.binning([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
+        B = timeseries.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
         % interpolate B over missing points
         Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod);
         Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod);

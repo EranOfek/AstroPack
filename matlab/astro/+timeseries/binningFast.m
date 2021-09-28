@@ -46,13 +46,15 @@ function Result = binningFast(Data, BinSize, StartEnd, OutCol)
     
     BinInd = ceil((X - StartEnd(1))./BinSize);
     
-    Countslen = ceil( (StartEnd(2) - StartEnd(1))./BinSize);
+    MidBin = [StartEnd(1)+0.5.*BinSize:BinSize:StartEnd(2)].';
+    Countslen = numel(MidBin);
     
     % Filter out NaNs and out-of-range data
     Flag = BinInd>0 & BinInd<=Countslen;
     Subs = [BinInd(Flag)];
+    Y    = Y(Flag);
     %Subs = [BinX(:) BinY(:)];
-    Subs(any(Subs==0, 2),:) = [];
+    %Subs(any(Subs==0, 2),:) = [];
     
     Result = nan(Countslen, Ncol);
     for Icol=1:1:Ncol
@@ -61,7 +63,7 @@ function Result = binningFast(Data, BinSize, StartEnd, OutCol)
         else
             switch lower(OutCol{Icol})
                 case 'midbin'
-                    Result(:,Icol) = [StartEnd(1)+0.5.*BinSize:BinSize:StartEnd(2)].';
+                    Result(:,Icol) = MidBin;
                 case 'meanbin'
                     Result(:,Icol) = accumarray(Subs, X, [Countslen 1], @mean);
                 case 'medianbin'
