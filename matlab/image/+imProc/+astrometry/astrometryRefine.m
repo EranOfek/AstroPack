@@ -163,7 +163,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         
         Args.ProjType                           = 'TPV';
         Args.TranMethod                         = 'TPV';
-        Args.Tran                               = Tran2D;
+        Args.Tran                               = Tran2D('poly3');
         Args.ErrPos                             = 0.01;
         Args.ExtraData                          = [];
         Args.Niter                              = 2;
@@ -218,6 +218,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     RefColNameY   = 'Y';
     CatColNameRA  = 'RA';
     CatColNameDec = 'Dec';
+    
+    % make sure Tran is a new copy, otherwise may overwrite other Tran
+    Args.Tran = Args.Tran.copy;
     
     Args.CreateNewObj = false;
     

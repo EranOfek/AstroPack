@@ -74,7 +74,7 @@ function Result = unitTest()
         [Result] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat, 'Tran',Tran, 'EpochOut',JD);
         
         tic;
-        for I=1:1:100
+        for I=1:1:10
         [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat, 'Tran',Tran, 'EpochOut',JD);
         end
         toc

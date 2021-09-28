@@ -172,7 +172,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         
         Args.MaxSol2Check                 = 3;      % maximum number of solutions to check
         Args.TranMethod char              = 'TPV';   % 'TPV' | 'tran2d'
-        Args.Tran                         = Tran2D;                           
+        Args.Tran                         = Tran2D('poly3');                           
         Args.ErrPos                       = 0.1;
         Args.Niter                        = 2; 
         Args.FitMethod char               = 'lscov';
@@ -209,6 +209,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % The name of the projected X/Y coordinates in the Reference astrometric catalog
     RefColNameX = 'X';
     RefColNameY = 'Y';
+    
+    % make sure Tran is a new copy, otherwise may overwrite other Tran
+    Args.Tran = Args.Tran.copy;
     
     % get EpochOut
     if isempty(Args.EpochOut)
@@ -525,7 +528,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     
                     % add WCS kesy to Header
                     Obj(Iobj).HeaderData.Data = [];
-                    warning('header deleted!!')
+                    %warning('header deleted!!')
                     Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                 else
                     % assume Obj is AstroCatalog

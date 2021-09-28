@@ -237,7 +237,6 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
                                     'ThresholdSigma',Args.ThresholdSigma);
             
             
-            
         case 'tran2d'
             % a full Tran2D solution, where the observations
             % are the independent variable

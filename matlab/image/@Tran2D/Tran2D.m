@@ -111,7 +111,7 @@
 %   TC=polyRep(TC, true)
 %    
             
-classdef Tran2D < handle
+classdef Tran2D < Base
     properties (SetAccess = public)
         ColCell     = {'x','y','c','AM','PA'};
         FunX cell
@@ -131,10 +131,6 @@ classdef Tran2D < handle
                              'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[]);
     end
         
-    properties (Hidden)
-        UserData
-    end
-    
     
     %-------------------
     %--- Constructor ---
