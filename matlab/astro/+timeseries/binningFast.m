@@ -18,6 +18,8 @@ function Result = binningFast(Data, BinSize, StartEnd, OutCol)
     %            For other special functions use timeseries.binning.
     %            Default is {'MidBin', @numel, @mean, @median, @std,
     %            @tools.math.stat.nanmedian, }.
+    % Output : - A matrix with the requested columns. One line per bin.
+    % Author : Eran Ofek (Sep 2021)
     % Example: XY = rand(1000,2);
     %          Result = timeseries.binningFast(XY, 0.1, [0 1]);
     %          tic;for I=1:1:1000, Result = timeseries.binningFast(XY, 0.01, [0 1]); end, toc
