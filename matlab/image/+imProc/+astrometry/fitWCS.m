@@ -43,7 +43,6 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
     %            'BinSize' - Bin size for binning. Default is 1 (mag).
     %            'FunMean' - A function handle to use when calculating the mean
     %                   of the data in each bin.
-    %                   Default is @nanmedian.
     %            'FunStd' - A function handle to use when calculating the std
     %                   of the data in each bin, or when calculating the global
     %                   std after the polynomial fit.

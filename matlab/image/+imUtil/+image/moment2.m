@@ -38,7 +38,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'BackFun' - Function handle to use for background estimation.
 %                       In order to meaningful this function must ignore
 %                       NaNs.
-%                       Default is @nanmedian.
+%                       Default is @median.
 %            'MomRadius' - Radius around position in which to calculate the
 %                       moments. Recomended ~1.7 FWHM. Default is 8.
 %            'WeightFun' - The weight function to use for weighting the

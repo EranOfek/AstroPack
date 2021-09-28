@@ -851,8 +851,8 @@ classdef MatchedSources < Component
             %            'BinMarkerSize' - Default is 6.
             %            'XScale' - Default is 'linear'.
             %            'YScale' - Default is 'log'.
-            %            'MeanFun' - Default is @nanmedian.
-            %            'StdFun' - Default is @nanstd.
+            %            'MeanFun' - Default is @tools.math.stat.median.
+            %            'StdFun' - Default is @tools.math.stat.nanstd.
             %            'Xlabel' - Default is 'Mean Mag'.
             %            'Ylabel' - Default is 'RMS'.
             %            'FontSize' - Default is 16.
@@ -875,8 +875,8 @@ classdef MatchedSources < Component
                 Args.BinMarkerSize            = 6;
                 Args.XScale                   = 'linear';
                 Args.YScale                   = 'log';
-                Args.MeanFun function_handle  = @nanmedian
-                Args.StdFun  function_handle  = @nanstd
+                Args.MeanFun function_handle  = @tools.math.stat.nanmedian;
+                Args.StdFun  function_handle  = @tools.math.stat.nanstd;
                 Args.Xlabel                   = 'Mean Mag';
                 Args.Ylabel                   = 'RMS';
                 Args.FontSize                 = 16;

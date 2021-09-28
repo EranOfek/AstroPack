@@ -63,11 +63,11 @@ function Result = gainFromFlat(Obj, Args)
             % the pix method - RN per pix from std of stack of images
             CubeImage = imProc.image.images2cube(Obj, 'CCDSEC',Args.CCDSEC);
             
-            Mean  = nanmedian(CubeImage,3);
-            Var   = nanvar(CubeImage,[],3);
+            Mean  = median(CubeImage,3,'omitnan');
+            Var   = var(CubeImage,[],3,'ominan');
             
             Result.Gain       = Mean./Var;
-            Result.GlobalGain = nanmedian(Result.Gain(:));
+            Result.GlobalGain = median(Result.Gain(:),1,'omitnan');
             
         otherwise
             error('Unknown Method option');

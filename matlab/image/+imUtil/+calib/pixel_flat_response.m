@@ -27,9 +27,10 @@ function Res=pixel_flat_response(Cube,varargin)
 %            'MeanFun' - If 'Intensity' is not porovided, this is a function
 %                   handle that will operate on each image in the cube in
 %                   order to calculate its mean value.
-%                   Default is @nanmedian.
+%                   Default is @median.
 %            'MeanFunPar' - A cell array of additional parameters to pass
 %                   to the 'MeanFun' function handle.
+%                   Default is {[1 2],'omitnan'}.
 %            'Intensity' - A vector if intensities for each image in the
 %                   cube. This can be the mean intensity of each image
 %                   (after gain correction), or exposure time (if flat is
@@ -93,8 +94,8 @@ end
 InPar = inputParser;
 addOptional(InPar,'Gain',1);
 addOptional(InPar,'ReadNoise',5);
-addOptional(InPar,'MeanFun',@nanmedian);
-addOptional(InPar,'MeanFunPar',{[1 2]});
+addOptional(InPar,'MeanFun',@median);
+addOptional(InPar,'MeanFunPar',{[1 2],'omitnan'});
 addOptional(InPar,'Intensity',[]);
 addOptional(InPar,'Model',{'c+x','c+x+x^2','x+x^2'});
 

@@ -229,7 +229,7 @@ classdef AstroPSF < Component
             %            'BackFun' - Function handle to use for background estimation.
             %                       In order to meaningful this function must ignore
             %                       NaNs.
-            %                       Default is @nanmedian.
+            %                       Default is @tools.math.stat.nanmedian.
             %            'MomRadius' - Radius around position in which to calculate the
             %                       moments. Recomended ~1.7 FWHM. Default is 8.
             %            'WeightFun' - The weight function to use for weighting the
@@ -292,7 +292,7 @@ classdef AstroPSF < Component
                 Obj  
                 Args.AperRadius   {mustBeNumeric(Args.AperRadius)} = [2 4 6];
                 Args.Annulus      {mustBeNumeric(Args.Annulus)}    = [8 12];
-                Args.BackFun                                       = @nanmedian
+                Args.BackFun                                       = @tools.math.stat.nanmedian
                 Args.MomRadius    {mustBeNumeric(Args.MomRadius)}  = 8;    % recomended ~1.7 FWHM
                 Args.WeightFun                                     = 2;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
                 Args.Circle(1,1) logical                           = false;
