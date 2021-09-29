@@ -193,67 +193,66 @@ classdef convert
             % Reliable: 2
             %--------------------------------------------------------------------------
 
-            Def.Val = 1;
-            Def.SpecialString = [];
-            if (nargin==2)
-                Val = Def.Val;
-                SpecialString = Def.SpecialString;
-            elseif (nargin==3)
-                SpecialString = Def.SpecialString;
-            elseif (nargin==4)
-                % do nothing
-            else
-                error('Illegal number of input arguments');
+            arguments
+                In
+                Out
+                Val             = 1;
+                SpecialString   = [];
             end
-
-
-            if any(strcmpi(In,SpecialString))
-                % user used Special string - set output to 1
+            
+            if strcmp(In,Out)
+                % input=output
                 ConvVal = Val;
             else
+                
+                if any(strcmpi(In,SpecialString))
+                    % user used Special string - set output to 1
+                    ConvVal = Val;
+                else
 
-                % Input: convert to deg
-                switch lower(In)
-                    case {'rad','radian','radians'}
-                        ConvVal = 180./pi;
-                    case {'deg','degree','degrees'}
-                        ConvVal = 1;
-                    case 'arcmin'
-                        ConvVal = 1./60;
-                    case 'arcsec'
-                        ConvVal = 1./3600;
-                    case 'mas'
-                        ConvVal = 1./(3600.*1000);
-                    case 'frac'
-                        % fraction to deg
-                        ConvVal = 360;
-                    case 'hour'
-                        % hours to deg
-                        ConvVal = 15;
-                    otherwise
-                        error('Unknown input angular units');
-                end
-                ConvVal = Val.*ConvVal;
+                    % Input: convert to deg
+                    switch lower(In)
+                        case {'rad','radian','radians'}
+                            ConvVal = 180./pi;
+                        case {'deg','degree','degrees'}
+                            ConvVal = 1;
+                        case 'arcmin'
+                            ConvVal = 1./60;
+                        case 'arcsec'
+                            ConvVal = 1./3600;
+                        case 'mas'
+                            ConvVal = 1./(3600.*1000);
+                        case 'frac'
+                            % fraction to deg
+                            ConvVal = 360;
+                        case 'hour'
+                            % hours to deg
+                            ConvVal = 15;
+                        otherwise
+                            error('Unknown input angular units');
+                    end
+                    ConvVal = Val.*ConvVal;
 
-                % Output: Convert from deg to requested output units
-                switch lower(Out)
-                    case {'rad','radian','radians'}
-                        ConvVal = ConvVal.* pi./180;
-                    case {'deg','degree','degrees'}
-                        % do nothing
-                        %ConvVal = ConvVal;
-                    case 'arcmin'
-                        ConvVal = ConvVal.*60;
-                    case 'arcsec'
-                        ConvVal = ConvVal.*3600;
-                    case 'mas'
-                        ConvVal = ConvVal.*3600.*1000;
-                    case 'frac'
-                        ConvVal = ConvVal./360;
-                    case 'hour'
-                        ConvVal = ConvVal./15;
-                    otherwise
-                        error('Unknown input angular units');
+                    % Output: Convert from deg to requested output units
+                    switch lower(Out)
+                        case {'rad','radian','radians'}
+                            ConvVal = ConvVal.* pi./180;
+                        case {'deg','degree','degrees'}
+                            % do nothing
+                            %ConvVal = ConvVal;
+                        case 'arcmin'
+                            ConvVal = ConvVal.*60;
+                        case 'arcsec'
+                            ConvVal = ConvVal.*3600;
+                        case 'mas'
+                            ConvVal = ConvVal.*3600.*1000;
+                        case 'frac'
+                            ConvVal = ConvVal./360;
+                        case 'hour'
+                            ConvVal = ConvVal./15;
+                        otherwise
+                            error('Unknown input angular units');
+                    end
                 end
             end
 

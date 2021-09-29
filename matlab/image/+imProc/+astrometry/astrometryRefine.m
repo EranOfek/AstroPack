@@ -243,7 +243,12 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     Nobj  = numel(Obj);
     Nwcs  = numel(Args.WCS);
     CooFromBoundingCircle = false;
-    AstrometricCat        = AstroCatalog(size(Obj));  % []
+    if isa(Args.CatName, 'AstroCatalog')
+        % AstrometricCat is already defined (will get it from
+        % getAstrometricCatalog)
+    else
+        AstrometricCat        = AstroCatalog(size(Obj));  % []
+    end
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
         Iwcs = min(Iobj, Nwcs);
@@ -269,8 +274,10 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         end
         
         % get X/Y columns from catalog
-        [Xcat,~,IndCatX] = getColDic(Cat, Args.CatColNamesX);
-        [Ycat,~,IndCatY] = getColDic(Cat, Args.CatColNamesY);
+        %[Xcat,~,IndCatX] = getColDic(Cat, Args.CatColNamesX);
+        %[Ycat,~,IndCatY] = getColDic(Cat, Args.CatColNamesY);
+        
+        [Xcat, Ycat] = getXY(Cat, 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
         
         if isempty(WCS)
             % assume RA/Dec are available in AstroCatalog
