@@ -40,13 +40,13 @@ function [SubCell,FlagExist,IndFound,IndKey]=getByKey(Cell,Key,Args)
 
     arguments
         Cell cell
-        Key                   {mustBeA(Key,{'char','cell'})} 
-        Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
-        Args.CaseSens(1,1) logical                                      = true;
-        Args.Fill                                                       = NaN;
-        Args.Col(1,1) double  {mustBeInRange(Args.Col,1,3,'inclusive')} = 1;
-        Args.ReturnN(1,1) double                                        = 1;
-        Args.Val2Num(1,1) logical                                       = true;
+        Key                  
+        Args.SearchAlgo char                   = 'strcmp'; 
+        Args.CaseSens(1,1) logical             = true;
+        Args.Fill                              = NaN;
+        Args.Col(1,1) double                   = 1;
+        Args.ReturnN(1,1) double               = 1;
+        Args.Val2Num(1,1) logical              = true;
     end
     ColVal = 2;
     
