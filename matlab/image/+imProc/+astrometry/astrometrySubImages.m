@@ -16,7 +16,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.Dec
         Args.CooUnits                            = 'deg';
         Args.Scale                               = 1.0;
-        Args.Tran                                = Tran2D;
+        Args.Tran                                = Tran2D('poly3');
         
         Args.EpochOut                            = [];
         
@@ -32,7 +32,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     
     [ResultObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 1);
     
-    Args.Tran.symPoly;   % will work only for handle class: copyObject/CreateNewObj
+    %Args.Tran.symPoly;   % will work only for handle class: copyObject/CreateNewObj
     
     Nobj = numel(Obj);
     if Nobj ~= size(Args.CCDSEC,1)

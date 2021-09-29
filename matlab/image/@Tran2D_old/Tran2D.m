@@ -116,24 +116,15 @@ classdef Tran2D < Base
         ColCell     = {'x','y','c','AM','PA'};
         FunX cell
         FunY cell   
-        PolyX_Xdeg      = [];
-        PolyX_Ydeg      = [];
-        PolyY_Xdeg      = [];
-        PolyY_Ydeg      = [];
-        
-        ParX        
-        ParY  
-        ErrParX
-        ErrParY
-        
-        FitData        % a general structure to store errors and residuals of best fit
-        
-        ParNX       = [0 1];
-        ParNY       = [0 1];
-    end
-    properties (Constant)
         FunNX       = @(x,nx1,nx2) (x-nx1)./nx2;
         FunNY       = @(y,ny1,ny2) (y-ny1)./ny2;
+        ParX        
+        ParY        
+        FitData        % a general structure to store errors and residuals of best fit
+        ParNX       = [0 1];
+        ParNY       = [0 1];
+        ErrParX
+        ErrParY
     end
     properties %(SetAccess=protected)
         PolyRep     = struct('PX',[],'PY',[],'CX',[],'CY',[],'PolyParX',[],'PolyParY',[],...
@@ -175,14 +166,10 @@ classdef Tran2D < Base
             Narg = numel(varargin);
             for Iarg=1:1:Narg
                 AstC(Iarg).UserData = [];
-                [FunX,FunY,ColCell,PolyX_Xdeg,PolyX_Ydeg,PolyY_Xdeg,PolyY_Ydeg] = Tran2D.selected_trans(varargin{Iarg});
+                [FunX,FunY,ColCell] = Tran2D.selected_trans(varargin{Iarg});
                 AstC(Iarg).FunX     = FunX;
                 AstC(Iarg).FunY     = FunY;
                 AstC(Iarg).ColCell  = ColCell;
-                AstC(Iarg).PolyX_Xdeg = PolyX_Xdeg;
-                AstC(Iarg).PolyX_Ydeg = PolyX_Ydeg;
-                AstC(Iarg).PolyY_Xdeg = PolyY_Xdeg;
-                AstC(Iarg).PolyY_Ydeg = PolyY_Ydeg;
             end
                 
         end
@@ -249,7 +236,7 @@ classdef Tran2D < Base
         end
         
         % built in transformations
-        function [FunX,FunY,ColCell, PolyX_Xdeg, PolyX_Ydeg, PolyY_Xdeg, PolyY_Ydeg]=selected_trans(Name)
+        function [FunX,FunY,ColCell]=selected_trans(Name)
             % Return predefined 2d transformations
             % Package: @Tran2D (Static)
             % Input  : - Transformation name. Avialable transformations
@@ -273,25 +260,9 @@ classdef Tran2D < Base
             %          - A cell array of functionals for Y coordinates.
             %          - A cell array of argume names.
             %            By default this is {'x','y','c','AM','PA'}.
-            %          - For the X functional, vector of degree of X polynomial for each
-            %            functional. This is available only for simple
-            %            polynomials, otherwise empty.
-            %          - VFor the X functional, vector of degree of Y polynomial for each
-            %            functional. This is available only for simple
-            %            polynomials, otherwise empty.
-            %          - For the Y functional, vector of degree of X polynomial for each
-            %            functional. This is available only for simple
-            %            polynomials, otherwise empty.
-            %          - VFor the Y functional, vector of degree of Y polynomial for each
-            %            functional. This is available only for simple
-            %            polynomials, otherwise empty.
             % Example:
             % [FunX,FunY,ColCell]=Tran2D.selected_trans('cheby1_3_c1')
             
-            PolyX_Xdeg = [];
-            PolyX_Ydeg = [];
-            PolyY_Xdeg = [];
-            PolyY_Ydeg = [];
             switch lower(Name)
                 case 'cheby1_3_c1'
                     % chebyshev polynomials of the first kind, of order 3 +
@@ -388,10 +359,6 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) y};
                                       
                     FunY        = FunX;                 
-                    PolyX_Xdeg  = [0 1 0];
-                    PolyX_Ydeg  = [0 0 1];
-                    PolyY_Xdeg  = [0 1 0];
-                    PolyY_Ydeg  = [0 0 1];
                 case 'poly2'
                     % chebyshev polynomials of the first kind, of order 3
                     ColCell     = {'x','y','c','AM','PA'};
@@ -402,10 +369,7 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) y.^2,...
                                       @(x,y,c,AM,PA) x.*y};
                     FunY        = FunX;     
-                    PolyX_Xdeg  = [0 1 0 2 0 1];
-                    PolyX_Ydeg  = [0 0 1 0 2 1];
-                    PolyY_Xdeg  = [0 1 0 2 0 1];
-                    PolyY_Ydeg  = [0 0 1 0 2 1];
+                    
                 case 'poly3'
                     ColCell     = {'x','y','c','AM','PA'};
                     FunX        = {@(x,y,c,AM,PA) ones(size(x)),...
@@ -418,11 +382,7 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) y.^3,...
                                       @(x,y,c,AM,PA) x.^2.*y,...
                                       @(x,y,c,AM,PA) y.^2.*x};
-                    FunY        = FunX;
-                    PolyX_Xdeg  = [0 1 0 2 0 1 3 0 2 1];
-                    PolyX_Ydeg  = [0 0 1 0 2 1 0 3 1 2];
-                    PolyY_Xdeg  = [0 1 0 2 0 1 3 0 2 1];
-                    PolyY_Ydeg  = [0 0 1 0 2 1 0 3 1 2];
+                    FunY        = FunX;     
                 case 'poly4'
                     ColCell     = {'x','y','c','AM','PA'};
                     FunX        = {@(x,y,c,AM,PA) ones(size(x)),...
@@ -441,10 +401,7 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) x.*y.^3};
                                       
                     FunY        = FunX;         
-                    PolyX_Xdeg  = [0 1 0 2 0 1 3 0 2 4 0 3 2 1];
-                    PolyX_Ydeg  = [0 0 1 0 2 1 0 3 1 0 4 1 2 3];
-                    PolyY_Xdeg  = [0 1 0 2 0 1 3 0 2 4 0 3 2 1];
-                    PolyY_Ydeg  = [0 0 1 0 2 1 0 3 1 0 4 1 2 3];
+                    
                 case 'poly1_tiptilt'
                     % chebyshev polynomials of the first kind, of order 3
                     ColCell     = {'x','y','c','AM','PA'};
@@ -463,7 +420,7 @@ classdef Tran2D < Base
     
     % transformations
     methods
-        function [Hx,Hy]=design_matrix(TC, Coo)
+        function [Hx,Hy]=design_matrix(TC,Coo)
             % construct design matrices for a position
             % Package: @Tran2D
             % Description: Construct a design matrices (for X and Y
@@ -1002,7 +959,70 @@ classdef Tran2D < Base
         end
         
     end
+    
+    
+    % convert to wcsCl
+    methods
+%         function W=Tran2D2wcsCl(T,varargin)
+%             %
+%             % Example:
+%             % W=Tran2D2wcsCl(Res.Tran,'TranCenter',Res.TranCenter)
+%             
+%             InPar = inputParser;
+%             addOptional(InPar,'RA',[]);
+%             addOptional(InPar,'Dec',[]);
+%             addOptional(InPar,'CooUnits','deg');
+%             addOptional(InPar,'Scale',[]);
+%             addOptional(InPar,'CRPIX',[]);  
+%             addOptional(InPar,'EQUINOX',2000);  
+%             addOptional(InPar,'TranCenter',[]);  % a structure that contains all the fields
+%             parse(InPar,varargin{:});
+%             InPar = InPar.Results;
+% 
+%             if numel(T)>1
+%                 error('works on a single element Tran2D object');
+%             end
+%             
+%             if ~isempty(InPar.TranCenter)
+%                 InPar  = InPar.TranCenter;
+%             end
+%             
+%             W = wcsCl;
+%             W. NAXIS   = 2;
+%             W.WCSAXES  = 2;
+%             W.CUNIT    = {InPar.CooUnits, InPar.CooUnits};
+%             W.RADESYS  = 'ICRS';
+%             W.LONPOLE  = 0;
+%             W.LATPOLE  = 90;
+%             W.EQUINOX  = InPar.EQUINOX;
+%             W.CRPIX    = InPar.CRPIX;
+%             W.CRVAL    = [InPar.RA, InPar.Dec];
+%             W.CD       = [1 0;0 1];
+%             W.fill;
+%             W.ProjType   = 'TPV';
+%             W.ProjClass  = wcsCl.classify_projection(W.ProjType);
+%             W.CooName    = {'RA','Dec'};
+%             % define PhiP
+%             W.PhiP       = 180;
+%             
+%             % build polynomial representation
+%             T.polyRep;
+%             
+%             % order T.PolyRep.PolyX_Xdeg etc. in the PV cell
+%             % store PolyParX...
+%             [IndX,PolyPV] = wcsCl.poly2tpvInd(T.PolyRep.PolyX_Xdeg, T.PolyRep.PolyX_Ydeg);
+%             W.PV{1} = [IndX(:), T.ParX(:)];
+%             [IndY,PolyPV] = wcsCl.poly2tpvInd(T.PolyRep.PolyY_Xdeg, T.PolyRep.PolyY_Ydeg);
+%             W.PV{2} = [IndX(:), T.ParY(:)];
+%             W.fill_PV;
+%             W.Exist = true;
+%             
+%             
+%             
+%         end
         
+    end
+    
     methods (Static)
         function [CX,CY,PX,PY]=functionals2symPoly(ColCell,FunX,FunY,FunNX,FunNY)
             % Construct a symbolic polynomials from functionals
@@ -1124,30 +1144,6 @@ classdef Tran2D < Base
     
     % symbolic
     methods
-        function TC = sym2anonymousFunction(TC)
-           
-            % populate the symbolic functions (if not populated)            
-            TC.symPoly;
-            
-            [NfunX,NfunY] = nfuns(TC);
-            syms nx1 nx2 ny1 ny2
-            for I=1:1:NfunX
-                eval(sprintf('syms cx%d',I));
-            end
-            for I=1:1:NfunY
-                eval(sprintf('syms cy%d',I));
-            end
-            for I=1:1:NfunX
-                matlabFunction(TC.PolyRep.CX(I),'vars',{nx1,nx2,ny1,ny2,cx1,cx2,cx3,cx4,cx5,cx6,cx7,cx8,cx9,cx10});
-            end
-            for I=1:1:NfunY
-                matlabFunction(TC.PolyRep.CY(I),'vars',{nx1,nx2,ny1,ny2,cx1,cx2,cx3,cx4,cx5,cx6,cx7,cx8,cx9,cx10});
-            end
-            
-                
-            
-        end
-        
         function [CX,CY,PX,PY]=symPoly(TC)
             % Construct a symbolic polynomials from a Tran2D object
             % Package: @Tran2D
@@ -1184,12 +1180,10 @@ classdef Tran2D < Base
                 TC.PolyRep.PolyParY = [];
                 
             else
-                if nargout>0
-                    PX = TC.PolyRep.PX;
-                    PY = TC.PolyRep.PY;
-                    CX = TC.PolyRep.CX;
-                    CY = TC.PolyRep.CY;
-                end
+                PX = TC.PolyRep.PX;
+                PY = TC.PolyRep.PY;
+                CX = TC.PolyRep.CX;
+                CY = TC.PolyRep.CY;
             end
             
             
@@ -1316,25 +1310,11 @@ classdef Tran2D < Base
                 Force = false;
             end
             
-            if ~isempty(TC.PolyX_Xdeg) && ~isempty(TC.PolyX_Ydeg) && ~isempty(TC.PolyY_Xdeg) && ~isempty(TC.PolyY_Ydeg) && all(TC.ParNX==[0 1]) && all(TC.ParNY==[0 1])
-                % DegX/DegY are known and there is no normalization
-                % in this case the polynomial representation is already
-                % knwon and there is no need to calculate it using symbolic
-                % math
-            
-                TC.PolyRep.PolyX_Xdeg = TC.PolyX_Xdeg;
-                TC.PolyRep.PolyX_Ydeg = TC.PolyX_Ydeg;
-                TC.PolyRep.PolyY_Xdeg = TC.PolyY_Xdeg;
-                TC.PolyRep.PolyY_Ydeg = TC.PolyY_Ydeg;
-                TC.PolyRep.PolyParX = TC.ParX;
-                TC.PolyRep.PolyParY = TC.ParY;                
-            else
-                if Force || isempty(TC.PolyRep.PX) || isempty(TC.PolyRep.PolyParX) || isempty(TC.PolyRep.PolyX_Xdeg)
-                    % re-calculate polynomial representation
-                    TC.symPoly;
-                    TC.polyCoef;
-                    TC.symPoly2deg;
-                end
+            if Force || isempty(TC.PolyRep.PX) || isempty(TC.PolyRep.PolyParX) || isempty(TC.PolyRep.PolyX_Xdeg)
+                % re-calculate polynomial representation
+                TC.symPoly;
+                TC.polyCoef;
+                TC.symPoly2deg;
             end
             
         end

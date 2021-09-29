@@ -156,22 +156,24 @@ function Result = unitTest()
     Flip = [1 1];
     
     tic;
-    [Result, NewSI32] = imProc.astrometry.astrometryCore(SI(32), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD, 'Flip',Flip);
+    [Result, NewSI32,AC] = imProc.astrometry.astrometryCore(SI(32), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD, 'Flip',Flip);
     toc
     
     tic;
-    [Result, NewSI32] = imProc.astrometry.astrometryRefine(NewSI32, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD);
+    for I=1:1:54
+    [Result, NewSI32] = imProc.astrometry.astrometryRefine(NewSI32, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD,'CatName',AC);
+    end
     toc
     
     % astrometrySubImages
     tic;
-    [ResultFit, ResultObj, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD);
+    [ResultFit, ResultObj, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran);
     toc
     
     
     % astrometrySubImages w/AstrometricCat as input
     tic;
-    [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'CatName',AstrometricCat);
+    [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran, 'CatName',AstrometricCat);
     toc
     
     
