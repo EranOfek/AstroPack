@@ -137,7 +137,6 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
             ParWCS.CRVAL  = [RAdeg, Decdeg];
             ParWCS.CD     = CD;
             ParWCS.CUNIT  = {'deg', 'deg'};
-            Args.ProjType = 'TAN';
             ParWCS.CTYPE  = {sprintf('RA---%s',upper(Args.ProjType)), sprintf('DEC--%s',upper(Args.ProjType))};
             ParWCS.NAXIS  = 2;
 
@@ -197,7 +196,6 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
             ParWCS.CRVAL  = [CRVAL1, CRVAL2];
             ParWCS.CD     = CD;
             ParWCS.CUNIT  = {'deg', 'deg'};
-            Args.ProjType = 'TAN';
             ParWCS.CTYPE  = {sprintf('RA---%s',upper(Args.ProjType)), sprintf('DEC--%s',upper(Args.ProjType))};
             ParWCS.NAXIS  = 2;
 

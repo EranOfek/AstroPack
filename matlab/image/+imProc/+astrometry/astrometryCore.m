@@ -165,7 +165,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RangeY(1,2)                  = [-1000 1000];
         Args.StepX(1,1)                   = 2;
         Args.StepY(1,1)                   = 2;
-        Args.Flip(:,2)                    = [1 -1]; %; 1 -1;-1 1;-1 -1]; % [1 -1]
+        Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
         Args.SearchRadius(1,1)            = 6;   
         Args.FilterSigma                  = 3;
         

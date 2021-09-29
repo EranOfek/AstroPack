@@ -395,7 +395,7 @@ classdef AstroWCS < Component
             %          - A matrix of pixel Y coordinates.
             %          * ...,key,val,...      
             %            'OutUnits'          - Output units. Default is 'deg'.
-            %            'includeDistortion' - Flag to include distoration. 
+            %            'IncludeDistortions'- Flag to include distoration. 
             %                                  Default is: true.
             %            'useTran2D'         - Flag to use Tran2D object directly.
             %                                  Currently not supported.
@@ -414,7 +414,7 @@ classdef AstroWCS < Component
                 PX
                 PY                       = [];
                 Args.OutUnits            = 'deg';
-                Args.includeDistortion   = true;
+                Args.IncludeDistortions  = true;
                 Args.useTran2D           = false;                
             end
             
@@ -436,7 +436,7 @@ classdef AstroWCS < Component
             end
 
             % pixel to intermediate (in units of CUNIT) including distortion
-            [Xd,Yd] = Obj.pix2interm(PX,PY,Args.includeDistortion);
+            [Xd,Yd] = Obj.pix2interm(PX,PY,Args.IncludeDistortions);
             
             % intermediate to native
             [Phi,Theta] = Obj.interm2native(Xd,Yd,'InUnits',Obj.CUNIT{1},'OutUnits','rad');

@@ -1,4 +1,4 @@
-function [ResultObj, ResultRefineFit, AstrometricCat] = astrometrySubImages(Obj, Args)
+function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
     % Solve astrometry for sub images of a single contigious image
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
@@ -30,7 +30,7 @@ function [ResultObj, ResultRefineFit, AstrometricCat] = astrometrySubImages(Obj,
         Args.assessAstrometricQualityArgs cell   = {};
     end
     
-    [ResultObj, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+    [ResultObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 1);
     
     Args.Tran.symPoly;   % will work only for handle class: copyObject/CreateNewObj
     
@@ -55,6 +55,8 @@ function [ResultObj, ResultRefineFit, AstrometricCat] = astrometrySubImages(Obj,
     
     UseRefinment        = false;
     Sucess              = false(size(Obj));  % sucessful solution
+    
+    % do we need to define this if CatName is AstroCatalog???
     AstrometricCat      = AstroCatalog(size(Obj));
     for Iobj=1:1:Nobj
         % for each sub image
@@ -139,31 +141,13 @@ function [ResultObj, ResultRefineFit, AstrometricCat] = astrometrySubImages(Obj,
             end
             
             
-            %got here - there is a problem
-            %at seems that NsrcDep = 0????
-            
             % DEBUGING
             % Test that the Iim image with the translated Iref WCS is ok
             %Tmp = ResultObj(Iim);
             %Tmp.WCS = RefWCS;
             %Tmp.HeaderData = wcs2header(RefWCS, Tmp.HeaderData);
             %ds9(Tmp)
-            
-            
-%             [ResultFit(Iim), ResultObj(Iim).CatData, AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim).CatData,...
-%                                                                                                      'RA',RA,...
-%                                                                                                      'Dec',Dec,...
-%                                                                                                      'CooUnits','deg',...
-%                                                                                                      'CatName',CatName,...
-%                                                                                                      'Scale',Args.Scale,...
-%                                                                                                      Args.astrometryCoreArgs{:});
-%             % populate the WCS in the AstroImage
-%             ResultObj(Iim).WCS = ResultFit(Iim).WCS;
-%             
-%             ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
-%             ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
-%             ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
-%             ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
+          
                         
             % DEBUGING
             % ResultObj(Iim).WCS = RefWCS;
@@ -172,14 +156,15 @@ function [ResultObj, ResultRefineFit, AstrometricCat] = astrometrySubImages(Obj,
 %             tic;
 
             [Iim, Iref]
-% if Iim==7 && Iref==6
-%     'a'
-% end
+if Iim==40 && Iref==31
+   'a'
+end
             UseRefine = true;
             if UseRefine
                 %tic;
                 [ResultRefineFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
                                                                                                            'WCS',RefWCS, ...
+                                                                                                           'IncludeDistortions',false,...
                                                                                                            'Tran',Args.Tran,...
                                                                                                            'SearchRadius',5,...
                                                                                                            'Scale',Args.Scale,...
@@ -188,7 +173,6 @@ function [ResultObj, ResultRefineFit, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                            'CooUnits','deg',...
                                                                                                            'EpochOut',Args.EpochOut,...
                                                                                                            'CatName',CatName,...  
-                                                                                                           'IncludeDistortions',true,...
                                                                                                            Args.astrometryCoreArgs{:});
 %toc
                                                                                                       

@@ -135,8 +135,8 @@ function Result = unitTest()
     
     
     % break into sub images
-    %[SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
-    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[64 64]);
+    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
+    %[SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[64 64]);
     imProc.background.background(SI, 'SubSizeXY',[]);
     imProc.sources.findMeasureSources(SI);
     
@@ -153,8 +153,10 @@ function Result = unitTest()
     
     JD = julday(AI);
     
+    Flip = [1 1];
+    
     tic;
-    [Result, NewSI32] = imProc.astrometry.astrometryCore(SI(32), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD);
+    [Result, NewSI32] = imProc.astrometry.astrometryCore(SI(32), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD, 'Flip',Flip);
     toc
     
     tic;
@@ -163,8 +165,17 @@ function Result = unitTest()
     
     % astrometrySubImages
     tic;
-    [ResultObj, ResultFit, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD)
+    [ResultFit, ResultObj, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD);
     toc
+    
+    
+    % astrometrySubImages w/AstrometricCat as input
+    tic;
+    [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'CatName',AstrometricCat);
+    toc
+    
+    
+    
     
     cd(PWD);
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
