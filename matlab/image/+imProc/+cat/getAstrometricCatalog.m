@@ -40,6 +40,11 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   Default is [-Inf 50].
     %            'OutRADecUnits' - Output units for the RA and Dec output
     %                   arguments. Default is 'rad'.
+    %            'RemoveNeighboors' - A logical indicating if to remove
+    %                   sources with close neighboors. Default is true.
+    %            'flagSrcWithNeighborsArgs' - A cell array of additional
+    %                   arguments to pass to flagSrcWithNeighbors.
+    %                   Default is {}.
     % Output : - An AstroCatalog object with the astrometric catalog.
     %          - The input RA [units from 'OutRADecUnits'].
     %          - The input Dec [units from 'OutRADecUnits'].
@@ -69,6 +74,10 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Args.RangePlx                  = [-Inf 50];
         % OutRADec
         Args.OutRADecUnits             = 'rad';
+
+        Args.RemoveNeighboors(1,1) logical      = true;
+        Args.flagSrcWithNeighborsArgs cell      = {};
+           
     end
     
     % convert RA/Dec to radians (if in degrees)
@@ -118,6 +127,18 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
             otherwise
                 error('Unsupported CatOrigin option');
         end
+        
+        % perform catalog cleaning
+        
+        % filter Ref - remove sources with neighboors
+        if Args.RemoveNeighboors
+            % sort AstrometricCat
+            Result = sortrows(Result, 'Dec');
+            
+            UseFlag = ~imProc.match.flagSrcWithNeighbors(Result, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
+            Result  = selectRows(Result, UseFlag);
+        end
+       
     else
         % assume CatName contains an actual catalog
         Result = Args.CatName;   % no need to copy - .copyObject;

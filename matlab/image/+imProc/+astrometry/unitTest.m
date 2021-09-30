@@ -105,7 +105,7 @@ function Result = unitTest()
     Tran.symPoly;
     JD = AI.julday;
           
-    tic;  % 4.7s -> 4.5s
+    tic;  % 4.7s -> 4.5s -> 3.8s
     for I=1:1:100
     [RR, AI] = imProc.astrometry.astrometryRefine(AI, 'WCS',[], 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688,'Tran',Tran,'EpochOut',JD);
     end
