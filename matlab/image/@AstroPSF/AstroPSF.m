@@ -292,7 +292,8 @@ classdef AstroPSF < Component
                 Obj  
                 Args.AperRadius   {mustBeNumeric(Args.AperRadius)} = [2 4 6];
                 Args.Annulus      {mustBeNumeric(Args.Annulus)}    = [8 12];
-                Args.BackFun                                       = @tools.math.stat.nanmedian
+                Args.BackFun                                       = @tools.math.stat.nanmedian;
+                Args.BackFunArgs cell                              = {};
                 Args.MomRadius    {mustBeNumeric(Args.MomRadius)}  = 8;    % recomended ~1.7 FWHM
                 Args.WeightFun                                     = 2;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
                 Args.Circle(1,1) logical                           = false;

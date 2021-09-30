@@ -119,32 +119,28 @@ classdef Tran2D < Base
         PolyX_Xdeg      = [];
         PolyX_Ydeg      = [];
         PolyY_Xdeg      = [];
-        PolyY_Ydeg      = [];
-        
+        PolyY_Ydeg      = [];       
         ParX        
         ParY  
         ErrParX
-        ErrParY
-        
+        ErrParY        
         FitData        % a general structure to store errors and residuals of best fit
-        
         ParNX       = [0 1];
         ParNY       = [0 1];
     end
+    
     properties (Constant)
         FunNX       = @(x,nx1,nx2) (x-nx1)./nx2;
         FunNY       = @(y,ny1,ny2) (y-ny1)./ny2;
     end
+    
     properties %(SetAccess=protected)
         PolyRep     = struct('PX',[],'PY',[],'CX',[],'CY',[],'PolyParX',[],'PolyParY',[],...
                              'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[]);
     end
         
-    
-    %-------------------
-    %--- Constructor ---
-    %-------------------
-    methods
+
+    methods % Constructor
        
         function AstC=Tran2D(varargin)
             % Tran2D class constructor
@@ -1355,4 +1351,3 @@ classdef Tran2D < Base
     end
     
 end
-

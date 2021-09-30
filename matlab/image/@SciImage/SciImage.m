@@ -18,6 +18,7 @@ classdef SciImage < ImageComponent
     properties (SetAccess = public)
         IsBackSubtracted(1,1) logical          = false;
     end
+    
     properties
         % Time-tag / X-ray related properties
         Photons(1,1) PhotonsList

@@ -40,6 +40,21 @@ function Result = unitTest()
         error('Type casting failed');
     end
 
+    % Copy and check that the reference (ai1) points to the original
+    % object, and the copy (ai2) has a newly generated Uuid
+    AI.needUuid();
+    ai1 = AI;
+    assert(strcmp(ai1.Uuid, AI.Uuid));
+    ai2 = AI.copy();
+    assert(~strcmp(ai2.Uuid, AI.Uuid));
+
+    % Modify data and validate
+    ai1.ImageData.Data(1,1) = ai1.ImageData.Data(1,1) + 1;
+    ai2.ImageData.Data(1,1) = ai2.ImageData.Data(1,1) + 2;
+    assert(isequal(ai1.ImageData.Data, AI.ImageData.Data));
+    assert(~isequal(ai2.ImageData.Data, AI.ImageData.Data));    
+    
+    
     % funBinaryProp
     % funBinary for a single property / no error propagation
     AI=AstroImage({ones(3,3)});

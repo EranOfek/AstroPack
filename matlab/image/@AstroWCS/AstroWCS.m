@@ -1872,8 +1872,21 @@ classdef AstroWCS < Component
        
     end
 
+    %----------------------------------------------------------------------
+    methods (Access = protected)
+        function NewObj = copyElement(Obj)
+            % Custom copy of object properties
+            % Called from copy() of matlab.mixin.Copyable decendents
+            
+            % Make shallow copy of all properties
+            NewObj = copyElement@Component(Obj);
 
-    %========================Unit-Test======================================    
+            % Deep copy class properties
+            NewObj.Tran2D = Obj.Tran2D.copy();
+        end
+    end
+    
+    %----------------------------------------------------------------------              
     
     methods (Static) % Unit-Test
         Result = unitTest()

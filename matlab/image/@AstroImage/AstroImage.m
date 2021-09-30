@@ -2256,49 +2256,39 @@ classdef AstroImage < Component
         end               
     end
        
-    
-    methods (Static) % perfTestMat
-        function Result = perfTestMat
-            % Low level perfTest for the Matlab matrix
-            io.msgStyle(LogLevel.Test, '@sart', 'AstroImage perfTestMat started')
+    %----------------------------------------------------------------------
+    methods (Access = protected)
+        function NewObj = copyElement(Obj)
+            % Custom copy of object properties
+            % Called from copy() of matlab.mixin.Copyable decendents
             
-            DataSampleDir = tools.os.getTestDataDir;
-            PWD = pwd;
-            cd(DataSampleDir);
-            
-            
+            % Make shallow copy of all properties
+            NewObj = copyElement@Component(Obj);
 
-            cd(PWD);           
-            io.msgStyle(LogLevel.Test, '@passed', 'AstroImage perfTestMat passed')
-            Result = true;
+            % Deep copy class properties            
+            NewObj.ImageData    = Obj.ImageData.copy();
+            NewObj.BackData     = Obj.BackData.copy();
+            NewObj.VarData      = Obj.VarData.copy();
+            NewObj.MaskData     = Obj.MaskData.copy();
+            NewObj.HeaderData   = Obj.HeaderData.copy();
+            NewObj.CatData      = Obj.CatData.copy();
+            NewObj.PSFData      = Obj.PSFData.copy();
+            NewObj.WCS          = Obj.WCS.copy();            
         end
     end
     
-    
-    
-    methods (Static) % perfTest
-        function Result = perfTest
-            % perfTest for the AstroImage class
-            io.msgStyle(LogLevel.Test, '@sart', 'AstroImage perfTest started')
-            
-            DataSampleDir = tools.os.getTestDataDir;
-            PWD = pwd;
-            cd(DataSampleDir);
-            
-            
-
-            cd(PWD);           
-            io.msgStyle(LogLevel.Test, '@passed', 'AstroImage perfTest passed')
-            Result = true;
-        end
-    end
-    
+    %----------------------------------------------------------------------          
         
-    methods (Static) % Unit-Test
+    methods (Static) 
         Result = unitTest()
-
+            % Unit-Test
+            
+        Result = perfTest()
+            % perfTest for the AstroImage class
+        
+        Result = perfTestMat()
+            % Low level perfTest for the Matlab matrix
+            
     end
     
 end
-
-           

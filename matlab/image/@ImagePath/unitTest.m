@@ -4,19 +4,27 @@ function Result = unitTest()
 
     % genFile
     ip = ImagePath();
-    ExpectedPath, ExpectedFileName = ip.setTestData();
+    fprintf('%s\n', ip.needUuid());
+    [ExpectedPath, ExpectedFileName] = ip.setTestData();
     FileName = ip.genFile('FullPath', false);
-    assert(strcmp(FileName, ExpectedResult));
+    assert(strcmp(FileName, ExpectedFileName));
     disp(FileName);
+    
+    % Copy
+    %fprintf('ip.Uuid = %s\n', ip.needUuid());        
+    ip1 = ip;
+    ip2 = ip.copy();
+    %fprintf('ip1.Uuid = %s\n', ip1.needUuid());    
+    %fprintf('ip2.Uuid = %s\n', ip2.needUuid());    
     
     % genPath
     ip = ImagePath();
-    ExpectedResult = ip.setTestData();
+    [ExpectedPath, ExpectedFileName] = ip.setTestData();
     ip.Level = 'proc';
     ip.SubDir = 'subdir';
-    Path = ip.getPath();
+    Path = ip.genPath();
     disp(Path);
-    assert(Path == ExpectedResult);
+    assert(Path == ExpectedPath);
 
             
 %     % Default

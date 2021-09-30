@@ -15,7 +15,7 @@ classdef AstroTable < Component
     
     properties (SetAccess = public)
         Catalog                                                = [];
-        ColNames cell                                           = {};
+        ColNames cell                                          = {};
         ColUnits cell                                          = {};
         ColDesc cell                                           = {};
         SortByCol                                              = [];

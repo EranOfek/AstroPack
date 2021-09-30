@@ -15,7 +15,9 @@ function Result = unitTest
     io.msgLog(LogLevel.Test, 'testing Tran2D nfuns');
     [NfunX,NfunY]=nfuns(T);
     Ans=isParKnown(T);
-    TC=Tran2D; TC.ParY=ones(1,13);  TC.ParX=ones(1,13); 
+    TC=Tran2D; 
+    TC.ParY=ones(1,13);  
+    TC.ParX=ones(1,13); 
     [Xf,Yf]=forward(TC,[1 1;2 1]);
 
     TC=Tran2D;
@@ -28,7 +30,7 @@ function Result = unitTest
     TC.ParY(3)=1.01;
     TC.ParY(5)=0.01;
     TC.ParY(8)=0.001;
-    XY = [1 2; 1.1 0.2; 0.3 2.1];
+    XY = [1 2; 1.1, 0.2; 0.3, 2.1];
 
     io.msgLog(LogLevel.Test, 'testing Tran2D forward, backward');
     [Xf,Yf]=forward(TC,XY);

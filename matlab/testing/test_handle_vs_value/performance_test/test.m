@@ -183,7 +183,14 @@ function copyElementTest()
     
     cprintf('red', 'Modify Mat1(1,1) with Copy: %0.4f\n\n', toc);
 
-
+    % Create array of objects
+    HandleArray(1) = HandleClassCopy(1);
+    HandleArray(2) = HandleClassCopy(1);
+    HandleArray(3) = HandleClassCopy(1);
+    
+    HandleArrayCopy = HandleArray.copy();
+    
+    
     cprintf('blue', 'copyElement: Modify Small(1,1) started\n');
     HandleC = HandleClassCopy(1);
     tic

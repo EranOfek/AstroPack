@@ -113,13 +113,9 @@ classdef PhotonsList < Component
                 Obj(Iobj).FlagEnergy = FlagEnergy;
             end
                     
-                    
-            
         end
-        
-        
-        
     end
+
     
     methods % astrometry
         function pix2coo
@@ -137,6 +133,4 @@ classdef PhotonsList < Component
         Result = unitTest()
     end
     
-    
 end
-            

@@ -16,10 +16,10 @@ classdef ImagePath < Component
         Time            = [];           % Empty: current time, Numeric: time as JD, char: YYYY-MM-DDTHH:MM:SS.FFF, cell: {YYYY, MM, DD}
         TimeZone        = 2;            % Bias in hours, to generate folder name                
         Filter          = 'clear';      % Filter name
-        FieldId         = '';           % Sky position identifier, like field ID, object name, CCD I’d, sub image ID etc. May include CropId. Examples: 314.1.1 is field I’d 314, CCD 1, sub image 1.
+        FieldID         = '';           % Sky position identifier, like field ID, object name, CCD I’d, sub image ID etc. May include CropId. Examples: 314.1.1 is field I’d 314, CCD 1, sub image 1.
         Counter         = '';           % Counter
         CCDID           = '';           % CCD ID
-        CropId          = '';           % Used with sub-images
+        CropID          = '';           % Used with sub-images
         Type            = 'sci';        % sci, bias, dark, domeflat, twflat, skyflat, fringe
         Level           = 'raw';        % log, raw, proc, stack, coadd, ref.
         SubLevel        = '';           % Subleve, see below:
@@ -34,7 +34,7 @@ classdef ImagePath < Component
         % Fields formatting
         FormatFieldID   = '%06d';       %
         FormatCCDID     = '03d';        % 
-        FormatCropId    = '03d';        %
+        FormatCropID    = '03d';        %
         FormatVersion   = '%03d';       %
         
         % Defaults should be loaded from configuration
@@ -75,10 +75,10 @@ classdef ImagePath < Component
             Obj.Time            = '2021-09-09T12:34:56.789';
             Obj.TimeZone        = 2;
             Obj.Filter          = 'clear';
-            Obj.FieldId         = 'fld';
+            Obj.FieldID         = 'fld';
             Obj.Counter         = 'cnt';
             Obj.CCDID           = 'ccdid';            
-            Obj.CropId          = 'crop';
+            Obj.CropID          = 'crop';
             Obj.Type            = 'sci';
             Obj.Level           = 'raw';
             Obj.SubLevel        = 'sub';
@@ -176,6 +176,7 @@ classdef ImagePath < Component
    
             % Clean path from multiple /
             FPath = regexprep(FPath, sprintf('%s{2,5}', filesep), '/');
+            FPath = strrep(FPath, '\', '/');
             
             Obj.msgLog(LogLevel.Debug, 'Path: %s', FPath);
             Result = FPath;            
@@ -239,7 +240,7 @@ classdef ImagePath < Component
                 Args.FieldID            % (char or number) [Saved as char]
                 Args.Counter            % (number) - if the user didn’t supply then apply auto increase (if AutoIncrease = true)
                 Args.CCDID              %
-                Args.CropId             %
+                Args.CropID             %
                 Args.Type               %
                 Args.Level              %
                 Args.SubLevel           %- default is ‘n’ [note that n will be replaced by “”, without “.” seperator)
@@ -251,7 +252,7 @@ classdef ImagePath < Component
                 Args.FullPath = false;  %               
                 Args.FormatFieldID      %
                 Args.FormatCCDID        %
-                Args.FormatCropId       %
+                Args.FormatCropID       %
                 Args.FormatVersion      %
             end
             
@@ -259,6 +260,7 @@ classdef ImagePath < Component
             Obj.setProps(Args);            
             
             % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+            % USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits
             
             % Set JD and TimeStr
             Obj.setTime();
@@ -266,7 +268,7 @@ classdef ImagePath < Component
             % Format numeric fields
             Obj.FieldID  = Obj.formatNumeric(Obj.FieldID, Obj.FormatFieldID);                   
             Obj.CCDID    = Obj.formatNumeric(Obj.CCDID, Obj.FormatCCDID);
-            Obj.CropId   = Obj.formatNumeric(Obj.CropId, Obj.FormatCropId);
+            Obj.CropID   = Obj.formatNumeric(Obj.CropID, Obj.FormatCropID);
             Obj.Version  = Obj.formatNumeric(Obj.Version, Obj.FormatVersion);
             
             % Validate field values
@@ -288,8 +290,8 @@ classdef ImagePath < Component
             % Prepare the final result
             % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
             Obj.FileName = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s', Obj.ProjName, ...
-                           Obj.TimeStr, Obj.Filter, Obj.FieldId, Obj.Counter, Obj.CCDID, ...
-                           Obj.CropId, Obj.Type, MergedLevel, Obj.Product, Obj.Version, Obj.FileType);
+                           Obj.TimeStr, Obj.Filter, Obj.FieldID, Obj.Counter, Obj.CCDID, ...
+                           Obj.CropID, Obj.Type, MergedLevel, Obj.Product, Obj.Version, Obj.FileType);
 
        
             % Done
@@ -325,10 +327,10 @@ classdef ImagePath < Component
             Obj.JD              = Header.getVal(Obj.DictKeyNames.JD);
             Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TimeZone);
             Obj.Filter          = Header.getVal(Obj.DictKeyNames.Filter);
-            Obj.FieldId         = Header.getVal(Obj.DictKeyNames.FieldId);
+            Obj.FieldID         = Header.getVal(Obj.DictKeyNames.FieldID);
             Obj.Counter         = Header.getVal(Obj.DictKeyNames.Counter);
             Obj.CCDID           = Header.getVal(Obj.DictKeyNames.CCDID);
-            Obj.CropId          = Header.getVal(Obj.DictKeyNames.CropId);
+            Obj.CropID          = Header.getVal(Obj.DictKeyNames.CropID);
             Obj.Type            = Header.getVal(Obj.DictKeyNames.Type);
             Obj.Level           = Header.getVal(Obj.DictKeyNames.Level);
             Obj.SubLevel        = Header.getVal(Obj.DictKeyNames.SubLevel);
@@ -354,10 +356,10 @@ classdef ImagePath < Component
             Header.setVal(Obj.DictKeyNames.JD,          Obj.JD);
             Header.setVal(Obj.DictKeyNames.TimeZone,    Obj.TimeZone);
             Header.setVal(Obj.DictKeyNames.Filter,      Obj.Filter);
-            Header.setVal(Obj.DictKeyNames.FieldId,     Obj.FieldId);
+            Header.setVal(Obj.DictKeyNames.FieldID,     Obj.FieldID);
             Header.setVal(Obj.DictKeyNames.Counter,     Obj.Counter);
             Header.setVal(Obj.DictKeyNames.CCDID,       Obj.CCDID);                        
-            Header.setVal(Obj.DictKeyNames.CropId,      Obj.CropId);
+            Header.setVal(Obj.DictKeyNames.CropID,      Obj.CropID);
             Header.setVal(Obj.DictKeyNames.Type,        Obj.Type);
             Header.setVal(Obj.DictKeyNames.Level,       Obj.Level);
             Header.setVal(Obj.DictKeyNames.SubLevel,    Obj.SubLevel);
@@ -399,8 +401,8 @@ classdef ImagePath < Component
             Obj.JD              = st.jd;
             Obj.TimeZone        = st.timezone;
             Obj.Filter          = st.filter;
-            Obj.FieldId         = st.field_id;
-            Obj.CropId          = st.crop_id;
+            Obj.FieldID         = st.field_id;
+            Obj.CropID          = st.crop_id;
             Obj.ImageType       = st.imtype;
             Obj.ImageLevel      = st.imlevel;
             Obj.ImageSubLevel   = st.imslevel;
@@ -421,8 +423,8 @@ classdef ImagePath < Component
             st.jd       = Obj.JD;
             st.timezone = Obj.TimeZone;
             st.filter   = Obj.Filter;
-            st.field_id = Obj.FieldId;
-            st.crop_id  = Obj.CropId;
+            st.field_id = Obj.FieldID;
+            st.crop_id  = Obj.CropID;
             st.imtype   = Obj.ImageType;
             st.imlevel  = Obj.ImageLevel;
             st.imslevel = Obj.ImageSubLevel;
@@ -432,8 +434,7 @@ classdef ImagePath < Component
         end        
     end
     
-    
-    
+        
     methods % Helpers (for internal use)
         
         function Result = setTime(Obj)
@@ -525,8 +526,6 @@ classdef ImagePath < Component
         function Result = parseFileName(fname)
             % Convert a file name string to a structure with all available information
         end
-
-
         
     end
             
@@ -538,4 +537,3 @@ classdef ImagePath < Component
     end
     
 end
-

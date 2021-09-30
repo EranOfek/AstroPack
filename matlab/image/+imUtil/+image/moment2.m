@@ -107,8 +107,8 @@ arguments
     Image             
     X                 
     Y                 
-    Args.AperRadius                                    = [2 4 6];
-    Args.Annulus                                       = [8 12];
+    Args.AperRadius                                    = [2, 4, 6];
+    Args.Annulus                                       = [8, 12];
     Args.SubBack(1,1) logical                          = true;
     Args.BackFun                                       = @median
     Args.BackFunArgs cell                              = {[1 2],'omitnan'};

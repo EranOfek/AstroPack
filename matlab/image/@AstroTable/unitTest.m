@@ -196,7 +196,7 @@ function Result = unitTest()
     A = AstroTable; 
     A.Catalog=rand(10,3); 
     A.ColNames={'a','b','c'}; 
-    insertCol(A,ones(10,2),'c');
+    insertCol(A,ones(10,2),Inf,{'c','d'});
 
     % replaceColNames
     io.msgLog(LogLevel.Test, 'testing AstroTable replaceColNames')
