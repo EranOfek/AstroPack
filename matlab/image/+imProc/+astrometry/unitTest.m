@@ -135,10 +135,18 @@ function Result = unitTest()
     
     
     % break into sub images
-    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
-    %[SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[64 64]);
+    %[SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
+    tic;
+    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[64 64]);
+    toc
+    
+    tic;
     imProc.background.background(SI, 'SubSizeXY',[]);
+    toc
+    
+    tic;
     imProc.sources.findMeasureSources(SI);
+    toc
     
     RA  = AI.HeaderData.Key.RA;
     Dec = AI.HeaderData.Key.DEC;
@@ -167,7 +175,7 @@ function Result = unitTest()
     
     % astrometrySubImages
     tic;
-    [ResultFit, ResultObj, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran);
+    [ResultFit, ResultObj, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran,'CreateNewObj',false);
     toc
     
     
