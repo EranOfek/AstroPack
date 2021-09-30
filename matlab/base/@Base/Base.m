@@ -40,7 +40,7 @@
 % https://www.mathworks.com/help/matlab/matlab_oop/supporting-both-handle-and-value-subclasses-handlecompatible.html
 % https://www.mathworks.com/help/matlab/matlab_oop/how-to-define-handle-compatible-classes-1.html
 
-classdef Base < matlab.mixin.Copyable  % < handle
+classdef Base < matlab.mixin.Copyable
     % Base class for all objects
 
     % Properties
@@ -223,6 +223,24 @@ classdef Base < matlab.mixin.Copyable  % < handle
         end
     end
 
+    %----------------------------------------------------------------------
+    methods(Access = protected)
+        function NewObj = copyElement(Obj)
+            % Custom copy of object properties
+            % Called from copy() of matlab.mixin.Copyable decendents
+            
+            % Make shallow copy of all properties
+            NewObj = copyElement@matlab.mixin.Copyable(Obj);
+
+            % Make deep copy
+            if ~isempty(Obj.UserData)
+                if isa(Obj.UserData, matlab.mixin.Copyable)
+                    NewObj.UserData = Obj.UserData.copy();
+                end
+            end
+        end
+    end
+    
     %----------------------------------------------------------------------
     methods(Static) % Unit test
 

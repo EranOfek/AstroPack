@@ -267,7 +267,7 @@ classdef UnitTester < handle
             Obj.runTest('Tran2D');
             Obj.runTest('VarImage');
             Obj.runTest('BackImage');
-            Obj.runTest('DbInfo');
+            %Obj.runTest('DbInfo');			% Chen: There is no such file @Eran - Do we need it?
             Obj.runTest('ds9');
             Obj.runTest('FITS');
             Obj.runTest('ImageComponent');

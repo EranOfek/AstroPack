@@ -304,6 +304,28 @@ classdef Component < Base
         end
     end
 
+    %----------------------------------------------------------------------
+    methods (Access = protected)
+        function NewObj = copyElement(Obj)
+            % Custom copy of object properties
+            % Called from copy() of matlab.mixin.Copyable decendents
+            
+            % Make shallow copy of all properties
+            NewObj = copyElement@Base(Obj);
+
+            % Generate new Uuid
+            if ~isempty(Obj.Uuid)
+                NewObj.Uuid = Component.newUuid();
+            end
+            
+            if ~isempty(Obj.MapKey)
+                NewObj.MapKey = NewObj.Uuid;
+            end            
+            
+        end
+    end
+    
+    %----------------------------------------------------------------------    
 
     methods(Static)
         function Result = newUuid()

@@ -32,6 +32,17 @@ function Result = unitTest()
     k = c.needMapKey();
     disp(k);
 
+    % Copy
+    d = Component;
+    d.needUuid();
+    e = d;
+    assert(strcmp(d.Uuid, e.Uuid));
+    
+    % When using copy(), Component.copyElement() is invoked and generates a
+    % new Uuid for the new instance of the object
+    f = d.copy();
+    assert(~strcmp(d.Uuid, f.Uuid));
+    
     io.msgStyle(LogLevel.Test, '@passed', 'Component test passed');                          
     Result = true;
 end
