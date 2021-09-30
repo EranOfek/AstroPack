@@ -16,13 +16,13 @@ function Result = unitTest
     [NfunX,NfunY]=nfuns(T);
     Ans=isParKnown(T);
     TC=Tran2D; 
-    TC.ParY=ones(1,13);  
-    TC.ParX=ones(1,13); 
+    TC.ParY=ones(1,10);  
+    TC.ParX=ones(1,10); 
     [Xf,Yf]=forward(TC,[1 1;2 1]);
 
     TC=Tran2D;
-    TC.ParY=zeros(1,13); 
-    TC.ParX=zeros(1,13); 
+    TC.ParY=zeros(1,10); 
+    TC.ParX=zeros(1,10); 
     TC.ParX(1:2) = 1;
     TC.ParX(5)=0.03;
     TC.ParX(7)=0.01;
@@ -48,13 +48,13 @@ function Result = unitTest
     [CX,CY,PX,PY]=symPoly(TC);
     TC = Tran2D;
     TC.symPoly;
-    TC.ParX = ones(1,13);
-    TC.ParY = ones(1,13);
+    TC.ParX = ones(1,10);
+    TC.ParY = ones(1,10);
     TC.polyCoef;
     io.msgLog(LogLevel.Test, 'testing Tran2D symPoly2deg');
     [PolyX_Xdeg,PolyX_Ydeg,PolyY_Xdeg,PolyY_Ydeg]=symPoly2deg(TC);
-    TC.ParX = ones(1,13);
-    TC.ParY = ones(1,13);
+    TC.ParX = ones(1,10);
+    TC.ParY = ones(1,10);
     TC.polyRep;
 
     % selected_trans
@@ -79,7 +79,7 @@ function Result = unitTest
     % This function is slow and should be run once the Tran2D was constructed.
     [CX,CY,PX,PY]=symPoly(TC);
     % Next populate the ParX, ParY:
-    TC.ParY=zeros(1,13);  TC.ParX=zeros(1,13); 
+    TC.ParY=zeros(1,10);  TC.ParX=zeros(1,10); 
     TC.ParX(1:2) = 1; TC.ParX(5)=0.03; TC.ParX(7)=0.01;
     TC.ParY(1) = 2; TC.ParY(3)=1.01; TC.ParY(5)=0.01; TC.ParY(8)=0.001;
     % Calculate the numerical value of the polynomials coef.
