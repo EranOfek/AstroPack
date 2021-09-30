@@ -28,6 +28,9 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         
         Args.MinNumberCoreSolutions              = 1;
         Args.assessAstrometricQualityArgs cell   = {};
+        
+        
+        Args.UseRefine logical                   = false;
     end
     
     [ResultObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 1);
@@ -53,7 +56,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     % Sort SubImages by distance from image center (nominal position)
     [~,SI]  = sort(SubDistFromCenter);
     
-    UseRefinment        = false;
+    
     Sucess              = false(size(Obj));  % sucessful solution
     
     % do we need to define this if CatName is AstroCatalog???
@@ -160,9 +163,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
 % if Iim==40 && Iref==31
 %    'a'
 % end
-            UseRefine = true;
-            if UseRefine
-                %tic;
+            if Args.UseRefine
                 [ResultRefineFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
                                                                                                            'WCS',RefWCS, ...
                                                                                                            'IncludeDistortions',false,...
@@ -175,9 +176,10 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                            'EpochOut',Args.EpochOut,...
                                                                                                            'CatName',CatName,...  
                                                                                                            Args.astrometryCoreArgs{:});
-%toc
+                Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
+            end
                                                                                                       
-            else
+            if ~Args.UseRefine || ~Sucess(Iim)
               
 
 
@@ -206,16 +208,11 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                 ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
                 ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
                 ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
-            
+                
+                Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
             end
                 
-            % check qulity of solution
-            %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
-            %ResultRefineFit(Iim).WCS.Success
-            Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
-            
-            %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
-            
+          
         end
         
     
