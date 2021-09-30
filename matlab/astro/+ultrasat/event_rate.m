@@ -57,7 +57,7 @@ DefV.CernekovSupp         = 6;
 
 DefV.DetSize              = 9.5;  % [cm]
 
-DefV.Filter               = 'Req4m3';
+DefV.Filter               = 'R10';
 DefV.FilterFamily         = 'ULTRASAT';
 DefV.MagSys               = 'AB';
 DefV.Wave                 = (1000:10:25000).';  % [ang]
@@ -88,9 +88,9 @@ Nz   = numel(Vecz);
 Diff = zeros(Nz,1);
 LimMag = [Vecz, zeros(Nz,1)];
 for Iz=1:1:Nz
-    [LumDist,dM]=AstroUtil.cosmo.lum_dist(Vecz(Iz));
+    [LumDist,dM]=astro.cosmo.lum_dist(Vecz(Iz));
     
-    %[~,Vc]=AstroUtil.cosmo.comoving_volume(z);
+    %[~,Vc]=astro.cosmo.comoving_volume(z);
     %Rate = Vc./1e18 .*3e-5 .* SkyFOV;
     
     AppMag     = AbsMag+dM;  % app mag of event
@@ -122,9 +122,9 @@ end
 
 zLim = interp1(Diff,Vecz,0,'pchip');
 
-[LumDist,dM]=AstroUtil.cosmo.lum_dist(zLim);
+[LumDist,dM]=astro.cosmo.lum_dist(zLim);
     
-[~,Vc]=AstroUtil.cosmo.comoving_volume(zLim);
+[~,Vc]=astro.cosmo.comoving_volume(zLim);
 Rate = Vc./1e18 .*InPar.Rate .* SkyFOV;
 
 AppMag     = AbsMag+dM;  % app mag of event
