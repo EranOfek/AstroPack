@@ -32,23 +32,7 @@ classdef ValueClass
         function delete(Obj)
             %fprintf('ValueClass deleted: %s\n', Obj.Uuid);            
         end
-        
-        
-        function Result = sum(Obj)
-            Result = sum(Obj.Mat, 'all');
-        end
-        
-        
-        function Result = sum2(Obj)
-            Obj.Mat = Obj.Mat * 2;
-            Result = sum(Obj.Mat, 'all');
-        end        
-       
-        
-        function Obj = mul(Obj, x)
-            Obj.Mat = Obj.Mat * x;
-        end
-        
+                
         
         function Obj = sin(Obj)
             Obj.Mat = sin(Obj.Mat.^2).^2;
