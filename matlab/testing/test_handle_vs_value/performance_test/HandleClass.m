@@ -39,23 +39,7 @@ classdef HandleClass < matlab.mixin.Copyable % handle
             ObjByteArray = getByteStreamFromArray(Obj);
             NewObj       = getArrayFromByteStream(ObjByteArray);
         end
-        
-        
-        function Result = sum(Obj)
-            Result = sum(Obj.Mat, 'all');
-        end
-        
-        
-        function Result = sum2(Obj)
-            Obj.Mat = Obj.Mat * 2;
-            Result = sum(Obj.Mat, 'all');
-        end        
-        
-        
-        function Obj = mul(Obj, x)
-            Obj.Mat = Obj.Mat * x;
-        end        
-        
+          
         
         function Obj = sin(Obj)
             Obj.Mat = sin(Obj.Mat.^2).^2;
