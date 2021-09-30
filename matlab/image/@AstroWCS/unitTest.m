@@ -204,8 +204,8 @@ function Result = unitTest()
     end
 
     % Construct/update AstroHeader from AstroWCS
-    AH1 = AW.wcs2head;           
-    AH = AW.wcs2head(AH);
+    AH1 = AW.wcs2header;           
+    AH = AW.wcs2header(AH);
 
     % test other things
 
