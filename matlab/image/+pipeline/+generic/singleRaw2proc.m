@@ -131,6 +131,9 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         % Update Cat photometry
     end
     
+    % match known solar system objects
+    %[SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
+    
     % match against external catalogs
     if Args.MatchExternal
         % 1. Add columns for matched sources
