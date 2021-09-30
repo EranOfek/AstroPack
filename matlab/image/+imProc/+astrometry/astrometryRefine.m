@@ -332,7 +332,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
                                                                                         'ColNameMag',Args.RefColNameMag,...
                                                                                         'RangeMag',Args.RefRangeMag,...
                                                                                         'ColNamePlx',Args.RefColNamePlx,...
-                                                                                        'RangePlx',Args.RefRangePlx);
+                                                                                        'RangePlx',Args.RefRangePlx,...
+                                                                                        'RemoveNeighboors',Args.RemoveNeighboors,...
+                                                                                        'flagSrcWithNeighborsArgs',Args.flagSrcWithNeighborsArgs);
 
         % RA/Dec in [deg]
         RAdeg  = RA.*RAD;
@@ -352,16 +354,16 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     
         
         
-        % filter Ref - remove sources with neighboors
-        if Args.RemoveNeighboors
-            % sort AstrometricCat
-            AstrometricCat(Iobj) = sortrows(AstrometricCat(Iobj), 'Dec');
-            
-            UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat(Iobj), Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
-        else
-            Nsrc    = sizeCatalog(AstrometricCat(Iobj));
-            UseFlag = true(Nsrc,1);
-        end
+%         % filter Ref - remove sources with neighboors
+%         if Args.RemoveNeighboors
+%             % sort AstrometricCat
+%             AstrometricCat(Iobj) = sortrows(AstrometricCat(Iobj), 'Dec');
+%             
+%             UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat(Iobj), Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
+%         else
+%             Nsrc    = sizeCatalog(AstrometricCat(Iobj));
+%             UseFlag = true(Nsrc,1);
+%         end
         
         
         % projection
@@ -420,7 +422,6 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
                                                        'ProjType',Args.ProjType,...
                                                        'TranMethod',Args.TranMethod,...
                                                        'Tran',Args.Tran,...
-                                                       'UseFlag',UseFlag,...
                                                        'ExtraData',[],...
                                                        'ErrPos',Args.ErrPos,...
                                                        'Niter',Args.Niter,...

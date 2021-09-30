@@ -62,7 +62,8 @@ function Cell=replaceKey(Cell,Key,Val,Args)
     
     Nkey = numel(Key);
     
-    [~,~,~,IK] = imUtil.headerCell.getByKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
+    %[~,~,~,IK] = imUtil.headerCell.getByKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
+    [IK] = imUtil.headerCell.getIndKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
 
     
     Nline    = size(Cell,1);

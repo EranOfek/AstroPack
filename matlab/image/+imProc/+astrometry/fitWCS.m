@@ -22,9 +22,6 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
     %                   This dictates the fitting scheme.
     %            'Tran' - A Tran2D object for the transformation to fit.
     %                   Default is Tran2D.
-    %            'UseFlag' - - A vector of logicals indicating which
-    %                   sources (in the vectors of coordinates) to
-    %                   use. Default is true.
     %            'ExtraData' - Additional columns to pass to the Tran2D
     %                   transformation. Default is [].
     %            'ErrPos' - Error in positions [pix].
@@ -74,7 +71,6 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
         Args.ProjType           = 'TPV';
         Args.TranMethod         = 'TPV';
         Args.Tran               = Tran2d;
-        Args.UseFlag logical    = true;
         Args.ExtraData          = [];
         Args.ErrPos
         Args.Niter

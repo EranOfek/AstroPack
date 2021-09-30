@@ -1,5 +1,7 @@
 function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % A core function for astrometry. Match pattern and fit transformation.
+    %       The function is designed to solve the astrometry of an image in
+    %       a single shoot (no partitioning).
     % Input  : - An AstroImage with populated CatData or an AstroCatalog object,
     %            with sources X, Y positions.
     %            This can be a multiple element object. In this case, the
