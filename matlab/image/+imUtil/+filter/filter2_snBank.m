@@ -91,7 +91,6 @@ if nargin<4
 end
 
 if isempty(Template)
-    
     Template = @imUtil.kernel2.gauss;
 end
 

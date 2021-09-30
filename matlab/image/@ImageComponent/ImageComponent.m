@@ -1270,9 +1270,12 @@ classdef ImageComponent < Component
                    NewScale = Obj(Iobj).Scale;
                 end
                 
+                if NewScale==1
+                    NewScale = [];
+                end
                 if ~isempty(NewScale)
                     Result = imresize(Obj(Iobj).Data, NewScale, 'Method', Args.Method);
-                    
+
                     if Args.UpdateObj
                         Obj(Iobj).Data  = Result;
                         Obj(Iobj).Scale = [];

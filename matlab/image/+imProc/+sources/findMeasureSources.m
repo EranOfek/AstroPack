@@ -41,6 +41,9 @@ function Result = findMeasureSources(Obj, Args)
     %            'BackPar' - A cell array of additional parameters to pass to
     %                   the imProc.image.background function.
     %                   Default is {}.
+    %            'ReCalcBack' - A logical indicating if to recalculate
+    %                   background, even if it is already exist in the
+    %                   AstroImage. Default is false.
     %            'MomPar' - A cell array of additional parameters to pass to
     %                   the imUtil.image.moment2 function.
     %                   Default is {}.
@@ -84,6 +87,7 @@ function Result = findMeasureSources(Obj, Args)
         Args.ForcedList                    = [];
         Args.OnlyForced(1,1) logical       = false;
         
+        Args.ReCalcBack logical            = false;
         Args.BackPar cell                  = {};
         
         Args.MomPar cell                   = {};
@@ -121,7 +125,7 @@ function Result = findMeasureSources(Obj, Args)
     end
     
     % calculate background
-    imProc.background.background(Result, 'CreateNewObj',false, Args.BackPar{:});
+    imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
