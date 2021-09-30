@@ -284,15 +284,23 @@ classdef AstroSpec < Component
             Factor = 10.^(-0.4.*sum(A_LambdaMag, 2));
         end
         
-        function [FilterCell, Name] = read2FilterMatrix(Family, Name)
+        function [FilterCell, Name] = read2FilterMatrix(Family, Name, ClassDefault)
             % Convet a filter name/AstFilter to cell of transmissions
             % Input  : - A cell of family names, a family name, a matrix or
-            %            an AstFilter object.
+            %            an AstFilter object or AstroTransmission object.
             %          - A filter name or a cell of names.
+            %          - Class from which to read filter:
+            %            ['AstFilter'] | 'AstroTransmission'
             % Output : - A cell array of filter transmissions.
             %          - A cell array of filter names.
             % Author : Eran Ofek (Aug 2021)
             % Example: [FilterCell, Name] = AstroSpec.read2FilterMatrix('SDSS', 'g')
+            
+            arguments
+                Family
+                Name
+                ClassDefault     = 'AstFilter';
+            end
             
             if ischar(Name)
                 Name = {Name};
@@ -303,7 +311,14 @@ classdef AstroSpec < Component
             end
                 
             if iscellstr(Family)
-                Family = AstFilter.get(Family, Name);
+                switch lower(ClassDefault)
+                    case 'astfilter'
+                        Family = AstFilter.get(Family, Name);
+                    case 'astrotransmission'
+                        Family = AstFilter.getFilt(Family, Name);
+                    otherwise
+                        error('Unknown class option');
+                end
             end
             
             if isa(Family, 'AstFilter')
@@ -311,6 +326,12 @@ classdef AstroSpec < Component
                 FilterCell = cell(1, Nf);
                 for If=1:1:Nf
                     FilterCell{If} = Family(If).nT;
+                end
+            elseif isa(Family, 'AstroTransmission')
+                Nf = numel(Family);
+                FilterCell = cell(1, Nf);
+                for If=1:1:Nf
+                    FilterCell{If} = [convert.length(Family(If).WaveUnits, 'A', Family(If).Wave), Family(If).Tran];
                 end
             elseif isnumeric(Family)
                 FilterCell{1} = Family;

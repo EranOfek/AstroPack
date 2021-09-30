@@ -120,6 +120,55 @@ classdef AstroTransmission < Component
     end
    
     methods (Static) % get/create transmissions
+        function Result = getFilt(Family, Band)
+            %
+            
+        end
+        
+        function Result = genTopHat(Ranges, Family, BandPrefix, Args)
+            % Generate a series of top-hat filters (Type='filter').
+            % Input  : - A two column matrix of [Min, Max] wavelength
+            %            range. Each line per each fiter.
+            %          - Filter family name. Default is 'TopHat'.
+            %          - Filter band name prefix. Default is 'Band'.
+            %          * ...,key,val,...
+            %            'WaveUnits' - Default is 'A'.
+            % Output : - An AstroTransmission object of the top-hat
+            %            transmission curves
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Result = AstroTransmission.genTopHat([4000 4100; 5000 6000]);
+            
+            arguments
+                Ranges
+                Family          = 'TopHat'
+                BandPrefix      = 'Band';
+                Args.WaveUnits  = 'A';
+            end
+            
+            Nr = size(Ranges,1);
+            for Ir=1:1:Nr
+                Min = min(Ranges(Ir,:));
+                Max = max(Ranges(Ir,:));
+                
+                Wave = [Min*0.999, Min, Max, Max*1.001];
+                Tran = [0,         1,   1,   0];
+                
+                Result(Ir) = AstroTransmission([Wave(:), Tran(:)],...
+                                            'WaveUnits',Args.WaveUnits,...
+                                            'Family',Family,...
+                                            'Band',sprintf('%s%d',BandPrefix,Ir),...
+                                            'Type','filter');
+                
+%                 Result(Ir).Wave = Wave(:);
+%                 Result(Ir).Tran = Tran(:);
+%                 Result(Ir).WaveUnits = Args.WaveUnits;
+%                 Result(Ir).Family    = Family;
+%                 Result(Ir).Band      = sprintf('%s%d',BandPrefix,Ir);
+%                 Result(Ir).Type      = 'filter';
+            end
+            
+        end
+        
         function Result = get(Family, Band, Type, Args)
             %
             
@@ -168,7 +217,25 @@ classdef AstroTransmission < Component
     end
     
     methods (Static)  % aux functions
-       
+        function [Name] = genNames(Prefix, Num)
+            % Generate names for filters
+            % Input  : - Filter name prefix. Default is 'Filt'/
+            %          - Number of names. Default is 2.
+            % Output : - A cell array of filter names.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: [Name] = AstroTransmission.genNames
+           
+            arguments
+                Prefix = 'Filt';
+                Num    = 2;
+            end
+            
+            Name = cell(1, Num);
+            for I=1:1:Num
+                Name{I} = sprintf('%s%d',Prefix,I);
+            end
+            
+        end
     end
     
  
