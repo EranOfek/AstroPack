@@ -2,6 +2,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % A core function for astrometry. Match pattern and fit transformation.
     %       The function is designed to solve the astrometry of an image in
     %       a single shoot (no partitioning).
+    %       A new copy of the catalog is always created.
     % Input  : - An AstroImage with populated CatData or an AstroCatalog object,
     %            with sources X, Y positions.
     %            This can be a multiple element object. In this case, the
@@ -171,7 +172,6 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.SearchRadius(1,1)            = 6;   
         Args.FilterSigma                  = 3;
         
-        
         Args.MaxSol2Check                 = 3;      % maximum number of solutions to check
         Args.TranMethod char              = 'TPV';   % 'TPV' | 'tran2d'
         Args.Tran                         = Tran2D('poly3');                           
@@ -212,6 +212,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     RefColNameX = 'X';
     RefColNameY = 'Y';
     
+    % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
+    %
+    
     % make sure Tran is a new copy, otherwise may overwrite other Tran
     Args.Tran = Args.Tran.copy;
     
@@ -224,6 +227,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             end
         end
     end
+    
+    % ### END OF COMMON BLOCK
 
     RotationEdges = (Args.RotationRange(1):Args.RotationStep:Args.RotationRange(2));
     % mean value of projection scale:
@@ -304,7 +309,6 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         % ProjAstCat is not used anymore so no need to copy it
         % make sure you are no overriding the previous catalog
         FilteredCat = Cat.copy;  % shallow copy is enough
-        
         [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
                                                                                     'ColCatX',Args.CatColNamesX,...
                                                                                     'ColCatY',Args.CatColNamesY,...
@@ -338,7 +342,6 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         % FFU: CatColNamesX/Y are for both Cat and Ref!!
         % NormScale - is the scale normalized to 1 (as the new ref was
         % sacled)
-        % 'Scale' NormScale
         [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
                                                                           'Scale',NormScale,...
                                                                           'HistRotEdges',RotationEdges,...
@@ -368,27 +371,13 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             for Isol=1:1:Nsol
                 % Apply affine transformation to Reference
                 % CreateNewObj=true, because FilteredProjAstCat is needed later on
+                TransformedProjAstCat = FilteredProjAstCat.copy;
                 
-                
-                % 
-                %warning('This -4 is helping - is this due to a bug in the pattern finding?');
-                %ResPattern.Sol.AffineTran{Isol}(2:3,3) = ResPattern.Sol.AffineTran{Isol}(2:3,3) - 0;
-                
-                TransformedProjAstCat = imProc.trans.tranAffine(FilteredProjAstCat, ResPattern.Sol.AffineTran{Isol}, true,...
+                TransformedProjAstCat = imProc.trans.tranAffine(TransformedProjAstCat, ResPattern.Sol.AffineTran{Isol}, true,...
                                                                 'ColX',RefColNameX,...
-                                                                'ColY',RefColNameY);
+                                                                'ColY',RefColNameY,...
+                                                                'CreateNewObj',false);
 
-                % match sources based on X/Y positions:
-                % SearchRadius is in arcsec, while catalogs are in pixels
-%                 [MatchedCat,~,~] = imProc.match.match(FilteredCat, TransformedProjAstCat,...
-%                                                  'Radius',Args.SearchRadius.*mean(Args.Scale),...
-%                                                  'CooType','pix',...
-%                                                  'AddIndInRef',false,...
-%                                                  'ColCatX',Args.CatColNamesX,...
-%                                                  'ColCatY',Args.CatColNamesY,...
-%                                                  'ColRefX',RefColNameX,...
-%                                                  'ColRefY',RefColNameY);
-                                             
                 MatchInd = imProc.match.matchReturnIndices(FilteredCat, TransformedProjAstCat,...
                                                  'Radius',Args.SearchRadius.*mean(Args.Scale),...
                                                  'CooType','pix',...
@@ -396,8 +385,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                  'ColCatY',Args.CatColNamesY,...
                                                  'ColRefX',RefColNameX,...
                                                  'ColRefY',RefColNameY);
-                
-                MatchedCat = selectRows(FilteredCat, MatchInd.Obj2_IndInObj1);
+                                             
+                MatchedCat = FilteredCat.copy;
+                MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
                                              
                 % DEBUGING:
                 % FilteredCat.plot({'X','Y'},'o')          
@@ -422,29 +412,14 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 %T  = table(XY(:,1),XY(:,2), XY(:,3), XY(:,4), RF, DF)
 
                 % Fit transformation
-                %[Param, Res] = imProc.trans.fitTransformation(TransformedCat, FilteredProjAstCat, 'Tran',Args.Tran);
-                % MatchedRef has the same number of lines as in Ref,
-                % but it is affine transformed to the coordinate system of Cat
-
                 [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
                 [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
                 Xref = getColDic(FilteredProjAstCat, RefColNameX);
                 Yref = getColDic(FilteredProjAstCat, RefColNameY);
                 Mag  = getColDic(FilteredProjAstCat, Args.RefColNameMag);
                 
-                
                 % fit the catalog to the reference and generate the Tran2D
                 % object and all the information required for the WCS
-                
-                
-                % fitWCS will set CRVAL to RAdeg/Decdeg and will "fit"
-                % Note that Xcat/Ycat were rescaled, so their new Scale=1
-                % CRPIX...
-                %Xcat = Xcat.*Args.Scale;
-                %Ycat = Ycat.*Args.Scale;
-                %Xref = Xref.*Args.Scale;
-                %Yref = Yref.*Args.Scale;
-                % 'Scale', ResPattern.Sol.Scale(Isol),... <<< USED TO BE
                 
                 [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
@@ -468,42 +443,17 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         
                 Result(Iobj).ParWCS(Isol) = ParWCS;
                
-%                
-%                
-%                % ResQuality
-%                % Calculate the rms as a function of position
-%                Xorig = Xcat+Result.ImageCenterXY(1);
-%                Yorig = Ycat+Result.ImageCenterXY(2);
-%                [BinN, BinMean, BinMedian] = tools.math.stat.bin2dFun(Xorig, Yorig, ResFit.Resid.*3600, 'Step',256);
-%                Result(Iobj).ResQuality.Xorig      = Xorig;
-%                Result(Iobj).ResQuality.Yorig      = Yorig;
-%                Result(Iobj).ResQuality.Resid      = ResFit.Resid.*ARCSEC_DEG;
-%                Result(Iobj).ResQuality.ResidX     = ResFit.ResidX.*ARCSEC_DEG;
-%                Result(Iobj).ResQuality.ResidY     = ResFit.ResidY.*ARCSEC_DEG;
-%                Result(Iobj).ResQuality.BinN       = BinN;
-%                Result(Iobj).ResQuality.BinMean    = BinMean;
-%                Result(Iobj).ResQuality.BinMedian  = BinMedian;
-%                Result(Iobj).ResQuality.Nmatch     = sum(~isnan(ResFit.ResidX));
-               
-               %plot(Xorig, ResFit.Resid.*3600,'.')
-               %plot(Yorig, ResFit.Resid.*3600,'.')
-               %  scatter(Xorig, Yorig, 10, ResFit.Resid.*3600,'filled')
-               %  colorbar
+
+                % DEBUG:
+                %plot(Xorig, ResFit.Resid.*3600,'.')
+                %plot(Yorig, ResFit.Resid.*3600,'.')
+                %  scatter(Xorig, Yorig, 10, ResFit.Resid.*3600,'filled')
+                %  colorbar
 
                 % store transformations
                 Result(Iobj).Tran(Isol)       = Tran;
                 Result(Iobj).ResFit(Isol)     = ResFit;
 
-                
-%                 %
-%                 Step = 10;
-%                 CXY = Result(Iobj).ImageCenterXY;
-%                 VecX = (-CXY(1):Step:CXY(1));
-%                 VecY = (-CXY(2):Step:CXY(2));
-%                 [MatX, MatY] = meshgrid(VecX, VecY);
-%                 
-                %[x,y]=backward(Result(Iobj).Tran(1),[MatX(:), MatY(:)]);
-                
             end
             
             % classify the quality of solutions

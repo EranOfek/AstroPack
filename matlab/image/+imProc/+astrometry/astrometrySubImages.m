@@ -30,7 +30,6 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.assessAstrometricQualityArgs cell   = {};
         
         
-        Args.UseRefine logical                   = false;
     end
     
     [ResultObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 1);
@@ -66,13 +65,13 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         
         if sum(Sucess)>=Args.MinNumberCoreSolutions
             % use astrometryCore
-            UseRefinement = true;
+            UseRefine = true;
         else
             % switch to refine mode
-            UseRefinement = false;
+            UseRefine = false;
         end
        
-        if ~UseRefinement
+        if ~UseRefine
             % Use core solution
             
             % select sub image index, after sorting by distance of sub image
@@ -94,10 +93,21 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                      'RA',Args.RA,...
                                                                                                      'Dec',Args.Dec,...
                                                                                                      'CooUnits',Args.CooUnits,...
+                                                                                                     'CatRadius',3000,...
+                                                                                                     'CatRadiusUnits','arcsec',...
                                                                                                      'EpochOut',Args.EpochOut,...
                                                                                                      'CatName',CatName,...
                                                                                                      'Scale',Args.Scale,...
+                                                                                                     'RangeX',[-1000 1000].*3,...
+                                                                                                     'RangeY',[-1000 1000].*3,...
+                                                                                                     'StepX',2,...
+                                                                                                     'StepY',2,...
+                                                                                                     'Flip',[1 1; 1 -1;-1 1;-1 -1],...
+                                                                                                     'SearchRadius',6,...
+                                                                                                     'FilterSigma',3,...
                                                                                                      Args.astrometryCoreArgs{:});
+                                                                                                 
+                                                                                                 
             %toc
             % populate the WCS in the AstroImage
             %ResultObj(Iim).WCS = ResultFit(Iim).WCS;
@@ -163,7 +173,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
 % if Iim==40 && Iref==31
 %    'a'
 % end
-            if Args.UseRefine
+            if UseRefine
                 [ResultRefineFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
                                                                                                            'WCS',RefWCS, ...
                                                                                                            'IncludeDistortions',false,...
@@ -179,7 +189,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                 Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
             end
                                                                                                       
-            if ~Args.UseRefine || ~Sucess(Iim)
+            if ~UseRefine || ~Sucess(Iim)
               
 
 

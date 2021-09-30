@@ -1,9 +1,10 @@
-function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
+function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     % Refine an astrometric solution of an AstroCatalog object
     %   This function may work on images which have either an approximate
     %   WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec
     %   coordinates. The coordinates should be good to a few arcseconds.
     %   For no solutions use imProc.astrometry.astrometryCore.
+    %       A new copy of the catalog is always created.
     % Input  : - An AstroCatalog or AstroImage object (multiple elements supported).
     %          * ...,key,val,...
     %            'SearchRadius' - Sources search radius [arcsec].
@@ -149,7 +150,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     % Example: RR = imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
     arguments
-        ObjAC 
+        Obj
         Args.Header                             = []; % If given convert to AstroWCS
         Args.WCS                                = []; % If given generate RA/Dec for sources
         
@@ -219,16 +220,22 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     CatColNameRA  = 'RA';
     CatColNameDec = 'Dec';
     
+    % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
+    %
     % make sure Tran is a new copy, otherwise may overwrite other Tran
     Args.Tran = Args.Tran.copy;
     
-    Args.CreateNewObj = false;
-    
-    if Args.CreateNewObj
-        Obj = ObjAC.copyObject;
-    else
-        Obj = ObjAC;
+    % get EpochOut
+    if isempty(Args.EpochOut)
+        if isa(Obj, 'AstroImage')
+            Args.EpochOut = julday(Obj);
+            if any(isnan(Args.EpochOut))
+                Args.EpochOut = [];
+            end
+        end
     end
+    
+    % ### END OF COMMON BLOCK
     
     
     % Case 1. AstroCatalog contains RA/Dec
@@ -249,12 +256,13 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
     else
         AstrometricCat        = AstroCatalog(size(Obj));  % []
     end
+    
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
         Iwcs = min(Iobj, Nwcs);
         
         if isa(Obj, 'AstroImage')
-            Cat = Obj(Iobj).CatData.copyObject;
+            Cat = Obj(Iobj).CatData;
             % Args.WCS order of priority:
             if isempty(Args.WCS)
                 % get WCS from AstroImage
@@ -263,7 +271,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
                 WCS = Args.WCS(Iwcs);
             end
         elseif isa(Obj, 'AstroCatalog')
-            Cat = Obj(Iobj).copyObject;
+            Cat = Obj(Iobj);
             if isempty(Args.WCS)
                 WCS = [];
             else
@@ -274,9 +282,6 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         end
         
         % get X/Y columns from catalog
-        %[Xcat,~,IndCatX] = getColDic(Cat, Args.CatColNamesX);
-        %[Ycat,~,IndCatY] = getColDic(Cat, Args.CatColNamesY);
-        
         [Xcat, Ycat] = getXY(Cat, 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
         
         if isempty(WCS)
@@ -287,6 +292,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
             [SrcRA, SrcDec] = WCS.xy2sky(Xcat, Ycat, 'OutUnits','rad',...
                                                      'IncludeDistortions',Args.IncludeDistortions);
             % add approximate RA, Dec to new copy of catalog
+            % generate a new copy of Cat
+            Cat = Cat.copy;
             Cat = insertCol(Cat, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
         end
     
@@ -351,41 +358,18 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
         end
         
         ProjectionScale = RAD .* ARCSEC_DEG ./ Scale;
-    
-        
-        
-%         % filter Ref - remove sources with neighboors
-%         if Args.RemoveNeighboors
-%             % sort AstrometricCat
-%             AstrometricCat(Iobj) = sortrows(AstrometricCat(Iobj), 'Dec');
-%             
-%             UseFlag = ~imProc.match.flagSrcWithNeighbors(AstrometricCat(Iobj), Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
-%         else
-%             Nsrc    = sizeCatalog(AstrometricCat(Iobj));
-%             UseFlag = true(Nsrc,1);
-%         end
-        
         
         % projection
-        ProjAstCat = imProc.trans.projection(AstrometricCat(Iobj), RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
+        ProjAstCat = AstrometricCat(Iobj).copy;
+        ProjAstCat = imProc.trans.projection(ProjAstCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                        'AddNewCols',{RefColNameX,RefColNameY},...
-                                                                                       'CreateNewObj',true);
+                                                                                       'CreateNewObj',false);
      
         Cat = sortrows(Cat, 'Dec');
+        
         % match the RA/Dec against an external catalog
         % sources in MatchedCat corresponds to sources in ProjAstCat
-%         [MatchedCat,UM,TUM] = imProc.match.match(Cat, ProjAstCat,...
-%                                                      'Radius',Args.SearchRadius,...
-%                                                      'RadiusUnits','arcsec',...
-%                                                      'CooType','sphere',...
-%                                                      'AddIndInRef',false,...
-%                                                      'ColCatX',CatColNameRA,...
-%                                                      'ColCatY',CatColNameDec,...
-%                                                      'ColRefX',CatColNameRA,...
-%                                                      'ColRefY',CatColNameDec);
-%           
-                                                 
-         MatchInd = imProc.match.matchReturnIndices(Cat, ProjAstCat,...
+        MatchInd = imProc.match.matchReturnIndices(Cat, ProjAstCat,...
                                                     'Radius',Args.SearchRadius,...
                                                     'RadiusUnits','arcsec',...
                                                     'CooType','sphere',...
@@ -394,7 +378,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(ObjAC, Args)
                                                     'ColRefX',CatColNameRA,...
                                                     'ColRefY',CatColNameDec);
                 
-        MatchedCat = selectRows(Cat, MatchInd.Obj2_IndInObj1);
+        MatchedCat = Cat.copy;
+        MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
 %                                                                                      
         % Debug: check that the matching is working
         % F=~isnan(MatchedCat.Catalog(:,1));

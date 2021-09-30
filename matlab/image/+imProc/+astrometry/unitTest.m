@@ -151,20 +151,19 @@ function Result = unitTest()
     RA  = AI.HeaderData.Key.RA;
     Dec = AI.HeaderData.Key.DEC;
         
-    RA  = '01:21:39.560';
-    Dec = '+15:12:25.70';
-    RA  = celestial.coo.convertdms(RA,'SH','d');
-    Dec = celestial.coo.convertdms(Dec,'SD','d');
+    %RA  = '01:21:39.560';
+    %Dec = '+15:12:25.70';
+    %RA  = celestial.coo.convertdms(RA,'SH','d');
+    %Dec = celestial.coo.convertdms(Dec,'SD','d');
     
     Tran = Tran2D('poly3');
-    Tran.symPoly;
     
     JD = julday(AI);
     
     Flip = [1 1];
     
     tic;
-    [Result, NewSI32,AC] = imProc.astrometry.astrometryCore(SI(32), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD, 'Flip',Flip);
+    [Result, NewSI32,AC] = imProc.astrometry.astrometryCore(SI(16), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD, 'Flip',Flip);
     toc
     
     tic;
@@ -183,9 +182,7 @@ function Result = unitTest()
     tic;
     [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran, 'CatName',AstrometricCat,'CreateNewObj',false);
     toc
-    
-    
-    
+        
     
     cd(PWD);
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
