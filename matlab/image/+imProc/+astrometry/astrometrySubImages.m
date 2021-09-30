@@ -125,7 +125,8 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             Iref = IndSucess;
             
             % shift solution to current CCDSEC
-            RefWCS = ResultObj(Iref).WCS.copyObject;
+            % ?? This line doesn't copy the Tran object - is this ok?
+            RefWCS = ResultObj(Iref).WCS.copy; %copyObject;
             
 %             % the shift in CRPIX between the image and the ref
             ShiftX = Args.CCDSEC(Iim,1) - Args.CCDSEC(Iref,1);
@@ -155,10 +156,10 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             % ds9(ResultObj(Iim))
 %             tic;
 
-            [Iim, Iref]
-if Iim==40 && Iref==31
-   'a'
-end
+            %[Iim, Iref]
+% if Iim==40 && Iref==31
+%    'a'
+% end
             UseRefine = true;
             if UseRefine
                 %tic;
@@ -210,7 +211,7 @@ end
                 
             % check qulity of solution
             %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultRefineFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
-            ResultRefineFit(Iim).WCS.Success
+            %ResultRefineFit(Iim).WCS.Success
             Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
             
             %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});

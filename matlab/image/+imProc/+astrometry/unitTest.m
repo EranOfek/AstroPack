@@ -173,7 +173,7 @@ function Result = unitTest()
     
     % astrometrySubImages w/AstrometricCat as input
     tic;
-    [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran, 'CatName',AstrometricCat);
+    [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran, 'CatName',AstrometricCat,'CreateNewObj',false);
     toc
     
     

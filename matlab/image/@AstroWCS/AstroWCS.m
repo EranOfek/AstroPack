@@ -1432,7 +1432,7 @@ classdef AstroWCS < Component
             end
 
             Obj = AstroWCS(1);
-            Obj.Tran2D = Tran2D;
+            Obj.Tran2D = Tran2D;   % do we need copyObject here?
             
             % Paste number of axes
 
