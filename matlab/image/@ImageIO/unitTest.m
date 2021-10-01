@@ -2,7 +2,10 @@ function Result = unitTest()
 	% unitTest for ImageIO class
 	io.msgStyle(LogLevel.Test, '@start', 'ImageIO test started');                          
 	
-	PWD = pwd;
+    
+    DataSampleDir = tools.os.getTestDataDir;
+    PWD = pwd;
+    cd(DataSampleDir);
 	
 	% static class to read a single image/table/header
 	
@@ -27,8 +30,10 @@ function Result = unitTest()
 	I = ImageIO({'WFPC2ASSNu5780205bx.fits','WFPC2u5780205r_c0fx.fits'});
 	I = ImageIO('*.fits');
 	
-	cd(PWD);
-	io.msgStyle(LogLevel.Test, '@passed', 'ImageIO test passed');                          
-	Result = true;
+    
+    cd(PWD);
+    io.msgStyle(LogLevel.Test, '@passed', 'ImageIO test passed');
+    Result = true;
+    
 	
 end

@@ -60,6 +60,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         Args.Nxy              = [];   % If empty then use SubSizeXY. Default is [].
         Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
 
+        Args.CopyHeader(1,1) logical       = true;
         Args.UpdateMask(1,1) logical       = true;
         Args.EdgeDist                      = 10;
         Args.NearEdge_BitName char         = 'NearEdge';
@@ -114,6 +115,11 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                 Result(Isub).(Prop).Data   = Sub(Isub).Im;
                 Result(Isub).(Prop).Scale  = [];
                 Result(Isub).(Prop).CCDSEC = EdgesCCDSEC(Isub,:);
+                % copy full header from original image
+                if Iprop==1 && Args.CopyHeader 
+                    % a new copy of the header
+                    Result(Isub).HeaderData = Obj(Isub).HeaderData.copy;
+                end
             end
         end
     end

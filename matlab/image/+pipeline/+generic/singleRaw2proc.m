@@ -92,7 +92,8 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     end
     
     % Sub Images - divide the image to multiple sub images
-    SI = imProc.image.image2subimages(AI, Args.BlockSize, Args.image2subimagesArgs{:});
+    % Set UpdatCat to false, since in this stage there is no catalog
+    SI = imProc.image.image2subimages(AI, Args.BlockSize, 'UpdateCat',false, Args.image2subimagesArgs{:});
     clear AI;
     
     % Background 
