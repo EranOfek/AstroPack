@@ -51,6 +51,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
     %            NewNoOverlap
     % Author : Eran Ofek (May 2021)
     % Example: AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
+    %          AI.HeaderData.insertKey({'A',1});
     %          Result = imProc.image.image2subimages(AI,[256 256])
 
     arguments
@@ -118,7 +119,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                 % copy full header from original image
                 if Iprop==1 && Args.CopyHeader 
                     % a new copy of the header
-                    Result(Isub).HeaderData = Obj(Isub).HeaderData.copy;
+                    Result(Isub).HeaderData = Obj.HeaderData.copy;
                 end
             end
         end
