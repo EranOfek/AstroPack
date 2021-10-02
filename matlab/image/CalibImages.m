@@ -37,12 +37,14 @@ classdef CalibImages < Component
         SubtractOverScan(1,1) logical   = true;
     end
     
-    properties 
-        FlatFilter         = NaN;
-        DarkExpTime        = NaN;
-        DarkTemp           = NaN;
-        FringeFilter       = NaN;
-        FringeExpTime      = NaN;
+    properties (SetAccess = private)
+        % These are private properties as they are updated automatically
+        % from the image header
+        FlatFilter         = {};
+        DarkExpTime        = [];
+        DarkTemp           = [];
+        FringeFilter       = {};
+        FringeExpTime      = [];
     end
    
     methods  % constructor
@@ -114,9 +116,14 @@ classdef CalibImages < Component
             else
                 Obj.Flat   = FlatAI;
             end
-            % read filter from Flat image header
-            St = getStructKey(Obj.Flat, 'EXPTIME', 'UseDict',true);
-            Obj.FlatFilter = [St.EXPTIME];
+            
+            % only if there is non-emoty first image
+            [SizeI, SizeJ] = sizeImage(Obj.Flat(1));
+            if all(SizeI>0) && all(SizeJ>0)
+                % read filter from Flat image header
+                St = getStructKey(Obj.Flat, 'FILTER', 'UseDict',true);
+                Obj.FlatFilter = {St.FILTER};
+            end
         end
         
         function set.Dark(Obj, DarkAI)
@@ -128,13 +135,17 @@ classdef CalibImages < Component
             else
                 Obj.Dark   = DarkAI;
             end
-            % read ExpTime from Dark image header
-            St = getStructKey(Obj.Dark, 'EXPTIME', 'UseDict',true);
-            Obj.DarkExpTime = [St.EXPTIME];
-            % read Temp
-            St = getStructKey(Obj.Dark, 'CAMTEMP', 'UseDict',true);
-            Obj.DarkTemp = [St.CAMTEMP];
             
+            % only if there is non-emoty first image
+            [SizeI, SizeJ] = sizeImage(Obj.Dark(1));
+            if all(SizeI>0) && all(SizeJ>0)
+                % read ExpTime from Dark image header
+                St = getStructKey(Obj.Dark, 'EXPTIME', 'UseDict',true);
+                Obj.DarkExpTime = [St.EXPTIME];
+                % read Temp
+                St = getStructKey(Obj.Dark, 'CAMTEMP', 'UseDict',true);
+                Obj.DarkTemp = [St.CAMTEMP];
+            end
         end
         
         function set.Fringe(Obj, FringeAI)
@@ -146,13 +157,17 @@ classdef CalibImages < Component
             else
                 Obj.Fringe   = FringeAI;
             end
-            % read filter from Dark image header
-            St = getStructKey(Obj.Fringe, 'FILTER', 'UseDict',true);
-            Obj.FringeFilter = [St.FILTER];
-            % read ExpTime
-            St = getStructKey(Obj.Fringe, 'EXPTIME', 'UseDict',true);
-            Obj.FringeExpTime = [St.EXPTIME];
             
+            % only if there is non-emoty first image
+            [SizeI, SizeJ] = sizeImage(Obj.Fringe(1));
+            if all(SizeI>0) && all(SizeJ>0)
+                % read filter from Dark image header
+                St = getStructKey(Obj.Fringe, 'FILTER', 'UseDict',true);
+                Obj.FringeFilter = {St.FILTER};
+                % read ExpTime
+                St = getStructKey(Obj.Fringe, 'EXPTIME', 'UseDict',true);
+                Obj.FringeExpTime = [St.EXPTIME];
+            end
         end
         
     end
@@ -248,12 +263,44 @@ classdef CalibImages < Component
         
         function Obj = createFlatFilter(Obj, ImObj, FilterName, Args)
             % Create a Flat image for specific filter 
+            %       Given a list of images, identify flat images taken at a
+            %       specific filter, and generate a flat image. The flat
+            %       image is added into the array of Flat images in the
+            %       CalibImages object.
+            % Input  : - An CalibImages object.
+            %          - An AstroImage array containing images from which
+            %            to construct flat images.
+            %            The flat images in the specific filter are
+            %            detected by the code.
+            %          - Filter name for which to create the flat.
+            %          * ...,key,val,...
+            %            'IsFlat' - A vector of logicals or empty.
+            %                   If empty, then the flat images at the
+            %                   specific filter will be selected
+            %                   automatically. Alternatively, this can be a
+            %                   vector of logicals indicating which images
+            %                   to use. If a scalar true, then use all the
+            %                   images. Default is [].
+            %            'getStructKeyArgs' - A cell array of additional
+            %                   arguments to pass to getStructKey.
+            %                   Default is {}.
+            %            'isFlatArgs' - A cell array of additional
+            %                   arguments to pass to imProc.flat.isFlat.
+            %                   Default is {}.
+            %            'flatArgs' - A cell array of additional
+            %                   arguments to pass to imProc.flat.flat.
+            %                   Default is {}.
+            % Output : - A CalibImages object in which the new flat is
+            %            populated.
+            % Author : Eran Ofek (Oct 2021)
+            % Example: 
             
             arguments
                 Obj     
                 ImObj           % Images from which to create Flat
                 FilterName      % Filter for which to create Flat
                 Args.FilterKey                    = 'FILTER';
+                Args.IsFilter                     = [];
                 Args.getStructKeyArgs cell        = {};
                 Args.isFlatArgs cell              = {};
                 Args.flatArgs cell                = {};
@@ -265,17 +312,27 @@ classdef CalibImages < Component
             ImObj      = ImObj(Flag.Filter);
             
             % search for flat images
-            [Flag.IsFlat, Flag.AllIsFlat] = imProc.flat.isFlat(ImObj, Args.isFlatArgs{:});
+            if empty(Args.IsFilter)
+                [Flag.IsFlat, Flag.AllIsFlat] = imProc.flat.isFlat(ImObj, Args.isFlatArgs{:});
+            else
+                if numel(Args.IsFilter)==1 && Args.IsFilter
+                    Flag.IsFlat = true(size(ImObj));
+                else
+                    Flag.IsFlat = Args.IsFilter;
+                end
+            end
              
             % create Flat
             [FlatImage] = imProc.flat.flat(ImObj, 'IsFlat',Flag.IsFlat, Args.flatArgs{:});
             
             % store the flat
+            % the filter name is store automatically from the header
             Ind = numel(Obj.Flat) + 1;
             Obj.Flat(Ind) = FlatImage;
             
-            
-            
+        end
+        
+        function Obj = createFlat(Obj, ImObj, Args)
         end
         
         function Result = readCalibImages(Obj)

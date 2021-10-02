@@ -593,7 +593,7 @@ classdef AstroHeader < Component
                 ExactKeys
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.SearchAlgo char                                            = 'strcmp'; 
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;

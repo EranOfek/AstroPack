@@ -530,7 +530,7 @@ classdef AstroImage < Component
             Nx   = zeros(size(Obj));
             Ny   = zeros(size(Obj));
             for Iobj=1:1:Nobj
-                [Ny, Nx] = size(Obj(Iobj).(Prop));
+                [Ny(Iobj), Nx(Iobj)] = size(Obj(Iobj).(Prop));
             end
             
         end
