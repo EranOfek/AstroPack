@@ -1,28 +1,6 @@
 function Result = unitTest()
     % unitTest for AstroImage
     % Example: AstroImage.unitTest
-    %
-    % Issues:
-    % -funHeaderScalar returns NaN
-    %
-    % To do:
-    % -Add tests for:
-    %     -object2array
-    % -Add output checks for:
-    %     -imageIO2AstroImage
-    %     -readImages2AstroImage
-    %     -isemptyImage
-    %     -funCat
-    %     -funHeader
-    %     -funHeaderScalar
-    %     -maskSet
-    %     -isImType
-    %     -funUnaary
-    %     -funUnaryScalar
-    %     -funBinaryProp
-    %     -image2subimages
-    %     -conv
-    %     -filter
 
     io.msgStyle(LogLevel.Test, '@start', 'AstroImage test started')
 
@@ -158,7 +136,6 @@ function Result = unitTest()
 
     % object2array
     % ???
-    % No idea how to use this
 
     % imageIO2AstroImage
     io.msgLog(LogLevel.Test, 'testing imageIO2AstroImage')
@@ -184,17 +161,26 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'testing AstroImage isemptyImage')
     AI=AstroImage.readImages2AstroImage([]);
     [a,b]=AI.isemptyImage({'Image','Back'});
+    assert(a*b);
     AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'ImageData');
     [a,b]=AI.isemptyImage({'Image','Back'});
+    assert(~a);
+    assert(b);
     AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'BackData');
     [a,b]=AI.isemptyImage({'Image','Back'});
+    assert(a);
+    assert(~b);
 
     % sizeImage
     io.msgLog(LogLevel.Test, 'testing AstroImage sizeImage')
     AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'ImageData');
     [Ny, Nx] = AI.sizeImage;
+    assert(Ny == 100);
+    assert(Nx == 100);
     AI=AstroImage.readImages2AstroImage('WFPC2ASSNu5780205bx.fits', 'DataProp', 'BackData');
     [Ny, Nx] = AI.sizeImage('Back');
+    assert(Ny == 100);
+    assert(Nx == 100);
 
     % funCat
     io.msgLog(LogLevel.Test, 'testing AstroImage funCat')
@@ -207,6 +193,9 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'testing AstroImage funHeader')
     AI = AstroImage({rand(10,10), rand(10,10)});
     funHeader(AI,@insertKey,{'GAIN',2,''});
+    assert(AI(1).getStructKey('GAIN').GAIN == 2);
+    assert(AI(2).getStructKey('GAIN').GAIN == 2);
+    
 
     % funHeaderScalar
     io.msgLog(LogLevel.Test, 'testing AstroImage funHeaderScalar')
@@ -219,10 +208,12 @@ function Result = unitTest()
     AI(1).HeaderData.insertKey({'EXPTIME',1}); AI(2).HeaderData.insertKey({'EXPTIME',3}); AI(3).HeaderData.insertKey({'EXPTIME',10});
     AI(4).HeaderData.insertKey({'EXPTIME',10}); AI(5).HeaderData.insertKey({'EXPTIME',20});
     [Result] = getStructKey(AI, {'EXPTIME'});
+    assert(isequal(vertcat(Result.EXPTIME), [1; 3; 10; 10; 20]));
 
     % setKeyVal
     AI = AstroImage({rand(10,10)});
     AI.setKeyVal('TYPE','science');
+    assert(prod(AI.getStructKey('TYPE').TYPE == 'science'))
 
     % maskSet
     io.msgLog(LogLevel.Test, 'testing AstroImage maskSet')
@@ -235,7 +226,9 @@ function Result = unitTest()
     % isImType
     io.msgLog(LogLevel.Test, 'testing AstroImage isImType')
     AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))})
-    Res = isImType(AI, 'bias');
+    assert(~isImType(AI, 'bias'));
+    AI.setKeyVal('IMTYPE','bias');
+    assert(isImType(AI,'bias'))
 
     % funUnary
     io.msgLog(LogLevel.Test, 'testing AstroImage funUnary')
