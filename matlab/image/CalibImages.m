@@ -262,7 +262,7 @@ classdef CalibImages < Component
         end
         
         function Obj = createFlatFilter(Obj, ImObj, FilterName, Args)
-            % Create a Flat image for specific filter 
+            % Create a Flat image for specific filter and populate in CalibImages object.
             %       Given a list of images, identify flat images taken at a
             %       specific filter, and generate a flat image. The flat
             %       image is added into the array of Flat images in the
@@ -274,13 +274,16 @@ classdef CalibImages < Component
             %            detected by the code.
             %          - Filter name for which to create the flat.
             %          * ...,key,val,...
-            %            'IsFlat' - A vector of logicals or empty.
+            %            'IsFilterFlat' - A vector of logicals or empty.
             %                   If empty, then the flat images at the
             %                   specific filter will be selected
             %                   automatically. Alternatively, this can be a
             %                   vector of logicals indicating which images
             %                   to use. If a scalar true, then use all the
             %                   images. Default is [].
+            %            'FilterList' - An optional cell array of filter
+            %                   per image. If empty, will be generated.
+            %                   Default is [].
             %            'getStructKeyArgs' - A cell array of additional
             %                   arguments to pass to getStructKey.
             %                   Default is {}.
@@ -300,25 +303,31 @@ classdef CalibImages < Component
                 ImObj           % Images from which to create Flat
                 FilterName      % Filter for which to create Flat
                 Args.FilterKey                    = 'FILTER';
-                Args.IsFilter                     = [];
+                Args.FilterList cell              = {};
+                Args.IsFilterFlat                 = [];
                 Args.getStructKeyArgs cell        = {};
                 Args.isFlatArgs cell              = {};
                 Args.flatArgs cell                = {};
             end
                         
             % search for filter name
-            ImFilt     = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
-            Flag.Filter = strcmp(ImFilt.(FilterKey), FilterName);
-            ImObj      = ImObj(Flag.Filter);
+            ImFilt      = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
+            if isempty(Args.FilterList)
+                FilterList = {ImFilt.(FilterKey)};
+            else
+                FilterList = Args.FilterList;
+            end
+            Flag.Filter = strcmp(FilterList, FilterName);
+            ImObj       = ImObj(Flag.Filter);
             
             % search for flat images
-            if empty(Args.IsFilter)
+            if empty(Args.IsFilterFlat)
                 [Flag.IsFlat, Flag.AllIsFlat] = imProc.flat.isFlat(ImObj, Args.isFlatArgs{:});
             else
-                if numel(Args.IsFilter)==1 && Args.IsFilter
+                if numel(Args.IsFilterFlat)==1 && Args.IsFilterFlat
                     Flag.IsFlat = true(size(ImObj));
                 else
-                    Flag.IsFlat = Args.IsFilter;
+                    Flag.IsFlat = Args.IsFilterFlat;
                 end
             end
              
@@ -333,6 +342,44 @@ classdef CalibImages < Component
         end
         
         function Obj = createFlat(Obj, ImObj, Args)
+            %
+            
+            arguments
+                Obj     
+                ImObj           % Images from which to create Flat
+                Args.FilterKey                    = 'FILTER';
+                Args.UseFilters                   = {}; % override IgnoreFilters
+                Args.IgnoreFilters                = {};
+                Args.getStructKeyArgs cell        = {};
+                Args.isFlatArgs cell              = {};
+                Args.flatArgs cell                = {};
+            end
+            
+            % identify all possible filters
+            ImFilt        = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
+            FilterList    = {ImFilt.FILTER};
+            UniqueFilters = unique(FilterList);
+            
+            % prepare filter list
+            if ~isempty(Args.UseFilters)
+                Flag = ismember(UniqueFilters, Args.UseFilters);
+                UniqueFilters = UniqueFilters(Flag);
+            else
+                Flag = ~ismember(UniqueFilters, Args.IgnoreFilters);
+                UniqueFilters = UniqueFilters(Flag);
+            end
+            
+            % for each filter
+            Nfilt = numel(UniqueFilters);
+            for Ifilt=1:1:Nfilt
+                Obj = createFlatFilter(Obj, ImObj, UniqueFilters{Ifilt}, 'FilterKey',Args.FilterKey,...
+                                                                         'IsFilterFlat',[],...
+                                                                         'FilterList',FilterList,...
+                                                                         'getStructKeyArgs',Args.getStructKeyArgs,...
+                                                                         'isFlatArgs',Args.isFlatArgs,...
+                                                                         'flatArgs',Args.flatArgs);
+                
+            end
         end
         
         function Result = readCalibImages(Obj)
