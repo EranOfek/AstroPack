@@ -263,17 +263,22 @@ classdef CalibImages < Component
         
         function Obj = createFlatFilter(Obj, ImObj, FilterName, Args)
             % Create a Flat image for specific filter and populate in CalibImages object.
-            %       Given a list of images, identify flat images taken at a
+            %       Given a list of dark-subtracted images, identify flat images taken at a
             %       specific filter, and generate a flat image. The flat
             %       image is added into the array of Flat images in the
             %       CalibImages object.
-            % Input  : - An CalibImages object.
+            % Input  : - An CalibImages object (dark-subtracted).
             %          - An AstroImage array containing images from which
             %            to construct flat images.
             %            The flat images in the specific filter are
             %            detected by the code.
             %          - Filter name for which to create the flat.
             %          * ...,key,val,...
+            %            'FilterKey' - The header keyword name containing the
+            %                   filter name. By defdault the search is done using
+            %                   the synonyms dictionary, so if needed add
+            %                   the keyword name to the Header.Synonyms.KeyNames.yml
+            %                   Default is 'FILTER'.
             %            'IsFilterFlat' - A vector of logicals or empty.
             %                   If empty, then the flat images at the
             %                   specific filter will be selected
@@ -342,14 +347,50 @@ classdef CalibImages < Component
         end
         
         function Obj = createFlat(Obj, ImObj, Args)
-            %
+            % Create a Flat image for all filters and populate in CalibImages object.
+            %       Given a list of dark-subtracted images, identify flat images taken at a
+            %       each filter, and generate a flat images. The flat
+            %       image is added into the array of Flat images in the
+            %       CalibImages object.
+            % Input  : - An CalibImages object (dark subtracted).
+            %          - An AstroImage array containing images from which
+            %            to construct flat images.
+            %            The flat images in the specific filter are
+            %            detected by the code.
+            %          * ...,key,val,...
+            %            'FilterKey' - The header keyword name containing the
+            %                   filter name. By defdault the search is done using
+            %                   the synonyms dictionary, so if needed add
+            %                   the keyword name to the Header.Synonyms.KeyNames.yml
+            %                   Default is 'FILTER'.
+            %            'UseFilters' - A cell array of filters for which
+            %                   to generate flats. If empty, then search
+            %                   for all possible filters and constrcu flat
+            %                   for each one. Default is {}.
+            %            'IgnoreFilters' - If 'UseFilters' is empty, then
+            %                   you can provide here a cell array of filter
+            %                   names for which not to generate flat image.
+            %                   Default is {}.
+            %            'getStructKeyArgs' - A cell array of additional
+            %                   arguments to pass to getStructKey.
+            %                   Default is {}.
+            %            'isFlatArgs' - A cell array of additional
+            %                   arguments to pass to imProc.flat.isFlat.
+            %                   Default is {}.
+            %            'flatArgs' - A cell array of additional
+            %                   arguments to pass to imProc.flat.flat.
+            %                   Default is {}.
+            % Output : - A CalibImages object in which the new flat is
+            %            populated.
+            % Author : Eran Ofek (Oct 2021)
+            % Example: 
             
             arguments
                 Obj     
                 ImObj           % Images from which to create Flat
                 Args.FilterKey                    = 'FILTER';
-                Args.UseFilters                   = {}; % override IgnoreFilters
-                Args.IgnoreFilters                = {};
+                Args.UseFilters cell              = {}; % override IgnoreFilters
+                Args.IgnoreFilters cell           = {};
                 Args.getStructKeyArgs cell        = {};
                 Args.isFlatArgs cell              = {};
                 Args.flatArgs cell                = {};
