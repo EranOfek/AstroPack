@@ -17,7 +17,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %                   image. If empty use all images.
     %                   The function must be a method of Flat.
     %                   Default is @imProc.flat.isFlat.
-    %            'IsBiasArgs' - A cell array of arguments to pass
+    %            'IsFlatArgs' - A cell array of arguments to pass
     %                   to the IsFlat function. Default is {}.
     %            'StackMethod' - For options, see
     %                   imProc.image.Stack.coadd).

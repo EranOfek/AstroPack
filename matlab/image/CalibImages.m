@@ -47,7 +47,21 @@ classdef CalibImages < Component
    
     methods  % constructor
         function Obj = CalibImages(Args)
+            % Constructor for the CalibImages class
+            % Input  : * ...,key,val,...
+            %            'Bias' - A Bias AstroImage
+            %            'Dark' - A Dark AstroImage (per ExpTime)
+            %            'Flat' - A Flat AstroImage (per filter)
+            %            'Fringe' - A fringe AstroImage (per filter)
+            %            'FlatFilter' - 
+            %            'DarkExpTime'
+            %            'DarkTemp'
+            %            'FringeFilter'
+            %            'FringeExpTime'
             %
+            % Output : - A CalibImages object
+            % Author : Eran Ofek (Aug 2021)
+            % Example: 
             
             arguments
                 Args.Bias           = [];
@@ -232,7 +246,36 @@ classdef CalibImages < Component
             end
         end
         
-        function Result = createFlat(Obj)
+        function Obj = createFlatFilter(Obj, ImObj, FilterName, Args)
+            % Create a Flat image for specific filter 
+            
+            arguments
+                Obj     
+                ImObj           % Images from which to create Flat
+                FilterName      % Filter for which to create Flat
+                Args.FilterKey                    = 'FILTER';
+                Args.getStructKeyArgs cell        = {};
+                Args.isFlatArgs cell              = {};
+                Args.flatArgs cell                = {};
+            end
+                        
+            % search for filter name
+            ImFilt     = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
+            Flag.Filter = strcmp(ImFilt.(FilterKey), FilterName);
+            ImObj      = ImObj(Flag.Filter);
+            
+            % search for flat images
+            [Flag.IsFlat, Flag.AllIsFlat] = imProc.flat.isFlat(ImObj, Args.isFlatArgs{:});
+             
+            % create Flat
+            [FlatImage] = imProc.flat.flat(ImObj, 'IsFlat',Flag.IsFlat, Args.flatArgs{:});
+            
+            % store the flat
+            Ind = numel(Obj.Flat) + 1;
+            Obj.Flat(Ind) = FlatImage;
+            
+            
+            
         end
         
         function Result = readCalibImages(Obj)
