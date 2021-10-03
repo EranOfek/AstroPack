@@ -437,11 +437,14 @@ classdef CalibImages < Component
             %          - An AstroImage object containing the input image
             %            from which to subtract the bias image.
             %          * ...,key,val,...
-            %            'CreateNewObj' - [], false, true. 
-            %                   See Base.createNewObj for details.
-            %                   This referes to creation of a new copy of
-            %                   the input AstroImage (not the CalibImages
-            %                   object). Default is [].
+            %            'CreateNewObj' - [false] | true. 
+            %                   If true, then create a new copy of the
+            %                   images input. Default is false.
+            %                   Note that the CalibImage itself is not
+            %                   copied.
+            %            'debiasArgs' - A cell array of additional
+            %                   arguments to pass to the imProc.dark.debias
+            %                   function. Default is {}.
             % Output : - The AstroImage object, from which the bias was
             %            subtrcated.
             % See also: imProc.dark.debias
@@ -451,18 +454,24 @@ classdef CalibImages < Component
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj     = [];   % refers to the Image and not the Obj!!!
+                Args.CreateNewObj logical     = false;   % refers to the Image and not the Obj!!!
+                Args.debiasArgs cell          = {};
             end
             
             % create new copy of Image object
-            [Result] = createNewObj(Image, Args.CreateNewObj, nargout);
-           
+            %[Result] = createNewObj(Image, Args.CreateNewObj, nargout);
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            end
+            
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
-                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false);
+                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
             end
         end
         
@@ -473,17 +482,13 @@ classdef CalibImages < Component
             %          - An AstroImage object containing the input image
             %            from which to subtract the bias image.
             %          * ...,key,val,...
-            %            'CreateNewObj' - [], false, true. 
-            %                   See Base.createNewObj for details.
-            %                   This referes to creation of a new copy of
-            %                   the input AstroImage (not the CalibImages
-            %                   object). Default is [].
+            %            'CreateNewObj' - [false] | true.
+            %                   Indicating of to create a new copy of the
+            %                   input image. Default is false.
             %            'OverScan' - Either an header keyword containing
             %                   the overscan region, or an [Xmin Xmax Ymin Ymax]
             %                   vector for the overscan.
             %                   Default is 'OVERSCAN'.
-            %            'Subtract' - A logical indicating if to subtract
-            %                   the overscan from the image. Default is true.
             %            'OverScanDir' - Indicating the direction of the overscan:
             %                   'x'|'y'|1|2| [].
             %                   See imProc.dark.overscan for details.
@@ -503,11 +508,19 @@ classdef CalibImages < Component
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj     = [];   % refers to the Image and not the Obj!!!
+                Args.CreateNewObj logical    = false;   % refers to the Image and not the Obj!!!
+                Args.OverScan                = 'OVERSCAN';
+                Args.OverScanDir             = [];
+                Args.Method                  = 'globalmedian';
+                Args.MethodArgs              = {};
             end
             
             % create new copy of Image object
-            [Result] = createNewObj(Image, Args.CreateNewObj, nargout);
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            end
            
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
@@ -522,6 +535,9 @@ classdef CalibImages < Component
                                                                 'Method',Args.Method,...
                                                                 'MethodArgs',Args.MethodArgs);
             end
+        end
+        
+        function Result = deflat
         end
         
         function Result = calibrate(Obj, Image, Args)
