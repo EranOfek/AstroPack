@@ -324,17 +324,18 @@ else
     end
 end
 
+% from some reason this doen't always work
 % remove degenerate solutions (flips), but only if tere are 2 solutions
 % FFU: consider extend to multiple solutions
-if numel(Res.Rot)==2
-    if abs(Res.Rot(1)) == abs(Res.Rot(2))
-        if Res.Flip(1,:)==-Res.Flip(2,:)
-            % identical solutions
-            % remove second solution
-            Res = tools.struct.structcut(Res, 1);
-        end
-    end
-end
+% if numel(Res.Rot)==2
+%     if abs(Res.Rot(1)) == abs(Res.Rot(2))
+%         if Res.Flip(1,:)==-Res.Flip(2,:)
+%             % identical solutions
+%             % remove second solution
+%             Res = tools.struct.structcut(Res, 1);
+%         end
+%     end
+% end
 
 
 AllSol = zeros(0,11);
@@ -412,7 +413,7 @@ PrevStep.ResShift = ResS;
 for I=1:1:numel(Sol.SN)
     % note that this is the transformation for coordinates rotation (not
     % reference frame rotation).
-    [~,~,Sol.AffineTran{I}] = imUtil.cat.affine2d_transformation([],[Sol.Rot(I), Sol.Scale(I), Sol.ShiftX(I), Sol.ShiftY(I), Sol.Flip(I,1), Sol.Flip(I,2)],'+');
+    [~,~,Sol.AffineTran{I},Sol.AffineTranNoFlip{I}] = imUtil.cat.affine2d_transformation([],[Sol.Rot(I), Sol.Scale(I), Sol.ShiftX(I), Sol.ShiftY(I), Sol.Flip(I,1), Sol.Flip(I,2)],'+');
 end
     
     
@@ -428,7 +429,7 @@ if nargout>2
         %AffinePar = [15, 1, -18, 46, 1, 1]   % ok
 
 
-        [RefNewX,RefNewY]=imUtil.cat.affine2d_transformation(RefXY,AffinePar,'+');
+        [RefNewX,RefNewY] = imUtil.cat.affine2d_transformation(RefXY,AffinePar,'+');
         RefTranXY = [RefNewX,RefNewY];
 
         % match stars

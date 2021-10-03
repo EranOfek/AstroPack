@@ -16,6 +16,8 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
     %          * ...,key,val,...
     %            'ImageCenterXY'
     %            'Scale' - Scale ["/pix]
+    %            'Flip'  - [X Y] flip operated already on the coordinates.
+    %                   Default is [1 1].
     %            'ProjType' - Projection type. See imProc.trans.projection.
     %                   Default is 'TPV'.
     %            'TranMethod' - ['TPV'] | 'tran2d'
@@ -68,6 +70,7 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
         Decdeg
         Args.ImageCenterXY
         Args.Scale              
+        Args.Flip               = [1 1];
         Args.ProjType           = 'TPV';
         Args.TranMethod         = 'TPV';
         Args.Tran               = Tran2d;
@@ -179,6 +182,8 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
             ParY = Hy(Flag,:)\RefDec(Flag);
             
             CD   = [ParX(2), ParX(3); ParY(2), ParY(3)];
+            % apply flip to CD
+            %CD   = CD.*[Args.Flip(1), -Args.Flip(2); Args.Flip(1), Args.Flip(2)];
             
             A = ParX(1);
             B = ParY(1);
@@ -228,7 +233,16 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
                                     'FunStd',Args.FunStd,...
                                     'InterpMethod',Args.InterpMethod,...
                                     'ThresholdSigma',Args.ThresholdSigma);
-            
+            % make sure that the PV doesn't introduce flips
+%             SignX = sign(Tran.ParX(2:3));
+%             SignY = sign(Tran.ParY(2:3));
+%             %ParWCS.CD(1,:) = ParWCS.CD(1,:).*SignX(:).';
+%             %ParWCS.CD(2,:) = ParWCS.CD(2,:).*SignY(:).';
+%             
+%             ParWCS.CD(1,:) = ParWCS.CD(:,1).*SignX(:);
+%             ParWCS.CD(2,:) = ParWCS.CD(:,2).*SignY(:);
+%             Tran.ParX(2:3) = abs(Tran.ParX(2:3));
+%             Tran.ParY(2:3) = abs(Tran.ParY(2:3));
             
         case 'tran2d'
             % a full Tran2D solution, where the observations

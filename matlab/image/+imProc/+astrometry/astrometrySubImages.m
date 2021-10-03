@@ -169,7 +169,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             % ds9(ResultObj(Iim))
 %             tic;
 
-            %[Iim, Iref]
+            [Iim, Iref]
 % if Iim==40 && Iref==31
 %    'a'
 % end
