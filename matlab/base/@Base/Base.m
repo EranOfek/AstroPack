@@ -241,6 +241,16 @@ classdef Base < matlab.mixin.Copyable
         end
     end
     
+ 
+    %Todo: Chen how to open the manual of the actual class
+    %Check if there is somethink like @classmethod of python:
+    %https://www.geeksforgeeks.org/classmethod-in-python/
+%     methods (Static)
+%         function help
+%             % show mlx help file for AstroCatalog
+%             open manuals.AstroCatalog
+%         end
+%     end    
     %----------------------------------------------------------------------
     methods(Static) % Unit test
 

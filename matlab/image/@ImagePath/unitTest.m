@@ -6,7 +6,7 @@ function Result = unitTest()
     ip = ImagePath();
     fprintf('%s\n', ip.needUuid());
     [ExpectedPath, ExpectedFileName] = ip.setTestData();
-    FileName = ip.genFile('FullPath', false);
+    FileName = ip.genFile('Time', ip.Time, 'FullPath', false);
     assert(strcmp(FileName, ExpectedFileName));
     disp(FileName);
     
@@ -22,10 +22,14 @@ function Result = unitTest()
     [ExpectedPath, ExpectedFileName] = ip.setTestData();
     ip.Level = 'proc';
     ip.SubDir = 'subdir';
-    Path = ip.genPath();
+    Path = ip.genPath('Time', ip.Time);
     disp(Path);
-    assert(Path == ExpectedPath);
+    assert(strcmp(Path, ExpectedPath));
 
+    Full = ip.genFile('Time', ip.Time, 'FullPath', true);
+    ExpectedFull = [ExpectedPath, ExpectedFileName];
+    assert(strcmp(Full, ExpectedFull));
+    
             
 %     % Default
 %     IP = ImagePath();
