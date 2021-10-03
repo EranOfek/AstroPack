@@ -4,7 +4,10 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'Base test started');
 
     % Test copyObject()
+    % this functionality should be tested for every subsequent class as user data might change (O.S.)
     a = Base();
+    userdata_hendle = Base();
+    userdata_hendle.UserData = 123
     a.UserData = 123;            
     b = a.copyObject();
     assert(a.UserData == b.UserData);
@@ -16,10 +19,13 @@ function Result = unitTest()
     
     % If Base is non-handle class, 'a.copyProp(c, {'UserData'})' does not
     % work, and we need 'c = a.copyProp(c, {'UserData'})'
+    % will create data integrity issues. copy is only shallow if userdata
+    % is a handle obj (O.S.)
     c = a.copyProp(c, {'UserData'});
     assert(a.UserData == c.UserData);
 
     % Test setProps
+    % not related to setProps (O.S.)
     a = Base();
     s = struct;
     args.UserData = 7;
