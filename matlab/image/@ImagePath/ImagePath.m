@@ -39,10 +39,9 @@ classdef ImagePath < Component
         
         % Defaults should be loaded from configuration
         BasePath        = '/home/last'; % Base storage path
-        DataPath        = 'data';       % Parent folder under BasePath
+        DataPath        = 'data';       % Parent folder under BasePath       
     end
-    
-    
+        
     properties(Hidden)
         % Generated from Obj.Time
         JD              = [];           % UTC start of exposure @Eran - UTC or JD???
@@ -91,7 +90,7 @@ classdef ImagePath < Component
             Obj.BasePath        = '/home/last';
             Obj.DataPath        = 'data';                   
 
-            ResultPath = '/home/last/data/.../subdir';
+            ResultPath = '/home/last/data/2021/09/09/raw/';  % '/home/last/data/.../subdir'; %'/home/last/data/2021/10/03/raw/'
             ResultFileName = 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits';
         end
     end
@@ -175,8 +174,8 @@ classdef ImagePath < Component
             end                      
    
             % Clean path from multiple /
-            FPath = regexprep(FPath, sprintf('%s{2,5}', filesep), '/');
-            FPath = strrep(FPath, '\', '/');
+            FPath = strrep(FPath, '\', '/');            
+            FPath = regexprep(FPath, sprintf('%s{2,5}', '/'), '/');
             
             Obj.msgLog(LogLevel.Debug, 'Path: %s', FPath);
             Result = FPath;            
@@ -273,13 +272,7 @@ classdef ImagePath < Component
             
             % Validate field values
             Obj.valiadateFields();
-            
-            % Get path
-            Path = ''; 
-            if Args.FullPath
-                Path = Obj.genPath();
-            end
-            
+                       
             % Level / Level.SubLevel
             if isempty(Obj.SubLevel)
                 MergedLevel = Obj.Level;
@@ -294,6 +287,17 @@ classdef ImagePath < Component
                            Obj.CropID, Obj.Type, MergedLevel, Obj.Product, Obj.Version, Obj.FileType);
 
        
+            % Get path
+            Obj.Path = ''; 
+            if Args.FullPath
+                Obj.Path = Obj.genPath('Time', Obj.Time);
+                Obj.FileName = fullfile(Obj.Path, Obj.FileName);
+            end
+
+            % Clean path from multiple /
+            Obj.FileName = strrep(Obj.FileName, '\', '/');            
+            Obj.FileName = regexprep(Obj.FileName, sprintf('%s{2,5}', '/'), '/');
+            
             % Done
             Obj.msgLog(LogLevel.Debug, 'FileName: %s', Obj.FileName);
             Result = Obj.FileName;
