@@ -160,12 +160,19 @@ function Result = unitTest()
     
     JD = julday(AI);
     
-    Flip = [1 1];
+    Flip = [1 1; 1 -1; -1 -1; -1 1];
+    
+    %RA =11.583;
+    %Dec = -25.672;
+    
+    %[Result, NewSI32,AC] = imProc.astrometry.astrometryCore(SI16, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD, 'Flip',Flip);
     
     tic;
     [Result, NewSI32,AC] = imProc.astrometry.astrometryCore(SI(16), 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD, 'Flip',Flip);
     toc
     
+    [Result, NewSI32] = imProc.astrometry.astrometryRefine(NewSI32, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'EpochOut',JD);
+
     tic;
     for I=1:1:54
     [Result, NewSI32] = imProc.astrometry.astrometryRefine(NewSI32, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD,'CatName',AC);
