@@ -5,13 +5,15 @@ function Result = unitTest()
 
     % Test copyObject()
     % this functionality should be tested for every subsequent class as user data might change (O.S.)
+    % the function state it should do deep copy, need to modify that if the
+    % function is a subclass of Base, It should run copy on it.
     a = Base();
     userdata_hendle = Base();
-    userdata_hendle.UserData = 123
-    a.UserData = 123;            
+    userdata_hendle.UserData = 123;
+    a.UserData = userdata_hendle;            
     b = a.copyObject();
     assert(a.UserData == b.UserData);
-    b.UserData = 0;
+    b.UserData.UserData = 0;
     assert(a.UserData ~= b.UserData);
 
     % Test copyProp()
