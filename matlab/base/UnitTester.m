@@ -10,7 +10,7 @@
 % beforePush (Static) - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
 % doBeforePush - Run all required tests before 'git push' command DO NOT PUSH if there are failed tests!
 % doPerfTest - Run all Performance tests
-% doStressTest - Run all Stress tests
+% doStressTest - Run all Stbveress tests
 % doTest - Run all unit-tests and show report
 % getTestFits (Static) - Return FITS file name and size from our test data folder
 % isTested - Check if already tested
@@ -59,8 +59,10 @@ classdef UnitTester < handle
             % to the the tests with clean workspace
             % Clear java is required because we use jave classes
             % for yaml, databases, etc.
-            clear all;
-            clear java;
+            
+            % This cause problems, should be moved to static function
+            %clear all;
+            %clear java;
 
             % Get full path and name of the file in which the call occurs,
             % not including the filename extension
@@ -146,12 +148,18 @@ classdef UnitTester < handle
             % Run all required tests before 'git push' command
             % DO NOT PUSH if there are failed tests!
 
+            % Here for Debug only!
+            % Result = Obj.processFolder(Obj.SourcePath);
+            
             % Run core unit-tests
             Result = Obj.testCore();
 
             % Run image-related unit-tests
             Result = Obj.testImage();
 
+            % Run all other tests
+            % Result = Obj.processFolder(Obj.SourcePath);
+            
             % Show report
             Obj.report();
 
@@ -291,11 +299,24 @@ classdef UnitTester < handle
         end
 
 
-        function Result = runTest(Obj, Target)
+        function Result = runTest(Obj, Target, Args)            
             % Run single unit test, Target is class name
             % Example: runTest('ImagePath')
+            arguments
+                Obj
+                Target
+                Args.FuncName = '';
+            end
+            
             Result = false;
 
+            if isempty(Args.FuncName)
+                UnitTestFunc = [Target, '.unitTest()'];
+            else
+                Target = Args.FuncName;
+                UnitTestFunc = [Args.FuncName, '()'];
+            end
+            
             % Check if already tested
             if any(strcmp(Obj.TestList, Target))
                 Obj.msgLog(LogLevel.Test', 'already tested: %s', Target);
@@ -306,8 +327,7 @@ classdef UnitTester < handle
             % Save current dir
             PWD = pwd;
             try
-                % Call .unitTest() function
-                UnitTestFunc = [Target, '.unitTest()'];
+                % Call function
                 Obj.msgStyle(LogLevel.Info, 'blue', 'runTest: %s', UnitTestFunc);
                 Result = eval(UnitTestFunc);
             catch
@@ -368,20 +388,43 @@ classdef UnitTester < handle
 
             %Obj.msgLog(LogLevel.Test, 'UnitTester.processFile: %s', FileName);
 
+            fn = lower(FileName);
+            if contains(fn, 'obsolete') || contains(fn, 'unused')
+                Result = false;
+                return;
+            end
+                
             % Skip self
-            %MyFileName = mfilename('fullpath');
-
-            % Check if class folder
+            %MyFileName = mfilename('fullpath');                        
+            [filepath, name, ext] = fileparts(FileName);
+            [filepath, name, ext] = fileparts(filepath);
             
             % Read file to Lines{}
-            fid = fopen(FileName);
-            Line = fgetl(fid);
-            Lines = cell(0, 1);
-            while ischar(Line)
-                Lines{end+1, 1} = Line;
-                Line = fgetl(fid);
+            Lines = Obj.readFile(FileName);
+            
+            if startsWith(name, '@')
+                ClassName = name(2:end);
+                fname = fullfile(filepath, ClassName, 'unitTest.m');
+                if isfile(fname)
+                    %Result = Obj.processClassFile(Obj, FileName);
+                    Result = Obj.runTest(ClassName);
+                end
+            else
+                ClassName = Obj.getClassName(Lines);
+                if ~isempty(ClassName)
+                    Result = Obj.runTest(ClassName);
+                else
+                    Result = Obj.processNonClassFile(FileName);                
+                end
             end
-            fclose(fid);
+            
+            return;
+
+            % Check if class folder
+            fname = split(FileName);
+            
+            % Read file to Lines{}
+            Lines = Obj.readFile(FileName);
 
             % Search classdef
             ClassName = '';
@@ -479,13 +522,120 @@ classdef UnitTester < handle
         
         
         function Result = processClassFile(Obj, FileName)
+            % Process .m file which is a class file
+            Result = false;
         end
         
-
         
         function Result = processNonClassFile(Obj, FileName)
-        end
+            % Process .m file which is not part of class (i.e. package)            
 
+            Result = false;
+            PackageName = Obj.getPackageName(FileName);
+            
+            % Read file to Lines{}
+            Lines = Obj.readFile(FileName);
+
+            % Search unitTest() function
+            haveUnitTest = false;
+            FuncName = '';
+            for i=1:length(Lines)
+
+                % Check that it is not a comment
+                Line = Lines{i};
+                FuncName = Obj.getFunctionName(Line);
+                if strcmp(FuncName, 'unitTest')
+                    haveUnitTest = true;
+                    break;
+                end
+            end
+
+
+            if haveUnitTest
+                % Call unitTest
+                if isempty(PackageName)
+                    Obj.runTest('', 'FuncName', FuncName);
+                else
+                    Func = [PackageName, '.', FuncName];
+                    Obj.runTest('', 'FuncName', Func);
+                end
+            else
+            end
+            
+        end
+       
+        
+        function Result = readFile(Obj, FileName)
+            % Read file to Lines{}
+            
+            fid = fopen(FileName);
+            Line = fgetl(fid);
+            Lines = cell(0, 1);
+            while ischar(Line)
+                Lines{end+1, 1} = Line;
+                Line = fgetl(fid);
+            end
+            fclose(fid);
+            Result = Lines;
+        end
+        
+        
+        function Result = getClassName(Obj, Lines)
+            % Search classdef
+            
+            ClassName = '';
+            for i=1:length(Lines)
+                % Check that it is not a comment
+                Line = Lines{i};
+
+                items = split(Line, '%');
+                items = split(items{1}, 'classdef ');
+                if length(items) > 1
+                    Obj.msgLog(LogLevel.Test, 'Found classdef: %s', Line);
+                    items = split(items{2}, ' ');
+                    %if items{1} == "classdef "
+                        ClassName = items{1};
+                        break;
+                    %end
+                end
+            end
+            Result = ClassName;
+        end
+        
+        
+        function Result = getPackageName(Obj, FileName)
+            % Get package name from file name
+            Result = '';            
+            if (contains(FileName, '+'))
+                FileName = strrep(FileName, '\', '/');
+                List = split(FileName, '/');
+                for i=1:numel(List)
+                    if startsWith(List{i}, '+')
+                        if isempty(Result)
+                            Result = List{i}(2:end);
+                        else
+                            Result = [Result, '.', List{i}(2:end)];
+                        end
+                    end
+                end
+            end
+        end
+        
+        
+        function Result = getFunctionName(Obj, Line)
+            % 'function Result = unitTest()'
+            
+            Result = '';
+            Items = split(Line, '%');
+            Items = split(Items{1}, 'function');
+            if numel(Items) > 1
+                Items = split(Items{2}, '=');
+                if numel(Items) > 1
+                    Items = split(strip(Items{2}), '(');
+                    Result = strip(Items{1});
+                end
+            end
+        end
         
         
         function Result = isTested(Obj, Target)
@@ -542,6 +692,10 @@ classdef UnitTester < handle
     % Unit test
     methods(Static)
 
+        function Result = unitTest()
+            Result = true;
+        end
+        
         function Result = test()
             Tester = UnitTester;
             Result = Tester.doTest();
@@ -550,6 +704,11 @@ classdef UnitTester < handle
 
         function Result = beforePush()
             % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
+            
+            %
+            clear all;
+            clear java;
+            
             Tester = UnitTester;
             Result = Tester.doBeforePush();
         end

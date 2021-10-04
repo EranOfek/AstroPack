@@ -141,7 +141,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.CooUnits                     = 'deg';
         Args.CatName                      = 'GAIAEDR3';  % or AstroCatalog
         Args.CatOrigin                    = 'catsHTM';
-        Args.CatRadius                    = 1400;
+        Args.CatRadius                    = 1400.*2;
         Args.CatRadiusUnits               = 'arcsec'
         Args.Con                          = {};
                 
@@ -164,8 +164,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.DistEdges                    = (12:3:300).';
         Args.HistDistEdgesRotScale        = [10 600 300];
         
-        Args.RangeX(1,2)                  = [-1000 1000];
-        Args.RangeY(1,2)                  = [-1000 1000];
+        Args.RangeX(1,2)                  = [-1000 1000].*2;
+        Args.RangeY(1,2)                  = [-1000 1000].*2;
         Args.StepX(1,1)                   = 2;
         Args.StepY(1,1)                   = 2;
         Args.Flip(:,2)                    = [1 1; 1 -1;-1 1;-1 -1]; % [1 -1]
@@ -421,6 +421,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 % fit the catalog to the reference and generate the Tran2D
                 % object and all the information required for the WCS
                 
+                %'Flip',ResPattern.Sol.Flip,...
                 [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
                                                        'ImageCenterXY',Result(Iobj).ImageCenterXY,...
                                                        'Scale',ResPattern.Sol.Scale(Isol).*Args.Scale,...

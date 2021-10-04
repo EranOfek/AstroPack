@@ -316,8 +316,8 @@ classdef CalibImages < Component
             end
                         
             % search for filter name
-            ImFilt      = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
             if isempty(Args.FilterList)
+                ImFilt      = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
                 FilterList = {ImFilt.(FilterKey)};
             else
                 FilterList = Args.FilterList;
@@ -437,11 +437,14 @@ classdef CalibImages < Component
             %          - An AstroImage object containing the input image
             %            from which to subtract the bias image.
             %          * ...,key,val,...
-            %            'CreateNewObj' - [], false, true. 
-            %                   See Base.createNewObj for details.
-            %                   This referes to creation of a new copy of
-            %                   the input AstroImage (not the CalibImages
-            %                   object). Default is [].
+            %            'CreateNewObj' - [false] | true. 
+            %                   If true, then create a new copy of the
+            %                   images input. Default is false.
+            %                   Note that the CalibImage itself is not
+            %                   copied.
+            %            'debiasArgs' - A cell array of additional
+            %                   arguments to pass to the imProc.dark.debias
+            %                   function. Default is {}.
             % Output : - The AstroImage object, from which the bias was
             %            subtrcated.
             % See also: imProc.dark.debias
@@ -451,18 +454,24 @@ classdef CalibImages < Component
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj     = [];   % refers to the Image and not the Obj!!!
+                Args.CreateNewObj logical     = false;   % refers to the Image and not the Obj!!!
+                Args.debiasArgs cell          = {};
             end
             
             % create new copy of Image object
-            [Result] = createNewObj(Image, Args.CreateNewObj, nargout);
-           
+            %[Result] = createNewObj(Image, Args.CreateNewObj, nargout);
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            end
+            
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
-                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false);
+                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
             end
         end
         
@@ -473,17 +482,13 @@ classdef CalibImages < Component
             %          - An AstroImage object containing the input image
             %            from which to subtract the bias image.
             %          * ...,key,val,...
-            %            'CreateNewObj' - [], false, true. 
-            %                   See Base.createNewObj for details.
-            %                   This referes to creation of a new copy of
-            %                   the input AstroImage (not the CalibImages
-            %                   object). Default is [].
+            %            'CreateNewObj' - [false] | true.
+            %                   Indicating of to create a new copy of the
+            %                   input image. Default is false.
             %            'OverScan' - Either an header keyword containing
             %                   the overscan region, or an [Xmin Xmax Ymin Ymax]
             %                   vector for the overscan.
             %                   Default is 'OVERSCAN'.
-            %            'Subtract' - A logical indicating if to subtract
-            %                   the overscan from the image. Default is true.
             %            'OverScanDir' - Indicating the direction of the overscan:
             %                   'x'|'y'|1|2| [].
             %                   See imProc.dark.overscan for details.
@@ -503,11 +508,19 @@ classdef CalibImages < Component
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj     = [];   % refers to the Image and not the Obj!!!
+                Args.CreateNewObj logical    = false;   % refers to the Image and not the Obj!!!
+                Args.OverScan                = 'OVERSCAN';
+                Args.OverScanDir             = [];
+                Args.Method                  = 'globalmedian';
+                Args.MethodArgs              = {};
             end
             
             % create new copy of Image object
-            [Result] = createNewObj(Image, Args.CreateNewObj, nargout);
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            end
            
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
@@ -524,7 +537,90 @@ classdef CalibImages < Component
             end
         end
         
-        function Result = calibrate(Obj, Image, Args)
+        function Result = deflat(Obj, Image, Args)
+            % Divide from image from an image and update mask (multiple filters).
+            % Input  : - A CalibImages object.
+            %            If this is a single-element object, then the flat
+            %            image will divide from all input images.
+            %            If this is a multi-element object, then the input
+            %            must have the same number of elements, ane the
+            %            flat division will be done element-by-element.
+            %          - An AstroImage object containing the input image
+            %            from which to divide the flat image.
+            %            The image should be bias/dark subtracted.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - [false] | true. 
+            %                   If true, then create a new copy of the
+            %                   images input. Default is false.
+            %                   Note that the CalibImage itself is not
+            %                   copied.
+            %            'FilterKey' - The header keyword name containing the
+            %                   filter name. By defdault the search is done using
+            %                   the synonyms dictionary, so if needed add
+            %                   the keyword name to the Header.Synonyms.KeyNames.yml
+            %                   Default is 'FILTER'.
+            %            'FilterList' - An optional cell array of filter
+            %                   per image. If empty, will be generated.
+            %                   Default is [].
+            %            'getStructKeyArgs' - A cell array of additional
+            %                   arguments to pass to getStructKey.
+            %                   Default is {}.
+            %            'deflatArgs' - A cell array of additional
+            %                   arguments to pass to the imProc.flat.deflat
+            %                   function. Default is {}.
+            % Output : - The AstroImage object, from which the bias was
+            %            subtrcated.
+            % See also: imProc.dark.debias
+            % Author : Eran Ofek (Jul 2021)
+            % Example: debias(Obj, Image)
+            
+            arguments
+                Obj
+                Image AstroImage
+                Args.CreateNewObj logical     = false;   % refers to the Image and not the Obj!!!
+                Args.FilterKey                = 'FILTER';
+                Args.FilterList cell          = {};
+                Args.getStructKeyArgs cell    = {};
+                Args.deflatArgs cell          = {};
+            end
+            
+            % create new copy of Image object
+            %[Result] = createNewObj(Image, Args.CreateNewObj, nargout);
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            enddark
+            
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+                        
+            % search for filter name
+            if isempty(Args.FilterList)
+                ImFilt      = getStructKey(Image, Args.FilterKey, Args.getStructKeyArgs{:});
+                FilterList = {ImFilt.(FilterKey)};
+            else
+                FilterList = Args.FilterList;
+            end
+            
+            UniqueFilter = unique(FliterList);
+            Nfilt        = numel(UniqueFilter);
+            for Ifilt=1:1:Nfilt
+                % Index of flat image in CalibImages.Flat
+                FlagFlat   = strcmp(Obj.FlatFilter, UniqueFilter{Ifilt});
+                % indices of the Images taken with the specific filter
+                FlagImages = strcmp(FilterList, UniqueFilter{Ifilt});
+                
+                if any(FlagImages)
+                    if ~any(FlagFlat)
+                        error('No Flat image for filter %s',UniqueFilter{Ifilt});
+                    end
+                    Result(FlagImages) = imProc.flat.deflat(Result(FlagImages), CalibImages.Flat(FlagFlat), 'CreateNewObj',false, Args.deflatArgs{:});
+                end
+            end
+            
+        end
+        
+        function Result = processImages(Obj, Image, Args)
             % Perform basic calibration (bias, flat, etc) to input images
             %       Perform the following steps on an image:
             %   Create a mask image
@@ -549,128 +645,117 @@ classdef CalibImages < Component
             %           'MaskSaturated' - A logical indicating if to flag
             %                   saturated pixels, in the Mask image.
             %                   Default is true.
+            %           'maskSaturatedArgs' - A cell array of additional
+            %                   arguments to pass to imProc.mask.maskSaturated
+            %                   Default is {}.
+            %           'debiasArgs' - A cell array of additional
+            %                   arguments to pass to imProc.dark.debias.
+            %                   Default is {}.
             %           'SubtractOverscan' - A logical indicating if to
             %                   subtract overscan. Default is true.
-            %           'CorrectFringing' - A logical indicating if to
-            %                   correct for fringing. Default is false.
-            %           'MultiplyByGain' - A logical indicating if to set
-            %                   gain to 1. Default is true.
-            %           'InterpolateOverNan' - A logical indicating if to
-            %                   interpolate over NaN pixels.
-            %                   Default is true.
-            %           'InterpolateOberSaturated' - A logical indicating if to
-            %                   interpolate over saturated pixels.
-            %                   Default is true.
-            %           'ArgsSaturation' - A cell array of additional
-            %                   arguments to pass to imProc.mask.maskSaturated.
-            %                   Default is true.
-            %           'ArgsDebias' - A cell array of additional
-            %                   arguments to pass to imProc.dark.debias.
-            %                   Default is true.
-            %           'ArgsOverScan' - A cell array of additional
-            %                   arguments to pass to imProc.dark.overscan.
-            %                   Default is true.
-            %           'ArgsDeflat' - A cell array of additional
+            %           'MethodOverScan' - see imProc.dark.overscan.
+            %                   Default is 'globalmedian'.
+            %           'deflatArgs' - A cell array of additional
             %                   arguments to pass to imProc.flat.deflat.
+            %                   Default is {}.
+            %           'CorrectFringing' - A logical indicating if to
+            %                   correct fringing. Default is false.
+            %           'MultiplyByGain' - A logical indicating if to
+            %                   multiply image values by gain.
             %                   Default is true.
-            %           'ArgsInterpOverNan' - A cell array of additional
+            %           'InterpolateOberSaturated' - A logical indicating
+            %                   if to interpolate over saturated pixels and NaNs.
+            %                   Default is true.
+            %           'Bitname_Saturated' - Satuarted pixels bitmask
+            %                   name. Default is 'Saturated'.
+            %           'interpOverNanArgs' - A cell array of additional
             %                   arguments to pass to imProc.image.interpOverNan.
-            %                   Default is true.
-            %           'Bitname_Saturated' - The bit name for saturated
-            %                   pixels in the mask image dictionary.
-            %                   Default is 'Saturated'.
+            %                   Default is {}.
             % Output : - The output AstroImage after calibration.
-            % Author : Eran Ofek (Jul 2021)
+            % Author : Eran Ofek (Oct 2021)
             % Example:
             
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj                   = [];   % refers to the Image and not the Obj!!!
+                Args.CreateNewObj                   = false;   % refers to the Image and not the Obj!!!
                 
                 % bit dictionary
                 Args.BitDictinaryName               = 'BitMask.Image.Default';
                 
-                Args.MaskSaturated(1,1) logical     = true;
-                Args.SubtractOverscan(1,1) logical  = true;
-                Args.CorrectFringing(1,1) logical   = false;
-                Args.MultiplyByGain(1,1) logical    = true;
-                Args.InterpolateOverNan(1,1) logical       = true;
-                Args.InterpolateOberSaturated(1,1) logical = true;
-                
-                Args.ArgsSaturation cell            = {};
-                Args.ArgsDebias cell                = {};
-                Args.ArgsOverScan cell              = {};
-                Args.ArgsDeflat cell                = {};
-                Args.ArgsInterpOverNan cell         = {};
-                
+                Args.MaskSaturated logical          = true;
+                Args.maskSaturatedArgs cell         = {};
+                Args.debiasArgs cell                = {};
+                Args.SubtractOverscan logical       = true;
+                Args.MethodOverScan                 = 'globalmedian';
+                Args.deflatArgs cell                = {};
+                Args.CorrectFringing logical        = false;
+                Args.MultiplyByGain logical         = true;
+                Args.InterpolateOverSaturated logical = true;
                 Args.Bitname_Saturated              = 'Saturated';
+                Args.interpOverNanArgs cell         = {};
                 
             end
             
             % create new copy of Image object
-            [Result, CreateNewObj] = createNewObj(Image, Args.CreateNewObj, nargout);
-           
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            end
+                
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                   
             % populate calibration images in a different function
-            
+                        
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
                 
                 % mark satuarted pixels
                 if Args.MaskSaturated
-                    Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.ArgSaturation{:},...
+                    Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.maskSaturatedArgs{:},...
                                                                      'CreateNewObj',false,...
                                                                      'DefBitDict', BitDictionary(Args.BitDictinaryName) );
                 end
+            end
+            
+            % subtract bias
+            Result = Obj.debias(Result, 'debiasArgs',Args.debiasArgs, 'CreateNewObj',false');
+            
+            % FFU: dark
+            
                 
-                % subtract bias
-                % Note taht CreateNewObj was already done (if needed)
-                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, Args.ArgsDebias{:},...
-                                                                                      'CreateNewObj',false,...
-                                                                                      'BitDictinaryName',Args.BitDictinaryName);
-                % FFU: dark
+            % subtract overscan
+            if Args.SubtractOverscan
+                Result = Obj.overscan(Result, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
+            end                                            
                 
-                % subtract overscan
-                if Args.SubtractOverscan
-                    Result(Iim) = imProc.dark.overscan(Result(Iim), 'Subtract',true,...
-                                                                'RemoveOthers',true,...
-                                                                Args.ArgsOverscan{:},...
-                                                                'CreateNewObj',false);
-                end                                            
+            % divide by flat
+            Result = Obj.deflat(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
+            
+            % Fring correction
+            if Args.CorrectFringing
+                error('Correct fringing is not available yet');
+                % Use fring image Args.Fringe(Iobj)
+            end
                 
-                % divide by flat
-                Result(Iim) = imProc.flat.deflat(Result(Iim), CalibImages(Iobj).Flat, Args.ArgsDeflat{:},...
-                                                                                      'CreateNewObj',false,...
-                                                                                      'BitDictinaryName',Args.BitDictinaryName);
+            % multipply image by gain
+            if Args.MultiplyByGain
+                imProc.calib.gainCorrect(Result, 'CreateNewObj',false);            
+            end
                 
-                % Fring correction
-                if Args.CorrectFringing
-                    error('Correct fringing is not available yet');
-                    % Use fring image Args.Fringe(Iobj)
-                end
-                
-                % multipply image by gain
-                if Args.MultiplyByGain
-                    imProc.calib.gainCorrect(Result(Iim));            
-                end
-                
-                % interpolate over satuiared pixels
-                if Args.InterpolateOverNan && any(isnan(Result(Iim).Image),'all')
-                    Result(Iim) = imProc.image.interpOverNan(Result(Iim), Args.ArgsInterpOverNan{:},...
-                                            'CreateNewObj',false);
-                end
-                
-                % interpolate over saturated pixels
-                if Args.InterpolateOberSaturated
-                    % find saturated pixels
-                    [~, ~, Ind] = findBit(Result(Iobj), Args.Bitname_Saturated);
+            
+            % interpolate over saturated pixels
+            if Args.InterpolateOverSaturated
+                % find saturated pixels
+                Nim = numel(Result);
+                for Iim=1:1:Nim
+                    [~, ~, Ind] = findBit(Result(Iim), Args.Bitname_Saturated);
                     % set saturated pixels to NaN
-                    Result(Iobj).Image(Ind) = NaN;
+                    Result(Iim).Image(Ind) = NaN;
                     % interpolate over staurated pixels
-                    Result(Iim) = imProc.image.interpOverNan(Result(Iim), Args.ArgsInterpOverNan{:},...
-                                            'CreateNewObj',false);
+                    Result(Iim) = imProc.image.interpOverNan(Result(Iim), Args.interpOverNanArgs{:},...
+                                        'CreateNewObj',false);
                 end
             end
         end

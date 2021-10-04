@@ -1,4 +1,4 @@
-function [NewX,NewY,AffineMatrix]=affine2d_transformation(Cat,AffineMatrix,Direction,varargin)
+function [NewX,NewY,AffineMatrix,AffineMatrixNoFlip]=affine2d_transformation(Cat,AffineMatrix,Direction,varargin)
 % Applay a 2D affine transformation to [X,Y] coordinates 
 % Package: +imUtil.cat
 % Description: Applay a 2D affine transformation to [X,Y] coordinates 
@@ -25,6 +25,8 @@ function [NewX,NewY,AffineMatrix]=affine2d_transformation(Cat,AffineMatrix,Direc
 % Output : - A vector of new X coordinates.
 %          - A vector of new Y coordinates.
 %          - A 3x3 affine matrix for 2D transformation.
+%          - A 3x3 affine matrix for 2D transformation, but without the
+%            flip.
 %      By: Eran O. Ofek                         May 2020
 % Example: Cat = rand(10,2);
 %          [NewX,NewY]=imUtil.cat.affine2d_transformation(Cat,[0 10 10])
@@ -56,7 +58,8 @@ if numel(AffineMatrix)~=9
     FlipX  = AffineMatrix(5);
     FlipY  = AffineMatrix(6);
     
-    AffineMatrix = [FlipX.*Scale.*cos(Theta), -FlipY.*Scale.*sin(Theta), ShiftX; FlipX.*Scale.*sin(Theta),  FlipY.*Scale.*cos(Theta), ShiftY; 0  0  1];
+    AffineMatrix       = [FlipX.*Scale.*cos(Theta), -FlipY.*Scale.*sin(Theta), ShiftX; FlipX.*Scale.*sin(Theta),  FlipY.*Scale.*cos(Theta), ShiftY; 0  0  1];
+    AffineMatrixNoFlip = [       Scale.*cos(Theta),        -Scale.*sin(Theta), ShiftX;        Scale.*sin(Theta),         Scale.*cos(Theta), ShiftY; 0  0  1];
 end
 
 switch Direction
