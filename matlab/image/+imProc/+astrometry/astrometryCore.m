@@ -372,7 +372,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 % Apply affine transformation to Reference
                 % CreateNewObj=true, because FilteredProjAstCat is needed later on
                 TransformedProjAstCat = FilteredProjAstCat.copy;
-                
+                % The TransformedProjAstCat is only used for matching
                 TransformedProjAstCat = imProc.trans.tranAffine(TransformedProjAstCat, ResPattern.Sol.AffineTran{Isol}, true,...
                                                                 'ColX',RefColNameX,...
                                                                 'ColY',RefColNameY,...
@@ -417,7 +417,6 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 Xref = getColDic(FilteredProjAstCat, RefColNameX);
                 Yref = getColDic(FilteredProjAstCat, RefColNameY);
                 Mag  = getColDic(FilteredProjAstCat, Args.RefColNameMag);
-                
                 % fit the catalog to the reference and generate the Tran2D
                 % object and all the information required for the WCS
                 
