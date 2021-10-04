@@ -174,7 +174,7 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
             RefDec = Yref.*ScalingDegInPix;   % [deg] (Dec in ref -CRVAL2)
             Nsrc   = numel(RefRA);
             
-            Hx = [ones(Nsrc,1), Xpix, Ypix];
+            Hx = [ones(Nsrc,1), Xpix, Ypix];   % < is this correct?? no minus?
             Hy = [ones(Nsrc,1), Xpix, Ypix];
             Flag = ~isnan(RefRA) & ~isnan(Xpix);
             
