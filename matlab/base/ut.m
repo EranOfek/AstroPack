@@ -18,9 +18,27 @@ classdef ut < handle
             Result = Tester.doTest();
         end
 
-        function Result = bpush()
+        
+        function Result = bpush(Args)
             % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
             Result = UnitTester.beforePush();
         end
+
+        
+        function Result = diff()
+            % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
+            persistent Tester
+            if isempty(Tester)
+                Tester = UnitTester;
+            end
+           
+            Result = Tester.doBeforePush();
+        end
+
+        
+        function Result = unitTest()
+            Result = true;
+        end
+        
     end
 end
