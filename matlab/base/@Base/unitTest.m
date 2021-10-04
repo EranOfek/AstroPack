@@ -4,33 +4,33 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'Base test started');
 
     % Test copyObject()
-    % this functionality should be tested for every subsequent class as user data might change (O.S.)
-    % the function state it should do deep copy, need to modify that if the
-    % function is a subclass of Base, It should run copy on it.
+    % O.S. : consider scraping some methods, there is no need for copyObj, just
+    % work with copyElement, see details of Copyable
     a = Base();
-    userdata_hendle = Base();
-    userdata_hendle.UserData = 123;
+    assert(a ~= a.copy())
+
+    userdata_hendle = Base(); % test deep copy functionality
     a.UserData = userdata_hendle;            
     b = a.copyObject();
-    assert(a.UserData == b.UserData);
-    b.UserData.UserData = 0;
+    assert(~any(getByteStreamFromArray(a) ~= getByteStreamFromArray(b)));
     assert(a.UserData ~= b.UserData);
 
     % Test copyProp()
+    % o.s. should it be deep copy? if so, modify the implementation
     c = Base();
     
     % If Base is non-handle class, 'a.copyProp(c, {'UserData'})' does not
     % work, and we need 'c = a.copyProp(c, {'UserData'})'
-    % will create data integrity issues. copy is only shallow if userdata
-    % is a handle obj (O.S.)
+    % will create data integrity issues.
     c = a.copyProp(c, {'UserData'});
     assert(a.UserData == c.UserData);
+    c.UserData.UserData = 1;
+    assert(a.UserData ~= c.UserData);
 
     % Test setProps
-    % not related to setProps (O.S.)
+    % should it be deep copy?
     a = Base();
-    s = struct;
-    args.UserData = 7;
+    args.UserData = Base();
     
     % Does not work if Base is not handle
     a.setProps(args);
