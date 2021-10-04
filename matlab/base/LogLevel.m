@@ -22,4 +22,12 @@ classdef LogLevel < uint32
         DebugEx(9)      % Very detailed debug, above Test level
         All(10)          % All
     end
+    
+    
+    methods(Static)
+        function Result = unitTest()
+            Result = true;
+        end
+    end
+    
 end
