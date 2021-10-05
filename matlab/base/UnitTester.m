@@ -354,6 +354,11 @@ classdef UnitTester < handle
                     if fname ~= "." && fname ~= ".."
                         Name = List(i).name;
                         FolderName = fullfile(List(i).folder, Name);
+            
+                        % Skip some folders
+                        if ~Obj.shouldProcessFile(FolderName)
+                            continue;
+                        end
                         
                         if startsWith(Name, '@')
                             FileName = fullfile(FolderName, [Name(2:end), '.m']);
@@ -393,8 +398,7 @@ classdef UnitTester < handle
             %Obj.msgLog(LogLevel.Test, 'UnitTester.processFile: %s', FileName);
             
             % Skip non-active files
-            fn = lower(FileName);
-            if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || contains(fn, 'draft')
+            if ~Obj.shouldProcessFile(FileName)
                 Result = false;
                 return;
             end
@@ -446,10 +450,21 @@ classdef UnitTester < handle
         end       
                 
         
+        function Result = shouldProcessFile(Obj, FileName)
+            %
+            Result = true;
+            fn = lower(FileName);
+            if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || contains(fn, 'draft')
+                Result = false;                
+            end
+        end
+        
+        
         function Result = Warn(Obj, Text)
             if ~any(find(strcmp(Obj.WarnList, Text)))
                 Obj.WarnList{end+1} = Text;
             end
+            Result = true;
         end
         
         
@@ -485,6 +500,11 @@ classdef UnitTester < handle
                 % Check that it is not a comment
                 Line = Lines{i};
 
+                % Line must start with 'classdef'
+                if ~startsWith(split(Line), 'classdef')
+                    continue
+                end
+                
                 items = split(Line, '%');
                 items = split(items{1}, 'classdef ');
                 if length(items) > 1
