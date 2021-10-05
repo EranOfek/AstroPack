@@ -1,19 +1,6 @@
 %
 % Note that this class is derived from handle (and not from Component)
 
-% #functions
-% MsgLogger -
-% getLevelStr - Convert Level enumeation to string
-% getSingleton (Static) - Return singleton object, the deafult MsgLogger
-% msgLog - Log message to console/file according to current LogLevel settings
-% msgStack - Log stack trace
-% msgStyle - Log message to console/file according to current LogLevel settings
-% setLogLevel (Static) - Set current log level, Args.type is 'all', 'file', 'disp'
-% shouldLog - Return true if specified Level should be logged according to the specified CurLevel settings
-% unitTest - MsgLogger.unitTset
-% unitTestStackTrace - Recursive test for stack trace log
-% #/functions
-%
 classdef MsgLogger < handle
     % Message logger to console and file, with log levels
 

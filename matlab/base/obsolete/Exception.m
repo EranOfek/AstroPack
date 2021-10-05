@@ -1,13 +1,5 @@
 % https://www.mathworks.com/matlabcentral/answers/370457-error-management-in-oop-framework
 
-% #functions
-% ObjException -
-% assert -
-% error -
-% getReport -
-% meth -
-% #/functions
-%
 classdef ObjException < MException
     methods
         function obj=ObjException(src,varargin)

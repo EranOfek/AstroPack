@@ -3,11 +3,6 @@
 %   ut.bpush() - Runs all Unit-Tests before git push
 %
 
-% #functions
-% bpush (Static) - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-% test (Static) - Run all unit tests
-% #/functions
-%
 classdef ut < handle
 
     methods(Static)

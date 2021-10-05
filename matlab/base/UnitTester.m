@@ -2,33 +2,7 @@
 %
 % Usage:
 %
-%
-%
 
-% #functions
-% UnitTester -
-% beforePush (Static) - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-% doBeforePush - Run all required tests before 'git push' command DO NOT PUSH if there are failed tests!
-% doPerfTest - Run all Performance tests
-% doStressTest - Run all Stbveress tests
-% doTest - Run all unit-tests and show report
-% getTestFits (Static) - Return FITS file name and size from our test data folder
-% isTested - Check if already tested
-% msgLog - Write message to log
-% msgStyle - Write message to log
-% perfTest (Static) - Run all Performance tests
-% report - Show report of all performed tests
-% runFile -
-% runFolder - Load specify folder to properties Note: Recursive function
-% runTest - Run single unit test
-% setup - Class setup
-% stressTest (Static) - Run all Stress tests
-% test (Static) -
-% testAll - Run all unit-test functions found in MATLAB source files
-% testCore - Run core unit-tests, required before we can run any other
-% testImage - Run image related unit-tests
-% #/functions
-%
 classdef UnitTester < handle
 
     % Properties
