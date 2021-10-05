@@ -68,7 +68,8 @@ function [Result, Flag] = inPolygon(CatObj, Coo, Args)
     end
 
     if Args.CreateNewObj
-        Result = copyObject(CatObj, 'ClearProp',{'Catalog'});
+        Result = CatObj.copy();
+		Result.Catalog = [];
     else 
         Result = CatObj;
     end

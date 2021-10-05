@@ -79,7 +79,7 @@ function Result = unitTest
     assert(all(R.Image-2.*IC(1).Image == 0, 'all'), 'funBinary');
 
     % R = IC + copy(IC)
-    IC3 = IC.copyObject;
+    IC3 = IC.copy();
     R = IC.funBinary(IC3, @plus, 'CreateNewObj',true);
 
 

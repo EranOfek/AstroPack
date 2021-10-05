@@ -159,7 +159,7 @@ classdef ImageComponent < Component
             end
             
             if CreateNewObj
-                IC = Obj.copyObject;
+                IC = Obj.copy();
             else
                 IC = Obj;
             end
@@ -251,7 +251,7 @@ classdef ImageComponent < Component
                 end
             end
             if CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -336,7 +336,7 @@ classdef ImageComponent < Component
             end
                         
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -493,7 +493,7 @@ classdef ImageComponent < Component
             end
                 
             if Args.CreateNewObj
-                Result = Obj1.copyObject;
+                Result = Obj1.copy();
             else
                 Result = Obj1;
             end
@@ -1199,7 +1199,7 @@ classdef ImageComponent < Component
             Nobj    = numel(Obj);
             
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -1333,7 +1333,7 @@ classdef ImageComponent < Component
             end
             
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -1393,7 +1393,7 @@ classdef ImageComponent < Component
                 end
             end
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end

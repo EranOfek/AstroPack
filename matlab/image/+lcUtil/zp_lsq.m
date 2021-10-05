@@ -166,7 +166,7 @@ function [Result, CorrMS] = zp_lsq(MS, Args)
 
     if nargout>1
         % create a copy of the MatchedSources object
-        CorrMS = MS.copyObject;
+        CorrMS = MS.copy();
         
         % calibrate against an external catalog info:
         if isempty(Args.CalibMag)

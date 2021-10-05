@@ -89,9 +89,9 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     Nobj = numel(Obj);
     MatchedObj = AstroCatalog(size(Obj));
     
-    Result     = Obj.copyObject;
+    Result = Obj.copy();
     if nargout>1
-        SelObj     = AstroCatalog(size(Obj));
+        SelObj = AstroCatalog(size(Obj));
     end
     
     CatH = AstroCatalog(size(Obj));  % output of catsHTM

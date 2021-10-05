@@ -789,7 +789,7 @@ classdef AstroCatalog < AstroTable
                 end
             end
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -912,7 +912,7 @@ classdef AstroCatalog < AstroTable
                 end
             end
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end

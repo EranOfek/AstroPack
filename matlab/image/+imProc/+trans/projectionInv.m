@@ -81,7 +81,7 @@ function Result = projectionInv(Obj, Lon0, Lat0, Scale, Projection, Args)
         end
     end
     if Args.CreateNewObj
-        Result = Obj.copyObject;
+        Result = Obj.copy();
     else
         Result = Obj;
     end

@@ -626,7 +626,7 @@ classdef AstroImage < Component
                 varargout{Iout} = OutClass(size(Obj));
                 for Iobj=1:1:Nobj
                     if Args.CreateNewObj
-                        varargout{Iout}(Iobj) = Obj(Iobj).(Args.DataProp{Iout}).copyObject;
+                        varargout{Iout}(Iobj) = Obj(Iobj).(Args.DataProp{Iout}).copy();
                     else
                         varargout{Iout}(Iobj) = Obj(Iobj).(Args.DataProp{Iout});
                     end
@@ -660,7 +660,7 @@ classdef AstroImage < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 if Args.CreateNewObj
-                    Result(Iobj) = Obj(Iobj).CatData.copyObject;
+                    Result(Iobj) = Obj(Iobj).CatData.copy();
                 else
                     Result(Iobj) = Obj(Iobj).CatData;
                 end
@@ -727,7 +727,7 @@ classdef AstroImage < Component
                 end
             end
             if CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -1003,11 +1003,11 @@ classdef AstroImage < Component
                 else
                     % create new obj
                     Args.CreateNewObj = true;
-                    Result = Obj.copyObject;
+                    Result = Obj.copy();
                 end
             else
                 if Args.CreateNewObj
-                    Result = Obj.copyObject;
+                    Result = Obj.copy();
                 else
                     Result = Obj;
                 end
@@ -1233,7 +1233,7 @@ classdef AstroImage < Component
             
             
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -1435,7 +1435,7 @@ classdef AstroImage < Component
                 end
             
                 if Args.CreateNewObj
-                    Result = Obj1.copyObject;
+                    Result = Obj1.copy();
                 else
                     Result = Obj1;
                 end
@@ -1571,7 +1571,7 @@ classdef AstroImage < Component
                 end
             
                 if Args.CreateNewObj
-                    Result = Obj1.copyObject;
+                    Result = Obj1.copy();
                 else
                     Result = Obj1;
                 end
@@ -1734,7 +1734,7 @@ classdef AstroImage < Component
                 end
             
                 if Args.CreateNewObj
-                    Result = Obj1.copyObject;
+                    Result = Obj1.copy();
                 else
                     Result = Obj1;
                 end
@@ -1883,7 +1883,7 @@ classdef AstroImage < Component
                 end
             end
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -2103,7 +2103,7 @@ classdef AstroImage < Component
                 end
             end
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -2215,7 +2215,7 @@ classdef AstroImage < Component
                 end
             end
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end

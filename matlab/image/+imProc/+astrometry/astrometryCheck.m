@@ -88,16 +88,16 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
         % for each image/catalog
         if isa(Obj, 'AstroImage')
             if ~isempty(Args.WCS)
-                WCS = Args.WCS.copyObject;
+                WCS = Args.WCS.copy();
             else
-                WCS = Obj(Iobj).WCS.copyObject;
+                WCS = Obj(Iobj).WCS.copy();
             end
             % create a modified version of Obj
-            Cat = Obj(Iobj).CatData.copyObject;
+            Cat = Obj(Iobj).CatData.copy();
         elseif isa(Obj, 'AstroCatalog')
-            WCS = Args.WCS.copyObject;
+            WCS = Args.WCS.copy();
             % create a modified version of Obj
-            Cat = Obj(Iobj).copyObject;
+            Cat = Obj(Iobj).copy();
         else
             error('First input argument must be AstroImage or AstroCatalog');
         end

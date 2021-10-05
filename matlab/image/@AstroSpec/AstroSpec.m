@@ -1240,7 +1240,7 @@ classdef AstroSpec < Component
                     [New1, New2] = interpAndKeepOverlap(Obj1(Iobj1), Obj2(Iobj2), 'Method',Args.InterpMethod, 'CreateNewObj',true);
                 else
                     New2 = interp1(Obj2, Obj1(Iobj1).Wave, 'Method',Args.InterpMethod, 'CreateNewObj',true);
-                    New1 = Obj1(Iobj1).copyObject;
+                    New1 = Obj1(Iobj1).copy();
                 end
                 
                 Result(Iobj) = New1;
@@ -1621,7 +1621,7 @@ classdef AstroSpec < Component
 
                 % when switching to non-handle objects - replace this...
                 for I=1:1:numel(Result.IndBestChi2)
-                    ScaledBestModelSpec(I) = ModelSpec(Result.IndBestChi2(I)).copyObject;
+                    ScaledBestModelSpec(I) = ModelSpec(Result.IndBestChi2(I)).copy();
                 end
                 % Can't use the next line due to handle-object behavior!!
                 %ScaledBestModelSpec = ModelSpec(Result.IndBestChi2);
@@ -1689,7 +1689,7 @@ classdef AstroSpec < Component
             %            change the input object (see CreateNewObj arg).
             % Author : Eran Ofek (Aug 2021)
             % Example: S = AstroSpec({rand(100,3)});
-            %          NS = AS.copyObject;
+            %          NS = AS.copy();
             %          NS.redshift=0.5;
             %          NS.Z=0.5;       
             %          NS.redshift(0)  

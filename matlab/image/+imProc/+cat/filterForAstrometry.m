@@ -121,8 +121,8 @@ function [ResultCat, ResultRef, Summary] = filterForAstrometry(ObjCat, ObjRef, A
         end
     end
     if Args.CreateNewObj
-        ResultCat = ObjCat.copyObject;
-        ResultRef = ObjRef.copyObject;
+        ResultCat = ObjCat.copy();
+        ResultRef = ObjRef.copy();
     else
         ResultCat = ObjCat;
         ResultRef = ObjRef;

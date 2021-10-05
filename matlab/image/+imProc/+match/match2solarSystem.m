@@ -174,7 +174,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         end
 
         if Args.CreateNewObj
-            Cat = Cat.copyObject;
+            Cat = Cat.copy();
         end
         
         % Geodetic position

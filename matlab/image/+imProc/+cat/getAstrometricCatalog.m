@@ -141,7 +141,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
        
     else
         % assume CatName contains an actual catalog
-        Result = Args.CatName;   % no need to copy - .copyObject;
+        Result = Args.CatName;   % no need to copy
         % FFU: add treatment for sexagesimal coordinates
 %         if numel(RA)>1
 %             error('FFU: Current version treat only RA/Dec deg/rad when CatName is AstroCatalog');

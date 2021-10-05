@@ -71,7 +71,7 @@ function Result = applyUnaryFun(ImObj, Offset, Operator, Args)
     end
 
     if Args.CreateNewObj
-        Result = ImObj.copyObject;
+        Result = ImObj.copy();
     else
         Result = ImObj;
     end

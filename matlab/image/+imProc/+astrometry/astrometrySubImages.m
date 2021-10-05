@@ -139,7 +139,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             
             % shift solution to current CCDSEC
             % ?? This line doesn't copy the Tran object - is this ok?
-            RefWCS = ResultObj(Iref).WCS.copy; %copyObject;
+            RefWCS = ResultObj(Iref).WCS.copy();
             
 %             % the shift in CRPIX between the image and the ref
             ShiftX = Args.CCDSEC(Iim,1) - Args.CCDSEC(Iref,1);

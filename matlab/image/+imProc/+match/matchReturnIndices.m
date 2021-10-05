@@ -69,7 +69,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
     end    
 
     if Args.CreateNewObj
-        Obj1 = Obj1.copyObject;
+        Obj1 = Obj1.copy();
     end
     
     Nobj1 = numel(Obj1);

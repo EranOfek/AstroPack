@@ -85,11 +85,11 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result = Obj;
                 else
                     % create new obj
-                    Result = Obj.copyObject;
+                    Result = Obj.copy();
                 end
             else
                 if Args.CreateNewObj
-                    Result = Obj.copyObject;
+                    Result = Obj.copy();
                 else
                     Result = Obj;
                 end

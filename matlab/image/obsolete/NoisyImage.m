@@ -170,7 +170,7 @@ classdef NoisyImage < Component
             
             
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end

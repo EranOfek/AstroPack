@@ -931,8 +931,7 @@ classdef OrbitalEl < Base
                 IncludeMag = true;
             end
             
-            %ObjNew = Obj.copyObject;   % very slow
-            ObjNew = Obj.copy;
+            ObjNew = Obj.copy();
             
             Nobj = numel(ObjNew);
             

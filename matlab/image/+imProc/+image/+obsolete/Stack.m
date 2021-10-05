@@ -143,7 +143,7 @@ classdef Stack < Component
             end
             
             if Args.CreateNewObj
-                Result = ImObj.copyObject;
+                Result = ImObj.copy();
             else
                 Result = ImObj;
             end

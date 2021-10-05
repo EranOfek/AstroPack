@@ -204,7 +204,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
             MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
 
             % copy the common properties from Obj2
-            copyProp(Obj1(Iobj1), MatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+            Obj1(Iobj1).copyProp(MatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
 
             % add Dist column:
             if Args.AddDistCol

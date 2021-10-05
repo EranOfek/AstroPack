@@ -93,7 +93,7 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
         end
     end
     if Args.CreateNewObj
-        Result = Obj.copyObject;
+        Result = Obj.copy();
     else
         Result = Obj;
     end

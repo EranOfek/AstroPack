@@ -97,7 +97,8 @@ function [Result, Flag, AllDist] = coneSearch(CatObj, Coo, Args)
     end
 
     if Args.CreateNewObj
-        Result = copyObject(CatObj, 'ClearProp',{'Catalog'});
+        Result = CatObj.copy();
+		Result.Catalog = [];
     else 
         Result = CatObj;
     end

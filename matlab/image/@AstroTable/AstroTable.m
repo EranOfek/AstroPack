@@ -1583,7 +1583,7 @@ classdef AstroTable < Component
             end
             
             if CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end

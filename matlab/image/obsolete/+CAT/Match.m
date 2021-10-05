@@ -176,7 +176,8 @@ classdef Match < Component
             end
             
             if Args.CreateNewObj
-                Result = copyObject(CatObj, 'ClearProp',{'Catalog'});
+                Result = CatObj.copy();
+				Result.Catalog = [];
             else 
                 Result = CatObj;
             end
@@ -294,7 +295,8 @@ classdef Match < Component
             end
             
             if Args.CreateNewObj
-                Result = copyObject(CatObj, 'ClearProp',{'Catalog'});
+                Result = CatObj.copy();
+				Result.Catalog = [];
             else 
                 Result = CatObj;
             end

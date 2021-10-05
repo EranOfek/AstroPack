@@ -409,7 +409,7 @@ classdef AstroHeader < Component
             end
             
             if Args.CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end

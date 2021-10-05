@@ -5,7 +5,7 @@ function Result = unitTest
     AS = AstroSpec({rand(100,4)});
 
     % setters/getters
-    NS = AS.copyObject;
+    NS = AS.copy();
     NS.WaveUnits = 'cm';
     if ~(strcmp(NS.WaveUnits,'cm') && all(abs(AS.Wave./NS.Wave./1e8 - 1)<10.*eps))
         error('Problem with WaveUnits conversion');
