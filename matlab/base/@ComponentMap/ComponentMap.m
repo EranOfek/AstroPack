@@ -1,20 +1,6 @@
 % ComponentMap - Wrapper for MATLAB's containers.Map dictionary object
 % Note that this class is derived from Base and not from Component
 
-% #functions
-% ComponentMap - Constructor, optional parameter is used as map name, otherwise the default '(unnamed)' is used
-% add - Add Component to the map using its MapKey property
-% delete - Destructor
-% find - Find component in map by the specified key, returns [] if not found
-% getCount - Return number of items in map
-% getKey - Get component map key, generate it if required
-% getSingleton (Static) - Return singleton object
-% msgLog - Write message to log
-% release - Release all components from map
-% remove - Remove the specified component from map
-% unitTest - ComponentMap.unitTest
-% #/functions
-%
 classdef ComponentMap < handle
 
     % Properties

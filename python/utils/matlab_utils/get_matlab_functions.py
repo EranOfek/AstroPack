@@ -254,7 +254,7 @@ class MatlabProcessor:
     # -----------------------------------------------------------------------
     # Remove current info block and get index to line to insert
     def new_info_block(self, lines):
-        start_idx = lines.index('% #functions') if '% #functions' in lines else -1
+        start_idx = lines.index('% #functions (autohen)') if '% #functions' in lines else -1
         end_idx = lines.index('% #/functions', start_idx) if '% #/functions' in lines else -1
 
         if start_idx > -1 and end_idx > -1:

@@ -11,25 +11,6 @@
 %       in order to load fresh configuration you need to do 'clear all'
 %--------------------------------------------------------------------------
 
-% #functions
-% Configuration -
-% expandFolder - Expand Path with macros from Configuration.System.EnvFolders
-% getRange (Static) - Get minimum and maximum values from cell array Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
-% getSingleton (Static) - Return singleton Configuration object
-% init (Static) - Return singleton Configuration object
-% listItem (Static) -
-% listLen (Static) - Return list length
-% loadConfig - Load ALL configuration files in Obj.Path folder
-% loadFile - Load specified file to property
-% loadFolder - Load specified folder to properties
-% loadYaml (Static) - Read YAML file to struct, add FileName field
-% reloadFile - Reload specified configuration object (file name)
-% reloadFolder - Reload all configuration files from default folder
-% reloadYaml (Static) - Reload configurastion file, 'FileName' field must exist
-% unitTest - Configuration.unitTest
-% unmacro (Static) - Replace macros in string with values from struct Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc" conf.unmacro(conf.Yaml.DarkImage.InputFolder, conf.Yaml.EnvFolders)
-% #/functions
-%
 classdef Configuration < handle
     % Note that this class is derived from Base and not from Component
 

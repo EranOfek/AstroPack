@@ -17,7 +17,7 @@ function Result = unitTest()
     try
         Ref    = catsHTM.cone_search('GAIAEDR3', RA, Dec, Radius, 'OutType','AstroCatalog');
     catch
-        io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry failed probably because GAIA catalog is not installed - skip problem');
+        io.msgStyle(LogLevel.Test, '@failed', 'imProc.astrometry failed probably because GAIA catalog is not installed - skip problem');
         Cont = false;
     end
     if Cont
@@ -39,9 +39,7 @@ function Result = unitTest()
         %AI = AstroImage('PTF_201211203837_i_p_scie_t091230_u014655064_f02_p100037_c02.fits');
         %AI.crop([500 1500 1500 2500]);   % image saved as FITS_Cropped.fits
     end
-    
-    
-    
+           
     % test on real image distributed with AstroPack
     AI = AstroImage('PTF_Cropped.fits');
     % detect sources in image
@@ -77,8 +75,7 @@ function Result = unitTest()
         for I=1:1:10
         [Result, AI] = imProc.astrometry.astrometryCore(AI, 'Scale',1.014, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2','CatName',AstrometricCat, 'Tran',Tran, 'EpochOut',JD);
         end
-        toc
-        
+        toc        
         
         % test with bad initial conditions
         [Result, AI] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2', 'CatName',AstrometricCat);
@@ -93,8 +90,7 @@ function Result = unitTest()
     
     % astrometryCheck  
     R = imProc.astrometry.astrometryCheck(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat)
-    
-    
+        
     % astrometryRefine
     % 1. why RR.ResFit rms are (seems) in arcsec??? or else, while in Result they are
     % in deg
@@ -124,15 +120,12 @@ function Result = unitTest()
     
     AI = AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
     W=AstroWCS.header2wcs(AI.HeaderData);
-    
-    
+        
     % test on LAST images
     cd /data/euler/archive/LAST/2020/08/22/proc
     AI = AstroImage('LAST.0.1_20200823.002733.839_clear__sci_proc_im_000.fits');  % M42
     AI = AstroImage('LAST.0.1_20200823.002412.958_clear__sci_proc_im_000.fits');  % NGC253
-    AI = AstroImage('LAST.0.1_20200823.000105.682_clear__sci_proc_im_000.fits');  % empty field
-    
-    
+    AI = AstroImage('LAST.0.1_20200823.000105.682_clear__sci_proc_im_000.fits');  % empty field       
     
     % break into sub images
     %[SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
@@ -178,24 +171,20 @@ function Result = unitTest()
     [Result, NewSI32] = imProc.astrometry.astrometryRefine(NewSI32, 'Scale',1.25, 'RA',RA, 'Dec',Dec, 'CatColNamesMag','MAG_CONV_2', 'Tran',Tran, 'EpochOut',JD,'CatName',AC);
     end
     toc
-    
-    
+       
     % astrometrySubImages
     tic;
     [ResultFit, ResultObj, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran,'CreateNewObj',false);
     toc
-    
-    
+        
     % astrometrySubImages w/AstrometricCat as input
     tic;
     [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran, 'CatName',AstrometricCat,'CreateNewObj',false);
-    toc
-        
+    toc        
     
     cd(PWD);
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
     Result = true;
-    
-    
+       
 end
    

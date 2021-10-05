@@ -1,18 +1,6 @@
 % Simple textual log file
 % Note that this class is derived from handle and not from Component
 
-% #functions
-% LogFile - Constructor for LogFile
-% delete - Destructor - close file
-% getFileName (Static) -
-% getFileNameTimestamp (Static) - Return current date/time as sortable string
-% getSingleton (Static) - Return singleton object, this is the default log file to be used by current process (or workspace)
-% getTimestamp (Static) - Return current date/time as sortable string with milliseconds
-% unitTest - LogFile.unitTest
-% write - Write text line to file
-% write2 - Log title and text line to file
-% #/functions
-%
 classdef LogFile < handle
     % Properties
     properties (SetAccess = public)

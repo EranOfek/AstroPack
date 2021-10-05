@@ -21,7 +21,7 @@ MatFileLoader = @io.files.load_check;  % other option is: io.files.load2
 
 Nvar = numel(varargin);
 
-if (strfind(Catalog,'.mat'))
+if contains(Catalog,'.mat')
     %--------------------------
     %--- File is a mat file ---
     %--------------------------
@@ -127,6 +127,9 @@ if (strfind(Catalog,'.mat'))
                         varargout{1}(Icoo).(CatField) = AllCat.(CatField)(Ind,:);
                     end
                 end
+                
+            elseif isa(varargout{1}, 'AstroCatalog')
+                fprintf('   Catalog is stored as an AstroCatalog - only load operation is possible\n');
                 
             elseif (isnumeric(varargout{1}))
                 % numeric arrays

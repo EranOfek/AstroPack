@@ -1,14 +1,5 @@
 % https://www.mathworks.com/matlabcentral/answers/370457-error-management-in-oop-framework
 
-% #functions
-% XException -
-% assert -
-% error -
-% getReport -
-% meth -
-% unitTest (Static) -
-% #/functions
-%
 classdef XException < MException
 
     properties
