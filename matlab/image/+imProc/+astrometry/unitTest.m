@@ -141,7 +141,7 @@ function Result = unitTest()
     toc
     
     tic;
-    imProc.background.background(SI, 'SubSizeXY',[]);
+    imProc.background.background(SI, 'SubSizeXY',[64 64]);
     toc
     
     tic;

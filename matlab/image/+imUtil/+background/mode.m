@@ -88,9 +88,10 @@ else
 
         if nargout>1
             CumN = cumsum(Nhist(:));
-            CumN = CumN + (1:1:numel(CumN)).'.*1000.*eps;
+            CumN = CumN + (1:1:numel(CumN)).'.*10000.*eps;
             % interp1q is faster, but doesnt check validity
             IqrVal = interp1q(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
+            %IqrVal = interp1(CumN, Edges(1:end-1)+0.5.*BinSize, [0.25 0.75].*CumN(end), 'linear').';
             %IqrVal = interp1(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end),'linear');
 
             IqrVal1 = interp1q(CumN,10.^Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
