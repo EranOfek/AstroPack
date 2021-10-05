@@ -34,6 +34,9 @@ function Result = background(Obj, Args)
     %            'Overlap' - The [X,Y] additional overlaping buffer between
     %                   sub images to add to each sub image.
     %                   Default is 16.
+    %            'DiluteStep' - Dilution for background calculation. This is
+    %                   the step size in which the data in each sub image is selected.
+    %                   Default is 1 (no dilution).
     %            'ExtendFull' - A logical indicating if to extend the
     %                   background map into a full-size image. Default is true.
     %            
@@ -72,6 +75,7 @@ function Result = background(Obj, Args)
         Args.VarFunPar cell              = {};
         Args.SubSizeXY                   = [128 128];
         Args.Overlap                     = 16;
+        Args.DiluteStep                  = 1;
         Args.ExtendFull(1,1) logical     = true; %false;
 
         Args.SubBack(1,1) logical        = false;
@@ -126,6 +130,7 @@ function Result = background(Obj, Args)
                                                             'VarFunPar',Args.VarFunPar,...
                                                             'SubSizeXY',Args.SubSizeXY,...
                                                             'Overlap',Args.Overlap,...
+                                                            'DiluteStep',Args.DiluteStep,...
                                                             'ExtendFull',Args.ExtendFull);
                         
             % set the scale parameter

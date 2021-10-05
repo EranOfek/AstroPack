@@ -44,6 +44,9 @@ function [Back,Var]=background(Image,Args)
 %            'Overlap' - The [X,Y] additional overlaping buffer between
 %                   sub images to add to each sub image.
 %                   Default is 16.
+%            'DiluteStep' - Dilution for background calculation. This is
+%                   the step size in which the data in each sub image is selected.
+%                   Default is 1 (no dilution).
 %            'ExtendFull' - A logical indicating if to extend the
 %                   background map into a full-size image. Default is true.
 %         Not relevent anymore:
@@ -76,6 +79,7 @@ arguments
     Args.VarFunPar cell          = {};
     Args.SubSizeXY               = [128 128];
     Args.Overlap                 = 16;
+    Args.DiluteStep              = 1;   % dilution step for calculating the background
     Args.ExtendFull(1,1) logical = true;
     %Args.ExtendMethod            = 'conv'; %'interp_sparse2full'; %'imresize';  % 'imresize' | 'interp_sparse2full'
     Args.FieldName               = 'Im';
@@ -123,8 +127,12 @@ end
 Nsub = numel(SubImage);
 for Isub=1:1:Nsub
     %
-    SubI = SubImage(Isub).(Args.FieldName); %(1:5:end,1:5:end);
-   
+    if Args.DiluteStep==1
+        SubI = SubImage(Isub).(Args.FieldName);
+    else
+        SubI = SubImage(Isub).(Args.FieldName)(1:Args.DiluteStep:end,1:Args.DiluteStep:end);
+    end
+    
     if isempty(Args.VarFun)
         % assume the BackFun returns both background and variance
         [SubImage(Isub).Back, SubImage(Isub).Var] = Args.BackFun(SubI,Args.BackFunPar{:});

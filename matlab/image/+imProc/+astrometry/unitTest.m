@@ -130,7 +130,7 @@ function Result = unitTest()
     % break into sub images
     %[SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
     tic;
-    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[64 64]);
+    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[128 128]);
     toc
     
     tic;
@@ -140,6 +140,8 @@ function Result = unitTest()
     tic;
     imProc.sources.findMeasureSources(SI);
     toc
+    
+    % need a step for flagging non-point sources (for astrometry)
     
     RA  = AI.HeaderData.Key.RA;
     Dec = AI.HeaderData.Key.DEC;
