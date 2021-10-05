@@ -77,9 +77,17 @@ else
         end
     else
         
+        
+        % accumarray is slower
+%         Ind = ceil((Array - Edges(1))./BinSize);
+%         %Ind  = (1:1:numel(Edges)).';
+%         Data  = ones(size(Ind));
+%         NNN=accumarray(Ind, Data,[numel(Edges), 1]);
+%         [~,MaxI] = max(NNN);
+        
         Nhist = histcounts(Array,Edges);
-
         [~,MaxI]  = max(Nhist);
+        
         Mode = Edges(MaxI) + 0.5.*BinSize;
 
         if Log
