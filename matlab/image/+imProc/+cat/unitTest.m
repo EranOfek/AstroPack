@@ -2,6 +2,7 @@ function Result = unitTest()
     % unitTest for imProc.cat
     % Example: imProc.cat.unitTest
    
+    io.msgLog(LogLevel.Test, 'imProc.CAT test started');
     RAD = 180./pi;
     
     % applyProperMotion
@@ -37,6 +38,8 @@ function Result = unitTest()
     % imProc.cat.filterForAstrometry
     [Cat,Ref] = imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);
     
+    io.msgStyle(LogLevel.Test, '@passed', 'imProc.CAT test passed');
+    Result = true;    
 end
     
     

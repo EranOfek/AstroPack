@@ -697,7 +697,11 @@ classdef mpDB < handle
         
     end % methods
     
-    
+
+    methods (Static)  % unitTest
+        Result = unitTest
+            % unitTest for AstroSpec
+    end    
 end % end class
             
  

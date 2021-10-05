@@ -1,5 +1,6 @@
 function Result = unitTest()
     % unitTest for the +imProc.image package
+   io.msgLog(LogLevel.Test, 'imProc.image test started');
    
     % images2cube
     AI = AstroImage({rand(1000,1000), rand(1000,1000), rand(1000,1000)});
@@ -33,8 +34,6 @@ function Result = unitTest()
         error('Problem with interpOverNan');
     end
     
-    
-    
-    Result = true;
-    
+    io.msgStyle(LogLevel.Test, '@passed', 'imProc.image test passed');
+    Result = true;   
 end

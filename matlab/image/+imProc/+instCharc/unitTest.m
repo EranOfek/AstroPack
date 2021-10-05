@@ -31,8 +31,6 @@ function Result = unitTest
     AI(1).HeaderData.insertKey({'EXPTIME',1}); AI(2).HeaderData.insertKey({'EXPTIME',3}); AI(3).HeaderData.insertKey({'EXPTIME',10});
     AI(4).HeaderData.insertKey({'EXPTIME',10}); AI(5).HeaderData.insertKey({'EXPTIME',20});
     Result = imProc.instCharc.linearity(AI);
-
     
-    Result = true;
-    
+    Result = true;    
 end

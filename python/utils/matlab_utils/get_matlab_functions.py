@@ -27,8 +27,8 @@ from datetime import datetime
 
 ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
 AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
-UPDATE_M = False #True
-UPDATE_M_OUT_FILE = False
+UPDATE_M = True # False #True
+UPDATE_M_OUT_FILE = False           # True to write updated output to '$out' file instead of modifying the original file
 TRIM_TRAILING_SPACES = True
 
 
@@ -252,11 +252,20 @@ class MatlabProcessor:
         return comment
 
     # -----------------------------------------------------------------------
+    # Look for line that starts with specified text
+    def index_starts_with(self, lines, text):
+        for i, line in enumerate(lines):
+            if line.startswith(text):
+                return i
+
+        return -1
+    # -----------------------------------------------------------------------
     # Remove current info block and get index to line to insert
     def new_info_block(self, lines):
-        start_idx = lines.index('% #functions (autohen)') if '% #functions' in lines else -1
-        end_idx = lines.index('% #/functions', start_idx) if '% #/functions' in lines else -1
+        start_idx = self.index_starts_with(lines, '% #functions (autogen)')    # lines.index('% #functions (autogen)') if '% #functions' in lines else -1
+        end_idx   = self.index_starts_with(lines, '% #/functions (autogen)')   # lines.index('% #/functions (autogen)', start_idx) if '% #/functions' in lines else -1
 
+        # Found both strings, cut out the block
         if start_idx > -1 and end_idx > -1:
             lines = lines[:start_idx] + lines[end_idx + 2:]
         else:
@@ -294,22 +303,33 @@ class MatlabProcessor:
     # -----------------------------------------------------------------------
     # Update source code file with info block
     # @todo
-    def update_class_m_file(self, fname):
+    def update_class_m_file(self):
+
+        fname = self.cur_fname
+        func_list_lines = []
+
+        if not self.cur_class in self.class_dict:
+            return
+
+        cls = self.class_dict[self.cur_class]
+        func_list = list(cls.func_dict.keys())
+        func_list.sort()
+        for func_name in func_list:
+            func = cls.func_dict[func_name]
+            line = func.name + ' - ' + func.comment
+            func_list_lines.append(line)
 
         # Read source file
         lines = self.read_file(fname)
         lines, start_idx = self.new_info_block(lines)
 
-        self.func_list.sort()
-
         # Insert functions list at to of file
-        #lines.insert(start_idx, '% #AutoGen')
-        lines.insert(start_idx+0, '% #functions')  # (auto-generated list python script)
-        for i, func in enumerate(self.func_list):
+        lines.insert(start_idx+0, '% #functions (autogen)')  # (auto-generated list python script)
+        for i, func in enumerate(func_list_lines):
             lines.insert(start_idx+i+1, func)
 
-        lines.insert(start_idx + 1 + len(self.func_list), '% #/functions')
-        lines.insert(start_idx + 2 + len(self.func_list), '%')
+        lines.insert(start_idx + 1 + len(func_list_lines), '% #/functions (autogen)')
+        lines.insert(start_idx + 2 + len(func_list_lines), '%')
 
         self.write_m_file(fname, lines)
 
@@ -333,7 +353,7 @@ class MatlabProcessor:
                 f.write(func.name + '\n')
 
     # -----------------------------------------------------------------------
-    # @todo
+    # @todo - Currently UNUSED
     def update_files(self, fname):
 
         # Create output file
@@ -533,6 +553,10 @@ class MatlabProcessor:
             except:
                 log('exception parsing line: ' + line)
 
+        #
+        if UPDATE_M:
+            self.update_class_m_file()
+
         # Update output only if not class folder
         if not self.is_class_folder and self.cur_class != '':
             pass
@@ -706,7 +730,7 @@ class MatlabProcessor:
     # Process all collected data and update output files
     def process_data(self):
 
-        #
+        # Generate .txt and .md files
         out_path_txt = os.path.join(AUTOGEN_PATH, 'package_functions')
         out_path_md = os.path.join(AUTOGEN_PATH, 'package_functions_md')
         package_list = list(self.package_dict.keys())
@@ -803,8 +827,6 @@ class MatlabProcessor:
 
         # Process folders tree
         self.process_tree(path)
-        # process_file('c:/temp/DbQuery.m')
-
         self.process_data()
 
         #
@@ -825,7 +847,12 @@ def main():
 
     #
     proc = MatlabProcessor()
-    proc.process('D:/Ultrasat/AstroPack.git/matlab') #/image/@AstroHeader/')
+
+    proc.process('c:/_m1')
+
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab') #/image/@AstroHeader/')
+
+
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')

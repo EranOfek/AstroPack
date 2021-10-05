@@ -14,4 +14,5 @@ function Result = unitTest
     % convert flux units
     NS.FluxUnits = 'AB';
 
+    Result = true;
 end

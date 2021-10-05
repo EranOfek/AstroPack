@@ -1,7 +1,8 @@
 function Result = unitTest()
     % unitTest for +dark 
     % Example: Result = imProc.dark.unitTest
-
+    io.msgLog(LogLevel.Test, 'imProc.dark test started');
+    
     % identifySimilarImages
     AI = AstroImage({ones(100,100), ones(100,100)});
     [PassedThreshold, FracIdentical] = imProc.dark.identifySimilarImages(AI);
@@ -66,6 +67,6 @@ function Result = unitTest()
         error('Problem with overscan subtraction');
     end
 
+    io.msgStyle(LogLevel.Test, '@passed', 'imProc.dark test passed');
     Result = true;
-    testCase.verifyEqual(Result, true)
 end

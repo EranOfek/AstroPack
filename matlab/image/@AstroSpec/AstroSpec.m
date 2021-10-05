@@ -1,5 +1,4 @@
 
-
 classdef AstroSpec < Component
     properties (Dependent)
         Wave
@@ -1741,7 +1740,6 @@ classdef AstroSpec < Component
     methods (Static)  % unitTest
         Result = unitTest
             % unitTest for AstroSpec
-
     end
     
 end

@@ -394,7 +394,7 @@ classdef UnitTester < handle
             
             % Skip non-active files
             fn = lower(FileName);
-            if contains(fn, 'obsolete') || contains(fn, 'unused')
+            if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || contains(fn, 'draft')
                 Result = false;
                 return;
             end

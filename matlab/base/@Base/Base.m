@@ -2,7 +2,6 @@
 %   This is the base class from which all the classes in AstroPack hinerits.
 %
 % Functionality:
-%   copyObject - by value deep copy of an object/
 %   copyProp - Copy specific properyies from one object to another
 %--------------------------------------------------------------------------
 
@@ -47,95 +46,8 @@ classdef Base < matlab.mixin.Copyable
         end
     end
 
-
+    
     methods % Copy
-        function NewObj = copyObject(Obj, Args)
-            % Copy by value an object and its content
-            % Input  : - Any object that inherits from Base
-            %          * ...,key,val,...
-            %            'ClearProp' - A cell array of properties which
-            %                   will be cleared after the copy operation.
-            %                   default is {}.
-            % Output : - A copy of the original object.
-            % Example: NC=AC.copyObject('ClearProp',{'Catalog'});
-
-            arguments
-                Obj
-                Args.DeepCopy(1,1) logical          = true;
-                Args.ClearProp                      = {};
-            end
-
-            if ~iscell(Args.ClearProp) && ~isstring(Args.ClearProp)
-                Args.ClearProp = {Args.ClearProp};
-            end
-
-            % Deep copy
-            if Args.DeepCopy
-                % Copy using serializing/deserializing (@FFU - Is there better/faster way?)
-                ObjByteArray = getByteStreamFromArray(Obj);
-                NewObj       = getArrayFromByteStream(ObjByteArray);
-
-                % @Chen @Todo: Generate unique UUID?
-                if isprop(Obj, 'Uuid')
-
-                    % Generate new uuid, note that makeUuid() is a method
-                    % of the Component class
-                    for i=1:1:numel(NewObj)
-                        if ~isempty(Obj(1).Uuid)
-                            NewObj(i).makeUuid();
-                        end
-                    end
-
-                    % Set MapKey
-                    for i=1:1:numel(NewObj)
-                        if ~isempty(Obj(1).MapKey)
-                            NewObj(i).MapKey = NewObj(i).Uuid;
-                        end
-                    end
-                end
-
-            % Shallow copy
-            else
-                error('Base.copyObject: Shally copy is not supported yet');
-            end
-
-            % Optionally clear specified properties
-            Nobj  = numel(Obj);
-            Nprop = numel(Args.ClearProp);
-            for Iobj=1:1:Nobj
-                for Iprop=1:1:Nprop
-                    NewObj(Iobj).(Args.ClearProp{Iprop}) = [];
-                end
-            end
-        end
-
-        function NewObj = copyRec(Obj)
-            % doesn't work
-            arguments
-                Obj
-            end
-
-            PropList = metaclass(Obj);
-            
-            FN  = {PropList.PropertyList.Name};
-            CopyProp = ~[PropList.PropertyList.Dependent] & ~[PropList.PropertyList.Transient];
-            Nfn = numel(FN);
-            for Ifn=1:1:Nfn
-                if CopyProp(Ifn)
-                    if isobject(Obj.(FN{Ifn}))
-                        if isa(Obj.(FN{Ifn}), 'Configuration') || isa(Obj.(FN{Ifn}), 'MsgLogger') 
-                            NewObj.(FN{Ifn}) = Obj.(FN{Ifn});
-                        else
-                            NewObj.(FN{Ifn}) = copyRec(Obj.(FN{Ifn}));
-                        end
-                    else
-                        NewObj.(FN{Ifn}) = Obj.(FN{Ifn});
-                    end
-                end
-            end
-        end
-
-
         function Target = copyProp(Obj, Target, PropList)
             % Copy the content of properties from object1 into object2.
             % Input  : - Obj1 (from which to copy)
@@ -178,19 +90,19 @@ classdef Base < matlab.mixin.Copyable
             % Author : Eran Ofek (Jul 2021)
             % Example: [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout)
 
-            if nargin<4
+            if nargin < 4
                 MinNargout = 0;
             end
 
             if isempty(CreateNewObj)
-                if Nargout>MinNargout
+                if Nargout > MinNargout
                     CreateNewObj = true;
                 else
                     CreateNewObj = false;
                 end
             end
             if CreateNewObj
-                Result = Obj.copyObject;
+                Result = Obj.copy();
             else
                 Result = Obj;
             end
@@ -226,13 +138,12 @@ classdef Base < matlab.mixin.Copyable
 
             % Make deep copy
             if ~isempty(Obj.UserData)
-                if isa(Obj.UserData, matlab.mixin.Copyable)
+                if isobject(Obj.UserData) % @Todo: How to check that it is derived from matlab.mixin.Copyable???
                     NewObj.UserData = Obj.UserData.copy();
                 end
             end
         end
     end
-    
  
     %Todo: Chen how to open the manual of the actual class
     %Check if there is somethink like @classmethod of python:
