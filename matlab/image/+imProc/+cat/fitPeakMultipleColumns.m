@@ -1,5 +1,55 @@
 function [FitRes, Result] = fitPeakMultipleColumns(Obj, Args)
-    %
+    % Given N columns with some property (e.g., S/N) fit a parabola
+    %   to the S/N values as a function of some parameter (e.g., FWHM), and
+    %   return the peak S/N value and position.
+    %   The best fitted S/N and position, as well as the best S/N column
+    %   value and index are optionally wrotten to the AstroCatalog.
+    %   If the S/N is outside of bounderies or have minimum instead of
+    %   maximum, return NaN (default).
+    % Input  : - Either an AstroCatalog, AstroImage (with AstroCatalog), or
+    %            a matrix.
+    %          * ...,key,val,...
+    %            'Cols' - Column names from which to get the values.
+    %                   Default is {'SN_1','SN_2','SN_3'}.
+    %            'Pos' - A vector of positions, correspinding to 'Cols'.
+    %                   This paramaeter must be provided and length must
+    %                   equal to the numbre of 'Cols'. Default is [].
+    %            'FlagBad' - A logical indicating if to put NaNs in
+    %                   MaxFitPos which is minima instaed of maxima, and to 
+    %                   replace the MaxFitPos by the nearest bound if the position
+    %                   is out of 'Pos' bounds. Default is true.
+    %            'InsertBestVal' - Insert Best (max) value. Default is true.
+    %            'InsertBestInd' - Insert the index of the column
+    %                   corresponding to the best (max) value.
+    %                   Default is true.
+    %            'InsertMaxFitVal' - Inset fitted max value.
+    %                   Default is true.
+    %            'InsertMaxFitPos' -  Inset fitted max pos.
+    %                   Default is true.
+    %            'ColNameBestVal' - Best val column name.
+    %                   Default is 'BestSN'.
+    %            'ColNameBestInd' - Best column index.
+    %                   Default is 'IndBestSN'.
+    %            'ColNameMaxVal' - Fitted max value column name.
+    %                   Default is 'FitBestSN'.
+    %            'ColNameMaxPos' - Fitted max pos column name.
+    %                   Default is 'FotPosBestSN'.
+    %            'Pos' - Position in which to insert the new columns.
+    %                   Default is Inf.
+    %            'CreateNewObj' - A logical indicating if to create a new
+    %                   copy of the AstroCatalog (only) object.
+    %                   Default is false.
+    % Output : - A structure array with the following fields:
+    %            'MaxFitPos' - Fitted pos.
+    %            'MaxFitVal' - Fitted val.
+    %            'BestVal' - Best val.
+    %            'BestInd' - Best ind.
+    %            'Flag' - A structure with out of bound/min/max flags.
+    %          - The same type as the input (but only AstroCatalog |
+    %            AstroImage are supported). These contains the new columns.
+    %            If CreateNewObj=true, only the Astrocatalog content is
+    %            copied.
+    % Author : Eran Ofek (Oct 2021)
     % Example: X=rand(100,3);
     %          [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(X, 'Pos',[1 2 3])
    
@@ -12,6 +62,12 @@ function [FitRes, Result] = fitPeakMultipleColumns(Obj, Args)
         Args.InsertBestInd logical           = true;
         Args.InsertMaxFitVal logical         = true;
         Args.InsertMaxFitPos logical         = true;
+        Args.ColNameBestVal                  = 'BestSN';
+        Args.ColNameBestInd                  = 'IndBestSN';
+        Args.ColNameMaxVal                   = 'FitBestSN';
+        Args.ColNameMaxPos                   = 'FotPosBestSN';
+        Args.ColPos                          = Inf;
+        
         Args.CreateNewObj logical            = false;
     end
     
@@ -52,6 +108,7 @@ function [FitRes, Result] = fitPeakMultipleColumns(Obj, Args)
             % to Args.Cols
             Data = Obj;
         end
+        Nlines = size(Data,1);
         Data = Data.';  % column per source
         
         Par = H\Data;
@@ -65,34 +122,61 @@ function [FitRes, Result] = fitPeakMultipleColumns(Obj, Args)
         MaxFitVal          = Par(1) + X_ext.*(Par(2) + X_ext.*Par(3));   % second order polynomial
         [BestVal, BestInd] = max(Data,[],1);
         
-        FitRes.MaxFitPos = MaxFitPos;
-        FitRes.MaxFitVal = MaxFitVal;
-        FitRes.BestVal   = BestVal.';
-        FitRes.BestInd   = BestInd.';
-        FitRes.Flag      = Flag;
+        FitRes(Iobj).MaxFitPos = MaxFitPos;
+        FitRes(Iobj).MaxFitVal = MaxFitVal;
+        FitRes(Iobj).BestVal   = BestVal.';
+        FitRes(Iobj).BestInd   = BestInd.';
+        FitRes(Iobj).Flag      = Flag;
         
         if Args.FlagBad
             % modify MaxFitPos in cases there is no max solution, or solution
             % is out of range
-            FitRes.MaxFitPos(Flag.IsBelowMin) = Args.Pos(1);
-            FitRes.MaxFitPos(Flag.IsAboveMax) = Args.Pos(end);
-            FitRes.MaxFitPos(~Flag.IsMax)     = NaN;
+            FitRes(Iobj).MaxFitPos(Flag.IsBelowMin) = Args.Pos(1);
+            FitRes(Iobj).MaxFitPos(Flag.IsAboveMax) = Args.Pos(end);
+            FitRes(Iobj).MaxFitPos(~Flag.IsMax)     = NaN;
         end
         
         % insert columns to output table
         % only if not a matrix
+        NnewCols = Args.InsertBestVal + Args.InsertBestInd + Args.InsertMaxFitVal + Args.InsertMaxFitPos;
+        NewCols  = zeros(Nlines, NnewCols);
+        ColNames = cell(1, NnewCols);
+        ColUnits = cell(1, NnewCols);
+        K = 0;
         if ~isnumeric(Obj)
             if  Args.InsertBestVal
-                
+                K = K + 1;
+                NewCols(:,K) = FitRes(Iobj).BestVal;
+                ColNames{K}  = Args.ColNameBestVal;
+                ColUnuts{K}  = '';
             end
             if Args.InsertBestInd
-                
+                K = K + 1;
+                NewCols(:,K) = FitRes(Iobj).BestInd;
+                ColNames{K}  = Args.ColNameBestInd;
+                ColUnuts{K}  = '';
             end
             if Args.InsertMaxFitVal
-                
+                K = K + 1;
+                NewCols(:,K) = FitRes(Iobj).MaxVal;
+                ColNames{K}  = Args.ColNameMaxVal;
+                ColUnuts{K}  = '';
             end
             if Args.InsertMaxFitPos
-                
+                K = K + 1;
+                NewCols(:,K) = FitRes(Iobj).MaxPos;
+                ColNames{K}  = Args.ColNameMaxPos;
+                ColUnuts{K}  = '';
+            end
+            if nargout>1
+                Cat.insertCol(NewCols, Args.ColPos, ColNames, ColUnuts)
+                if isa(Obj, 'AstroCatalog')
+                    Result(Iobj) = Cat;
+                elseif isa(Obj, 'AstroImage')
+                    Result(Iobj).CatData = Cat;
+                else
+                    error('Matrix input does not support second output');
+                end
             end
         end
     end
