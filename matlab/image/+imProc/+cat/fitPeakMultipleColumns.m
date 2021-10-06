@@ -59,6 +59,10 @@ function [FitRes, Result] = fitPeakMultipleColumns(Obj, Args)
     %          [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(X, 'Pos',[1 2 3])
     %          AC = AstroCatalog({X}, 'ColNames',{'SN_1','SN_2','SN_3'});
     %          [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(AC, 'Pos',[1 2 3])
+    %          AI=AstroImage('PTF_Cropped.fits');
+    %          imProc.sources.findMeasureSources(AI, 'PsfFunPar',{[0.1; 1.2; 3]});
+    %          [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(AI, 'Pos',[0.1 1.2 3])
+
    
     arguments
         Obj                                       % matrix | AstroImage | AstroCatalog
