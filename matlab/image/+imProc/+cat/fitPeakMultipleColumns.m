@@ -192,7 +192,7 @@ function [FitRes, Result] = fitPeakMultipleColumns(Obj, Args)
             end
                                 
             if nargout>1
-                Cat.insertCol(NewCols, Args.ColPos, ColNames, ColUnuts)
+                Cat.insertCol(NewCols, Args.ColPos, ColNames, ColUnuts);
                 if isa(Obj, 'AstroCatalog')
                     Result(Iobj) = Cat;
                 elseif isa(Obj, 'AstroImage')
