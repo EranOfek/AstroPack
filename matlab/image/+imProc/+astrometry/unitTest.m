@@ -146,6 +146,8 @@ function Result = unitTest()
     [FitRes, SI] = imProc.cat.fitPeakMultipleColumns(SI, 'Pos',PSF_Sigma,'Cols',{'SN_1','SN_2','SN_3','SN_4','SN_5'}, 'CreateNewObj',false);
     toc
     
+    [Result, Flag] = imProc.sources.classifySources(SI(16), 'SigmaPSF',PSF_Sigma);
+    
     % need a step for flagging non-point sources (for astrometry)
     
     RA  = AI.HeaderData.Key.RA;

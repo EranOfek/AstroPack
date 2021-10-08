@@ -1,13 +1,15 @@
 function [Result, Flag] = classifySources(Obj, Args)
     %
+    % Example: [Result, Flag] = classifySources(Obj)
    
+    
     arguments
         Obj
         Args.ColNamsSN           = 'SN_%d';   % or cell array of column names, sharp is always in 1
         Args.SigmaPSF            = [];
         
         Args.ThresholdSN         = 5;
-        Args.BackratioLimit      = 1.5;
+        Args.BackRatioLimit      = 1.5;
         Args.VarRatioLimit       = 1.5;
         
         Args.ColNameFlux         = {'FLUX_CONV_2','FLUX_CONV_3'};
@@ -56,20 +58,20 @@ function [Result, Flag] = classifySources(Obj, Args)
             error('First input argument must be an AstroImage or AstroCatalog object');
         end
         
-        BackAnn = getCol(Obj, Args.ColNameBackAnn);
-        StdAnn  = getCol(Obj, Args.ColNameStdAnn);
-        BackIm  = getCol(Obj, Args.ColNameBackIm);
-        VarIm   = getCol(Obj, Args.ColNameVarIm);
-        SN      = getCol(Obj, ColNamsSN);
-        Mom2    = getCol(Obj, Args.ColNameMom2);
-        Flux    = getCol(Obj, Args.ColNameFlux);
+        BackAnn = getCol(Cat, Args.ColNameBackAnn);
+        StdAnn  = getCol(Cat, Args.ColNameStdAnn);
+        BackIm  = getCol(Cat, Args.ColNameBackIm);
+        VarIm   = getCol(Cat, Args.ColNameVarIm);
+        SN      = getCol(Cat, ColNamsSN);
+        Mom2    = getCol(Cat, Args.ColNameMom2);
+        Flux    = getCol(Cat, Args.ColNameFlux);
         
         SN_FluxAnn = Flux./StdAnn;
-        Flag.BadSN = all(SN_FluxAnn < Args.ThresholdSN,2);
+        Flag.BadSN = all(SN_FluxAnn < Args.ThresholdSN, 2);
         Flag.CR    = SN(:,1) > SN(:,2);
         
-        [~,MaxI] = max(SN,[],2);  % index of matche filter that maximize S/N
-        ModeI    = mode(MaxI);
+        [~,MaxI] = max(SN(:, 2:end-1),[],2);  % index of matche filter that maximize S/N
+        ModeI    = mode(MaxI) + 1;
         
         if ModeI>(NsigmaPSF+1)
             % the typical sources has the largest match filter size
