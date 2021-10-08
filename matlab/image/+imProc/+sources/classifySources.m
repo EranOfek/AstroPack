@@ -1,5 +1,7 @@
 function [Result, Flag] = classifySources(Obj, Args)
-    %
+    % Classify sources found by findMeasureSources.
+    %   The source classification includes:
+    %   
     % Example: [Result, Flag] = classifySources(Obj)
    
     
@@ -23,6 +25,7 @@ function [Result, Flag] = classifySources(Obj, Args)
         Args.CreateNewObj logical = false;
     end
     
+    AreaPSF    = 4.*pi.*Args.SigmaPSF.^2;
     NsigmaPSF  = numel(Args.SigmaPSF);
     if NsigmaPSF==0
         error('SigmaPSF must be provided and not be empty');
@@ -66,7 +69,8 @@ function [Result, Flag] = classifySources(Obj, Args)
         Mom2    = getCol(Cat, Args.ColNameMom2);
         Flux    = getCol(Cat, Args.ColNameFlux);
         
-        SN_FluxAnn = Flux./StdAnn;
+        SN_FluxAnn = Flux./(StdAnn.*sqrt(AreaPSF));
+        
         Flag.BadSN = all(SN_FluxAnn < Args.ThresholdSN, 2);
         Flag.CR    = SN(:,1) > SN(:,2);
         
