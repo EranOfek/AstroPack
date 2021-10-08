@@ -69,7 +69,7 @@ function [Result, Flag] = classifySources(Obj, Args)
         Mom2    = getCol(Cat, Args.ColNameMom2);
         Flux    = getCol(Cat, Args.ColNameFlux);
         
-        SN_FluxAnn = Flux./(StdAnn.*sqrt(AreaPSF));
+        SN_FluxAnn = Flux./(StdAnn.*sqrt(AreaPSF.'));
         
         Flag.BadSN = all(SN_FluxAnn < Args.ThresholdSN, 2);
         Flag.CR    = SN(:,1) > SN(:,2);
