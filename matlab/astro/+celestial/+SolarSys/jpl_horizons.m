@@ -33,11 +33,17 @@ InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
 
 BaseURL = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi?';
+%BaseURL = 'https://ssd.jpl.nasa.gov/api/horizons.api?';
 
 I = 0;
 I = I + 1;
 Str(I).command = 'batch';
 Str(I).value   = 1;
+
+%I = I + 1;
+%Str(I).command = 'format';
+%Str(I).value   = 'text';
+
 
 I = I + 1;
 Str(I).command = 'COMMAND';
@@ -78,6 +84,7 @@ I = I + 1;
 Str(I).command = 'CSV_FORMAT';
 Str(I).value   = 'YES';
 
+%UU='https://ssd.jpl.nasa.gov/api/horizons.api?format=''text''&COMMAND=''499''&OBJ_DATA=''YES''&MAKE_EPHEM=''YES''&EPHEM_TYPE=''OBSERVER''&CENTER=''500@399''&START_TIME=''2006-01-01''&STOP_TIME=''2006-01-20''&STEP_SIZE=''1%20d''&QUANTITIES=''1,9,20,23,24,29'''
 
 
 Nstr       = numel(Str);
