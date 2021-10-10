@@ -48,20 +48,26 @@ function [Result, Flag] = cleanSources(Obj, Args)
     arguments
         Obj
         Args.ColNamsSN                 = {'SN_1','SN_2'}; % two column names: sharp and non-sharp
-        Args.ColNameFlux               = {'FLUX_CONV_2','FLUX_CONV_3'};   % PSFs for checking annulus S/N
+        %Args.ColNameFlux               = {'FLUX_CONV_2','FLUX_CONV_3'};   % PSFs for checking annulus S/N
         Args.SigmaPSF                  = [];              % corresponding PSFs sigmas 
         Args.ColNameStdAnn             = 'STD_ANNULUS';
+        
+        Args.ColNameBackAnn            = 'BACK_ANNULUS';
+        Args.ColNameBackIm             = 'BACK_IM';
+        Args.ColNameVarIm              = 'VAR_IM';
+        Args.ColNamePos                = {'X','Y','XPEAK','YPEAK'};
+        
         Args.ThresholdSN               = 5;
         
         Args.RemoveBadSources logical  = true;
         Args.CreateNewObj logical      = false;
     end
     
-    AreaPSF    = 4.*pi.*Args.SigmaPSF.^2;
-    NsigmaPSF  = numel(Args.SigmaPSF);
-    if NsigmaPSF~=numel(Args.ColNameFlux)
-        error('SigmaPSF must have the same length as ColNameFlux');
-    end
+    %AreaPSF    = 4.*pi.*Args.SigmaPSF.^2;
+    %NsigmaPSF  = numel(Args.SigmaPSF);
+    %if NsigmaPSF~=numel(Args.ColNameFlux)
+    %    error('SigmaPSF must have the same length as ColNameFlux');
+    %end
     
     Nobj = numel(Obj);
     
@@ -86,18 +92,34 @@ function [Result, Flag] = cleanSources(Obj, Args)
         
         SN      = getCol(Cat, Args.ColNamsSN);
         StdAnn  = getCol(Cat, Args.ColNameStdAnn);
-        Flux    = getCol(Cat, Args.ColNameFlux);
+        %Flux    = getCol(Cat, Args.ColNameFlux);
+        
+        BackAnn  = getCol(Cat, Args.ColNameBackAnn);
+        BackIm   = getCol(Cat, Args.ColNameBackIm);
+        VarIm    = getCol(Cat, Args.ColNameVarIm);
+        
+        BackAnn  = max(BackAnn, BackIm);
+        StdAnn   = max(StdAnn, sqrt(VarIm));
+        
+        XY = getCol(Cat, Args.ColNamePos);
+        Dist = sqrt((XY(:,1) - XY(:,3)).^2 + (XY(:,2) - XY(:,4)).^2);
+        
+        Flag(Iobj).BadLocation = Dist>1;
+        
+        F = (SN.*sqrt(VarIm) + BackIm - BackAnn) < (Args.ThresholdSN.*StdAnn);
+        %(1 + 20.*log( max(BackAnn./BackIm,1) )));
+        Flag(Iobj).BadSN = all(F,2);
         
         % Flag CR
         Flag(Iobj).CR = SN(:,1) > SN(:,2);
         
         % Flag bad S/N
-        SN_FluxAnn = Flux./(StdAnn.*sqrt(AreaPSF(:).'));
-        Flag(Iobj).BadSN = all(SN_FluxAnn < Args.ThresholdSN, 2);
+        %SN_FluxAnn = Flux./(StdAnn.*sqrt(AreaPSF(:).'));
+        %Flag(Iobj).BadSN = all(SN_FluxAnn < Args.ThresholdSN, 2);
        
         % remove bad sources
         if Args.RemoveBadSources
-            Cat = selectRows(Cat, ~Flag(Iobj).BadSN & ~Flag(Iobj).CR);
+            Cat = selectRows(Cat, ~Flag(Iobj).CR & ~Flag(Iobj).BadLocation & ~Flag(Iobj).BadSN);
         
             % save in Result
             if isa(Obj, 'AstroImage')

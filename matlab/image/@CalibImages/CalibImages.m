@@ -423,9 +423,6 @@ classdef CalibImages < Component
             end
         end
         
-        function Result = readCalibImages(Obj)
-        end
-        
         function Result = debias(Obj, Image, Args)
             % Subtract bias image from an image and update mask.
             % Input  : - A CalibImages object.
