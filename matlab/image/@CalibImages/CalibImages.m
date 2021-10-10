@@ -326,7 +326,7 @@ classdef CalibImages < Component
             ImObj       = ImObj(Flag.Filter);
             
             % search for flat images
-            if empty(Args.IsFilterFlat)
+            if isempty(Args.IsFilterFlat)
                 [Flag.IsFlat, Flag.AllIsFlat] = imProc.flat.isFlat(ImObj, Args.isFlatArgs{:});
             else
                 if numel(Args.IsFilterFlat)==1 && Args.IsFilterFlat
@@ -342,6 +342,13 @@ classdef CalibImages < Component
             % store the flat
             % the filter name is store automatically from the header
             Ind = numel(Obj.Flat) + 1;
+            if Ind==2
+                % check that the image is not empty
+                IsEmpty = isemptyImage(Obj.Flat);
+                if IsEmpty
+                    Ind = 1;
+                end
+            end
             Obj.Flat(Ind) = FlatImage;
             
         end
@@ -468,7 +475,7 @@ classdef CalibImages < Component
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
-                Result(Iim) = imProc.dark.debias(Result(Iim), CalibImages(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
+                Result(Iim) = imProc.dark.debias(Result(Iim), Obj(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
             end
         end
         
@@ -587,19 +594,19 @@ classdef CalibImages < Component
                 Result = Image.copy;
             else
                 Result = Image;
-            enddark
+            end
             
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
             % search for filter name
             if isempty(Args.FilterList)
                 ImFilt      = getStructKey(Image, Args.FilterKey, Args.getStructKeyArgs{:});
-                FilterList = {ImFilt.(FilterKey)};
+                FilterList = {ImFilt.(Args.FilterKey)};
             else
                 FilterList = Args.FilterList;
             end
-            
-            UniqueFilter = unique(FliterList);
+                        
+            UniqueFilter = unique(FilterList);
             Nfilt        = numel(UniqueFilter);
             for Ifilt=1:1:Nfilt
                 % Index of flat image in CalibImages.Flat
@@ -611,10 +618,9 @@ classdef CalibImages < Component
                     if ~any(FlagFlat)
                         error('No Flat image for filter %s',UniqueFilter{Ifilt});
                     end
-                    Result(FlagImages) = imProc.flat.deflat(Result(FlagImages), CalibImages.Flat(FlagFlat), 'CreateNewObj',false, Args.deflatArgs{:});
+                    Result(FlagImages) = imProc.flat.deflat(Result(FlagImages), Obj.Flat(FlagFlat), 'CreateNewObj',false, Args.deflatArgs{:});
                 end
             end
-            
         end
         
         function Result = processImages(Obj, Image, Args)
@@ -710,6 +716,7 @@ classdef CalibImages < Component
                 
                 % mark satuarted pixels
                 if Args.MaskSaturated
+                    'bug here'
                     Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.maskSaturatedArgs{:},...
                                                                      'CreateNewObj',false,...
                                                                      'DefBitDict', BitDictionary(Args.BitDictinaryName) );
@@ -747,7 +754,7 @@ classdef CalibImages < Component
                 % find saturated pixels
                 Nim = numel(Result);
                 for Iim=1:1:Nim
-                    [~, ~, Ind] = findBit(Result(Iim), Args.Bitname_Saturated);
+                    [~, ~, Ind] = findBit(Result(Iim).MaskData, Args.Bitname_Saturated);
                     % set saturated pixels to NaN
                     Result(Iim).Image(Ind) = NaN;
                     % interpolate over staurated pixels
