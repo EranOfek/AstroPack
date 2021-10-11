@@ -137,16 +137,13 @@ function Result = unitTest()
     imProc.background.background(SI, 'SubSizeXY',[128 128]);
     toc
     
-    PSF_Sigma = [0.1; 1.2; 1.5; 2; 5];
+    PSF_Sigma = [0.1; 1.0; 1.2; 2.5];
     tic;
-    imProc.sources.findMeasureSources(SI, 'PsfFunPar', {PSF_Sigma});
+    imProc.sources.findMeasureSources(SI, 'PsfFunPar', {PSF_Sigma}, 'RemoveBadSrcources',true);
     toc
     
-    tic;
-    [FitRes, SI] = imProc.cat.fitPeakMultipleColumns(SI, 'Pos',PSF_Sigma,'Cols',{'SN_1','SN_2','SN_3','SN_4','SN_5'}, 'CreateNewObj',false);
-    toc
     
-    [Result, Flag] = imProc.sources.classifySources(SI(16), 'SigmaPSF',PSF_Sigma);
+    %[Result, Flag] = imProc.sources.classifySources(SI(16), 'SigmaPSF',PSF_Sigma);
     
     % need a step for flagging non-point sources (for astrometry)
     

@@ -41,7 +41,7 @@ arguments
     Image                
     CCDSEC                                                = [];
     Args.Output                                           = 'cell';  % 'cell' | 'struct'
-    Args.SubSizeXY(1,2)                                   = [128 128];
+    Args.SubSizeXY                                        = [128 128];
     Args.Nxy                                              = [];
     Args.OverlapXY                                        = [32 32];
     Args.FieldName                                        = 'Im';

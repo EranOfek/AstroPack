@@ -3,7 +3,25 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
     %       based on the solution from astrometryCore.
-    % Input  : -
+    % Input  : - An AstroImage object with multiple sub images of a
+    %            contigous field of view.
+    %          * ...,key,val,...
+    %            'CCDSEC' - A mandatory argument. This is a 4 column matrix
+    %                   of [Xmin, Xmax, Ymin, Ymax] of the CCDSEC fir each
+    %                   sub image.
+    %                   This is typically obtained from the second output
+    %                   argument of imProc.image.image2subimages.
+    %            'CenterXY' -
+    %            'RA'
+    %            'Dec'
+    %            'CooUnits'
+    %            'Scale'
+    %            'Tran'
+    %            'EpochOut'
+    %            'CreateNewObj'
+    %            'CatName'
+    %            'astrometryCoreArgs'
+    %            'astrometryRefineArgs'
     % Output : -
     % Author : Eran Ofek (Aug 2021)
     % Example:
@@ -12,27 +30,38 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Obj AstroImage                    % AstroImage array with catalogs
         Args.CCDSEC(:,4)
         Args.CenterXY                            = [];  % [X,Y] pix Center of Full image, If empty, calculate from CCDSEC
-        Args.RA
-        Args.Dec
+        Args.RA                                  = 'RA';
+        Args.Dec                                 = 'DEC';
         Args.CooUnits                            = 'deg';
         Args.Scale                               = 1.0;
         Args.Tran                                = Tran2D('poly3');
         
         Args.EpochOut                            = [];
         
-        Args.CreateNewObj                        = [];
+        Args.CreateNewObj logical                = false;
         
         Args.CatName                             = 'GAIAEDR3';  % or AstroCatalog array
         Args.astrometryCoreArgs cell             = {};
         Args.astrometryRefineArgs cell           = {};
         
         Args.MinNumberCoreSolutions              = 1;
-        Args.assessAstrometricQualityArgs cell   = {};
+        %Args.assessAstrometricQualityArgs cell   = {};
         
         
     end
     
-    [ResultObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 1);
+    if Args.CreateNewObj
+        ResultObj = Obj.copy;
+    else
+        ResultObj = Obj;
+    end
+    
+    % get approximate coordinates for field center
+    [RA, Dec] = getCoo(Obj(1).HeaderData);
+    if isempty(Args.EpochOut)
+        Args.EpochOut = julday(Obj(1).HeaderData);
+    end
+            
     
     %Args.Tran.symPoly;   % will work only for handle class: copyObject/CreateNewObj
     
@@ -90,8 +119,8 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             %tic;
             [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim),...
                                                                                                      'Tran',Args.Tran,...
-                                                                                                     'RA',Args.RA,...
-                                                                                                     'Dec',Args.Dec,...
+                                                                                                     'RA',RA,...
+                                                                                                     'Dec',Dec,...
                                                                                                      'CooUnits',Args.CooUnits,...
                                                                                                      'CatRadius',3000,...
                                                                                                      'CatRadiusUnits','arcsec',...
@@ -111,16 +140,20 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             %toc
             % populate the WCS in the AstroImage
             %ResultObj(Iim).WCS = ResultFit(Iim).WCS;
+            if ResultFit(Iim).Nsolutions == 0
+                % problem - no solution found
+                error('problem - no solution found');
+            else
             
-            ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
-            ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
-            ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
-            ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
-            
-            % check qulity of solution
-            Sucess(Iim) = ResultFit(Iim).WCS.Success;
-            %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
-           
+                ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
+                ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
+                ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
+                ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
+
+                % check qulity of solution
+                Sucess(Iim) = ResultFit(Iim).WCS.Success;
+                %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
+            end
         else
             % run astrometryRefine
             % find a sub image which have nearby sucessful solution

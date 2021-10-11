@@ -6,6 +6,9 @@
 *.exe
 *.res
 
+*.dcu
+*.identcache
+*.local
 
 # Temporary files
 **/__history/*

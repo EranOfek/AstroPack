@@ -26,6 +26,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %            'RA' - RA corrsponding to catalog/image center. This will be
     %                   used as the coordinate for the astrometric catalog
     %                   query and the CRVAL argument.
+    %                   If first input is an AstroImage, this can be a char
+    %                   array containing header keyword name (e.g., 'RA').
     %                   If empty, and WCS is given then will estimate from
     %                   WCS. If empty, then will estimate using
     %                   boundingCircle on the catalog. Default is [].
@@ -219,6 +221,14 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     RefColNameY   = 'Y';
     CatColNameRA  = 'RA';
     CatColNameDec = 'Dec';
+    
+    if isa(Obj, 'AstroImage')
+        % can read RA/Dec from Header if AstroImage
+        [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    else
+        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    end
+    
     
     % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
     %

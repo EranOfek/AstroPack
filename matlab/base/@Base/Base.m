@@ -49,8 +49,8 @@ classdef Base < matlab.mixin.Copyable
     
     methods % Copy
         function Target = copyProp(Obj, Target, PropList)
-            % Copy the content of properties from object1 into object2.
-            % Input  : - Obj1 (from which to copy)
+            % Copy the content of properties from Obj into Target.
+            % Input  : - Obj (from which to copy)
             %          - Target object
             %          - A cell array or a string array of properties to copy.
             % Output : - Target object
@@ -139,24 +139,48 @@ classdef Base < matlab.mixin.Copyable
             % Make deep copy
             if ~isempty(Obj.UserData)
                 if isobject(Obj.UserData) % @Todo: How to check that it is derived from matlab.mixin.Copyable???
+                    % o.s - try: isa(Obj.UserData, 'Base')
+                    % i would also run a loop on properties(obj) to do deep
+                    % copy for every derived obj by default, and inherit
+                    % the class matlab.mixin.SetGetExactNames to allow useing
+                    % get(obj, 'property name')
                     NewObj.UserData = Obj.UserData.copy();
                 end
             end
         end
     end
- 
+
+    %----------------------------------------------------------------------    
     %Todo: Chen how to open the manual of the actual class
     %Check if there is somethink like @classmethod of python:
     %https://www.geeksforgeeks.org/classmethod-in-python/
-%     methods (Static)
-%         function help
-%             % show mlx help file for AstroCatalog
-%             open manuals.AstroCatalog
-%         end
-%     end    
+    % methods (Static)
+    %     function help
+    %         % show mlx help file for AstroCatalog
+    %         open manuals.AstroCatalog
+    %     end
+    % end    
+
+    % https://www.mathworks.com/matlabcentral/answers/525877-link-to-section-in-another-live-script
+    % function open_local_mlx(mlxname, lineNum)
+    %     whence = mfilename('fullpath');
+    %     [filedir, basename] = fileparts(whence);
+    %     mlxname = fullfile(filedir, [mlxname '.mlx']);
+    %     matlab.desktop.editor.openAndGoToLine(mlxname, lineNum);
+    % end
+
+    methods (Sealed)
+        function openMLX(Obj)
+            % added by O.S., opens the MLX of the class, Run by using:
+            % classname.empty.openMLX
+            cls = class(Obj);
+            filename = fullfile('manuals', 'class', cls);
+            open(filename)
+        end
+    end
+
     %----------------------------------------------------------------------
     methods(Static) % Unit test
-
         Result = unitTest()
             % unitTest for Base class
     end

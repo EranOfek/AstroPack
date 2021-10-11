@@ -24,7 +24,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %                   Default is 'sigmaclip'.
     %            'StackArgs' - A cell array of arguments to pass to the
     %                   method function. Default is
-    %                   {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.
+    %                   {'MeanFun',@tools.math.stat.nanmedian, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.
     %            'EmpiricalVarFun' - Default is @var.
     %            'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
     %            'DivideEmpiricalByN' - A logical indicating if to divide
@@ -49,6 +49,8 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %            'FlatLowVal_Threshold' - Flat low value
     %                   threshold below to flag as FlatLowVal.
     %                   Default is 0.5.
+    %            'Replace0' - Replace 0 or negative values with NaN.
+    %                   Default is true.
     %            'NaN_BitName' - A NaN bit name.
     %                   Default is 'NaN';
     %            'AddHeader' - A 3 column cell array to add to
@@ -86,7 +88,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.PostNormArgs cell          = {[1 2],'omitnan'};
 
         Args.StackMethod                = 'sigmaclip';   
-        Args.StackArgs                  = {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',2};
+        Args.StackArgs                  = {'MeanFun',@tools.math.stat.nanmedian, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',2};
         Args.EmpiricalVarFun            = @var;
         Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
         Args.DivideEmpiricalByN         = false;
@@ -101,7 +103,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
 
         Args.FlatLowVal_BitName         = 'FlatLowVal';
         Args.FlatLowVal_Threshold       = 0.5;
-
+        Args.Replace0 logical           = true;   % replace 0 or negative with NaN
         Args.NaN_BitName                = 'NaN';
 
         Args.AddHeader                  = {};
@@ -191,6 +193,11 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
          FlagFlatLowVal = Result(Iufilt).Image < Args.FlatLowVal_Threshold;
          Result(Iufilt) = maskSet(Result(Iufilt), FlagFlatLowVal, Args.FlatLowVal_BitName, 1);
 
+         if Args.Replace0
+             Flag = Result(Iufilt).Image <= eps;
+             Result(Iufilt).Image(Flag) = NaN;
+         end
+         
          % NaN
          FlagNaN = isnan(Result(Iufilt).Image);
          Result(Iufilt)  = maskSet(Result(Iufilt), FlagNaN, Args.NaN_BitName, 1);
