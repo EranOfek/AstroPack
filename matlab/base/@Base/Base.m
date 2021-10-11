@@ -43,7 +43,7 @@ classdef Base < matlab.mixin.Copyable
     methods (Sealed)
         function openMLX(Obj)
             % added by O.S., opens the MLX of the class, Run by using:
-            % classname.empty.openMLX
+            % classname.empty.openMLX, or any obj.openMLX
             cls = class(Obj);
             f = fullfile('manuals','class',cls);
             open(f)
@@ -59,8 +59,8 @@ classdef Base < matlab.mixin.Copyable
     
     methods % Copy
         function Target = copyProp(Obj, Target, PropList)
-            % Copy the content of properties from object1 into object2.
-            % Input  : - Obj1 (from which to copy)
+            % Copy the content of properties from Obj into Target.
+            % Input  : - Obj (from which to copy)
             %          - Target object
             %          - A cell array or a string array of properties to copy.
             % Output : - Target object
@@ -149,6 +149,11 @@ classdef Base < matlab.mixin.Copyable
             % Make deep copy
             if ~isempty(Obj.UserData)
                 if isobject(Obj.UserData) % @Todo: How to check that it is derived from matlab.mixin.Copyable???
+                    % o.s - try: isa(Obj.UserData, 'Base')
+                    % i would also run a loop on properties(obj) to do deep
+                    % copy for every derived obj by default, and inherit
+                    % the class matlab.mixin.SetGetExactNames to allow useing
+                    % get(obj, 'property name')
                     NewObj.UserData = Obj.UserData.copy();
                 end
             end
