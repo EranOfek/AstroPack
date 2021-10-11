@@ -19,3 +19,7 @@
 *.lrs
 *.ppu
 
+# From Delphi
+*.dcu
+*.identcache
+*.local
