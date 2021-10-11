@@ -14,9 +14,8 @@ function Result = unitTest()
     
     Image = AstroImage('LAST.2.1.2_20200821.015622.166_clear_0_science.fits');
     Image.setKeyVal('FILTER','clear');
-    Image = CI.processImages(Image, 'SubtractOverscan',false);
-    
-    
+    Image.setKeyVal('SATURVAL',55000);
+    Image = CI.processImages(Image, 'SubtractOverscan',false, 'InterpolateOverSaturated',false);
     
     Result = true;
 end

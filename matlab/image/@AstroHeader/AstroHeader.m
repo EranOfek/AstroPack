@@ -1441,6 +1441,84 @@ classdef AstroHeader < Component
         end
         
         % getCoo
+        function [RA, Dec] = getCoo(Obj, Args)
+            % get RA/Dec coordinates from header
+            % Input  : - An AstroHeader object.
+            %          * ...,key,val,...
+            %            'RA'  - Either an header keyword char containing
+            %                    the RA keyword, or a cell array or char of 
+            %                    sexagesimal coordinates (containing ":"),
+            %                    or a numeric value containing the RA.
+            %                    Default is 'RA'.
+            %            'Dec' - Either an header keyword char containing
+            %                    the Dec keyword, or a cell array or char of 
+            %                    sexagesimal coordinates (containing ":"),
+            %                    or a numeric value containing the Dec.
+            %                    Default is 'Dec'.
+            %            'Units' - Input units (header or numeric).
+            %                   Default is 'deg'.
+            %            'OutUnits' - Output units. Default is 'deg'.
+            %            'getStructKeyArgs' - A cell array of additional
+            %                   arguments to pass to AstroHeader/getStructKey.
+            %                   Default is {}.
+            % Output : - RA
+            %          - Dec.
+            % Author : Eran Ofek (Oct 2021)
+            % Example: [RA, Dec] = getCoo(AI.HeaderData)
+            
+            arguments
+                Obj
+                Args.RA         = 'RA';
+                Args.Dec        = 'DEC';
+                Args.Units      = 'deg';
+                Args.OutUnits   = 'deg'; 
+                Args.getStructKeyArgs cell = {};
+            end
+            
+            if ischar(Args.RA)
+                if contains(Args.RA, ':')
+                    % RA is sexagesimal
+                    Args.RA = {Args.RA};
+                end
+            end
+            if ischar(Args.Dec)
+                if contains(Args.Dec, ':')
+                    % Dec is sexagesimal
+                    Args.Dec = {Args.Dec};
+                end
+            end
+            
+            % cell - sexagesimal, numeric[rad|deg], char-header keyword
+            if iscell(Args.RA)
+                Args.RA = celestial.coo.convertdms(Args.RA, 'SH', 'r');
+                RA      = convert.angular('rad', Args.OutUnits, Args.RA);
+            elseif isnumeric(Args.RA)
+                RA      = convert.angular(Args.Units, Args.OutUnits, Args.RA);
+            elseif ischar(Args.RA)
+                % get from header
+                St      = Obj.getStructKey(Args.RA, Args.getStructKeyArgs{:});
+                RA      = [St.(Args.RA)];
+                RA      = convert.angular(Args.Units, Args.OutUnits, RA);
+            else
+                error('Unknown RA input type');
+            end
+            
+              if iscell(Args.Dec)
+                Args.Dec = celestial.coo.convertdms(Args.Dec, 'SD', 'R');
+                Dec      = convert.angular('rad', Args.OutUnits, Args.Dec);
+            elseif isnumeric(Args.Dec)
+                Dec      = convert.angular(Args.Units, Args.OutUnits, Args.Dec);
+            elseif ischar(Args.RA)
+                % get from header
+                St      = Obj.getStructKey(Args.Dec, Args.getStructKeyArgs{:});
+                Dec     = [St.(Args.Dec)];
+                Dec     = convert.angular(Args.Units, Args.OutUnits, Dec);
+            else
+                error('Unknown Dec input type');
+            end 
+            
+        end
+        
         
     end
     
