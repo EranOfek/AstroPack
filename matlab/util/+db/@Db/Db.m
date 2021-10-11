@@ -80,16 +80,9 @@ classdef Db < Component
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)
-        function Result = unitTest()
-            io.msgStyle(LogLevel.Test, '@start', 'Db test started\n');
+        Result = unitTest()
+            % 
             
-            Glb = Db;
-            
-            
-            % Done
-            io.msgStyle(LogLevel.Test, '@passed', 'Db test passed')
-            Result = true;
-        end
     end    
             
 end

@@ -7,6 +7,8 @@
 #    Generate unitTest() skeleton with functions list in comments (by function order in file)
 #    Generate mlx skeleton (if possible), check if we can generate HTML and import it, or just text?
 #    MLX is Open Packaging Conventions, there are Python packages to manipulate it
+#    Open Packaging Conventions - https://en.wikipedia.org/wiki/Open_Packaging_Conventions
+#    Office Open XML - https://en.wikipedia.org/wiki/Office_Open_XML
 #
 # Generate HTML - see Eran's page:
 #
@@ -22,7 +24,7 @@
 # For each .m file - txt file with function list
 #
 
-import os, glob, argparse
+import os, glob, argparse, shutil, zipfile
 from datetime import datetime
 
 ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
@@ -30,6 +32,10 @@ AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
 UPDATE_M = True # False #True
 UPDATE_M_OUT_FILE = False           # True to write updated output to '$out' file instead of modifying the original file
 TRIM_TRAILING_SPACES = True
+
+#
+FUNC_BLOCK_BEGIN = '% #functions (autogen)'
+FUNC_BLOCK_END = '% #/functions (autogen)'
 
 
 # Log message to file
@@ -262,8 +268,8 @@ class MatlabProcessor:
     # -----------------------------------------------------------------------
     # Remove current info block and get index to line to insert
     def new_info_block(self, lines):
-        start_idx = self.index_starts_with(lines, '% #functions (autogen)')    # lines.index('% #functions (autogen)') if '% #functions' in lines else -1
-        end_idx   = self.index_starts_with(lines, '% #/functions (autogen)')   # lines.index('% #/functions (autogen)', start_idx) if '% #/functions' in lines else -1
+        start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
+        end_idx   = self.index_starts_with(lines, FUNC_BLOCK_END)
 
         # Found both strings, cut out the block
         if start_idx > -1 and end_idx > -1:
@@ -302,7 +308,6 @@ class MatlabProcessor:
 
     # -----------------------------------------------------------------------
     # Update source code file with info block
-    # @todo
     def update_class_m_file(self):
 
         fname = self.cur_fname
@@ -324,11 +329,11 @@ class MatlabProcessor:
         lines, start_idx = self.new_info_block(lines)
 
         # Insert functions list at to of file
-        lines.insert(start_idx+0, '% #functions (autogen)')  # (auto-generated list python script)
+        lines.insert(start_idx+0, FUNC_BLOCK_BEGIN)  # (auto-generated list python script)
         for i, func in enumerate(func_list_lines):
             lines.insert(start_idx+i+1, func)
 
-        lines.insert(start_idx + 1 + len(func_list_lines), '% #/functions (autogen)')
+        lines.insert(start_idx + 1 + len(func_list_lines), FUNC_BLOCK_END)
         lines.insert(start_idx + 2 + len(func_list_lines), '%')
 
         self.write_m_file(fname, lines)
@@ -391,9 +396,70 @@ class MatlabProcessor:
         log('write_html')
 
     # -----------------------------------------------------------------------
+    def update_mlx_document(self, filename):
+        log('update_mlx_document: ' + filename)
+        lines = self.read_file(filename)
+        lines.insert('This is my test!')
+        self.write_file(filename, lines)
+        return True
+
+    # -----------------------------------------------------------------------
+    # MLX files are ZIP files with structured format
+    # Open Packaging Conventions - https://en.wikipedia.org/wiki/Open_Packaging_Conventions
+    # Office Open XML - https://en.wikipedia.org/wiki/Office_Open_XML
+    # Inside the ZIP file, the document is stored in matlab/document.xml file
     # @todo
-    def write_mlx(self):
-        log('write_mlx')
+    def write_mlx(self, mlx_filename):
+        log('write_mlx: ' + mlx_filename)
+
+        # Copy template
+        if not os.path.exists(mlx_filename):
+            mlx_template_filename = os.path.join(ASTROPACK_PATH, '/matlab/help/+manuals/_ClassTemplate.mlx')
+            log('copying mlx template: {} to {}'.format(mlx_template_filename, mlx_filename))
+            shutil.copy(mlx_template_filename, mlx_filename)
+
+        # Extract mlx
+        mlx_temp_folder = 'c:/_mlx/temp' #temp/mlx'
+        try:
+            shutil.unpack_archive(mlx_filename, mlx_temp_folder)
+
+            #with zipfile.ZipFile(mlx_filename, 'r') as zip_ref:
+            #    zip_ref.extractall(mlx_temp_folder)
+        except:
+            log('error extracting mlx file: ' + mlx_filename)
+            return
+
+        # Read document.xml
+        doc_filename = os.path.join(mlx_temp_folder, '/matlab/document.xml')
+
+        # Update document.xml
+        try:
+            updated = self.update_mlx_document(doc_filename)
+            if not updated:
+                log('not updated')
+                return
+        except:
+            log('not updated')
+            return
+
+
+        # Create new zip file
+        mlx_temp_filename = os.path.join('')
+        os.remove(mlx_temp_filename)
+        try:
+            shutil.make_archive(mlx_temp_filename, 'zip', mlx_temp_folder)
+        except:
+            return
+
+        # Copy new zip file
+        try:
+            log('copying mlx template: {} to {}'.format(mlx_template_filename, mlx_filename))
+            shutil.copy(mlx_template_filename, mlx_filename)
+        except:
+            log('error copying file: {} to {}'.format(mlx_temp_filename, mlx_filename))
+            return
+
+
 
     # -----------------------------------------------------------------------
     # @todo
@@ -553,7 +619,7 @@ class MatlabProcessor:
             except:
                 log('exception parsing line: ' + line)
 
-        #
+        # Update the class source file with list of functions and other collected data
         if UPDATE_M:
             self.update_class_m_file()
 
@@ -829,9 +895,6 @@ class MatlabProcessor:
         self.process_tree(path)
         self.process_data()
 
-        #
-        #if UPDATE_M:
-        #    self.update_cl
 
 # ---------------------------------------------------------------------------
 def main():
@@ -840,13 +903,18 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-d',           dest='dir',         default=None,                                   help='pcap folder')
-    parser.add_argument('-s',           dest='subdirs',     action='store_true',    default=True,   help='Process pcap files in subfolders')
-    parser.add_argument('-o', dest='outdir', default=None, help='Output folder')
+    parser.add_argument('-d', dest='dir',         default=None,                           help='pcap folder')
+    parser.add_argument('-s', dest='subdirs',     action='store_true',    default=True,   help='Process pcap files in subfolders')
+    parser.add_argument('-o', dest='outdir',      default=None,                           help='Output folder')
     args = parser.parse_args()
 
     #
     proc = MatlabProcessor()
+
+    mlx_filename = 'c:/temp/_mlx/1.mlx'
+    proc.write_mlx(mlx_filename)
+    return
+
 
     proc.process('c:/_m1')
 

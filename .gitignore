@@ -3,6 +3,7 @@
 # Temporary and backup files
 **/_unused/*
 **/_temp/*
+**/temp/*
 **/_bkp/*
 **/_backup/*
 
