@@ -49,6 +49,8 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %            'FlatLowVal_Threshold' - Flat low value
     %                   threshold below to flag as FlatLowVal.
     %                   Default is 0.5.
+    %            'Replace0' - Replace 0 or negative values with NaN.
+    %                   Default is true.
     %            'NaN_BitName' - A NaN bit name.
     %                   Default is 'NaN';
     %            'AddHeader' - A 3 column cell array to add to
@@ -101,7 +103,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
 
         Args.FlatLowVal_BitName         = 'FlatLowVal';
         Args.FlatLowVal_Threshold       = 0.5;
-
+        Args.Replace0 logical           = true;   % replace 0 or negative with NaN
         Args.NaN_BitName                = 'NaN';
 
         Args.AddHeader                  = {};
@@ -191,6 +193,11 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
          FlagFlatLowVal = Result(Iufilt).Image < Args.FlatLowVal_Threshold;
          Result(Iufilt) = maskSet(Result(Iufilt), FlagFlatLowVal, Args.FlatLowVal_BitName, 1);
 
+         if Args.Replace0
+             Flag = Result(Iufilt).Image <= eps;
+             Result(Iufilt).Image(Flag) = NaN;
+         end
+         
          % NaN
          FlagNaN = isnan(Result(Iufilt).Image);
          Result(Iufilt)  = maskSet(Result(Iufilt), FlagNaN, Args.NaN_BitName, 1);
