@@ -1492,7 +1492,7 @@ classdef AstroImage < Component
                         if isempty(Args.CCDSEC)
                             Result(Ires).(Args.DataProp).(Args.DataPropIn) = Operator(Tmp1, Tmp2, Args.OpArgs{:});
                         else
-                            Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = perator(Tmp1, Tmp2, Args.OpArgs{:});
+                            Result(Ires).(Args.DataProp).(Args.DataPropIn)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2)) = Operator(Tmp1, Tmp2, Args.OpArgs{:});
                         end
                     end
                 end

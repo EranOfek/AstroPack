@@ -2,6 +2,11 @@ function Result = findMeasureSources(Obj, Args)
     % Basic sources finder and measurments on AstroImage object.
     %   This function uses the +imUtil.sources.find_sources function.
     % Input  : - An AstroImage object (multi elements are supported).
+    %            'RemoveBadSrcources' - A logical indicating if to remove
+    %                   bad sources using imProc.sources.cleanSources.
+    %                   This will work only if the following columns are requested
+    %                   'SN_1','SN_2','FLUX_CONV_2','FLUX_CONV_3','STD_ANNULUS'.
+    %                   Default is false.
     %            'ReFind' - A logical indicating if to find stars if the
     %                   catalog is already populated. Default is true.
     %            'Threshold' - Detection threshold above background in units of
@@ -78,6 +83,7 @@ function Result = findMeasureSources(Obj, Args)
    
     arguments
         Obj
+        Args.RemoveBadSrcources logical    = false;
         Args.ReFind(1,1) logical           = true;
         Args.Threshold                     = 5;
         Args.Psf                           = [];
@@ -145,6 +151,14 @@ function Result = findMeasureSources(Obj, Args)
                                                         'MomPar',Args.MomPar,...
                                                         'Conn',Args.Conn,...
                                                         'ColCell',Args.ColCell);
+            % remove bad sources
+            % works only for Gaussian PSF
+            if Args.RemoveBadSrcources
+                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
+                                                                           'ColNamsSN',{'SN_1','SN_2'},...
+                                                                           'RemoveBadSources',Args.RemoveBadSrcources,...
+                                                                           'CreateNewObj',false);
+            end
         end
                                                     
                                                         

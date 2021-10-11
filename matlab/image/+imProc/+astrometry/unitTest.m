@@ -130,16 +130,20 @@ function Result = unitTest()
     % break into sub images
     %[SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1024 1024],'OverlapXY',[64 64]);
     tic;
-    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[128 128]);
+    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI,[1600 1600],'OverlapXY',[64 64]);
     toc
     
     tic;
-    imProc.background.background(SI, 'SubSizeXY',[64 64]);
+    imProc.background.background(SI, 'SubSizeXY',[128 128]);
     toc
     
+    PSF_Sigma = [0.1; 1.0; 1.2; 2.5];
     tic;
-    imProc.sources.findMeasureSources(SI);
+    imProc.sources.findMeasureSources(SI, 'PsfFunPar', {PSF_Sigma}, 'RemoveBadSrcources',true);
     toc
+    
+    
+    %[Result, Flag] = imProc.sources.classifySources(SI(16), 'SigmaPSF',PSF_Sigma);
     
     % need a step for flagging non-point sources (for astrometry)
     
