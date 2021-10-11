@@ -20,7 +20,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         
         Args.EpochOut                            = [];
         
-        Args.CreateNewObj                        = [];
+        Args.CreateNewObj logical                = false;
         
         Args.CatName                             = 'GAIAEDR3';  % or AstroCatalog array
         Args.astrometryCoreArgs cell             = {};
@@ -32,7 +32,11 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         
     end
     
-    [ResultObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 1);
+    if Args.CreateNewObj
+        ResultObj = Obj.copy;
+    else
+        ResultObj = Obj;
+    end
     
     % get approximate coordinates for field center
     [RA, Dec] = getCoo(Obj(1).HeaderData);
