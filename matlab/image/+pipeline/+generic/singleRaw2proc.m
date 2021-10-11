@@ -168,7 +168,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
                                                                                     
     
         % Update Cat astrometry
-        SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:});
+        SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:},'UpdateCoo',true);
     end
     
     % Photometric ZP
