@@ -3,7 +3,25 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
     %       based on the solution from astrometryCore.
-    % Input  : -
+    % Input  : - An AstroImage object with multiple sub images of a
+    %            contigous field of view.
+    %          * ...,key,val,...
+    %            'CCDSEC' - A mandatory argument. This is a 4 column matrix
+    %                   of [Xmin, Xmax, Ymin, Ymax] of the CCDSEC fir each
+    %                   sub image.
+    %                   This is typically obtained from the second output
+    %                   argument of imProc.image.image2subimages.
+    %            'CenterXY' -
+    %            'RA'
+    %            'Dec'
+    %            'CooUnits'
+    %            'Scale'
+    %            'Tran'
+    %            'EpochOut'
+    %            'CreateNewObj'
+    %            'CatName'
+    %            'astrometryCoreArgs'
+    %            'astrometryRefineArgs'
     % Output : -
     % Author : Eran Ofek (Aug 2021)
     % Example:
@@ -27,7 +45,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.astrometryRefineArgs cell           = {};
         
         Args.MinNumberCoreSolutions              = 1;
-        Args.assessAstrometricQualityArgs cell   = {};
+        %Args.assessAstrometricQualityArgs cell   = {};
         
         
     end
