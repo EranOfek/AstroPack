@@ -364,7 +364,7 @@ classdef HDF5
     end % end methods
     
     % static methods for writing/reading HDF5 containing catalog data
-    methods (Static)
+    methods (Static) % tools for catsHTM
         
         function save_cat(FileName,VarName,Data,SortCol,StepRows)
             % save catalog data in HDF5 file

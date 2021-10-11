@@ -5,6 +5,7 @@ classdef AstroSpec < Component
         Flux
         FluxErr
         Back
+        Cont
         Mask
         WaveUnits
         FluxUnits
@@ -32,6 +33,7 @@ classdef AstroSpec < Component
         DefColNameFlux                   = 'Flux';
         DefColNameFluxErr                = 'FluxErr';
         DefColNameBack                   = 'Back';
+        DefColNameCont                   = 'Cont';
         DefColNameMask                   = 'Mask';
     end
   
@@ -162,6 +164,23 @@ classdef AstroSpec < Component
             % setter for Flux
             
             Obj.Data.(Obj.DefColNameFlux) = Input;
+        end
+        
+        function Result = get.Cont(Obj)
+            % getter for Cont
+            
+            if any(strcmp(Obj.Data.Properties.VariableNames, Obj.DefColNameCont))
+                Result = Obj.Data.(Obj.DefColNameCont);
+            else
+                % field not available
+                Result = [];
+            end
+        end
+        
+        function set.Cont(Obj, Input)
+            % setter for Cont
+            
+            Obj.Data.(Obj.DefColNameCont) = Input;
         end
         
         function Result = get.FluxErr(Obj)
@@ -666,6 +685,87 @@ classdef AstroSpec < Component
             end
 
 
+        end
+        
+        function [Result, Files] = specCALSPEC(Name, OutType)
+            % Get STSCI CALSPEC template spectrum from ../spec/CALSPEC/ data directory.
+            % Input  : - If empty, will return all available file names.
+            %            If a single file name, then load it.
+            %            If 'all', then return all spectra.
+            %          - Output type: 'astrospec'|'mat'|'table'. Default is
+            %            'AstroSpec'.
+            %            Only the 'table' option returns all the available
+            %            columns. Others resturn [Wave, Flux] only.
+            % Output : - An AstroSoec object or a matrix with the requested
+            %            spectrum. If the first argument is empty then this
+            %            is a cell array of available file names.
+            %          - List of all available files in the CALSPEC
+            %            directory.
+            % Author : Eran Ofek (Oct 2021)
+            % Example: AstroSpec.specCALSPEC
+            %          A=AstroSpec.specCALSPEC('QSO_NIR');
+            %          A=AstroSpec.specGALSPEC('all');
+            % Reliable: 2
+            
+            arguments
+                Name      = [];
+                OutType   = 'AstroSpec';
+            end
+            Skip = {'WDcovar_002.fits','index.html'};
+            DataName = 'CALSPEC';
+            Suffix   = ''; %.fits';
+            I = Installer;
+            
+            
+            if isempty(Name)
+                % return all available file names
+                Files = I.getFilesInDataDir(DataName);
+                Result = {Files.name};
+            else
+                switch lower(Name)
+                    case 'all'
+                        % load all spectra
+                        Files = I.getFilesInDataDir(DataName);
+                        Name = {Files.name};
+                end
+                if ischar(Name)
+                    Name = {Name};
+                end
+
+                Nd = numel(Name);
+                
+                Dir = I.getDataDir(DataName);
+                Iast = 0;
+                for Id=1:1:Nd
+                    if strcmp(Name{Id}, 'ReadMe')
+                        % ignore
+                    else
+                        if ~contains(Name{Id},Skip)
+                            Iast = Iast + 1;
+                            FullName = sprintf('%s%s%s', Dir, filesep, Name{Id});
+                            if strcmp(FullName(end-3:end),Suffix)
+                                % file name already contains suffix
+                            else
+                                % add suffix
+                                FullName = sprintf('%s%s',FullName,Suffix);
+                            end
+                            FullName
+                            TT = FITS.readTable1(FullName);
+                            switch lower(OutType)
+                                case 'table'
+                                    Result = TT;
+                                case 'mat'
+                                    Result = [TT.WAVELENGTH, TT.FLUX];
+                                case 'astrospec'
+                                    Result(Iast) = AstroSpec({[TT.WAVELENGTH, TT.FLUX]},{'Wave','Flux'},{'A','cgs/A'});
+                                otherwise
+                                    error('Unknown OutType option');
+                            end
+                        end
+                    end
+                end
+            end
+            
         end
 
         function Trans = atmosphericExtinction(File, Args)

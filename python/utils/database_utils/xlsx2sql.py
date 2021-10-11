@@ -29,21 +29,24 @@ from sys import platform
 
 DEBUG = True
 
-GEN_POSTGRES = True
+# SQL
+GEN_POSTGRES = True         # PostgreSQL v13
+GEN_FIREBIRD = False        # FirebirdSQL v2.5,3
+GEN_SQLITE = False          # SQLite v3
 
-GEN_FIREBIRD = False
-GEN_PYTHON = False
-GEN_MATLAB = False
-GEN_CPP = False
-GEN_DELPHI = False
-GEN_DART = False
+# Languages
+GEN_PYTHON = False          # Python v3
+GEN_MATLAB = False          # MATLAB 2020b
+GEN_CPP = False             # C++ 0x03
+GEN_DELPHI = False          # Delphi/Lazarus
+GEN_DART = False            # Flutter
 
 #
 GEN_DESTRUCTOR = False
 OUTPUT_PATH = ''
 
 if DEBUG:
-    GEN_FIREBIRD, GEN_PYTHON, GEN_MATLAB, GEN_CPP, GEN_DELPHI, GEN_DART = True, True, True, True, True, True
+    GEN_POSTGRES, GEN_FIREBIRD, GEN_SQLITE, GEN_PYTHON, GEN_MATLAB, GEN_CPP, GEN_DELPHI, GEN_DART = True, True, True, True, True, True, True, True
 
 # Log message to file
 if platform == "win32":
@@ -71,6 +74,7 @@ field_lang_dict = { \
     'int': {
         'postgres': 'INTEGER',
         'firebird': 'INTEGER',
+        'sqlite': 'INTEGER',
         'python': 'int',
         'cpp': 'int',
         'delphi': 'Integer',
@@ -81,6 +85,7 @@ field_lang_dict = { \
     'uint': {
         'postgres': 'INTEGER',
         'firebird': 'INTEGER',
+        'sqlite': 'INTEGER',
         'python': 'int',
         'cpp': 'int',
         'delphi': 'Integer',
@@ -91,6 +96,7 @@ field_lang_dict = { \
     'bigint': {
         'postgres': 'BIGINT',
         'firebird': 'BIGINT',
+        'sqlite': 'BIGINT',
         'python': 'int',
         'cpp': 'int64',
         'delphi': 'LongInt',
@@ -101,6 +107,7 @@ field_lang_dict = { \
     'single': {
         'postgres': 'DOUBLE PRECISION',
         'firebird': 'FLOAT',
+        'sqlite': 'REAL',
         'python': 'float',
         'cpp': 'float',
         'delphi': 'Single',
@@ -111,6 +118,7 @@ field_lang_dict = { \
     'double': {
         'postgres': 'DOUBLE PRECISION',
         'firebird': 'DOUBLE PRECISION',
+        'sqlite': 'REAL',
         'python': 'float',
         'cpp': 'double',
         'delphi': 'Double',
@@ -121,6 +129,7 @@ field_lang_dict = { \
     'bool': {
         'postgres': 'BOOLEAN',
         'firebird': 'BOOLEAN',
+        'sqlite': 'INTEGER',
         'python': 'bool',
         'cpp': 'bool',
         'delphi': 'Boolean',
@@ -131,6 +140,7 @@ field_lang_dict = { \
     'string': {
         'postgres': 'VARCHAR',
         'firebird': 'VARCHAR(256)',
+        'sqlite': 'TEXT',
         'python': 'string',
         'cpp': 'string',
         'delphi': 'String',
@@ -141,6 +151,7 @@ field_lang_dict = { \
     'uuid': {
         'postgres': 'VARCHAR',
         'firebird': 'VARCHAR',
+        'sqlite': 'TEXT',
         'python': 'string',
         'cpp': 'string',
         'delphi': 'String',
@@ -151,6 +162,7 @@ field_lang_dict = { \
     'timestamp': {
         'postgres': 'TIMESTAMP',
         'firebird': 'TIMESTAMP',
+        'sqlite': 'REAL',
         'python': 'float',
         'cpp': 'double',
         'delphi': 'Double',
@@ -162,6 +174,7 @@ field_lang_dict = { \
     'blob': {
         'postgres': 'BLOB',
         'firebird': 'BLOB SEGMENT SIZE 1',
+        'sqlite': 'BLOB',
         'python': '?',
         'cpp': '?',
         'delphi': '?',
@@ -172,6 +185,7 @@ field_lang_dict = { \
     '#comment': {
         'postgres': '--',
         'firebird': '--',
+        'sqlite': '--',
         'python': '#',
         'cpp': '//',
         'delphi': '//',
@@ -600,6 +614,63 @@ class DatabaseDef:
         self.outf.close()
 
         log('create_table_firebird done: ' + self.table_name)
+        log('')
+
+
+
+    #---------------------------------------------------------------- SQLite SQL
+    # Create table from self.field_list
+    def create_table_sqlite(self):
+
+        log('create_table_sqlite started: ' + self.table_name + ' - fields: ' + str(len(self.field_list)))
+
+        if len(self.field_list) == 0:
+            return
+
+        self.open_out('_sqlite.sql')
+        if self.write_file_header('sqlite'):
+            self.create_db('sqlite')
+
+        self.write_source_header('sqlite')
+        self.write('CREATE TABLE {} (\n'.format(self.table_name))
+        primary_key = []
+
+        for i, field in enumerate(self.field_list):
+
+            # Debug only
+            prefix = ''
+            #if field.is_common:
+            #    prefix = 'Common_'
+
+            field_def, field_value = get_field_type_lang(field.field_name, field.field_type, 'sqlite')
+
+            if field.primary_key:
+                primary_key.append(field.field_name)
+                field_def += ' NOT NULL'
+
+            if i < len(self.field_list)-1:
+                field_def += ','
+
+            self.write('{}{} {}\n'.format(prefix, field.field_name, field_def))
+
+        self.write(');\n\n')
+
+        # Primary key
+        if len(primary_key) > 0:
+            log('primary key: ' + str(primary_key))
+            self.write('\nALTER TABLE {} ADD PRIMARY KEY({});\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
+
+
+        # Index
+        for field in self.field_list:
+            if field.index:
+                index_name = self.table_name + '_idx_' + field.field_name
+                self.write('CREATE INDEX {} ON {}({});\n'.format(index_name, self.table_name, field.field_name))
+
+        self.write('\n')
+        self.outf.close()
+
+        log('create_table_sqlite done: ' + self.table_name)
         log('')
 
 
@@ -1163,6 +1234,9 @@ def process_csv_file(filename, db_name):
 
             if GEN_FIREBIRD:
                 db.create_table_firebird()
+
+            if GEN_SQLITE:
+                db.create_table_sqlite()
 
             # Create classes for languages
             db.create_classes()

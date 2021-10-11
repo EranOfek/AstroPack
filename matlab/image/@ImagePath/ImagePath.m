@@ -119,8 +119,8 @@ classdef ImagePath < Component
             %
             arguments
                 Obj
-                Args.Base       = '/home/last';     %
-                Args.DataDir    = 'data';           %
+                Args.Base       = '/euler/archive';     %
+                Args.DataDir    = 'LAST';           %
                 Args.SubDir     = '';               %
                 Args.Time       = [];               % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
 %      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}

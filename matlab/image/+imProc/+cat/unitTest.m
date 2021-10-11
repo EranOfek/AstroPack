@@ -5,6 +5,12 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'imProc.CAT test started');
     RAD = 180./pi;
     
+    
+    DataSampleDir = tools.os.getTestDataDir;
+    PWD = pwd;
+    cd(DataSampleDir);
+
+    
     % applyProperMotion
     C = catsHTM.cone_search('GAIADR2',1,1,1000,'OutType','astrocatalog');
     InE  = 2015;
@@ -37,6 +43,18 @@ function Result = unitTest()
     
     % imProc.cat.filterForAstrometry
     [Cat,Ref] = imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);
+    
+    % imProc.cat.fitPeakMultipleColumns
+    X=rand(100,3);
+    [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(X, 'Pos',[1 2 3])
+    AC = AstroCatalog({X}, 'ColNames',{'SN_1','SN_2','SN_3'});
+    [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(AC, 'Pos',[1 2 3])
+    AI=AstroImage('PTF_Cropped.fits');
+    imProc.sources.findMeasureSources(AI, 'PsfFunPar',{[0.1; 1.2; 3]});
+    [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(AI, 'Pos',[0.1 1.2 3])
+
+    
+    cd(PWD);
     
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.CAT test passed');
     Result = true;    
