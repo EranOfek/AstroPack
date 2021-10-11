@@ -40,6 +40,16 @@ classdef Base < matlab.mixin.Copyable
     end
 
     %--------------------------------------------------------
+    methods (Sealed)
+        function openMLX(Obj)
+            % added by O.S., opens the MLX of the class, Run by using:
+            % classname.empty.openMLX
+            cls = class(Obj);
+            f = fullfile('manuals','class',cls);
+            open(f)
+        end
+    end
+
     methods
         function Obj = Base()
             % Constructor
@@ -156,7 +166,6 @@ classdef Base < matlab.mixin.Copyable
 %     end    
     %----------------------------------------------------------------------
     methods(Static) % Unit test
-
         Result = unitTest()
             % unitTest for Base class
     end
