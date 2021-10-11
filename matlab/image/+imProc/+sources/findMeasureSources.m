@@ -135,6 +135,7 @@ function Result = findMeasureSources(Obj, Args)
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
+        Iobj
         % call the source finder and measurments
         if Args.ReFind || ~isempty(Result(Iobj).(Args.CatProp).Catalog)
             Result(Iobj).(Args.CatProp) = imUtil.sources.find_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...
