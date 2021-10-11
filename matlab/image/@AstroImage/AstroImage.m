@@ -697,12 +697,7 @@ classdef AstroImage < Component
             %           - Indicating if the output
             %             is a new copy of the input (true), or an
             %             handle of the input (false).
-            %             If empty (default), then this argument will
-            %             be set by the number of output args.
-            %             If 0, then false, otherwise true.
-            %             This means that IC.fun, will modify IC,
-            %             while IB=IC.fun will generate a new copy in
-            %             IB.
+            %             Default is false.
             %          - A cell array of data properties which to transform
             %            to the new class. Default is
             %            {'ImageData','BackData','VarData'}.;
@@ -714,18 +709,11 @@ classdef AstroImage < Component
             
             arguments
                 Obj
-                NewClass         = 'single';
-                CreateNewObj     = [];
-                DataProp cell    = {'ImageData','BackData','VarData'};
+                NewClass               = 'single';
+                CreateNewObj logical   = false;
+                DataProp cell          = {'ImageData','BackData','VarData'};
             end
             
-            if isempty(CreateNewObj)
-                if nargout==0
-                    CreateNewObj = false;
-                else
-                    CreateNewObj = true;
-                end
-            end
             if CreateNewObj
                 Result = Obj.copy();
             else

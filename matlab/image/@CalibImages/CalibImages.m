@@ -716,7 +716,6 @@ classdef CalibImages < Component
                 
                 % mark satuarted pixels
                 if Args.MaskSaturated
-                    'bug here'
                     Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.maskSaturatedArgs{:},...
                                                                      'CreateNewObj',false,...
                                                                      'DefBitDict', BitDictionary(Args.BitDictinaryName) );
