@@ -757,6 +757,8 @@ classdef CalibImages < Component
                     % set saturated pixels to NaN
                     Result(Iim).Image(Ind) = NaN;
                     % interpolate over staurated pixels
+                    Result(Iim).cast('double');  % <<< FFU: REMOVE THIS AFTER BUG FIXED
+                    
                     Result(Iim) = imProc.image.interpOverNan(Result(Iim), Args.interpOverNanArgs{:},...
                                         'CreateNewObj',false);
                 end
