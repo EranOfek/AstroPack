@@ -1,6 +1,7 @@
 
 classdef ImagePath < Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
+    % For storage and database, we should implement ImagePathDb class
     % The file path is described in the LAST/ULTRASAT file naming convension document.
     %
     % Path format (@Todo add from gdoc):
@@ -32,14 +33,14 @@ classdef ImagePath < Component
         SubDir          = '';           % This is the area/location directory below the coadd/ref directory
         
         % Fields formatting
-        FormatFieldID   = '%06d';       %
-        FormatCCDID     = '03d';        % 
-        FormatCropID    = '03d';        %
-        FormatVersion   = '%03d';       %
+        FormatFieldID   = '%06d';       % Used with FieldID
+        FormatCCDID     = '03d';        % Used with CCDID
+        FormatCropID    = '03d';        % Used with CropID
+        FormatVersion   = '%03d';       % Used with Version
         
         % Defaults should be loaded from configuration
         BasePath        = '/home/last'; % Base storage path
-        DataPath        = 'data';       % Parent folder under BasePath       
+        DataDir         = 'data';       % Parent folder under BasePath       
     end
         
     properties(Hidden)
@@ -88,8 +89,9 @@ classdef ImagePath < Component
             
             % Debug? or have it?
             Obj.BasePath        = '/home/last';
-            Obj.DataPath        = 'data';                   
+            Obj.DataDir         = 'data';                   
 
+            % Return expected results, used by unitTest()
             ResultPath = '/home/last/data/2021/09/09/raw/';  % '/home/last/data/.../subdir'; %'/home/last/data/2021/10/03/raw/'
             ResultFileName = 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits';
         end
@@ -119,7 +121,7 @@ classdef ImagePath < Component
             %
             arguments
                 Obj
-                Args.Base       = '/euler/archive';     %
+                Args.BasePath   = '/euler/archive';     %
                 Args.DataDir    = 'LAST';           %
                 Args.SubDir     = '';               %
                 Args.Time       = [];               % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
@@ -165,11 +167,11 @@ classdef ImagePath < Component
             %
             if UseYMD
                 FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
-                   Obj.DataPath, filesep, PreDate, filesep, YMD, filesep, PostDate, ...
+                   Obj.DataDir, filesep, PreDate, filesep, YMD, filesep, PostDate, ...
                    filesep, Obj.SubDir);
             else
                 FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
-                   Obj.DataPath, filesep, PostDate, filesep, filesep, Obj.SubDir);
+                   Obj.DataDir, filesep, PostDate, filesep, filesep, Obj.SubDir);
                 
             end                      
    

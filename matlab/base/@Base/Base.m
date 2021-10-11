@@ -40,15 +40,6 @@ classdef Base < matlab.mixin.Copyable
     end
 
     %--------------------------------------------------------
-    methods (Sealed)
-        function openMLX(Obj)
-            % added by O.S., opens the MLX of the class, Run by using:
-            % classname.empty.openMLX
-            cls = class(Obj);
-            f = fullfile('manuals','class',cls);
-            open(f)
-        end
-    end
 
     methods
         function Obj = Base()
@@ -154,16 +145,36 @@ classdef Base < matlab.mixin.Copyable
             end
         end
     end
- 
+
+    %----------------------------------------------------------------------    
     %Todo: Chen how to open the manual of the actual class
     %Check if there is somethink like @classmethod of python:
     %https://www.geeksforgeeks.org/classmethod-in-python/
-%     methods (Static)
-%         function help
-%             % show mlx help file for AstroCatalog
-%             open manuals.AstroCatalog
-%         end
-%     end    
+    % methods (Static)
+    %     function help
+    %         % show mlx help file for AstroCatalog
+    %         open manuals.AstroCatalog
+    %     end
+    % end    
+
+    % https://www.mathworks.com/matlabcentral/answers/525877-link-to-section-in-another-live-script
+    % function open_local_mlx(mlxname, lineNum)
+    %     whence = mfilename('fullpath');
+    %     [filedir, basename] = fileparts(whence);
+    %     mlxname = fullfile(filedir, [mlxname '.mlx']);
+    %     matlab.desktop.editor.openAndGoToLine(mlxname, lineNum);
+    % end
+
+    methods (Sealed)
+        function openMLX(Obj)
+            % added by O.S., opens the MLX of the class, Run by using:
+            % classname.empty.openMLX
+            cls = class(Obj);
+            filename = fullfile('manuals', 'class', cls);
+            open(filename)
+        end
+    end
+
     %----------------------------------------------------------------------
     methods(Static) % Unit test
         Result = unitTest()
