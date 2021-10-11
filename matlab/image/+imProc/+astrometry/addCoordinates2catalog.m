@@ -88,8 +88,7 @@ function Result = addCoordinates2catalog(Obj, Args)
         end
         
         if UpdateCoo
-            X = getColDic(Cat, Args.DicNamesX);
-            Y = getColDic(Cat, Args.DicNamesY);
+            [X, Y] = getXY(Cat, 'ColX',Args.DicNamesX, 'ColY',Args.DicNamesY);
             
            [Alpha, Delta]  = xy2sky(WCS, X, Y, 'OutUnits',Args.OutUnits,...
                                                'includeDistortion',Args.includeDistortion,...
