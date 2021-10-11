@@ -12,11 +12,8 @@ function Result = addCoordinates2catalog(Obj, Args)
     %            'ColNameRA' - RA column name to insert. Default is 'RA'.
     %            'ColNameDec' - Dec column name to insert. Default is 'Dec'.
     %            'Pos' - Column poistion. Default is Inf.
-    %            'CreateNewObj' - [], true, false.
-    %                   If true, create new deep copy
-    %                   If false, return pointer to object
-    %                   If [] and Nargout==0 then do not create new copy.
-    %                   Otherwise, create new copy. Default is [].
+    %            'CreateNewObj' - Create a new copy of the object.
+    %                   Default is false.
     %            'DicNamesX' - Dictionary X column name.
     %                   Default is AstroCatalog.DefNamesX.
     %            'DicNamesY' - Dictionary Y column name.
@@ -42,7 +39,7 @@ function Result = addCoordinates2catalog(Obj, Args)
         Args.ColNameDec                     = 'Dec'; % inserted column name
         Args.Pos                            = Inf;
         
-        Args.CreateNewObj                   = [];
+        Args.CreateNewObj logical           = false;
         
         Args.DicNamesX                      = AstroCatalog.DefNamesX;
         Args.DicNamesY                      = AstroCatalog.DefNamesY;
@@ -50,8 +47,13 @@ function Result = addCoordinates2catalog(Obj, Args)
         Args.DicNamesDec                    = AstroCatalog.DefNamesDec;
     end
     
-    [Result, CreateNewObj] = Obj.createNewObj(Args.CreateNewObj, nargout, 0);
-    
+    if Args.CreateNewObj
+        Result = Obj.copy;
+    else
+        Result = Obj;
+    end
+       
+        
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroCatalog')
