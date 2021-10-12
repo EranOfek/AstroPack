@@ -2,7 +2,7 @@ function Result = findMeasureSources(Obj, Args)
     % Basic sources finder and measurments on AstroImage object.
     %   This function uses the +imUtil.sources.find_sources function.
     % Input  : - An AstroImage object (multi elements are supported).
-    %            'RemoveBadSrcources' - A logical indicating if to remove
+    %            'RemoveBadSources' - A logical indicating if to remove
     %                   bad sources using imProc.sources.cleanSources.
     %                   This will work only if the following columns are requested
     %                   'SN_1','SN_2','FLUX_CONV_2','FLUX_CONV_3','STD_ANNULUS'.
@@ -83,7 +83,7 @@ function Result = findMeasureSources(Obj, Args)
    
     arguments
         Obj
-        Args.RemoveBadSrcources logical    = false;
+        Args.RemoveBadSources logical      = false;
         Args.ReFind(1,1) logical           = true;
         Args.Threshold                     = 5;
         Args.Psf                           = [];
@@ -153,10 +153,10 @@ function Result = findMeasureSources(Obj, Args)
                                                         'ColCell',Args.ColCell);
             % remove bad sources
             % works only for Gaussian PSF
-            if Args.RemoveBadSrcources
+            if Args.RemoveBadSources
                 [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
                                                                            'ColNamsSN',{'SN_1','SN_2'},...
-                                                                           'RemoveBadSources',Args.RemoveBadSrcources,...
+                                                                           'RemoveBadSources',Args.RemoveBadSources,...
                                                                            'CreateNewObj',false);
             end
         end

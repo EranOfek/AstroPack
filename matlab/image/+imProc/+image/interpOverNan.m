@@ -8,15 +8,13 @@ function Result = interpOverNan(Obj, Args)
     %                   See inpaint_nans for options.
     %            'DataProp' - A cell array of data properties on which to operate the
     %                   interpolation. Default is {'Image'}.
-    %            'CreateNewObj' - Indicating if the output
-    %                   is a new copy of the input (true), or an
-    %                   handle of the input (false).
-    %                   If empty (default), then this argument will
-    %                   be set by the number of output args.
-    %                   If 0, then false, otherwise true.
-    %                   This means that IC.fun, will modify IC,
-    %                   while IB=IC.fun will generate a new copy in
-    %                   IB.
+    %            'MaskInterpolated' - A logical indicating if to mark
+    %                   interpolated data in the Mask image.
+    %                   Default is true.
+    %            'BitNameInterpolated' - BitName to mark interpolated data.
+    %                   Default is 'Interpolated'.
+    %            'CreateNewObj' - A logical indicating if to copy the input
+    %                   object. Default is false.
     % Outout : - An AstroImage object with interpolation over NaNs
     % Author : Eran Ofek (Jul 2021)
     % Example: AI = AstroImage({ones(100,100)});
@@ -26,20 +24,15 @@ function Result = interpOverNan(Obj, Args)
     
     arguments
         Obj
-        Args.Method         = 'inpaint_nans';
-        Args.MethodInpaint  = 0;
-        Args.DataProp cell  = {'Image'};
-        Args.CreateNewObj   = [];
+        Args.Method               = 'inpaint_nans';
+        Args.MethodInpaint        = 0;
+        Args.DataProp cell        = {'Image'};
+        Args.MaskInterpolated logical = true;
+        Args.BitNameInterpolated  = 'Hole'; %'Interpolated';
+        Args.CreateNewObj logical = false;
     end
     
-    if isempty(Args.CreateNewObj)
-        if nargout==0
-            Args.CreateNewObj = false;
-        else
-            % create new obj
-            Args.CreateNewObj = true;
-        end
-    end
+    warning('Replace Hole with Interpolated')
     
     if Args.CreateNewObj
         Result = Obj.copy();
@@ -51,6 +44,13 @@ function Result = interpOverNan(Obj, Args)
     Nobj  = numel(Obj);
     for Iobj=1:1:Nobj
         for Iprop=1:1:Nprop
+            
+            % Update the Mask image 'Interpolated' bit
+            if Args.MaskInterpolated
+                Flag = isnan(Obj(Iobj).(Args.DataProp{Iprop}));
+                Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Flag, Args.BitNameInterpolated, 1);
+            end
+            
             switch lower(Args.Method)
                 case 'inpaint_nans'
                     % perform for each dimension beyond 2 (i.e., images in

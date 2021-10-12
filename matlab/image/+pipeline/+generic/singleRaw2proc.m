@@ -114,6 +114,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % Source finding
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
+                                               'RemoveBadSources',true,...
                                                'CreateNewObj',false);
     
     % Astrometry, including update coordinates in catalog
