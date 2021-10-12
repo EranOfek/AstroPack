@@ -103,33 +103,6 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
    AI.crop([1 6354 1 9600]);
    
     
-%     % Mask Saturated - mask saturated and non-lin pixels
-%     if Args.MaskSaturated
-%         [AI] = imProc.mask.maskSaturated(AI, Args.maskSaturatedArgs{:},...
-%                                              'CreateNewObj',false);
-%     end
-    
-%     % Subtract Dark
-%     if ~isempty(Args.Dark)
-%         AI = imProc.dark.debias(AI, Args.Dark, Args.debiasArgs{:},...
-%                                                'CreateNewObj',false);
-%     end
-    
-%     % Subtract overscan & trim
-%     [AI] = imProc.dark.overscan(AI, Args.overscanArgs{:},...
-%                                     'CreateNewObj',false);
-%     
-%     % Divide by Flat
-%     if ~isempty(Args.Flat)
-%         AI = imProc.flat.deflat(AI, Args.Flat, Args.deflatArgs{:},...
-%                                                'CreateNewObj',false);
-%     end
-%     
-%     % Fringing
-%     if ~isempty(Args.Fringe)
-%         % FFU
-%         error('Fringe removal is not implemented yet');
-%     end
     
     % Sub Images - divide the image to multiple sub images
     % Set UpdatCat to false, since in this stage there is no catalog
@@ -139,26 +112,13 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % Background 
     SI = imProc.background.background(SI, Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY);
     
-%     if Args.InterpOverSaturated
-%         % Motivation: Saturated pixels may cause problems and it is better
-%         % to interpolate over such pixels (i.e., it may remove some of the
-%         % theta functions that may be problematoc for convolution)
-%         
-%         % Replac saturated pixels by NaN
-%         SI = imProc.mask.replaceMaskedPixVal(SI,  {'Saturated','NonLin'}, NaN, 'Method','any', 'CreateNewObj',false);
-% 
-%         % Interpolate over NaN
-%         SI = interpOverNan(SI, Args.interpOverNanArgs{:},...
-%                                'CreateNewObj',false);
-%     end
-    
     % Source finding
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
                                                'CreateNewObj',false);
     
-    % Astrometry
+    % Astrometry, including update coordinates in catalog
     if Args.DoAstrometry
-        Tran = Tran2D;
+        Tran = Tran2D('poly3');
         [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
                                                                                         'Scale',1.25,...
                                                                                         'CatName',Args.CatName,...
@@ -168,7 +128,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
                                                                                     
     
         % Update Cat astrometry
-        SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:},'UpdateCoo',true);
+        %SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:},'UpdateCoo',true);
     end
     
     % Photometric ZP
