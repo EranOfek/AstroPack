@@ -191,9 +191,9 @@ classdef Installer < Component
             % CD to data directory
             PWD = pwd;
             I = Installer;
-            Ind = find(strcmp(I.ConfigStruct.DataName, 'MinorPlanets'));
-            cd(I.ConfigStruct.InstallationLocation);
-            cd(I.ConfigStruct.SubDir{Ind});
+            Ind = find(strcmp({I.DataName}, 'MinorPlanets'));
+            cd(I(Ind).InstallationLocation);
+            cd(I(Ind).SubDir);
                         
             FID = fopen(FileName,'r');
             Line = fgetl(FID);

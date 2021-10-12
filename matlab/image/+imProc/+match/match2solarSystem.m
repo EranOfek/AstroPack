@@ -28,9 +28,6 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
     %            'SearchRadiusUnits' - Units for the SearchRadius argument.
     %                   Default is 'arcsec'.
     %            'MagLimit' - Magnitude limit for minor planets. Default is Inf.
-    %            'GeoPosFromHeader' - A logical indicating if to attempt
-    %                   reading Geodetic position from header.
-    %                   Default is true.
     %            'KeyLon' - Obs. Longitude main keyword dictionary
     %                   name. Default is 'OBSLON'.
     %            'KeyLat' - Obs. Latitude main keyword dictionary
@@ -42,9 +39,8 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
     %                   in alternate names list. Default is false.
     %            'GeoPos' - Geodetic position of the observer (on
     %                   Earth). [Lon (rad), Lat (rad), Height (m)].
-    %                   If empty, then calculate geocentric
-    %                   positions. If 'GeoPosFromHeader'=true, then will
-    %                   attemp getting the position from the header.
+    %                   This parameter superceeds KeyLat,KeyLon.
+    %                   If 'geo' then calculate geocentric position.
     %                   Default is [].
     %            'RefEllipsoid' - Reference ellipsoid for the
     %                   geodetic positions. Default is 'WGS84'.
@@ -53,7 +49,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
     %            'ColDistPos' - Position in which to add ang. dist column.
     %                   Default is Inf.
     %            'ColDistName' - Name of ang. dist column.
-    %                   Default is 'Dist'.
+    %                   Default is 'DistMP'.
     %            'ColDistUnits' - Units of ang. dist column.
     %                   Default is 'arcsec'.
     %            'AddColNmatch' - Adding number of matches column to
@@ -61,7 +57,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
     %            'ColNmatchPos' - Position in which to add Nmatch column.
     %                   Default is Inf.
     %            'ColNmatchName' - Name of Nmatch column.
-    %                   Default is 'Nmatch'.
+    %                   Default is 'NmatchMP'.
     %            'AddColDesignation' -Adding minor planet designation column to
     %                   output catalog. If true, then the output 'Catalog'
     %                   field in the AStroCatalog will be of table class.
@@ -72,7 +68,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
     %                   Default is 'Designation'.
     %            'CreateNewObj' - {false|true} Indicating if to create a
     %                   new copy of the input Astrocatalog object.
-    %                   Default is true.
+    %                   Default is false.
     %       If nargout>1, then add, for each
     %       source in the input AstroCatalog object, the
     %       angular distance to the nearest minor planet (NaN if no match).
@@ -113,7 +109,6 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         Args.SearchRadius                  = 5;
         Args.SearchRadiusUnits             = 'arcsec';
         Args.MagLimit                      = Inf;
-        Args.GeoPosFromHeader logical      = true;
         Args.KeyLon                        = 'OBSLON';
         Args.KeyLat                        = 'OBSLAT';
         Args.KeyAlt                        = 'OBSALT';
@@ -123,18 +118,18 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
 
         Args.AddColDist(1,1) logical       = true;
         Args.ColDistPos                    = Inf;
-        Args.ColDistName                   = 'Dist';
+        Args.ColDistName                   = 'DistMP';
         Args.ColDistUnits                  = 'arcsec';
 
         Args.AddColNmatch(1,1) logical     = true;
         Args.ColNmatchPos                  = Inf;
-        Args.ColNmatchName                 = 'Nmatch';
+        Args.ColNmatchName                 = 'NmatchMP';
 
         Args.AddColDesignation(1,1) logical = true;
         Args.ColDesigPos                    = Inf;
         Args.ColDesigName                   = 'Designation';
 
-        Args.CreateNewObj(1,1) logical      = true;
+        Args.CreateNewObj(1,1) logical      = false;
 
         Args.SourcesColDistPos              = Inf;
         Args.SourcesColDistName             = 'DistMP';
@@ -179,27 +174,27 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         
         % Geodetic position
         if isempty(Args.GeoPos)
-            % attempt to read Geodetic position from header
-            if Args.GeoPosFromHeader
-                if isa(Obj, 'AstroImage')
-                    [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon,...
-                                                                  'KeyLat',Args.KeyLat,...
-                                                                  'KeyAlt',Args.KeyAlt,...
-                                                                  'IsInputAlt',Args.IsInputAlt); % assmed [deg, deg, m]
-                    if isnan(Lon) || isnan(Lat) || isnan(Alt)
-                        GeoPos = [];
-                    else
-                        GeoPos = [Lon./RAD, Lat./RAD, Alt];  % assume [deg deg m] -> [rad rad m]
-                    end
+            if isa(Obj, 'AstroImage')
+                [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon,...
+                                                              'KeyLat',Args.KeyLat,...
+                                                              'KeyAlt',Args.KeyAlt,...
+                                                              'IsInputAlt',Args.IsInputAlt); % assmed [deg, deg, m]
+                if isnan(Lon) || isnan(Lat) || isnan(Alt)
+                    GeoPos = [];
                 else
-                    % no header - try to use user input
-                    GeoPos = Args.GeoPos;
+                    GeoPos = [Lon./RAD, Lat./RAD, Alt];  % assume [deg deg m] -> [rad rad m]
                 end
+            else
+                % no header - try to use user input
+                error('GeoPos must be provided');
+            end
+        else
+            if ischar(Args.GeoPos)
+                % geocentric position
+                GeoPos = [];
             else
                 GeoPos = Args.GeoPos;
             end
-        else
-            GeoPos = Args.GeoPos;
         end
         
         % get bounding box

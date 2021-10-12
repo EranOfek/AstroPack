@@ -30,6 +30,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.Flat                             = []; % [] - do nothing
         Args.Fringe                           = []; % [] - do nothing
         Args.BlockSize                        = [1600 1600];  % empty - full image
+        Args.Scale                            = 1.25;
         
         Args.MultiplyByGain logical           = true; % after fringe correction
         Args.MaskSaturated(1,1) logical       = true;
@@ -54,6 +55,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.astrometrySubImagesArgs cell     = {};
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
+        
+        Args.OrbEl                            = celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
+        Args.match2solarSystemArgs            = {};
+        Args.GeoPos                           = [];
         
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
@@ -101,10 +106,11 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
                               'CorrectFringing',Args.CorrectFringing,...
                               'MultiplyByGain',Args.MultiplyByGain);
                               
-   % crop overscan
-   AI.crop([1 6354 1 9600]);
+    % crop overscan
+    AI.crop([1 6354 1 9600]);
    
-    
+    % get JD from header
+    JD = julday(AI.HeaderData);
     
     % Sub Images - divide the image to multiple sub images
     % Set UpdatCat to false, since in this stage there is no catalog
@@ -119,11 +125,13 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
                                                'RemoveBadSources',true,...
                                                'CreateNewObj',false);
     
+    
     % Astrometry, including update coordinates in catalog
     if Args.DoAstrometry
         Tran = Tran2D('poly3');
         [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
-                                                                                        'Scale',1.25,...
+                                                                                        'EpochOut',JD,...
+                                                                                        'Scale',Args.Scale,...
                                                                                         'CatName',Args.CatName,...
                                                                                         'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
                                                                                         'Tran',Tran,...
@@ -142,10 +150,15 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     end
     
     % match known solar system objects
-    %[SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
+    if ~isempty(Args.OrbEl)
+        % NOTE TIME SHOULD be in TT scale
+        [SourcesWhichAreMP, SI] = match2solarSystem(SI, 'JD',JD, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
+    end
     
     % match against external catalogs
     if Args.MatchExternal
+        % 0. search for non-MP transients
+        
         % 1. Add columns for matched sources
         
         % 2. generate a new catalog of only matched sources
