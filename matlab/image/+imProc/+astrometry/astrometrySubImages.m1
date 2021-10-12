@@ -3,7 +3,25 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
     %       based on the solution from astrometryCore.
-    % Input  : -
+    % Input  : - An AstroImage object with multiple sub images of a
+    %            contigous field of view.
+    %          * ...,key,val,...
+    %            'CCDSEC' - A mandatory argument. This is a 4 column matrix
+    %                   of [Xmin, Xmax, Ymin, Ymax] of the CCDSEC fir each
+    %                   sub image.
+    %                   This is typically obtained from the second output
+    %                   argument of imProc.image.image2subimages.
+    %            'CenterXY' -
+    %            'RA'
+    %            'Dec'
+    %            'CooUnits'
+    %            'Scale'
+    %            'Tran'
+    %            'EpochOut'
+    %            'CreateNewObj'
+    %            'CatName'
+    %            'astrometryCoreArgs'
+    %            'astrometryRefineArgs'
     % Output : -
     % Author : Eran Ofek (Aug 2021)
     % Example:
@@ -20,7 +38,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         
         Args.EpochOut                            = [];
         
-        Args.CreateNewObj                        = [];
+        Args.CreateNewObj logical                = false;
         
         Args.CatName                             = 'GAIAEDR3';  % or AstroCatalog array
         Args.astrometryCoreArgs cell             = {};
@@ -28,7 +46,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         
         Args.MinNumberCoreSolutions              = 1;
         %Args.assessAstrometricQualityArgs cell   = {};
-        
+
         Args.CatRadius                           = 3000;
         Args.RangeX                              = [-1000 1000].*3;
         Args.RangeY                              = [-1000 1000].*3;
@@ -39,7 +57,11 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.FilterSigma                         = 3;
     end
     
-    [ResultObj] = createNewObj(Obj, Args.CreateNewObj, nargout, 1);
+    if Args.CreateNewObj
+        ResultObj = Obj.copy;
+    else
+        ResultObj = Obj;
+    end
     
     % get approximate coordinates for field center
     [RA, Dec] = getCoo(Obj(1).HeaderData);

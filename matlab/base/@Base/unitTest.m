@@ -17,23 +17,23 @@ function Result = unitTest()
     a = Base();
     assert(a ~= a.copy());
 
-    userdata_handle = Base(); % test deep copy functionality
-    a.UserData = userdata_handle;            
+    % test deep copy functionality
+    a.UserData = Base();            
     b = a.copy();
-    assert(~any(getByteStreamFromArray(a) ~= getByteStreamFromArray(b)));
+    assert(all(getByteStreamFromArray(a) == getByteStreamFromArray(b)));
     assert(a.UserData ~= b.UserData);
 
     % Test copyProp()
     % o.s. should it be deep copy? if so, modify the implementation,  will create data integrity issues.
     c = Base();
-    
+    c.UserData = Base();
     % If Base is non-handle class, 'a.copyProp(c, {'UserData'})' does not
     % work, and we need 'c = a.copyProp(c, {'UserData'})'
     % Chen: Good point, need to extend these tests and discuss it
-    c = a.copyProp(c, {'UserData'});
+    a.copyProp(c, {'UserData'});
     assert(a.UserData == c.UserData);
-    c.UserData.UserData = 1;
     
+    % c.UserData.UserData = 1;
     % @Chen: Currently it fails because copyProp copies the handle, 
     % assert(a.UserData ~= c.UserData);
 

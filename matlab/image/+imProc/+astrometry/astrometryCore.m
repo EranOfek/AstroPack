@@ -11,9 +11,13 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %            'RA' - A single J2000.0 RA coordinates
     %                   in rad, deg, or sexagesimal string.
     %                   This is a mandatory argument.
+    %                   If first input is an AstroImage this can also be an
+    %                   header keyword name. Default is 'RA'.
     %            'Dec' - A single J2000.0 Dec coordinates
     %                   in rad, deg, or sexagesimal string.
     %                   This is a mandatory argument.
+    %                   If first input is an AstroImage this can also be an
+    %                   header keyword name. Default is 'DEC'.
     %            'CooUnits' - RA/Dec coordinates units ('deg','rad').
     %                   This is ignored if RA/Dec are sexagesimal.
     %                   Default is 'deg'.
@@ -136,8 +140,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
    
     arguments
         Obj                                   % AstroImage or AstroCatalaog
-        Args.RA
-        Args.Dec
+        Args.RA                           = 'RA';
+        Args.Dec                          = 'DEC';
         Args.CooUnits                     = 'deg';
         Args.CatName                      = 'GAIAEDR3';  % or AstroCatalog
         Args.CatOrigin                    = 'catsHTM';
@@ -214,6 +218,14 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     
     % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
     %
+    
+    if isa(Obj, 'AstroImage')
+        % can read RA/Dec from Header if AstroImage
+        [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    else
+        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    end
+        
     
     % make sure Tran is a new copy, otherwise may overwrite other Tran
     Args.Tran = Args.Tran.copy;
