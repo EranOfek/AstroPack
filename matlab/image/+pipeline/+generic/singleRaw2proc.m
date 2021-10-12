@@ -54,6 +54,8 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.astrometrySubImagesArgs cell     = {};
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
+        
+        Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
     end
     
@@ -151,9 +153,9 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     end
     
     % Save products
-    if Args.SaveProducts
-        
-    end
+%     if ~isempty(Args.SaveFileName)
+%        
+%     end
     
     
 end
