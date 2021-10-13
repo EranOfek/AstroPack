@@ -5,6 +5,22 @@
 %   This allows performing calibration for multiple detectors
 %   simultaneously.
 
+% #functions (autogen)
+% CalibImages - Constructor for the CalibImages class
+% checkObjImageSize - Check the validity of the size (number of elements) of CalibImages object and input image This function will return an error if not one of the following: size(Image)size(Obj) or (numel(Obj)1 and numel(Image)>1)');
+% createBias - Create master bias using imProc.dark.bias and store in CalibImages object. Optionaly, can break the bias image to sub images and store them in different elements of the CalibImages object.
+% createFlat - Create a Flat image for all filters and populate in CalibImages object. Given a list of dark-subtracted images, identify flat images taken at a each filter, and generate a flat images. The flat image is added into the array of Flat images in the CalibImages object.
+% createFlatFilter - Create a Flat image for specific filter and populate in CalibImages object. Given a list of dark-subtracted images, identify flat images taken at a specific filter, and generate a flat image. The flat image is added into the array of Flat images in the CalibImages object.
+% debias - Subtract bias image from an image and update mask.
+% deflat - Divide from image from an image and update mask (multiple filters).
+% overscan - Subtract and remove overscan bias from image.
+% processImages - Perform basic calibration (bias, flat, etc) to input images Perform the following steps on an image: Create a mask image Flag staturated pixels in mask Subtract bias image
+% set.Dark - setter for Dark property - set DarkExpTime+darkTemp from Header
+% set.Flat - setter for Flat property - set FlatFilter from Header
+% set.Fringe - setter for Fringe property - set FringeExpTime+FringeFilter from Header
+% #/functions (autogen)
+%
+
 % use case:
 %   1. create dark/bias/flat/fringe
 %       bias
@@ -29,10 +45,10 @@
 
 classdef CalibImages < Component
     properties
-        Bias AstroImage   
-        Dark AstroImage   
+        Bias AstroImage
+        Dark AstroImage
         Flat AstroImage
-        Fringe AstroImage 
+        Fringe AstroImage
         
         SubtractOverScan(1,1) logical   = true;
     end
@@ -55,7 +71,7 @@ classdef CalibImages < Component
             %            'Dark' - A Dark AstroImage (per ExpTime)
             %            'Flat' - A Flat AstroImage (per filter)
             %            'Fringe' - A fringe AstroImage (per filter)
-            %            'FlatFilter' - 
+            %            'FlatFilter' -
             %            'DarkExpTime'
             %            'DarkTemp'
             %            'FringeFilter'
@@ -63,7 +79,7 @@ classdef CalibImages < Component
             %
             % Output : - A CalibImages object
             % Author : Eran Ofek (Aug 2021)
-            % Example: 
+            % Example:
             
             arguments
                 Args.Bias           = [];
@@ -228,7 +244,7 @@ classdef CalibImages < Component
             %            populated. This is an handle to the original input
             %            object.
             % Author : Eran Ofek (Jul 2021)
-            % Example: 
+            % Example:
             
             arguments
                 Obj
@@ -301,10 +317,10 @@ classdef CalibImages < Component
             % Output : - A CalibImages object in which the new flat is
             %            populated.
             % Author : Eran Ofek (Oct 2021)
-            % Example: 
+            % Example:
             
             arguments
-                Obj     
+                Obj
                 ImObj           % Images from which to create Flat
                 FilterName      % Filter for which to create Flat
                 Args.FilterKey                    = 'FILTER';
@@ -390,10 +406,10 @@ classdef CalibImages < Component
             % Output : - A CalibImages object in which the new flat is
             %            populated.
             % Author : Eran Ofek (Oct 2021)
-            % Example: 
+            % Example:
             
             arguments
-                Obj     
+                Obj
                 ImObj           % Images from which to create Flat
                 Args.FilterKey                    = 'FILTER';
                 Args.UseFilters cell              = {}; % override IgnoreFilters
@@ -441,7 +457,7 @@ classdef CalibImages < Component
             %          - An AstroImage object containing the input image
             %            from which to subtract the bias image.
             %          * ...,key,val,...
-            %            'CreateNewObj' - [false] | true. 
+            %            'CreateNewObj' - [false] | true.
             %                   If true, then create a new copy of the
             %                   images input. Default is false.
             %                   Note that the CalibImage itself is not
@@ -507,7 +523,7 @@ classdef CalibImages < Component
             %            subtrcated and removed.
             % See also: imProc.dark.overscan
             % Author : Eran Ofek (Jul 2021)
-            % Example: 
+            % Example:
             
             arguments
                 Obj
@@ -553,7 +569,7 @@ classdef CalibImages < Component
             %            from which to divide the flat image.
             %            The image should be bias/dark subtracted.
             %          * ...,key,val,...
-            %            'CreateNewObj' - [false] | true. 
+            %            'CreateNewObj' - [false] | true.
             %                   If true, then create a new copy of the
             %                   images input. Default is false.
             %                   Note that the CalibImage itself is not
@@ -731,7 +747,7 @@ classdef CalibImages < Component
             % subtract overscan
             if Args.SubtractOverscan
                 Result = Obj.overscan(Result, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
-            end                                            
+            end
                 
             % divide by flat
             Result = Obj.deflat(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
@@ -744,7 +760,7 @@ classdef CalibImages < Component
                 
             % multipply image by gain
             if Args.MultiplyByGain
-                imProc.calib.gainCorrect(Result, 'CreateNewObj',false);            
+                imProc.calib.gainCorrect(Result, 'CreateNewObj',false);
             end
                 
             

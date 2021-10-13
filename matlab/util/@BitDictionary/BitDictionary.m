@@ -5,6 +5,17 @@
 % Author: Eran Ofek (March 2021)
 % Example: BD=BitDictionary; D.unitTest
 
+% #functions (autogen)
+% BitDictionary - Dictionary constructor
+% bitdec2name - Convert decimal numbers to bit names and indices
+% bitind2name - Convert an array of bit indices to bit names
+% name2bit - Convert bit names to bit indices and decimal representation
+% read - read a dictionary from file/memnory FFU
+% set.Dic - setter for Dic property BinDic can be: 'table' | 'cell'
+% write - write a dictionary to file/memory FFU
+% #/functions (autogen)
+%
+
 classdef BitDictionary < Component
     properties
         BitDictName char     = '';   % BitDictionary name - e.g., 'HeaderKeySynonyms'
@@ -69,19 +80,19 @@ classdef BitDictionary < Component
             Ndigits  = ceil(log(MaxBitInd)./log(2));  % number of binary digits required to represent the dictionary
             if MaxBitInd<=8
                 Obj.Nbit  = 8;
-                Obj.Class = @uint8; 
+                Obj.Class = @uint8;
             else
                 if MaxBitInd<=16
                     Obj.Nbit = 16;
-                    Obj.Class = @uint16; 
+                    Obj.Class = @uint16;
                 else
                     if MaxBitInd<=32
                         Obj.Nbit = 32;
-                        Obj.Class = @uint32; 
+                        Obj.Class = @uint32;
                     else
                         if MaxBitInd<=64
                             Obj.Nbit = 64;
-                            Obj.Class = @uint64; 
+                            Obj.Class = @uint64;
                         else
                             error('More than 64 bits in BitDictionary are not supported');
                         end

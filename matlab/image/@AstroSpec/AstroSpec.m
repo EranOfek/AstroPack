@@ -1,3 +1,53 @@
+% AstroSpec
+%
+
+% #functions (autogen)
+% AstroSpec - constructor for AstroSpec
+% applyAtmosphericExt - Apply atmospheric extinction (airmass) to AstroSpec object. One to one, or one to many.
+% applyExtinctionZ - Calculate extinction to observed wavelngth vector in various redshifts.
+% atmosphericExtinction - Return Atmospheric extinction The extinction im mag/transmission is provided in the Flux field.
+% blackBody - Create an AstroSpec object with black body spectra Return specific (per Ang) luminosity or emittence.
+% filterFun - Apply a 1-D function (filter) on the Flux field in AstroSpec object. The function do not check if the wavelength is equally spaced. The function operates on the Flux, FluxErr, and Back fields.
+% fitMag - Fit AstroSpec spectra to observed magnitudes in some bands.
+% fitSpec - UNDER CONSTRUCTION
+% funBinary - Perform a binary operation on two AstroSpec objects The operation is applied one to one or one to many.
+% funFlux - Apply a function to the Flux, FluxErr, Back columns.
+% get.Back - getter for Back
+% get.Cont - getter for Cont
+% get.Flux - getter for Flux
+% get.FluxErr - getter for FluxErr
+% get.FluxUnits - getter for FluxUnits
+% get.Mask - getter for Mask data
+% get.Wave - getter for Wave
+% get.WaveUnits - getter for WaveUnits
+% interp1 - Interpolate the elements of AstroSpec into a new wavelength grid. The Mask will be interpolated using nearest interpolation. This function works only if the Data is convertable to a numeric matrix.
+% interpAndKeepOverlap - Given two AstroSpec objects, interpolate the first into the wavelength grid defined by the second and keep only the overlaping points.
+% interpLogSpace - Interpolate an AstroSpec object into a logarithmic wavelength grid.
+% interpOverNan - Interpolate AstroSpec object over NaNs.
+% interpOverRanges - Interpolate AstroSpec object over some ranges Useful for interpolation over ranges containing spectral lines.
+% length - Return length of each spectrum in AstroSpec object
+% plot - Plot all the spectra in an AstroSpec object
+% read2FilterMatrix - Convet a filter name/AstFilter to cell of transmissions
+% redshift - Apply redshift to a spectrum Divide wave by (1+z) and multiply flux by (1+z) Correct also FluxErr and Back
+% scaleFlux - Scale (multiply) flux properties by some factor.
+% scaleSynphot - Scale spectrum such that its synthetic magnitude will be forced to some value.
+% selectWave - Select lines from AstroSpec (don't generate a new copy)
+% set.Back - setter for Back
+% set.Cont - setter for Cont
+% set.Flux - setter for Flux
+% set.FluxErr - setter for FluxErr
+% set.FluxUnits - setter for FluxUnits
+% set.Mask - setter for Mask data
+% set.Wave - setter for Wave
+% set.WaveUnits - setter for WaveUnits
+% sort - Sort elements of AstroSpec object by wavelength
+% specCALSPEC - Get STSCI CALSPEC template spectrum from ../spec/CALSPEC/ data directory.
+% specGalQSO - Get galaxy/qso template spectrum from ../spec/SpecGalQSO/ data directory. Description: Get Galaxy or QSO spectral template from local database.
+% specStarsPickles - Load Pickles stellar spectra into an AstroSpec object
+% synphot - Synthetic photometry on an AstroSpec object spectra
+% synspecGAIA - Load GAIA synthetic spectra and if necessey interpolate over Temperature (other parameters are not interpolated).
+% #/functions (autogen)
+%
 
 classdef AstroSpec < Component
     properties (Dependent)
@@ -20,7 +70,7 @@ classdef AstroSpec < Component
         LumDist              = [];   % [pc]
         Ebv                  = [];   % Vector - [mag]
         Zext                 = 0;    % Vector - redshift of extinction
-        R                    = 3.08; % Vector - 
+        R                    = 3.08; % Vector -
     end
         
     
@@ -100,7 +150,7 @@ classdef AstroSpec < Component
                 else
                     error('Unknown input (Matrix) option');
                 end
-            end    
+            end
         end
         
     end
@@ -449,7 +499,7 @@ classdef AstroSpec < Component
             
             arguments
                 Args.Temp           = 5750;
-                Args.Grav           = 4.5   
+                Args.Grav           = 4.5
                 Args.Metal          = 0;
                 Args.Rot            = 0;
                 Args.OutType        = 'astrospec';   % 'astrospec' | 'astspec' | 'mat'
@@ -1123,7 +1173,7 @@ classdef AstroSpec < Component
         
         function Result = interpLogSpace(Obj, Args)
             % Interpolate an AstroSpec object into a logarithmic wavelength grid.
-            % Input  : - An AstroSpec object.            
+            % Input  : - An AstroSpec object.
             %          * ...,key,val,...
             %            'Res' - Resolution (Dlambda/lambda) to use fot the
             %                   log-spacing. If empty, estimate using
@@ -1427,7 +1477,7 @@ classdef AstroSpec < Component
             %          - Like Mag results, but for the fraction of
             %            extrapolated part of the filter.
             %            0 means no extrapolation.
-            %          - A vector of the filter central wavelengths. 
+            %          - A vector of the filter central wavelengths.
             % Author : Eran Ofek (Aug 2021)
             % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
             %          [Result, Flag, FilterWave] = synphot(AS, {'SDSS','SDSS'}, {'g','r'})
@@ -1591,7 +1641,7 @@ classdef AstroSpec < Component
                 NewObj       = funFlux(NewObj,       Args.FunFlux, 'FunArgs',Args.FunArgs, 'CreateNewObj',false);
                 NewModelSpec = funFlux(NewModelSpec, Args.FunFlux, 'FunArgs',Args.FunArgs, 'CreateNewObj',false);
                 
-                % fit 
+                % fit
                 % scale, additive, extinction
                 
                 Nw = NewModelSpec.length;
@@ -1663,7 +1713,7 @@ classdef AstroSpec < Component
             %                   Default is 'cos'
             % Output : - A structure with the following fields:
             %            .IndBestChi2 - A vector (one element per source).
-            %                   For each source this gives the index of the 
+            %                   For each source this gives the index of the
             %                   best fitted (chi2) spectral template.
             %            .BestChi2 - A vector (one per source) of the best
             %                   fitted \chi^2 value.
@@ -1674,7 +1724,7 @@ classdef AstroSpec < Component
             %            spectra scaled to match the input magnitudes.
             % Author : Eran Ofek (Sep 2021)
             % Example: Spec = AstroSpec.synspecGAIA('Temp',[4000:100:8000],'Grav',[4.5]);
-            %          M = synphot(Spec(10:11),'SDSS',{'g','r','i'}, 'IsOutMat',true); 
+            %          M = synphot(Spec(10:11),'SDSS',{'g','r','i'}, 'IsOutMat',true);
             %          Result = fitMag(Spec, M + 50, 'SDSS',{'g','r','i'});
 
             arguments
@@ -1702,7 +1752,7 @@ classdef AstroSpec < Component
 
             SynMagMat = synphot(ModelSpec, Family, Bands, 'MagSys',Args.MagSys, 'Device',Args.Device, 'IsOutMat',true);
             for Isrc=1:1:Nsrc
-                % Fit mag difference (L2 minimization)                
+                % Fit mag difference (L2 minimization)
                 Diff = Mag(Isrc,:) - SynMagMat;
                 MeanDiff  = [ones(Nband,1) \ Diff.'].';
 
@@ -1739,7 +1789,7 @@ classdef AstroSpec < Component
             % Output : - AN handle for the last plot.
             % Author : Eran Ofek (Aug 2021)
             % Example: Result = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
-            %          Result.plot  
+            %          Result.plot
            
             IsHold = ishold;
             
@@ -1790,8 +1840,8 @@ classdef AstroSpec < Component
             % Example: S = AstroSpec({rand(100,3)});
             %          NS = AS.copy();
             %          NS.redshift=0.5;
-            %          NS.Z=0.5;       
-            %          NS.redshift(0)  
+            %          NS.Z=0.5;
+            %          NS.redshift(0)
 
             arguments
                 Obj

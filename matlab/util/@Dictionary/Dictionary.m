@@ -1,12 +1,26 @@
 % A Dictionary class
-% 
+%
 % Author: Eran Ofek (March 2021)
 % Example: D=Dictionary; D.unitTest
+
+% #functions (autogen)
+% Dictionary -
+% delete - destructor
+% get.FieldNames - Return field names for dictionary
+% get.LastNamePart - getter for the last name part in the name
+% get.NameParts - getter for NameParts - split names by '.'
+% getDict -
+% searchAlt - Return the key name from an alternate name in a dictionary
+% searchKey - Return alternate names of a specific key in a single dictionary
+% set.DictName - set Dictionary name and load it
+% string2funHandle - convert dictionary items thaatom&t start with '@' to a function handle
+% #/functions (autogen)
+%
 
 classdef Dictionary < Component
     
     properties (Dependent, SetAccess = private)
-        NameParts 
+        NameParts
         LastNamePart char         = '';
         FieldNames cell           = {};
     end
@@ -56,8 +70,8 @@ classdef Dictionary < Component
             
             % search the dictionary
             Obj.DictName = Val;
-            %Obj.Dict = 
-            %Obj.Conversion = 
+            %Obj.Dict =
+            %Obj.Conversion =
         end
         
         
@@ -136,7 +150,7 @@ classdef Dictionary < Component
                 end
                 
             end
-        end           
+        end
             
             
         function [Key, AltConv, AllAlt, FlagKey] = searchAlt(Obj, Alt, Args)
@@ -246,7 +260,7 @@ classdef Dictionary < Component
             else
                 % Already exist
             end
-            Result = Comp;                         
+            Result = Comp;
         end
     end
     

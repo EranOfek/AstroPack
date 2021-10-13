@@ -9,7 +9,42 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef catsHTM 
+% #functions (autogen)
+% catalogs - List of catsHTM catalogs Example: Data = catsHTM.catalogs
+% catalogs_html - generate an html table of catalogs Example: catsHTM.catalogs_html
+% cone_search - Cone earch on local HDF5/HTM catalog Package: @catsHTM Description: Perform a cone search around RA/Dec on a local catalog in HDF5 format sorted into HTM.
+% count_edge_in_cat - Example: catsHTM.count_edge_in_cat('APASS');
+% create_catalog_lists4wget - Create list of catalogs foe wget including checsums
+% create_indiv_catalog_lists4wget - Create list of individual catalogs for wget including checsums
+% filename2base - Convert HDF5/HTM file name to catalog name (file base name) Package: @catsHTM Description: Convert HDF5/HTM file name (e.g., 'APASS_htm.hdf5') to catalog name (file base name; e.g., 'APASS').
+% generate_edge_cat - OBSOLOTE
+% get_file_var_from_htmid - Construct file and var name for HTM file stored in HDF5 Package: @catsHTM Description: Given a file base (e.g., 'UCAC4') and HTM ID and number of files in HDF5 file, construct the HDF5 file name (e.g., UCAC4_htm_032400.hdf5),
+% get_index_filename - Get HDF5/HTM index file name and variable name from CatName Package: @catsHTM Description: Get HDF5/HTM index file name and variable name from CatName.
+% get_nsrc - Count number of sources over all HTM in HDF5 files Package: @catsHTM
+% htm_search_cone - Search for all HTM leafs interscting a small circle (cone search) Package: @catsHTM Description: Search for all HTM leafs interscting a small circle (i.e., cone search).
+% load_1htm - Load a single tile of HDF5/HTM catalog Package: @catsHTM Description: Load a single HTM tile of HDF5/HTM catalog based on its HTM index. This is slower relative to catsHTM.load_cat,
+% load_cat - Load catalog stored in an HDF5 file Package: @catsHTM Description: Load catalog stored in an HDF5 file. Given a a catalog in HDF5 file created by HDF5.save_cat, load the catalog. The catalog is
+% load_cat_edge - Load and concat HDF5/HTM catalog and its edge catalog Package: @catsHTM Description: Load and concat HDF5/HTM catalog and its edge catalog
+% load_cat_with_edges - load catalogs from all HTMs near a specific HTM triangle. Package: @catsHTM Description:
+% load_colcell - Load ColCell and ColUnits for an HDF5/HTM catalog Package: @catsHTM
+% load_htm_ind - load HTM data into structure from an HDF5 file Package: @catsHTM Description: load HTM data into structure from an HDF5 file
+% load_multiple_cats - Load HDF5/HTM catalog from multiple files/datasets Package: @catsHTM Description: Load HDF5/HTM catalog from multiple files/datasets Not as fast as expected.
+% nsrc - Count sources in the HDF5/HTM index file Package: @catsHTM Description: Count sources in the HDF5/HTM index file
+% plot_density - Plot a catsHTM catalog surface density Package: @catsHTM Description: Plot a catsHTM catalog surface density in sources per deg^2 or sources per HTM on a celestial sphere map.
+% read_colnames - read HDF5 catalog column names from index file Package: @catsHTM
+% reference - Get references for an HDF5/HTM catalog Package: @catsHTM Description: Get references for an HDF5/HTM catalog
+% save_cat - save catalog data in HDF5 file Package: @catsHTM Description: save catalog data in HDF5 file Given a matrix containing a catalog, save the data in an HDF5 file. The data will be saved
+% save_cat_colcell - Save ColCell cell array of an HTM catalog Package: @catsHTM
+% save_htm_ind - Save HTM indinces of the celestial sphere in an HDF5 file Package: @catsHTM Description: Generate HDF5 file with HTM indices. The HTM indices contains the HTM tree and the 3 poles of the 3 great circles that defines each
+% search_htm_ind - A coordinate cone search in an HTM stored in HDF5 file. Package: @catsHTM Description: A coordinate cone search in an HTM stored in HDF5 file. See also: celestial.htm.htm_search_cone
+% serial_search - Execute a function on entire HDF5/HTM catalog Package: @catsHTM Description: Execute a function on entire HDF5/HTM catalog. This can be used for selection of sources based on any parameters.
+% serial_search_x - Execute a function on entire HDF5/HTM catalog Package: @catsHTM Description: Execute a function on entire HDF5/HTM catalog. This can be used for selection of sources based on any parameters.
+% sources_match - Match sources in an input catalog with catsHTM catalog Package: @catsHTM Description: Given a catalog of sources with their RA/Dec, match each one of them to a source in an catsHTM catalog.
+% xmatch_2cats - Cross match two HDF5/HTM catalogs Package: @catsHTM Description: Cross match two HDF5/HTM catalogs. For each source in the first catalog the index of the nearest source, within some distance, in the
+% #/functions (autogen)
+%
+
+classdef catsHTM
              
     
     % file and variable names
@@ -24,7 +59,7 @@ classdef catsHTM
             %            "_", where the first string is the catalog name.
             % Output : - Catalog name.
             % Example: CatName=catsHTM.filename2base('SDSSDR10_htm.hdf5')
-            % Reliable: 
+            % Reliable:
             
              Tmp = regexp(FileName,'_','split');
              CatName = Tmp{1};
@@ -839,7 +874,7 @@ classdef catsHTM
             N = numel(Data);
             
             Text = '';
-            Text = sprintf('%s <table><tr><th> Name </th> <th> Description</th> <th>wget file</th> <th>checksum</th> <th> Nsrc</th><th>Reference</th> </tr>\n',Text); 
+            Text = sprintf('%s <table><tr><th> Name </th> <th> Description</th> <th>wget file</th> <th>checksum</th> <th> Nsrc</th><th>Reference</th> </tr>\n',Text);
             for I=1:1:N
                 I
                
@@ -1064,7 +1099,7 @@ classdef catsHTM
                     error('If HTM and LevelH are not provided, Level must be provided');
                 end
 
-                [HTM,LevelH] = celestial.htm.htm_build(Args.Level);   % < from input   
+                [HTM,LevelH] = celestial.htm.htm_build(Args.Level);   % < from input
             else
                 HTM    = Args.HTM;
                 LevelH = Args.LevelH;
@@ -1141,7 +1176,7 @@ classdef catsHTM
             % get file/dataset name for all IDs
             [FileName,DataName] = catsHTM.get_file_var_from_htmid(CatName,ID,NfilesInHDF);
             
-            % select unique files 
+            % select unique files
             FileID = floor(ID./NfilesInHDF).*NfilesInHDF;
             UniqueFID = unique(FileID);
             Nufid = numel(UniqueFID);
@@ -1158,9 +1193,9 @@ classdef catsHTM
         end
         
         function [Cat,EdgeOk]=load_cat_edge(CatName,IndHTM,NfilesInHDF)
-            % Load and concat HDF5/HTM catalog and its edge catalog 
+            % Load and concat HDF5/HTM catalog and its edge catalog
             % Package: @catsHTM
-            % Description: Load and concat HDF5/HTM catalog and its edge catalog 
+            % Description: Load and concat HDF5/HTM catalog and its edge catalog
             % Input  : - Catalog base name.
             %          - HTM index.
             %          - Number of HTM datasets in file. Default is 100.
@@ -1289,7 +1324,7 @@ classdef catsHTM
             % Output : - A structure array containing the HTM structure.
             %          - Thr matrix containing the HTM data.
             % Example: HTM=catsHTM.load_htm_ind('try_htm.hdf5','HTM');
-            % Reliable :2 
+            % Reliable :2
             
             if (nargin<2)
                 Tmp = regexp(FileName,'_','split');
@@ -1421,7 +1456,7 @@ classdef catsHTM
                         %ID = cat(2,ID,celestial.htm.htm_search_cone(HTM,Long,Lat,Radius,Ind));
                     end
                 end
-            end  
+            end
             
         end
         
@@ -1665,7 +1700,7 @@ classdef catsHTM
 %                     else
 %                         Cat = HDF5.load(FileName,DataName);
 %                     end
-%                     
+%
 %                     %Ncol = size(Cat,2);
 %                 else
 %                     if Args.UseIndex
@@ -1820,7 +1855,7 @@ classdef catsHTM
                         CatM.Match(Isrc,:) = CatH(Ind,:);
                         CatM.Dist(Isrc)    = Dist;
                         CatM.Nmatch(Isrc)  = Nmatch;
-                    end                
+                    end
                 end
             end
             CatM.ColCell = ColCellH;
@@ -1890,7 +1925,7 @@ classdef catsHTM
                 Args.FunXPar               = {};
                 Args.SearchRadius         = 100;  % [arcsec]
                 Args.SearchRadiusUnits    = 'arcsec';
-                Args.ColDec               = 2;          
+                Args.ColDec               = 2;
                 Args.Verbose              = true;
             end
                         
@@ -2014,7 +2049,7 @@ classdef catsHTM
                 Args.FunXPar               = {};
                 Args.SearchRadius         = 100;  % [arcsec]
                 Args.SearchRadiusUnits    = 'arcsec';
-                Args.ColDec               = 2;   
+                Args.ColDec               = 2;
             end
             
             SearchRadius = convert.angular(Args.SearchRadiusUnits,'rad',Args.SearchRadius);  % [rad]
@@ -2361,8 +2396,8 @@ classdef catsHTM
         
        
 %         function xmatch_save_index(Cat1,Cat2matched,Cat1ID,Cat2matchedID,CatBaseName)
-%             % 
-%           
+%             %
+%
 %         end
     end
     
@@ -2442,7 +2477,7 @@ classdef catsHTM
                     shading interp
                     colorbar
                 case 'scatterm'
-                    axesm(Args.Projection); 
+                    axesm(Args.Projection);
                     framem
                     H=scatterm(Table(:,2),Table(:,1),Args.MarkerSize,Table(:,3),'filled');
                     colorbar
@@ -2454,13 +2489,13 @@ classdef catsHTM
 %             Lon = (-180:Args.Step:180);
 %             Lat = (-90:Args.Step:90);
 %             [MLon,MLat] = meshgrid(Lon,Lat);
-%              
+%
 %             F.Method = 'nearest';
 %             Ninterp = F(MLat,MLon);
 %             surface(Lat,Lon,Ninterp');
 %             shading interp
 %             colorbar
-%             
+%
    
 
         end

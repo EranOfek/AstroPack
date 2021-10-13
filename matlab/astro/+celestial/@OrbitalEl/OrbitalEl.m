@@ -1,9 +1,40 @@
+% OrbitalEl
+%
+
+% #functions (autogen)
+% OrbitalEl - Constractor for OrbitalEl class
+% eccAnom2radius - Eccentric anomaly to radius vector
+% eccAnom2trueAnom - Eccentric Anomaly to True Anomaly
+% ephem - Calculate epjemerides for OrbitalEl object. For each orbital-element or time, return the Geocentric or topocentric ephemerides of the target. For definitions and formulae, see Explanatory Supplement to the Astronomical
+% get.A - getter for A (semi-major axis)
+% get.PeriDist - getter for A (semi-major axis)
+% get.Tp - getter for periapsis time [JD]
+% keplerSolve - Solve the Kepler equation for OrbitalEl object. For elliptic, parabolic, and hyperbolic orbits Simoultanously solves multiple orbtial elemsnts for a single time or for vector of times of the same length, or a single orbital element at multiple times.
+% loadSolarSystem - Load the JPL Solar System orbital elements from local disk To install the orbotal elements use the Installer class.
+% magnitude - Calculate magnitude for an OrbitalEl object
+% meanMotion - Return the mean motion [deg/day]
+% merge - Merge the orbital elements in several elements of the OrbitalEl object. This function is custom made for merging the JPL epehmerides, and may fail in other cases.
+% nuDot - Calculate the time derivative of the true anomaly Description: Calculate the time derivative of the true anomaly. Correct only for e<1
+% numEl - Return the number or orbital elements in each OrbitalEl element.
+% period - Return the orbital period
+% r2vel - Calculate orbital velocity from radius vector Description: Calculate orbital velocity from radius vector Correct only for e<1
+% rDot - Calculate the time derivative of the radius vector Description: Calculate the time derivative of the radius vector. correct only for e<1
+% searchMinorPlanetsNearPosition - Search all minor planets/comets near position on a specific date. Given an OrbitalEl object with multiple elements, in which each elements contains vectors of multiple orbital elements, generate epehmerides and search for all minor planets and comets that are near position (cone search).
+% selectFlag - Select specific orbital-elements (targets) from an OrbitalEl object.
+% semiLatusRectum - Return the semilatus rectum
+% table - Generate a matlab table or orbital elements from OrbitalEl object.
+% thiele_innes - Convert orbital elements to Thiele-Innes elements Description: Convert orbital elements to Thiele-Innes orbital elements.
+% trueAnom2eccAnom - True Anomaly to Eccentric Anomaly
+% trueAnom2radius - True anomaly to radius vector
+% trueAnom2rectPos - True anomaly and radius vector to rectangular position Description: True anomaly to rectangular position
+% #/functions (autogen)
+%
 
 classdef OrbitalEl < Base
     % OrbitalEl class for storing and manipulating orbital elements
 
     % Properties
-    properties 
+    properties
         Number
         Designation
         Node
@@ -526,7 +557,7 @@ classdef OrbitalEl < Base
             %          - Optional radius vector. If not given will be
             %            calculated from the True anaomaly.
             %          - Angilar units. Default is 'rad'.
-            % Output : * Either a single 3 column matrix of [X,Y,Z] or 
+            % Output : * Either a single 3 column matrix of [X,Y,Z] or
             %            X,Y,Z. Units the same as the radius vector units.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
             %          BodyPos = trueAnom2rectPos(OrbEl(1), 1, 1)
@@ -680,7 +711,7 @@ classdef OrbitalEl < Base
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
             %          JD = celestial.time.julday([9 9 2021])
             %          Cat = ephem(OrbEl, JD +(1:1:100)')
-            %          
+            %
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
             %          Cat = ephem(OrbEl, JD);
             %          tic;CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc
@@ -694,9 +725,9 @@ classdef OrbitalEl < Base
             %          % RA nd Dec diff between JPL and ephem:
             %          [CatE.Catalog(:,2) - CatJPL.Catalog(:,2), CatE.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
             %     hyperbolic orbit
-            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');   
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');
             %          JD = celestial.time.julday([1 1 2018 0]);
-            %          Cat = ephem(OrbEl, JD+(0:1./24:1), 'OutUnitsDeg',false);          
+            %          Cat = ephem(OrbEl, JD+(0:1./24:1), 'OutUnitsDeg',false);
             %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','A/2017 U1','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
             %          [Cat.Catalog(:,2) - CatJPL.Catalog(:,2), Cat.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
 
@@ -978,7 +1009,7 @@ classdef OrbitalEl < Base
                     Names(Iobj).Designation = cell(sizeCatalog(Result(Iobj)));
                 else
                     Names(Iobj).Designation = ObjNew(Iobj).Designation(Flag);
-                end                          
+                end
             end
             
             
@@ -1172,7 +1203,7 @@ classdef OrbitalEl < Base
             end
                 
         end
-    end  
+    end
 
 
     methods(Static) % Unit test

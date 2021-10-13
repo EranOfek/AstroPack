@@ -2,6 +2,12 @@
 % Discuess with @Eran
 %
 
+% #functions (autogen)
+% AstroDbOper - Obj.setName('AstroImageDb')
+% unitTest -
+% #/functions (autogen)
+%
+
 classdef AstroDbOper < handle
     
     properties (Hidden, SetAccess = public)
@@ -15,7 +21,7 @@ classdef AstroDbOper < handle
     end
     
 
-    methods % Constructor    
+    methods % Constructor
         
         function Obj = AstroDbOper
             % Obj.setName('AstroImageDb')
@@ -34,7 +40,7 @@ classdef AstroDbOper < handle
 
     end
     
-    % 
+    %
     
     % setters/getters
     methods
@@ -50,7 +56,7 @@ classdef AstroDbOper < handle
             io.msgStyle(LogLevel.Test, '@passed', 'AstroDbOper test passed')
             Result = true;
         end
-    end    
+    end
              
 
 end

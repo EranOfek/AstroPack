@@ -1,5 +1,27 @@
 % AstroCatalog class - A container of AstroTable with coordinates
 
+% #functions (autogen)
+% AstroCatalog - Constructor for AstroCatalog For parameters input see: AstroTable Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
+% boundingCircle - Fit a bounding circle position and radius to a catalog
+% convertCooUnits - convert all spherical coordinates Units for multiple element object
+% cropXY - crop AstroCatalog object by X/Y coordinates. Including updateing the X/Y coordinates. The function may operate on multiple AstroCatalog and/or multiple sections. For example, it can produce multiple crops of a single
+% getColCooForCooType - Get the X/RA and Y/Dec column indices for a specific CooType
+% getCommomCooType - get common CooType for two AstroCatalog objects.
+% getCooType - Return the Coordinate type of an AstroCatalog
+% getLonLat - Get Lon/Lat columns from AstroCatalog.
+% getRADecPM - get RA/Dec/PM/Plx/RV from astrometric catalog
+% getXY - Get X/Y columns from AstroCatalog.
+% help - show mlx help file for AstroCatalog
+% insertFlagColFromMask - Insert/replace FLAGS column in AstroCatalog as populated from a MaskImage object. Description: Given an AstroCatalog and a MaskImage objects, for each source in the AstroCatalog, search the FLAGS in the MaskImage (bitwise or/and) within a user provided radius (default is 3 pix). These FLAGS will be
+% isCooPix - Check if X/Y (pixel) coordinates exist in an AstroCatalog
+% isCooSphere - Check if RA/Dec (units) coordinates exist in an AstroCatalog
+% perfTest - perfTest for the AstroCatalog class
+% plotMapFun - A general map (RA/Dec) plotting function for AstroCatalog object
+% plotSources - Plot sources by their X/Y position, where the symbol size corresponds to magnitude.
+% sphere_dist - Calculate the spherical distance and PA between Lon,Lat in Astrocatalog and a Lon, Lat in array.
+% #/functions (autogen)
+%
+
 
 classdef AstroCatalog < AstroTable
     properties
@@ -29,7 +51,7 @@ classdef AstroCatalog < AstroTable
     
     methods % constructor
         function Obj = AstroCatalog(varargin)
-            % Constructor for AstroCatalog 
+            % Constructor for AstroCatalog
             % For parameters input see: AstroTable
             % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             
@@ -53,8 +75,8 @@ classdef AstroCatalog < AstroTable
 %             % getter for CooUnits - if empty, attempt to obtain from
 %             % catalog.
 %             % Note this is not cleared when the catalog is changed.
-%            
-%                 
+%
+%
 %             if isempty(Obj.CooUnits)
 %                 ColIndX = colname2ind(Obj, Obj.ColX);
 %                 ColIndY = colname2ind(Obj, Obj.ColY);
@@ -85,8 +107,8 @@ classdef AstroCatalog < AstroTable
 %             % them.
 %             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2)
 %             %          AC.CooUnits = 'rad';
-%             %          AC.CooUnits = 'deg';                     
-%             
+%             %          AC.CooUnits = 'deg';
+%
 %             if isempty(Obj.ColX) || isempty(Obj.ColY)
 %                 Obj.getCooTypeAuto;
 %             end
@@ -114,7 +136,7 @@ classdef AstroCatalog < AstroTable
 %                     Obj.ColUnits{ColIndY} = Val;
 %                 end
 %             end
-%                 
+%
 %             Obj.CooUnits = Val;
 %         end
     end
@@ -223,7 +245,7 @@ classdef AstroCatalog < AstroTable
             %          - An array of Y/Dec colum indices (one per element).
             % Author : Eran Ofek (Aug 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          [CooType, Units, ColX, ColY] = getCooType(AC);   
+            %          [CooType, Units, ColX, ColY] = getCooType(AC);
             
             CooType = cell(size(Obj));
             Units   = cell(size(Obj));
@@ -239,7 +261,7 @@ classdef AstroCatalog < AstroTable
             Units(IsPix)    = UnitsPix(IsPix);
             
             ColX(IsSphere) = ColRA(IsSphere);
-            ColY(IsSphere) = ColDec(IsSphere);            
+            ColY(IsSphere) = ColDec(IsSphere);
         end
         
         function [IsSphereBoth, IsPixBoth, CooType] = getCommomCooType(Obj1, Obj2)
@@ -324,22 +346,22 @@ classdef AstroCatalog < AstroTable
 %             %          - Y column index.
 %             % Author : Eran Ofek (Mar 2021)
 %             % Example: [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC(1));
-%            
+%
 %             arguments
 %                 Obj
 %                 Args.CaseSens(1,1) logical            = false;
 %                 Args.UpdateProp(1,1) logical          = true;
 %             end
-%             
-%             
+%
+%
 %             Nobj = numel(Obj);
 %             % search synonyms in config file
 %             %warning('Search synonym in config file does not operational yet');
-%             
+%
 %             for Iobj=1:1:Nobj
 %                 SynonymCell_RA  = Obj(Iobj).DefNamesRA;
 %                 SynonymCell_Dec = Obj(Iobj).DefNamesDec;
-% 
+%
 %                 [Name_RA,  IndInCell_RA,  IndInSynonym_RA]  = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
 %                 [Name_Dec, IndInCell_Dec, IndInSynonym_Dec] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
 %                 if isempty(IndInCell_RA) || isempty(IndInCell_Dec)
@@ -348,18 +370,18 @@ classdef AstroCatalog < AstroTable
 %                     % spherical coordinates found in AstroCatalog
 %                     CooType = 'sphere';
 %                 end
-% 
+%
 %                 switch lower(CooType)
 %                     case 'pix'
 %                         SynonymCell_X = Obj(Iobj).DefNamesX;
 %                         SynonymCell_Y = Obj(Iobj).DefNamesY;
-% 
+%
 %                         [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_X, 'CaseSens', Args.CaseSens);
 %                         [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Y, 'CaseSens', Args.CaseSens);
 %                     case 'sphere'
 %                         SynonymCell_RA  = Obj(Iobj).DefNamesRA;
 %                         SynonymCell_Dec = Obj(Iobj).DefNamesDec;
-% 
+%
 %                         [NameX, IndInCellX, IndInSynonymX] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_RA,  'CaseSens', Args.CaseSens);
 %                         [NameY, IndInCellY, IndInSynonymY] = AstroTable.searchSynonym(Obj(Iobj).ColNames, SynonymCell_Dec, 'CaseSens', Args.CaseSens);
 %                     otherwise
@@ -369,7 +391,7 @@ classdef AstroCatalog < AstroTable
 %                 NameY = NameY{1};
 %                 CooUnitsX = Obj(Iobj).ColUnits{IndInCellX};
 %                 CooUnitsY = Obj(Iobj).ColUnits{IndInCellY};
-%                 
+%
 %                 if Args.UpdateProp
 %                     Obj(Iobj).CooType = CooType;
 %                     Obj(Iobj).ColX    = IndInCellX;
@@ -380,8 +402,8 @@ classdef AstroCatalog < AstroTable
 %                     Obj(Iobj).CooUnits = CooUnitsX;
 %                 end
 %             end
-%             
-%             
+%
+%
 %         end
         
         function Obj = convertCooUnits(Obj, Units, DicCooRA, DicCooDec)
@@ -419,8 +441,8 @@ classdef AstroCatalog < AstroTable
                         Obj(Iobj).ColUnits{ColRA(Iobj)}  = Units;
                         Obj(Iobj).ColUnits{ColDec(Iobj)} = Units;
                     end
-                end                
-            end            
+                end
+            end
             
         end
         
@@ -437,32 +459,32 @@ classdef AstroCatalog < AstroTable
 %             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
 %             %          [RA, Dec] = AC.getCoo('deg');
 %             %          [RADec]   = AC.getCoo('rad');
-%             
+%
 %             arguments
 %                 Obj(1,1)
 %                 Units char                = 'rad';
 %             end
-%            
+%
 %             if isempty(Obj.ColX) || isempty(Obj.ColY)
 %                 Obj.getCooTypeAuto;
 %             end
-%             
+%
 %             X = getCol(Obj, Obj.ColX);
 %             Y = getCol(Obj, Obj.ColY);
-%             
+%
 %             if strcmp(Obj.CooType, 'sphere') && ~strcmp(Obj.CooUnits, Units)
 %                 ConvFactor = convert.angular(Obj.CooUnits, Units, 1);
 %                 X          = X.*ConvFactor;
 %                 Y          = Y.*ConvFactor;
 %             end
-%             
+%
 %             if nargout>1
 %                 varargout{1} = X;
 %                 varargout{2} = Y;
 %             else
 %                 varargout{1} = [X, Y];
 %             end
-%             
+%
 %         end
         
         function [varargout] = getLonLat(Obj, Units, Args)
@@ -876,7 +898,7 @@ classdef AstroCatalog < AstroTable
             %            'BitWiseOperator' - Bit-wise Operator: ['or'] | 'and'
             %            'HalfSize' - Cutout half size (actual size will be
             %                   1+2*HalfSize. Default is 3.
-            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
@@ -925,7 +947,7 @@ classdef AstroCatalog < AstroTable
                                                                           'IsCircle',Args.IsCircle,...
                                                                           'DataProp',Args.DataProp);
             % cast the Type of the new column into the type of the Catalog
-            % (if array). 
+            % (if array).
             % If catalog is table then ignore
             if Args.CastToType && ~istable(Obj.Catalog)
                 FlagColData = cast(FlagColData, class(Obj.Catalog));
@@ -942,18 +964,18 @@ classdef AstroCatalog < AstroTable
             % A general map (RA/Dec) plotting function for AstroCatalog object
             % Input  : - A single element AstroCatalog object.
             %          - Map projection. See axesm for options.
-            %            Default is 'aitoff'. 
+            %            Default is 'aitoff'.
             %          - Plot function handle. e.g., @plotm.
             %            Default is @plotm.
             %          - Cell array of additional columns (to Dec, RA) to pass to the
             %            plot function (e.g., in the case of @scatterm).
             %            Default is {}.
             %          * Additional arguments to pass to the plot function.
-            % Output : - 
+            % Output : -
             % Author : Eran Ofek (Apr 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
             %          AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1)
-            %          
+            %
             %          AC.plotMapFun('aitoff',@scatterm,{'mag1','sep1'},'.','MarkerSize',1)
             
             if nargin<4
@@ -994,11 +1016,11 @@ classdef AstroCatalog < AstroTable
             % Plot sources by their X/Y position, where the symbol size corresponds to magnitude.
             % Input  : - A single element AstroCatalog object.
             %          * ...,key,val,...
-            %            'ColX' - A cell array of X column names dictionary. 
+            %            'ColX' - A cell array of X column names dictionary.
             %                   Default is AstroCatalog.DefNamesX.
-            %            'ColY' - A cell array of Y column names dictionary. 
+            %            'ColY' - A cell array of Y column names dictionary.
             %                   Default is AstroCatalog.DefNamesY.
-            %            'ColMag' - A cell array of Mag column names dictionary. 
+            %            'ColMag' - A cell array of Mag column names dictionary.
             %                   Default is AstroCatalog.DefNamesMag.
             %            'MinMaxSize' - [Min Max] of symbol size area.
             %                   Scaled from magnitude.
@@ -1006,7 +1028,7 @@ classdef AstroCatalog < AstroTable
             %            'InvertScaling' - Invert magnitude to size scaling
             %                   (brighter is bigger). Default is true.
             %            'Color' - Symbol color. Default is 'k'.
-            % Example: AT = AstroCatalog({rand(100,3)},'ColNames',{'X','Y','Mag'}); 
+            % Example: AT = AstroCatalog({rand(100,3)},'ColNames',{'X','Y','Mag'});
             %          AT.plotSources
             %          CC=catsHTM.cone_search('GAIAEDR3', '01:21:39.560','+15:12:25.70',600,'OutType','AstroCatalog');
             %          CC.plotSources('ColX',{'RA'},'ColY',{'Dec'})
@@ -1056,7 +1078,7 @@ classdef AstroCatalog < AstroTable
             
             
 
-            cd(PWD);           
+            cd(PWD);
             io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog perfTest passed')
             Result = true;
         end

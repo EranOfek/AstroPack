@@ -3,8 +3,13 @@
 % Description: BackImage inherits from ImageComponent and it doesn't have
 %   any special capabilities. It is intended for storing background images.
 % Author : Eran Ofek (Apr 2021)
-% Dependencies: 
+% Dependencies:
 % Example : B = BackImage;
+
+% #functions (autogen)
+% BackImage - Constructor of BackImage class using the superclass (ImageComponent) constructor
+% #/functions (autogen)
+%
 
 classdef BackImage < ImageComponent
     
@@ -12,7 +17,7 @@ classdef BackImage < ImageComponent
     end
     
  
-    properties (Dependent) % Access image data directly        
+    properties (Dependent) % Access image data directly
     end
     
     properties (SetAccess = public)
@@ -25,7 +30,7 @@ classdef BackImage < ImageComponent
             % Constructor of BackImage class using the superclass
             % (ImageComponent) constructor
             
-            Obj@ImageComponent(varargin{:});           
+            Obj@ImageComponent(varargin{:});
         end
 
     end

@@ -1,25 +1,33 @@
 % Automatic scope/function entry/exit logger
 
-classdef FuncLog < handle   
+% #functions (autogen)
+% FuncLog - Constructor
+% delete - Destructor
+% unitTest -
+% unitTestHelper1 - Test auto-destructor
+% #/functions (autogen)
+%
+
+classdef FuncLog < handle
     
     % Properties
     properties (SetAccess = public)
         Title       % Function/scope title
     end
     
-    %-------------------------------------------------------- 
+    %--------------------------------------------------------
     methods
         function Obj = FuncLog(Title)
-            % Constructor               
+            % Constructor
             Obj.Title = Title;
             io.msgStyle(LogLevel.Debug, '@start', 'Func Start: %s', Obj.Title);
         end
         
         
         function delete(Obj)
-            % Destructor            
+            % Destructor
             io.msgStyle(LogLevel.Debug, '@done', 'Func Done: %s', Obj.Title);
-        end        
+        end
     end
    
     
@@ -58,8 +66,8 @@ classdef FuncLog < handle
         function unitTestHelper1()
             % Test auto-destructor
             io.FuncLog('unitTestHelper test');
-        end        
-    end    
+        end
+    end
     
 end
 

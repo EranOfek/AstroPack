@@ -15,7 +15,30 @@
 %   addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data.
 %   getMatrix - Get matrix using field name.
 %   summary   - Summary of a specific field matrix in MatchedSources.
-%   plotRMS   - plot rms of mag vs. mag 
+%   plotRMS   - plot rms of mag vs. mag
+
+% #functions (autogen)
+% addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data Obj = addMatrix(Obj, Matrix, FieldName)
+% deleteMatrix - remove matrix and field name from an MatchedSources object
+% designMatrix - Generate a general purpose design matrix from an MatchedSources object Description: Construct a design matrix of the form: H = [FunCell{1}(Col1), FunCell{2}(Col2), ...] where the FunCell are user provided functionals, and Col are the MatchedSources matrix of a
+% designMatrixCalib - Generate the design matrix for relative photometric calibration Reference: Ofek+2011
+% get.Fields - getter for Fields
+% get.JD - getter for JD (return 1..Nepoch) if doesnt exist
+% get.Nepoch - getter for Nepoch
+% get.Nsrc - getter for Nsrc
+% getFieldNameDic - Get field name in MatchedSources Data properties that first appear in a dictionary (cell array).
+% getLC_ind - get the LC [JD, Mag] of a source by its index (column number)
+% getLonLat - Get data matrices containing the RA/Dec fields.
+% getMatrix - Get matrix using field name
+% notNanEpochs - Return a vector of logicals indicating epochs which do have any NaNs in their data.
+% notNanSources - Return a vector of logicals indicating soueces which do have any NaNs in theor data.
+% plotRMS - plot rms of a propery (field) vs. its mean.
+% read - read mat file or HDF5 file containing MatchedSources
+% statSummary - Calculate statistical summary properties of a data property in a MatchedSources object.
+% summary - Summary of a specific field matrix in MatchedSources
+% write - Write a MatchedSources object to HDF5 or mat file
+% #/functions (autogen)
+%
 
 classdef MatchedSources < Component
     properties
@@ -206,9 +229,9 @@ classdef MatchedSources < Component
         end
     end
     
-    methods (Static) 
+    methods (Static)
         function H=designMatrixCalib(Nep, Nsrc, Args)
-            % Generate the design matrix for relative photometric calibration 
+            % Generate the design matrix for relative photometric calibration
             % Reference: Ofek+2011
             % Input  : - Number of epochs.
             %          - Number of sources.
@@ -263,7 +286,7 @@ classdef MatchedSources < Component
                     otherwise
                         error('Unknown SrcPropCoefType option');
                 end
-                FilledVal = FilledVal + Nsrc.*Nep;                                         
+                FilledVal = FilledVal + Nsrc.*Nep;
             end
             
             if Args.UseSparse
@@ -342,7 +365,7 @@ classdef MatchedSources < Component
                 end
                     
                         
-            end 
+            end
         end
         
     end
@@ -413,7 +436,7 @@ classdef MatchedSources < Component
             
                 [Res, Summary, N_Ep] = imProc.match.matched2matrix(Matrix, FieldName, true);
                 Obj.addMatrix(Res);
-%                 
+%
 %                 Nepoch = numel(Matrix);
 %                 Nfn = numel(FieldName);
 %                 for Ifn=1:1:Nfn
@@ -486,7 +509,7 @@ classdef MatchedSources < Component
             %            first field. Default is ''.
             % Output : - A structure of summary information
             % Author : Eran Ofek (Jun 2021)
-            % Example: MS=MatchedSources;                
+            % Example: MS=MatchedSources;
             %          MS.addMatrix(rand(100,200),'FLUX');
             %          MS.summary
             %          MS.summary('FLUX')
@@ -802,7 +825,7 @@ classdef MatchedSources < Component
             %          Result = statSummary(MS);
 
             arguments
-                Obj 
+                Obj
                 FieldNameDic                = AstroCatalog.DefNamesMag;
             end
 
@@ -824,7 +847,7 @@ classdef MatchedSources < Component
                 Result(I).Max      = max(Data, [], 1, 'omitnan');
             end
 
-       end 
+       end
         
     end
     

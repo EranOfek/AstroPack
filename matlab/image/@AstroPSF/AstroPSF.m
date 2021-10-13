@@ -9,7 +9,23 @@
 %       ArgNames - The argument names.
 %       StampSize - PSF stamp size.
 % Functionality :
-%       
+%
+
+% #functions (autogen)
+% AstroPSF -
+% curve_of_growth - Calculate curve of growth of a PSF includinf radii
+% funUnary -
+% fwhm - Calculate the FWHM of a PSF using the curve of growth (for alternative method use moment2).
+% get.Data - getter for Dependent property Data
+% get.Var - getter for Dependent property Var
+% getPSF - get PSF from AstroPSF object
+% images2cube - Transform an array of AstroPSF into a cube of PSFs
+% moment2 - Calculate the moments and perture photometry of PSFs using the imUtil.image.moment2 function.
+% multiGaussianPSF - I = G1(x,y, sigmaX(X,Y,Color,Flux), sigmaY(X,Y,Color,Flux), rho(X,Y,Color,Flux) )
+% set.Data - setter for Dependent property Data
+% set.Var - setter for Dependent property Var
+% #/functions (autogen)
+%
 
 % TODO:
 %   1. resampling and scaling of PSF
@@ -18,7 +34,7 @@
 %   3. Info about how the PSF was generated
 
 classdef AstroPSF < Component
-    properties (Dependent) % Access image data directly    
+    properties (Dependent) % Access image data directly
         Data
         Var
     end
@@ -94,7 +110,7 @@ classdef AstroPSF < Component
             %         - ArgNames (like DataPSF). Default is [].
             % Output : - A PSF stamp.
             % Author : Eran Ofek
-            % Example: 
+            % Example:
             
             arguments
                 Obj(1,1)
@@ -255,7 +271,7 @@ classdef AstroPSF < Component
             %            'mexCutout' - use imUtil.image.mexCutout.m (true) or
             %                       imUtil.image.find_within_radius_mat (false).
             %                       Default is true.
-            % Output  : - First moment information. 
+            % Output  : - First moment information.
             %             A structure with the following fields.
             %             .RoundX - Vector of roundex X position
             %             .RoundY - Vector of roundex Y position
@@ -289,7 +305,7 @@ classdef AstroPSF < Component
             %          [M1,M2,Aper] = moment2(AP);
             
             arguments
-                Obj  
+                Obj
                 Args.AperRadius   {mustBeNumeric(Args.AperRadius)} = [2 4 6];
                 Args.Annulus      {mustBeNumeric(Args.Annulus)}    = [8 12];
                 Args.BackFun                                       = @tools.math.stat.nanmedian;
@@ -298,7 +314,7 @@ classdef AstroPSF < Component
                 Args.WeightFun                                     = 2;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
                 Args.Circle(1,1) logical                           = false;
                 Args.MaxIter      {mustBeNumeric(Args.MaxIter)}    = 10;
-                Args.NoWeightFirstIter(1,1) logical                = true; 
+                Args.NoWeightFirstIter(1,1) logical                = true;
                 Args.PosConvergence                                = 1e-4;
                 Args.DynamicWindow(1,1) logical                    = true;
                 Args.WindowOnlyOnLastIter(1,1) logical             = false;
@@ -343,7 +359,7 @@ classdef AstroPSF < Component
         end
         
 %         function fitGaussians
-%             
+%
 %         end
     end
     
@@ -387,19 +403,19 @@ classdef AstroPSF < Component
         end
         
 %         function selectPSF
-%             
+%
 %         end
         
 %         function combinePSF
-%             
+%
 %         end
 
 %         function fit
-% 
+%
 %         end
         
 %         function pad
-% 
+%
 %         end
 
     end

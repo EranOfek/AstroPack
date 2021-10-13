@@ -5,6 +5,16 @@
 %   copyProp - Copy specific properyies from one object to another
 %--------------------------------------------------------------------------
 
+% #functions (autogen)
+% Base - Constructor
+% copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+% copyProp - Copy the content of properties from Obj into Target.
+% createNewObj - A utility function for creation of an object new copy based on nargout
+% openMLX - added by O.S., opens the MLX of the class, Run by using: classname.empty.openMLX
+% setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied
+% #/functions (autogen)
+%
+
 %
 % Making a DEEP Copy: Copy each property value and assign it to the new
 % (copied) property. Recursively copy property values that reference handle
@@ -18,13 +28,13 @@
 % < matlab.mixin.Copyable
 %
 % Notes:
-%    Singleton: In software engineering, the singleton pattern is a software 
-%               design pattern that restricts the instantiation of a class to one 
-%               "single" instance. This is useful when exactly one object is needed 
+%    Singleton: In software engineering, the singleton pattern is a software
+%               design pattern that restricts the instantiation of a class to one
+%               "single" instance. This is useful when exactly one object is needed
 %               to coordinate actions across the system.
 %
 %--------------------------------------------------------------------------
-% 
+%
 % Consider using HandleCompatible to allow inheritace by both handle
 % and value classes:
 %
@@ -150,7 +160,7 @@ classdef Base < matlab.mixin.Copyable
         end
     end
 
-    %----------------------------------------------------------------------    
+    %----------------------------------------------------------------------
     %Todo: Chen how to open the manual of the actual class
     %Check if there is somethink like @classmethod of python:
     %https://www.geeksforgeeks.org/classmethod-in-python/
@@ -159,7 +169,7 @@ classdef Base < matlab.mixin.Copyable
     %         % show mlx help file for AstroCatalog
     %         open manuals.AstroCatalog
     %     end
-    % end    
+    % end
 
     % https://www.mathworks.com/matlabcentral/answers/525877-link-to-section-in-another-live-script
     % function open_local_mlx(mlxname, lineNum)

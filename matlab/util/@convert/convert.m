@@ -22,7 +22,36 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-classdef convert 
+% #functions (autogen)
+% angular - Convert angular units Package: @convert Description: Convert angular units.
+% conversion -
+% date2jd - Convert Julian/Gregorian date to Julian Day Package: @convert Description: Convert Julian/Gregorian date to Julian Day.
+% date2str - Convert date [D M Y H M S] to an ISO date string Package: @convert Description: Convert date [D M Y H M S] to an ISO date string: YYYY-MM-DDTHH:MM:SS.FFF
+% dms2angle - Convert Sign,Deg,Minutes,Seconds to angle. Package: @convert Description: Convert Sign,Deg,Minutes,Seconds to angle.
+% energy - Convert between different energy units Package: @convert Description: Convert between different energy units.
+% flux - Convert between different flux units Package: @convert Description: Convert between different flux units
+% flux2mag - Convert flux to magnitude or luptitude Package: @convert Description: Convert flux to magnitude or luptitude.
+% frac2hms - Convert fraction to [H M S] Package: @convert Description: Convert fraction to [H M S]. Note that if the seconds or minutes are printed as 60 it means that they are actually 60-eps.
+% hms2angle - Convert Hour,Minutes,Seconds to angle. Package: @convert Description: Convert Hour,Minutes,Seconds to angle.
+% hms2frac - Convert [H M S] to fraction Package: @convert Description: Convert [H M S] to fraction.
+% hour_str2frac - Convert hour string to fraction of day Package: @convert Description: Convert a string or cell array of strings containing the hour in format HH:MM:SS.frac' to fraction of day.                                   Input  : - String or cell array of strings containing the hour in                                               format HH:MM:SS.frac'.
+% jd2date - Convert Julian days to Gregorian/Julian date Package: @convert Description: Convert Julian days to Gregorian/Julian date.
+% length - Convert length units
+% luptitude - Convert flux to luptitudes (asinh magnitudes) Package: @convert Description: Convert flux to luptitudes (asinh magnitudes).
+% mass - Convert between different mass units Package: @convert Description: Convert between different mass units
+% minusPi2Pi - convert angular units to -pi to pi range
+% proper_motion - Convert proper motion units of the form 'angle/time'
+% str2date - Convert a ISO time string  to matrix of times Package: @convert Description: Convert a string or a cell array of string containing date and time in the format 'YYYY-MM-DD HH:MM:SS.frac' or 'YYYY-MM-DD', to a matrix of dates with the following
+% sum_mag - Sum magnitudes Package: @convert Description: Sum a set of magnitudes.
+% temp - Temperature conversion Package: @convert Description: Convert between temperature systems.
+% time - Convert between different types of time systems and years Package: @convert Description: Convert between different types of time systems and years. For example, this program can convert Julian years to Besselian years or JD
+% timeUnits - convert time units
+% units - Unit conversion Package: @convert Description: Unit conversion function. Given an input and output strings containing unit names, return the conversion multiplication factor needed for converting the input units to the output
+% velocity - Convert velocity units of the form 'length/time'
+% #/functions (autogen)
+%
+
+classdef convert
              
     
     methods (Static)
@@ -32,7 +61,7 @@ classdef convert
             % Unit conversion
             % Package: @convert
             % Description: Unit conversion function. Given an input and output strings
-            %              containing unit names, return the conversion multiplication 
+            %              containing unit names, return the conversion multiplication
             %              factor needed for converting the input units to the output
             %              units. The user is responsible for the balance of the
             %              transformation.
@@ -70,7 +99,7 @@ classdef convert
             % Output : - Multiplication factor for converting input units to
             %            output units.
             %          - The input value given in the output units.
-            %          - A string describing the transformation (e.g., 
+            %          - A string describing the transformation (e.g.,
             % Example : convert.units('m^3 * kg^-1 * s^-2','cm^3 * gr^-1 * s^-2')
             % Tested : Matlab 6.5
             %     By : Eran O. Ofek                    Jul 2003
@@ -585,7 +614,7 @@ classdef convert
             %            'cal'   - calorie (4.184 J)
             %            'Btu'   - (1.055x10^3 J)
             %            'kWh'   - kilowatt-hour (3.6x10^6 J)
-            %            'TNT'   - one ton of TNT (4.2x10^9 J) 
+            %            'TNT'   - one ton of TNT (4.2x10^9 J)
             %            'gr'    - Energy equivalent of 1 gram of matter (9x10^13 J)
             %          - Output system (see input system for options).
             %          - Input energy value to convert. Default is 1.
@@ -621,7 +650,7 @@ classdef convert
                 Erg2Erg = 1;
                 Erg2J   = 1e-7;
                 Erg2Hz  = 1.5092e26;
-                Erg2A   = 1.9864e-8; 
+                Erg2A   = 1.9864e-8;
                 Erg2eV  = 6.2415e11;
                 Erg2T   = 7.2430e15;
                 Erg2me  = 1.2214e6;
@@ -842,7 +871,7 @@ classdef convert
                    Out = Flux_mJy./(h.*Freq_Hz    ./1e-26);
                 otherwise
                     error('Unknown OutUnits option');
-            end 
+            end
 
         end % convert.flux function
         
@@ -937,7 +966,7 @@ classdef convert
         function Mag=flux2mag(Flux,ZP,Luptitude,Soft)
             % Convert flux to magnitude or luptitude
             % Package: @convert
-            % Description: Convert flux to magnitude or luptitude. 
+            % Description: Convert flux to magnitude or luptitude.
             % Input  : - Flux
             %          - ZP
             %          - A flag indicating if to return Luptitude (true) or
@@ -980,7 +1009,7 @@ classdef convert
 
         end
         
-        function [SumMag,FracFlux]=sum_mag(Mag,Dim)      
+        function [SumMag,FracFlux]=sum_mag(Mag,Dim)
             % Sum magnitudes
             % Package: @convert
             % Description: Sum a set of magnitudes.
@@ -1029,7 +1058,7 @@ classdef convert
 %             %          convert.angular('rad','mas',1,'pix');
 %             % Reliable: 2
 %             %--------------------------------------------------------------------------
-% 
+%
 %             Def.Val = 1;
 %             Def.SpecialString = [];
 %             if (nargin==2),
@@ -1042,13 +1071,13 @@ classdef convert
 %             else
 %                 error('Illegal number of input arguments');
 %             end
-% 
-% 
+%
+%
 %             if any(strcmpi(In,SpecialString)),
 %                 % user used Special string - set output to 1
 %                 ConvVal = Val;
 %             else
-% 
+%
 %                 % Input: convert to deg
 %                 switch lower(In)
 %                     case {'rad','radian','radians'}
@@ -1071,7 +1100,7 @@ classdef convert
 %                         error('Unknown input angular units');
 %                 end
 %                 ConvVal = Val.*ConvVal;
-% 
+%
 %                 % Output: Convert from deg to requested output units
 %                 switch lower(Out)
 %                     case {'rad','radian','radians'}
@@ -1092,7 +1121,7 @@ classdef convert
 %                     otherwise
 %                         error('Unknown input angular units');
 %                 end
-%             end         
+%             end
 %        end % convert.length function
         
 
@@ -1129,7 +1158,7 @@ classdef convert
                     InHMS = {InHMS};
                 end
                 Ncoo   = numel(InHMS);
-                OutRad = zeros(size(InHMS)); 
+                OutRad = zeros(size(InHMS));
                 for Icoo=1:1:Ncoo
                     C = textscan(InHMS{Icoo},'%2d%*1c%2d%*1c%f');
                     OutRad(Icoo) = (double(C{1}) + double(C{2})./60 + C{3}./3600).*15.*InvRAD;
@@ -1169,7 +1198,7 @@ classdef convert
                     InDMS = {InDMS};
                 end
                 Ncoo   = numel(InDMS);
-                OutRad = zeros(size(InDMS)); 
+                OutRad = zeros(size(InDMS));
                 for Icoo=1:1:Ncoo
                     C = textscan(InDMS{Icoo},'%c%2d%*1c%2d%*1c%f');
                     Sign = 2.*(0.5-double(strcmp(C{1},'-')));  % 1 for -; 0 for other
@@ -1315,7 +1344,7 @@ classdef convert
                 case 'strdate'
                      JD = convert.date2jd(Input);
                 case 'strdateo'
-                     JD = convert.date2jd(Input);     
+                     JD = convert.date2jd(Input);
                 otherwise
                  error('Unknown InType option');
             end
@@ -1337,7 +1366,7 @@ classdef convert
                 case 'strdate'
                     Output = convert.date2str(convert.jd2date(JD,'H'));
                 case 'strdateo'
-                    Output = convert.date2str(convert.jd2date(JD,'H'));  
+                    Output = convert.date2str(convert.jd2date(JD,'H'));
                     Nout= numel(Output);
                     for Iout=1:1:Nout
                         Output{Iout} = Output{Iout}(1:10);
@@ -1548,7 +1577,7 @@ classdef convert
             
 %             Flag = S>59.99999999 || M>59.99999999;
 %             Frac(Flag) = Frac(Flag) + 1e-15;
-%             
+%
 %             Hour = Frac(:).*24;
 %             H    = floor(Hour);
 %             Min  = (Hour - H).*60;
@@ -1588,17 +1617,17 @@ classdef convert
             
             % time: s, min, hour, day, JY
             
-            % Temp: 
+            % Temp:
             
         end
     end
 
 
     % Unit test
-    methods(Static)   
+    methods(Static)
         Result = unitTest()
 
-    end    	
+    end
 
 end % end class
             

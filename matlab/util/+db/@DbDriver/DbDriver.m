@@ -11,18 +11,28 @@
 % https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
 %
 % Postgresql driver must be installed, download page:
-% 
+%
 % https://jdbc.postgresql.org/
 % https://jdbc.postgresql.org/download.html
 %
 % We currently use postgresql-42.2.19.jar
 %--------------------------------------------------------------------------
 
+% #functions (autogen)
+% DbDriver -
+% close - Unload database driver
+% copyDriverFile - Copy driver file from source folder to target path
+% delete - Destructor
+% getDbDriver - Get singleton Map object that maps database type to DbDriver object
+% open - Load database driver library
+% #/functions (autogen)
+%
+
 classdef DbDriver < Component
     % Database Driver Class
     
     % Properties
-    properties (SetAccess = public)            
+    properties (SetAccess = public)
         
         % Connection details
         DatabaseType = 'postgres'   % Currently we support only Postgres
@@ -33,12 +43,12 @@ classdef DbDriver < Component
         SourceJarFile = ''          % Source file
         TargetJarFile = ''          % Target
         Driver = []                 % Java Driver object, returned by org.postgresql.Driver
-        IsOpen = false              %        
+        IsOpen = false              %
     end
     
-    %-------------------------------------------------------- 
+    %--------------------------------------------------------
     methods % Constructor
-        function Obj = DbDriver()            
+        function Obj = DbDriver()
             Obj.setName('DbDriver');
             Obj.needUuid();
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
@@ -48,19 +58,19 @@ classdef DbDriver < Component
         function delete(Obj)
             % Destructor
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
-        end        
+        end
     end
     
     
     methods % Connect, disconnect
                         
-        function Result = open(Obj)          
+        function Result = open(Obj)
             % Load database driver library
             Obj.msgLog(LogLevel.Info, 'open');
             
             % Already open
             if Obj.IsOpen
-                Obj.msgLog(LogLevel.Info, 'open: already open');                
+                Obj.msgLog(LogLevel.Info, 'open: already open');
                 Result = true;
                 return
             end
@@ -72,7 +82,7 @@ classdef DbDriver < Component
                 if Obj.copyDriverFile(Obj.PostgresJar)
                                 
                     % Create Java driver object
-                    try                
+                    try
                         Obj.Driver = org.postgresql.Driver;
                         Obj.IsOpen = true;
                     catch
@@ -89,13 +99,13 @@ classdef DbDriver < Component
         end
         
         
-        function Result = copyDriverFile(Obj, FileName)        
+        function Result = copyDriverFile(Obj, FileName)
             % Copy driver file from source folder to target path
             Result = false;
             
             % Get full path and name of the file in which the call occurs
-            MyFileName = mfilename('fullpath');       
-            [MyPath, ~, ~] = fileparts(MyFileName);            
+            MyFileName = mfilename('fullpath');
+            [MyPath, ~, ~] = fileparts(MyFileName);
             Obj.SourceJarFile = fullfile(MyPath, FileName);
                         
             % Target is temporary folder
@@ -117,8 +127,8 @@ classdef DbDriver < Component
                 Obj.msgLog(LogLevel.Info, 'driver OK');
                 Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'javaclasspath failed: %s', Obj.TargetJarFile);                
-            end            
+                Obj.msgLog(LogLevel.Error, 'javaclasspath failed: %s', Obj.TargetJarFile);
+            end
         end
                 
         
@@ -161,13 +171,13 @@ classdef DbDriver < Component
             else
                 % Already exist
             end
-            Result = Comp;                         
+            Result = Comp;
         end
     end
     
     %----------------------------------------------------------------------
     methods(Static) % Unit test
         Result = unitTest()
-    end    
+    end
         
 end

@@ -1,3 +1,29 @@
+% AstroTransmission
+%
+
+% #functions (autogen)
+% AstroTransmission - constructor for AstroTransmission Populate an AstroTransmission object.
+% atmosphericExtinction - Return Atmospheric extinction The extinction im mag/transmission is provided in the Flux field.
+% filterFun - Apply a 1-D function (filter) on the Flux field in AstroSpec object. The function do not check if the wavelength is equally spaced. The function operates on the Flux, FluxErr, and Back fields.
+% genNames - Generate names for filters
+% genTopHat - Generate a series of top-hat filters (Type='filter').
+% get -
+% getFilt -
+% interp1 - Interpolate the elements of AstroSpec into a new wavelength grid. The Mask will be interpolated using nearest interpolation. This function works only if the Data is convertable to a numeric matrix.
+% interpAndKeepOverlap - Given two AstroSpec objects, interpolate the first into the wavelength grid defined by the second and keep only the overlaping points.
+% interpLogSpace - Interpolate an AstroSpec object into a logarithmic wavelength grid.
+% interpOverNan - Interpolate AstroSpec object over NaNs.
+% interpOverRanges - Interpolate AstroSpec object over some ranges Useful for interpolation over ranges containing spectral lines.
+% length - Return length of each spectrum in AstroSpec object
+% plot - Plot all the filters in an AstroTransmission object
+% readAstFilter - Read an (old) AstFilter into AstroTransmission
+% scaleSynphot - Scale spectrum such that its synthetic magnitude will be forced to some value.
+% selectWave - Select lines from AstroSpec (don't generate a new copy)
+% set.WaveUnits - setter for WaveUnits - convert Wave property
+% sort - Sort elements of AstroTransmission object by wavelength
+% synphot - Synthetic photometry on an AstroSpec object spectra
+% #/functions (autogen)
+%
 
 % use case thoughts:
 % get(Telescope, Camera, Family, Filter, <type>, <AM>)
@@ -21,7 +47,7 @@
 % 850 0.65
 % 900 0.6
 % 1000 0.5
-% 
+%
 
 classdef AstroTransmission < Component
     properties
@@ -76,8 +102,8 @@ classdef AstroTransmission < Component
             
             arguments
                 Matrix                      % [Wave(Ang), Trans]
-                Args.Family     
-                Args.Band       
+                Args.Family
+                Args.Band
                 Args.Type          = 'filter';
                 Args.Telescope     = '';
                 Args.Camera        = '';
@@ -177,7 +203,7 @@ classdef AstroTransmission < Component
                 Band
                 Type              = 'filter';
                 Args.Telescope    = [];  % [] - get all
-                Args.Camera       = [];  % [] - get all  
+                Args.Camera       = [];  % [] - get all
                 Args.Extinction   = [];  % [] - get all
                 Args.AM           = [];  % [] - get original
             end
@@ -608,7 +634,7 @@ classdef AstroTransmission < Component
         
         function Result = interpLogSpace(Obj, Args)
             % Interpolate an AstroSpec object into a logarithmic wavelength grid.
-            % Input  : - An AstroSpec object.            
+            % Input  : - An AstroSpec object.
             %          * ...,key,val,...
             %            'Res' - Resolution (Dlambda/lambda) to use fot the
             %                   log-spacing. If empty, estimate using
@@ -711,7 +737,7 @@ classdef AstroTransmission < Component
             %          - Like Mag results, but for the fraction of
             %            extrapolated part of the filter.
             %            0 means no extrapolation.
-            %          - A vector of the filter central wavelengths. 
+            %          - A vector of the filter central wavelengths.
             % Author : Eran Ofek (Aug 2021)
             % Example: AS = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
             %          [Result, Flag, FilterWave] = synphot(AS, {'SDSS','SDSS'}, {'g','r'})
@@ -851,7 +877,7 @@ classdef AstroTransmission < Component
             % Output : - An handle for the last plot.
             % Author : Eran Ofek (Sep 2021)
             % Example: AT=AstroTransmission.readAstFilter('SDSS')
-            %          AT.plot  
+            %          AT.plot
            
             IsHold = ishold;
             

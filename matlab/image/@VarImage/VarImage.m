@@ -3,8 +3,13 @@
 % Description: VarImage inherits from ImageComponent and it doesn't have
 %   any special capabilities. It is intended for storing variance images.
 % Author : Eran Ofek (Apr 2021)
-% Dependencies: 
+% Dependencies:
 % Example : B = BackImage;
+
+% #functions (autogen)
+% VarImage - Constructor of VarImage class using the superclass (ImageComponent) constructor
+% #/functions (autogen)
+%
 
 classdef VarImage < ImageComponent
     
@@ -12,7 +17,7 @@ classdef VarImage < ImageComponent
     end
     
  
-    properties (Dependent) % Access image data directly        
+    properties (Dependent) % Access image data directly
     end
     
     properties (SetAccess = public)
@@ -25,7 +30,7 @@ classdef VarImage < ImageComponent
             % Constructor of VarImage class using the superclass
             % (ImageComponent) constructor
             
-            Obj@ImageComponent(varargin{:});           
+            Obj@ImageComponent(varargin{:});
         end
 
     end

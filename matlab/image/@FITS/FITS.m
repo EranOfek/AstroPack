@@ -1,4 +1,28 @@
+% FITS
+%
+
+% #functions (autogen)
+% FITS - FITS object constructor
+% delete_keys - Delete a lits of keywords from a list of FITS headers Package: @FITS (Static) Description: Delete a list of header keywords from a list of FITS images.
+% get_keys - Get keywords value from a single FITS header Package: @FITS (Static function) Description: Get the values of specific keywords from a single FITS file header. Use only for existing keywords.
+% mget_keys - Get header keywords value from multiple FITS Package: @FITS (Static) Description: Get the values of specific keywords from a list of FITS files header.
+% numHDU - return the number of HDUs in a FITS file
+% numHDU1 - return the number of HDUs in a single FITS file A static function of FITS class
+% read - Read all FITS file to a FITS object
+% read1 - Read a single image from a FITS file A static function of FITS class
+% read2cube - Read a list of FITS images into a cube (multiple file names or multiple HDUs) Static function
+% read2sim - Description: Read FITS images into SIM object. Can read N-dimensional images. Can also read multi extension files.
+% readHeader - Read an header into a three column cell array
+% readHeader1 - Read a single header from a FITS file (Static) A static function of FITS class
+% readTable - Read binary or ascii multiple FITS table into a FITS object. Package: @FITS (Static) Description: Read binary or ascii FITS tables into a a FITS object.
+% readTable1 - Read binary or ascii single FITS table Package: @FITS (Static) Description: Read binary or ascii FITS tables into a table.
+% write - Write or append an image into FITS file. Static function The image may have N-dimensions. Append will write multi extension FITS image.
+% write_keys - Insert or update FITS header keywords Package: @FITS (Static) Description: Insert new, or update existing FITS header keywords in a list of FITS images.
+% #/functions (autogen)
+%
+
 classdef FITS < handle
+
     properties
         Data                                      = [];         % free format
         Header                                    = cell(0,3);  % free format
@@ -136,7 +160,7 @@ classdef FITS < handle
 
                            HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
                            if (LenCard>UpdatedComPos)
-                               HeadCell{Ikey,3}  = Card(UpdatedComPos+1:end);    
+                               HeadCell{Ikey,3}  = Card(UpdatedComPos+1:end);
                            else
                                HeadCell{Ikey,3}  = '';
                            end
@@ -189,7 +213,7 @@ classdef FITS < handle
             Fptr = matlab.io.fits.openFile(FileName);
             matlab.io.fits.movAbsHDU(Fptr, HDUnum);
 
-            if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC)) 
+            if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
                 % read full image
                 Image = matlab.io.fits.readImg(Fptr);
             else
@@ -249,10 +273,10 @@ classdef FITS < handle
         end
         
         function [Out,HeadCell,Col]=readTable1(TableName,Args)
-            % Read binary or ascii single FITS table 
+            % Read binary or ascii single FITS table
             % Package: @FITS (Static)
             % Description: Read binary or ascii FITS tables into a table.
-            % Input  : - A FITS tables to read. 
+            % Input  : - A FITS tables to read.
             %          * Arbitrary number of pairs of arguments: ...,keyword,value,...
             %            where keyword are one of the followings:
             %            'TableType'- FITS table type {'auto'|'bintable'|'table'}.
@@ -309,7 +333,7 @@ classdef FITS < handle
                 Args.NRows                    = [];
                 Args.OutClass function_handle = @double;
                 Args.NullVal                  = NaN;       % [] do nothing
-                Args.BreakRepCol(1,1) logical = true;   
+                Args.BreakRepCol(1,1) logical = true;
             end
 
             CatField        = AstCat.CatField;
@@ -396,7 +420,7 @@ classdef FITS < handle
                 NewCol.Cell = cell(Nnc,1);
 
                 Icol1 = 1;
-                for Icol=1:1:Ncol            
+                for Icol=1:1:Ncol
                     IcolN = Icol1 + Col(Ifile).Repeat{Icol} - 1;
                     %Icol1 = Icol1 + Col.Repeat{Icol}; % at the end of the loop
                     for Irep=1:1:Col(Ifile).Repeat{Icol}
@@ -421,7 +445,7 @@ classdef FITS < handle
                 Col(Ifile).Repeat   = NewCol.Repeat;
                 Col(Ifile).Scale    = NewCol.Scale;
                 Col(Ifile).Zero     = NewCol.Zero;
-                Col(Ifile).Tdisp    = NewCol.Tdisp;   
+                Col(Ifile).Tdisp    = NewCol.Tdisp;
             end
             if (Args.ModColName)
                 % modify column names to legal variable names
@@ -462,7 +486,7 @@ classdef FITS < handle
             end
 
         
-        end 
+        end
         
         function [KeysVal,KeysComment,Struct]=get_keys(Image,Keys,HDUnum,Str)
             % Get keywords value from a single FITS header
@@ -483,7 +507,7 @@ classdef FITS < handle
             %     By : Eran O. Ofek                    Jul 2014
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
             % Example: [KeysVal,KeysComment,Struct]=FITS.get_keys('A.fits',{'NAXIS1','NAXIS2'});
-            % Reliable: 2 
+            % Reliable: 2
             %--------------------------------------------------------------------------
 
             arguments
@@ -650,7 +674,7 @@ classdef FITS < handle
                     if (~isempty(KeyCell{Ikey,1}))
                         matlab.io.fits.writeKey(Fptr,KeyCell{Ikey,:});
                     end
-                end    
+                end
                 matlab.io.fits.closeFile(Fptr);
             end
 
@@ -739,7 +763,7 @@ classdef FITS < handle
             end
             %--- Set the FITS "mandatory" keywords ---
             %--- add BSCALE and BZERO ---
-            % check if BZERO and BSCALE are already in HeaderInfo 
+            % check if BZERO and BSCALE are already in HeaderInfo
             Header = replace_key(Header,'BZERO',   single(0),  'offset data range to that of unsigned short',...
                                         'BSCALE',  single(1),  'default scaling factor');
                                
@@ -791,7 +815,7 @@ classdef FITS < handle
                             end
                             fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
-                                               Header.(HeaderField){Inl,3});   
+                                               Header.(HeaderField){Inl,3});
                         case 'end'
                             % do nothing
                         otherwise
@@ -976,7 +1000,7 @@ classdef FITS < handle
             arguments
                 Obj
                 FileName char         = [];
-                HDUnum                = 1;           
+                HDUnum                = 1;
             end
             
             if ~isempty(FileName)
@@ -1017,7 +1041,7 @@ classdef FITS < handle
             arguments
                 Obj
                 FileName                 = [];
-                HDUnum                   = [];        
+                HDUnum                   = [];
                 Args.ReadHead logical    = true;
                 Args.CCDSEC double       = [];  % Inf for the entire image [Xmin xmax ymin ymax]
             end
@@ -1106,7 +1130,7 @@ classdef FITS < handle
             arguments
                 Obj
                 FileName                       = [];
-                HDUnum                         = [];        
+                HDUnum                         = [];
                 Args.TableType                 = 'auto';
                 Args.HDUnum                    = 2;
                 Args.ModColName(1,1) logical   = false;

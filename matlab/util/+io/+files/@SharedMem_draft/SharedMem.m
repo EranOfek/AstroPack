@@ -2,7 +2,21 @@
 % Learn how to implement Mutex for ipc
 % Background threads (Java or other solution?)
 
-% 
+% #functions (autogen)
+% SharedMem -
+% answer - Respond to SEND using memmapfile class.
+% close - Close file
+% delete -
+% doGetBuf - Get next buffer from shared-memory, return bytes object or None if queue is empty Return buf, put_counter, width, height, flags
+% getBuf - Return buf, put_counter, w, h with m = Locker(...)
+% open -
+% read - Read buffer from shared-memory
+% send - Interactively send a message to ANSWER using memmapfile class.
+% write - Write buffer to shared-memory
+% #/functions (autogen)
+%
+
+%
 % // Shared memory header, at offset 0
 % struct MemHeader {
 %     uint32_t    signature;      // Unique signature
@@ -14,7 +28,7 @@
 %     uint32_t    tail;           // Tail index
 %     uint32_t    count;          // Number of items in buffer
 % };
-% 
+%
 % struct BufHeader {
 %     uint32_t    put_counter;    // Running counter by put_buf()
 %     uint32_t    buf_len;        // Data length
@@ -37,11 +51,11 @@ classdef SharedMem < Component
         
         % Flags
         BUFH_UYVY = 0x00000001
-        BUFH_MAT_RGB = 0x00000002                    
+        BUFH_MAT_RGB = 0x00000002
     end
     
 
-    methods % Constructor    
+    methods % Constructor
         
         function Obj = SharedMem
             Obj.setName('SharedMem')
@@ -54,7 +68,7 @@ classdef SharedMem < Component
         function delete(Obj)
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
             Obj.close();
-        end                        
+        end
         
     end
     
@@ -128,7 +142,7 @@ classdef SharedMem < Component
         end
 
 
-        function Result = doGetBuf(Obj)        
+        function Result = doGetBuf(Obj)
             % Get next buffer from shared-memory, return bytes object or None if queue is empty
             % Return buf, put_counter, width, height, flags
 
@@ -211,7 +225,7 @@ classdef SharedMem < Component
 
         Result = unitTest()
 
-    end    
+    end
              
     
 end
@@ -258,14 +272,14 @@ while true
         warning('ml:ml','SEND input will be truncated to 255 characters.');
     end
     str = str(1:min(len,255));  % Limit message to 255 characters.
-    len = length(str); % Update len if str has been truncated. 
+    len = length(str); % Update len if str has been truncated.
     
     % Update the file via the memory map.
     m.Data(2:len+1) = str;
     m.Data(1)=len;
    
  
-    % Wait until the first byte is set back to zero, 
+    % Wait until the first byte is set back to zero,
     % indicating that a response is available.
     while (m.Data(1) ~= 0)
         pause(.25);
@@ -289,7 +303,7 @@ filename = fullfile(tempdir, 'talk_answer.dat');
 
 % Create the communications file if it is not already there.
 %if ~exist(filename, 'file')
-if ~isfile(filename)   
+if ~isfile(filename)
     [f, msg] = fopen(filename, 'wb');
     if f ~= -1
         fwrite(f, zeros(1,256), 'uint8');

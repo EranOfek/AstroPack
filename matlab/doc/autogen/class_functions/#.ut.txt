@@ -6,5 +6,5 @@ diff - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
 
 test - Run all unit tests
 
-unitTest - Dummy function to avoid warning
+unitTest - 
 

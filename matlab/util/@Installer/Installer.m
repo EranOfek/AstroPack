@@ -14,13 +14,27 @@
 % I.install({'GAIA_SpecTemplate'}); % install specific datasets
 % I.install({'+cats'}); % install specific datasets (and open tar file)
 
+% #functions (autogen)
+% Installer - constructor for the Installre class (a utility class for AstroPack installation
+% getDataDir - Get data directory name DataName of data directory as appear in Insataller/seeAvailableData
+% getFilesInDataDir - Return all file names in directory associated with DataName
+% install - Install AstroPack data directories from AstroPack repository
+% installSingle - Install single DataName (utility function for install)
+% prep_cats - Prepare interface functions for the catalogs in the data directory Package: VO.search Description: Prepare interface functions for the catalogs in the data directory
+% readElementsFileJPL - Read JPL orbital elements file
+% readIERS_EOP - Read all IERS Earth Orientation File 'finals2000A.data.csv' documentation: http://hpiers.obspm.fr/eoppc/bul/bulb/explanatory.html http://maia.usno.navy.mil http://www.iers.org/nn_10968/IERS/EN/DataProducts/EarthOrientationData/eop.html?__nnn=true x_pole/y_pole:  Celestial Ephemeris Pole (CEP) relative to the International Reference Pole (IRP) are defined as x and y
+% search - Search data name in Installer object
+% seeAvailableData - print a table of available data sets Example: I = Installer; I.seeAvailableData
+% #/functions (autogen)
+%
+
 
 classdef Installer < Component
     % Installer class
     
     % Properties
     properties (SetAccess = public)
-        DataName                 
+        DataName
         InstallationLocation
         SubDir
         URL
@@ -30,14 +44,14 @@ classdef Installer < Component
         ConfigFile
     end
     
-    %-------------------------------------------------------- 
+    %--------------------------------------------------------
     methods % constructor
         function Obj = Installer(DataName)
             % constructor for the Installre class (a utility class for
             % AstroPack installation
             
-            arguments 
-                DataName  = [];  % 
+            arguments
+                DataName  = [];  %
             end
 
             if isnumeric(DataName) && ~isempty(DataName)
@@ -115,7 +129,7 @@ classdef Installer < Component
                 SubDir = sprintf('%s%s%s',SubDir,filesep,Parts{Iparts});
                 mkdir(Parts{Iparts});
                 cd(Parts{Iparts});
-            end        
+            end
         
             PartsURL = regexp(DataStruct.URL,'/','split');
             Nfile    = numel(DataStruct.URL);
@@ -513,6 +527,6 @@ classdef Installer < Component
         Result = unitTest(Obj)
             % Dictionary unit test
             
-   end	
+   end
     
 end

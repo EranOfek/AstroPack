@@ -2,6 +2,18 @@
 % Similar to struct, but based on dynamicprops class
 % Used by DbQuery with select and insert SQL operations.
 
+% #functions (autogen)
+% DbRecord - Constructor DbRecord()          - Create new empty record object DbRecord(DbQuery)   - Create object linked to specified query
+% Equal - Compare two records, return true if equal
+% addProp - Add new property with value
+% delete -
+% getFieldNames - Get list of field names, properties ending with '_' are excluded
+% getStruct - Return new struct with field values Field names ending with '_' are ignored
+% loadFile - Load specified file to property @Todo - not implemented yet
+% loadStruct - Load all struct fields to properties
+% #/functions (autogen)
+%
+
 classdef DbRecord < dynamicprops
     
     % Properties
@@ -13,9 +25,9 @@ classdef DbRecord < dynamicprops
         UseUuid_     = false        % True to use Uuid, otherwise the faster SerialStr is used
     end
     
-    %-------------------------------------------------------- 
-    methods % Constructor            
-        function Obj = DbRecord(varargin)           
+    %--------------------------------------------------------
+    methods % Constructor
+        function Obj = DbRecord(varargin)
             % Constructor
             %   DbRecord()          - Create new empty record object
             %   DbRecord(DbQuery)   - Create object linked to specified query
@@ -34,7 +46,7 @@ classdef DbRecord < dynamicprops
                 io.msgLog(LogLevel.Debug, 'DbRecord created: %s, DbQuery: %s', Obj.Uuid_, Obj.Query_.Uuid);
             else
                 io.msgLog(LogLevel.Debug, 'DbRecord created: %s', Obj.Uuid_);
-            end                      
+            end
         end
         
         
@@ -48,7 +60,7 @@ classdef DbRecord < dynamicprops
     methods % Main functions
     
         function loadFile(Obj, FileName)
-            % Load specified file to property            
+            % Load specified file to property
             % @Todo - not implemented yet
             try
                 [~, name, ~] = fileparts(FileName);
@@ -57,7 +69,7 @@ classdef DbRecord < dynamicprops
                 %if isfield(Obj.Data, PropName)
                     io.msgLog(LogLevel.Warning, 'Property already exist: %s', PropName);
                 else
-                    io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);                    
+                    io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);
                     %Obj.addprop(PropName);
                 end
       
@@ -85,11 +97,11 @@ classdef DbRecord < dynamicprops
                     
                 % Not supported
                 else
-                    io.msgLog(LogLevel.Error, 'DbRecod.loadStruct: Field type not supported: %s', Field);                    
-                end        
+                    io.msgLog(LogLevel.Error, 'DbRecod.loadStruct: Field type not supported: %s', Field);
+                end
             end
             Result = true;
-        end        
+        end
 
         
         function Struct = getStruct(Obj)
@@ -99,7 +111,7 @@ classdef DbRecord < dynamicprops
             Struct = struct;
             PropNames = properties(Obj);
             for i = 1:numel(PropNames)
-                Prop = PropNames{i};     
+                Prop = PropNames{i};
                 if ~endsWith(Prop, '_')
                     Struct.(Prop) = Obj.(Prop);
                 end
@@ -113,7 +125,7 @@ classdef DbRecord < dynamicprops
             Result = {};
             PropNames = properties(Obj);
             for i = 1:numel(PropNames)
-                Prop = PropNames{i};     
+                Prop = PropNames{i};
                 if ~endsWith(Prop, '_')
                     Result{end+1} = Prop;
                 end
@@ -142,18 +154,18 @@ classdef DbRecord < dynamicprops
                         if Obj.(Prop) ~= Other.(Prop)
                             Result = false;
                             break;
-                        end                                        
+                        end
                     else
                         Result = false;
                         break;
-                    end                
+                    end
                 end
-            end            
+            end
         end
         
     end
     
-    %----------------------------------------------------------------------   
+    %----------------------------------------------------------------------
     methods(Static) % Unit test
                          
         Result = unitTest()

@@ -3,8 +3,20 @@
 
 
     
-    mpDB -  
-      
+    mpDB static class  
+    Package: +celestial/@mpDB  
+    Description: A static class for local minor planets ephemerides files.  
+    Instellation: The OS environment variable mpDB_dir contains the directory  
+    in which the AsteroidsEphemDB HDF5 files resides  
+    (e.g., '/euler/eran/work/AsteroidsEphemDB').  
+    We recomend to set the value of this environment variable  
+    in the starup.m file (i.e., using setenv.m).  
+    Input  : null  
+    Output : null  
+    Tested : Matlab R2018b  
+    By : Eran O. Ofek                    Oct 2019  
+    URL : http://weizmann.ac.il/home/eofek/matlab/  
+    Reliable: 2  
       
 
 ### Functions List

@@ -4,10 +4,22 @@
 %
 % Used internally by DbQuery
 
+% #functions (autogen)
+% DbConnection -
+% close - Disconnect from database,  @Todo
+% delete -
+% getConnectionKey - Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+% getDbConnection -
+% newQuery - Create new DbQuery instance linked to this connection
+% open - Connect to database specified by Host:Port:Database as UserName/Password
+% setupDefault -
+% #/functions (autogen)
+%
+
 classdef DbConnection < Component
     
     % Properties
-    properties (SetAccess = public)            
+    properties (SetAccess = public)
         
         % Connection details
         DatabaseName = 'pipeline'   % Database name
@@ -24,35 +36,35 @@ classdef DbConnection < Component
         
         ConnectionStr = ''          % 'jdbc:postgresql://localhost:5432/pipeline'
         Conn = []                   % Java Connection object, returned by connect()
-        IsOpen = false              % True if connection is open        
+        IsOpen = false              % True if connection is open
     end
     
-    %-------------------------------------------------------- 
+    %--------------------------------------------------------
     methods % Constructor
         
         function Obj = DbConnection(varargin)
             Obj.setName('DbConnection');
             Obj.needUuid();
-            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);            
+            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
         end
         
         
         % Destructor
         function delete(Obj)
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
-        end                
+        end
     end
     
     
     methods % Connect, disconnect
                
-        function Result = open(Obj)          
+        function Result = open(Obj)
             % Connect to database specified by Host:Port:Database as UserName/Password
             
             f_ = io.FuncLog('DbConnection.open');
             Obj.msgLog(LogLevel.Info, 'open');
             
-            % Already open            
+            % Already open
             if Obj.IsOpen
                 Obj.msgLog(LogLevel.Info, 'open: already open');
                 return
@@ -69,7 +81,7 @@ classdef DbConnection < Component
             end
 
             % Prepare username and password
-            try                
+            try
                 Obj.msgLog(LogLevel.Debug, 'open: setProperty: %s/%s', Obj.UserName, Obj.Password);
                 props = java.util.Properties;
                 props.setProperty('user', Obj.UserName);
@@ -91,10 +103,10 @@ classdef DbConnection < Component
             % Get metadata
             try
                 Obj.msgLog(LogLevel.Debug, 'open: calling getMetaData');
-                Obj.Metadata = Obj.Conn.getMetaData();   
+                Obj.Metadata = Obj.Conn.getMetaData();
             catch
                 Obj.msgLog(LogLevel.Error, 'open: getMetaData failed');
-            end         
+            end
             
             Result = Obj.IsOpen;
             Obj.msgLog(LogLevel.Info, 'open finished');
@@ -153,7 +165,7 @@ classdef DbConnection < Component
                 Map.add(Comp);
             else
             end
-            Result = Comp;                         
+            Result = Comp;
         end
     end
     
@@ -166,7 +178,7 @@ classdef DbConnection < Component
             Con = db.DbConnection.getDbConnection('default');
             assert(~isempty(Con));
             Result = true;
-        end            
+        end
         
     end
         
@@ -174,6 +186,6 @@ classdef DbConnection < Component
     % Unit test
     methods(Static)
          Result = unitTest()
-    end    
+    end
             
 end

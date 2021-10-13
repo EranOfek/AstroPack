@@ -1,4 +1,13 @@
 % Virtual Image Class
+%
+
+% #functions (autogen)
+% VirtImage - @Todo: should we take care of VirtImage array?
+% delete -
+% getData -
+% setData -
+% #/functions (autogen)
+%
 
 % See Datastore (v2021a and up)
 % https://www.mathworks.com/help/matlab/datastore.html
@@ -13,13 +22,13 @@ classdef VirtImage < Component
         Manager VirtImageManager    %
     end
     
-    %-------------------------------------------------------- 
+    %--------------------------------------------------------
     methods
-        % Constructor    
+        % Constructor
         function Obj = VirtImage()
 			% @Todo: should we take care of VirtImage array?
             Obj.needUuid();
-            Obj.Manager = VirtImageManager.getSingleton();            
+            Obj.Manager = VirtImageManager.getSingleton();
             Obj.Manager.add(Obj);
         end
         
@@ -29,7 +38,7 @@ classdef VirtImage < Component
         end
                 
         % Get data as matrix
-        function Result = getData(Obj)            
+        function Result = getData(Obj)
             Result = Obj.Data;
         end
         
@@ -44,6 +53,6 @@ classdef VirtImage < Component
     % Unit test
     methods(Static)
         Result = unitTest()
-    end    
+    end
         
 end

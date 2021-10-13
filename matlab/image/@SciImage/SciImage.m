@@ -3,8 +3,13 @@
 % Description: SciImage inherits from ImageComponent and it doesn't have
 %   any special capabilities. It is intended for storing science images.
 % Author : Eran Ofek (Apr 2021)
-% Dependencies: 
+% Dependencies:
 % Example : B = SciImage;
+
+% #functions (autogen)
+% SciImage - Constructor of SciImage class using the superclass (ImageComponent) constructor
+% #/functions (autogen)
+%
 
 classdef SciImage < ImageComponent
     
@@ -12,7 +17,7 @@ classdef SciImage < ImageComponent
     end
     
  
-    properties (Dependent) % Access image data directly        
+    properties (Dependent) % Access image data directly
     end
     
     properties (SetAccess = public)
@@ -31,7 +36,7 @@ classdef SciImage < ImageComponent
             % Constructor of SciImage class using the superclass
             % (ImageComponent) constructor
             
-            Obj@ImageComponent(varargin{:});           
+            Obj@ImageComponent(varargin{:});
         end
 
     end

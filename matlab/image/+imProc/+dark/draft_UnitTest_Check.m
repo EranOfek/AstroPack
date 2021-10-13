@@ -1,4 +1,14 @@
+% Draft
+
+% #functions (autogen)
+% unitTest -
+% unit_Test - unitTest for the Dark class Example: Result = imProc.dark.unitTest
+% #/functions (autogen)
+%
+
 classdef UnitTest < matlab.unittest.TestCase
+
+
     methods (Test)
         function Result = unit_Test(testCase)
             % unitTest for the Dark class
@@ -73,7 +83,7 @@ classdef UnitTest < matlab.unittest.TestCase
         end
     end
     
-    methods(Static) 
+    methods(Static)
         function unitTest()
             cd ~/software/matlab/AstroPack/matlab/image/+imProc/+dark
             import matlab.unittest.TestSuite

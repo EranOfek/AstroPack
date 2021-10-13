@@ -2,7 +2,7 @@ Class: UnitTester
 
 UnitTester - 
 
-Warn - Add warning message to Obj.WarnList
+Warn - 
 
 beforePush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
 
@@ -18,7 +18,7 @@ findClassDef - Search classdef
 
 findFunction - Search unitTest() function
 
-fullName - Return full file name to package.class or package.func
+fullName - 
 
 getClassName - Get class name from folder name that starts with '@'
 
@@ -36,7 +36,7 @@ msgStyle - Write message to log
 
 perfTest - Run all Performance tests
 
-processFile - Process single file
+processFile - 
 
 processFolder - Recursivly call processFile()
 
@@ -48,11 +48,11 @@ runTest - Run single unit test, Target is class name Example: runTest('ImagePath
 
 setup - Class setup, prepare path to source code
 
-shouldProcessFile - Return true if specified file should be processed by checking that name does not contain word that means an excluded file (such as 'obsolete')
+shouldProcessFile - 
 
 stressTest - Run all Stress tests
 
-test - Calls UnitTester.doTest()
+test - 
 
 testAll - Run all unit-test functions found in MATLAB source files
 
@@ -60,5 +60,5 @@ testCore - Run core unit-tests, required before we can run any other
 
 testImage - Run image related unit-tests
 
-unitTest - Dummy function, just to avoid warnings about missing unitTest
+unitTest - 
 

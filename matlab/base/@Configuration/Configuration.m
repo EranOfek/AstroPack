@@ -12,6 +12,27 @@
 %       in order to load fresh configuration you need to do 'clear all'
 %--------------------------------------------------------------------------
 
+% #functions (autogen)
+% Configuration -
+% clear - Clear entire configuration
+% expandFolder - Expand Path with macros from Configuration.System.EnvFolders
+% getRange - Get minimum and maximum values from cell array Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
+% getSingleton - Return singleton Configuration object
+% init - Return singleton Configuration object
+% listItem -
+% listLen - Return list length
+% loadConfig - Load ALL configuration files in Obj.Path folder
+% loadFile - Load specified file to property
+% loadFolder - Load specified folder to properties
+% loadYaml - Read YAML file to struct, add FileName field
+% reload - Reload configuration
+% reloadFile - Reload specified configuration object (file name)
+% reloadFolder - Reload all configuration files from default folder
+% reloadYaml - Reload configurastion file, 'FileName' field must exist
+% unmacro - Replace macros in string with values from struct Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc" conf.unmacro(conf.Yaml.DarkImage.InputFolder, conf.Yaml.EnvFolders)
+% #/functions (autogen)
+%
+
 classdef Configuration < handle
     % Note that this class is derived from Base and not from Component
 
@@ -208,7 +229,7 @@ classdef Configuration < handle
         
         
         function Result = reload()
-            % Reload configuration            
+            % Reload configuration
             io.msgStyle(LogLevel.Info, 'red', 'Configuration.reload: Calling "clear java" which is required until we find better solution');
             Conf = Configuration.init('clear');
             Conf.loadConfig();

@@ -3,6 +3,11 @@
 % Only messages with log level above current log level are
 % displayed and written to log file.
 
+% #functions (autogen)
+% unitTest -
+% #/functions (autogen)
+%
+
 classdef LogLevel < uint32
     % Log levels, used with MsgLogger class, msgLog(), etc.
     % Values should continuous and incremental

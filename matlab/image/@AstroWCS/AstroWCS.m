@@ -1,13 +1,48 @@
 % Astronomical World Coordinate System (WCS) container class
-%       This class provides a container for WCS data, 
+%       This class provides a container for WCS data,
 %       as well as basic functionality with WCS (xy2sky, sky2xy, create from header/tran2d, convert to header).
 % See the follwoing papers for general definitions:
 %       Greisen & Calabretta 2002, \aap, 395, 1061. doi:10.1051/0004-6361:20021326
 %       Calabretta & Greisen 2002, \aap, 395, 1077. doi:10.1051/0004-6361:20021327
 % Currently supporting only Proj types: TAN, TAN-SIP, TPV
-% Currently not supporting WCSAXES>2 
+% Currently not supporting WCSAXES>2
 %
 % TODO: modify tran2wcs to work with arrays. update unittest to check header2wcs with arrays
+
+% #functions (autogen)
+% AstroWCS - Basic constructor for AstroWCS class. User should usually use AstroWCS.header2wcs or AstroWCS.tran2wcs
+% alphadelta2phitheta - Convert celestial coordinates to native coordinates
+% backwardDistortion - Apply reverse (i.e. backward) distortion to X,Y coordinates using the PV sturcture
+% build_CD - Construct the CD matrix from AstroHeader. Either directly CD matrix, or PC+CDELT, or CDELT
+% build_PV_from_Header - Construct a PV (distoration) structure from AstroHeader.
+% build_PV_from_Tran2D - Construct a PV (distoration) structure from Tran2D object.
+% build_TANSIP_from_Header - Construct a PV or RevPV structure from AstroHeader with TAN-SIP projection.
+% build_TPV_from_Header - Construct a PV (distoration) structure from AstroHeader with TPV projection.
+% celestial2native - Convert celestial coordinates to native coordinates
+% copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+% fill_TANSIP_KeyNames - Fill TANSIP keynames in a PV (or RevPV) structure.
+% fill_TPV_KeyNames - Fill TPV keynames in a PV (distoration) structure.
+% forwardDistortion - Apply distortion to X,Y coordinates using the PV sturcture
+% header2wcs - Create and populate an AstroWCS object from an AstroHeader object
+% interm2native - Project intermediate coordinates to native coordinates
+% interm2pix - Convert intermediate pixel coordinates to pixel coordinates, if requested also include distortion
+% native2celestial - Convert native coordinates to celestial coordinates
+% native2interm - Project native coordinates to intermediate coordinates
+% phitheta2alphadelta - Convert naitive coordinates (Phi,Theta) to celestial coordinates (alpha,delta)
+% pix2interm - Convert pixel coordinates (P) to intermediate coordinates (X), if requested also include distortion
+% polyTPVdef - Return a table of TPV polynomial definition Output : - A table of TPV polinomial power (See ColNames and RowNames) Author : Yossi Shvartzvald (August 2021) Example: PolyTPVtable = AstroWCS.polyTPVdef();
+% populateSucess - Populate the sucess flag in the AstroWCS object The success flag indicate if the WCS solution and residuals are reasnoble.
+% populate_projMeta - Populate projection metadata (Alpha0,Delta0,AlphaP,DeltaP,Phi0,Theta0,PhiP)
+% read_ctype - Read Obj.CTYPE to populate the fields: ProjType, ProjClass, CooName, and CUNIT (if empty or nan)
+% read_radesys_equinox - Read from AstroHeader the RADESYS and EQUINOX. If any are missing fill with deafults.
+% set.ResFit - setter for ResFit - will automatically populate related properties
+% sky2xy - Convert celestial coordinates to pixel coordinates
+% tran2wcs - Create and populate an AstroWCS object from a Tran2D object
+% wcs2header - Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
+% wcs2keyCell - Create a cell array of WCS fields from AstroWCS object
+% xy2sky - Convert pixel coordinates to celestial coordinates
+% #/functions (autogen)
+%
 
 classdef AstroWCS < Component
     % Component should contain:
@@ -19,7 +54,7 @@ classdef AstroWCS < Component
         CTYPE(1,:)   cell   = {'',''};      % WCS projection type, e.g., 'RA---TAN', 'RA-TAN-SIP', 'RA---TPV', 'RA---ZPN'
         CUNIT(1,:)   cell   = {'',''};      % Axis unit, e.g., 'deg'
         RADESYS      char   = 'ICRS';       % Astrometric system
-        LONPOLE      double = 180;          % Native Longitude of the Celestial Pole. Default for Zenithal projection 
+        LONPOLE      double = 180;          % Native Longitude of the Celestial Pole. Default for Zenithal projection
         LATPOLE      double = 0;            % Native Latitude of the Celestial Pole
         EQUINOX      double = 2000.0;       % EQUINOX
         CRPIX(1,:)   double = [0 0];        % Reference pixel
@@ -29,7 +64,7 @@ classdef AstroWCS < Component
         PV                 = AstroWCS.DefPVstruct;      % Struct of projection distortion
         RevPV              = AstroWCS.DefPVstruct;      % Struct of reverse projection distortion
 
-    end     
+    end
     
     properties (GetAccess = public)
         ProjType     char   = 'none';       % Projection type, e.g., 'TAN', 'TAN-SIP', 'TPV', 'ZPN'
@@ -68,9 +103,9 @@ classdef AstroWCS < Component
     
     properties (Hidden, Constant)
         DefPVstruct         = struct('KeyNamesX',[],'PolyCoefX',[],'PolyX_Xdeg',[],'PolyX_Ydeg',[],'PolyX_Rdeg',[],...
-                                     'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);         
+                                     'KeyNamesY',[],'PolyCoefY',[],'PolyY_Xdeg',[],'PolyY_Ydeg',[],'PolyY_Rdeg',[]);
                                             % Default structure of projection distortion coefficients
-    end   
+    end
         
     methods  % Constructor
         function Obj = AstroWCS(Nobj)
@@ -79,7 +114,7 @@ classdef AstroWCS < Component
             %            AstroWCS object (e.g., [2 2]).
             % Output : - An AstroWCS object with fields populated with the defaults.
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AW = AstroWCS(1);
             %          AW = AstroWCS([2 2]);
 
@@ -92,7 +127,7 @@ classdef AstroWCS < Component
             Nh = numel(List);
             for Ih=1:1:Nh
                 Obj(Ih).Tran2D = [];
-            end            
+            end
             Obj = reshape(Obj,size(List));
             
         end
@@ -113,11 +148,11 @@ classdef AstroWCS < Component
 
     methods  % General functions
         function Obj = populate_projMeta(Obj)
-            % Populate projection metadata (Alpha0,Delta0,AlphaP,DeltaP,Phi0,Theta0,PhiP) 
+            % Populate projection metadata (Alpha0,Delta0,AlphaP,DeltaP,Phi0,Theta0,PhiP)
             % Input  : - AstroWCS object.
             % Output : - AstroWCS object with populated metadata fields.
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AW = AstroWCS(1); AW.populate_projMeta;
                      
              switch lower(Obj.ProjClass)
@@ -150,8 +185,8 @@ classdef AstroWCS < Component
 
                 otherwise
                     error('Unsupported projection class (%s)',Obj.ProjClass);
-             end            
-        end        
+             end
+        end
         
         function Obj = populateSucess(Obj, Args)
             % Populate the sucess flag in the AstroWCS object
@@ -202,11 +237,11 @@ classdef AstroWCS < Component
             % Input  : - AstroWCS object.
             % Output : - AstroWCS object with populated fields.
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AW = AstroWCS(1); AW.CTYPE = {'RA---TAN' 'DEC--TAN'}; AW.read_ctype;
             
             ProjTypeDict = Dictionary('DictName','WCS.ProjType');
-            CunitDict = Dictionary('DictName','WCS.CUNIT');            
+            CunitDict = Dictionary('DictName','WCS.CUNIT');
       
             ctype = Obj.CTYPE;
             
@@ -218,17 +253,17 @@ classdef AstroWCS < Component
                 Split    = regexp(ctype{I},'-','split');
                 Pair     = Split(~tools.cell.isempty_cell(Split));
                 cooname{I}  = Pair{1};
-                if (numel(Pair)>1) 
+                if (numel(Pair)>1)
                     projtype{I} = Pair{2};
                     if (numel(Pair)>2)   % For e.g., TAN-SIP. Combine both
                         projtype{I} = [Pair{2} '-' Pair{3}];
-                    end    
+                    end
                 end
                 coounit{I} = CunitDict.searchAlt(cooname{I});
             end
             
             % remove cells with no projtype, e.g. velocity
-            projtype = projtype(~tools.cell.isempty_cell(projtype)); 
+            projtype = projtype(~tools.cell.isempty_cell(projtype));
             
             if isempty(projtype)                        % No projection given
                 Obj.ProjType  = 'none';
@@ -236,7 +271,7 @@ classdef AstroWCS < Component
             elseif all(strcmp(projtype{1},projtype))
                 Obj.ProjType = projtype{1};
                 Obj.ProjClass = ProjTypeDict.searchAlt(Obj.ProjType);
-            else 
+            else
                 error(' Not all Axis are with the same projection');
             end
             
@@ -259,13 +294,13 @@ classdef AstroWCS < Component
             %          - Optional AstroHeader object in which to update key/par
             % Output : - AstroHeader object with the WCS keywords
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
-            %          AW = AstroWCS(1); AH = AW.wcs2header;      
+            % Example:
+            %          AW = AstroWCS(1); AH = AW.wcs2header;
 
             arguments
                 Obj
                 Header      = AstroHeader(1);
-            end            
+            end
 
             KeyCell = Obj.wcs2keyCell;
             Header.replaceVal(KeyCell(:,1),KeyCell(:,2),'Comment',KeyCell(:,3));
@@ -276,8 +311,8 @@ classdef AstroWCS < Component
             % Input  : - AstroWCS object.
             % Output : - Cell array of {keyname, keyval, description}
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
-            %          AW = AstroWCS(1); KeyCell = AW.wcs2keyCell;      
+            % Example:
+            %          AW = AstroWCS(1); KeyCell = AW.wcs2keyCell;
          
            % Initiate cell array
            KeyCell = cell(0,3);
@@ -291,23 +326,23 @@ classdef AstroWCS < Component
            if ~isempty(Obj.WCSAXES)
                AddCell = {'WCSAXES', Obj.WCSAXES, 'WCS dimensionality'};
                KeyCell = [KeyCell; AddCell];
-           end 
+           end
            if ~isempty(Obj.RADESYS)
                AddCell = {'RADESYS', Obj.RADESYS, 'Astrometric system'};
                KeyCell = [KeyCell; AddCell];
-           end       
+           end
            if ~isempty(Obj.EQUINOX)
                AddCell = {'EQUINOX', Obj.EQUINOX, 'Equinox'};
                KeyCell = [KeyCell; AddCell];
-           end 
+           end
            if ~isempty(Obj.LONPOLE)
                AddCell = {'LONPOLE', Obj.LONPOLE, 'Native Longitude of the Celestial Pole'};
                KeyCell = [KeyCell; AddCell];
-           end       
+           end
            if ~isempty(Obj.LATPOLE)
                AddCell = {'LATPOLE', Obj.LATPOLE, 'Native Latitude of the Celestial Pole'};
                KeyCell = [KeyCell; AddCell];
-           end       
+           end
            
            Naxis = Obj.WCSAXES;
            % verify size
@@ -329,7 +364,7 @@ classdef AstroWCS < Component
            if (numel(Obj.CRPIX)~=Naxis) || (numel(Obj.CRVAL)~=Naxis) ||...
               (size(Obj.CD,1)~=Naxis) || (size(Obj.CD,2)~=Naxis)
                error('Wrong size of CRPIX or CRVAL or CD');
-           end           
+           end
            
            for Ix = 1:Naxis
                AddCell = {sprintf('CRPIX%d',Ix), Obj.CRPIX(Ix), 'Reference pixel on this axis'};
@@ -350,34 +385,34 @@ classdef AstroWCS < Component
            
            for Ix = 1:numel(Obj.PV.KeyNamesX)
                AddCell = {Obj.PV.KeyNamesX{Ix}, Obj.PV.PolyCoefX(Ix), 'Projection distortion coefficient'};
-               KeyCell = [KeyCell; AddCell];               
+               KeyCell = [KeyCell; AddCell];
            end
            
            for Ix = 1:numel(Obj.PV.KeyNamesY)
                AddCell = {Obj.PV.KeyNamesY{Ix}, Obj.PV.PolyCoefY(Ix), 'Projection distortion coefficient'};
-               KeyCell = [KeyCell; AddCell];               
-           end  
+               KeyCell = [KeyCell; AddCell];
+           end
            
            for Ix = 1:numel(Obj.RevPV.KeyNamesX)
                AddCell = {Obj.RevPV.KeyNamesX{Ix}, Obj.RevPV.PolyCoefX(Ix), 'Projection distortion coefficient'};
-               KeyCell = [KeyCell; AddCell];               
+               KeyCell = [KeyCell; AddCell];
            end
            
            for Ix = 1:numel(Obj.RevPV.KeyNamesY)
                AddCell = {Obj.RevPV.KeyNamesY{Ix}, Obj.RevPV.PolyCoefY(Ix), 'Projection distortion coefficient'};
-               KeyCell = [KeyCell; AddCell];               
-           end            
+               KeyCell = [KeyCell; AddCell];
+           end
            
            switch lower(Obj.ProjType)
                case 'tan-sip'
                    AddCell = {'A_ORDER', numel(Obj.PV.KeyNamesX), 'Polynomial order, axis 1'};
                    KeyCell = [KeyCell; AddCell];
                    AddCell = {'B_ORDER', numel(Obj.PV.KeyNamesY), 'Polynomial order, axis 2'};
-                   KeyCell = [KeyCell; AddCell];                   
+                   KeyCell = [KeyCell; AddCell];
                    AddCell = {'AP_ORDER', numel(Obj.RevPV.KeyNamesX), 'Polynomial order, axis 1'};
                    KeyCell = [KeyCell; AddCell];
                    AddCell = {'BP_ORDER', numel(Obj.RevPV.KeyNamesY), 'Polynomial order, axis 1'};
-                   KeyCell = [KeyCell; AddCell];                   
+                   KeyCell = [KeyCell; AddCell];
            end
           
        end
@@ -386,28 +421,28 @@ classdef AstroWCS < Component
 
     methods   % Functions related to xy2sky
    
-        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,Args)         
+        function [Alpha, Delta]  = xy2sky(Obj,PX,PY,Args)
             % Convert pixel coordinates to celestial coordinates
             % Input  : - A single element AstroWCS object
             %          - A matrix of pixel X coordinates.
             %            If next argument is not provided or empty then this is a
             %            two or more column matrix of [PX,PY,...]
             %          - A matrix of pixel Y coordinates.
-            %          * ...,key,val,...      
+            %          * ...,key,val,...
             %            'OutUnits'          - Output units. Default is 'deg'.
-            %            'IncludeDistortions'- Flag to include distoration. 
+            %            'IncludeDistortions'- Flag to include distoration.
             %                                  Default is: true.
             %            'useTran2D'         - Flag to use Tran2D object directly.
             %                                  Currently not supported.
             %                                  Default is: false.
-            % Output : - A two column matrix of [Alpha, Delta] or a matrix of 
+            % Output : - A two column matrix of [Alpha, Delta] or a matrix of
             %            Alpha coordinates.
             %          - A matrix of Delta coordinates.
             %            If not asked for, then the first output will be a
             %            two column matrix.
             % Author : Yossi Shvartzvald (August 2021)
             % Example: [Alpha,Delta] = Obj.xy2sky(1,1);
-            %          
+            %
         
             arguments
                 Obj
@@ -415,7 +450,7 @@ classdef AstroWCS < Component
                 PY                       = [];
                 Args.OutUnits            = 'deg';
                 Args.IncludeDistortions  = true;
-                Args.useTran2D           = false;                
+                Args.useTran2D           = false;
             end
             
             if Args.useTran2D
@@ -441,7 +476,7 @@ classdef AstroWCS < Component
             % intermediate to native
             [Phi,Theta] = Obj.interm2native(Xd,Yd,'InUnits',Obj.CUNIT{1},'OutUnits','rad');
             
-            % native to celestial 
+            % native to celestial
             [Alpha, Delta] = Obj.native2celestial(Phi,Theta,'InUnits','rad','OutUnits',Args.OutUnits);
     
         end
@@ -453,7 +488,7 @@ classdef AstroWCS < Component
             %            If next argument is not provided then this is a
             %            two column matrix of [PX,PY].
             %          - A matrix of pixel Y coordinate.
-            %            'includeDistortion' - Flag to include distoration. 
+            %            'includeDistortion' - Flag to include distoration.
             %                                  Default is: true.
             % Output : - A matrix of X intermediate coordinate.
             %          - A matrix of Y intermediate coordinate.
@@ -467,8 +502,8 @@ classdef AstroWCS < Component
                 Obj
                 PX
                 PY                       = [];
-                includeDistortion        = true;             
-            end        
+                includeDistortion        = true;
+            end
 
             if numel(Obj)~=1
                 error('The wcsCl object input must contain a single element');
@@ -521,15 +556,15 @@ classdef AstroWCS < Component
             %          - A matrix of intermediate X coordinate.
             %            If next argument (Y) is not orovided or empty then this
             %            is a two column matrix of [X,Y].
-            %          - A matrix of intermediate Y coordinate. 
-            %          * ...,key,val,...      
-            %            'InUnits '  - Input intermediate coordinates units. 
+            %          - A matrix of intermediate Y coordinate.
+            %          * ...,key,val,...
+            %            'InUnits '  - Input intermediate coordinates units.
             %                          Default is 'deg'.
-            %            'OutUnits ' - Output native coordinates units. 
+            %            'OutUnits ' - Output native coordinates units.
             %                          Default is 'deg'.
             % Output : - A matrix of native Phi coordinate.
             %          - A matrix of native Theta coordinate.
-            % Author : Yossi Shvartzvald (August 2021)            
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [Phi,Theta]=Obj.interm2native(100,100);
 
             arguments
@@ -537,8 +572,8 @@ classdef AstroWCS < Component
                 X
                 Y                       = [];
                 Args.InUnits            = 'deg';
-                Args.OutUnits           = 'deg';              
-            end            
+                Args.OutUnits           = 'deg';
+            end
             
 
             if numel(Obj)~=1
@@ -587,14 +622,14 @@ classdef AstroWCS < Component
             %            If the next input argument is empty, then this is
             %            a two column matrix of [phi,theta] coordinates.
             %          - A matrix of Theta (native) coordinates.
-            %          * ...,key,val,...      
-            %            'InUnits '  - Input intermediate coordinates units. 
+            %          * ...,key,val,...
+            %            'InUnits '  - Input intermediate coordinates units.
             %                          Default is 'deg'.
-            %            'OutUnits ' - Output native coordinates units. 
+            %            'OutUnits ' - Output native coordinates units.
             %                          Default is 'deg'.
             % Output : - A matrix of celestial (Alpha) coordinates.
             %          - A matrix of celestial (Delta) coordinates.
-            % Author : Yossi Shvartzvald (August 2021)                
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [Alpha,Delta] = Obj.native2celestial([1 1],[2 2]);
 
             arguments
@@ -602,8 +637,8 @@ classdef AstroWCS < Component
                 Phi
                 Theta                   = [];
                 Args.InUnits            = 'deg';
-                Args.OutUnits           = 'deg';              
-            end               
+                Args.OutUnits           = 'deg';
+            end
 
             if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
@@ -632,28 +667,28 @@ classdef AstroWCS < Component
             Delta = Delta.*ConvFactor;
 
 
-        end    
+        end
         
-    end    
+    end
    
     methods  % Functions related to sky2xy
-        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,Args)            
+        function [PX,PY]  = sky2xy(Obj,Alpha,Delta,Args)
             % Convert celestial coordinates to pixel coordinates
             % Input  : - A single element AstroWCS object
             %          - A matrix of Alpha coordinates.
             %            If next argument is not provided or empty then this is a
             %            two or more column matrix of [Alpha,...]
-            %          - A matrix of pixel Delta coordinates. 
-            %          * ...,key,val,...  
+            %          - A matrix of pixel Delta coordinates.
+            %          * ...,key,val,...
             %            'InUnits'          - Output units. Default is 'deg'.
-            %            'includeDistortion' - Flag to include distoration. 
+            %            'includeDistortion' - Flag to include distoration.
             %                                  Default is: true.
             %            'useTran2D'         - Flag to use Tran2D object directly.
             %                                  Currently not supported.
             %                                  Default is: false.
             % Output : - A matrix of PX coordinates.
             %          - A matrix of PY coordinates.
-            % Author : Yossi Shvartzvald (August 2021)            
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [PX,PY] = Obj.coo2xy(Obj,100,10);
             
             arguments
@@ -662,7 +697,7 @@ classdef AstroWCS < Component
                 Delta                    = [];
                 Args.InUnits             = 'deg';
                 Args.includeDistortion   = true;
-                Args.useTran2D           = false;                
+                Args.useTran2D           = false;
             end
             
             if Args.useTran2D
@@ -699,9 +734,9 @@ classdef AstroWCS < Component
 
             PX = reshape(PX,size(Delta));
             PY = reshape(PY,size(Alpha));
-        end      
+        end
         
-        function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,Args)            
+        function [Phi,Theta]=celestial2native(Obj,Alpha,Delta,Args)
             % Convert celestial coordinates to native coordinates
             % Input  : - A single element AstroWCS object.
             %          - A matrix of longiudes (Alpha).
@@ -710,14 +745,14 @@ classdef AstroWCS < Component
             %            [alpha,delta] coordinates
             %            or a three column matrix of cosine directions.
             %          - A matrix of latitudes (Delta).
-            %          * ...,key,val,...      
-            %            'InUnits '  - Input intermediate coordinates units. 
+            %          * ...,key,val,...
+            %            'InUnits '  - Input intermediate coordinates units.
             %                          Default is 'deg'.
-            %            'OutUnits ' - Output native coordinates units. 
+            %            'OutUnits ' - Output native coordinates units.
             %                          Default is 'deg'.
             % Output : - A matrix of native Phi coordinate.
             %          - A matrix of native Theta coordinate.
-            % Author : Yossi Shvartzvald (August 2021)                
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [Phi,Theta]=Obj.celestial2native([1 1],[2 2]);
             
             arguments
@@ -725,8 +760,8 @@ classdef AstroWCS < Component
                 Alpha
                 Delta                   = [];
                 Args.InUnits            = 'deg';
-                Args.OutUnits           = 'deg';              
-            end                
+                Args.OutUnits           = 'deg';
+            end
 
             if numel(Obj)~=1
                 error('Works only on a single element wcsCl object');
@@ -774,14 +809,14 @@ classdef AstroWCS < Component
             %            then this is a two column matrix of [Phi,Theta]
             %            native coordinates.
             %          - A matrix of native Theta coordinate.
-            %          * ...,key,val,...      
-            %            'InUnits '  - Input intermediate coordinates units. 
+            %          * ...,key,val,...
+            %            'InUnits '  - Input intermediate coordinates units.
             %                          Default is 'deg'.
-            %            'OutUnits ' - Output native coordinates units. 
+            %            'OutUnits ' - Output native coordinates units.
             %                          Default is 'deg'.
             % Output : - A matrix of X intermediate pixel coordinate.
             %          - A matrix of Y intermediate pixel coordinate.
-            % Author : Yossi Shvartzvald (August 2021)               
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [X,Y]=Obj.native2interm(100,100);
          
             arguments
@@ -789,8 +824,8 @@ classdef AstroWCS < Component
                 Phi
                 Theta                   = [];
                 Args.InUnits            = 'deg';
-                Args.OutUnits           = 'deg';              
-            end               
+                Args.OutUnits           = 'deg';
+            end
 
             if numel(Obj)~=1
                 error('Works on a single element wcsCl object');
@@ -835,7 +870,7 @@ classdef AstroWCS < Component
             Y   = Y.*ConvFactor;
             
 
-        end    
+        end
         
         function [PX,PY]=interm2pix(Obj,X,Y,includeDistortion)
             % Convert intermediate pixel coordinates to pixel coordinates, if requested also include distortion
@@ -844,18 +879,18 @@ classdef AstroWCS < Component
             %            If next argument (Y) is not provided then this is
             %            a two column matrix of [X,Y].
             %          - A matrix of Y intermeditae pixel coordinate.
-            %          - Flag to include distoration. Default is: true.            
+            %          - Flag to include distoration. Default is: true.
             % Output : - A matrix of X pixel coordinate.
             %          - A matrix of Y pixel coordinate.
-            % Author : Yossi Shvartzvald (August 2021)            
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [PX,PY]=Obj.interm2pix(1,1)
             
             arguments
                 Obj
                 X
                 Y                       = [];
-                includeDistortion        = true;             
-            end     
+                includeDistortion        = true;
+            end
             
              if numel(Obj)~=1
                 error('The wcsCl object input must contain a single element');
@@ -900,10 +935,10 @@ classdef AstroWCS < Component
 
                 end
                 
-                relP = [u ; v]; 
-            end            
+                relP = [u ; v];
+            end
                       
-            P = (relP + Obj.CRPIX(:)).';            
+            P = (relP + Obj.CRPIX(:)).';
             
             PX = reshape(P(:,1),size(X));
             PY = reshape(P(:,2),size(Y));
@@ -919,14 +954,14 @@ classdef AstroWCS < Component
         
         function Result = header2wcs(AH)
             % Create and populate an AstroWCS object from an AstroHeader object
-            % Input  : - AstroHeader object.           
+            % Input  : - AstroHeader object.
             % Output : - AstroWCS object.
-            % Author : Yossi Shvartzvald (August 2021)            
-            % Example: 
-            %           AH = AstroHeader(Im_name); AW = AstroWCS.header2wcs(AH);            
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example:
+            %           AH = AstroHeader(Im_name); AW = AstroWCS.header2wcs(AH);
             
             Nobj   = numel(AH);
-            Result = AstroWCS(size(AH)); 
+            Result = AstroWCS(size(AH));
             for Iobj=1:1:Nobj
             
                 % Read number of axes
@@ -946,7 +981,7 @@ classdef AstroWCS < Component
                 KeyCrval = cell(1,Naxis);
                 for Iaxis1 = 1:1:Naxis
                     KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
-                    KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1); 
+                    KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1);
                     KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
                     KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
                 end
@@ -954,7 +989,7 @@ classdef AstroWCS < Component
                 % Get CTYPE and transalte to projection information (ProjType,
                 % ProjClass) and CooName and CUNIT
                 Result(Iobj).CTYPE = AH(Iobj).getCellKey(KeyCtype);
-                Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);                
+                Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
                 Result(Iobj).read_ctype;
             
                 [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
@@ -965,7 +1000,7 @@ classdef AstroWCS < Component
                 end
                 if AH(Iobj).isKeyExist('LATPOLE')
                     Result(Iobj).LATPOLE = AH(Iobj).getVal('LATPOLE');
-                end            
+                end
 
 
                 Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
@@ -973,7 +1008,7 @@ classdef AstroWCS < Component
 
                 Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
 
-                % Read distortions   
+                % Read distortions
 
                 % look for PV coeficients
                 Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
@@ -997,7 +1032,7 @@ classdef AstroWCS < Component
             % Output : - Astrometric system, e.g., 'ICRS', 'FK5', 'FK4'
             %          - EQUINOX
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AH = AstroHeader(Im_name); [radesys,equinox] = AstroWCS.read_radesys_equinox(AH);
             
             AH = Header;
@@ -1039,7 +1074,7 @@ classdef AstroWCS < Component
             %          - Number of WCS axes.
             % Output : - CD matrix
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AH = AstroHeader(Im_name); CD = AstroWCS.build_CD(AH,2);
             
             AH = Header;
@@ -1054,7 +1089,7 @@ classdef AstroWCS < Component
                    K = K + 1;
                    KeysCD{K} = sprintf('CD%d_%d',Iaxis1,Iaxis2);
                    KeysPC{K} = sprintf('PC%d_%d',Iaxis1,Iaxis2);
-               end 
+               end
             end
             
             % try to get CD matrix
@@ -1081,24 +1116,24 @@ classdef AstroWCS < Component
                 
                 if ~all(isnan(ValPC))  && ~any(isnan(ValCdelt))   % Both PC and CDELT are provided
                     
-                    ValPC(isnan(ValPC)) = 0; % treat cases in which not all PC keywords are provided - fill with zeros  
+                    ValPC(isnan(ValPC)) = 0; % treat cases in which not all PC keywords are provided - fill with zeros
                     K = 0;
                     for Iaxis1=1:1:Naxis
                         for Iaxis2=1:1:Naxis
                             K = K + 1;
                             CD(Iaxis1,Iaxis2) = ValPC(K) * ValCdelt(Iaxis1);
                         end
-                    end           
+                    end
                                    
-                elseif   ~any(isnan(ValCdelt)) % only CDELT is provided 
+                elseif   ~any(isnan(ValCdelt)) % only CDELT is provided
                     CD = diag(ValCdelt);
                     
-                else                      
+                else
                     error('no info for CD matrix');
                 end
             end
             
-        end        
+        end
        
         function PV = build_PV_from_Header(Header,ProjType)
             % Construct a PV (distoration) structure from AstroHeader.
@@ -1106,7 +1141,7 @@ classdef AstroWCS < Component
             %          - Projection type, e.g., 'tpv, 'tan-sip'
             % Output : - PV structure (following AstroWCS.DefPVstruct)
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AH = AstroHeader(Im_name); PV = AstroWCS.build_PV_from_Header(AH,'tpv');
             
              switch lower(ProjType)
@@ -1116,13 +1151,13 @@ classdef AstroWCS < Component
                     PV = AstroWCS.DefPVstruct;
                 case 'tpv'
                     PV = AstroWCS.build_TPV_from_Header(Header);
-                case 'tan-sip'                    
+                case 'tan-sip'
                     PV = AstroWCS.build_TANSIP_from_Header(Header);
-                case 'zpn'                    
-                    error('Need to add ZPN - TODO');  
+                case 'zpn'
+                    error('Need to add ZPN - TODO');
                 otherwise
                     error('Unsupported projection type (%s)',ProjType);
-             end   
+             end
         end
         
         function PV = build_TPV_from_Header(Header)
@@ -1130,10 +1165,10 @@ classdef AstroWCS < Component
             % Input  : - AstroHeader object.
             % Output : - PV structure (following AstroWCS.DefPVstruct)
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AH = AstroHeader(Im_name); PV = AstroWCS.build_TPV_from_Header(AH);
             
-            PV = AstroWCS.DefPVstruct; 
+            PV = AstroWCS.DefPVstruct;
             
             AH = Header;
            
@@ -1181,22 +1216,22 @@ classdef AstroWCS < Component
                    end
                    PV.PolyY_Xdeg(I2) = currPV.xi_power;
                    PV.PolyY_Ydeg(I2) = currPV.eta_power;
-                   PV.PolyY_Rdeg(I2) = currPV.r_power;                    
+                   PV.PolyY_Rdeg(I2) = currPV.r_power;
                 end
                 
                 if all(PV.PolyY_Rdeg==0)
                     PV.PolyY_Rdeg=[];
-                end                                
-            end            
+                end
+            end
             
         end
         
         function PolyTPVtable=polyTPVdef()
             % Return a table of TPV polynomial definition
             % Output : - A table of TPV polinomial power (See ColNames and RowNames)
-            % Author : Yossi Shvartzvald (August 2021)          
-            % Example: 
-            %          PolyTPVtable = AstroWCS.polyTPVdef();          
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example:
+            %          PolyTPVtable = AstroWCS.polyTPVdef();
 
             ColNames = {'Axis' 'Term' 'xi_power' 'eta_power' 'r_power'};
             PolyNames ={'PV1_0' 'PV1_1' 'PV1_2' 'PV1_3' 'PV1_4' 'PV1_5' ...
@@ -1324,15 +1359,15 @@ classdef AstroWCS < Component
             %            Default is false.
             % Output : - PV structure (following AstroWCS.DefPVstruct)
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          AH = AstroHeader(Im_name); PV = AstroWCS.build_TANSIP_from_Header(AH);
             
             arguments
                 Header
-                get_inv        = false;             
-            end             
+                get_inv        = false;
+            end
             
-            PV = AstroWCS.DefPVstruct;             
+            PV = AstroWCS.DefPVstruct;
             
             AH = Header;
             
@@ -1341,7 +1376,7 @@ classdef AstroWCS < Component
             
             if get_inv
                 BaseX = 'AP';
-                BaseY = 'BP';                
+                BaseY = 'BP';
             end
                 
             
@@ -1361,8 +1396,8 @@ classdef AstroWCS < Component
                 PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
                 for I1 = 1:1:NPV1
                    PV.PolyX_Xdeg(I1) = str2double(PV1_Powers{I1}.u_power);
-                   PV.PolyX_Ydeg(I1) = str2double(PV1_Powers{I1}.v_power);                    
-                end               
+                   PV.PolyX_Ydeg(I1) = str2double(PV1_Powers{I1}.v_power);
+                end
             end
             
             if NPV2
@@ -1371,17 +1406,17 @@ classdef AstroWCS < Component
                 PV.PolyY_Xdeg = zeros(1,NPV2);
                 PV.PolyY_Ydeg = zeros(1,NPV2);
                 
-                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');                
+                PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
                 
                 for I2 = 1:1:NPV2
                    PV.PolyY_Xdeg(I2) = str2double(PV2_Powers{I2}.u_power);
-                   PV.PolyY_Ydeg(I2) = str2double(PV2_Powers{I2}.v_power);                      
+                   PV.PolyY_Ydeg(I2) = str2double(PV2_Powers{I2}.v_power);
                 end
-            end              
+            end
             
        
             
-        end   
+        end
         
         
    %======== Functions to construct AstroWCS from Tran2D =========
@@ -1389,7 +1424,7 @@ classdef AstroWCS < Component
         function Obj = tran2wcs(Tran2D, Args)
             % Create and populate an AstroWCS object from a Tran2D object
             % Input  : - Tran2D object.
-            %          * ...,key,val,...   
+            %          * ...,key,val,...
             %            'NAXIS' (mandatory) - Number of axes
             %            'CRPIX' (mandatory) - Reference pixel
             %            'CRVAL' (mandatory) - World coordinate of reference pixel
@@ -1400,16 +1435,16 @@ classdef AstroWCS < Component
             %            'EQUINOX'           - EQUINOX
             %            'LONPOLE'           - Native Longitude of the Celestial Pole
             %            'LATPOLE'           - Native Latitude of the Celestial Pole
-            %            'WCSAXES'           - WCS dimensionality      
+            %            'WCSAXES'           - WCS dimensionality
             % Output : - AstroWCS object.
-            % Author : Yossi Shvartzvald (August 2021)            
-            % Example: 
-            %          TC=Tran2D; 
+            % Author : Yossi Shvartzvald (August 2021)
+            % Example:
+            %          TC=Tran2D;
             %          TC.symPoly; TC.ParX = ones(1,13);TC.ParY = ones(1,13);
             %          TC.polyCoef;
             %          NAXIS = 2; CRPIX(1,:) = [1.0 1.0]; CRVAL(1,:) = [0.0 0.0];
             %          CD = eye(2); CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
-            %          AW = AstroWCS.tran2wcs(TC,'NAXIS',NAXIS,'CRPIX',CRPIX,'CRVAL',CRVAL,'CD',CD,'CTYPE',CTYPE,'CUNIT',CUNIT);          
+            %          AW = AstroWCS.tran2wcs(TC,'NAXIS',NAXIS,'CRPIX',CRPIX,'CRVAL',CRVAL,'CD',CD,'CTYPE',CTYPE,'CUNIT',CUNIT);
             
             arguments
                 Tran2D
@@ -1418,15 +1453,15 @@ classdef AstroWCS < Component
                 Args.CRVAL
                 Args.CD
                 Args.CTYPE
-                Args.CUNIT     
+                Args.CUNIT
                 Args.RADESYS   = [];
                 Args.EQUINOX   = [];
                 Args.LONPOLE   = [];
                 Args.LATPOLE   = [];
                 Args.WCSAXES   = [];
-            end      
+            end
 
-            % if WCSAXES is not given use NAXIS as default            
+            % if WCSAXES is not given use NAXIS as default
             if isempty(Args.WCSAXES)
                 Args.WCSAXES = Args.NAXIS;
             end
@@ -1441,12 +1476,12 @@ classdef AstroWCS < Component
 
             
             % paste CTYPE and transalte to projection information (ProjType,
-            % ProjClass) and CooName and CUNIT            
+            % ProjClass) and CooName and CUNIT
             Obj.CTYPE = Args.CTYPE;
-            Obj.CUNIT = Args.CUNIT;                
+            Obj.CUNIT = Args.CUNIT;
             Obj.read_ctype;
             
-            % paste base WCS info           
+            % paste base WCS info
             if ~isempty(Args.RADESYS)
                 Obj.RADESYS = Args.RADESYS;
             end
@@ -1458,7 +1493,7 @@ classdef AstroWCS < Component
             end
             if ~isempty(Args.LATPOLE)
                 Obj.LATPOLE = Args.LATPOLE;
-            end            
+            end
          
             Obj.CRPIX = Args.CRPIX;
             Obj.CRVAL = Args.CRVAL;
@@ -1481,14 +1516,14 @@ classdef AstroWCS < Component
             %            TAN-SIP. Default is false;
             % Output : - PV structure (following AstroWCS.DefPVstruct)
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          PV = AstroWCS.build_PV_from_Tran2D(Tran2D, 'TPV');
             
             arguments
                 Tran2D
                 ProjType
-                set_rev        = false;             
-            end                         
+                set_rev        = false;
+            end
             
             if isempty(Tran2D.PolyRep.PolyParX) || isempty(Tran2D.PolyRep.PolyX_Xdeg) || isempty(Tran2D.PolyRep.PolyX_Ydeg) || ...
                     isempty(Tran2D.PolyRep.PolyParY) || isempty(Tran2D.PolyRep.PolyY_Xdeg) || isempty(Tran2D.PolyRep.PolyY_Ydeg)
@@ -1498,11 +1533,11 @@ classdef AstroWCS < Component
             PV = AstroWCS.DefPVstruct;
             
             PV.PolyCoefX = Tran2D.PolyRep.PolyParX;
-            PV.PolyX_Xdeg = Tran2D.PolyRep.PolyX_Xdeg;            
+            PV.PolyX_Xdeg = Tran2D.PolyRep.PolyX_Xdeg;
             PV.PolyX_Ydeg = Tran2D.PolyRep.PolyX_Ydeg;
-            PV.PolyCoefY = Tran2D.PolyRep.PolyParY;            
-            PV.PolyY_Xdeg = Tran2D.PolyRep.PolyY_Xdeg;            
-            PV.PolyY_Ydeg = Tran2D.PolyRep.PolyY_Ydeg;  
+            PV.PolyCoefY = Tran2D.PolyRep.PolyParY;
+            PV.PolyY_Xdeg = Tran2D.PolyRep.PolyY_Xdeg;
+            PV.PolyY_Ydeg = Tran2D.PolyRep.PolyY_Ydeg;
 
              switch lower(ProjType)
                 case 'none'
@@ -1511,13 +1546,13 @@ classdef AstroWCS < Component
                     % do nothing
                 case 'tpv'
                     PV = AstroWCS.fill_TPV_KeyNames(PV);
-                case 'tan-sip'                    
+                case 'tan-sip'
                     PV = AstroWCS.fill_TANSIP_KeyNames(PV,set_rev);
-                case 'zpn'                    
-                    error('Need to add ZPN - TODO');  
+                case 'zpn'
+                    error('Need to add ZPN - TODO');
                 otherwise
                     error('Unsupported projection type (%s)',ProjType);
-             end               
+             end
              
         end
         
@@ -1526,7 +1561,7 @@ classdef AstroWCS < Component
             % Input  : - PV structure (following AstroWCS.DefPVstruct)
             % Output : - PV structure (following AstroWCS.DefPVstruct)
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          PV = AstroWCS.fill_TPV_KeyNames(PV);
             
             PolyTPVtable = AstroWCS.polyTPVdef();
@@ -1546,7 +1581,7 @@ classdef AstroWCS < Component
                     else
                         r_power = PV.PolyX_Rdeg(I1);
                     end
-                    PV.KeyNamesX(I1) = PolyTPVtable.Row(PolyTPVtable.Axis==Axis & PolyTPVtable.xi_power==xi_power & PolyTPVtable.eta_power==eta_power & PolyTPVtable.r_power==r_power);                  
+                    PV.KeyNamesX(I1) = PolyTPVtable.Row(PolyTPVtable.Axis==Axis & PolyTPVtable.xi_power==xi_power & PolyTPVtable.eta_power==eta_power & PolyTPVtable.r_power==r_power);
                 end
             end
             
@@ -1562,36 +1597,36 @@ classdef AstroWCS < Component
                     else
                         r_power = PV.PolyY_Rdeg(I2);
                     end
-                    PV.KeyNamesY(I2) = PolyTPVtable.Row(PolyTPVtable.Axis==Axis & PolyTPVtable.xi_power==xi_power & PolyTPVtable.eta_power==eta_power & PolyTPVtable.r_power==r_power);                  
+                    PV.KeyNamesY(I2) = PolyTPVtable.Row(PolyTPVtable.Axis==Axis & PolyTPVtable.xi_power==xi_power & PolyTPVtable.eta_power==eta_power & PolyTPVtable.r_power==r_power);
                 end
             end
         
         end
         
-        function PV = fill_TANSIP_KeyNames(PV,set_rev)  
+        function PV = fill_TANSIP_KeyNames(PV,set_rev)
             % Fill TANSIP keynames in a PV (or RevPV) structure.
             % Input  : - PV structure (following AstroWCS.DefPVstruct)
             %          - Set the RevPV distortion names. Option for
-            %            TAN-SIP. Default is false;            
+            %            TAN-SIP. Default is false;
             % Output : - PV structure (following AstroWCS.DefPVstruct)
             % Author : Yossi Shvartzvald (August 2021)
-            % Example: 
+            % Example:
             %          PV = AstroWCS.fill_TANSIP_KeyNames(PV);
             arguments
                 PV
-                set_rev        = false;             
-            end 
+                set_rev        = false;
+            end
             
             BaseX = 'A';
             BaseY = 'B';
             
             if set_rev
                 BaseX = 'AP';
-                BaseY = 'BP';                
+                BaseY = 'BP';
             end
 
             NPV1 = length(PV.PolyCoefX);
-            NPV2 = length(PV.PolyCoefY);           
+            NPV2 = length(PV.PolyCoefY);
             
             if ~isempty(PV.PolyX_Rdeg) || ~isempty(PV.PolyY_Rdeg)
                 error('TANSIP do not support poly for R');
@@ -1603,7 +1638,7 @@ classdef AstroWCS < Component
                 for I1 = 1:1:NPV1
                     u_power = PV.PolyX_Xdeg(I1);
                     v_power = PV.PolyX_Ydeg(I1);
-                    PV.KeyNamesX{I1} = sprintf('%s_%d_%d',BaseX,u_power, v_power);              
+                    PV.KeyNamesX{I1} = sprintf('%s_%d_%d',BaseX,u_power, v_power);
                 end
                           
             end
@@ -1614,14 +1649,14 @@ classdef AstroWCS < Component
                 for I2 = 1:1:NPV2
                     u_power = PV.PolyY_Xdeg(I2);
                     v_power = PV.PolyY_Ydeg(I2);
-                    PV.KeyNamesY{I2} = sprintf('%s_%d_%d',BaseY,u_power, v_power);              
+                    PV.KeyNamesY{I2} = sprintf('%s_%d_%d',BaseY,u_power, v_power);
                 end
                           
-            end             
+            end
             
-        end           
+        end
         
-   %======== Functions for related to xy2sky =========           
+   %======== Functions for related to xy2sky =========
         
         function [Alpha,Delta]=phitheta2alphadelta(Phi,Theta,PhiP,AlphaP,DeltaP,Units)
             % Convert naitive coordinates (Phi,Theta) to celestial coordinates (alpha,delta)
@@ -1634,7 +1669,7 @@ classdef AstroWCS < Component
             %            Default is 'deg'
             % Output : - Celestial longitude
             %          - Celestial latitude
-            % Author : Yossi Shvartzvald (August 2021)            
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: - [Alpha,Delta]=AstroWCS.phitheta2alphadelta(1.1,1.1,0,0,0)
 
             arguments
@@ -1643,8 +1678,8 @@ classdef AstroWCS < Component
                 PhiP
                 AlphaP
                 DeltaP
-                Units        = 'deg';             
-            end 
+                Units        = 'deg';
+            end
             
             RAD = 180./pi;
 
@@ -1678,19 +1713,19 @@ classdef AstroWCS < Component
         end
 
         function [Xd,Yd]  = forwardDistortion(PV,X,Y,Args)
-            % Apply distortion to X,Y coordinates using the PV sturcture 
+            % Apply distortion to X,Y coordinates using the PV sturcture
             % Input  : - PV structure (following AstroWCS.DefPVstruct)
             %          - X coordinate vector
             %          - Y coordinate vector
-            %          * ...,key,val,...   
+            %          * ...,key,val,...
             %            'R'           - Radial vector (i.e., sqrt(X.^2+Y.^2))
             %                            May be relevant for TPV/ZPN distorations
             %                            Default is 1.
             %            'plusXY_bool' - Add X,Y to the poliniomial. (e.g. in TAN-SIP)
-            %                            Default is false.            
+            %                            Default is false.
             % Output : - Distorted X coordinate vector
             %          - Distorted Y coordinate vector
-            % Author : Yossi Shvartzvald (August 2021)            
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [Xd,Yd]  = AstroWCS.forwardDistortion(PV,1,1);
 
             arguments
@@ -1698,8 +1733,8 @@ classdef AstroWCS < Component
                 X
                 Y
                 Args.R            = 1;
-                Args.plusXY_bool  = false;             
-            end 
+                Args.plusXY_bool  = false;
+            end
             
             CoefX    = PV.PolyCoefX;
             X_Xpower = PV.PolyX_Xdeg;
@@ -1717,11 +1752,11 @@ classdef AstroWCS < Component
                 Y_Rpower = PV.PolyY_Rdeg;
             else
                 Y_Rpower = 0;
-            end                        
+            end
 
 
             Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)) );
-            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)) );                
+            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)) );
 
             Xd=reshape(Xd,size(X));
             Yd=reshape(Yd,size(Y));
@@ -1731,10 +1766,10 @@ classdef AstroWCS < Component
                 Yd = Yd+Y;
             end
 
-        end        
+        end
         
         
-   %======== Functions for related to sky2xy =========           
+   %======== Functions for related to sky2xy =========
         
         function [Phi,Theta]=alphadelta2phitheta(Alpha,Delta,PhiP,AlphaP,DeltaP,Units)
             % Convert celestial coordinates to native coordinates
@@ -1747,7 +1782,7 @@ classdef AstroWCS < Component
             %            Default is 'deg'.
             % Output : - Native longitude
             %          - Native latitude
-            % Author : Yossi Shvartzvald (August 2021)             
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [Phi,Theta]=AstroWCS.alphadelta2phitheta(1.1,1.1,0,0,0);
 
             arguments
@@ -1756,8 +1791,8 @@ classdef AstroWCS < Component
                 PhiP
                 AlphaP
                 DeltaP
-                Units        = 'deg';             
-            end 
+                Units        = 'deg';
+            end
             
             RAD = 180./pi;
 
@@ -1791,33 +1826,33 @@ classdef AstroWCS < Component
 
         end
         
-        function [X,Y]  = backwardDistortion(PV,Xd,Yd,Args)  
-            % Apply reverse (i.e. backward) distortion to X,Y coordinates using the PV sturcture 
+        function [X,Y]  = backwardDistortion(PV,Xd,Yd,Args)
+            % Apply reverse (i.e. backward) distortion to X,Y coordinates using the PV sturcture
             % Input  : - PV structure (following AstroWCS.DefPVstruct)
             %          - Distorted X coordinate vector
-            %          - Distorted Y coordinate vector              
-            %          * ...,key,val,...   
+            %          - Distorted Y coordinate vector
+            %          * ...,key,val,...
             %            'plusXY_bool' - Add X,Y to the poliniomial. (e.g. in TAN-SIP)
             %                            Default is false.
-            %            'Threshold'   - Convergence thershold. 
+            %            'Threshold'   - Convergence thershold.
             %                            Default is 1e-7
             %            'MaxIter'     - Maximum number of itertion.
             %                            Default is 100
             %            'Step'        - Step size. Default is 1e-5.
             % Output : - X coordinate vector
             %          - Y coordinate vector
-            % Author : Yossi Shvartzvald (August 2021)            
+            % Author : Yossi Shvartzvald (August 2021)
             % Example: [X,Y]  = AstroWCS.backwardDistortion(PV,1,1);
             
             arguments
                 PV
                 Xd
                 Yd
-                Args.plusXY_bool  = false;     
-                Args.Threshold    = 1e-7; 
-                Args.MaxIter      = 100; 
-                Args.Step         = 1e-5; 
-            end 
+                Args.plusXY_bool  = false;
+                Args.Threshold    = 1e-7;
+                Args.MaxIter      = 100;
+                Args.Step         = 1e-5;
+            end
             
             Xf = Xd;
             Yf = Yd;
@@ -1836,7 +1871,7 @@ classdef AstroWCS < Component
                     R = 1;
                 else
                     R = sqrt(Xi.^2 + Yi.^2); % FFU - change to arbitrary function f(x,y)
-                end                
+                end
                 
                 [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,'R',R,'plusXY_bool',Args.plusXY_bool);
                 [Xi2,Yi2] = AstroWCS.forwardDistortion(PV,(Xi + Args.Step),(Yi + Args.Step),'R',R,'plusXY_bool',Args.plusXY_bool);
@@ -1848,7 +1883,7 @@ classdef AstroWCS < Component
                 IncX = (Xi1 - Xf)./DeltaX .* Args.Step;
                 IncY = (Yi1 - Yf)./DeltaY .* Args.Step;
                 Xi = Xi + IncX;
-                Yi = Yi + IncY; 
+                Yi = Yi + IncY;
                 
                 [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,'R',R,'plusXY_bool',Args.plusXY_bool);
                 
@@ -1886,7 +1921,7 @@ classdef AstroWCS < Component
         end
     end
     
-    %----------------------------------------------------------------------              
+    %----------------------------------------------------------------------
     
     methods (Static) % Unit-Test
         Result = unitTest()

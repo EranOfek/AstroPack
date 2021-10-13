@@ -1,24 +1,32 @@
 % BaseImage handle class - all images inherits from this class
 % Package: @BaseImage
-% Description: 
+% Description:
 % Tested : Matlab R2018a
 % Author : Eran O. Ofek (Mar 2021)
 % Dependencies: @convert, @celestial
-% Example : 
+% Example :
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+% #functions (autogen)
+% bitStat - Example: Stat = Bias.MaskData.bitStat
+% bitwise_cutouts - Apply bitwise operator to a cutouts
+% findBit - find pixels with some specific mask-bit open
+% maskSet - Set the value of a bit in a bit mask
+% #/functions (autogen)
+%
+
 classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
-    properties (Dependent) % Access image data directly  
+    properties (Dependent) % Access image data directly
 %         Image
 %         Data
-%         Scale 
-%         ScaleMethod 
-%         FileName      
+%         Scale
+%         ScaleMethod
+%         FileName
     end
     properties (SetAccess = public)
-        Dict BitDictionary                      % The dictionary of a bit mask image        
+        Dict BitDictionary                      % The dictionary of a bit mask image
     end
     properties (Hidden, SetAccess = public)
         % MaskData ImageComponent
@@ -57,7 +65,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %                   the input object. Default is false.
             % Output : - An ImageMaks object.
             % Author : Eran Ofek (May 2021)
-            % Example: 
+            % Example:
             %       MI=MaskImage;
             %       MI.Dict=BitDictionary('BitMask.Image.Default')
             %       Flag = false(3,3); Flag(1,2)=true;
@@ -144,7 +152,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %            Provided only for the last image in the
             %            MaskImage object.
             % Author : Eran Ofek (Apr 2021)
-            % Example: 
+            % Example:
             
             
             arguments
@@ -228,7 +236,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %          * ...,key,val,...
             %            'HalfSize' - Cutout half size (actual size will be
             %                   1+2*HalfSize. Default is 3.
-            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.

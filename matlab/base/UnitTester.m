@@ -3,6 +3,41 @@
 % Usage:
 %
 
+% #functions (autogen)
+% UnitTester -
+% Warn -
+% beforePush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
+% doBeforePush - Run all required tests before 'git push' command WARNING: DO NOT PUSH to common branch (currently: 'dev1') if there are failed tests!
+% doPerfTest - Run all Performance tests
+% doStressTest - Run all Stress tests
+% doTest - Run all unit-tests and show report
+% findClassDef - Search classdef
+% findFunction - Search unitTest() function
+% fullName -
+% getClassName - Get class name from folder name that starts with '@'
+% getFunctionName - 'function Result = unitTest()'
+% getPackageName - Get package name from file name
+% getTestFits - Return FITS file name and size from our test data folder
+% isTested - Check if already tested by inspecting at Obj.TestList
+% msgLog - Write message to log
+% msgStyle - Write message to log
+% perfTest - Run all Performance tests
+% processFile -
+% processFolder - Recursivly call processFile()
+% readFile - Read file to Lines{}
+% report - Print report of all performed tests
+% runTest - Run single unit test, Target is class name Example: runTest('ImagePath')
+% setup - Class setup, prepare path to source code
+% shouldProcessFile -
+% stressTest - Run all Stress tests
+% test -
+% testAll - Run all unit-test functions found in MATLAB source files
+% testCore - Run core unit-tests, required before we can run any other
+% testImage - Run image related unit-tests
+% unitTest -
+% #/functions (autogen)
+%
+
 classdef UnitTester < handle
 
     % Properties
@@ -116,7 +151,7 @@ classdef UnitTester < handle
             Obj.msgLog(LogLevel.Test, '\n');
             Obj.msgLog(LogLevel.Test, 'Warnings: %d', numel(Obj.WarnList));
             for i = 1:numel(Obj.WarnList)
-                Obj.msgStyle(LogLevel.Warning, 'red', '%s', Obj.WarnList{i});                
+                Obj.msgStyle(LogLevel.Warning, 'red', '%s', Obj.WarnList{i});
             end
 
             Result = true;
@@ -264,7 +299,7 @@ classdef UnitTester < handle
             Obj.runTest('FITS');
             Obj.runTest('ImageComponent');
             Obj.runTest('ImageIO');
-            Obj.runTest('ImagePath');            
+            Obj.runTest('ImagePath');
             Obj.runTest('MaskImage');
             Obj.runTest('MatchedSources');
             Obj.runTest('PhotonsList');
@@ -282,7 +317,7 @@ classdef UnitTester < handle
         end
 
 
-        function Result = runTest(Obj, ClassName, Args)            
+        function Result = runTest(Obj, ClassName, Args)
             % Run single unit test, Target is class name
             % Example: runTest('ImagePath')
             arguments
@@ -405,7 +440,7 @@ classdef UnitTester < handle
                 return;
             end
                 
-            % 
+            %
             PackageName = Obj.getPackageName(FileName);
             [ClassName, ClassFolder] = Obj.getClassName(FileName);
             
@@ -415,41 +450,41 @@ classdef UnitTester < handle
                 if isfile(FuncFileName)
                     ClassName = Obj.fullName(PackageName, ClassName);
                     Result = Obj.runTest(ClassName,  'FuncName', Args.FuncName);
-                else                    
+                else
                     % No specific file, we may have the function in the main class file
                     Lines = Obj.readFile(FileName);
                     FuncName = Obj.findFunction(Lines, Args.FuncName);
                     ClassName = Obj.fullName(PackageName, ClassName);
-                    if ~isempty(FuncName)                        
+                    if ~isempty(FuncName)
                         Result = Obj.runTest(ClassName, 'FuncName', FuncName);
                     elseif Args.Required
                         Obj.msgStyle(LogLevel.Warning, 'red', 'Missing class function: %s - %s()', ClassName, Args.FuncName);
                         Obj.Warn(['Missing class function: ', ClassName, ' - ', Args.FuncName, '()']);
-                    end                    
+                    end
                 end
             else
                 % Read file to Lines{}
-                Lines = Obj.readFile(FileName);          
+                Lines = Obj.readFile(FileName);
                 ClassName = Obj.findClassDef(Lines);
                 
                 if ~isempty(ClassName)
-                    ClassName = Obj.fullName(PackageName, ClassName);                    
-                    FuncName = Obj.findFunction(Lines, Args.FuncName);                    
-                    if ~isempty(FuncName)                                           
+                    ClassName = Obj.fullName(PackageName, ClassName);
+                    FuncName = Obj.findFunction(Lines, Args.FuncName);
+                    if ~isempty(FuncName)
                         Result = Obj.runTest(ClassName,  'FuncName', Args.FuncName);
                     elseif Args.Required
-                        Obj.msgStyle(LogLevel.Warning, 'red', 'Missing class function: %s - %s()', ClassName, Args.FuncName);                        
+                        Obj.msgStyle(LogLevel.Warning, 'red', 'Missing class function: %s - %s()', ClassName, Args.FuncName);
                         Obj.Warn(['Missing class function: ', ClassName, ' - ', Args.FuncName, '()']);
                     end
-                else                                       
+                else
                     FuncName = Obj.findFunction(Lines, Args.FuncName);
                     if ~isempty(FuncName)
                         FuncName = Obj.fullName(PackageName, FuncName);
                         Result = Obj.runTest('', 'FuncName', FuncName);
                     end
                 end
-            end            
-        end       
+            end
+        end
                 
         
         function Result = shouldProcessFile(Obj, FileName)
@@ -457,7 +492,7 @@ classdef UnitTester < handle
             Result = true;
             fn = lower(FileName);
             if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || contains(fn, 'draft')
-                Result = false;                
+                Result = false;
             end
         end
         
@@ -554,7 +589,7 @@ classdef UnitTester < handle
                 
         function Result = getPackageName(Obj, FileName)
             % Get package name from file name
-            Result = '';            
+            Result = '';
             if (contains(FileName, '+'))
                 FileName = strrep(FileName, '\', '/');
                 List = split(FileName, '/');

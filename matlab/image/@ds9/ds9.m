@@ -15,6 +15,77 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+% #functions (autogen)
+% blink - Set to blink display mode Package: @ds9
+% clear_frame - Clear frames from ds9 Package: @ds9 Description: Clear frame number, some frames or all frames from ds9.
+% cmap - Set the color map of an image in ds9 Package: @ds9 Description: Set the color map of an image in ds9
+% colorbar - set the colorbar of an ds9 image Package: @ds9 description: set the colorbar of an ds9 image
+% construct_command - Construct an arguments string for ds9 command Package: @ds9
+% coo2xy - Convert RA/Dec to X/Y (image) using ds9 tools Package: @ds9
+% delete_frame - Delete frames from ds9 Package: @ds9 Description: Delete frame number, some frames or all frames from ds9.
+% delete_region - Delete all regions from ds9 frame Package: @ds9 Description: Delete all regions from ds9 frame
+% disp - Display images in ds9 (use ds9 for short cut) Package: @ds9 Description: Display images in ds9 For shortcut use the ds9 constructor (see examples).
+% ds9 - Display images in ds9 Package: @ds9 Description: Display images in ds9 (constructor). See also ds9.disp.
+% dss - Get a DSS sky image from stsci Package: @ds9 Description: Get a DSS sky image from stsci.
+% exit - exit ds9 Package: @ds9
+% frame - Set ds9 frame Package: @ds9
+% getbox - Get the pixel values in a specified box region Package: @ds9 getbox function                                                          ds9 Description: Get from the ds9 display the pixel values in a specified
+% getcoo - Interactively get the coordinates (WCS) Package: @ds9 Description: Interactively get the coordinates (WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
+% getpos - Get X,Y position and pixel value Package: @ds9 Description: Get X,Y position and pixel value in clicked position.
+% ginput - Interactively get the coordinates (X/Y or WCS) Package: @ds9 Description: Interactively get the coordinates (X/Y or WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
+% header - Description: Display FITS header dialaog
+% iline - Interactively plot a line Package: @ds9 Description: Interactively plot a line in ds9 between two points defined by mouse left clicks. Also return the interpolated values in the image
+% imark - Interactive plot symbols Package: @ds9 Description: Interactive plot symbols in right click coordinates. Use 'q' click to abort. Click 'c' to switch to circle plotting, and
+% imexam - ds9 image examination utility Package: @ds9 Description: Interactive image examination in ds9.
+% ipoly - Interactively plot a polygon Package: @ds9 Description: Interactively plot a polygon. Verteces are defined by mouse or keybord clicks. 'q' to finish and abort.
+% isopen - Check if ds9 is open (linux/mac only) Package: @ds9
+% line_lt - Plot multiple lines based on X,Y,length,theta Package: @ds9 Description: Plot multiple lines based on X,Y,length,theta
+% line_xy - Plot a broken line Package: @ds9 Description: Plot a broken line (curve) in ds9 image.
+% load - Load a FITS image into ds9 frame Package: @ds9 Description: Load a FITS image into ds9 frame
+% load1 - Load a FITS image into ds9 frame number 1 Package: @ds9 Description: Load a FITS image into ds9 frame number 1
+% load_region - load regions file name into current ds9 frame Package: @ds9 Description: load regions file name into current ds9 frame.
+% lock_wcs - Lock all images WCS to current frame Package: @ds9 Description: Lock all images WCS to current frame.
+% lock_xy - Lock all images x/y coordinayes to current frame Package: @ds9 Description: Lock all images x/y coordinayes to current frame.
+% match_colorbar - Match the intensity colorbar of all frames to the current frame Package: @ds9 Description: Match the intensity colorbar of all frames to the current frame.
+% match_scale - Match the intensity scale of all frames to the current frame Package: @ds9 Description: Match the intensity scale of all frames to the current frame.
+% match_scalelimits - Match the intensity scalelimits of all frames to the current frame Package: @ds9 Description: Match the intensity scalelimits of all frames to the current frame.
+% match_wcs - Match the WCS coordinates of all frames to the current frame Package: @ds9 Description: Match the WCS coordinates of all frames to the current frame.
+% match_xy - Match the image coordinates of all frames to the current frame Package: @ds9 Description: Match the image coordinates of all frames to the current frame.
+% mode - Set ds9 mode Package: @ds9
+% nearcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Description: Get the nearest source in a SIM/AstCat object to the clicked position.
+% nearestcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Description: Get the nearest source in a SIM/AstCat object to the clicked position.
+% nedlink - Open NED link for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the NED coordinate search web page for the coordinates.
+% open - Open ds9 dispaly window if not exist already and set mode to region Package: @ds9
+% orient - Set the x/y orientation of an image in ds9 Package: @ds9 Description: Set the x/y orientation of an image in ds9
+% pan - Set the pan (cursor location) of an image in ds9 Package: @ds9 Description: Set the pan (cursor location) of an image in ds9
+% plot - Generate and plot a region file from a list of coordinates Package: @ds9 Description: Generate and plot a region file from a list of coordinates. This is like the function ds9.write_region with
+% plotXY - Example: ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs'); ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y'); ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
+% plotc - Generate and plot a region file from a list of celestial coordinates Package: @ds9
+% psprint - Print a postscript file into current directory Package: @ds9 Description: Print a postscript file into current directory.
+% read2AstroImage - Save a ds9 frame in an AstroImage object Package: @ds9 Description: Save a ds9 frame in a SIM object
+% read2fits - Save a ds9 frame to FITS image Package: @ds9 Description: Save a ds9 frame to FITS image
+% read2sim - Save a ds9 frame in a SIM object Package: @ds9 Description: Save a ds9 frame in a SIM object
+% rotate - Set the rotation of an image in ds9 Package: @ds9 Description: Set the rotation of an image in ds9
+% save_region - Save regions into a file Package: @ds9 Description: Save regions into a file.
+% scale - Set the intensity scale of an image in ds9 Package: @ds9 Description: Set the intensity scale of an image in ds9
+% sdsscat - Get SDSS catalog near clicked position Package: @ds9 Description: Get SDSS catalog near clicked position
+% sdssnavi - Open SDSS navigator for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the SDSS navigator web page for the coordinates.
+% simval - Interactively get values from SIM images Package: @ds9 Description: Interactively get values from SIM images (image, background, error, weight and mask) at clicked positions. Click 'q' to abort.
+% single - Set to single image display mode Package: @ds9
+% supported - Return true if ds9 is supported (currently only Linux and Mac)
+% system - Construct and execute an xpa command Package: @ds9
+% text - plot text to ds9 current frame Package: @ds9 Description: plot text to ds9 current frame in image coordinates position.
+% tile - Set the tile the display mode of ds9 Package: @ds9 Description: Set the tile the display mode of ds9.
+% url - Load FITS file from a URL Package: @ds9 Description: Load FITS file from a URL.
+% write_region - Write a regions file for a list of coordinates and properties Package: @ds9 Description: Write a regions file for a list of coordinates and properties.
+% xpaget - Execute an xpaget command Package: @ds9
+% xpahelp - Open the XPA command help web page Package: @ds9
+% xpaset - Execute an xpaset command Package: @ds9
+% xy2coo - Convert RA/Dec to X/Y (image) using ds9 tools Package: @ds9
+% zoom - Set the zoom of an image in ds9 Package: @ds9 Description: Set the zoom of an image in ds9
+% #/functions (autogen)
+%
+
 
 % BUGS & ISSUES:
 % If ds9.open does not display the image - see possible problem/solution:
@@ -94,9 +165,9 @@ classdef ds9 < handle
                String = strcat('set DYLD_LIBRARY_PATH "";', String);
                [Status,Answer]=system(String);
             elseif isunix
-               [Status,Answer]=system(String);               
+               [Status,Answer]=system(String);
             else
-               fprintf('\ds9.system(): Windows is not supported yet!\n'); 
+               fprintf('\ds9.system(): Windows is not supported yet!\n');
             end
             if (Status~=0)
                 if contains(Answer,'not found')
@@ -107,7 +178,7 @@ classdef ds9 < handle
                 end
                 error('Command: %s failed - Answer: %s',String,Answer);
                 
-            end            
+            end
         end
 
         % construct xpa command
@@ -231,7 +302,7 @@ classdef ds9 < handle
         function mode(Mode)
             % Set ds9 mode
             % Package: @ds9
-            % Input  : - ds9 mode. 
+            % Input  : - ds9 mode.
             %            none|region|crosshair|colorbar|pan|zoom|rotate|catalog|examine.
             %            Default is 'region'.
             % Output : null
@@ -263,7 +334,7 @@ classdef ds9 < handle
         function Answer=frame(FrameNumber)
             % Set ds9 frame
             % Package: @ds9
-            % Input  : - If not given than only get the current frame 
+            % Input  : - If not given than only get the current frame
             %            number. If numeric then set frame number.
             %            Alternatively, if a string than set to frame name.
             %            Possible names: 'first'|'prev'|'next'|'last'
@@ -404,7 +475,7 @@ classdef ds9 < handle
                 FitsFile = sprintf('%s%s%s',pwd,filesep,FitsFile);
             end
             
-            % load FITS file 
+            % load FITS file
             ds9.system('xpaset -p ds9 file %s',FitsFile);
             
             if (nargout>1)
@@ -450,7 +521,7 @@ classdef ds9 < handle
         function disp(Images, Frame, Args)
             % Display images in ds9 (use ds9 for short cut)
             % Package: @ds9
-            % Description: Display images in ds9 
+            % Description: Display images in ds9
             %              For shortcut use the ds9 constructor
             %              (see examples).
             % Input  : - Images to display. One of the following:
@@ -501,7 +572,7 @@ classdef ds9 < handle
                 end
             else
                 ds9.open;
-            end    
+            end
 
             
             IsFits = false;
@@ -578,7 +649,7 @@ classdef ds9 < handle
             end
             
             for Iim=1:1:Nim
-                % for each image                
+                % for each image
                
                 if (ischar(Frame))
                     ds9.load(List{Iim},Frame);
@@ -624,7 +695,7 @@ classdef ds9 < handle
             % Input  : - FITS file name to save.
             % Output : null
             % Example: ds9.tofits('try.fits');
-            % Reliable: 
+            % Reliable:
             
             % Read entire image from ds9
             Answer  = ds9.system('xpaset -p ds9 save %s',FileName);
@@ -962,7 +1033,7 @@ classdef ds9 < handle
             %                         Default is 'red'.
             %             'Width'   - A scalar or a vector of markers
             %                         width. Default is 1.
-            %             'Size'    - Size array. Either one row, or a row 
+            %             'Size'    - Size array. Either one row, or a row
             %                         per coordinate. Default is 10.
             %                         Note that the required number of
             %                         columns in size depands on the marker
@@ -1118,37 +1189,37 @@ classdef ds9 < handle
                 
                 switch lower(Args.Marker{min(Ireg,Nmarker)})
                     case {'circle','circ','o'}
-                        fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s)',... 
+                        fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s)',...
                                     'circle', X(Ireg), Y(Ireg),...
                                     Args.Size(min(Ireg,Nsize)),CooUnits);
                     case {'box','b','s'}
                         if (numel(Args.Size)==1)
-                            fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',... 
+                            fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',...
                                         'box',X(Ireg),Y(Ireg),...
                                         Args.Size(min(Ireg,Nsize),1),CooUnits,...
                                         Args.Size(min(Ireg,Nsize),1),CooUnits,...
                                         0);
                         else
-                            fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',... 
+                            fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',...
                                         'box',X(Ireg),Y(Ireg),...
                                         Args.Size(min(Ireg,Nsize),1),CooUnits,...
                                         Args.Size(min(Ireg,Nsize),2),CooUnits,...
                                         Args.Size(min(Ireg,Nsize),3));
                         end
                     case {'ellipse','e'}
-                        fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',... 
+                        fprintf(FID,'%s(%15.8f,%15.8f,%15.8f%s,%15.8f%s,%9.5f)',...
                                     'ellipse',X(Ireg),Y(Ireg),...
                                     Args.Size(min(Ireg,Nsize),1),CooUnits,...
                                     Args.Size(min(Ireg,Nsize),2),CooUnits,...
                                     Args.Size(min(Ireg,Nsize),3));
                     case {'vector','v'}
-                        fprintf(FID,'# %s(%15.8f,%15.8f,%15.8f%s,%9.5f)',... 
+                        fprintf(FID,'# %s(%15.8f,%15.8f,%15.8f%s,%9.5f)',...
                                     'vector',X(Ireg),Y(Ireg),...
                                     Args.Size(min(Ireg,Nsize),1),CooUnits,...
                                     Args.Size(min(Ireg,Nsize),2));
     
                     case {'line','l'}
-                        fprintf(FID,'%s(%15.8f,%15.8f,%15.8f,%15.8f)',... 
+                        fprintf(FID,'%s(%15.8f,%15.8f,%15.8f,%15.8f)',...
                                     'line',...
                                     Args.Size(min(Ireg,Nsize),1),...
                                     Args.Size(min(Ireg,Nsize),2),...
@@ -1319,9 +1390,9 @@ classdef ds9 < handle
                     elseif (~isempty(strfind(varargin{2},'m')))
                         Color = 'magenta';
                     elseif (~isempty(strfind(varargin{2},'c')))
-                        Color = 'cyan';  
+                        Color = 'cyan';
                     elseif (~isempty(strfind(varargin{2},'y')))
-                        Color = 'yellow'; 
+                        Color = 'yellow';
                     else
                         Color = 'red';
                     end
@@ -1347,7 +1418,7 @@ classdef ds9 < handle
         
         function plotXY(Cat, MarkerColor, Args)
             %
-            % Example: 
+            % Example:
             %          ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs');
             %          ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y');
             %          ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
@@ -1422,7 +1493,7 @@ classdef ds9 < handle
                     Args.Marker = 'box';
                 otherwise
                     error('Unknown Marker option');
-            end    
+            end
             
             varargin = {'Coo',Args.Coo, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
                         'Size',Args.Size, 'Width',Args.Width,...
@@ -1478,9 +1549,9 @@ classdef ds9 < handle
                 elseif (~isempty(strfind(varargin{1},'m')))
                     Color = 'magenta';
                 elseif (~isempty(strfind(varargin{1},'c')))
-                    Color = 'cyan';  
+                    Color = 'cyan';
                 elseif (~isempty(strfind(varargin{1},'y')))
-                    Color = 'yellow'; 
+                    Color = 'yellow';
                 else
                     Color = 'red';
                 end
@@ -1554,7 +1625,7 @@ classdef ds9 < handle
             %             'FontStyle'-Font style. Default is 'normal'.
             %             'Coo'     - Coordinate system: 'image'|'fk5'.
             %                         Default is 'image'.
-            %                         
+            %
             % Output : null
             % see also: ds9.plot, ds9.write_region
             % Example: ds9.text(700,900,'Hello');
@@ -1982,7 +2053,7 @@ classdef ds9 < handle
         end
         
         
-    end 
+    end
     
     % Interactive control and information (mouse)
     % (ginput, getpos, getcoo, getbox)
@@ -2265,7 +2336,7 @@ classdef ds9 < handle
                 CooType  = Def.CooType;
             elseif (nargin==1)
                 Method   = Def.Method;
-                CooType  = Def.CooType;   
+                CooType  = Def.CooType;
             elseif (nargin==2)
                 CooType  = Def.CooType;
             elseif (nargin==3)
@@ -2280,7 +2351,7 @@ classdef ds9 < handle
                 [X,Y]  = ds9.ginput(CooType,2,'mouse');
                 Method = 'section';
                 Coo    = [min(X), max(X), min(Y), max(Y)];
-            end            
+            end
             
             Coo = round(Coo);
             
@@ -2945,7 +3016,7 @@ classdef ds9 < handle
             %                      Default is
             %                      {'XWIN_IMAGE','X','ALPHAWIN_J2000','RA'}
             %            'ColY'  - Like 'ColX' but for the Y coordinate.
-            %                      Default is 
+            %                      Default is
             %                      {'YWIN_IMAGE','Y','DELTAWIN_J2000','Dec'}
             %            'ColUnits' - Units corresponding to 'ColX'.
             %                      Default is {'pix','pix','deg','ra'}.
@@ -3081,7 +3152,7 @@ classdef ds9 < handle
             %                      Default is
             %                      {'XWIN_IMAGE','X','ALPHAWIN_J2000','RA'}
             %            'ColY'  - Like 'ColX' but for the Y coordinate.
-            %                      Default is 
+            %                      Default is
             %                      {'YWIN_IMAGE','Y','DELTAWIN_J2000','Dec'}
             %            'ColUnits' - Units corresponding to 'ColX'.
             %                      Default is {'pix','pix','deg','ra'}.
@@ -3140,7 +3211,7 @@ classdef ds9 < handle
             % Output : - A structure array with the results: clicked
             %            positions and pixel values.
             % Example: Res=simval(Sim);
-            % Reliable: 
+            % Reliable:
             
             Verbose = true;
             
@@ -3200,7 +3271,7 @@ classdef ds9 < handle
                         Res(Ind).ErrVal = Sim.(ErrField)(FI);
                     else
                         Res(Ind).ErrVal = [];
-                    end 
+                    end
                     % weight
                     if (isfield_populated(Sim,WeightField))
                         if (numel(Sim.(WeightField))==1)
@@ -3211,7 +3282,7 @@ classdef ds9 < handle
                         Res(Ind).WeightVal = Sim.(WeightField)(FI);
                     else
                         Res(Ind).WeightVal = [];
-                    end 
+                    end
                     % mask
                     if (isfield_populated(Sim,MaskField))
                         FI = sub2ind(size(Sim.(MaskField)),FY,FX);
@@ -3257,7 +3328,7 @@ classdef ds9 < handle
         
         
         function Result = supported()
-            % Return true if ds9 is supported (currently only Linux and Mac)            
+            % Return true if ds9 is supported (currently only Linux and Mac)
             Result = isunix || ismac;
         end
     end

@@ -1,3 +1,13 @@
+% ImageIO
+%
+
+% #functions (autogen)
+% ImageIO - Construct an ImageIO object with optionaly reading data.
+% read1 - read a single image/table file with header in fits/hdf5/other format
+% write1 - Write a single data array into a file
+% writeHDF5 - Save matrix data to HDF5 file with possible attributes
+% #/functions (autogen)
+%
 
 classdef ImageIO < Component
     % Read/write images, tables, headers from input file or stream
@@ -36,7 +46,7 @@ classdef ImageIO < Component
             %            A table to put in the Data property.
             %            A cell array of matrices to put in the Data
             %                   property.
-            %            FileName with or without wild cards or regexp, 
+            %            FileName with or without wild cards or regexp,
             %                   or a cell of file names to read.
             %         * ...,key,val',...
             %            'HDU' - HDU number of HDF5 dataset name.
@@ -113,7 +123,7 @@ classdef ImageIO < Component
                             end
                         end
                     end
-                end 
+                end
                 
                 Nobj = numel(List);
                 for Iobj=1:1:Nobj
@@ -278,7 +288,7 @@ classdef ImageIO < Component
             %                       Default is false.
             %            'MatVersion' - MAT file version.
             %                   Default is '-v7.3'.
-            % Output : - File name. 
+            % Output : - File name.
             % Author : Eran Ofek (Jul 2021)
             % Example: ImageIO.write1(rand(10,10),'tmp.fits')
             

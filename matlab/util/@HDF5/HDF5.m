@@ -13,6 +13,31 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+% #functions (autogen)
+% access_close - close and HDF5/dataset
+% access_open - Open an HDF5 file/dataset for reading
+% get_data - Get data from an HDF5 object Description: After creation of an HDF5 object, you can access the data in the corresponding HDF5/dataset using this function.
+% get_file_var_from_htmid - Construct file and var name for HTM file stored in HDF5 Package: @HDF5 Description: Given a file base (e.g., 'UCAC4') and HTM ID and number of files in HDF5 file, construct the HDF5 file name (e.g., UCAC4_htm_032400.hdf5),
+% get_nsrc - Count number of sources over all HTM in HDF5 files Package: @HDF5
+% h5read - load HDF5 data using the built in h5read Package: @HDF5 Description: Identical to h5read
+% htm_search_cone - Search for all HTM leafs interscting a small circle (cone search) Package: celestial.htm Description: Search for all HTM leafs interscting a small circle (i.e., cone search).
+% load - load an array from a HDF5 Package: @HDF5
+% load_cat - Load catalog stored in an HDF5 file Package: @HDF5 Description: Load catalog stored in an HDF5 file. Given a and catalog in HDF5 file created by HDF5.save_cat, load the catalog. The catalog is
+% load_check - Load a variable from an HDF5 file or session (if exist) Package: @HDF5 Description: Load a variable from an HDF5 file, but first check if the variable name exist in the matlab session, and if it exist load it from there.
+% load_htm_ind - load HTM data into structure from an HDF5 file Package: @HDF5 Description: load HTM data into structure from an HDF5 file
+% load_muti_datasets - Load full multiple datasets from a single HDF5 file Package: @HDF5 Description: Load the full content of multiple datasets in a single HDF5 file into the same variable. Assuming all datasets has the same number of
+% loadh - Load HDF5 file and attributes Package: @HDF5 Description: load a matrix from HDF5 file. If dataset name is not provided than will read all datasets into a structure. This function doesn't support
+% read_colnames - read HDF5 catalog column names from index file Package: @HDF5
+% save - save a new array into an HDF5 file dataset Package: @HDF5 Description: A simple and fast save HDF5 for arrays
+% save_cat - save catalog data in HDF5 file Package: @HDF5 Description: save catalog data in HDF5 file Given a matrix containing a catalog, save the data in an HDF5 file. THe data will be saved
+% save_cat_colcell - Save ColCell cell array of an HTM catalog into a MAT file Package: @HDF5
+% save_htm_ind - Save HTM indinces of the celestial sphere in an HDF5 file Package: @HDF5 Description: Generate HDF5 file with HTM indices. The HTM indices contains the HTM tree and the 3 poles of the 3 great circles that defines each
+% search_htm_ind - A coordinate cone search in an HTM stored in HDF5 file. Package: @HDF5 Description: A coordinate cone search in an HTM stored in HDF5 file. See also: celestial.htm.htm_search_cone
+% set_type - Set HDF5 data type using the H5T.copy command Package: @HDF5
+% writeatt - Write attributes into HDF5 file
+% #/functions (autogen)
+%
+
 classdef HDF5
     properties (SetAccess = public)
         File     % File Name
@@ -107,7 +132,7 @@ classdef HDF5
         end
         
         function Data=load(FileName,VarName,Offset,Block)
-            % load an array from a HDF5 
+            % load an array from a HDF5
             % Package: @HDF5
             % Input  : - HDF5 file name.
             %          - Dataset name
@@ -116,7 +141,7 @@ classdef HDF5
             %          - [I,J] block size to upload from array.
             % Output : - An array
             
-            FID = H5F.open(FileName); 
+            FID = H5F.open(FileName);
             DSetID = H5D.open(FID,VarName);
             if (nargin>2)
                 % User requested for specific location in the array
@@ -174,7 +199,7 @@ classdef HDF5
             % Reliable: 2
             
             
-            FID = H5F.open(FileName); 
+            FID = H5F.open(FileName);
             Nds = numel(VarNames);
             for Ids=1:1:Nds
                 DSetID = H5D.open(FID,VarNames{Ids});
@@ -194,7 +219,7 @@ classdef HDF5
         function [Data,Att]=loadh(FileName,VarName,GetAtt)
             % Load HDF5 file and attributes
             % Package: @HDF5
-            % Description: load a matrix from HDF5 file. 
+            % Description: load a matrix from HDF5 file.
             %              If dataset name is not provided than will read all
             %              datasets into a structure. This function doesn't support
             %              groups.
@@ -204,7 +229,7 @@ classdef HDF5
             %          - variable name (dataset). If empty or not provided than will
             %            attempt to read all datasets.
             %          - Get attribute. If empty then do not get attributes.
-            %            'h' - store attributes in an HEAD object. 
+            %            'h' - store attributes in an HEAD object.
             %            's' - store attributes in a structure array.
             %            Default is empty.
             % Output : - Datasets.
@@ -234,7 +259,7 @@ classdef HDF5
                     Nds = numel(Info.Datasets);
                     for Ids=1:1:Nds
                         Data.(Info.Datasets(Ids).Name) = HDF5.loadh(FileName,Info.Datasets(Ids).Name,GetAtt);
-                    end   
+                    end
                     Ind = (1:1:Nds);  % indices of all datasets
                 end
             else
@@ -256,7 +281,7 @@ classdef HDF5
                         Att = HEAD(Nds,1);
                         for Ids=1:1:Nds
                             Att(Ids).Header = [{Info.Datasets(Ids).Attributes.Name}.', {Info.Datasets(Ids).Attributes.Value}.'];
-                        end          
+                        end
                     case 's'
                         % attributes will be stored in a structure
                         for Ids=1:1:Nds
@@ -637,7 +662,7 @@ classdef HDF5
             %          - Variable name. Default is '<CatName>_HTM'.
             % Output : - A structure array containing the HTM structure.
             % Example: HTM=HDF5.load_htm_ind('try_htm.hdf5','HTM');
-            % Reliable :2 
+            % Reliable :2
             
             if (nargin<2)
                 Tmp = regexp(FileName,'_','split');
@@ -770,7 +795,7 @@ classdef HDF5
                         %ID = cat(2,ID,celestial.htm.htm_search_cone(HTM,Long,Lat,Radius,Ind));
                     end
                 end
-            end  
+            end
             
         end
         
@@ -815,7 +840,7 @@ classdef HDF5
             H.Size   = Info.Dataspace.Size;
             H.File   = FileName;
             H.Var    = VarName;
-            H.FID    = H5F.open(FileName); 
+            H.FID    = H5F.open(FileName);
             H.DSetID = H5D.open(H.FID,VarName);
             
         end
@@ -825,7 +850,7 @@ classdef HDF5
     methods
             
         function access_close(H)
-            % close and HDF5/dataset 
+            % close and HDF5/dataset
             % Input  : - An HDF5 object
             % Output : null
             
@@ -863,10 +888,10 @@ classdef HDF5
     
     
     % Unit test
-    methods(Static)   
+    methods(Static)
         Result = unitTest()
 
-    end    	
+    end
 	
 end
 

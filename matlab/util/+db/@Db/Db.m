@@ -1,3 +1,15 @@
+% Db
+%
+
+% #functions (autogen)
+% Db -
+% getDb -
+% getLast -
+% getPipeline -
+% getUnitTest -
+% setup -
+% #/functions (autogen)
+%
 
 %global Glb
 %Glb = [];
@@ -6,17 +18,17 @@
 classdef Db < Component
     
     % Properties
-    properties (SetAccess = public)            
+    properties (SetAccess = public)
         DbUnitTest db.DbConnection
         DbPipeline db.DbConnection
         DbLast db.DbConnection
-        DbPlanner db.DbConnection        
+        DbPlanner db.DbConnection
         DbSoc db.DbConnection
     end
     
-    %-------------------------------------------------------- 
+    %--------------------------------------------------------
     methods
-        % Constructor    
+        % Constructor
         function Obj = Db()
             Obj.setName('Db');
             Obj.needUuid();
@@ -29,16 +41,16 @@ classdef Db < Component
             Obj.DbUnitTest.DatabaseName = 'unittest';
             
             Obj.DbPipeline = db.DbConnection.getDbConnection('pipeline');
-            Obj.DbPipeline.DatabaseName = 'pipeline';            
+            Obj.DbPipeline.DatabaseName = 'pipeline';
             
             Obj.DbLast = db.DbConnection.getDbConnection('lastdb');
-            Obj.DbLast.DatabaseName = 'lastdb';                        
+            Obj.DbLast.DatabaseName = 'lastdb';
             
             Obj.DbPlanner = db.DbConnection.getDbConnection('planner');
-            Obj.DbPlanner.DatabaseName = 'planner';            
+            Obj.DbPlanner.DatabaseName = 'planner';
             
             Obj.DbSoc = db.DbConnection.getDbConnection('soc');
-            Obj.DbSoc.DatabaseName = 'soc';                        
+            Obj.DbSoc.DatabaseName = 'soc';
 
             Result = true;
         end
@@ -59,31 +71,31 @@ classdef Db < Component
         end
             
         
-        function Result = getUnitTest(Obj)        
+        function Result = getUnitTest(Obj)
             Db = db.Db.getDb();
-            Result = Db.DbUnitTest;            
+            Result = Db.DbUnitTest;
         end
         
         
-        function Result = getPipeline(Obj)        
+        function Result = getPipeline(Obj)
             Db = db.Db.getDb();
-            Result = Db.DbPipeline;            
-        end        
+            Result = Db.DbPipeline;
+        end
         
         
-        function Result = getLast(Obj)        
+        function Result = getLast(Obj)
             Db = db.Db.getDb();
-            Result = Db.DbLast;            
-        end        
+            Result = Db.DbLast;
+        end
     end
     
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)
         Result = unitTest()
-            % 
+            %
             
-    end    
+    end
             
 end
 

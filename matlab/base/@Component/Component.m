@@ -18,6 +18,24 @@
 %               Convert scalar data property in an object into an array
 %--------------------------------------------------------------------------
 
+% #functions (autogen)
+% Component - Constructor By default use system log and configuration NewComp = Component() NewComp = Component(Owner)
+% convert2class - Convert a class that henhirts from Component to another class Uses eval, so in some cases maybe slow. Creates a new copy.
+% copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+% data2array - Convert scalar data property in an object into an array
+% makeUuid - Generate or re-generate unique ID for each element in object, Return Uuid or [] for array MyUuid = Obj.makeUuid()
+% msgLog - Write message to log according to current log-level settings Example: Obj.msgLog(LogLevel.Debug, 'Value: d', i)
+% msgStyle - Log with style (color, etc.) Example: Obj.msgLog(LogLevel.Debug, 'Value: d', i)
+% needMapKey - Generate or get current map key as uuid Map key is used with ComponentMap class as key to the object
+% needUuid - Generate unique ID only if empty Return Uuid or [] for array
+% newSerial - Generate simple serial number, used as alternative to Uuid
+% newSerialStr - Generate simple serial number, used as alternative to Uuid, shorter string and fast performance. If parameter is specified, use it as prefix to the counter Example: Serial = Obj.newSerialStr('MyIndex') -> 'MyIndex1'
+% newUuid - Generate Uuid using java package
+% selectDefaultArgsFromProp - Given an Args structure, go over fields - if empty, take value from object property. Otherwise, use value.
+% setName - Set component name
+% #/functions (autogen)
+%
+
 classdef Component < Base
     % Parent class for all components
 
@@ -30,7 +48,7 @@ classdef Component < Base
         DbUuid      = []                % Database Uuid
         Tag         = []                % Optional tag (i.e. for events handling)
         MapKey      = []                % Used with ComponentMap class
-        DebugMode   = true              % DebugMode        
+        DebugMode   = true              % DebugMode
         Config Configuration            % Configuration, deafult is system configuration
         Log MsgLogger                   % Logger, default is system logger
     end
@@ -304,12 +322,12 @@ classdef Component < Base
             
             if ~isempty(Obj.MapKey)
                 NewObj.MapKey = NewObj.Uuid;
-            end            
+            end
             
         end
     end
     
-    %----------------------------------------------------------------------    
+    %----------------------------------------------------------------------
 
     methods(Static)
         function Result = newUuid()

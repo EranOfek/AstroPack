@@ -18,10 +18,55 @@
 %   Use unittest__tables from GDrive to test
 %
 
+% #functions (autogen)
+% DbQuery - Create new DbQuery obeject
+% clear - Clear current statement and ResultSet
+% clearResultSet - Clear current ResultSet and related data
+% close - Close current query
+% copyFrom - Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+% copyTo - Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+% createDatabase - Create database
+% delete -
+% deleteRecord - Delete record by fields specified in Rec
+% exec - Execute SQL statement (that does not return data) Example: exec('INSERT ...')
+% getField - Get field value from current ResultSet, when FieldName is numeric, it is used as column index Example: Value = getField('MyFieldName')
+% getFieldIndex - Get field index by field name, search in ColNames{}
+% getFieldList - Get fields list of current ResultSet as celarray
+% getFieldNames -
+% getFieldNamesOfType -
+% getFieldTable - Get fields as empty table
+% getFieldType - Get field type
+% getMetadata - Get metadata of current result-set or specified table
+% getRecord - Get current record from ResultSet as DbRecord NOTE: Field names are loaded in lower-case (because Postgres creates field names lower-cased)
+% getStruct - Get current record from ResultSet as struct NOTE: Field names are loaded in lower-case (because Postgres creates field names lower-cased)
+% getTableFieldList - Get fields list of specified table as celarray
+% getValidFieldName -
+% insert - Insert new record to table, Keys and Values are celarray sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('s', d)", uuid, i).char;
+% insertCell -
+% insertRecord - Insert DbRecord or struct fields to specified table Todo: support struct array
+% isField - Check if field exists by name
+% loadAll - Load entire ResultSet to memory, might be time/memory consuming! @Todo?: add arg max row @Todo: load to Table (instead?)
+% loadTable - Load entire ResultSet to memory, might be time/memory consuming! @Todo?: add arg max row @Todo: load to Table (instead?)
+% makeInsertFieldsText - Prepare SQL text from cell array "INSERT INTO master_table(RecID, FInt) VALUES (?,?)"
+% makeUpdateFieldsText - Prepare SQL text from cell array "UPDATE master_table set RecID=?,FInt=? WHERE..."
+% makeWhereFieldsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..."
+% newRecord - Create new empty record associated with this query
+% next - Move cursor to next record, return false if reached end of data
+% openConn - Open connection, throw exception on failure
+% prev - Move cursor to previous record, return false if reached end of data
+% query - Run SELECT query, for other statements use exec() @Todo: Replace varargin with arguments block? Example: Result = query('SELECT COUNT(*) from master_table')
+% select - Execute: SELECT Fields FROM TableName Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
+% selectCount - Select number of records with optionally where clause
+% selectWhere - SELECT the specified fields from table, using where clause
+% setStatementValues - Set statement values from specified DbRecord or struct
+% updateRecord - Update record
+% #/functions (autogen)
+%
+
 classdef DbQuery < Component
     
     % Properties
-    properties (SetAccess = public)            
+    properties (SetAccess = public)
         
         % Connection details
         ConnectionStr   = ''        %
@@ -34,11 +79,11 @@ classdef DbQuery < Component
         
         ResultSet       = []        % Returned result-set
         Record          = []        % Current record
-        Metadata        = []        % 
+        Metadata        = []        %
         ColCount        = 0         %
         ColNames        = []        %
         ColType         = []        %
-        IsOpen          = false     % Last result of query() 
+        IsOpen          = false     % Last result of query()
         ExecOk          = false     % Last result of exec()
         Eof             = true      % True when cursor reached last record of current ResultSet
         Toc             = 0         % Time of last operation
@@ -47,10 +92,10 @@ classdef DbQuery < Component
         TableName       = '';       %
     end
     
-    %-------------------------------------------------------- 
+    %--------------------------------------------------------
     methods % Constructor
         
-        % Constructor    
+        % Constructor
         function Obj = DbQuery(varargin)
             % Create new DbQuery obeject
             
@@ -59,17 +104,17 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
             
             %
-            if numel(varargin) == 1 
+            if numel(varargin) == 1
                 
                 % Connection object is specified
-                if strcmp(class(varargin{1}), 'db.DbConnection')                    
+                if strcmp(class(varargin{1}), 'db.DbConnection')
                     Conn = varargin{1};
                     
                 % Connection name is specified
                 elseif ischar(varargin{1}) || isa(varargin{1}, 'string')
                     Obj.ConnName = varargin{1};
                     Conn = db.DbConnection.getDbConnection(Obj.ConnName);
-                end                
+                end
                 
             % Use default connection
             elseif numel(varargin) == 0
@@ -86,7 +131,7 @@ classdef DbQuery < Component
         % Destructor
         function delete(Obj)
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
-        end                        
+        end
     end
     
     
@@ -94,7 +139,7 @@ classdef DbQuery < Component
                          
         function Result = openConn(Obj)
             % Open connection, throw exception on failure
-            Result = false; 
+            Result = false;
             if isempty(Obj.Conn)
                 error('DbQuery.query: No connection');
             end
@@ -117,14 +162,14 @@ classdef DbQuery < Component
 
         
         function Result = query(Obj, varargin)
-            % Run SELECT query, for other statements use exec() 
+            % Run SELECT query, for other statements use exec()
             % @Todo: Replace varargin with arguments block?
             % Example:
             %   Result = query('SELECT COUNT(*) from master_table')
             
-            % Run SELECT statement (using java calls)          
+            % Run SELECT statement (using java calls)
             Obj.msgLog(LogLevel.Debug, 'query');
-            Result = false;            
+            Result = false;
             tic();
             
             % Need connection, clear current query
@@ -134,12 +179,12 @@ classdef DbQuery < Component
             % Set SQL text
             if numel(varargin) == 1
                 Obj.SqlText = varargin{1};
-            end              
+            end
         
             % Prepare query
             Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
             try
-                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
             catch
                 Obj.msgLog(LogLevel.Error, 'query: prepareStatement failed: %s', Obj.SqlText);
             end
@@ -147,8 +192,8 @@ classdef DbQuery < Component
             % executeQuery
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
             try
-                Obj.ResultSet = Obj.Statement.executeQuery();                
-                Obj.IsOpen = true;                
+                Obj.ResultSet = Obj.Statement.executeQuery();
+                Obj.IsOpen = true;
 
                 % Get metadata (@Todo: Make it Optional?)
                 Obj.getMetadata();
@@ -158,10 +203,10 @@ classdef DbQuery < Component
                 Result = true;
             catch
                 Obj.IsOpen = false;
-                Obj.msgLog(LogLevel.Error, 'query: executeQuery failed: %s', Obj.SqlText);                
-            end           
+                Obj.msgLog(LogLevel.Error, 'query: executeQuery failed: %s', Obj.SqlText);
+            end
             
-            Obj.Toc = toc();            
+            Obj.Toc = toc();
             Obj.msgLog(LogLevel.Debug, 'query time: %.6f', Obj.Toc);
         end
         
@@ -170,7 +215,7 @@ classdef DbQuery < Component
             % Execute SQL statement (that does not return data)
             % Example: exec('INSERT ...')
             
-            Obj.msgLog(LogLevel.Debug, 'exec');            
+            Obj.msgLog(LogLevel.Debug, 'exec');
             Result = false;
             tic();
             
@@ -181,12 +226,12 @@ classdef DbQuery < Component
             % Set SQL text
             if numel(varargin) >= 1
                 Obj.SqlText = varargin{1};
-            end              
+            end
         
             % Prepare query
             Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
             try
-                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);            
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
             catch
                 Obj.msgLog(LogLevel.Error, 'exec: prepareStatement failed: %s', Obj.SqlText);
             end
@@ -196,23 +241,23 @@ classdef DbQuery < Component
                 try
                 catch
                 end
-            end              
+            end
                         
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
             try
-                Obj.ResultSet = Obj.Statement.executeUpdate();                             
-                Obj.ExecOk = true;                
+                Obj.ResultSet = Obj.Statement.executeUpdate();
+                Obj.ExecOk = true;
                 Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'exec: executeQuery failed: %s', Obj.SqlText);                
+                Obj.msgLog(LogLevel.Error, 'exec: executeQuery failed: %s', Obj.SqlText);
             end
             
             Obj.Toc = toc();
             Obj.msgLog(LogLevel.Debug, 'exec time: %.6f', Obj.Toc);
         end
                
-    end        
+    end
 
 
     methods % Record, Fields
@@ -227,7 +272,7 @@ classdef DbQuery < Component
                 Result = ~Obj.Eof;
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
-            end                
+            end
         end
         
         
@@ -241,8 +286,8 @@ classdef DbQuery < Component
                 Result = ~Obj.Eof;
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
-            end                
-        end        
+            end
+        end
         
         
         function Result = getField(Obj, FieldName)
@@ -258,7 +303,7 @@ classdef DbQuery < Component
             end
                 
             if ColIndex > 0
-                try 
+                try
                     Type = Obj.ColType{ColIndex};
                     
                     switch Type
@@ -286,13 +331,13 @@ classdef DbQuery < Component
         end
         
         
-        function Result = isField(Obj, FieldName)        
-            % Check if field exists by name           
+        function Result = isField(Obj, FieldName)
+            % Check if field exists by name
             if isempty(Obj.ResultSet)
                 Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
                 Result = '';
             else
-                try 
+                try
                     if ~isempty(Obj.Metadata)
                         Index = getFieldIndex(FieldName);
                         Result = (Index > 0);
@@ -308,24 +353,24 @@ classdef DbQuery < Component
         
         
         function Result = getFieldIndex(Obj, FieldName)
-            % Get field index by field name, search in ColNames{}            
+            % Get field index by field name, search in ColNames{}
             Result = find(strcmp(Obj.ColNames, FieldName));
         end
          
         
         function Result = getFieldType(Obj, FieldName)
-            % Get field type            
+            % Get field type
             if isnumeric(FieldName)
                 Index = FieldName;
             else
                 Index = Obj.getFieldIndex(FieldName);
             end
                 
-            if Index > 0                
+            if Index > 0
                 Result = Obj.ColType{Index};
             else
             end
-        end  
+        end
                     
         
         function Result = getFieldList(Obj)
@@ -342,12 +387,12 @@ classdef DbQuery < Component
             Text = ['SELECT * from ', TableName, ' LIMIT 1'];
             Obj.query(Text);
             
-            % @Todo This still does not work 
+            % @Todo This still does not work
             % Obj.getMetadata(TableName);
             
             % Loop over all columns in the row
             Result = Obj.ColNames;
-        end        
+        end
         
         
         function Result = getFieldNames(Obj, Rec)
@@ -368,14 +413,14 @@ classdef DbQuery < Component
             Rec = db.DbRecord(Obj);
             
             % Loop over all columns in the row
-            for ColIndex = 1 : Obj.ColCount                
+            for ColIndex = 1 : Obj.ColCount
                 FieldName = Obj.ColNames{ColIndex};
-                Value = Obj.getField(ColIndex);                           
+                Value = Obj.getField(ColIndex);
                 addprop(Rec, FieldName);
                 Rec.(FieldName) = Value;
             end
             
-            Result = Rec;        
+            Result = Rec;
         end
         
                         
@@ -388,13 +433,13 @@ classdef DbQuery < Component
             Rec = struct;
             
             % Loop over all columns in the row
-            for ColIndex = 1 : Obj.ColCount                
+            for ColIndex = 1 : Obj.ColCount
                 FieldName = Obj.ColNames{ColIndex};
-                Value = Obj.getField(ColIndex);                           
+                Value = Obj.getField(ColIndex);
                 Rec.(FieldName) = Value;
             end
             
-            Result = Rec;                    
+            Result = Rec;
         end
         
     end
@@ -405,7 +450,7 @@ classdef DbQuery < Component
         function Result = select(Obj, Fields, TableName, Args)
             % Execute: SELECT Fields FROM TableName
             % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
-            arguments 
+            arguments
                 Obj
                 Fields
                 TableName
@@ -427,20 +472,20 @@ classdef DbQuery < Component
                 Obj.SqlText = [Obj.SqlText, ' ORDER BY ', Args.Order];
             end
             
-            % Limit            
+            % Limit
             if Args.Limit > -1
                 Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
             end
             
             % Open
-            Obj.query();            
+            Obj.query();
         end
         
         
         function Result = selectWhere(Obj, Fields, TableName, Where)
             % SELECT the specified fields from table, using where clause
             Obj.SqlText = sprintf('%s FROM %s WHERE %s', Fields, TableName, Where).char;
-            Result = Obj.query();            
+            Result = Obj.query();
         end
         
         
@@ -451,7 +496,7 @@ classdef DbQuery < Component
             else
                 Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s', TableName);
             end
-            Obj.query();            
+            Obj.query();
             Result = Obj.getField('count');
         end
        
@@ -460,7 +505,7 @@ classdef DbQuery < Component
             % Load entire ResultSet to memory, might be time/memory consuming!
             % @Todo?: add arg max row
             % @Todo: load to Table (instead?)
-            % 
+            %
             
             arguments
                 Obj
@@ -493,8 +538,8 @@ classdef DbQuery < Component
                     break
                 end
                 
-                RowIndex = RowIndex + 1;                
-            end         
+                RowIndex = RowIndex + 1;
+            end
             
             Obj.Toc = toc();
             Obj.msgLog(LogLevel.Debug, 'DbQuery.loadAll, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
@@ -543,8 +588,8 @@ classdef DbQuery < Component
                     break
                 end
                 
-                RowIndex = RowIndex + 1;                
-            end         
+                RowIndex = RowIndex + 1;
+            end
             
             Obj.Time = toc();
             Obj.msgLog(LogLevel.Debug, 'loadTable, RowCount = %d, Time: %.6f', RowIndex, Obj.Time);
@@ -587,7 +632,7 @@ classdef DbQuery < Component
     end
     
     
-    methods                    
+    methods
                     
         function Result = newRecord(Obj)
             % Create new empty record associated with this query
@@ -612,7 +657,7 @@ classdef DbQuery < Component
             Result = false;
                        
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: insertRecord');            
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: insertRecord');
             T1 = tic();
             
             % Need connection, clear current query
@@ -624,7 +669,7 @@ classdef DbQuery < Component
             FieldNamesCount = numel(FieldNames);
             [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
 
-            % 
+            %
             RecSqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ');'];
             Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', RecSqlText);
                 
@@ -639,7 +684,7 @@ classdef DbQuery < Component
                     BatchCount = Args.BatchSize;
                 else
                     BatchCount = RecordCount;
-                end                
+                end
                 RecordCount = RecordCount - BatchCount;
                 BatchNum = BatchNum + 1;
                 
@@ -661,11 +706,11 @@ classdef DbQuery < Component
                 % Iterate struct fields
                 T2 = tic();
                 FieldIndex = 1;
-                for i = 1:BatchCount                
+                for i = 1:BatchCount
                     Obj.setStatementValues(FieldNames, Rec(RecIndex), Args.FieldMap, 'FieldIndex', FieldIndex);
                     RecIndex = RecIndex + 1;
                     FieldIndex = FieldIndex + FieldNamesCount;
-                end            
+                end
                 Toc2 = toc(T2);
                 Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchCount);
             
@@ -674,18 +719,18 @@ classdef DbQuery < Component
                 T3 = tic();
                 try
                     Obj.ResultSet = Obj.Statement.executeUpdate();
-                    Obj.ExecOk = true;                
+                    Obj.ExecOk = true;
                 catch
-                    Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);                
+                    Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);
                     Obj.ExecOk = false;
                     break;
-                end                
+                end
                 Toc3 = toc(T3);
                 Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchCount);
             end
           
             Obj.Toc = toc(T1);
-            Obj.msgLog(LogLevel.Debug, 'insertRecord time: %f', Obj.Toc);                  
+            Obj.msgLog(LogLevel.Debug, 'insertRecord time: %f', Obj.Toc);
             Result = Obj.ExecOk;
         end
                      
@@ -702,7 +747,7 @@ classdef DbQuery < Component
             end
 
             
-            % Get list of table's fields 
+            % Get list of table's fields
             FieldNames = Obj.getTableFieldList(TableName);
             CellSize = size(Cell);
             Rec = struct;
@@ -739,7 +784,7 @@ classdef DbQuery < Component
                     end
                 else
                     % Field does not exist in database
-                end                               
+                end
             end
             
             % Additional fields
@@ -749,7 +794,7 @@ classdef DbQuery < Component
                 Value = Args.ExFields.(FieldName);
                 FieldName = lower(FieldName);
                 
-                if ~isfield(Rec, FieldName)                
+                if ~isfield(Rec, FieldName)
                     Rec.(FieldName) = Value;
                 else
                     Obj.msgLog(LogLevel.Debug, 'field already exist: %s', FieldName);
@@ -762,7 +807,7 @@ classdef DbQuery < Component
     end
     
     
-    methods % Update        
+    methods % Update
         function Result = updateRecord(Obj, TableName, Rec, WhereRec, Args)
             % Update record
             arguments
@@ -778,7 +823,7 @@ classdef DbQuery < Component
             Result = false;
                        
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Info, 'DbQuery: updateRecord');            
+            Obj.msgLog(LogLevel.Info, 'DbQuery: updateRecord');
             tic();
             
             % Need connection, clear current query
@@ -789,12 +834,12 @@ classdef DbQuery < Component
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
             FieldNames = Obj.getFieldNames(Rec);
             WhereFieldNames = Obj.getFieldNames(WhereRec);
-            disp(FieldNames);          
+            disp(FieldNames);
             SqlFields = Obj.makeUpdateFieldsText(FieldNames, Args.FieldMap);
             WhereFields = Obj.getFieldNames(WhereRec);
             Where = Obj.makeWhereFieldsText(WhereFieldNames, ' AND ', Args.FieldMap);
             
-            % 
+            %
             Obj.SqlText = ['UPDATE ', string(TableName).char, ' SET ', SqlFields, ' WHERE ', Where];
             Obj.msgLog(LogLevel.Debug, 'updateRecord: SqlText: %s', Obj.SqlText);
             
@@ -813,18 +858,18 @@ classdef DbQuery < Component
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
             try
-                Obj.ResultSet = Obj.Statement.executeUpdate();                             
-                Obj.ExecOk = true;                
+                Obj.ResultSet = Obj.Statement.executeUpdate();
+                Obj.ExecOk = true;
                 Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'updateRecord: executeQuery failed: %s', Obj.SqlText);                
+                Obj.msgLog(LogLevel.Error, 'updateRecord: executeQuery failed: %s', Obj.SqlText);
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'updateRecord time: %.6f', Obj.Toc);  
+            Obj.msgLog(LogLevel.Info, 'updateRecord time: %.6f', Obj.Toc);
                   
             Result = true;
-        end                
+        end
     end
     
     
@@ -836,14 +881,14 @@ classdef DbQuery < Component
                 TableName
                 Rec                     % DbRecord or struct
                 Args.FieldMap = []      % Optional field map
-            end                        
+            end
             
             % Use all fields that exist in the table
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             Result = false;
                        
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Info, 'DbQuery: insertRecord');            
+            Obj.msgLog(LogLevel.Info, 'DbQuery: insertRecord');
             tic();
             
             % Need connection, clear current query
@@ -856,7 +901,7 @@ classdef DbQuery < Component
             FieldMap = struct;
             Where = Obj.makeWhereFieldsText(FieldNames, 'AND', FieldMap);
             
-            % 
+            %
             Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];
             Obj.msgLog(LogLevel.Debug, 'deleteRecord: SqlText: %s', Obj.SqlText);
             
@@ -874,17 +919,17 @@ classdef DbQuery < Component
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
             try
-                Obj.ResultSet = Obj.Statement.executeUpdate();                             
-                Obj.ExecOk = true;                
+                Obj.ResultSet = Obj.Statement.executeUpdate();
+                Obj.ExecOk = true;
                 Result = true;
             catch
-                Obj.msgLog(LogLevel.Error, 'deleteRecord: executeQuery failed: %s', Obj.SqlText);                
+                Obj.msgLog(LogLevel.Error, 'deleteRecord: executeQuery failed: %s', Obj.SqlText);
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'deleteRecord time: %.6f', Obj.Toc);  
+            Obj.msgLog(LogLevel.Info, 'deleteRecord time: %.6f', Obj.Toc);
                   
-            Result = true;            
+            Result = true;
         end
     end
 
@@ -913,7 +958,7 @@ classdef DbQuery < Component
                 Args.Csv = true     %
             end
                                                           
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyTo');            
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyTo');
             
             AFields = '';
             if ~isempty(Args.Fields)
@@ -921,11 +966,11 @@ classdef DbQuery < Component
             end
             
             % Prepare SQL
-            ASql = ['COPY ', string(TableName).char, string(AFields).char, ' TO ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER'];                        
+            ASql = ['COPY ', string(TableName).char, string(AFields).char, ' TO ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER'];
             
             Result = Obj.exec(ASql);
-            Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);                  
-            Result = Obj.ExecOk;                                   
+            Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);
+            Result = Obj.ExecOk;
         end
         
         
@@ -940,7 +985,7 @@ classdef DbQuery < Component
                 Args.Csv = true     %
             end
                                                           
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyFrom');            
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyFrom');
             
             AFields = '';
             if ~isempty(Args.Fields)
@@ -951,8 +996,8 @@ classdef DbQuery < Component
             ASql = ['COPY ', string(TableName).char, string(AFields).char, ' FROM ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER;'];
                             
             Result = Obj.exec(ASql);
-            Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);                  
-        end        
+            Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);
+        end
         
     end
     
@@ -985,7 +1030,7 @@ classdef DbQuery < Component
             % Clear current ResultSet and related data
             Obj.ResultSet = [];
             Obj.Record = [];
-            Obj.Metadata = [];        
+            Obj.Metadata = [];
             Obj.ColCount = 0;
             Obj.ColNames  = [];
             Obj.ColType  = [];
@@ -997,7 +1042,7 @@ classdef DbQuery < Component
             % Get metadata of current result-set or specified table
             Obj.ColCount = 0;
             Obj.ColNames = {};
-            Obj.ColType = {};          
+            Obj.ColType = {};
             Result = false;
             try
                 if numel(varargin) == 1
@@ -1005,13 +1050,13 @@ classdef DbQuery < Component
                     Obj.Metadata = Obj.Conn.Conn.getMetaData();
                     
                     null = libpointer;
-                    Obj.ResultSet = Obj.Metadata.getColumns(null, null, TableName, null);                    
+                    Obj.ResultSet = Obj.Metadata.getColumns(null, null, TableName, null);
                 else
                     Obj.Metadata = Obj.Statement.getMetaData();
                 end
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
-            end            
+            end
 
             try
                 % http://docs.oracle.com/javase/7/docs/api/java/sql/Types.html
@@ -1020,22 +1065,22 @@ classdef DbQuery < Component
                 %data = cell(0, Obj.ColCount);
                 for ColIndex = Obj.ColCount : -1 : 1
                     Obj.ColNames{ColIndex} = char(Obj.Metadata.getColumnLabel(ColIndex));
-                    Obj.ColType{ColIndex}  = char(Obj.Metadata.getColumnClassName(ColIndex));  
+                    Obj.ColType{ColIndex}  = char(Obj.Metadata.getColumnClassName(ColIndex));
                 end
                 
                 % Remove 'java.lang.' frm field types, leave 'Double' etc.
-                Obj.ColType = regexprep(Obj.ColType, '.*\.',''); 
+                Obj.ColType = regexprep(Obj.ColType, '.*\.','');
                 Result = true;
 
             catch
                 Obj.msgLog(LogLevel.Error, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
-            end            
+            end
 
         end
                
         
         function [SqlFields, SqlValues] = makeInsertFieldsText(Obj, FieldNames, FieldMap)
-            % Prepare SQL text from cell array 
+            % Prepare SQL text from cell array
             % "INSERT INTO master_table(RecID, FInt) VALUES (?,?)"
             SqlFields = '';
             SqlValues = '';
@@ -1044,7 +1089,7 @@ classdef DbQuery < Component
                 %disp(FieldNames);
             end
             
-            % Iterate struct fields            
+            % Iterate struct fields
             for i = 1:numel(FieldNames)
                 FieldName = FieldNames{i};
                 
@@ -1053,7 +1098,7 @@ classdef DbQuery < Component
                     FieldName = FieldMap.(FieldName);
                 end
             
-                % 
+                %
                 if numel(SqlFields) > 0
                     SqlFields = [SqlFields, ',', FieldName]; %#ok<AGROW>
                     SqlValues = [SqlValues, ',?']; %#ok<AGROW>
@@ -1064,11 +1109,11 @@ classdef DbQuery < Component
             end
             
             Obj.msgLog(LogLevel.Debug, 'makeInsertFieldsText: %s', SqlFields);
-        end      
+        end
                     
         
-        function SqlFields = makeUpdateFieldsText(Obj, FieldNames, FieldMap)                   
-            % Prepare SQL text from cell array 
+        function SqlFields = makeUpdateFieldsText(Obj, FieldNames, FieldMap)
+            % Prepare SQL text from cell array
             % "UPDATE master_table set RecID=?,FInt=? WHERE..."
             SqlFields = '';
 
@@ -1083,7 +1128,7 @@ classdef DbQuery < Component
                     FieldName = FieldMap.(FieldName);
                 end
                 
-                % 
+                %
                 if numel(SqlFields) > 0
                     SqlFields = [SqlFields, ',' FieldName, '=?']; %#ok<AGROW>
                 else
@@ -1092,12 +1137,12 @@ classdef DbQuery < Component
             end
             
             Obj.msgLog(LogLevel.Debug, 'makeUpdateFieldsText: %s', SqlFields);
-        end      
+        end
             
         
         
-        function SqlFields = makeWhereFieldsText(Obj, FieldNames, Operand, FieldMap)                   
-            % Prepare SQL text from cell array 
+        function SqlFields = makeWhereFieldsText(Obj, FieldNames, Operand, FieldMap)
+            % Prepare SQL text from cell array
             % "WHERE RecID=? AND FInt=?..."
             arguments
                 Obj
@@ -1119,7 +1164,7 @@ classdef DbQuery < Component
                     FieldName = FieldMap.(FieldName);
                 end
                 
-                % 
+                %
                 if numel(SqlFields) > 0
                     SqlFields = [SqlFields, ' ', Operand, ' ', FieldName, '=?']; %#ok<AGROW>
                 else
@@ -1128,7 +1173,7 @@ classdef DbQuery < Component
             end
             
             Obj.msgLog(LogLevel.Debug, 'makeWhereFieldsText: %s', SqlFields);
-        end      
+        end
             
         
         function Result = setStatementValues(Obj, FieldNames, Rec, FieldMap, Args)
@@ -1174,7 +1219,7 @@ classdef DbQuery < Component
                     Obj.msgLog(LogLevel.Warn, 'setStatementValues: ERROR: other type - not supported: %s', f);
                 end
                 Index = Index+1;
-            end           
+            end
             Result = true;
         end
 
@@ -1183,7 +1228,7 @@ classdef DbQuery < Component
             for i=1:numel(Str)
                 Ch = Str(i);
                 %Valid = isletter(Ch) || isnumeric(Ch) || Ch == '_';
-                Valid = isstrprop(Ch, 'alpha') || isstrprop(Ch, 'digit') || Ch == '_';                
+                Valid = isstrprop(Ch, 'alpha') || isstrprop(Ch, 'digit') || Ch == '_';
                 if ~Valid
                     Str(i) = '_';
                 end
@@ -1211,13 +1256,13 @@ classdef DbQuery < Component
                     Result{end+1} = Obj.ColNames{ColIndex};
                 end
             end
-        end        
+        end
         
-    end   
+    end
     
     %======================================================================
     
-    %======================================================================  
+    %======================================================================
     % Performance Test
     methods(Static)
         Result = perfTest()
@@ -1232,5 +1277,5 @@ classdef DbQuery < Component
         Result = unitTest()
             % Unit-Test
                 
-    end                
+    end
 end

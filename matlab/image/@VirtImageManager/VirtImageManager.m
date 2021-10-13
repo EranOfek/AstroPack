@@ -1,4 +1,15 @@
 % Virtual Image Manager
+%
+
+% #functions (autogen)
+% VirtImageManager -
+% add -
+% delete - Destructor
+% getSingleton -
+% release -
+% remove -
+% #/functions (autogen)
+%
 
 % See Datastore (v2021a and up)
 % https://www.mathworks.com/help/matlab/datastore.html
@@ -11,10 +22,10 @@ classdef VirtImageManager < ComponentMap
         VirtPath = '';      % Default path to storge virtual image files
 
     end
-    %-------------------------------------------------------- 
-    methods % Constructor 
+    %--------------------------------------------------------
+    methods % Constructor
         
-        function Obj = VirtImageManager()            
+        function Obj = VirtImageManager()
             Obj@ComponentMap('VirtImage');
             Obj.msgLog(LogLevel.Debug, 'VirtImageManager created');
             
@@ -29,7 +40,7 @@ classdef VirtImageManager < ComponentMap
     end
     
     
-    methods    
+    methods
         function add(Obj, Image)
             Obj.msgLog(LogLevel.Debug, 'VirtImageManager.add: %s', Image.Uuid);
           
@@ -71,7 +82,7 @@ classdef VirtImageManager < ComponentMap
     
     methods(Static) % Unit test
         Result = unitTest()
-    end    
+    end
         
 end
 

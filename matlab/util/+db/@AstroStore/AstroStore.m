@@ -1,4 +1,22 @@
 % Data Storge Manager (works along with AstroDb and ImagePath)
+%
+
+% #functions (autogen)
+% AstroStore -
+% copyFileToStore - Copy (or move) file to storage
+% createDestFolder - Create destination folder
+% getBasePath - Return storage base path, used by ImagePath
+% getDataPath - Get path data folder Currently we just return our DataPath, without doing anythin with the specified Impath
+% getImageFileName - Get full path to image
+% getImagePath - Get full path to image
+% getSingleton -
+% insertFile - Insert file record to database @Todo: Need to define the table structure
+% manageTimerEvent - Timer callback function
+% setup - Load settings from configuration Currently we work with single data folder, in the future we may enhance the functionality to support multiple data folders (need to decide the logic)
+% startTimer - Setup and start timer https://www.mathworks.com/help/matlab/ref/timer-class.html https://www.mathworks.com/help/matlab/matlab_prog/timer-callback-functions.html
+% stopTimer - Stop timer
+% #/functions (autogen)
+%
 
 % For future development see:
 %
@@ -16,7 +34,7 @@ classdef AstroStore < Component
     end
     
 
-    methods % Constructor    
+    methods % Constructor
         
         function Obj = AstroStore
             Obj.setName('AstroStore');
@@ -41,7 +59,7 @@ classdef AstroStore < Component
                 Obj.DataPath = Obj.Config.Data.Pipeline.AstroStore.DataPath;
                 if isempty(Obj.DataPath)
                     Obj.DataPath = '/data/store';
-                end                
+                end
             end
                        
             % Create folder
@@ -60,11 +78,11 @@ classdef AstroStore < Component
                 Result = true;
             else
                 Obj.msgLog(LogLevel.Fatal, 'Failed to access data path: %s', Obj.DataPath);
-                Result = false;                
-            end            
+                Result = false;
+            end
                    
             % Create db adaptor
-            Obj.Db = db.AstroDb.get();          
+            Obj.Db = db.AstroDb.get();
             
             Obj.msgLog(LogLevel.Debug, 'setup done');
         end
@@ -94,7 +112,7 @@ classdef AstroStore < Component
         function manageTimerEvent(Obj, Timer, Event)
             % Timer callback function
             disp(datestr(Event.Data.time,'dd-mmm-yyyy HH:MM:SS.FFF'));
-        end        
+        end
 
         
         function Result = getBasePath(Obj)
@@ -113,7 +131,7 @@ classdef AstroStore < Component
                 SrcFileName                 % Source file name
                 DstFileName                 % Destination file/folder name
                 Args.Move = false;          % True to move source file, otherwise it will be copied
-            end                
+            end
                 
             %
             Result = false;
@@ -128,19 +146,19 @@ classdef AstroStore < Component
                 [SrcPath, SrcName, SrcExt] = fileparts(SrcFileName);
                 [DstPath, DstName, DstExt] = fileparts(DstFileName);
                          
-                % Not specified 
+                % Not specified
                 if isempty(DstFileName)
                     DstFileName = [Obj.DataPath, filesep, SrcName, SrcExt];
                     
                 % Folder name specified
                 elseif isempty(DstName) && ~isempty(DstPath)
                     DstFileName = [DstPath, filesep, SrcName, SrcExt];
-                    Obj.createDestFolder(DstFileName);                    
+                    Obj.createDestFolder(DstFileName);
                     
                 % Folder and name specified
                 else
                     DstFileName = [Obj.DataPath, filesep, DstFileName];
-                    Obj.createDestFolder(DstFileName);                  
+                    Obj.createDestFolder(DstFileName);
                 end
                 
                 % Move
@@ -153,7 +171,7 @@ classdef AstroStore < Component
                     end
                     
                 % Copy
-                else                    
+                else
                     Obj.msgLog(LogLevel.Debug, 'copying file: %s -> %s', SrcFileName, DstFileName);
                     copyfile(SrcFileName, DstFileName)
                     Result = isfile(DstFileName);
@@ -197,13 +215,13 @@ classdef AstroStore < Component
                 Args.Move = false;  % ?
                 Args.TableName      % Table name
                 Args.ImPath         % Image path
-            end                
+            end
 
             Obj.msgLog(LogLevel.Info, 'insertFile: %s', SrcFileName);
             Count1 = Q.selectCount('master_table');
             T = tic();
             s = [];
-            for i = 1:ItersCount                      
+            for i = 1:ItersCount
                 s(i).recid = Component.newUuid();
             end
             Q.insertRecord('master_table', s, 'BatchSize', BathSize);
@@ -228,7 +246,7 @@ classdef AstroStore < Component
         function Result = getImageFileName(Obj, ImPath)
             % Get full path to image
             Result = '';
-        end        
+        end
         
     end
              
@@ -250,7 +268,7 @@ classdef AstroStore < Component
 
     %======================================================================
     
-    %======================================================================  
+    %======================================================================
     % Performance Test
     methods(Static)
         Result = perfTest()
@@ -258,7 +276,7 @@ classdef AstroStore < Component
         Result = stressTest()
         
         Result = unitTest()
-    end    
+    end
                  
 end
 

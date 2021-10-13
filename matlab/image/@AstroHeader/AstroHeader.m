@@ -2,39 +2,49 @@
 % Properties:
 %   Data - a 3 columns cell array of [key,val,comment]
 %   Key  - A structure array containing on the fly-generated header
-%   File 
+%   File
 %   HDU
 %   KeyDict - Dictionary of key names synonyms
 %   ValDict - Dictionary of key values (IMTYPE) synonyms
 %   CommentDict - Dictionary of default comments
 %   TimeDict - Dictionary of time keywords and their conversion functions.
 %   IsKeyUpToDate - Is Ket structure up to date.
-% Functionality:
-%   read - read as a single/multiple headers from file/s into an Header object
-%   show - dipslay default
-%   createBasicHeader (static) - Create an AstroHeader object with a basic header
-%   funUnary - funUnary for AstroHeader - modify header and add history
-%   getVal - get a single keyword value where the keyword appears first in a dictionary.
-%   getStructKey - Get multiple  keys from multiple headers and store in a structure array
-%   getCellKey - Get multiple  keys from multiple headers and store in a cell array
-%   setVal - Set value @Todo
-%   insertDefaultComments - Insert/replace default comments for keys using the header comments dictionary
-%   deleteKey - Delete keywords from header by exact keyword name
-%   insertKey - Insert key/val/comment to headers
-%   replaceVal - Replace a keyword value in headers (no dictionary in key
-%   isKeyVal - Check if a single keyword value equal to some value.
-%   isKeyExist - Check if a single keyword value equal to some value.
-%   isImType - Check if header IMTYPE keyword value equal some type
-%   julday - Calculate mid exposure JD and ExpTime for AstroHeader object
-%   groupByKeyVal - Group a set of AstroHeaders by their unique keyword values.
-%   unitTest (static) - unitTest for AstroHeader class
+
+%
+
+% #functions (autogen)
+% AstroHeader - Construct AstroHeader object and populate it with headers
+% createBasicHeader - Create an AstroHeader object with a basic header
+% deleteKey - Delete keywords from header by exact keyword name
+% funUnary - funUnary for AstroHeader - modify header and add history This is a self explenatory function usually for internal use Example: H = AstroHeader('*.fit');
+% get.Key - getter for Key, generate key structure array if needed
+% getCellKey - Get multiple  keys from multiple headers and store in a cell array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
+% getCoo - get RA/Dec coordinates from header
+% getDictionary -
+% getObsCoo - Get Observatory geodetic position from Header
+% getStructKey - Get multiple  keys from multiple headers and store in a structure array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
+% getVal - get a single keyword value where the keyword appears first in a dictionary.
+% groupByKeyVal - Group a set of AstroHeaders by their unique keyword values. e.g., look for all images with the same EXPTIME and put them in different groups according to the EXPTIME value.
+% help - show manuals.AstroHeader
+% insertDefaultComments - Insert/replace default comments for keys using the header comments dictionary
+% insertKey - Insert key/val/comment to headers
+% isImType - Check if header IMTYPE keyword value equal some type
+% isKeyExist - Check if a single keyword value equal to some value.
+% isKeyVal - Check if a single keyword value equal to some value.
+% julday - Calculate mid exposure JD and ExpTime for AstroHeader object Given the header keywords attempt calculating the mid JD of the exposure. This is done by retrieving the relevank header keywords (default in config/Header.Time.KeyNames.yml).
+% read - read as a single/multiple headers from file/s into an Header object
+% replaceVal - Replace a keyword value in headers (no dictionary in key search).
+% set.Data - setter for the header data / set IsKeyUpToDate to false
+% setVal - @Todo - use Dictionaries
+% show - Display all headers in an AstroHeader object
+% #/functions (autogen)
 %
 
 classdef AstroHeader < Component
     % Properties
     properties (SetAccess = public)
         Data(:,3) cell            = cell(0,3);
-        Key struct                = struct(); 
+        Key struct                = struct();
         
         File                      = '';
         HDU                       = ''; % HDU or dataset
@@ -57,19 +67,19 @@ classdef AstroHeader < Component
         ColComment = 3;
     end
     
-%         filename        
+%         filename
 %         configPath = "";
 %         data
 %         lines
 %         userData
-%         
+%
 %         inputImagePath
 %         inputImageExt
     
     
 
     methods
-        % Constructor    
+        % Constructor
         function Obj = AstroHeader(FileNames,HDU,Args)
             % Construct AstroHeader object and populate it with headers
             % Input  : - Either a vector of the the size of the empty
@@ -120,7 +130,7 @@ classdef AstroHeader < Component
             Obj = reshape(Obj,size(List));
 
             
-            % read files            
+            % read files
             Nhdu = numel(HDU);
             for Ih=1:1:Nh
                 if ~isempty(Obj(Ih).File)
@@ -160,7 +170,7 @@ classdef AstroHeader < Component
         function set.Data(Obj,HeaderCell)
             % setter for the header data / set IsKeyUpToDate to false
            
-            Obj.Data = HeaderCell; 
+            Obj.Data = HeaderCell;
             Obj.IsKeyUpToDate = false;
             
         end
@@ -255,7 +265,7 @@ classdef AstroHeader < Component
             % Example: HH = AstroHeader.createBasicHeader
             %          HH = AstroHeader.createBasicHeader(1,{'WINDDIR',11;'M_STAT','ok';'NEW',1});
             %          HH = AstroHeader.createBasicHeader(1,{'WINDDIR',11,'aa';'M_STAT','ok','jj'});
-            %          HH = AstroHeader.createBasicHeader([1 2],'WINDDIR',11,'M_STAT','ok','NEW',1);   
+            %          HH = AstroHeader.createBasicHeader([1 2],'WINDDIR',11,'M_STAT','ok','NEW',1);
            
             if nargin==0
                 Size = [1 1];
@@ -356,7 +366,7 @@ classdef AstroHeader < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 Obj(Iobj).HDU  = 1;
-                Obj(Iobj).File = ''; 
+                Obj(Iobj).File = '';
                 Obj(Iobj).Data = CellHeader;
             end
             
@@ -442,7 +452,7 @@ classdef AstroHeader < Component
             % get a single keyword value where the keyword appears first in a dictionary.
             % Input  : - A single element AstroHeader object
             %          - Either a single character array, or a cell array
-            %            of character arrays. If a single char array, then 
+            %            of character arrays. If a single char array, then
             %            search for its first occurence with or without
             %            dictionary.
             %            If a cell array, then this will override the
@@ -593,7 +603,7 @@ classdef AstroHeader < Component
                 ExactKeys
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char                                            = 'strcmp'; 
+                Args.SearchAlgo char                                            = 'strcmp';
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;
@@ -613,7 +623,7 @@ classdef AstroHeader < Component
                 else
                     Dict = Args.KeyDict;
                 end
-                if Args.UseDict    
+                if Args.UseDict
                     for Ikey=1:1:Nkey
                         if Args.IsInputAlt
                             [Key,AltConv,Alt,~] = searchAlt(Dict, ExactKeys{Ikey}, 'CaseSens', Args.CaseSens, 'SearchAlgo', Args.SearchAlgo);
@@ -654,7 +664,7 @@ classdef AstroHeader < Component
 %                     regexp(1)
 %                 end
 %             end
-%             
+%
         end
         
         function [ResultVal, IK] = getCellKey(Obj,ExactKeys,Args)
@@ -702,7 +712,7 @@ classdef AstroHeader < Component
                 ExactKeys
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;
@@ -724,7 +734,7 @@ classdef AstroHeader < Component
                 else
                     Dict = Args.KeyDict;
                 end
-                if Args.UseDict    
+                if Args.UseDict
                     for Ikey=1:1:Nkey
                         if Args.IsInputAlt
                             [Key,AltConv,Alt,~] = searchAlt(Dict, ExactKeys{Ikey}, 'CaseSens',Args.CaseSens, 'SearchAlgo',Args.SearchAlgo);
@@ -778,7 +788,7 @@ classdef AstroHeader < Component
             arguments
                 Obj
                 Args.CaseSens(1,1) logical                             = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
                 Args.IsInputAlt(1,1) logical                           = true;
                 Args.Occur                                             = 'first';
                 
@@ -829,10 +839,10 @@ classdef AstroHeader < Component
 %             % Input  : -
 %             % Output : -
 %             % Author : Eran Ofek (Apr 2021)
-%             % Example: 
-%             
-%             
-%             
+%             % Example:
+%
+%
+%
 %         end
         
         function Obj = deleteKey(Obj,ExactKeys,Args)
@@ -935,7 +945,7 @@ classdef AstroHeader < Component
                 Obj
                 Key
                 Val
-                Args.SearchAlgo char                          = 'strcmp'; 
+                Args.SearchAlgo char                          = 'strcmp';
                 Args.CaseSens(1,1) logical                    = true;
                 Args.RepVal(1,1) logical                      = true;
                 Args.Comment                                  = [];
@@ -976,8 +986,8 @@ classdef AstroHeader < Component
 %         function search(Obj,Val,Args)
 %             %
 %             arguments
-%                 Obj         
-%                 Val                 
+%                 Obj
+%                 Val
 %                 Args.Column                  = 1;
 %                 Args.CaseSens(1,1) logical   = true;
 %             end
@@ -1017,7 +1027,7 @@ classdef AstroHeader < Component
             %                   by 'AEXPTIME' use true.
             %                   Default is false.
             % Output : - An array of logical (size like input object),
-            %            indicating for each object element if the keyword 
+            %            indicating for each object element if the keyword
             %            value is equal to the specified value.
             % Author : Eran Ofek (Apr 2021)
             % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
@@ -1069,7 +1079,7 @@ classdef AstroHeader < Component
                             Result(Iobj) = abs(Val-KeyVal)<Args.NumericTol;
                         end
                     end
-                end                
+                end
             end
             
             
@@ -1106,7 +1116,7 @@ classdef AstroHeader < Component
             %                   by 'AEXPTIME' use true.
             %                   Default is false.
             % Output : - An array of logical (size like input object),
-            %            indicating for each object element if the keyword 
+            %            indicating for each object element if the keyword
             %            value is equal to the specified value.
             % Author : Eran Ofek (Apr 2021)
             % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
@@ -1181,7 +1191,7 @@ classdef AstroHeader < Component
                 Args.ImTypeKeyName                                   = 'IMTYPE';
                 Args.UseDict(1,1) logical                            = true;
                 Args.CaseSens(1,1) logical                           = true;
-                Args.SearchAlgo                                      = 'strcmp'; 
+                Args.SearchAlgo                                      = 'strcmp';
                 Args.IsInputAlt(1,1) logical                         = true;
                 Args.KeyDict                                         = [];
             end
@@ -1268,7 +1278,7 @@ classdef AstroHeader < Component
                 %Args.TreatBug2000(1,1) logical                                  = true;
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;
@@ -1310,7 +1320,7 @@ classdef AstroHeader < Component
                 ExpTime(Iobj)  = StExp(Iobj).(Args.ExpTimeKey);
                 Found = false;
                 Ikey = 0;
-                while ~Found && Ikey<NtimeKeys 
+                while ~Found && Ikey<NtimeKeys
                     Ikey = Ikey + 1;
                     T  = StTime(Iobj).(TimeKeys{Ikey});
                     if ~isnan(T)
@@ -1378,7 +1388,7 @@ classdef AstroHeader < Component
                 Keys cell        = {};  % e.g., {'IMTYPE','EXPTIME','FILTER'}
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp'; 
+                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;
@@ -1446,12 +1456,12 @@ classdef AstroHeader < Component
             % Input  : - An AstroHeader object.
             %          * ...,key,val,...
             %            'RA'  - Either an header keyword char containing
-            %                    the RA keyword, or a cell array or char of 
+            %                    the RA keyword, or a cell array or char of
             %                    sexagesimal coordinates (containing ":"),
             %                    or a numeric value containing the RA.
             %                    Default is 'RA'.
             %            'Dec' - Either an header keyword char containing
-            %                    the Dec keyword, or a cell array or char of 
+            %                    the Dec keyword, or a cell array or char of
             %                    sexagesimal coordinates (containing ":"),
             %                    or a numeric value containing the Dec.
             %                    Default is 'Dec'.
@@ -1471,7 +1481,7 @@ classdef AstroHeader < Component
                 Args.RA         = 'RA';
                 Args.Dec        = 'DEC';
                 Args.Units      = 'deg';
-                Args.OutUnits   = 'deg'; 
+                Args.OutUnits   = 'deg';
                 Args.getStructKeyArgs cell = {};
             end
             
@@ -1515,7 +1525,7 @@ classdef AstroHeader < Component
                 Dec     = convert.angular(Args.Units, Args.OutUnits, Dec);
             else
                 error('Unknown Dec input type');
-            end 
+            end
             
         end
         
@@ -1537,7 +1547,7 @@ classdef AstroHeader < Component
     methods(Static)
         Result = unitTest()
             % unitTest for AstroHeader
-    end    
+    end
         
 end
 

@@ -1,11 +1,45 @@
-% 
+% ImageComponent
+%
+
+% #functions (autogen)
+% ImageComponent - ImageComponent constructor
+% background - Estimate the background and variance of an ImageComponent
+% cast - Cast the image data in ImageComponent (transform to a new type)
+% coadd - coadd images in an ImageComponent object including pre/post normalization and variance
+% crop - Crop an ImageComponent object. Either apply multiple trims to a single image, or a single trime to multiple images, or multiple trims to multiple images (one to one). Update also the CCDSEC propery.
+% cutouts - Break a single image to a cube of cutouts around given positions including optional sub pixel shift.
+% funBinary - Apply a binary operator to ImageComponent objects CCDSEC is updated according to CCDSEC1.
+% funCutouts - Apply function (that returns a scalar) on image cutouts
+% funStack - Simple stack (coadd) images in an ImageComponent object without pre/post normalization
+% funUnary - funUnary on ImageComponent Update CCDSEC accordingly.
+% funUnaryScalar - funUnary on ImageComponent returning an array of scalars (one scalar per image)
+% get.Cols -
+% get.Image - getter for Image (rescale Data)
+% get.Rows -
+% getImageByKey -
+% image2subimages - break an image in a single element ImageComponent into sub images.
+% imageComponent2AstroImage - Convert an ImageComponet to AstroImage
+% images2cube - Generate a cube of images from ImageComponent object
+% imresize - resize image data using matlab imresize function
+% imrotate - Apply imrotate (image rotation) in ImageComponent object Set CCDSEC to [].
+% isemptyImage - Check if images data in ImageComponent are empty (true if empty). Result is an array (element per image element). Example: IC = ImageComponent({rand(0,1), rand(10,12)}); isemptyImage(IC)
+% replace - Replace values in range in image with a new value and generate a flag image of replaced pixels
+% set.Data - setter for Data - store in Data
+% set.Image - setter for image - store in Data and set Scale to []
+% sizeImage - get size of all images/data
+% subimages2image - break image to sub images
+% subtractBack - subtract background from an ImageComponent If this is a SciImage, then also set the IsBackSubtracted to true.
+% #/functions (autogen)
+%
+
 classdef ImageComponent < Component
+
     % Parent class for all images
     
     properties (Dependent)
         Image                                   % return the rescaled image
         Rows
-        Cols        
+        Cols
     end
     
     properties (SetAccess = public)
@@ -22,7 +56,7 @@ classdef ImageComponent < Component
         FileName                     = '';      % @FFU
         Virt VirtImage                          % Actual image data
         
-        % Storage 
+        % Storage
     end
 
     
@@ -97,7 +131,7 @@ classdef ImageComponent < Component
                 end
             end % end if isempty...
             
-            % @Chen: Automatically generate Uuid ??           
+            % @Chen: Automatically generate Uuid ??
             Obj.needMapKey();
         end % end ImageComponent
     end
@@ -123,7 +157,7 @@ classdef ImageComponent < Component
         end
         
         function set.Data(Obj, ImageData)
-            % setter for Data - store in Data 
+            % setter for Data - store in Data
             Obj.Data  = ImageData;
             %Obj.Scale = [];
         end
@@ -183,7 +217,7 @@ classdef ImageComponent < Component
             % Input  : - An ImageComponent object (multi elements supported).
             %          - Property name for wich the size is requested.
             %            Default is 'Image'.
-            % Output : arrays [Nx] and [Ny] of all images. 
+            % Output : arrays [Nx] and [Ny] of all images.
             % Example: IC = ImageComponent({rand(10,12)});
             %          [Nx, Ny] = IC.sizeImage
            
@@ -304,7 +338,7 @@ classdef ImageComponent < Component
             %          IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
             %          IC.funUnary(@tanh,'CCDSEC',[1 2 1 3]);
             %          IC.funUnary(@tanh,'CCDSEC',[1 2 1 3],'OutOnlyCCDSEC',true);
-            %          
+            %
             
             arguments
                 Obj
@@ -417,9 +451,9 @@ classdef ImageComponent < Component
             %          IC2 = ImageComponent({rand(2,2)});
             %          R   = funBinary([IC1,IC2],{1 2},@plus,'CreateNewObj',true)
             %          IC  = ImageComponent({rand(10,10), rand(2,2)},'Scale',5)
-            %          R   = funBinary(IC,3,@times,'CreateNewObj',true) 
+            %          R   = funBinary(IC,3,@times,'CreateNewObj',true)
             %          IC  = ImageComponent({rand(10,10), rand(2,2)},'Scale',5)
-            %          R   = funBinary(IC,3,@times,'CreateNewObj',false) 
+            %          R   = funBinary(IC,3,@times,'CreateNewObj',false)
             %          IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5)
             %          IB  = funBinary(IC,IC(1),@plus,'CreateNewObj',true)
             %          IC  = ImageComponent({rand(10,10), rand(10,10)},'Scale',5)
@@ -525,7 +559,7 @@ classdef ImageComponent < Component
                         Result(Ires).CCDSEC             = Args.CCDSEC1;
                     else
                         Result(Ires).(Args.DataPropOut)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)) = Operator(Obj1(Iobj1).(Args.DataPropIn1)(Args.CCDSEC1(3):Args.CCDSEC1(4), Args.CCDSEC1(1):Args.CCDSEC1(2)), Tmp, Args.OpArgs{:});
-                    end                    
+                    end
                 end
             end
         end
@@ -554,7 +588,7 @@ classdef ImageComponent < Component
             %          R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'});
             %          IC = ImageComponent({rand(10,10), rand(5,4)},'Scale',5)
             %          R = IC.funUnaryScalar(@median,'OpArgs',{'all','omitnan'},'CCDSEC',[1 2 1 3]);
-            %          
+            %
             
             arguments
                 Obj
@@ -710,7 +744,7 @@ classdef ImageComponent < Component
             %            function. Default is no arguments.
             % Output : - A background subtracted ImageComponent
             % Author : Eran Ofek (Apr 2021)
-            % Example: 
+            % Example:
                 
         
             if nargin<2
@@ -724,7 +758,7 @@ classdef ImageComponent < Component
                 Back = background(Obj, varargin{:});
             end
             
-            if isnumeric(Back) 
+            if isnumeric(Back)
                 Back = ImageComponent({Back});
             elseif iscell(Back)
                 Back = ImageComponent(Back);
@@ -773,7 +807,7 @@ classdef ImageComponent < Component
             %                   'max'
             %                   'range'
             %                   'quantile' - rquires a quqntile argument.
-            %                   'wmean' 
+            %                   'wmean'
             %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
             %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
             %                   'bitor' - bit-wise or operation. Return only Coadd.
@@ -930,7 +964,7 @@ classdef ImageComponent < Component
             %                   'max'
             %                   'range'
             %                   'quantile' - rquires a quqntile argument.
-            %                   'wmean' 
+            %                   'wmean'
             %                   'sigmaclip' - for arguments see: imUtil.image.mean_sigclip
             %                   'wsigmaclip' - for arguments see: imUtil.image.wmean_sigclip
             %                   'bitor' - bit-wise or operation. Return only Coadd.
@@ -1053,7 +1087,7 @@ classdef ImageComponent < Component
                         Args.CalcCoaddVarEmpirical = false;
                     end
                 end
-            end  
+            end
             
             if Args.SubBack
                 % subtract background (only if not subtracted)
@@ -1194,7 +1228,7 @@ classdef ImageComponent < Component
                 end
             end
             
-            Nnewval = numel(NewVal); 
+            Nnewval = numel(NewVal);
             Nrange  = size(Range,1);
             Nobj    = numel(Obj);
             
@@ -1291,7 +1325,7 @@ classdef ImageComponent < Component
             % Apply imrotate (image rotation) in ImageComponent object
             %       Set CCDSEC to [].
             % Input  : - An ImageComponent object.
-            %          - Rotation angle [deg]. 
+            %          - Rotation angle [deg].
             %          * ...,key,val,...
             %            'Method' - imrotate interpolation method.
             %                   Default is 'bicubic'.
@@ -1355,7 +1389,7 @@ classdef ImageComponent < Component
             %       a single image, or a single trime to multiple images,
             %       or multiple trims to multiple images (one to one).
             %       Update also the CCDSEC propery.
-            % Input  : - An ImageComponent object. 
+            % Input  : - An ImageComponent object.
             %          - Either [minX, maxX, minY, maxY] (Type='ccdsec')
             %            or [Xcenter, Ycenter, Xhalfsize, Yhalfsize] (Type = 'center')
             %            or [Xhalfsize, Yhalfsize] (Type = 'center').
@@ -1508,7 +1542,7 @@ classdef ImageComponent < Component
             %                   1+2*HalfSize. Default is 8.
             %            'PadVal' - padding value for cutouts near edge or
             %                   without circular shifts.
-            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
@@ -1552,7 +1586,7 @@ classdef ImageComponent < Component
             Iobj = 1;
             switch lower(Args.CutAlgo)
                 case 'mex'
-                    [CutoutCube] = imUtil.image.mexCutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1); 
+                    [CutoutCube] = imUtil.image.mexCutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
                     CutoutCube   = squeeze(CutoutCube);
                 case 'wmat'
                     [CutoutCube] = imUtil.image.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);
@@ -1560,7 +1594,7 @@ classdef ImageComponent < Component
                     error('Unknown Algo option');
             end
             
-            % shift cutouts 
+            % shift cutouts
             if Args.Shift
                 ActualXY  = XY;
                 switch lower(Args.ShiftAlgo)
@@ -1580,14 +1614,14 @@ classdef ImageComponent < Component
                     case 'lanczos2'
                         CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 2, Args.IsCircFilt, Args.PadVal);
                     case 'lanczos3'
-                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 3, Args.IsCircFilt, Args.PadVal);    
+                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 3, Args.IsCircFilt, Args.PadVal);
                     otherwise
                         error('Unknown ShiftAlgo option');
-                end               
+                end
             
             else
                 ActualXY  = RoundXY;
-            end   
+            end
         end
         
         
@@ -1604,7 +1638,7 @@ classdef ImageComponent < Component
             %            'HalfSize' - Cutout half size (actual size will be
             %                   1+2*HalfSize. Default is 8.
             %            'PadVal' - Padding value. Default is NaN.
-            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.            
+            %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
@@ -1673,5 +1707,5 @@ classdef ImageComponent < Component
         Result = unitTest
             % unitTest for ImageComponent
 
-    end    
+    end
 end

@@ -1,5 +1,16 @@
 % Class for time-tagged events table/images
 
+% #functions (autogen)
+% TimeTagImage - what to read?
+% coo2pix -
+% events2image -
+% findGoodTimes -
+% pix2coo -
+% readPhotonsList1 - Obj = PhotonsList.readPhotonsList1('/data/euler/eran/work/Chandra/ao21/cat2/22335/acisf22335_repro_evt2.fits');
+% selectEnergy - select photons within some energy ranges
+% #/functions (autogen)
+%
+
 classdef PhotonsList < Component
     properties (Dependent)
         Image
@@ -96,7 +107,7 @@ classdef PhotonsList < Component
             %          - A vector of flagged photons (in energy range), but
             %            only for the last element in the PhotonsList object.
             % Author : Eran Ofek (Apr 2021)
-            % Example: 
+            % Example:
             
             Nen = size(EnergyRange,1);
             

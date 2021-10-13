@@ -49,11 +49,60 @@
 %       rdivide - Apply the rdivide operator between AstroImage objects.
 %       conv - Convolve images with their PSF, or another PSF
 %       filter - Filter images with their PSF, or another PSF
-%       
+%
 % Functionality (Static):
 %       imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
 %       readImages2AstroImage - Create AstroImage object and read images into a specific property.
 %       unitTest - unitTest for AstroImage
+
+% #functions (autogen)
+% AstroImage - Constructor and image reader for AstroImage class
+% astroImage2AstroCatalog - Convert the CataData in AstroImage object into an AstroCatalog object array.
+% astroImage2ImageComponent - Convert an AstroImage data into SciImage, BackImage, etc. objects.
+% cast - Cast the image/back/var data in AstroImage (transform to a new type)
+% conv - Convolve images with their PSF, or another PSF
+% copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+% crop - crop an AstroImage images and catalogs and update WCS
+% filter - Filter images with their PSF, or another PSF
+% funBinary - Apply a binary operator to AstroImage
+% funBinaryImVar - Apply a binary operator with error propagation to the ImageData and VarData in an AstroImage object.
+% funBinaryProp - Apply binary function on a single property of AstroImage without error propagation.
+% funCat - Apply function of Cat properties in AstroImage array This function doesn't create a new object
+% funHeader - Apply function of HeaderData properties in AstroImage array This function doesn't create a new object
+% funHeaderScalar - Apply function that return a scalae on HeaderData properties in AstroImage array
+% funPSF - Apply function of PSF properties in AstroImage array
+% funUnary - Apply an unary function on AstroImage object. This include applying the function  on specific data fields, and or image sections (CCDSEC), and error propagation. Note that error propgation is activated using the
+% funUnaryScalar - Apply a unary operator that return scalar on AstroImage and return an numeric array
+% funWCS - Apply function of WCS properties in AstroImage array
+% get.Back - getter for BackImage
+% get.Header - getter for Header
+% get.Image - getter for Image - get image from ImageData property
+% get.Key - getter for Header keys
+% get.Mask - getter for MaskImage
+% get.Var - getter for VarImage
+% get.WCS - getter for WCS if empty, attempt to create from header
+% getStructKey - Get multiple  keys from headers in multiple AstroImage and store in a structure array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
+% imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
+% isImType - Check if header IMTYPE keyword value equal some type
+% isemptyImage - Check if data images in AstroImage object are empty
+% julday - Return the Julian day for AstroImage object
+% maskSet - Set the value of a bit in a bit mask (Maskdata) in AstroImage
+% minus - Apply the minus operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI - AI
+% object2array - Convert an AstroImage object that contains scalars into an array
+% plus - Apply the plus operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI + AI
+% prepOperand2 - Prepare the 2nd operand for binary operation
+% propagateWCS - Given An AstroImage with WCS property, propagate it to the header and catalog
+% rdivide - Apply the rdivide operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI ./ AI
+% readImages2AstroImage - Create AstroImage object and read images into a specific property.
+% set.Back - setter for BackImage
+% set.Image - setter for Image - store image in ImageData property Obj.(Relations.Image).Image = Data;   can use this instead
+% set.Mask - setter for MaskImage
+% set.Var - setter for VarImage
+% setKeyVal - Replace/insert keyword/value to HeaderData in AstroImage
+% sizeImage - Return the size of images in AstroImage object
+% times - Apply the times operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI .* AI
+% #/functions (autogen)
+%
 
 
 classdef AstroImage < Component
@@ -61,11 +110,11 @@ classdef AstroImage < Component
     % UserData
     % Config
     
-    properties (Dependent) % Access image data directly        
-        Image 
-        Back 
+    properties (Dependent) % Access image data directly
+        Image
+        Back
         Var
-        Mask 
+        Mask
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
         Cat     % e.g., Cat, Cat([1 3]), Cat('RA'), Cat({'RA','Dec'})
@@ -85,7 +134,7 @@ classdef AstroImage < Component
         HeaderData(1,1) AstroHeader          %= AstroHeader;
         CatData(1,1) AstroCatalog            %= AstroCatalog;
         PSFData(1,1) AstroPSF                %= AstroPSF;
-        WCS(1,1) AstroWCS                 
+        WCS(1,1) AstroWCS
         
         PropagateErr(1,1) logical          = false;
         
@@ -247,8 +296,8 @@ classdef AstroImage < Component
 %             Obj.ImageData  = SciImage({300 + 10.*randn(100,100)});
 %             Obj.VarData    = VarImage({10.*ones(100,100)});
 %             Obj.BackData   = BackImage({300});
-%             Obj.HeaderData.Data = {'EXPTIME',1,'';'FILTER','R',''}; 
-%             
+%             Obj.HeaderData.Data = {'EXPTIME',1,'';'FILTER','R',''};
+%
 %             arguments
 %                 AnotherObj            = [1 1];
 %                 Args.
@@ -310,7 +359,7 @@ classdef AstroImage < Component
             %            A table to put in the Data property.
             %            A cell array of matrices to put in the Data
             %                   property.
-            %            FileName with or without wild cards or regexp, 
+            %            FileName with or without wild cards or regexp,
             %                   or a cell of file names to read.
             %          * ...,key,val,...
             %            'Obj' - An AstroImage object in which to put the
@@ -384,7 +433,7 @@ classdef AstroImage < Component
         function Data = get.Image(Obj)
             % getter for Image - get image from ImageData property
             Data = Obj.ImageData.Image;
-        end    
+        end
         
         function Obj = set.Back(Obj, Data)
             % setter for BackImage
@@ -449,11 +498,11 @@ classdef AstroImage < Component
 %             % Output : - A cell array of Data property names.;
 %             % Example: AI.translateDataPropName('Var')
 %             %          AI.translateDataPropName({'Back','Var'})
-%             
+%
 %             if ischar(DataProp)
 %                 DataProp = {DataProp};
 %             end
-%             
+%
 %             Nprop    = numel(DataProp);
 %             DataName = cell(1,Nprop);
 %             for Iprop=1:1:Nprop
@@ -465,7 +514,7 @@ classdef AstroImage < Component
 %                     %error('Requested DataProp: %s - can not be translated into valid data property name',DataProp{Iprop});
 %                 end
 %             end
-%             
+%
 %         end
 %     end
     
@@ -492,7 +541,7 @@ classdef AstroImage < Component
                 Prop = {Prop};
             end
             
-            Nprop = numel(Prop);            
+            Nprop = numel(Prop);
             Nobj = numel(Obj);
             varargout = cell(1,nargout);
             if nargout>Nprop
@@ -671,7 +720,7 @@ classdef AstroImage < Component
     methods % write
 %         function write1(Obj, FileName)
 %             % Write a single image in a single object
-%         
+%
 %             arguments
 %                 Obj
 %                 FileName
@@ -679,10 +728,10 @@ classdef AstroImage < Component
 %                 DataPropIn char            = 'Image';
 %                 WriteHeader(1,1) logical   = true;
 %             end
-%             
-%             
-%             
-%             
+%
+%
+%
+%
 %         end
         
     end
@@ -795,7 +844,7 @@ classdef AstroImage < Component
             %          - An AstroHeader function handle.
             %          * Additional arguments to pass to the function.
             % Output : - An array in which each element corresponds to the
-            %            result of applying the function on a single element 
+            %            result of applying the function on a single element
             %            of the AStroImage object.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({rand(10,10), rand(10,10)});
@@ -1044,7 +1093,7 @@ classdef AstroImage < Component
                 Args.ImTypeKeyName                                   = 'IMTYPE';
                 Args.UseDict(1,1) logical                            = true;
                 Args.CaseSens(1,1) logical                           = true;
-                Args.SearchAlgo                                      = 'strcmp'; 
+                Args.SearchAlgo                                      = 'strcmp';
                 Args.IsInputAlt(1,1) logical                         = true;
                 Args.KeyDict                                         = [];
             end
@@ -1167,10 +1216,10 @@ classdef AstroImage < Component
             % Author : Eran Ofek (Apr 2021)
             % Example: AI = AstroImage({10.*ones(10,10)},'Back',{ones(5,5)},'BackScale',2,'var',{ones(5,5)},'VarScale',2);
             %          B=AI.funUnary(@sin,'CreateNewObj',true)
-            %          B=AI.funUnary(@mean,'OpArgs',{'all'}) 
+            %          B=AI.funUnary(@mean,'OpArgs',{'all'})
             %          AI.PropagateErr=true; B=AI.funUnary(@mean,'OpArgs',{'all'})
             %          B=AI.funUnary(@median,'OpArgs',{'all'}); % must result in error
-            %          B=AI.funUnary(@median,'OpArgs',{'all'},'PropagateErr',false,'OperateOnVar',true) 
+            %          B=AI.funUnary(@median,'OpArgs',{'all'},'PropagateErr',false,'OperateOnVar',true)
             
             arguments
                 Obj
@@ -1248,7 +1297,7 @@ classdef AstroImage < Component
                                                                                        'OperateOnVar',Args.OperateOnVar,...
                                                                                        'PropagateErr',Obj(Iobj).PropagateErr && Args.CalcVar);
                 
-                if Args.CalcImage                                                                 
+                if Args.CalcImage
                     if RetBack && Args.ReRemoveBack
                         % remove background from image
                         ResultFun = ResultFun - Obj(Iobj).BackData.(Args.ImCompDataPropIn);
@@ -1274,7 +1323,7 @@ classdef AstroImage < Component
                 
                 % update Header
                 Result(Iobj).HeaderData = funUnary(Result(Iobj).HeaderData, Operator, 'OpArgs',Args.OpArgs,...
-                                                                                      'UpdateHeader',Args.UpdateHeader,...                                                                        
+                                                                                      'UpdateHeader',Args.UpdateHeader,...
                                                                                       'AddHistory',Args.AddHistory,...
                                                                                       'NewUnits',Args.NewUnits,...
                                                                                       'InsertKeys',Args.InsertKeys,...
@@ -1314,7 +1363,7 @@ classdef AstroImage < Component
             %                   properties on which the operator will operated.
             %                   Default is
             %                   {'ImageData','BackData','VarData','MaskData'}.
-            %            'DataPropIn' - Data property in the ImageComponent 
+            %            'DataPropIn' - Data property in the ImageComponent
             %                   on which the operator
             %                   will be operated. Default is 'Data'.
             % Output : - An array in which each element corresponds to the operator applied
@@ -1333,7 +1382,7 @@ classdef AstroImage < Component
                 Args.CCDSEC                     = [];
                 Args.DataProp                   = {'ImageData','BackData','VarData','MaskData'};
                 Args.DataPropIn                 = 'Data';
-            end    
+            end
             
             % Convert AstroImage to (up to 4) ImageComponent objects
             % CellIC is a cell array of ImageComponent objects
@@ -1747,7 +1796,7 @@ classdef AstroImage < Component
                                                                   'Result',Result);
                 end
             else
-                if Args.CalcImage 
+                if Args.CalcImage
                     Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
                                                                  'DataProp','ImageData',...
                                                                  'DataPropIn',Args.DataPropIn,...
@@ -1932,7 +1981,7 @@ classdef AstroImage < Component
             %            equal to size(Obj), and contains all the scalars
             %            in the corresponding data property.
             % Author : - Eran Ofek (Apr 2021)
-            % Example: 
+            % Example:
             
             arguments
                 Obj
@@ -2083,7 +2132,7 @@ classdef AstroImage < Component
                 Args.CreateNewObj(1,1) logical   = true;
             end
             
-            if isempty(Args.CreateNewObj)   
+            if isempty(Args.CreateNewObj)
                 if nargout==0
                     Args.CreateNewObj = false;
                 else
@@ -2195,7 +2244,7 @@ classdef AstroImage < Component
                 Args.CreateNewObj(1,1) logical   = true;
             end
             
-            if isempty(Args.CreateNewObj)   
+            if isempty(Args.CreateNewObj)
                 if nargout==0
                     Args.CreateNewObj = false;
                 else
@@ -2241,7 +2290,7 @@ classdef AstroImage < Component
                 
             end
             
-        end               
+        end
     end
        
     %----------------------------------------------------------------------
@@ -2253,7 +2302,7 @@ classdef AstroImage < Component
             % Make shallow copy of all properties
             NewObj = copyElement@Component(Obj);
 
-            % Deep copy class properties            
+            % Deep copy class properties
             NewObj.ImageData    = Obj.ImageData.copy();
             NewObj.BackData     = Obj.BackData.copy();
             NewObj.VarData      = Obj.VarData.copy();
@@ -2261,13 +2310,13 @@ classdef AstroImage < Component
             NewObj.HeaderData   = Obj.HeaderData.copy();
             NewObj.CatData      = Obj.CatData.copy();
             NewObj.PSFData      = Obj.PSFData.copy();
-            NewObj.WCS          = Obj.WCS.copy();            
+            NewObj.WCS          = Obj.WCS.copy();
         end
     end
     
-    %----------------------------------------------------------------------          
+    %----------------------------------------------------------------------
         
-    methods (Static) 
+    methods (Static)
         Result = unitTest()
             % Unit-Test
             

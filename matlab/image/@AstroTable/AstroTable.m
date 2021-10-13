@@ -1,12 +1,62 @@
 % AstroTable handle class
 % Package: @AstroTable
-% Description: 
+% Description:
 % Tested : Matlab R2018a
 % Author : Eran O. Ofek (Mar 2021)
 % Dependencies: @convert, @celestial
-% Example : 
+% Example :
 % Reliable: 2
 %--------------------------------------------------------------------------
+
+% #functions (autogen)
+% AstroTable - Constrt an AstroTable object or transform AstCat/struct/ to AstroTable
+% array2table - Convert catalog data in AstroTable to table format
+% col2struct - return structure array with column names in field and index in values. Example: col2struct(A)
+% colind2name - Return column names corresponding to column indices
+% colname2ind - Convert column names to column indices
+% colnameDict2ind - Given a list of column names, select the first that appear in Table
+% compareColNames - Compare two ColNames's Package: @AstroTable (Static) Description: Given two cell array of strings compare their content. Return a vector of logical of length equal to the longer ColNames.
+% csvWrite - who wrote this? missing help
+% defaultColNames - create a default ColNames with N columns Package: @AstroTable (Static)
+% deleteCatalog - delete the content of an AstroTable object Example: Result = deleteCatalog(Obj)
+% deleteCol - Delete columns fron an AstroTable object.
+% flipud - flip up-down all catalogs in AstroTable object (set IsSorted to false) Example: flipud(Obj)
+% funUnary - Apply an unary function to columns of a catalog
+% get.Catalog - getter for Image - get image from ImageData property
+% get.ColNames - getter for ColNames
+% get.ColUnits - getter for ColUnits
+% getCol - Get a catalog columns by index or names
+% getCol2struct - Get columns from AstroTable and return them in a structure array.
+% getColDic - get a single Column data from a dictionary of column names
+% help - show help in manuals.AstroTable
+% insertCol - Insert columns to AstroTable object
+% insertColumn - Insert a single column into a matrix, table, or a cell array Package: @AstroTable (Static) Description: Insert a single column into a matrix, table, or a cell array.
+% insertLines - Insert rows from Matrix2 to Matrix1, including optional NaN filling and reordering. There are 2 related functions: insertLines and selectLines: selectLines is useful for operations like: Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+% insertRows - Insert rows from Obj2 into Obj1 (e.g., Obj1(FlagInd,: ) = Obj2) There are 2 related functions: insertRows and selectRows: AstroTable/selectRows is useful for operations like: Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+% isColIdentical - Check if ColNames in an AstroTable object is identical to another ColNames Package: @AstroTable Descriptio: For each element in a AstroTable object check if the ColNames property is equal to a reference ColNames.
+% isColumn - Return true if a name is an existing column name in an AstroTable object Example: Result = isColumn(Obj,'RA')
+% isemptyCatalog - Return true if Catalog data in AstroTable object is empty, otherwise false. example: Result = isemptyCatalog(Obj)
+% max - Calculate the max value of all requested columns names/indices. Default is for all columns.
+% merge - Merge table/matrices in multiple AstroTable elements
+% min - Calculate the min value of all requested columns names/indices. Default is for all columns.
+% plot - plot function for AstroTable objects
+% plotFun - Operate a graphical function on AstroTable
+% query - Query an AstroTable object
+% queryRange - Query catalog by columns in range (without using eval). See also query
+% replaceCol - replace (or insert) columns in AstroTable
+% replaceColNames - Replace column names in AstroTable object
+% searchSynonym - Find the first appearance of a synonym in a cell array.
+% selectLines - Select rows from Matrix, including optional NaN filling and reordering. There are 2 related functions: insertLines and selectLines: selectLines is useful for operations like: Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+% selectRows - Select rows from AstroTable object, including optional NaN filling and reordering. There are 2 related functions: insertRows and selectRows: AstroTable/selectRows is useful for operations like: Result = Obj(FlagInd, :) w/o NaN in FlagInd or IgnoreNaN=true
+% set.Catalog - setter for catalog - set also column names and units if table and available
+% set.ColNames - setter for ColNames - input is either a cell or a string array if the catalog is in table format it will also set its Properties.VariableNames (but only if the size is consistent)
+% set.ColUnits - setter for ColUnits - input is either a cell or a string array if the catalog is in table format it will also set its Properties.VariableUnits (but only if the size is consistent)
+% set.SortByCol - Setter for SortByCol, also set IsSorted to false - sue sortrows to sort
+% sizeCatalog - Return the number o rows and columns in all elements in an AstroTable object Example: [Nrow,Ncol] = sizeCatalog(Obj)
+% sortrows - Sort AstroTable objects by some column names/indices
+% table2array - Convert catalog data in AstroTable to array format
+% #/functions (autogen)
+%
 
 classdef AstroTable < Component
     % Component should contain:
@@ -179,7 +229,7 @@ classdef AstroTable < Component
 %                 end
 %                 [varargout{1:Nargout}] = builtin('subsref',Obj,S);
 %             end
-%             
+%
 %         end
 %     end
 
@@ -207,7 +257,7 @@ classdef AstroTable < Component
         function Result = get.Catalog(Obj)
             % getter for Image - get image from ImageData property
             Result = Obj.Catalog;
-        end        
+        end
         
         function set.ColNames(Obj, CellColName)
             % setter for ColNames - input is either a cell or a string array
@@ -370,7 +420,7 @@ classdef AstroTable < Component
            % Example: [Name, IndInCell, IndInSynonym] = AstroTable.searchSynonym({'Number','ra','dec','Flux','Color'},{'ALPHA_J2000','RAJ2000','RA','ALPHA'});
            
            arguments
-               Cell 
+               Cell
                SynonymCell
                Args.CaseSens(1,1) logical            = false;
            end
@@ -386,7 +436,7 @@ classdef AstroTable < Component
                 Name          = {};
                 IndInCell     = [];
                 IndInSynonym  = [];
-            else             
+            else
                 IndIndInSyn = find(IndInSyn>0);
                 [~,II] = min(IndInSyn(IndIndInSyn));
                 IndInCell = IndIndInSyn(II);
@@ -479,7 +529,7 @@ classdef AstroTable < Component
             % Input  : - A first matrix.
             %          - A second matrix in which the number of coloumns is
             %            equal or larger than the number of columns in the
-            %            first matrix. 
+            %            first matrix.
             %          - Indices in first matrix in which to put the lines
             %            from the second matrix.
             %          - Indices of lines in the second matrix to use.
@@ -900,7 +950,7 @@ classdef AstroTable < Component
             %          - Cell array of new column units. Default is {}.
             %            If empty, then use ''.
             % Output : - The AstroTable object with the new columns.
-            % Example: A=AstroTable; A.Catalog=rand(10,3); A.ColNames={'a','b','c'}; insertCol(A,ones(10,2),'c')     
+            % Example: A=AstroTable; A.Catalog=rand(10,3); A.ColNames={'a','b','c'}; insertCol(A,ones(10,2),'c')
 
             arguments
                 Obj
@@ -1031,7 +1081,7 @@ classdef AstroTable < Component
                     end
                 end
             else
-                % 
+                %
                 for Iobj=1:1:Nobj
                     ColInd   = colname2ind(Obj(Iobj),ColNames);
                     if all(isnan(ColInd))
@@ -1393,7 +1443,7 @@ classdef AstroTable < Component
                 ColInd = colname2ind(Obj(Iobj), Args.Columns);  % If columns empty - return all columns
                 if istable(Obj(Iobj).Catalog)
                     Ncol  = numel(ColInd);
-                    Nrows = size(Obj(Iobj).Catalog,1); 
+                    Nrows = size(Obj(Iobj).Catalog,1);
                     Result = nan(Nrows,Ncol);
                     for Icol=1:1:Ncol
                         ColName = Obj(Iobj).ColNames(ColInd(Icol));
@@ -1635,7 +1685,7 @@ classdef AstroTable < Component
             %          * Additional arguments to pass to thre plot
             %            function.
             % Output : - The plot handle. If multiple elemnts, then only
-            %            the handle of the lastes plot will be returned. 
+            %            the handle of the lastes plot will be returned.
             % Author : Eran Ofek (Apr 2021)
             % Example: AT = AstroTable; AT.Catalog=rand(10,4);
             % AT.ColNames={'a','b','c','d'};
@@ -1684,7 +1734,7 @@ classdef AstroTable < Component
             if ~HoldOn
                 % return hold to original state
                 hold off;
-            end                        
+            end
         end
         
         function varargout = plot(Obj, ColXY, varargin)
