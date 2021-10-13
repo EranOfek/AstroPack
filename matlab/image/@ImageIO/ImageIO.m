@@ -411,6 +411,50 @@ classdef ImageIO < Component
             
             
         end
+        
+        function writeHDF5(Data, FileName, Args)
+            % Save matrix data to HDF5 file with possible attributes
+            % Input  : - data matrix to save.
+            %          - File name.
+            %          * ...,key,val,...
+            %            'DataSet' - HDF5 dataset. Default is '/cat'.
+            %            'Header' - A two column cell array with header
+            %                   information. Default is {}.
+            %            'ColNames' - This argument is ignored if Header is
+            %                   provided. This is a cell vector of column
+            %                   names.
+            %            'ColUnits' - Like column name but for units.
+            % Output : null
+            % Author : Eran Ofek (Oct 2021)
+            % Example: ImageIO.writeHDF5(rand(100,3),'ab.h5','ColNames',{'a','b','c'});
+            
+            arguments
+                Data
+                FileName
+                Args.DataSet  = '/cat';
+                Args.Header   = {};
+                Args.ColNames = {};
+                Args.ColUnits = {};
+            end
+           
+            if isempty(Args.Header)
+                if isempty(Args.ColNames)
+                    Att = {};
+                else
+                    if isempty(Args.ColUnits)
+                        Args.ColUnits = cell(numel(Args.ColNames), 1);
+                    end
+                    if numel(Args.ColUnits)~=numel(Args.ColNames)
+                        error('ColUnits and ColNames must have the same number of entries');
+                    end
+                    Att = [Args.ColNames(:), Args.ColUnits(:)];
+                end
+            else
+                Att = Args.Header(:,1:2);
+            end
+            HDF5.save(Data, FileName, Args.DataSet, Att);
+            
+        end
     end
     
     methods (Static)  % unitTest

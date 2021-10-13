@@ -31,6 +31,12 @@ function [Result, Flag] = cleanSources(Obj, Args)
     %            'ThresholdSN' - S/N threshold. annulus-std S/N smaller than
     %                   this threshold are declared as bad.
     %                   Default is 5.
+    %            'MaskCR' - A logical indicating if to update the mask
+    %                   image with cosmic rays found using 'CR_DeltaHT'.
+    %                   This will be activated only if the input is an
+    %                   AstroImage. Default is true.
+    %            'BitNameCR' - A bit name in the Mask image for flagging
+    %                   the CR (cosmic rays). Default is 'CR_DeltaHT'.
     %            'RemoveBadSources' - A logical indicating if to remove bad
     %                   sources from the output catalog. Default is true.
     %            'CreateNewObj' - A logical indicating if to create a new
@@ -58,6 +64,9 @@ function [Result, Flag] = cleanSources(Obj, Args)
         Args.ColNamePos                = {'X','Y','XPEAK','YPEAK'};
         
         Args.ThresholdSN               = 5;
+        
+        Args.MaskCR logical            = true;
+        Args.BitNameCR                 = 'CR_DeltaHT';
         
         Args.RemoveBadSources logical  = true;
         Args.CreateNewObj logical      = false;
@@ -117,6 +126,11 @@ function [Result, Flag] = cleanSources(Obj, Args)
         %SN_FluxAnn = Flux./(StdAnn.*sqrt(AreaPSF(:).'));
         %Flag(Iobj).BadSN = all(SN_FluxAnn < Args.ThresholdSN, 2);
        
+        % flag bad sources in Mask image
+        if Args.MaskCR && isa(Obj, 'AstroImage')
+            Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Flag(Iobj).CR, Args.BitNameCR, 1);
+        end
+            
         % remove bad sources
         if Args.RemoveBadSources
             Cat = selectRows(Cat, ~Flag(Iobj).CR & ~Flag(Iobj).BadLocation & ~Flag(Iobj).BadSN);

@@ -157,7 +157,7 @@ addOptional(InPar,'FracOfMax',0.5);
 addOptional(InPar,'BackFun',@median); % @median);
 addOptional(InPar,'BackFunPar',{'all','omitnan'});      % {[1 2],'omitnan'});
 addOptional(InPar,'VarFun',@imUtil.background.rvar);    % if empty, then will try to read var from second output of BackFun...
-addOptional(InPar,'VarFunPar',{}); % {[1 2]});
+addOptional(InPar,'VarFunPar',{}); %{[],[1 2]});
 addOptional(InPar,'SubSizeXY',[128 128]);  % or 'full'
 addOptional(InPar,'Overlap',[16]); 
 addOptional(InPar,'MinVariance',1);

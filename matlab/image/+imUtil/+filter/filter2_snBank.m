@@ -138,28 +138,49 @@ if nargout>1
     Flux         = zeros(SizeIm(1),SizeIm(2),Nbank);
 end
 
+% OLD - slow code
+%     for Ibank=1:1:Nbank
+%         FiltImage(:,:,Ibank) = imUtil.filter.filter2_fast(Image,Template(:,:,Ibank));
+% 
+%         % Convert the image variance to the filtred image variance
+%         NormVar(Ibank) = sum(Template(:,:,Ibank).^2,[1 2]);
+% 
+%         FiltImageVar(:,:,Ibank) = Variance.*NormVar(Ibank);
+%         %FiltImageStd(:,:,Ibank) = sqrt(Variance.*NormVar(Ibank));
+% 
+%         % S/N image
+%         SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./sqrt(FiltImageVar(:,:,Ibank));
+%         %SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./FiltImageStd(:,:,Ibank);
+%         if nargout>1
+%             % flux estimator image [see Zackay & Ofek 2017 - Coaddition I paper]
+%             Flux(:,:,Ibank) = FiltImage(:,:,Ibank)./NormVar(Ibank);  % possible bug (CHECK) - FiltImageVar(:,:,Ibank);
+%         end
+%     end
+
+    
 for Ibank=1:1:Nbank
     FiltImage(:,:,Ibank) = imUtil.filter.filter2_fast(Image,Template(:,:,Ibank));
-
-    % Convert the image variance to the filtred image variance
-    NormVar(Ibank) = sum(Template(:,:,Ibank).^2,[1 2]);
-    FiltImageVar(:,:,Ibank) = Variance.*NormVar(Ibank);
-    %FiltImageStd(:,:,Ibank) = sqrt(Variance.*NormVar(Ibank));
-
-    % S/N image
-    SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./sqrt(FiltImageVar(:,:,Ibank));
-    %SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./FiltImageStd(:,:,Ibank);
-    if nargout>1
-        % flux estimator image [see Zackay & Ofek 2017 - Coaddition I paper]
-        Flux(:,:,Ibank) = FiltImage(:,:,Ibank)./NormVar(Ibank);  % possible bug (CHECK) - FiltImageVar(:,:,Ibank);
-    end
 end
 
- if nargout>4
+% Convert the image variance to the filtred image variance
+NormVar = sum(Template.^2,[1 2]);
+
+FiltImageVar = Variance.*NormVar;
+
+% S/N image
+SN   = FiltImage./sqrt(FiltImageVar);
+if nargout>1
+    % flux estimator image [see Zackay & Ofek 2017 - Coaddition I paper]
+    Flux = FiltImage./NormVar;  % possible bug (CHECK) - FiltImageVar(:,:,Ibank);
+end
+
+
+
+if nargout>4
     Info.Back     = Background;
     Info.Var      = Variance;
     Info.NormVar  = NormVar;
     Info.Template = Template;
- end
+end
 
 
