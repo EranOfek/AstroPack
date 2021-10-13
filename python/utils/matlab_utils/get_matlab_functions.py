@@ -27,16 +27,24 @@
 import os, glob, argparse, shutil, zipfile
 from datetime import datetime
 
-ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
-AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
+# --- Global flags ---
 UPDATE_M = True # False #True
 UPDATE_M_OUT_FILE = False           # True to write updated output to '$out' file instead of modifying the original file
-TRIM_TRAILING_SPACES = True
+BACKUP_M_FILE = False               # True to copy original files to $bkp.m
+TRIM_TRAILING_SPACES = True         # True to clear trailing spaces from all processd files
 
-#
+
+# Get path to repository root folder
+ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
+
+# Prepare path to autogen documentation
+AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
+
+# Markers
 FUNC_BLOCK_BEGIN = '% #functions (autogen)'
 FUNC_BLOCK_END = '% #/functions (autogen)'
 
+# ===========================================================================
 
 # Log message to file
 LOG_PATH = 'c:/temp/'
@@ -214,20 +222,29 @@ class MatlabProcessor:
     def get_comment(self, lines, idx, short = True):
         comment = ''
 
-        # Look for comment line below the function line
-        count = 1
-        while idx + count < len(lines):
-            line = lines[idx + count].strip().replace('\t', ' ')
+        start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
+        end_idx   = self.index_starts_with(lines, FUNC_BLOCK_END)
 
+        # Look for comment line below the function line
+        count = 0
+        for line_num in range(idx+1, len(lines)):
+
+            # Skip autogen #functions block
+            if start_idx > -1 and end_idx > -1:
+                if line_num >= start_idx and line_num <= end_idx:
+                    continue
+
+            line = lines[line_num].strip().replace('\t', ' ')
             if short:
                 # Stop on non-comment line or empty line
-                if not lines[idx+count].strip().startswith('%'):
+                if not line.strip().startswith('%'):
                     break
             else:
                 # Stop on non-comment line (assuming it is a code)
-                if not lines[idx+count].strip().startswith('%') and line.strip() != '':
+                if not line.strip().startswith('%') and line.strip() != '':
                     break
 
+            # Clean comment marks and separators
             line = line.replace('%', '').strip()
             line = line.replace('--', '').strip()
             line = line.replace('==', '').strip()
@@ -267,7 +284,7 @@ class MatlabProcessor:
         return -1
     # -----------------------------------------------------------------------
     # Remove current info block and get index to line to insert
-    def new_info_block(self, lines):
+    def remove_autogen_funclist(self, lines):
         start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
         end_idx   = self.index_starts_with(lines, FUNC_BLOCK_END)
 
@@ -294,16 +311,21 @@ class MatlabProcessor:
             out_fname = fname + '$out.m'
         else:
             out_fname = fname
-            bkp_fname = fname + '$bkp.m'
-            if os.path.exists(bkp_fname):
-                os.remove(bkp_fname)
-            os.rename(fname, bkp_fname)
+            if BACKUP_M_FILE:
+                bkp_fname = fname + '$bkp.m'
+                if os.path.exists(bkp_fname):
+                    os.remove(bkp_fname)
+                os.rename(fname, bkp_fname)
 
         log('write_m_file: ' + out_fname)
         with open(out_fname, 'wt') as f:
             for line in lines:
+
+                # Trim trailing spaces only from non-empty lines
                 if TRIM_TRAILING_SPACES:
-                    line = line.rstrip()
+                    if line.strip() != '':
+                        line = line.rstrip()
+
                 f.write(line + '\n')
 
         log('file updated: ' + out_fname)
@@ -328,7 +350,7 @@ class MatlabProcessor:
 
         # Read source file
         lines = self.read_file(fname)
-        lines, start_idx = self.new_info_block(lines)
+        lines, start_idx = self.remove_autogen_funclist(lines)
 
         # Insert functions list at to of file
         lines.insert(start_idx+0, FUNC_BLOCK_BEGIN)  # (auto-generated list python script)
@@ -669,6 +691,11 @@ class MatlabProcessor:
 
                         func = FunctionData()
                         func.name = func_name
+
+                        # Debug
+                        if 'copyElement' in func_name:
+                            log('debug')
+
                         func.comment = self.get_comment(lines, line_num)
                         func.long_comment = self.get_comment(lines, line_num, short=False)
                         cls.func_dict[func_name] = func
@@ -810,11 +837,12 @@ class MatlabProcessor:
             process = False
 
         # Skip unused/obsolete/temp files
-        skip = ['unused', 'obsolete', 'old', 'temp', 'bkp', 'backup']
+        skip = ['unused', 'obsolete', 'old', 'temp', 'bkp', 'backup', 'external', 'draft', 'testing']
         tokens = path.lower().split('/')
         for tok in tokens:
             tok = tok.replace('_', '')
-            if tok in skip:
+            tok = tok.replace('+', '')
+            if tok in skip or tok.startswith('draft'):
                 process = False
                 break
 
@@ -826,7 +854,8 @@ class MatlabProcessor:
         process = False
         if self.should_process_folder(os.path.split(fname)[0]):
             fnlower = fname.lower()
-            if fnlower.endswith('.m') and not fnlower.endswith('$out.m') and not fnlower.endswith('bkp.m'):
+            if fnlower.endswith('.m') and not fnlower.endswith('$out.m') \
+                and not fnlower.endswith('bkp.m') and not fnlower.startswith('draft_'):
                 process = True
 
         return process
@@ -855,6 +884,8 @@ class MatlabProcessor:
         # Generate .txt and .md files
         out_path_txt = os.path.join(AUTOGEN_PATH, 'package_functions')
         out_path_md = os.path.join(AUTOGEN_PATH, 'package_functions_md')
+
+        # ---------------------------------------------- Packages
         package_list = list(self.package_dict.keys())
         package_list.sort()
         self.write_file(self.package_list_filename, package_list)
@@ -875,15 +906,19 @@ class MatlabProcessor:
                 func = pkg.func_dict[func_name]
                 line = func.name + ' - ' + func.comment
                 lines.append(line + '\n')
+
+                # MD
                 md_lines.append('### ' + self.unpack_name(pkg_name + '.' + func.name) + '\n')
                 md_lines.append(func.comment + '\n\n')
                 self.append_indent(md_lines, func.long_comment.split('\n'))
 
+            # Write txt and md files to disk
             pkg_fname_txt = os.path.join(out_path_txt, pkg_name + '.txt')
             self.write_file(pkg_fname_txt, lines)
             pkg_fname_md = os.path.join(out_path_md, pkg_name + '.md')
             self.write_file(pkg_fname_md, md_lines)
 
+        # ---------------------------------------------- Classes
         # Update class list files
         out_path_txt = os.path.join(AUTOGEN_PATH, 'class_functions')
         out_path_md = os.path.join(AUTOGEN_PATH, 'class_functions_md')
@@ -907,25 +942,43 @@ class MatlabProcessor:
             lines = []
             lines.append('Class: ' + self.unpack_name(cls_name))
             lines.append('')
+
+            # MD
             md_lines = []
             md_lines.append('# Class: ' + self.unpack_name(cls_name))
             md_lines.append('')
             md_lines.append(cls.comment + '\n')
             self.append_indent(md_lines, cls.long_comment.split('\n'))
+            md_lines.append('')
+
+            md_lines.append('### Functions List\n')
+            md_func_list = []
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                line = func.name + ' - ' + func.comment
+                md_func_list.append(line)
+            self.append_indent(md_lines, md_func_list)
+            md_lines.append('')
+
+            # Iterate class functions
             for func_name in func_list:
                 func = cls.func_dict[func_name]
                 line = func.name + ' - ' + func.comment
                 lines.append(line + '\n')
+
+                # Section per function
                 md_lines.append('### ' + func.name + '\n')
                 md_lines.append(func.comment + '\n\n')
                 self.append_indent(md_lines, func.long_comment.split('\n'))
+                md_lines.append('\n')
 
+            # Write txt and md files to disk
             cls_fname_txt = os.path.join(out_path_txt, cls_name + '.txt')
             self.write_file(cls_fname_txt, lines)
             cls_fname_md = os.path.join(out_path_md, cls_name + '.md')
             self.write_file(cls_fname_md, md_lines)
 
-            # Update class files
+            # Update class files - called from process_class_file()
             if UPDATE_M:
                 pass
 
@@ -973,9 +1026,9 @@ def main():
     #return
 
     # Test updating .m file with function list
-    proc.process('c:/_m1')
+    #proc.process('c:/_m1')
 
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab') #/image/@AstroHeader/')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab')
 
 
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
