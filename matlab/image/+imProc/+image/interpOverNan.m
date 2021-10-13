@@ -21,6 +21,13 @@ function Result = interpOverNan(Obj, Args)
     %          AI.Image(50,50:51)=NaN;
     %          AI.Image(70,70) = NaN;
     %          imProc.image.interpOverNan(AI);
+    %
+    % Example with Single for testing:
+    %   AI = AstroImage({rand(100,100)});
+    %   AI.cast('single');  % if you set to 'double' it is working
+    %   AI.Image(10,10) = NaN;
+    %   BI = imProc.image.interpOverNan(AI)
+    %
     
     arguments
         Obj
@@ -66,6 +73,7 @@ function Result = interpOverNan(Obj, Args)
                         end
                     else
                         % 2D image
+                        % This line fails for Single
                         Result(Iobj).(Args.DataProp{Iprop}) = inpaint_nans(Obj(Iobj).(Args.DataProp{Iprop}), Args.MethodInpaint);
                     end
                 otherwise
