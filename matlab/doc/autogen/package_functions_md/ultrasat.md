@@ -90,7 +90,7 @@ SHORT DESCRIPTION HERE Package: ultrasat Description:
       
 ### ultrasat.dEdX_calc
 
-Calculate dE/dX as a function of energy Package: ultrasat Description: Calculate the energy loss of electrons propagating in a material. This is used in order to estimate the Cernekov
+Calculate dE/dX as a function of energy Package: ultrasat Description: Calculate the energy loss of electrons propagating in a material. This is used in order to estimate the Cernekov background.
 
 
     
@@ -273,7 +273,7 @@ Get the Zodiac V light surface brightness as a function of coordinates Package: 
       
 ### ultrasat.zodiac_spectrum
 
-Get the Zodiac light spectrum Package: @AstSpec Description: Return the zodiac spectrum as adopted from the HST STIS handbook. The high zodiacal ligh is defined where V=22.1
+Get the Zodiac light spectrum Package: @AstSpec Description: Return the zodiac spectrum as adopted from the HST STIS handbook. The high zodiacal ligh is defined where V=22.1 mag/arcsec^-2.
 
 
     

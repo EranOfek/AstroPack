@@ -3,7 +3,7 @@
 
 ### imUtil.calib.fit_overscan
 
-fit the overscan region in an image and subtract Package: +imUtil.calib Description: Given an image and an the coordinates of the over scan region in CCDSEC format (i.e., [Xmin Xmax Ymin Ymax]),
+fit the overscan region in an image and subtract Package: +imUtil.calib Description: Given an image and an the coordinates of the over scan region in CCDSEC format (i.e., [Xmin Xmax Ymin Ymax]), calculate the overscan 1-D function, and optionally subtract
 
 
     
@@ -27,10 +27,10 @@ fit the overscan region in an image and subtract Package: +imUtil.calib Descript
     Default is empty.  
     'MeanFun' - A function handle for collapsing the overscan  
     region over the 'Dim' dimension.  
-    Default is @nanmedian.  
+    Default is @median.  
     'MeanFunPar' - A cell array of additional parameters to pass  
     to the 'MeanFun'. If the dimension is given, then it  
-    must be 1. Default is {}.  
+    must be 1. Default is {1,'omitnan'}.  
     'SmoothFun' - A function handle to use for smoothing the  
     collapsed overscan vector.  
     If empty, then do not smooth.  
@@ -67,7 +67,7 @@ fit the overscan region in an image and subtract Package: +imUtil.calib Descript
       
 ### imUtil.calib.pixel_flat_response
 
-Fit the pixel response to light as a function of intensity in a cube of images Package: +imUtil.calib Description: Given a cube of flat field images which have different mean intensity, fit some linear models to each model intensity
+Fit the pixel response to light as a function of intensity in a cube of images Package: +imUtil.calib Description: Given a cube of flat field images which have different mean intensity, fit some linear models to each model intensity vs. a user specified expected intensity or the mean value of
 
 
     
@@ -99,9 +99,10 @@ Fit the pixel response to light as a function of intensity in a cube of images P
     'MeanFun' - If 'Intensity' is not porovided, this is a function  
     handle that will operate on each image in the cube in  
     order to calculate its mean value.  
-    Default is @nanmedian.  
+    Default is @median.  
     'MeanFunPar' - A cell array of additional parameters to pass  
     to the 'MeanFun' function handle.  
+    Default is {[1 2],'omitnan'}.  
     'Intensity' - A vector if intensities for each image in the  
     cube. This can be the mean intensity of each image  
     (after gain correction), or exposure time (if flat is  
@@ -151,7 +152,7 @@ Fit the pixel response to light as a function of intensity in a cube of images P
       
 ### imUtil.calib.resid_vs_mag
 
-Fit residuals vs. mag and flag good data (not outliers). Package: +imUtil.calib Description: Give vectors of residuals vs. magnitude, calculate the std or residuls vs. magnitude and flag good data (i.e., not
+Fit residuals vs. mag and flag good data (not outliers). Package: +imUtil.calib Description: Give vectors of residuals vs. magnitude, calculate the std or residuls vs. magnitude and flag good data (i.e., not outliers).
 
 
     
@@ -180,7 +181,7 @@ Fit residuals vs. mag and flag good data (not outliers). Package: +imUtil.calib 
     'BinSize' - Bin size for binning. Default is 1 (mag).  
     'FunMean' - A function handle to use when calculating the mean  
     of the data in each bin.  
-    Default is @nanmedian.  
+    Default is @tools.math.stat.nanmedian.  
     'FunStd' - A function handle to use when calculating the std  
     of the data in each bin, or when calculating the global  
     std after the polynomial fit.  

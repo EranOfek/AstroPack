@@ -24,7 +24,7 @@ Project coordinates using equal area Aitoff projection Package: celestial.proj D
       
 ### celestial.proj.pr_albers
 
-Albers Equal-Area projection. Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Albers Equal-Area projection. The coordinates are projected on
+Albers Equal-Area projection. Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Albers Equal-Area projection. The coordinates are projected on ellipse with axis ratio of 2:1.
 
 
     
@@ -166,7 +166,7 @@ pr_cylindrical function                                             AstroMap Des
       
 ### celestial.proj.pr_gnomonic
 
-pr_gnomonic function                                            AstroMap Description: Project coordinates (longitude and latitude) using the Gnomonic non conformal projection
+pr_gnomonic function                                            AstroMap Description: Project coordinates (longitude and latitude) using the Gnomonic non conformal projection This is a nonconformal projection from a sphere center in
 
 
     
@@ -191,7 +191,7 @@ pr_gnomonic function                                            AstroMap Descrip
       
 ### celestial.proj.pr_hammer
 
-pr_hammer function                                                  AstroMap Description: Project coordinates (longitude and latitude) using the Hammer projection. The coordinates are projected on an ellipse
+pr_hammer function                                                  AstroMap Description: Project coordinates (longitude and latitude) using the Hammer projection. The coordinates are projected on an ellipse with axis ratio of 2:1.
 
 
     
@@ -257,7 +257,7 @@ roject coordinates using the inverse Gnomonic non conformal projection Package: 
       
 ### celestial.proj.pr_ihammer_aitoff
 
-pr_ihammer_aitoff function                                          AstroMap Description: Project coordinates (longitude and latitude) using the inverse of the equal area Hammer-Aitoff projection used in the
+pr_ihammer_aitoff function                                          AstroMap Description: Project coordinates (longitude and latitude) using the inverse of the equal area Hammer-Aitoff projection used in the FITS/WCS standard.
 
 
     
@@ -423,7 +423,7 @@ pr_sinusoidal function                                              AstroMap Des
       
 ### celestial.proj.pr_stereographic
 
-pr_stereographic function                                           AstroMap Description: Project coordinates (longitude and latitude) using the Stereographic projection.
+pr_stereographic function                                           AstroMap Description: Project coordinates (longitude and latitude) using the Stereographic projection. This is a map projection in which great circles and Loxodromes
 
 
     
@@ -446,7 +446,7 @@ pr_stereographic function                                           AstroMap Des
       
 ### celestial.proj.pr_stereographic_polar
 
-Project coordinates using the Stereographic polar projection Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Stereographic polar projection.
+Project coordinates using the Stereographic polar projection Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Stereographic polar projection. This projection preservs angles.
 
 
     

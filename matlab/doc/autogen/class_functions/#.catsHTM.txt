@@ -16,7 +16,7 @@ filename2base - Convert HDF5/HTM file name to catalog name (file base name) Pack
 
 generate_edge_cat - OBSOLOTE
 
-get_file_var_from_htmid - Construct file and var name for HTM file stored in HDF5 Package: @catsHTM Description: Given a file base (e.g., 'UCAC4') and HTM ID and number of files in HDF5 file, construct the
+get_file_var_from_htmid - Construct file and var name for HTM file stored in HDF5 Package: @catsHTM Description: Given a file base (e.g., 'UCAC4') and HTM ID and number of files in HDF5 file, construct the HDF5 file name (e.g., UCAC4_htm_032400.hdf5),
 
 get_index_filename - Get HDF5/HTM index file name and variable name from CatName Package: @catsHTM Description: Get HDF5/HTM index file name and variable name from CatName.
 
@@ -24,9 +24,9 @@ get_nsrc - Count number of sources over all HTM in HDF5 files Package: @catsHTM
 
 htm_search_cone - Search for all HTM leafs interscting a small circle (cone search) Package: @catsHTM Description: Search for all HTM leafs interscting a small circle (i.e., cone search).
 
-load_1htm - Load a single tile of HDF5/HTM catalog Package: @catsHTM Description: Load a single HTM tile of HDF5/HTM catalog based on its HTM index.
+load_1htm - Load a single tile of HDF5/HTM catalog Package: @catsHTM Description: Load a single HTM tile of HDF5/HTM catalog based on its HTM index. This is slower relative to catsHTM.load_cat,
 
-load_cat - Load catalog stored in an HDF5 file Package: @catsHTM Description: Load catalog stored in an HDF5 file. Given a a catalog in HDF5 file created by
+load_cat - Load catalog stored in an HDF5 file Package: @catsHTM Description: Load catalog stored in an HDF5 file. Given a a catalog in HDF5 file created by HDF5.save_cat, load the catalog. The catalog is
 
 load_cat_edge - Load and concat HDF5/HTM catalog and its edge catalog Package: @catsHTM Description: Load and concat HDF5/HTM catalog and its edge catalog
 
@@ -40,25 +40,25 @@ load_multiple_cats - Load HDF5/HTM catalog from multiple files/datasets Package:
 
 nsrc - Count sources in the HDF5/HTM index file Package: @catsHTM Description: Count sources in the HDF5/HTM index file
 
-plot_density - Plot a catsHTM catalog surface density Package: @catsHTM Description: Plot a catsHTM catalog surface density in sources per deg^2 or sources per HTM on a
+plot_density - Plot a catsHTM catalog surface density Package: @catsHTM Description: Plot a catsHTM catalog surface density in sources per deg^2 or sources per HTM on a celestial sphere map.
 
 read_colnames - read HDF5 catalog column names from index file Package: @catsHTM
 
 reference - Get references for an HDF5/HTM catalog Package: @catsHTM Description: Get references for an HDF5/HTM catalog
 
-save_cat - save catalog data in HDF5 file Package: @catsHTM Description: save catalog data in HDF5 file Given a matrix containing a catalog, save the
+save_cat - save catalog data in HDF5 file Package: @catsHTM Description: save catalog data in HDF5 file Given a matrix containing a catalog, save the data in an HDF5 file. The data will be saved
 
 save_cat_colcell - Save ColCell cell array of an HTM catalog Package: @catsHTM
 
-save_htm_ind - Save HTM indinces of the celestial sphere in an HDF5 file Package: @catsHTM Description: Generate HDF5 file with HTM indices. The HTM indices contains the HTM tree and the 3
+save_htm_ind - Save HTM indinces of the celestial sphere in an HDF5 file Package: @catsHTM Description: Generate HDF5 file with HTM indices. The HTM indices contains the HTM tree and the 3 poles of the 3 great circles that defines each
 
 search_htm_ind - A coordinate cone search in an HTM stored in HDF5 file. Package: @catsHTM Description: A coordinate cone search in an HTM stored in HDF5 file. See also: celestial.htm.htm_search_cone
 
-serial_search - Execute a function on entire HDF5/HTM catalog Package: @catsHTM Description: Execute a function on entire HDF5/HTM catalog. This can be used for selection of sources based
+serial_search - Execute a function on entire HDF5/HTM catalog Package: @catsHTM Description: Execute a function on entire HDF5/HTM catalog. This can be used for selection of sources based on any parameters.
 
-serial_search_x - Execute a function on entire HDF5/HTM catalog Package: @catsHTM Description: Execute a function on entire HDF5/HTM catalog. This can be used for selection of sources based
+serial_search_x - Execute a function on entire HDF5/HTM catalog Package: @catsHTM Description: Execute a function on entire HDF5/HTM catalog. This can be used for selection of sources based on any parameters.
 
-sources_match - Match sources in an input catalog with catsHTM catalog Package: @catsHTM Description: Given a catalog of sources with their RA/Dec, match each one of them to a source in an
+sources_match - Match sources in an input catalog with catsHTM catalog Package: @catsHTM Description: Given a catalog of sources with their RA/Dec, match each one of them to a source in an catsHTM catalog.
 
-xmatch_2cats - Cross match two HDF5/HTM catalogs Package: @catsHTM Description: Cross match two HDF5/HTM catalogs. For each source in the first catalog the index of the
+xmatch_2cats - Cross match two HDF5/HTM catalogs Package: @catsHTM Description: Cross match two HDF5/HTM catalogs. For each source in the first catalog the index of the nearest source, within some distance, in the
 

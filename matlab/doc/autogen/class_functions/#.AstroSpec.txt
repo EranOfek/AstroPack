@@ -2,17 +2,27 @@ Class: AstroSpec
 
 AstroSpec - constructor for AstroSpec
 
+applyAtmosphericExt - Apply atmospheric extinction (airmass) to AstroSpec object. One to one, or one to many.
+
 applyExtinctionZ - Calculate extinction to observed wavelngth vector in various redshifts.
+
+atmosphericExtinction - Return Atmospheric extinction The extinction im mag/transmission is provided in the Flux field.
 
 blackBody - Create an AstroSpec object with black body spectra Return specific (per Ang) luminosity or emittence.
 
 filterFun - Apply a 1-D function (filter) on the Flux field in AstroSpec object. The function do not check if the wavelength is equally spaced. The function operates on the Flux, FluxErr, and Back fields.
 
+fitMag - Fit AstroSpec spectra to observed magnitudes in some bands.
+
 fitSpec - UNDER CONSTRUCTION
+
+funBinary - Perform a binary operation on two AstroSpec objects The operation is applied one to one or one to many.
 
 funFlux - Apply a function to the Flux, FluxErr, Back columns.
 
 get.Back - getter for Back
+
+get.Cont - getter for Cont
 
 get.Flux - getter for Flux
 
@@ -44,9 +54,15 @@ read2FilterMatrix - Convet a filter name/AstFilter to cell of transmissions
 
 redshift - Apply redshift to a spectrum Divide wave by (1+z) and multiply flux by (1+z) Correct also FluxErr and Back
 
+scaleFlux - Scale (multiply) flux properties by some factor.
+
+scaleSynphot - Scale spectrum such that its synthetic magnitude will be forced to some value.
+
 selectWave - Select lines from AstroSpec (don't generate a new copy)
 
 set.Back - setter for Back
+
+set.Cont - setter for Cont
 
 set.Flux - setter for Flux
 
@@ -61,6 +77,12 @@ set.Wave - setter for Wave
 set.WaveUnits - setter for WaveUnits
 
 sort - Sort elements of AstroSpec object by wavelength
+
+specCALSPEC - Get STSCI CALSPEC template spectrum from ../spec/CALSPEC/ data directory.
+
+specGalQSO - Get galaxy/qso template spectrum from ../spec/SpecGalQSO/ data directory. Description: Get Galaxy or QSO spectral template from local database.
+
+specStarsPickles - Load Pickles stellar spectra into an AstroSpec object
 
 synphot - Synthetic photometry on an AstroSpec object spectra
 

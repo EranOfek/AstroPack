@@ -4,5 +4,5 @@ constellation - Find the constellations in which celestial coordinates are locat
 
 nearest_bright_star - Select N bright stars near a given coordinate Package: +celestial.stars
 
-star_apparent_place - star_apparent_place function                                           ephem Description: Compute the apparent place of stars at a given epoch, given the star mean place, proper motion, parallax,
+star_apparent_place - star_apparent_place function                                           ephem Description: Compute the apparent place of stars at a given epoch, given the star mean place, proper motion, parallax, radial velocity, at a reference epoch T0.
 

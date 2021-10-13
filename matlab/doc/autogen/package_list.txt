@@ -30,6 +30,7 @@ astro.binary
 astro.cosmo
 astro.grb
 astro.lensing
+astro.mag
 astro.microlensing
 astro.occultation
 astro.spec
@@ -51,6 +52,9 @@ celestial.search
 celestial.stars
 celestial.time
 db
+draft_alerts
+draft_obs
+draft_pipeline
 imProc.astrometry
 imProc.background
 imProc.calib
@@ -68,6 +72,7 @@ imProc.sources
 imProc.stack
 imProc.stat
 imProc.trans
+imProc.transIm
 imUtil.background
 imUtil.calib
 imUtil.cat
@@ -94,6 +99,7 @@ imUtil.util.fits
 io
 io.files
 lcUtil
+manuals
 obs
 pipeline
 pipeline.generic

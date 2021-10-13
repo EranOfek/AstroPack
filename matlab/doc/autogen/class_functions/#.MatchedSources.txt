@@ -4,7 +4,7 @@ addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data Ob
 
 deleteMatrix - remove matrix and field name from an MatchedSources object
 
-designMatrix - Generate a general purpose design matrix from an MatchedSources object Description: Construct a design matrix of the form: H = [FunCell{1}(Col1), FunCell{2}(Col2), ...] where the FunCell are user provided functionals,
+designMatrix - Generate a general purpose design matrix from an MatchedSources object Description: Construct a design matrix of the form: H = [FunCell{1}(Col1), FunCell{2}(Col2), ...] where the FunCell are user provided functionals, and Col are the MatchedSources matrix of a
 
 designMatrixCalib - Generate the design matrix for relative photometric calibration Reference: Ofek+2011
 

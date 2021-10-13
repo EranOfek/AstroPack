@@ -78,6 +78,23 @@ Interpolate over NaNs in 1-D vector. Package: Util.interp Description: Interpola
       
       
       
+### tools.interp.interp1evenlySpaced
+
+A faster versio of interp1q for evenly spaced data (linear interpolation).
+
+
+    
+    A faster versio of interp1q for evenly spaced data (linear interpolation).  
+    Input  : - X (equally spaced and sorted)  
+    - Y  
+    - Vector of new X values in which to interpolate.  
+    Output : - Vector of interpolated Y values.  
+    Author : Eran Ofek (Oct 2021)  
+    Example: X = (1:2:100); Y = (1:2:100); NewX = [3.1, 4.1, 5.9];  
+    tic, for I=1:1:10000, NewY = tools.interp.interp1evenlySpaced(X,Y,NewX); end, toc  
+    tic; for I=1:1:10000, NewY=interp1(X,Y,NewX); end, toc  
+    tic; for I=1:1:10000, NewY=interp1q(X,Y,NewX); end, toc  
+      
 ### tools.interp.interp1lanczos
 
 1-D Lanczos interpolation Package: Util.interp Description: 1D Lanczos interpolation.
@@ -101,7 +118,7 @@ Interpolate over NaNs in 1-D vector. Package: Util.interp Description: Interpola
       
 ### tools.interp.interp2fast
 
-Faster version of interp2 Package: Util.interp Description: A faster version of the interp2.m built in function. This function is faster than interp2.m when the XI and YI
+Faster version of interp2 Package: Util.interp Description: A faster version of the interp2.m built in function. This function is faster than interp2.m when the XI and YI vectors span over a small range in the VecX and VecY
 
 
     
@@ -128,7 +145,7 @@ Faster version of interp2 Package: Util.interp Description: A faster version of 
     -  
 ### tools.interp.interp3p
 
-Stirling interpolation Package: Util.interp Description: Given three, equally spaced, data points (Y), and a vector of normalized positions in units in which the three data
+Stirling interpolation Package: Util.interp Description: Given three, equally spaced, data points (Y), and a vector of normalized positions in units in which the three data points are at [-1,0,1], return, based on the Stirling
 
 
     
@@ -190,7 +207,7 @@ Interpolation based on 4th order Stirling formula Package: Util.interp Descripti
       
 ### tools.interp.interp_diff_ang
 
-Stirling 4th order interpolation for angular values Package: tools.interp Description: Given a vector of time and a vector of coordinate on a sphere interpolate the spherical coordinate in a list of times.
+Stirling 4th order interpolation for angular values Package: tools.interp Description: Given a vector of time and a vector of coordinate on a sphere interpolate the spherical coordinate in a list of times. This function is talking into account
 
 
     

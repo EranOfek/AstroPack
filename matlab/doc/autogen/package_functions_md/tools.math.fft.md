@@ -3,7 +3,7 @@
 
 ### tools.math.fft.fft_freq
 
-Return the frequencies corresponding to fftshift(fft(vec_of_size_N)) Package: tools.math.fft Description: Return the frequencies corresponding to fftshift(fft(vec_of_size_N)), without dviding by the total
+Return the frequencies corresponding to fftshift(fft(vec_of_size_N)) Package: tools.math.fft Description: Return the frequencies corresponding to fftshift(fft(vec_of_size_N)), without dviding by the total time span.
 
 
     
@@ -24,7 +24,7 @@ Return the frequencies corresponding to fftshift(fft(vec_of_size_N)) Package: to
       
 ### tools.math.fft.fft_symmetric
 
-Make a 1-D fft a complex-conjugate symmetric Package: Util.fit Description: Given a 1-D fft of a vector, or a matrix, force the negative frequency signal to be complex conjugate of the positive
+Make a 1-D fft a complex-conjugate symmetric Package: Util.fit Description: Given a 1-D fft of a vector, or a matrix, force the negative frequency signal to be complex conjugate of the positive frequency signal.
 
 
     

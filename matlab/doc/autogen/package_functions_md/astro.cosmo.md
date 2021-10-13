@@ -31,7 +31,7 @@ Calculate the filled beam angular diameter distance between two redshifts Packag
       
 ### astro.cosmo.ad_dr_dist
 
-Calculates the Dyer-Roeder angular diameter distance for the empty beam Package: astro.cosmo Description: Calculates the Dyer-Roeder angular diameter distance, for the empty beam case (for filled beam use: ad_dist.m),
+Calculates the Dyer-Roeder angular diameter distance for the empty beam Package: astro.cosmo Description: Calculates the Dyer-Roeder angular diameter distance, for the empty beam case (for filled beam use: ad_dist.m), between two redshifts on the line of sight.
 
 
     
@@ -57,7 +57,7 @@ Calculates the Dyer-Roeder angular diameter distance for the empty beam Package:
       
 ### astro.cosmo.ad_q_dist
 
-Angular diamater distance with quintessence Package: astro.cosmo Description: Compute filled-beam angular-diameter distance to an object in a flat Universe with constant equation of state
+Angular diamater distance with quintessence Package: astro.cosmo Description: Compute filled-beam angular-diameter distance to an object in a flat Universe with constant equation of state (p=w\rho; i.e., quintessence).
 
 
     
@@ -130,7 +130,7 @@ Comoving distance Package astro.cosmo Description: Calculate the line of sight c
       
 ### astro.cosmo.comoving_volume
 
-Calculate the differential and comoving volume Package: astro.cosmo Description: Calculate the differential comoving volume (d\Omega dz) at redshift z and the total comoving volume from redshift
+Calculate the differential and comoving volume Package: astro.cosmo Description: Calculate the differential comoving volume (d\Omega dz) at redshift z and the total comoving volume from redshift 0 to z.
 
 
     
@@ -189,7 +189,7 @@ Cosmological parameters as measured by various experiments. Package: astro.cosmo
       
 ### astro.cosmo.crit_surface_density
 
-The critical surface density for gravitational lensing Package: astro.cosmo Description: Calculates the critical surface density for gravitational lensing, given the cosmology and redshifts of the lens
+The critical surface density for gravitational lensing Package: astro.cosmo Description: Calculates the critical surface density for gravitational lensing, given the cosmology and redshifts of the lens and source.
 
 
     
@@ -239,7 +239,7 @@ Calculate the virial overdensity \Delta_{vir} Package: astro.cosmo Description: 
       
 ### astro.cosmo.disp_measure
 
-Calculate the dispersion measure along a cosmological line of sight Package: astro.cosmo Description: Calculate the dispersion measure along a cosmological line of sight as a function of redshift. Valid below redshift 3
+Calculate the dispersion measure along a cosmological line of sight Package: astro.cosmo Description: Calculate the dispersion measure along a cosmological line of sight as a function of redshift. Valid below redshift 3 (He re-ionization).
 
 
     
@@ -285,7 +285,7 @@ Convert distance modulous to luminosity distance and redshift Package: astro.cos
       
 ### astro.cosmo.e_z
 
-E(z) cosmological function Package: astro.cosmo Description: Calculate E(z) cosmological function, which is proportional to the time derivative of the logarithm
+E(z) cosmological function Package: astro.cosmo Description: Calculate E(z) cosmological function, which is proportional to the time derivative of the logarithm of the scale factor.
 
 
     
@@ -397,7 +397,7 @@ Convert cosmological line of sight dispersion measure to redshift Package: astro
       
 ### astro.cosmo.inv_e_z
 
-1/E(z) cosmological function Package: astro.cosmo Description: Calculate 1/E(z) cosmological function, in which E(z) is proportional to the time derivative of the
+1/E(z) cosmological function Package: astro.cosmo Description: Calculate 1/E(z) cosmological function, in which E(z) is proportional to the time derivative of the logarithm of the scale factor.
 
 
     
@@ -448,7 +448,7 @@ Distance modulus to redshift Package: astro.cosmo Description: Given the distanc
       
 ### astro.cosmo.lookback_time
 
-Compute the cosmological lookback time Package: astro.cosmo Description: Compute the cosmological lookback time, between two events in redshift z1 and z2, and given the cosmology.
+Compute the cosmological lookback time Package: astro.cosmo Description: Compute the cosmological lookback time, between two events in redshift z1 and z2, and given the cosmology. (Assuming matter dominated universe - Z<1000).
 
 
     
@@ -473,7 +473,7 @@ Compute the cosmological lookback time Package: astro.cosmo Description: Compute
       
 ### astro.cosmo.lum_dist
 
-Luminosity distance Package: astro.cosmo Description: Compute luminosity distance from redshift and cosmological parameters. Given the object spectra, calculate also the
+Luminosity distance Package: astro.cosmo Description: Compute luminosity distance from redshift and cosmological parameters. Given the object spectra, calculate also the K-correction.
 
 
     
@@ -520,7 +520,7 @@ The mean matter density in the Universe. Package: astro.cosmo Description: Calcu
       
 ### astro.cosmo.omega_m_lambda_lines
 
-Selected lines in Omega_m-Omega_lambda diagram Package: astro.cosmo Description: Given a universe with \Omega_{m} and \Omega_{\Lambda} contributions, and given \Omega_{m} vector, find for
+Selected lines in Omega_m-Omega_lambda diagram Package: astro.cosmo Description: Given a universe with \Omega_{m} and \Omega_{\Lambda} contributions, and given \Omega_{m} vector, find for each value of \Omega_{m}: (i) the value of
 
 
     
@@ -599,7 +599,7 @@ Estimate the cosmic star formation rate as a function of redshift Description: F
       
 ### astro.cosmo.tran_comoving_dist
 
-Transverse comoving distance Package: astro.cosmo Description: Calculate the transverse comoving distance. Given the transverse comoving distance (D_M), the comoving distance
+Transverse comoving distance Package: astro.cosmo Description: Calculate the transverse comoving distance. Given the transverse comoving distance (D_M), the comoving distance between two events at the same redshift, but separated on
 
 
     

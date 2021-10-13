@@ -3,7 +3,7 @@
 
 ### astro.lensing.alpha_kspl_fast
 
-Deflection for softened power law elliptical density Package: AstroUtil.lensing Description: Calculate deflection for softened power law elliptical density of the form:
+Deflection for softened power law elliptical density Package: AstroUtil.lensing Description: Calculate deflection for softened power law elliptical density of the form: kappa = 0.5*b^(2-alpha)/((s^2 + r^2)^(1-0.5*alpha))
 
 
     
@@ -77,7 +77,7 @@ Gravitational deflection for softend spherical isothermal sphere Package: AstroU
       
 ### astro.lensing.alpha_spl
 
-Gravitational deflection of softened power law elliptical potential Package: AsttroUtil.lensing Description: Calculate gravitational lensing deflection and magnification tensor for softened power law elliptical potential of the
+Gravitational deflection of softened power law elliptical potential Package: AsttroUtil.lensing Description: Calculate gravitational lensing deflection and magnification tensor for softened power law elliptical potential of the form: phi = b(s^2 + x^2 + y^2/q^2)^(alpha/2) - b/s^alpha
 
 
     
@@ -120,7 +120,7 @@ Gravitational deflection of softened power law elliptical potential Package: Ast
       
 ### astro.lensing.beta_minimize
 
-- beta_minimize function                                                glens Description: Given a model and approximate source position, find the best source position that minimize the
+- beta_minimize function                                                glens Description: Given a model and approximate source position, find the best source position that minimize the residuals in the image plane.
 
 
     
@@ -191,7 +191,7 @@ Given D_ls/D_s ratio, z_l and cosmological parameters, solve for z_s. Package: A
       
 ### astro.lensing.find_images_regions
 
-- find_images_regions function                                          glens Description:  Given a mass model, its parameters and a source position, search for images of
+- find_images_regions function                                          glens Description:  Given a mass model, its parameters and a source position, search for images of the source only in a predefind given regions
 
 
     
@@ -297,7 +297,7 @@ Generate random power-law power spectrum light curve and its time delays. Packag
       
 ### astro.lensing.integrand_jn_ellkappa
 
-- integrand_jn_ellkappa function                                        glens Description: Calculate the integrand of J_n(x,y), for gravitational lensing softened elliptical mass distribution
+- integrand_jn_ellkappa function                                        glens Description: Calculate the integrand of J_n(x,y), for gravitational lensing softened elliptical mass distribution (See Keeton 2001, Eq. 15).
 
 
     
@@ -323,7 +323,7 @@ Generate random power-law power spectrum light curve and its time delays. Packag
     Upsilon^2 (Keeton 2001, Eq. 15)  
 ### astro.lensing.iplane_rms
 
-iplane_rms function                                                glens Description: Given a model parameters of a lens, and the images position, calculate the best source
+iplane_rms function                                                glens Description: Given a model parameters of a lens, and the images position, calculate the best source position that minimize the residuals in
 
 
     
@@ -358,7 +358,7 @@ iplane_rms function                                                glens Descrip
       
 ### astro.lensing.iplane_rms_norm
 
-iplane_rms_norm function                                           glens Description:   Given a model parameters of a lens, and the images position, calculate the best source
+iplane_rms_norm function                                           glens Description:   Given a model parameters of a lens, and the images position, calculate the best source position that minimize the residuals in
 
 
     
@@ -402,7 +402,7 @@ iplane_rms_norm function                                           glens Descrip
       
 ### astro.lensing.iplane_rms_smart
 
-iplane_rms_smart function                                          glens Description: Given a model parameters of a lens, and the images position, calculate the best source
+iplane_rms_smart function                                          glens Description: Given a model parameters of a lens, and the images position, calculate the best source position that minimize the residuals in
 
 
     
@@ -473,7 +473,7 @@ iplane_rms_smart function                                          glens Descrip
     -  
 ### astro.lensing.lensmodel_solvenorm
 
-- lensmodel_solvenorm function                                        glens Description:    Given a lens model and images position solve for the best fit normalization
+- lensmodel_solvenorm function                                        glens Description:    Given a lens model and images position solve for the best fit normalization (7th column parameter in ModelPars).
 
 
     
@@ -503,7 +503,7 @@ iplane_rms_smart function                                          glens Descrip
     -  
 ### astro.lensing.plot_lens_data
 
-- plot_lens_data function                                           glens Description: Given Image position and corresponding source position plot the image and source
+- plot_lens_data function                                           glens Description: Given Image position and corresponding source position plot the image and source position with connecting lines.
 
 
     
@@ -548,7 +548,7 @@ predict_images function                                        glens Description
       
 ### astro.lensing.s1plane_rms
 
-s1plane_rms function                                               glens Description: Given a model parameters of a lens, and the images position corresponding to a single source,
+s1plane_rms function                                               glens Description: Given a model parameters of a lens, and the images position corresponding to a single source, calculate the deflections
 
 
     
@@ -581,7 +581,7 @@ s1plane_rms function                                               glens Descrip
       
 ### astro.lensing.splane_rms
 
-splane_rms function                                                glens Description: Given a model parameters of a lens, and the images position, calculate the deflections
+splane_rms function                                                glens Description: Given a model parameters of a lens, and the images position, calculate the deflections (and magnification) and the sources position.
 
 
     
@@ -612,7 +612,7 @@ splane_rms function                                                glens Descrip
       
 ### astro.lensing.splane_rms_n
 
-splane_rms_n function                                              glens Description:       Given a model parameters of a lens, and the images position, calculate the deflections
+splane_rms_n function                                              glens Description:       Given a model parameters of a lens, and the images position, calculate the deflections (and magnification) and the sources position,
 
 
     
@@ -646,7 +646,7 @@ splane_rms_n function                                              glens Descrip
       
 ### astro.lensing.splane_rms_norm
 
-splane_rms_norm function   Given a deflection field of a lens, and the images position, calculate the sources position. The program calculates the rms of the sources
+splane_rms_norm function   Given a deflection field of a lens, and the images position, calculate the sources position. The program calculates the rms of the sources position in the source plane.
 
 
     
@@ -682,7 +682,7 @@ splane_rms_norm function   Given a deflection field of a lens, and the images po
       
 ### astro.lensing.splane_rms_norm1
 
-splane_rms_norm1 function                                          glens Description: Given a model parameters of a lens, and the images position, calculate the deflections
+splane_rms_norm1 function                                          glens Description: Given a model parameters of a lens, and the images position, calculate the deflections (and magnification) and the sources position.
 
 
     

@@ -4,6 +4,8 @@ Component - Constructor By default use system log and configuration NewComp = Co
 
 convert2class - Convert a class that henhirts from Component to another class Uses eval, so in some cases maybe slow. Creates a new copy.
 
+copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+
 data2array - Convert scalar data property in an object into an array
 
 makeUuid - Generate or re-generate unique ID for each element in object, Return Uuid or [] for array MyUuid = Obj.makeUuid()
@@ -18,7 +20,7 @@ needUuid - Generate unique ID only if empty Return Uuid or [] for array
 
 newSerial - Generate simple serial number, used as alternative to Uuid
 
-newSerialStr - Generate simple serial number, used as alternative to Uuid, shorter string and fast performance. If parameter is specified, use it as prefix to the counter Example:
+newSerialStr - Generate simple serial number, used as alternative to Uuid, shorter string and fast performance. If parameter is specified, use it as prefix to the counter Example: Serial = Obj.newSerialStr('MyIndex') -> 'MyIndex1'
 
 newUuid - Generate Uuid using java package
 

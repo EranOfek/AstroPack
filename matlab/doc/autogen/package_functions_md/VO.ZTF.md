@@ -184,7 +184,7 @@ Read ZTF forced photometry file Package: VO.ZTF Description: Read ZTF forced pho
       
 ### VO.ZTF.read_ztf_HDF_matched
 
-Read ZTF matched light curves from local HDF5 light curve files. Package: VO.ZTF Description: Read ZTF matched light curves from local HDF5 light curve files. The HDF5 files are distributed as part of the catsHTM
+Read ZTF matched light curves from local HDF5 light curve files. Package: VO.ZTF Description: Read ZTF matched light curves from local HDF5 light curve files. The HDF5 files are distributed as part of the catsHTM catalogs.
 
 
     
@@ -243,7 +243,7 @@ Get ZTF/DR1 light curves for source by coordinates Package: VO.ZTF Description: 
       
 ### VO.ZTF.read_ztf_ascii_matched_lc
 
-Read ZTF ascii file of matched light curves Package: VO.ZTF Description: Read ZTF ascii file of matched light curves. Optionally save the data and meta data in an HDF5 file.
+Read ZTF ascii file of matched light curves Package: VO.ZTF Description: Read ZTF ascii file of matched light curves. Optionally save the data and meta data in an HDF5 file. The matched light curves files and description are
 
 
     
@@ -289,7 +289,7 @@ Read ZTF ascii file of matched light curves Package: VO.ZTF Description: Read ZT
       
 ### VO.ZTF.wget_irsa_forcedphot_diff
 
-Send a forced photometry request to ZTF archive Package: VO.ZTF Description: Send a forced photometry on subtraction images request to ZTF archive.
+Send a forced photometry request to ZTF archive Package: VO.ZTF Description: Send a forced photometry on subtraction images request to ZTF archive. See more details in:
 
 
     

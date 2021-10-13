@@ -28,7 +28,7 @@ Examples: AI(1) = wfast.read2AstroImage('WFAST_Balor_20200801-020634-879_F505W_0
       
 ### wfast.read2AstroImage
 
-Read W-FAST image from HDF5 file into an AstroImage and calibrate the image using the wfast calibration object (dark subtraction, flat correction). Populate the header, mask image, image, and interpolate over NaNs.
+Read W-FAST image from HDF5 file into an AstroImage and calibrate the image using the wfast calibration object (dark subtraction, flat correction). Populate the header, mask image, image, and interpolate over NaNs. REQUIREMENTS: addpath('/home/eran/matlab/GUYN/util')
 
 
     

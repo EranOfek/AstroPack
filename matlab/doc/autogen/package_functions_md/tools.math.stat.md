@@ -3,7 +3,7 @@
 
 ### tools.math.stat.bc_a
 
-bc_a function                                                      AstroStat Description: Bias correction and acceleration for bootstrap and Jackknife estimetors of the confidence interval.
+bc_a function                                                      AstroStat Description: Bias correction and acceleration for bootstrap and Jackknife estimetors of the confidence interval. The bc_a bias coorection and acceleration can be used
 
 
     
@@ -113,7 +113,7 @@ bootstrap_std function                                         AstroStat Descrip
       
 ### tools.math.stat.cel_coo_rnd
 
-cel_coo_rnd function                                               AstroStat Description: Generate random coordinates on the celestial sphere. The program can applay matrix rotation, reject
+cel_coo_rnd function                                               AstroStat Description: Generate random coordinates on the celestial sphere. The program can applay matrix rotation, reject coordinates, and generate non uniform coordinates.
 
 
     
@@ -164,7 +164,7 @@ cel_coo_rnd function                                               AstroStat Des
       
 ### tools.math.stat.cell_stat
 
-cell_stat function                                               AstroStat Description: Given a list of x,y coordinates (with optional property columns), count the number of points in each cell in the
+cell_stat function                                               AstroStat Description: Given a list of x,y coordinates (with optional property columns), count the number of points in each cell in the x-y plane and calculate the statistics (e.g., mean, medain
 
 
     
@@ -270,7 +270,7 @@ confint_probdist function                                          AstroStat Des
       
 ### tools.math.stat.corrsim
 
-Correlation between two vectors and confidence region using bootstrap Package: Util.stat Description: Calculate the correlation between two vectors and use the bootstrap method to estimate the probability to get
+Correlation between two vectors and confidence region using bootstrap Package: Util.stat Description: Calculate the correlation between two vectors and use the bootstrap method to estimate the probability to get a correlation larger than the observed correlation.
 
 
     
@@ -305,7 +305,7 @@ Correlation between two vectors and confidence region using bootstrap Package: U
       
 ### tools.math.stat.corrsim_cov
 
-Correlation matrix between N columns and bootstrap estimation of errors. Package: Util.stat Description: Given a matrix with N columns, calculate the correlation between each pair of columns and use the
+Correlation matrix between N columns and bootstrap estimation of errors. Package: Util.stat Description: Given a matrix with N columns, calculate the correlation between each pair of columns and use the bootstrap method to estimate the probability to get
 
 
     
@@ -338,7 +338,7 @@ Correlation matrix between N columns and bootstrap estimation of errors. Package
       
 ### tools.math.stat.err_cl
 
-Numerical estimate of percentiles. Package: Util.stat Description: Given a vector of data points, calculate the lower and upper bounds of an interval that contains a given
+Numerical estimate of percentiles. Package: Util.stat Description: Given a vector of data points, calculate the lower and upper bounds of an interval that contains a given precentage (P) of the data. (1-P)/2 of the data points are
 
 
     
@@ -408,7 +408,7 @@ error2ensemble function                                        AstroStat Descrip
       
 ### tools.math.stat.fab_counts
 
-- fab_counts function                                           AstroStat Description: Calculate the False Alarm Probability (FAP) that a source is real rather than a background fluctutation,
+- fab_counts function                                           AstroStat Description: Calculate the False Alarm Probability (FAP) that a source is real rather than a background fluctutation, given the source counts and the background counts.
 
 
     
@@ -496,7 +496,7 @@ A fast iqr (inter quantile range) function (without interpolation)
       
 ### tools.math.stat.jackknife
 
-Given an estimator, calculate the Jacknife StD. Package: Util.stat Description: Given an estimator (given by a function), calculate the Jackknife StD and the first order Quenouille-Tukey
+Given an estimator, calculate the Jacknife StD. Package: Util.stat Description: Given an estimator (given by a function), calculate the Jackknife StD and the first order Quenouille-Tukey Jacknife bias for this estimator.
 
 
     
@@ -567,7 +567,7 @@ Given an estimator, calculate the Jacknife StD. Package: Util.stat Description: 
       
 ### tools.math.stat.max_likelihood
 
-Likelihood from observations and numerical probability distribution. Package: Util.stat Description: Given a numerical probability distribution and list of 'events', calculate the 'likelihood' for the events given
+Likelihood from observations and numerical probability distribution. Package: Util.stat Description: Given a numerical probability distribution and list of 'events', calculate the 'likelihood' for the events given the probability distribution. In addition, calculate the
 
 
     
@@ -621,7 +621,7 @@ Likelihood from observations and numerical probability distribution. Package: Ut
       
 ### tools.math.stat.maxnd
 
-maxnd function                                                     AstroStat Description: Return the global maximum of a N-D matrix and its indices. This is equivalent to max(Data(:)), but it also returns the
+maxnd function                                                     AstroStat Description: Return the global maximum of a N-D matrix and its indices. This is equivalent to max(Data(:)), but it also returns the indices of the global maximum.
 
 
     
@@ -710,7 +710,7 @@ mediannd function                                                  AstroStat Des
       
 ### tools.math.stat.minnd
 
-minnd function                                                     AstroStat Description: Return the global minimum of a N-D matrix and its indices. This is equivalent to min(Data(:)), but it also returns the
+minnd function                                                     AstroStat Description: Return the global minimum of a N-D matrix and its indices. This is equivalent to min(Data(:)), but it also returns the indices of the global minimum.
 
 
     
@@ -785,7 +785,7 @@ Calculate the mode by estimating the density of points Package: Util.stat Descri
       
 ### tools.math.stat.mode_fit
 
-Estimate the mode of an array by fitting a Gaussian to its histogram. Package: +tools.math.stat Description: Estimate the mode of an array by fitting a Gaussian to the histogram of the array around its median.
+Estimate the mode of an array by fitting a Gaussian to its histogram. Package: +tools.math.stat Description: Estimate the mode of an array by fitting a Gaussian to the histogram of the array around its median. Return also the Sigma of the Gaussian fit.
 
 
     
@@ -826,7 +826,7 @@ Estimate the mode of an array by fitting a Gaussian to its histogram. Package: +
       
 ### tools.math.stat.mode_vec
 
-mode_vec function                                              AstroStat Description: Calculate the mode of a vector using histogram. The histogram step size chosen to contain some mean number
+mode_vec function                                              AstroStat Description: Calculate the mode of a vector using histogram. The histogram step size chosen to contain some mean number of points per bin.
 
 
     
@@ -901,6 +901,16 @@ Calculate the mutual information of two vectors (degree of independency) Package
       
       
       
+### tools.math.stat.nanmedian
+
+faster version of nanmedian using the 'omitnan' option. see median for options: Example: tools.math.stat.nanmedian(rand(100,100),2)
+
+
+    
+    faster version of nanmedian using the 'omitnan' option.  
+    see median for options:  
+    Example: tools.math.stat.nanmedian(rand(100,100),2)  
+      
 ### tools.math.stat.nanrstd
 
 Robust nanstd. Package: Util.stat Description: Robust nanstd. Estimating the std (like nanstd.m), based on the 50-percentile of the distribution.
@@ -921,6 +931,16 @@ Robust nanstd. Package: Util.stat Description: Robust nanstd. Estimating the std
     Example: StD=nanrstd(randn(5,5))  
     Reliable: 2  
       
+      
+### tools.math.stat.nanstd
+
+faster version of nanstd using the 'omitnan' option. see median for options: Example: tools.math.stat.nanstd(rand(100,100),[],2)
+
+
+    
+    faster version of nanstd using the 'omitnan' option.  
+    see median for options:  
+    Example: tools.math.stat.nanstd(rand(100,100),[],2)  
       
 ### tools.math.stat.noiser
 
@@ -965,7 +985,7 @@ noiser function                                                AstroStat Descrip
       
 ### tools.math.stat.poissconf
 
-Upper/lower confidence intervals on N events assuming Poisson statistics Package: Util.stat Description: Given the number of observed events, calculates the two sided upper and lower confidence intervals, assuming
+Upper/lower confidence intervals on N events assuming Poisson statistics Package: Util.stat Description: Given the number of observed events, calculates the two sided upper and lower confidence intervals, assuming Poisson statistics. Below N=140 use the Gehrels (1986)
 
 
     
@@ -996,7 +1016,7 @@ Upper/lower confidence intervals on N events assuming Poisson statistics Package
       
 ### tools.math.stat.prob2find_inr
 
-prob2find_inr function                                             AstroStat Description: Given a density (number per unit area), and a distance from a point, calculate the the probability to find an
+prob2find_inr function                                             AstroStat Description: Given a density (number per unit area), and a distance from a point, calculate the the probability to find an object within radius R from the point (assuming Poisson
 
 
     
@@ -1080,7 +1100,7 @@ rand_circle function                                               AstroStat Des
       
 ### tools.math.stat.rand_ps
 
-Generate a random time series with a given power spectrum. Package: Util.stat Description: Generate a random realization of a time series with a given power spectrum (e.g., power-law) and optional gaussian
+Generate a random time series with a given power spectrum. Package: Util.stat Description: Generate a random realization of a time series with a given power spectrum (e.g., power-law) and optional gaussian measuments errors.
 
 
     
@@ -1116,7 +1136,7 @@ Generate a random time series with a given power spectrum. Package: Util.stat De
     -  
 ### tools.math.stat.rand_range
 
-rand_range function                                            AstroStat Description: Generate uniformly random number in a given range. The numbers can be uniform either in linear space or
+rand_range function                                            AstroStat Description: Generate uniformly random number in a given range. The numbers can be uniform either in linear space or log10 space.
 
 
     
@@ -1441,7 +1461,7 @@ wmean function                                                 AstroStat Descrip
       
 ### tools.math.stat.wmedian
 
-Weighted median for a vector. Package: Util.stat Description: Weighted median for a vector. Calculates the weighted median of a vector
+Weighted median for a vector. Package: Util.stat Description: Weighted median for a vector. Calculates the weighted median of a vector given the error on each value in the vector.
 
 
     

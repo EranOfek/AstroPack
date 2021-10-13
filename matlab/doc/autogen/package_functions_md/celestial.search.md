@@ -32,7 +32,7 @@ Cone search in a table with spherical coordinates. Package: celestial.search Des
       
 ### celestial.search.match_coo
 
-Match two lists by spherical coordinates. Package: celestial.search Description: Given two lists with spherical coordinates, search for objects in the second list associated with each object in
+Match two lists by spherical coordinates. Package: celestial.search Description: Given two lists with spherical coordinates, search for objects in the second list associated with each object in the first list.
 
 
     
@@ -74,7 +74,7 @@ Match two lists by spherical coordinates. Package: celestial.search Description:
       
 ### celestial.search.match_coo_nearest
 
-Match two lists by spherical coordinates for nearest source only. Package: celestial.search Description: Given two lists with spherical coordinates, search for nearest object in the second list associated with each
+Match two lists by spherical coordinates for nearest source only. Package: celestial.search Description: Given two lists with spherical coordinates, search for nearest object in the second list associated with each object in the first list.
 
 
     

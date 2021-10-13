@@ -41,7 +41,7 @@ Convert Julian/Gregorian date to Julian Day Package: @Time Description: Convert 
       
 ### celestial.time.date_str2vec
 
-date_str2vec function                                            General Description: Convert a string or a cell array of string containing date and time in the format 'YYYY-MM-DD HH:MM:SS.frac'
+date_str2vec function                                            General Description: Convert a string or a cell array of string containing date and time in the format 'YYYY-MM-DD HH:MM:SS.frac' or 'YYYY-MM-DD', to a matrix of dates with the following
 
 
     
@@ -84,7 +84,7 @@ Return the number of days in month Package: @Time, adapted from +celestial.time 
       
 ### celestial.time.delta_t
 
-Return \Delta{T} Package: celestial.time Description: Return \Delta{T} at a vector of Julian days. DeltaT is defined as ET-UT prior to 1984, and
+Return \Delta{T} Package: celestial.time Description: Return \Delta{T} at a vector of Julian days. DeltaT is defined as ET-UT prior to 1984, and TT-UT1 after 1984 (= 32.184+(TAI-UTC)-(UT1-UTC)).
 
 
     
@@ -223,7 +223,7 @@ Convert JD to year Package: celestial.time Description: Convert Julian day to Ju
       
 ### celestial.time.julday
 
-Convert Julian/Gregorain date to JD Package: celestial.time Description: Convert Julian/Gregorian date to Julian Day. OBSOLETE: Use convert.date2jd instead.
+Convert Julian/Gregorain date to JD Package: celestial.time Description: Convert Julian/Gregorian date to Julian Day. OBSOLETE: Use convert.date2jd instead. See also: convert.time
 
 
     
@@ -260,7 +260,7 @@ Convert Julian/Gregorain date to JD Package: celestial.time Description: Convert
       
 ### celestial.time.julday1
 
-Convert Gregorian date in the range 1901 to 2099 to JD Package: celestial.time Description: Convert Gregorian date in the range 1901 to 2099 to Julian days (see also: julday.m).
+Convert Gregorian date in the range 1901 to 2099 to JD Package: celestial.time Description: Convert Gregorian date in the range 1901 to 2099 to Julian days (see also: julday.m). See also: convert.date2jd, celestial.time.julday
 
 
     
@@ -359,35 +359,6 @@ Convert a date string (usinf datevec) to date vector
     Output - A date vector [y m d, H M S]  
     Example: Date=celestial.time.str2date({'2020:02:01 10:10:23.1123'})  
       
-### celestial.time.tai_utc
-
-Get TAI-UTC (leap second) Package: celestial.time Description: Return the TAI-UTC time difference (leap second) for a vector of Julian days. Also return TT-UTC.
-
-
-    
-    Get TAI-UTC (leap second)  
-    Package: celestial.time  
-    Description: Return the TAI-UTC time difference (leap second) for  
-    a vector of Julian days. Also return TT-UTC.  
-    Input  : - Vector of JDs  
-    - 'get' - get the latest TAI-UTC data from the IERS website and  
-    update the local version.  
-    'use' - use local version of the TAI-UTC data (default).  
-    See wget_tai_utc.m  
-    Output : - TAI-UTC time difference [seconds] for the requested JDs.  
-    Return NaNs if out of range.  
-    - TT-UTC [seconds].  
-    Note that TT=TAI+32.184s.  
-    - Data structure containing the TAI-UTC table.  
-    See wget_tai_utc.m for additional information.  
-    Tested : Matlab R2014a  
-    By : Eran O. Ofek                    Jun 2014  
-    URL : http://weizmann.ac.il/home/eofek/matlab/  
-    Example: [TAImUTC,TTmUTC]=celestial.time.tai_utc([0;2451545;julday]);  
-    Reliable: 2  
-      
-      
-      
 ### celestial.time.tdb_tdt
 
 Approximate TDB-TT Package: celestial.time Description: Calculate approximate difference between TDT and TDB time scales.
@@ -407,37 +378,96 @@ Approximate TDB-TT Package: celestial.time Description: Calculate approximate di
     Reliable: 2  
     -  
       
-### celestial.time.ut1_utc
+### celestial.time.tt_utc
 
-Return UT1-UTC (DUT1) Package: celestial.time Description: Return UT1-UTC (also known as DUT1).
+Get TT-UTC and TT-UT1 time Description: TT continues Terrestrial Dynamical Time (TDT or TD), which succeeded ephemeris time (ET). \Delta{T} = TT - UT1 TAI − GPS time = +19 seconds
 
 
     
-    Return UT1-UTC (DUT1)  
+    Get TT-UTC and TT-UT1 time  
+    Description: TT continues Terrestrial Dynamical Time (TDT or TD),  
+    which succeeded ephemeris time (ET).  
+    \Delta{T} = TT - UT1  
+    TAI − GPS time = +19 seconds  
+    Input  : - Vector of JDs  
+    * ...,key,val,...  
+    'WhereToGet' -  
+    'get' - get the latest EOP data from the IERS website and  
+    update the local version.  
+    'use' - use local version of the EOP data (default).  
+    'FillVal' - Fill value if not available. Default is NaN.  
+    'SourceFile' - Source file - options are:  
+    '1992' - 1992 till now+3 month (default).  
+    '1962' - 1962 till now.  
+    'NearFutureInterp' - A logical indicating if to perform  
+    interpolation into the near future.  
+    Default is false.  
+    This should be used only if you need TT-UT1 in the  
+    present or up to a few months into the future.  
+    Output : - TT - UTC [s]  
+    - TT - UT1 [s] = \Delta{T}  
+    - UT1 - TAI [s]  
+    - UT1 - UTC [s]  
+    Author : Eran Ofek (Sep 2021)  
+    Example: [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=celestial.time.tt_utc([0;2451545;celestial.time.julday+10]);  
+      
+### celestial.time.ut1_tai
+
+Return the UT1-TAI time (available from 1846 till now).
+
+
+    
+    Return the UT1-TAI time (available from 1846 till now).  
+    Input  : - A vector of JD  
+    * ...,key,val,...  
+    'WhereToGet' -  
+    'get' - get the latest EOP data from the IERS website and  
+    update the local version.  
+    'use' - use local version of the EOP data (default).  
+    'FillVal' - Fill value if not available. Default is NaN.  
+    Output : - UT1-TAI [seconds].  
+    - EOP full table (see Installer/readIERS_EOP)  
+    Aujthor : Eran Ofek (Sep 2021)  
+    Example: [UT1mTAI,EOP]=celestial.time.ut1_tai(2451545);  
+    [UT1mTAI,EOP]=celestial.time.ut1_tai(2451545,'get',0);  
+      
+### celestial.time.ut1_utc
+
+Return UT1-UTC (DUT1) - read from IERS EOP file (1992 to present day) Package: celestial.time Description: Return UT1-UTC (also known as DUT1).
+
+
+    
+    Return UT1-UTC (DUT1) - read from IERS EOP file (1992 to present day)  
     Package: celestial.time  
     Description: Return UT1-UTC (also known as DUT1).  
     Input  : - Vector of Julian days (valid only after 1 1 1961).  
-    - 'get' - get the latest EOP data from the IERS website and  
+    * ...,key,val,...  
+    'WhereToGet' -  
+    'get' - get the latest EOP data from the IERS website and  
     update the local version.  
     'use' - use local version of the EOP data (default).  
+    'FillVal' - Fill value if not available. Default is NaN.  
+    'SourceFile' - Source file - options are:  
+    '1992' - 1992 till now+3 month (default).  
+    '1962' - 1962 till now.  
     Output : - UT1-UTC [seconds].  
-    - EOP table (see wget_eop.m for details).  
-    Tested : Matlab R2014a  
-    By : Eran O. Ofek                    Jun 2014  
-    URL : http://weizmann.ac.il/home/eofek/matlab/  
+    - EOP full table (see Installer/readIERS_EOP)  
+    Aujthor : Eran Ofek (Sep 2021)  
     Example: [UT1mUTC,EOP]=celestial.time.ut1_utc(2451545);  
+    [UT1mUTC,EOP]=celestial.time.ut1_utc(2451545,'WhereToGet','get','FillVal',0);  
+    [UT1mUTC]=celestial.time.ut1_utc(2451545,'SourceFile','1962')  
     Reliable: 2  
-      
       
       
 ### celestial.time.wget_eop
 
-Read or get the Earth orientation parameters file from IERS Package: celestial.time Description: Get the table of historical and predicted Earth orientation parameters (EOP) from the IERS web site.
+Read or get the Earth orientation parameters file from IERS Package: celestial.time OBSOLETE: see Installer/readIERS_EOP class. Description: Get the table of historical and predicted Earth orientation parameters (EOP) from the IERS web site.
 
 
     
     Read or get the Earth orientation parameters file from IERS  
     Package: celestial.time  
+    OBSOLETE: see Installer/readIERS_EOP class.  
     Description: Get the table of historical and predicted Earth orientation  
     parameters (EOP) from the IERS web site.  
     Input  : - 'get' - get the latest EOP data from the IERS website and  

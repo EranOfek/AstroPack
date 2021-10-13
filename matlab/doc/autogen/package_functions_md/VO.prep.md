@@ -11,7 +11,7 @@ build PS1 HDF5/HTM catalog
       
 ### VO.prep.build_htm_catalog
 
-Build an HTM catalog in HDF5 format for fast queries Package: @VO.prep Description: Given a catalog, prepare the catalog in HDF5 format sorted into HTM cells. This program is used for the construction of
+Build an HTM catalog in HDF5 format for fast queries Package: @VO.prep Description: Given a catalog, prepare the catalog in HDF5 format sorted into HTM cells. This program is used for the construction of fast access large catalogs. You can search such catalogs
 
 
     

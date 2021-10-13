@@ -1,4 +1,0 @@
-Package: pipeline
-
-Pipeline - Command-line entry point for PipelineMain class
-

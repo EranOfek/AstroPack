@@ -4,19 +4,19 @@ airy - Calculate the monochromatic Airy function (circular diffraction) Package:
 
 noll_index - Return the Zernike index from the Noll index. Package: telescope.Optics Description: Calculate the Zernike indices given the Noll index and visa versa.
 
-phase_complex - Return the phase of complex numbers. Package: telescope.Optics Description: Given an N-D array of complex numbers, return the phase of each complex number
+phase_complex - Return the phase of complex numbers. Package: telescope.Optics Description: Given an N-D array of complex numbers, return the phase of each complex number (i.e., atan2(imag(Matrix),real(Matrix))).
 
 refraction_index - Return the refraction index as a function of wavelength Package: telescope.Optics Description: Return the refraction index as a function of wavelength for various materials.
 
 telescope_support - Construct an image of a telescope entrance pupil (support). Package: telescope.Optics Description: Construct an image of a telescope entrance pupil (support). For example, a clear circular pupil.
 
-wavefront2image - Construct an image from the wavefront Package: telescope.Optics Description: Construct a wavefront from a matrix representation of the wavefront, and calculate the image plane of a point source
+wavefront2image - Construct an image from the wavefront Package: telescope.Optics Description: Construct a wavefront from a matrix representation of the wavefront, and calculate the image plane of a point source with a given support (obstraction).
 
 zer_cj_variance - The expectency of std of the atmospheric Zernike coefficients. Package: telescope.Optics Description: Return the expectency of standard deviation of the atmospheric Zernike c_j coefficients.
 
-zernike_xy - A driver function for the external zerfun.m function. Package: telescope.Optics Description: A driver function for the external zerfun.m function. Given a list of zernike indices and a grid in the X-Y plan
+zernike_xy - A driver function for the external zerfun.m function. Package: telescope.Optics Description: A driver function for the external zerfun.m function. Given a list of zernike indices and a grid in the X-Y plan calculate a cube of the zernike functions. The first
 
-zerwavefront2image - Wavefront from Zernike polynomials and calculate the image plane. Package: telescope.Optics Description: Construct a wavefront using Zernike polynomials, and calculate the image plane of a point source with a
+zerwavefront2image - Wavefront from Zernike polynomials and calculate the image plane. Package: telescope.Optics Description: Construct a wavefront using Zernike polynomials, and calculate the image plane of a point source with a given support (obstraction). This function sum all the
 
-zerwavefront2image_indiv - Wavefront from individual Zernike polynomials and calculate the image. Package: telescope.Optics Description: Construct a wavefront using Zernike polynomials, and calculate the image plane of a point source with a
+zerwavefront2image_indiv - Wavefront from individual Zernike polynomials and calculate the image. Package: telescope.Optics Description: Construct a wavefront using Zernike polynomials, and calculate the image plane of a point source with a given support (obstraction).
 

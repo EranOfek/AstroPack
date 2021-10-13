@@ -39,7 +39,7 @@ Check if a cone (small circle) is within a convex spherical polygon Package: cel
       
 ### celestial.htm.gc_mid_section
 
-Mid point on great circle between two points Package: celestial.htm Description: Given two points on a sphere, find the central point lying on the the shortest great circle section connecting the
+Mid point on great circle between two points Package: celestial.htm Description: Given two points on a sphere, find the central point lying on the the shortest great circle section connecting the two points.
 
 
     
@@ -76,7 +76,7 @@ Mid point on great circle between two points Package: celestial.htm Description:
       
 ### celestial.htm.htm_build
 
-Build Hierarchical Triangular Mesh (HTM) structure Package: celestial.htm Description: Build Hierarchical Triangular Mesh (HTM) structure. This structure can be use for fast searches of data
+Build Hierarchical Triangular Mesh (HTM) structure Package: celestial.htm Description: Build Hierarchical Triangular Mesh (HTM) structure. This structure can be use for fast searches of data in catalogs on a sphere.
 
 
     
@@ -187,7 +187,7 @@ Search for a single point-like coordinate in an HTM tree Package: celestial.htm 
       
 ### celestial.htm.in_halfspace
 
-Is point in half space Package: celestial.htm Description: Given a unit vector R and half space (N,C) test if the point is contained inside the half space (N dot R > C).
+Is point in half space Package: celestial.htm Description: Given a unit vector R and half space (N,C) test if the point is contained inside the half space (N dot R > C). A halfspace is a plane that splits the sphere in two.
 
 
     
@@ -247,7 +247,7 @@ Is point in half space Package: celestial.htm Description: Given a unit vector R
       
 ### celestial.htm.in_polysphere
 
-Is point inside a convex spherical polygon Package: celestial.htm Description: Check if a list of positions are found within a convex polygon on the celestial sphere in which its sides are
+Is point inside a convex spherical polygon Package: celestial.htm Description: Check if a list of positions are found within a convex polygon on the celestial sphere in which its sides are great circles.
 
 
     
@@ -309,7 +309,7 @@ Given number of HTM elements calculate number of levels. Package: celestial Desc
       
 ### celestial.htm.polysphere_poles
 
-Given a spherical polygon vertces, find the poles of each of sides Package: celestial.htm Description: Given the longitude and latitude of a convex polygon on the sphere in which its sides are great circles, find the poles
+Given a spherical polygon vertces, find the poles of each of sides Package: celestial.htm Description: Given the longitude and latitude of a convex polygon on the sphere in which its sides are great circles, find the poles of each great circle aiming the polygon center of mass.
 
 
     
@@ -331,7 +331,7 @@ Given a spherical polygon vertces, find the poles of each of sides Package: cele
       
 ### celestial.htm.polysphere_sort
 
-Sort a convex spherical polygon Package: celestial.htm Description: Given an (unsorted) convex spherical polygon vertices, sort the vertices acording to their descending position angle as
+Sort a convex spherical polygon Package: celestial.htm Description: Given an (unsorted) convex spherical polygon vertices, sort the vertices acording to their descending position angle as measured from the polygon center of mass.
 
 
     

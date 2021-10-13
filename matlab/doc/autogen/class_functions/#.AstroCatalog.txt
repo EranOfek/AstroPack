@@ -6,7 +6,7 @@ boundingCircle - Fit a bounding circle position and radius to a catalog
 
 convertCooUnits - convert all spherical coordinates Units for multiple element object
 
-cropXY - crop AstroCatalog object by X/Y coordinates. Including updateing the X/Y coordinates. The function may operate on multiple AstroCatalog and/or multiple sections.
+cropXY - crop AstroCatalog object by X/Y coordinates. Including updateing the X/Y coordinates. The function may operate on multiple AstroCatalog and/or multiple sections. For example, it can produce multiple crops of a single
 
 getColCooForCooType - Get the X/RA and Y/Dec column indices for a specific CooType
 
@@ -22,7 +22,7 @@ getXY - Get X/Y columns from AstroCatalog.
 
 help - show mlx help file for AstroCatalog
 
-insertFlagColFromMask - Insert/replace FLAGS column in AstroCatalog as populated from a MaskImage object. Description: Given an AstroCatalog and a MaskImage objects, for each source in the AstroCatalog, search the FLAGS in the MaskImage (bitwise or/and) within a user
+insertFlagColFromMask - Insert/replace FLAGS column in AstroCatalog as populated from a MaskImage object. Description: Given an AstroCatalog and a MaskImage objects, for each source in the AstroCatalog, search the FLAGS in the MaskImage (bitwise or/and) within a user provided radius (default is 3 pix). These FLAGS will be
 
 isCooPix - Check if X/Y (pixel) coordinates exist in an AstroCatalog
 

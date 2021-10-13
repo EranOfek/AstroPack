@@ -3,7 +3,7 @@
 
 ### VO.HST.hst_acs_zp_apcorr
 
-Aperture correction for HST/ACS filter and aperture radius. Package: VO.HST Description: Given aperture radius for photometry, and Hubble Space Telecsope (HST) ACS-WFC filter name, return the fraction,
+Aperture correction for HST/ACS filter and aperture radius. Package: VO.HST Description: Given aperture radius for photometry, and Hubble Space Telecsope (HST) ACS-WFC filter name, return the fraction, and error in fraction, of the encircled energy within the
 
 
     

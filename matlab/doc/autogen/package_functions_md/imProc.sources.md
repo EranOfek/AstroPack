@@ -1,6 +1,76 @@
 # Package: imProc.sources
 
 
+### imProc.sources.classifySources
+
+Classify sources found by findMeasureSources. The source classification includes: Example: [Result, Flag] = classifySources(Obj)
+
+
+    
+    Classify sources found by findMeasureSources.  
+    The source classification includes:  
+      
+    Example: [Result, Flag] = classifySources(Obj)  
+      
+      
+### imProc.sources.cleanSources
+
+Clean sources found by findMeasureSources (bad S/N and CR). Cleaning include - flaging or removal of CRs based on hypothesis testing between a delta function and some PSF, and finding sources which S/N based on the annulus std is low (i.e. identify cases in which the local background/variance estimation is not reliable).
+
+
+    
+    Clean sources found by findMeasureSources (bad S/N and CR).  
+    Cleaning include - flaging or removal of CRs based on hypothesis  
+    testing between a delta function and some PSF, and finding sources  
+    which S/N based on the annulus std is low (i.e. identify cases in  
+    which the local background/variance estimation is not reliable).  
+    Input  : - An Astrocatalog or AstroImage (w/ Astrocatalog) object.  
+    The AstroCatalog must contains at least two S/N columns  
+    measured using two PSF matched filters,  
+    an 'STD_ANNULUS' column of the std measured in an annulus  
+    around each source, and at least one flux column.  
+    * ...,key,val,...  
+    'ColNamsSN' - A cell array of at least two column names containg the  
+    S/N measured for PSFs with different width.  
+    The first column name must corresponds to a sharp  
+    PSF (i.e., delta function), and the second column  
+    is for some wider PSF.  
+    The CR flag is calculated by SN(1)>SN(2).  
+    Default is {'SN_1','SN_2'}.  
+    'ColNameFlux' - A cell array of column names containing  
+    some flux measurments. These, along with the annulus  
+    std, are used to calculate the annulus-std-based  
+    S/N. Default is {'FLUX_CONV_2','FLUX_CONV_3'}.  
+    'SigmaPSF' - The width of the PSF (i.e., unit of sigma).  
+    This is a vector which must have the same number of  
+    elements as ColNameFlux. This is used to calculate  
+    the PSF effective area (4\pi\sigma^2).  
+    Default is [].  
+    'ColNameStdAnn' - Annulus std column name.  
+    Default is 'STD_ANNULUS'.  
+    'ThresholdSN' - S/N threshold. annulus-std S/N smaller than  
+    this threshold are declared as bad.  
+    Default is 5.  
+    'MaskCR' - A logical indicating if to update the mask  
+    image with cosmic rays found using 'CR_DeltaHT'.  
+    This will be activated only if the input is an  
+    AstroImage. Default is true.  
+    'BitNameCR' - A bit name in the Mask image for flagging  
+    the CR (cosmic rays). Default is 'CR_DeltaHT'.  
+    'RemoveBadSources' - A logical indicating if to remove bad  
+    sources from the output catalog. Default is true.  
+    'CreateNewObj' - A logical indicating if to create a new  
+    copy of (only) the AstroCatalog object.  
+    Default is false.  
+    Output : - An AstroCatalog/AstroImage with the updated catalog.  
+    - A structure array with the flaged sources. Abailable  
+    fields are:  
+    .CR - possible CR.  
+    .BadSN - std-annulud-based S/N smaller than threshold.  
+    Author : Eran Ofek (Oct 2021)  
+    Example: [Result, Flag] = imProc.sources.cleanSources(AI,'SigmaPSF',[1.2 1.5])  
+      
+      
 ### imProc.sources.findMeasureSources
 
 Basic sources finder and measurments on AstroImage object. This function uses the +imUtil.sources.find_sources function.
@@ -10,6 +80,11 @@ Basic sources finder and measurments on AstroImage object. This function uses th
     Basic sources finder and measurments on AstroImage object.  
     This function uses the +imUtil.sources.find_sources function.  
     Input  : - An AstroImage object (multi elements are supported).  
+    'RemoveBadSources' - A logical indicating if to remove  
+    bad sources using imProc.sources.cleanSources.  
+    This will work only if the following columns are requested  
+    'SN_1','SN_2','FLUX_CONV_2','FLUX_CONV_3','STD_ANNULUS'.  
+    Default is false.  
     'ReFind' - A logical indicating if to find stars if the  
     catalog is already populated. Default is true.  
     'Threshold' - Detection threshold above background in units of  
@@ -49,6 +124,9 @@ Basic sources finder and measurments on AstroImage object. This function uses th
     'BackPar' - A cell array of additional parameters to pass to  
     the imProc.image.background function.  
     Default is {}.  
+    'ReCalcBack' - A logical indicating if to recalculate  
+    background, even if it is already exist in the  
+    AstroImage. Default is false.  
     'MomPar' - A cell array of additional parameters to pass to  
     the imUtil.image.moment2 function.  
     Default is {}.  

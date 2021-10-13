@@ -2,9 +2,11 @@ Class: UnitTester
 
 UnitTester - 
 
+Warn - Add warning message to Obj.WarnList
+
 beforePush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
 
-doBeforePush - Run all required tests before 'git push' command DO NOT PUSH if there are failed tests!
+doBeforePush - Run all required tests before 'git push' command WARNING: DO NOT PUSH to common branch (currently: 'dev1') if there are failed tests!
 
 doPerfTest - Run all Performance tests
 
@@ -12,9 +14,21 @@ doStressTest - Run all Stress tests
 
 doTest - Run all unit-tests and show report
 
+findClassDef - Search classdef
+
+findFunction - Search unitTest() function
+
+fullName - Return full file name to package.class or package.func
+
+getClassName - Get class name from folder name that starts with '@'
+
+getFunctionName - 'function Result = unitTest()'
+
+getPackageName - Get package name from file name
+
 getTestFits - Return FITS file name and size from our test data folder
 
-isTested - Check if already tested
+isTested - Check if already tested by inspecting at Obj.TestList
 
 msgLog - Write message to log
 
@@ -22,23 +36,29 @@ msgStyle - Write message to log
 
 perfTest - Run all Performance tests
 
-report - Show report of all performed tests
+processFile - Process single file
 
-runFile - 
+processFolder - Recursivly call processFile()
 
-runFolder - Load specify folder to properties Note: Recursive function
+readFile - Read file to Lines{}
 
-runTest - Run single unit test
+report - Print report of all performed tests
 
-setup - Class setup
+runTest - Run single unit test, Target is class name Example: runTest('ImagePath')
+
+setup - Class setup, prepare path to source code
+
+shouldProcessFile - Return true if specified file should be processed by checking that name does not contain word that means an excluded file (such as 'obsolete')
 
 stressTest - Run all Stress tests
 
-test - 
+test - Calls UnitTester.doTest()
 
 testAll - Run all unit-test functions found in MATLAB source files
 
 testCore - Run core unit-tests, required before we can run any other
 
 testImage - Run image related unit-tests
+
+unitTest - Dummy function, just to avoid warnings about missing unitTest
 

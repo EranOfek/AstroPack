@@ -1,4 +1,6 @@
-Package: imProc.register
+Package: imProc.transIm
+
+thoughts - Example: imProc.transIm.thoughts
 
 unitTest - unitTest for +imProc.register package Example: imProc.register.unitTest
 

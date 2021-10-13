@@ -3,7 +3,7 @@
 
 ### celestial.coo.aberration
 
-Apply aberration of light to source position Package: celestial.coo Description: Calculate the position of a star corrected for aberration of light.
+Apply aberration of light to source position Package: celestial.coo Description: Calculate the position of a star corrected for aberration of light. Rigoursly, these is applied after accounting for the light
 
 
     
@@ -64,7 +64,7 @@ Offset a position by angular distance and position angle Package: celestial.coo 
       
 ### celestial.coo.airmass
 
-Airmass from time and object and observer position Package: celestial.coo Description: Given the JD, object celestial coordinates, and observer Geodetic coordinates, calculating the airmass of the
+Airmass from time and object and observer position Package: celestial.coo Description: Given the JD, object celestial coordinates, and observer Geodetic coordinates, calculating the airmass of the object.
 
 
     
@@ -118,7 +118,7 @@ Convert altitude and declnation to hour angle Package: celestial.coo Description
       
 ### celestial.coo.altha2dec
 
-Convert altitude and hour angle to declination Package: celestial.coo Description: Given Altitude and Hour Angle of an object and the observer latitude, calculate the object Declination.
+Convert altitude and hour angle to declination Package: celestial.coo Description: Given Altitude and Hour Angle of an object and the observer latitude, calculate the object Declination. There may be up to two solutions for the Declination.
 
 
     
@@ -165,7 +165,7 @@ Convert an angle to the 0 to 2*pi range Package: celestial.coo Description: Conv
       
 ### celestial.coo.area_sphere_polygon
 
-Area of a polygon on a sphere Package: celestial.coo Description: Calculate the area of a polygon on a sphere, where the polygon sides are assumed to be great circles. If the polygon
+Area of a polygon on a sphere Package: celestial.coo Description: Calculate the area of a polygon on a sphere, where the polygon sides are assumed to be great circles. If the polygon is not closed (i.e., the first point is identical to the last
 
 
     
@@ -227,7 +227,7 @@ fit the smallest-radius bounding circle to set of X, Y points
       
 ### celestial.coo.calc_pm
 
-calc_pm function Description: Calculate the proper motion of a star from a set of measurments.
+calc_pm function Description: Calculate the proper motion of a star from a set of measurments. OBSOLETE:
 
 
     
@@ -323,7 +323,7 @@ Return field corners given its center and size Package: celestial.coo Descriptio
       
 ### celestial.coo.coco
 
-Convert between different coordinates (OBSOLETE: use convert_coo) Package: celestial.coo Description: General coordinate convertor. Convert/precess coordinate from/to Equatorial/galactic/Ecliptic
+Convert between different coordinates (OBSOLETE: use convert_coo) Package: celestial.coo Description: General coordinate convertor. Convert/precess coordinate from/to Equatorial/galactic/Ecliptic coordinates.
 
 
     
@@ -370,7 +370,7 @@ Convert between different coordinates (OBSOLETE: use convert_coo) Package: celes
       
 ### celestial.coo.convert2equatorial
 
-Convert coordinates/name to apparent equatorial coordinates. Package: celestial Description: Given a coordinates in some coordinate system or equinox, or an object name, convert it to euatorial coordinates that
+Convert coordinates/name to apparent equatorial coordinates. Package: celestial Description: Given a coordinates in some coordinate system or equinox, or an object name, convert it to euatorial coordinates that includes the atmospheric refraction correction and optional
 
 
     
@@ -444,7 +444,7 @@ Convert coordinates/name to apparent equatorial coordinates. Package: celestial 
       
 ### celestial.coo.convert_coo
 
-Convert between different coordinates Package: celestial.coo Description: General coordinate convertor. Convert/precess coordinate from/to Equatorial/galactic/Ecliptic
+Convert between different coordinates Package: celestial.coo Description: General coordinate convertor. Convert/precess coordinate from/to Equatorial/galactic/Ecliptic coordinates.
 
 
     
@@ -561,7 +561,7 @@ convertdms1 function                                               ephem Descrip
       
 ### celestial.coo.coo2box
 
-Calculate box vertices around coordinates (OBSOLETE: use coo2box) Package: celestial Description: Given a list of RA/Dec coordinates, and box half size, calculate the approximnate positions of the box vertices
+Calculate box vertices around coordinates (OBSOLETE: use coo2box) Package: celestial Description: Given a list of RA/Dec coordinates, and box half size, calculate the approximnate positions of the box vertices around the coordinates. Do not fix RA/Dec jumps.
 
 
     
@@ -609,7 +609,7 @@ Coordinates to cosine directions Package: celestial.coo Description: Convert coo
       
 ### celestial.coo.coo_resolver
 
-Resolve coordinates or target name into RA/Dec Package: celestial Description: Given coordinates (Lon/Lat) in any coordinate system or format, or a target name convert the coordinates into
+Resolve coordinates or target name into RA/Dec Package: celestial Description: Given coordinates (Lon/Lat) in any coordinate system or format, or a target name convert the coordinates into RA/Dec in some specific equinox and in deg/radians unuts.
 
 
     
@@ -666,7 +666,7 @@ Resolve coordinates or target name into RA/Dec Package: celestial Description: G
       
 ### celestial.coo.cosined
 
-Convert between coordinates and cosine directions Package: celestial.coo Description: Cosine direction transformation. Convert longitude and latitude to cosine direction and visa versa.
+Convert between coordinates and cosine directions Package: celestial.coo Description: Cosine direction transformation. Convert longitude and latitude to cosine direction and visa versa. See also: coo2cosined.m, cosined2coo.m
 
 
     
@@ -797,7 +797,7 @@ Example: celestial.coo.fit_scircle
       
 ### celestial.coo.geocentric2lsr
 
-Geocentric or heliocentric velocity to velocity relative to the LSR Package: celestial.coo Description: Approximate conversion of geocentric or heliocentric velocity to velocity relative to the local standard of
+Geocentric or heliocentric velocity to velocity relative to the LSR Package: celestial.coo Description: Approximate conversion of geocentric or heliocentric velocity to velocity relative to the local standard of rest (LSR).
 
 
     
@@ -832,7 +832,7 @@ Geocentric or heliocentric velocity to velocity relative to the LSR Package: cel
       
 ### celestial.coo.get_skytile_coo
 
-- get_skytile_coo function                                    Catalogue Description: Assuming some sky tileing (see tile_the_sky.m) and optional sub tileing for each tile, search for all the
+- get_skytile_coo function                                    Catalogue Description: Assuming some sky tileing (see tile_the_sky.m) and optional sub tileing for each tile, search for all the tiles which their centers found within some distance
 
 
     
@@ -857,7 +857,7 @@ Geocentric or heliocentric velocity to velocity relative to the LSR Package: cel
       
 ### celestial.coo.ha2alt
 
-Hour angle to altitude and airmass Package: celestial.coo Description: Given Hour Angle as measured from the meridian, the source declination and the observer Geodetic latitude, calculate
+Hour angle to altitude and airmass Package: celestial.coo Description: Given Hour Angle as measured from the meridian, the source declination and the observer Geodetic latitude, calculate the source altitude above the horizon and its airmass.
 
 
     
@@ -882,7 +882,7 @@ Hour angle to altitude and airmass Package: celestial.coo Description: Given Hou
       
 ### celestial.coo.ha2az
 
-Convert hour angle and declination to azimuth, altitude and airmass Package: celestial.coo Description: Given Hour Angle as measured from the meridian, the source declination and the observer Geodetic latitude, calculate
+Convert hour angle and declination to azimuth, altitude and airmass Package: celestial.coo Description: Given Hour Angle as measured from the meridian, the source declination and the observer Geodetic latitude, calculate the horizonal source azimuth
 
 
     
@@ -995,7 +995,7 @@ Celestial equatorial coordinates to horizontal coordinates Package: celestial.co
       
 ### celestial.coo.in_box
 
-Check if celestial coordinates are in a box (approximate). Package: celestial Description: Check if celestial coordinates are in a box defined by four corners and its sides are great circles.
+Check if celestial coordinates are in a box (approximate). Package: celestial Description: Check if celestial coordinates are in a box defined by four corners and its sides are great circles. See also: celestial.htm.in_polysphere
 
 
     
@@ -1020,7 +1020,7 @@ Check if celestial coordinates are in a box (approximate). Package: celestial De
       
 ### celestial.coo.inside_celestial_box
 
-Check if coorduinates are within box Package: celestial.coo Description: Given a list of celestial coordinates, and a box center, width and height, where the box sides are parallel to the
+Check if coorduinates are within box Package: celestial.coo Description: Given a list of celestial coordinates, and a box center, width and height, where the box sides are parallel to the coorinate system (i.e., small circles),
 
 
     
@@ -1102,7 +1102,7 @@ Check that coordinates satisfy some observability conditions Package: celestial.
       
 ### celestial.coo.light_abberation
 
-light_abberation function                                          ephem Description: Given an object observer-centric direction, corrected for light deflection in the natural frame (P1),
+light_abberation function                                          ephem Description: Given an object observer-centric direction, corrected for light deflection in the natural frame (P1), calculate the proper direction of the object (P2) in
 
 
     
@@ -1133,7 +1133,7 @@ light_abberation function                                          ephem Descrip
       
 ### celestial.coo.light_deflection
 
-light_deflection function                                              ephem Description: Calculate the observer-centric direction of a planet, corrected for light deflection in the natural frame.
+light_deflection function                                              ephem Description: Calculate the observer-centric direction of a planet, corrected for light deflection in the natural frame. Note: for the stellar case Q=P.
 
 
     
@@ -1160,7 +1160,7 @@ light_deflection function                                              ephem Des
       
 ### celestial.coo.nearest_coo
 
-nearest_coo function                                                   ephem Description: Given a list of coordinates (with arbitrary number of dimensions), search for the coordinate in list which is
+nearest_coo function                                                   ephem Description: Given a list of coordinates (with arbitrary number of dimensions), search for the coordinate in list which is the nearest to a given (single) coordinate.
 
 
     
@@ -1186,7 +1186,7 @@ nearest_coo function                                                   ephem Des
       
 ### celestial.coo.nutation
 
-Intermidiate accuracy IAU 1984 nutation Package: celestial.coo Description: Calculate the Nutation in longitude and latitude, and the nutation rotation matrix.
+Intermidiate accuracy IAU 1984 nutation Package: celestial.coo Description: Calculate the Nutation in longitude and latitude, and the nutation rotation matrix. This is a low accuracy version based on the IAU 1984 nutation
 
 
     
@@ -1307,7 +1307,7 @@ Calculate the obliquity of the Earth ecliptic. Package: celestial.coo Descriptio
       
 ### celestial.coo.parallactic2ha
 
-Convert parallactic angle and declinatio to hour angle Package: celestial.coo Description: Convert parallactic angle, declination and latitude to hour angle. Note that there are two solutions, and the
+Convert parallactic angle and declinatio to hour angle Package: celestial.coo Description: Convert parallactic angle, declination and latitude to hour angle. Note that there are two solutions, and the function will return both.
 
 
     
@@ -1330,7 +1330,7 @@ Convert parallactic angle and declinatio to hour angle Package: celestial.coo De
       
 ### celestial.coo.parallactic_angle
 
-parallactic_angle function                                             ephem Description: Calculate the parallactic angle of an object. The parallactic is defined as the angle between the local
+parallactic_angle function                                             ephem Description: Calculate the parallactic angle of an object. The parallactic is defined as the angle between the local zenith, the object and the celestial north pole measured
 
 
     
@@ -1355,6 +1355,25 @@ parallactic_angle function                                             ephem Des
     URL : http://weizmann.ac.il/home/eofek/matlab/  
     Reliable: 1  
       
+      
+### celestial.coo.parseCooInput
+
+Parse RA/Dec coordinates
+
+
+    
+    Parse RA/Dec coordinates  
+    Input  : - RA in [rad], [deg], [sexagesinmal], or [object name]  
+    - Dec in [rad], [deg], [sexagesinmal. If empty, then RA is  
+    object name.  
+    * ...,key,val,...  
+    'InUnits' - Default is 'deg'.  
+    'OutUnits' - Default is 'deg'.  
+    'NameServer' - Default is 'simbad'.  
+    Output : - RA  
+    - Dec  
+    Author : Eran Ofek (Oct 2021)  
+    Example: [RA, Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits','rad', 'OutUnits','deg')  
       
 ### celestial.coo.pm2space_motion
 
@@ -1403,7 +1422,7 @@ SHORT DESCRIPTION HERE Package: celestial Description:
       
 ### celestial.coo.pm_vector
 
-pm_vector function                                                 ephem Description: Return the space motion vector given proper motion, parallax and radial velocity.
+pm_vector function                                                 ephem Description: Return the space motion vector given proper motion, parallax and radial velocity. Obsolete: use pm2space_motion instead.
 
 
     
@@ -1433,7 +1452,7 @@ pm_vector function                                                 ephem Descrip
       
 ### celestial.coo.polar_alignment
 
-Calculate the RA/Dec drift due to equatorial polar alignemnt error. Package: celestial Description: Given a set of Declination-drift observations over several hour angle and declinations, calculate the deviation of the
+Calculate the RA/Dec drift due to equatorial polar alignemnt error. Package: celestial Description: Given a set of Declination-drift observations over several hour angle and declinations, calculate the deviation of the polar mount from the true North celestial pole.
 
 
     
@@ -1516,7 +1535,7 @@ Package: celestial.coo Description:
       
 ### celestial.coo.pole_from2points
 
-Find pole of a great circle defined by two points on the sphere. Package: celestial.coo Description: Given two points on the celestial sphere (in any system) describing the equator of a coordinate system,
+Find pole of a great circle defined by two points on the sphere. Package: celestial.coo Description: Given two points on the celestial sphere (in any system) describing the equator of a coordinate system, find one of the poles of this coordinate system.
 
 
     
@@ -1758,7 +1777,7 @@ Rotation matrix for coordinate conversion Package: celestial.coo Description: Ge
       
 ### celestial.coo.sky_area_above_am
 
-Calculate sky area observable during the night above a specific airmass. Package: celestial.coo Description: Calculate sky area observable during the night above a specific airmass, and assuming each field is observable
+Calculate sky area observable during the night above a specific airmass. Package: celestial.coo Description: Calculate sky area observable during the night above a specific airmass, and assuming each field is observable for at least TimeVis hours.
 
 
     
@@ -1841,7 +1860,7 @@ angular distance and position angle between two points on the sphere Package: ce
       
 ### celestial.coo.sphere_dist_cosd
 
-Angular distance between a set of two cosine vector directions. Package: celestial.coo Description: Calculate the angular distance between a set of two cosine vector directions.
+Angular distance between a set of two cosine vector directions. Package: celestial.coo Description: Calculate the angular distance between a set of two cosine vector directions. This should be used instead of sphere_dist_fast.m only
 
 
     
@@ -1864,7 +1883,7 @@ Angular distance between a set of two cosine vector directions. Package: celesti
       
 ### celestial.coo.sphere_dist_fast
 
-sphere_dist_fast function                                          ephem Description: Calculate the angular distance between two points on the celestial sphere. See sphere_dist.m (and built in distance.m)
+sphere_dist_fast function                                          ephem Description: Calculate the angular distance between two points on the celestial sphere. See sphere_dist.m (and built in distance.m) for a more general function. This function is ~10 time
 
 
     
@@ -1895,7 +1914,7 @@ sphere_dist_fast function                                          ephem Descrip
       
 ### celestial.coo.sphere_dist_fast_thresh
 
-sphere_dist_fast_thresh function                                   ephem Description: Calculate the angular distance between two points on the celestial sphere. See sphere_dist.m (and built in distance.m)
+sphere_dist_fast_thresh function                                   ephem Description: Calculate the angular distance between two points on the celestial sphere. See sphere_dist.m (and built in distance.m) for a more general function. This function is ~10 time
 
 
     
@@ -1922,7 +1941,7 @@ sphere_dist_fast_thresh function                                   ephem Descrip
       
 ### celestial.coo.sphere_dist_thresh
 
-sphere_dist_thresh function                                        ephem Description: Given Long and Lat coordinates and a reference coordinates (in radians) return a flag indicating if each point is
+sphere_dist_thresh function                                        ephem Description: Given Long and Lat coordinates and a reference coordinates (in radians) return a flag indicating if each point is within a spherical distance from a reference point.
 
 
     
@@ -1968,7 +1987,7 @@ Applay offset to RA and Dec Package: +celestial.coo
       
 ### celestial.coo.sphere_offset
 
-sphere_offset function                                             ephem Description: Calculate the offset needed to move from a point on the celesial sphere to a second point on the celestial sphere,
+sphere_offset function                                             ephem Description: Calculate the offset needed to move from a point on the celesial sphere to a second point on the celestial sphere, along longitide (small circle) and latitude (great circle).
 
 
     
@@ -2082,7 +2101,7 @@ Calculate the radius of the inscribed circle of a spherical triangle Package: ce
       
 ### celestial.coo.star_conjunctions
 
-Calculate conjuctions between stars given their proper motion. Package: celestial.coo Description: Given a star with its coordinates, proper motion and optionally parallax and radial velocity, and a list of
+Calculate conjuctions between stars given their proper motion. Package: celestial.coo Description: Given a star with its coordinates, proper motion and optionally parallax and radial velocity, and a list of multiple stars at the same sky region, calculate possible
 
 
     
@@ -2152,14 +2171,44 @@ Tile the celestial sphere Package: celestial.coo Description: Tiling the celesti
     Reliable: 2  
       
       
+### celestial.coo.topocentricVector
+
+Calculate the topocentric vector of an observer.
+
+
+    
+    Calculate the topocentric vector of an observer.  
+    Input  : - JD in UT1 time system.  
+    - Geodetic position. If [], then assume geocentric position  
+    and return zeros. Otherwise should be [Long, Lat, Height]  
+    in [rad, rad, m].  
+    * ...,key,val,...  
+    'RefEllipsoid' - Reference ellipsoid. Default is 'WGS84'.  
+    'Convert2ecliptic' - A logical indicating if to convert  
+    the results to eclitic coordinates.  
+    Otherwise, the output is in equatorial coordinates.  
+    'Equinox' - Equinox of output: 'date' | 'J2000'.  
+    Default is 'date'.  
+    'OutUnits' - Output units. Default is 'm'.  
+    'Xp' - The angle of the celestial epheerius pole of the  
+    Earth with respect to the terrestial pole [rad].  
+    Along longitude 0. Default is [].  
+    'Yp' - Like Xp but for long of 270 (East). Default is [].  
+    Output : - The position vector of the topocentric observer relative  
+    to the Earth center.  
+    - The radius vector time derivative [rad/s].  
+    Author : Eran Ofek (Sep 2021)  
+    Example: G = celestial.coo.topocentricVector(celestial.time.julday([21 3 2000]), [35 32 0]./RAD)  
+      
 ### celestial.coo.topocentric_vec
 
-topocentric_vec function                                           ephem Description: Calculate the topocentric position and velocity vectors of an observer, with respect to the true equator and
+topocentric_vec function                                           ephem OBSOLETE: use celestial.coo.topocentricVector instead Description: Calculate the topocentric position and velocity vectors of an observer, with respect to the true equator and
 
 
     
       
     topocentric_vec function                                           ephem  
+    OBSOLETE: use celestial.coo.topocentricVector instead  
     Description: Calculate the topocentric position and velocity vectors  
     of an observer, with respect to the true equator and  
     equinox of date. In otder to transform the vectors to a  

@@ -74,7 +74,7 @@ prev - Move cursor to previous record, return false if reached end of data
 
 query - Run SELECT query, for other statements use exec() @Todo: Replace varargin with arguments block? Example: Result = query('SELECT COUNT(*) from master_table')
 
-select - Execute: SELECT Fields FROM TableName
+select - Execute: SELECT Fields FROM TableName Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
 
 selectCount - Select number of records with optionally where clause
 

@@ -13,7 +13,7 @@ Example: imUtil.patternMatch.find_registration_trans
       
 ### imUtil.patternMatch.find_rot_pairs
 
-Find the best rotation required to match two catalogs using dist-rot hist Package: imUtil.patternMatch Description: Find the best rotation required to match two catalogs using The Kaiser method. The histogram of the distance and
+Find the best rotation required to match two catalogs using dist-rot hist Package: imUtil.patternMatch Description: Find the best rotation required to match two catalogs using The Kaiser method. The histogram of the distance and angle between stars in the reference is cross correlated
 
 
     
@@ -85,7 +85,7 @@ Find the best rotation required to match two catalogs using dist-rot hist Packag
       
 ### imUtil.patternMatch.find_scalerot_pairs
 
-Find rotation and scale required to match two catalogs using logdist-rot hist Package: imUtil.patternMatch Description: Find the best rotation and scale and flip (by that order) needed to be applied to a acatalog in order to match it
+Find rotation and scale required to match two catalogs using logdist-rot hist Package: imUtil.patternMatch Description: Find the best rotation and scale and flip (by that order) needed to be applied to a acatalog in order to match it to a reference catalog.
 
 
     
@@ -157,7 +157,7 @@ Find rotation and scale required to match two catalogs using logdist-rot hist Pa
       
 ### imUtil.patternMatch.find_shift_pairs
 
-find best X/Y shift between two catalogs from all pairs differences Package: imUtil.patternMatch Description: Find best X/Y shift between two catalogs that contains [X,Y] positions. The shifts are identified by calculating the
+find best X/Y shift between two catalogs from all pairs differences Package: imUtil.patternMatch Description: Find best X/Y shift between two catalogs that contains [X,Y] positions. The shifts are identified by calculating the histogram of all the X differences between the two catalogs
 
 
     
@@ -284,7 +284,7 @@ find best X/Y shift between two catalogs from all pairs differences Package: imU
       
 ### imUtil.patternMatch.find_shift_xc_bincat
 
-find best X/Y shift between two catalogs from xcorr binned catalogs Package: imUtil.patternMatch Description: Find best X/Y shift between two catalogs that contains [X,Y] positions. The shifts are identified by calculating the
+find best X/Y shift between two catalogs from xcorr binned catalogs Package: imUtil.patternMatch Description: Find best X/Y shift between two catalogs that contains [X,Y] positions. The shifts are identified by calculating the histogram of each catalog (into an effective image), and
 
 
     
@@ -405,7 +405,7 @@ find best X/Y shift between two catalogs from xcorr binned catalogs Package: imU
       
 ### imUtil.patternMatch.fit_astrometric_tran
 
-Fit astrometric transformation Package: +imUtil.patternMatch Description: Fit astrometruc transformation to two matched catalogs. Xref = a_0 + a_1*Xcat + a_2*Ycat + ...
+Fit astrometric transformation Package: +imUtil.patternMatch Description: Fit astrometruc transformation to two matched catalogs. Xref = a_0 + a_1*Xcat + a_2*Ycat + ... + b_0.*Ccat + b_1*Xcat*Ccat + b_2*Ycat*Ccat + ...
 
 
     
@@ -486,11 +486,12 @@ Package: imUtil.patternMatch Description:
       
 ### imUtil.patternMatch.hist2d
 
-calculate the 2-D histogram of 2-D data set. Package: imUtil.patternMatch Description: calculate the 2-D histogram of 2-D data set.
+calculate the 2-D histogram of 2-D data set. OBSOLETE: A faster version is in: tools.array.hist2d_fast Package: imUtil.patternMatch Description: calculate the 2-D histogram of 2-D data set.
 
 
     
     calculate the 2-D histogram of 2-D data set.  
+    OBSOLETE: A faster version is in: tools.array.hist2d_fast  
     Package: imUtil.patternMatch  
     Description: calculate the 2-D histogram of 2-D data set.  
     Input  : - Vector of X coordinates.  
@@ -538,7 +539,7 @@ calculate the 2-D histogram of 2-D data set. Package: imUtil.patternMatch Descri
       
 ### imUtil.patternMatch.match_scale_rot_shift
 
-Affine transformation matching of the coordinate systems of two catalogs Package: imUtil.patternMatch Description: Given two catalogs that coordinadte systems are related by flip, scale, rotation and shift, search the the approximate
+Affine transformation matching of the coordinate systems of two catalogs Package: imUtil.patternMatch Description: Given two catalogs that coordinadte systems are related by flip, scale, rotation and shift, search the the approximate affine transformation
 
 
     
@@ -679,7 +680,7 @@ Affine transformation matching of the coordinate systems of two catalogs Package
       
 ### imUtil.patternMatch.matched_cat_residuals
 
-Calculate the astrometric residuals and errors between two matched catalogs Package: imUtil.patternMatch Description: Given a catalog (Cat) and a reference catalog (Ref), both containing astrometric X/Y measurments of matched sources
+Calculate the astrometric residuals and errors between two matched catalogs Package: imUtil.patternMatch Description: Given a catalog (Cat) and a reference catalog (Ref), both containing astrometric X/Y measurments of matched sources (i.e., each line in Cat corresponds to the same line in
 
 
     
@@ -740,7 +741,7 @@ Calculate the astrometric residuals and errors between two matched catalogs Pack
       
 ### imUtil.patternMatch.prep_cat_for_astrometry
 
-Clean two catalogs and equalize their surface density Package: imUtil.patternMatch Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs by removing NaN coordinates,
+Clean two catalogs and equalize their surface density Package: imUtil.patternMatch Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs by removing NaN coordinates, imUtil.cat.flag_overdense_colrow, imUtil.cat.flag_overdense,
 
 
     
@@ -818,7 +819,7 @@ Clean two catalogs and equalize their surface density Package: imUtil.patternMat
       
 ### imUtil.patternMatch.refine_fit
 
-Match sources in two catalogs and fit a positional transformation Package: imUtil.patternMatch Description: Given two catalogs of sources that have rougghly the same coordinate system (e.g., images are aligned to a few pixels
+Match sources in two catalogs and fit a positional transformation Package: imUtil.patternMatch Description: Given two catalogs of sources that have rougghly the same coordinate system (e.g., images are aligned to a few pixels lebvel), match the sources, and then fit a transformation
 
 
     
@@ -871,7 +872,7 @@ Match sources in two catalogs and fit a positional transformation Package: imUti
       
 ### imUtil.patternMatch.select_maxima
 
-Select some maxima out of list by some criteria Package: imUtil.patternMatch Description: Given a list of maxima, select a sub list by some criteria. For example, can be used to select N highest peaks, or all
+Select some maxima out of list by some criteria Package: imUtil.patternMatch Description: Given a list of maxima, select a sub list by some criteria. For example, can be used to select N highest peaks, or all peaks above some threshold, and larger than some fraction of
 
 
     

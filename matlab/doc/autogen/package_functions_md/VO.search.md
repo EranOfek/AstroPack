@@ -13,7 +13,7 @@ Search an astronomical catalog formatted in HDF5/HTM/zones format Example: VO.se
       
 ### VO.search.cat_cone
 
-Cone search a local or online catalog. Package: VO.search Description: A uniform interface function for catalogs cone search. The catalog can be either a local catalog in the +cats
+Cone search a local or online catalog. Package: VO.search Description: A uniform interface function for catalogs cone search. The catalog can be either a local catalog in the +cats package, or an online (web) catalog for which inteface
 
 
     
@@ -53,7 +53,7 @@ Cone search a local or online catalog. Package: VO.search Description: A uniform
       
 ### VO.search.catalog_interface
 
-An interface auxilary to the catalogs in the data directory Package: VO.search Description: An auxilary function to interface the local catalogs in the data directory as well as external catalogs.
+An interface auxilary to the catalogs in the data directory Package: VO.search Description: An auxilary function to interface the local catalogs in the data directory as well as external catalogs. This function is responsible for operations like:
 
 
     
@@ -125,7 +125,7 @@ Get names of all HDF5/HTM catalogs in the /data/catsHTM/ directory. Package: VO.
       
 ### VO.search.htmcat_search
 
-Cone earch on local HDF5/HTM catalog (OBSOLETE). Package: VO.search Description: Perform a cone search around RA/Dec on a local catalog in HDF5 format sorted into HTM.
+Cone earch on local HDF5/HTM catalog (OBSOLETE). Package: VO.search Description: Perform a cone search around RA/Dec on a local catalog in HDF5 format sorted into HTM. OBSOLETE: use catsHTM.cone_search instead.
 
 
     
@@ -153,7 +153,7 @@ Cone earch on local HDF5/HTM catalog (OBSOLETE). Package: VO.search Description:
       
 ### VO.search.match_cats
 
-Match two spherical coordinates catalogs sorted by declination Package: VO.search Description: Given two spherical coordinate catalogs. - for each entry in the reference catalog (second input
+Match two spherical coordinates catalogs sorted by declination Package: VO.search Description: Given two spherical coordinate catalogs. - for each entry in the reference catalog (second input argument), search for all nearby sources in the catalog
 
 
     
@@ -228,7 +228,7 @@ Match two spherical coordinates catalogs sorted by declination Package: VO.searc
       
 ### VO.search.match_cats_pl
 
-Match two planer coordinates catalogs sorted by Y Package: VO.search Description: Given two planer coordinate catalogs. - for each entry in the reference catalog (second input
+Match two planer coordinates catalogs sorted by Y Package: VO.search Description: Given two planer coordinate catalogs. - for each entry in the reference catalog (second input argument), search for all nearby sources in the catalog
 
 
     
@@ -342,7 +342,7 @@ SHORT DESCRIPTION HERE Package: VO.search Description:
       
 ### VO.search.search_cat
 
-search_cat function                                            Catalogue Description: Given a catalog with Long,Lat coordinates position, search for lines near a list of reference positions.
+search_cat function                                            Catalogue Description: Given a catalog with Long,Lat coordinates position, search for lines near a list of reference positions. This function can be used to search for a near(est) position
 
 
     
@@ -456,7 +456,7 @@ search_cat function                                            Catalogue Descrip
       
 ### VO.search.search_htmcat
 
-Search a local HTM/HDF5 catalog Description: Perform a cone search in an local catalog formatted in the HTM (Hiraricical Triangular Mesh) grid and stired in HDF5 format.
+Search a local HTM/HDF5 catalog Description: Perform a cone search in an local catalog formatted in the HTM (Hiraricical Triangular Mesh) grid and stired in HDF5 format. Such catalogs are constructed and described in the
 
 
     
@@ -472,7 +472,7 @@ Search a local HTM/HDF5 catalog Description: Perform a cone search in an local c
       
 ### VO.search.search_mhtm_cat
 
-Search master HTM catalog Package: Catalog.search Description: A Master HTM catalog contains a list of HTM regions and the HDF file name containing the HTM region. This function can
+Search master HTM catalog Package: Catalog.search Description: A Master HTM catalog contains a list of HTM regions and the HDF file name containing the HTM region. This function can search for objects near coordinates using such master HTM
 
 
     

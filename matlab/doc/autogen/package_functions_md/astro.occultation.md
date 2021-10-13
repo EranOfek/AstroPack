@@ -80,7 +80,7 @@ Monochromatic diffraction pattern by finite source Package: AstroUtil.Occultatio
       
 ### astro.occultation.fresnel_occultation_ps
 
-Monchromatic diffraction pattern for finite source Package: AstroUtil.Occultation Description: Calculate the intensity pattern due to diffractive Fresnel occultation by a small circular object.
+Monchromatic diffraction pattern for finite source Package: AstroUtil.Occultation Description: Calculate the intensity pattern due to diffractive Fresnel occultation by a small circular object. Assuming a mono-chromatic observation and a point source.
 
 
     

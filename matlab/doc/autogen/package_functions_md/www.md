@@ -32,7 +32,7 @@ Break a URL parameters query string to parameter names and values. Package: www 
       
 ### www.find_urls
 
-Read the URL content and extract all the links within the URL Package: www Description: Given a URL, read the URL content and extract all the links within the URL and return a cell array of all the links.
+Read the URL content and extract all the links within the URL Package: www Description: Given a URL, read the URL content and extract all the links within the URL and return a cell array of all the links. Optionaly, the program can filter URL using regular
 
 
     
@@ -198,7 +198,7 @@ Create an HTML table Package: www Description: Given a matlab matrix or cell arr
       
 ### www.mwget
 
-A wrapper around the wget command Package: www Description: A wrapper around the wget command. Retrieve a URL using the wget command.
+A wrapper around the wget command Package: www Description: A wrapper around the wget command. Retrieve a URL using the wget command. OBSOLETE: Use www.pwget instead.
 
 
     
@@ -231,7 +231,7 @@ A wrapper around the wget command Package: www Description: A wrapper around the
       
 ### www.parse_html_table
 
-Parse columns from an HTML table into matlab Package: www Description: Parse columns from an HTML table into matlab. The program can not parse tables with colspan parameter
+Parse columns from an HTML table into matlab Package: www Description: Parse columns from an HTML table into matlab. The program can not parse tables with colspan parameter different than 1.
 
 
     
@@ -269,7 +269,7 @@ Parse columns from an HTML table into matlab Package: www Description: Parse col
       
 ### www.parse_html_table_old
 
-Parse columns from an HTML table into matlab Package: www Description: Parse columns from an HTML table into matlab. The program can not parse tables with colspan parameter
+Parse columns from an HTML table into matlab Package: www Description: Parse columns from an HTML table into matlab. The program can not parse tables with colspan parameter different than 1.
 
 
     
@@ -307,7 +307,7 @@ Parse columns from an HTML table into matlab Package: www Description: Parse col
       
 ### www.pwget
 
-Parallel wget to retrieve multiple files simultanously Package: www Description: Parallel wget function designed to retrieve multiple files using parallel wget commands.
+Parallel wget to retrieve multiple files simultanously Package: www Description: Parallel wget function designed to retrieve multiple files using parallel wget commands. If fast communication is available, running several wget
 
 
     
@@ -351,7 +351,7 @@ Parallel wget to retrieve multiple files simultanously Package: www Description:
       
 ### www.r_files_url
 
-Recursively get links to all files in www directory list. Package: www Description: Recursively get links to all files in www directory list. Given a URL that contains a directory tree with files,
+Recursively get links to all files in www directory list. Package: www Description: Recursively get links to all files in www directory list. Given a URL that contains a directory tree with files, get the links to all file names in the directory tree.
 
 
     
@@ -379,7 +379,7 @@ Recursively get links to all files in www directory list. Package: www Descripti
       
 ### www.rftpget
 
-Recursively retrieve the entire directory tree in an FTP site Package: www Description: A wrapper around the wget command designed to recursively retrieve the entire directory tree in an FTP site.
+Recursively retrieve the entire directory tree in an FTP site Package: www Description: A wrapper around the wget command designed to recursively retrieve the entire directory tree in an FTP site. See also: mwget.m, pwget.m, find_urls.m
 
 
     

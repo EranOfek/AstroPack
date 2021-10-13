@@ -16,7 +16,7 @@ delete_frame - Delete frames from ds9 Package: @ds9 Description: Delete frame nu
 
 delete_region - Delete all regions from ds9 frame Package: @ds9 Description: Delete all regions from ds9 frame
 
-disp - Display images in ds9 (use ds9 for short cut) Package: @ds9 Description: Display images in ds9 For shortcut use the ds9 constructor
+disp - Display images in ds9 (use ds9 for short cut) Package: @ds9 Description: Display images in ds9 For shortcut use the ds9 constructor (see examples).
 
 ds9 - Display images in ds9 Package: @ds9 Description: Display images in ds9 (constructor). See also ds9.disp.
 
@@ -26,23 +26,23 @@ exit - exit ds9 Package: @ds9
 
 frame - Set ds9 frame Package: @ds9
 
-getbox - Get the pixel values in a specified box region Package: @ds9 getbox function                                                          ds9
+getbox - Get the pixel values in a specified box region Package: @ds9 getbox function                                                          ds9 Description: Get from the ds9 display the pixel values in a specified
 
-getcoo - Interactively get the coordinates (WCS) Package: @ds9 Description: Interactively get the coordinates (WCS) and value of the pixel selected by the mouse (left click) or by clicking
+getcoo - Interactively get the coordinates (WCS) Package: @ds9 Description: Interactively get the coordinates (WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
 
 getpos - Get X,Y position and pixel value Package: @ds9 Description: Get X,Y position and pixel value in clicked position.
 
-ginput - Interactively get the coordinates (X/Y or WCS) Package: @ds9 Description: Interactively get the coordinates (X/Y or WCS) and value of the pixel selected by the mouse (left click) or by clicking
+ginput - Interactively get the coordinates (X/Y or WCS) Package: @ds9 Description: Interactively get the coordinates (X/Y or WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
 
 header - Description: Display FITS header dialaog
 
-iline - Interactively plot a line Package: @ds9 Description: Interactively plot a line in ds9 between two points defined by mouse left clicks.
+iline - Interactively plot a line Package: @ds9 Description: Interactively plot a line in ds9 between two points defined by mouse left clicks. Also return the interpolated values in the image
 
-imark - Interactive plot symbols Package: @ds9 Description: Interactive plot symbols in right click coordinates. Use 'q' click to abort.
+imark - Interactive plot symbols Package: @ds9 Description: Interactive plot symbols in right click coordinates. Use 'q' click to abort. Click 'c' to switch to circle plotting, and
 
 imexam - ds9 image examination utility Package: @ds9 Description: Interactive image examination in ds9.
 
-ipoly - Interactively plot a polygon Package: @ds9 Description: Interactively plot a polygon. Verteces are defined by mouse or keybord clicks.
+ipoly - Interactively plot a polygon Package: @ds9 Description: Interactively plot a polygon. Verteces are defined by mouse or keybord clicks. 'q' to finish and abort.
 
 isopen - Check if ds9 is open (linux/mac only) Package: @ds9
 
@@ -76,7 +76,7 @@ nearcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Descriptio
 
 nearestcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Description: Get the nearest source in a SIM/AstCat object to the clicked position.
 
-nedlink - Open NED link for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the NED coordinate search web page for the
+nedlink - Open NED link for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the NED coordinate search web page for the coordinates.
 
 open - Open ds9 dispaly window if not exist already and set mode to region Package: @ds9
 
@@ -84,9 +84,9 @@ orient - Set the x/y orientation of an image in ds9 Package: @ds9 Description: S
 
 pan - Set the pan (cursor location) of an image in ds9 Package: @ds9 Description: Set the pan (cursor location) of an image in ds9
 
-plot - Generate and plot a region file from a list of coordinates Package: @ds9 Description: Generate and plot a region file from a list of coordinates.
+plot - Generate and plot a region file from a list of coordinates Package: @ds9 Description: Generate and plot a region file from a list of coordinates. This is like the function ds9.write_region with
 
-plotXY - Example: ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs'); ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y');
+plotXY - Example: ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs'); ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y'); ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
 
 plotc - Generate and plot a region file from a list of celestial coordinates Package: @ds9
 
@@ -106,9 +106,9 @@ scale - Set the intensity scale of an image in ds9 Package: @ds9 Description: Se
 
 sdsscat - Get SDSS catalog near clicked position Package: @ds9 Description: Get SDSS catalog near clicked position
 
-sdssnavi - Open SDSS navigator for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the SDSS navigator web page for the
+sdssnavi - Open SDSS navigator for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the SDSS navigator web page for the coordinates.
 
-simval - Interactively get values from SIM images Package: @ds9 Description: Interactively get values from SIM images (image, background, error, weight and mask) at clicked
+simval - Interactively get values from SIM images Package: @ds9 Description: Interactively get values from SIM images (image, background, error, weight and mask) at clicked positions. Click 'q' to abort.
 
 single - Set to single image display mode Package: @ds9
 

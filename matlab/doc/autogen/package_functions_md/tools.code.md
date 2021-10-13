@@ -46,7 +46,7 @@ Install Package: Util.code Description:
       
 ### tools.code.openb
 
-Open matlab editor and save a backup copy of previous file Package: Util.code Description: open a matlab function in matlab editor (like the open command). Before the file is opened it is backuped in
+Open matlab editor and save a backup copy of previous file Package: Util.code Description: open a matlab function in matlab editor (like the open command). Before the file is opened it is backuped in a backup (default is 'old') directory in the file directory
 
 
     

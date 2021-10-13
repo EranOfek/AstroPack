@@ -44,7 +44,7 @@ Select N bright stars near a given coordinate Package: +celestial.stars
       
 ### celestial.stars.star_apparent_place
 
-star_apparent_place function                                           ephem Description: Compute the apparent place of stars at a given epoch, given the star mean place, proper motion, parallax,
+star_apparent_place function                                           ephem Description: Compute the apparent place of stars at a given epoch, given the star mean place, proper motion, parallax, radial velocity, at a reference epoch T0.
 
 
     

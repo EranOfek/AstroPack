@@ -1,24 +1,28 @@
 Class: CalibImages
 
-CalibImages - 
-
-calibrate - Perform basic calibration (bias, flat, etc) to input images Perform the following steps on an image: Create a mask image Flag staturated pixels in mask
+CalibImages - Constructor for the CalibImages class
 
 checkObjImageSize - Check the validity of the size (number of elements) of CalibImages object and input image This function will return an error if not one of the following: size(Image)size(Obj) or (numel(Obj)1 and numel(Image)>1)');
 
 createBias - Create master bias using imProc.dark.bias and store in CalibImages object. Optionaly, can break the bias image to sub images and store them in different elements of the CalibImages object.
 
-createFlat - 
+createFlat - Create a Flat image for all filters and populate in CalibImages object. Given a list of dark-subtracted images, identify flat images taken at a each filter, and generate a flat images. The flat image is added into the array of Flat images in the CalibImages object.
+
+createFlatFilter - Create a Flat image for specific filter and populate in CalibImages object. Given a list of dark-subtracted images, identify flat images taken at a specific filter, and generate a flat image. The flat image is added into the array of Flat images in the CalibImages object.
 
 debias - Subtract bias image from an image and update mask.
 
+deflat - Divide from image from an image and update mask (multiple filters).
+
 overscan - Subtract and remove overscan bias from image.
 
-readCalibImages - 
+processImages - Perform basic calibration (bias, flat, etc) to input images Perform the following steps on an image: Create a mask image Flag staturated pixels in mask Subtract bias image
 
 set.Dark - setter for Dark property - set DarkExpTime+darkTemp from Header
 
 set.Flat - setter for Flat property - set FlatFilter from Header
 
 set.Fringe - setter for Fringe property - set FringeExpTime+FringeFilter from Header
+
+unitTest - unitTest for CalibImages class
 

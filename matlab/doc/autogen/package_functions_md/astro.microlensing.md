@@ -3,7 +3,7 @@
 
 ### astro.microlensing.chi2_microlensing
 
-chi^2 between microlensing observations and model Package: AstroUtil.microlensing Description: Calculate a \chi^2 for between a microlensing event light curve and a theoretical model light curve
+chi^2 between microlensing observations and model Package: AstroUtil.microlensing Description: Calculate a \chi^2 for between a microlensing event light curve and a theoretical model light curve given microlensing parameters.
 
 
     
@@ -260,7 +260,7 @@ Generate microlensing template bank Package: AstroUtil Description: Generate mic
       
 ### astro.microlensing.pointsource_lens
 
-Microleninsg magnification, images positions and time delays (OBSOLETE) Package: AstroUtil.microlensing Description: Calculate the magnification and images positions for a point source lens, given the lens properties and impact
+Microleninsg magnification, images positions and time delays (OBSOLETE) Package: AstroUtil.microlensing Description: Calculate the magnification and images positions for a point source lens, given the lens properties and impact parameter. OBSOLETE, use ps_lens instead.
 
 
     
@@ -357,7 +357,7 @@ The astrometric deflection of the primary microleneing image. Package: AstroUtil
       
 ### astro.microlensing.shapiro_delay
 
-Calculate the Shapiri time delay approximation (beta>ThetaE) Package: AstroUtil.microlensing Description: Calculate the Shapiri time delay approximation assuming the angle between the lens and the source is much larger
+Calculate the Shapiri time delay approximation (beta>ThetaE) Package: AstroUtil.microlensing Description: Calculate the Shapiri time delay approximation assuming the angle between the lens and the source is much larger than the Einstein radius.
 
 
     

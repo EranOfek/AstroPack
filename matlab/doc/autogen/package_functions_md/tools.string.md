@@ -80,7 +80,7 @@ find_strcmpi function                                            General Descrip
       
 ### tools.string.read_date
 
-read_date function                                                     ephem Description: Given a string or cell array of strings containing dates and time in an arbitrary format, convert it to a matrix of dates
+read_date function                                                     ephem Description: Given a string or cell array of strings containing dates and time in an arbitrary format, convert it to a matrix of dates and a vector of JDs.
 
 
     
@@ -165,7 +165,7 @@ recursively delete all spaces from a string. Package: tools.string Description: 
       
 ### tools.string.spacetrim
 
-Recursively replace any occurance of two spaces with a single space. Package: tools.string Description: Given a string, recursively replace any occurance of two spaces with a single
+Recursively replace any occurance of two spaces with a single space. Package: tools.string Description: Given a string, recursively replace any occurance of two spaces with a single space, such that the final product is a string with a
 
 
     
@@ -254,7 +254,7 @@ Duplicate a string multiple times. package: Util.string Description: Duplicate a
       
 ### tools.string.strcmp_cell
 
-strcmp_cell function                                             General Description: Given two cell arrays of strings, check if each one of the strings in the first cell array exist in the second cell
+strcmp_cell function                                             General Description: Given two cell arrays of strings, check if each one of the strings in the first cell array exist in the second cell array.
 
 
     
@@ -280,7 +280,7 @@ strcmp_cell function                                             General Descrip
       
 ### tools.string.strdouble2double
 
-- strdouble2double function                                           General Description: Convert string, souble or any data type to double. Unlike str2double.m, this script doesn't return NaN if
+- strdouble2double function                                           General Description: Convert string, souble or any data type to double. Unlike str2double.m, this script doesn't return NaN if the input is already a double.
 
 
     
@@ -312,7 +312,7 @@ Return a function handle for a string search (i.e., strcmp, strcmpi, regexp, reg
     Example: SearchFun = tools.string.stringSearchFun(true, true)  
 ### tools.string.strlines2cell
 
-strlines2cell function                                           General Description: Given a string with end of line characters, break the string into a cell array in which each cell contains
+strlines2cell function                                           General Description: Given a string with end of line characters, break the string into a cell array in which each cell contains a line.
 
 
     

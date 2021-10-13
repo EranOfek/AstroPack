@@ -21,7 +21,7 @@ Apply annului filters to an image Package: @imUtil.background
       
 ### imUtil.background.background
 
-Estimate the background and its variance for an astronomical image Package: @imUtil.background Description: A wrapper function for estimating the background and background variance of an imaage in a matrix form.
+Estimate the background and its variance for an astronomical image Package: @imUtil.background Description: A wrapper function for estimating the background and background variance of an imaage in a matrix form. The function partition the image into sub images
 
 
     
@@ -70,6 +70,9 @@ Estimate the background and its variance for an astronomical image Package: @imU
     'Overlap' - The [X,Y] additional overlaping buffer between  
     sub images to add to each sub image.  
     Default is 16.  
+    'DiluteStep' - Dilution for background calculation. This is  
+    the step size in which the data in each sub image is selected.  
+    Default is 1 (no dilution).  
     'ExtendFull' - A logical indicating if to extend the  
     background map into a full-size image. Default is true.  
     Not relevent anymore:  
@@ -96,7 +99,7 @@ Estimate the background and its variance for an astronomical image Package: @imU
       
 ### imUtil.background.collapse_stat
 
-Collapse an image on one dimension and calc line statistics Package: @imUtil.background Description: Collapse an image on one dimension and calculate the line statistics including smooth background level, and std
+Collapse an image on one dimension and calc line statistics Package: @imUtil.background Description: Collapse an image on one dimension and calculate the line statistics including smooth background level, and std estimate.
 
 
     
@@ -212,7 +215,7 @@ Flag a bad column/row in an image Package: @imUtil.background Description: Flag 
       
 ### imUtil.background.mode
 
-Mode and variance of a distribution Package: @imUtil.background Description: Calculate the mode and robust variance of an array. The mode is calculated by making an histogram and choosing
+Mode and variance of a distribution Package: @imUtil.background Description: Calculate the mode and robust variance of an array. The mode is calculated by making an histogram and choosing the bin with the highest number of counts. The robust
 
 
     

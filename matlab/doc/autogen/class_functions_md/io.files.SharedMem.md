@@ -8,6 +8,8 @@
     Background threads (Java or other solution?)  
       
       
+      
+      
     // Shared memory header, at offset 0  
     struct MemHeader {  
     uint32_t    signature;      // Unique signature  
@@ -29,12 +31,32 @@
     };  
       
       
+
+### Functions List
+
+    SharedMem - 
+    answer - Respond to SEND using memmapfile class.
+    close - Close file
+    delete - 
+    doGetBuf - Get next buffer from shared-memory, return bytes object or None if queue is empty Return buf, put_counter, width, height, flags
+    getBuf - Return buf, put_counter, w, h with m = Locker(...)
+    open - 
+    read - Read buffer from shared-memory
+    send - Interactively send a message to ANSWER using memmapfile class.
+    unitTest - 
+    unitTestClientSide - Simple test - read string from shared memory
+    unitTestClientSideBuf - Read next buffer from shared-memory queue
+    unitTestServerSide - Simple test (without header) - write current time string to shared memory
+    write - Write buffer to shared-memory
+
 ### SharedMem
 
 
 
 
     
+
+
 ### answer
 
 Respond to SEND using memmapfile class.
@@ -43,6 +65,8 @@ Respond to SEND using memmapfile class.
     
     Respond to SEND using memmapfile class.  
       
+
+
 ### close
 
 Close file
@@ -50,12 +74,16 @@ Close file
 
     
     Close file  
+
+
 ### delete
 
 
 
 
     
+
+
 ### doGetBuf
 
 Get next buffer from shared-memory, return bytes object or None if queue is empty Return buf, put_counter, width, height, flags
@@ -66,6 +94,8 @@ Get next buffer from shared-memory, return bytes object or None if queue is empt
     Return buf, put_counter, width, height, flags  
       
     Read header to array of unsigned integers  
+
+
 ### getBuf
 
 Return buf, put_counter, w, h with m = Locker(...)
@@ -74,12 +104,16 @@ Return buf, put_counter, w, h with m = Locker(...)
     
     Return buf, put_counter, w, h  
     with m = Locker(...)  
+
+
 ### open
 
 
 
 
     
+
+
 ### read
 
 Read buffer from shared-memory
@@ -87,6 +121,8 @@ Read buffer from shared-memory
 
     
     Read buffer from shared-memory  
+
+
 ### send
 
 Interactively send a message to ANSWER using memmapfile class.
@@ -95,12 +131,16 @@ Interactively send a message to ANSWER using memmapfile class.
     
     Interactively send a message to ANSWER using memmapfile class.  
       
+
+
 ### unitTest
 
 
 
 
     
+
+
 ### unitTestClientSide
 
 Simple test - read string from shared memory
@@ -108,6 +148,8 @@ Simple test - read string from shared memory
 
     
     Simple test - read string from shared memory  
+
+
 ### unitTestClientSideBuf
 
 Read next buffer from shared-memory queue
@@ -115,6 +157,8 @@ Read next buffer from shared-memory queue
 
     
     Read next buffer from shared-memory queue  
+
+
 ### unitTestServerSide
 
 Simple test (without header) - write current time string to shared memory
@@ -123,6 +167,8 @@ Simple test (without header) - write current time string to shared memory
     
     Simple test (without header) - write current time string to shared memory  
       
+
+
 ### write
 
 Write buffer to shared-memory
@@ -130,3 +176,5 @@ Write buffer to shared-memory
 
     
     Write buffer to shared-memory  
+
+

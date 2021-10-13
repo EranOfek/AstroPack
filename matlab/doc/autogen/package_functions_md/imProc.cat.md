@@ -47,7 +47,7 @@ Apply proper motion and parallax to sources in AstroCatalog object
       
 ### imProc.cat.filterForAstrometry
 
-Given two catalogs, match their surface density and filter sources. Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs by removing NaN coordinates, imUtil.cat.flag_overdense_colrow, imUtil.cat.flag_overdense,
+Given two catalogs, match their surface density and filter sources. Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs by removing NaN coordinates, imUtil.cat.flag_overdense_colrow, imUtil.cat.flag_overdense, estimate their density using imUtil.cat.surface_density, and
 
 
     
@@ -125,6 +125,77 @@ Given two catalogs, match their surface density and filter sources. Description:
     Author : Eran Ofek (Jun 2021)  
     Example: [Cat,Ref]=imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);  
       
+### imProc.cat.fitPeakMultipleColumns
+
+Given N columns with some property (e.g., S/N) fit a parabola to the S/N values as a function of some parameter (e.g., FWHM), and return the peak S/N value and position. The best fitted S/N and position, as well as the best S/N column value and index are optionally wrotten to the AstroCatalog.
+
+
+    
+    Given N columns with some property (e.g., S/N) fit a parabola  
+    to the S/N values as a function of some parameter (e.g., FWHM), and  
+    return the peak S/N value and position.  
+    The best fitted S/N and position, as well as the best S/N column  
+    value and index are optionally wrotten to the AstroCatalog.  
+    If the S/N is outside of bounderies or have minimum instead of  
+    maximum, return NaN (default).  
+    Input  : - Either an AstroCatalog, AstroImage (with AstroCatalog), or  
+    a matrix.  
+    * ...,key,val,...  
+    'Cols' - Column names from which to get the values.  
+    Default is {'SN_1','SN_2','SN_3'}.  
+    'Pos' - A vector of positions, correspinding to 'Cols'.  
+    This paramaeter must be provided and length must  
+    equal to the numbre of 'Cols'. Default is [].  
+    'FlagBad' - A logical indicating if to put NaNs in  
+    MaxFitPos which is minima instaed of maxima, and to  
+    replace the MaxFitPos by the nearest bound if the position  
+    is out of 'Pos' bounds. Default is true.  
+    'InsertBestVal' - Insert Best (max) value. Default is true.  
+    'InsertBestInd' - Insert the index of the column  
+    corresponding to the best (max) value.  
+    Default is true.  
+    'InsertMaxFitVal' - Inset fitted max value.  
+    Default is true.  
+    'InsertMaxFitPos' -  Inset fitted max pos.  
+    Default is true.  
+    'InsertErrMaxFitPos' - Insert error in fitted pos.  
+    Default is true.  
+    'ColNameBestVal' - Best val column name.  
+    Default is 'BestSN'.  
+    'ColNameBestInd' - Best column index.  
+    Default is 'IndBestSN'.  
+    'ColNameMaxVal' - Fitted max value column name.  
+    Default is 'FitBestSN'.  
+    'ColNameMaxPos' - Fitted max pos column name.  
+    Default is 'FotPosBestSN'.  
+    'ColNameMaxPosErr' - Fitted max error pos column name.  
+    Default is 'FitPosErrBestSN'.  
+    'Pos' - Position in which to insert the new columns.  
+    Default is Inf.  
+    'CreateNewObj' - A logical indicating if to create a new  
+    copy of the AstroCatalog (only) object.  
+    Default is false.  
+    Output : - A structure array with the following fields:  
+    'MaxFitPos' - Fitted pos.  
+    'MaxFitVal' - Fitted val.  
+    'ErrFitPos' - Error in fitted pos. Nan for maxima.  
+    'BestVal' - Best val.  
+    'BestInd' - Best ind.  
+    'Flag' - A structure with out of bound/min/max flags.  
+    - The same type as the input (but only AstroCatalog |  
+    AstroImage are supported). These contains the new columns.  
+    If CreateNewObj=true, only the Astrocatalog content is  
+    copied.  
+    Author : Eran Ofek (Oct 2021)  
+    Example: X=rand(100,3);  
+    [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(X, 'Pos',[1 2 3])  
+    AC = AstroCatalog({X}, 'ColNames',{'SN_1','SN_2','SN_3'});  
+    [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(AC, 'Pos',[1 2 3])  
+    AI=AstroImage('PTF_Cropped.fits');  
+    imProc.sources.findMeasureSources(AI, 'PsfFunPar',{[0.1; 1.2; 3]});  
+    [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(AI, 'Pos',[0.1 1.2 3])  
+      
+      
 ### imProc.cat.getAstrometricCatalog
 
 Get Astrometric catalog from local/external database and optionally apply proper motion, parallax and units conversions.
@@ -172,12 +243,64 @@ Get Astrometric catalog from local/external database and optionally apply proper
     Default is [-Inf 50].  
     'OutRADecUnits' - Output units for the RA and Dec output  
     arguments. Default is 'rad'.  
+    'RemoveNeighboors' - A logical indicating if to remove  
+    sources with close neighboors. Default is true.  
+    'flagSrcWithNeighborsArgs' - A cell array of additional  
+    arguments to pass to flagSrcWithNeighbors.  
+    Default is {}.  
     Output : - An AstroCatalog object with the astrometric catalog.  
     - The input RA [units from 'OutRADecUnits'].  
     - The input Dec [units from 'OutRADecUnits'].  
     Author : Eran Ofek (Jun 2021)  
     Example: Result = imProc.cat.getAstrometricCatalog(1,1);  
       
+      
+### imProc.cat.insertAzAlt
+
+Calculate and insert Az, Alt, AirMass, ParAng columns to AstroCatalog object
+
+
+    
+    Calculate and insert Az, Alt, AirMass, ParAng columns to AstroCatalog object  
+    Input  : - An AstroCatalog or AstroImage object.  
+    * ...,key,val,...  
+    'JD' - A vector of JDs (per image/catalog). If empty, will  
+    attempt to get the JD from the image header.  
+    Default is [].  
+    'ObsCoo' - A two column matrix of obs. coordinates  
+    [Lon Lat]. If empty, will attempt to get  
+    coordinates from header.  
+    'ObsCooUnits' - Default is 'deg'.  
+    'InsertAzAlt' - Insert Az and Alt. Default is true.  
+    'InsertAM' - Insert AirMass. Default is true.  
+    'InsertPA' - Insert Paralactic angle. Default is true.  
+    'AirMassAlgo' - 'csc'|['hardie].  
+    'ColPos' - Column position at which to adde the new  
+    columns. Default is Inf.  
+    'ColNameAzAlt' - Names of the new Az/Alt columns.  
+    Default is {'Az','Alt'}.  
+    'ColUnitsAzAlt' - Units for Az/Alt colums.  
+    Default is 'deg'.  
+    'ColNameAM' - Name of new AirMass column. Default is 'AM'.  
+    'ColNamePA' - Name of the new paralactic angle column.  
+    Default is 'ParAng'.  
+    'ColUnitsPA' - Units of PA column. Default is 'deg'.  
+    'juldayArgs' - Cell array of additional arguments to pass  
+    to the julday function.  
+    'getObsCooArgs' - Add. arguments to pass to getObsCoo.  
+    'getLonLatArgs' - Add. arguments o pass yo getLonLat.  
+    'TypeLST' - LST type. ['m'] - mean; 'a'-apparent.  
+    'CreateNewObj' - [], true, false.  
+    If true, create new deep copy  
+    If false, return pointer to object  
+    If [] and Nargout0 then do not create new copy.  
+    Otherwise, create new copy.  
+    Default is [].  
+    Output : - An updated or new copy of the input catalog with the new  
+    columns.  
+    Author : Eran Ofek (Sep 2021)  
+    Example: AC = AstroCatalog({rand(100,2)},'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});  
+    imProc.cat.insertAzAlt(AC, 'JD',2451545, 'ObsCoo',[35 32]);  
       
 ### imProc.cat.unitTest
 

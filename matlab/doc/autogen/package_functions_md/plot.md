@@ -54,7 +54,7 @@ cell_contourc function                                          plotting Descrip
       
 ### plot.contour_levels
 
-Break a contour map into seperate contour levels. Package: plot Description: Given a contour map (the first output argument of contour) return a structure array in which each element contains one
+Break a contour map into seperate contour levels. Package: plot Description: Given a contour map (the first output argument of contour) return a structure array in which each element contains one seperated contour.
 
 
     
@@ -76,7 +76,7 @@ Break a contour map into seperate contour levels. Package: plot Description: Giv
       
 ### plot.contour_percentile
 
-Contour plot in which the contours are percentiles of the matrix sum. Package: plot Description: Given a matrix, generate a contour plot in which the contours represent the percentiles of the total matrix sum. I.e., the
+Contour plot in which the contours are percentiles of the matrix sum. Package: plot Description: Given a matrix, generate a contour plot in which the contours represent the percentiles of the total matrix sum. I.e., the region encompassed within the contour contains the given
 
 
     
@@ -105,7 +105,7 @@ Contour plot in which the contours are percentiles of the matrix sum. Package: p
       
 ### plot.date_axis
 
-Add date upper axis. Package: plot Description: Given a graph in which the lower x-axis shows the Julian day, add a date-axis in the upper x-axis that corresponds to the
+Add date upper axis. Package: plot Description: Given a graph in which the lower x-axis shows the Julian day, add a date-axis in the upper x-axis that corresponds to the Julian day.
 
 
     
@@ -146,7 +146,7 @@ Interactively calculate distances between points on 2D plot
       
 ### plot.draw_iline
 
-Draw line interactively. Package: plot Description: Draw line interactively. Click the mouse right bottom in start point and at end point. Click left mouse button
+Draw line interactively. Package: plot Description: Draw line interactively. Click the mouse right bottom in start point and at end point. Click left mouse button to exit this program.
 
 
     
@@ -251,7 +251,7 @@ Generate equally spaced N colors from a given color map. Package: plot Descripti
       
 ### plot.gno
 
-Get the nearest object handle Package: plot Description: Get the nearest object handle. The user click near a a figure objects, and the function return their handles
+Get the nearest object handle Package: plot Description: Get the nearest object handle. The user click near a a figure objects, and the function return their handles and coordinates.
 
 
     
@@ -281,7 +281,7 @@ Get the nearest object handle Package: plot Description: Get the nearest object 
       
 ### plot.graph
 
-Plot second column as a function first column. Package: plot Description: Given a two column matrix, plot the second column as a function of the first column. The function may get additional
+Plot second column as a function first column. Package: plot Description: Given a two column matrix, plot the second column as a function of the first column. The function may get additional argument like the plot command.
 
 
     
@@ -304,7 +304,7 @@ Plot second column as a function first column. Package: plot Description: Given 
       
 ### plot.hist_ofplot
 
-calculate histograms of the X and Y axis of the data in current figure. Package: plot Description: Given an existing plot, calculate histograms of the X and Y axis of the data in current figure axis. The x-axis histogram
+calculate histograms of the X and Y axis of the data in current figure. Package: plot Description: Given an existing plot, calculate histograms of the X and Y axis of the data in current figure axis. The x-axis histogram is displayed below the current plot, and the y-axis histogram
 
 
     
@@ -403,7 +403,7 @@ Insert an image to a matlab figure in a given position. Package: plot Descriptio
       
 ### plot.invy
 
-Invert the y-axis of the current axis. Package: plot Description: Invert the y-axis of the current axis. This is a shortcut command to axis('ij') and
+Invert the y-axis of the current axis. Package: plot Description: Invert the y-axis of the current axis. This is a shortcut command to axis('ij') and set(gca,'YDir','Inverse').
 
 
     
@@ -540,7 +540,7 @@ Create additional x or y axis related by function existing axes. Package: plot D
     -  
 ### plot.patch_band
 
-patch_band function                                             plotting Description: Given X and Y positions describing a line, plot a band (i.e., using the patch command), around the line, where
+patch_band function                                             plotting Description: Given X and Y positions describing a line, plot a band (i.e., using the patch command), around the line, where the patch is defined to have a given height below and
 
 
     
@@ -743,7 +743,7 @@ plot_ellipse function                                           plotting Descrip
     -  
 ### plot.plot_hr
 
-plot_hr function                                          plotting Description: Given a set of B and R calibrated magnitudes, plot a color magnitude diagram with overlayed main
+plot_hr function                                          plotting Description: Given a set of B and R calibrated magnitudes, plot a color magnitude diagram with overlayed main sequence line assuming a given distance.
 
 
     
@@ -859,7 +859,7 @@ plot_int function                                                   plotting Des
       
 ### plot.plot_int1
 
-plot_int1 function                                                  plotting Description: Given a plot wait for the use to click a keyboard key or a mouse click on the plot, and return the key and click
+plot_int1 function                                                  plotting Description: Given a plot wait for the use to click a keyboard key or a mouse click on the plot, and return the key and click position.
 
 
     
@@ -912,7 +912,7 @@ plot_invchildren function                                       plotting Descrip
       
 ### plot.plot_lineprof
 
-- plot_lineprof function                                             plotting Description: Clicking on two points in current image the script return the intensity as function of position along the line
+- plot_lineprof function                                             plotting Description: Clicking on two points in current image the script return the intensity as function of position along the line between the two points.
 
 
     
@@ -960,7 +960,7 @@ plot_polygonselect function                                     plotting Descrip
       
 ### plot.plot_rm
 
-plot_rm function                                              plotting Description: Plot a 2-dimensional graph and interactively remove and restore data points from the plot.
+plot_rm function                                              plotting Description: Plot a 2-dimensional graph and interactively remove and restore data points from the plot. This function is being replaced by plot_int.m
 
 
     
@@ -1023,7 +1023,7 @@ plot_rm function                                              plotting Descripti
     -  
 ### plot.plot_select_points
 
-plot_select_points function                                     plotting Description: Given an open plot, and X/Y vectors, let the use select using the left-mouse-click arbitrary number of points.
+plot_select_points function                                     plotting Description: Given an open plot, and X/Y vectors, let the use select using the left-mouse-click arbitrary number of points. For each points return the clicked position, and the
 
 
     
@@ -1231,7 +1231,7 @@ An improved subplot function. Package: Description: An improved subplot function
       
 ### plot.subplot1c
 
-subplot1c function                                                  plotting Description: Given a matrix with N-columns show subplots, of all the combinations of one column plotted against another
+subplot1c function                                                  plotting Description: Given a matrix with N-columns show subplots, of all the combinations of one column plotted against another column. Also return the correlations matrix between all
 
 
     
@@ -1290,7 +1290,7 @@ subplot1c function                                                  plotting Des
       
 ### plot.textrel
 
-textrel function                                                plotting Description: Write a text in current axis, where the position of the text is specified as a relative position in respect to
+textrel function                                                plotting Description: Write a text in current axis, where the position of the text is specified as a relative position in respect to the axis limits.
 
 
     

@@ -10,6 +10,8 @@ cast - Cast the image/back/var data in AstroImage (transform to a new type)
 
 conv - Convolve images with their PSF, or another PSF
 
+copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+
 crop - crop an AstroImage images and catalogs and update WCS
 
 filter - Filter images with their PSF, or another PSF
@@ -28,7 +30,7 @@ funHeaderScalar - Apply function that return a scalae on HeaderData properties i
 
 funPSF - Apply function of PSF properties in AstroImage array
 
-funUnary - Apply an unary function on AstroImage object. This include applying the function  on specific data fields, and or image sections (CCDSEC), and error propagation.
+funUnary - Apply an unary function on AstroImage object. This include applying the function  on specific data fields, and or image sections (CCDSEC), and error propagation. Note that error propgation is activated using the
 
 funUnaryScalar - Apply a unary operator that return scalar on AstroImage and return an numeric array
 
@@ -60,7 +62,7 @@ julday - Return the Julian day for AstroImage object
 
 maskSet - Set the value of a bit in a bit mask (Maskdata) in AstroImage
 
-minus - Apply the minus operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+minus - Apply the minus operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI - AI
 
 object2array - Convert an AstroImage object that contains scalars into an array
 
@@ -68,11 +70,13 @@ perfTest - perfTest for the AstroImage class
 
 perfTestMat - Low level perfTest for the Matlab matrix
 
-plus - Apply the plus operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+plus - Apply the plus operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI + AI
 
 prepOperand2 - Prepare the 2nd operand for binary operation
 
-rdivide - Apply the rdivide operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+propagateWCS - Given An AstroImage with WCS property, propagate it to the header and catalog
+
+rdivide - Apply the rdivide operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI ./ AI
 
 readImages2AstroImage - Create AstroImage object and read images into a specific property.
 
@@ -88,7 +92,7 @@ setKeyVal - Replace/insert keyword/value to HeaderData in AstroImage
 
 sizeImage - Return the size of images in AstroImage object
 
-times - Apply the times operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)});
+times - Apply the times operator between AstroImage objects. This function utilize the funBinary method. See funBinary for details and additional arguments. Example: AI = AstroImage({ones(10,10), 2.*ones(20,20)}); R = AI .* AI
 
-unitTest - unitTest for AstroImage Example: AstroImage.unitTest Issues:
+unitTest - unitTest for AstroImage Example: AstroImage.unitTest
 

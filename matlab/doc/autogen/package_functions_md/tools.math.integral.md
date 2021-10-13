@@ -3,7 +3,7 @@
 
 ### tools.math.integral.QuarticSolver
 
-Quartic integral solver: [x1,x2,x3,x4]=QuarticSolver(a,b,c,d,e) Package: Util.integral Description: Quartic integral solver. v.0.31 - Added some correction detected from QuarticSolverVec
+Quartic integral solver: [x1,x2,x3,x4]=QuarticSolver(a,b,c,d,e) Package: Util.integral Description: Quartic integral solver. v.0.31 - Added some correction detected from QuarticSolverVec Changed logic of ChosenSet to accomudate simultaneous convergence of sets 1 & 2
 
 
     
@@ -45,7 +45,7 @@ Quartic integral solver: [x1,x2,x3,x4]=QuarticSolver(a,b,c,d,e) Package: Util.in
       
 ### tools.math.integral.QuarticSolverVec
 
-Quartic integral solver (vectorized): [x1, x2, x3, x4]=QuarticSolverVec(a,b,c,d,e) Package: Util.integral Description: Quartic integral solver (vectorized) v.0.1 - Nearly identical to QuarticSolver v. 0.4, the first successful vectorized implimentation
+Quartic integral solver (vectorized): [x1, x2, x3, x4]=QuarticSolverVec(a,b,c,d,e) Package: Util.integral Description: Quartic integral solver (vectorized) v.0.1 - Nearly identical to QuarticSolver v. 0.4, the first successful vectorized implimentation Changed logic of ChosenSet to accomudate simultaneous convergence of sets 1 & 2
 
 
     
@@ -115,7 +115,7 @@ Numerical integration of a 2-D matrix Package: Util.math Description: Numericall
       
 ### tools.math.integral.integral_percentile
 
-Given a tabulate function find limits that contains percentile Package: Util.math Description: Given a numerically tabulated function (X,Y) and a percentile P, find the limits (a,b) such that
+Given a tabulate function find limits that contains percentile Package: Util.math Description: Given a numerically tabulated function (X,Y) and a percentile P, find the limits (a,b) such that int_{a}^{b}(Y(X)dx)=P (i.e., the integral of Y(X) from a
 
 
     
@@ -158,7 +158,7 @@ Given a tabulate function find limits that contains percentile Package: Util.mat
     -  
 ### tools.math.integral.quad_mult2bound
 
-Numerical integration using quad, where the upper bound is a vector Package: Util.integral Description: Numerical interation using the built in quad.m function where the upper bound of the interation is a vector.
+Numerical integration using quad, where the upper bound is a vector Package: Util.integral Description: Numerical interation using the built in quad.m function where the upper bound of the interation is a vector. To speed the calculation the program sorts the upper bound
 
 
     
@@ -180,7 +180,7 @@ Numerical integration using quad, where the upper bound is a vector Package: Uti
       
 ### tools.math.integral.quad_my
 
-Pass arguments to function in quad Package: Util.integral Description: A version of the built in quad.m function in which it is possible to pass additional parameters to the function,
+Pass arguments to function in quad Package: Util.integral Description: A version of the built in quad.m function in which it is possible to pass additional parameters to the function, with no need for nested functions.
 
 
     
@@ -209,7 +209,7 @@ Pass arguments to function in quad Package: Util.integral Description: A version
       
 ### tools.math.integral.sp_powerlaw_int
 
-sp_powerlaw_int function                                         General Description: Calculate the value the spherical integral and the line integral of a broken power law of the form:
+sp_powerlaw_int function                                         General Description: Calculate the value the spherical integral and the line integral of a broken power law of the form: rho = K R^(-W1)               R<=R0
 
 
     
@@ -277,7 +277,7 @@ summatlevel function                                             General Descrip
       
 ### tools.math.integral.trapzmat
 
-Trapezoidal numerical integration on columns or rows of matrices. Package: Util.math Description: Trapezoidal numerical integration on columns or rows of matrices.
+Trapezoidal numerical integration on columns or rows of matrices. Package: Util.math Description: Trapezoidal numerical integration on columns or rows of matrices. Contrary to trapz.m, the X input for this function can
 
 
     

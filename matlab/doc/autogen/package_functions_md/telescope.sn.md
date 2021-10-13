@@ -3,7 +3,7 @@
 
 ### telescope.sn.back_comp
 
-Get spectra of background components Package: telescope Description: Get spectra of background components for S/N calculation. All the components are in [erg/cm^2/s/Ang/arcsec^2].
+Get spectra of background components Package: telescope Description: Get spectra of background components for S/N calculation. All the components are in [erg/cm^2/s/Ang/arcsec^2]. The background components are:
 
 
     
@@ -30,7 +30,7 @@ Get spectra of background components Package: telescope Description: Get spectra
       
 ### telescope.sn.optimal_phot_aperture
 
-Optimal aperture radius for aperture photometry of a Gaussian PSF. Package: telescope.sn Description: Given a Gaussian symmetric PSF and image background and readout noise. Estimate the radius of the photometric
+Optimal aperture radius for aperture photometry of a Gaussian PSF. Package: telescope.sn Description: Given a Gaussian symmetric PSF and image background and readout noise. Estimate the radius of the photometric aperture that maximize the S/N for an aperture photometry,
 
 
     
@@ -67,7 +67,7 @@ Optimal aperture radius for aperture photometry of a Gaussian PSF. Package: tele
       
 ### telescope.sn.sn_calc
 
-A signal-to-noise calculator for astronomical telescopes. Package: telescope.sn Description: A signal-to-noise calculator for astronomical telescopes. Calculate S/N or limiting magnitude and field of view
+A signal-to-noise calculator for astronomical telescopes. Package: telescope.sn Description: A signal-to-noise calculator for astronomical telescopes. Calculate S/N or limiting magnitude and field of view properties.
 
 
     
@@ -190,7 +190,7 @@ Convert detection S/N of a Gaussian PSF to signal Package: telescope.sn Descript
       
 ### telescope.sn.sn_det_psf
 
-Calculate S/N for detection of a Gaussian PSF Package: telescope.sn Description: Calculate the S/N (signal-to-noise ratio) for a point source with a symmetric Gaussian profile for PSF (optimal)
+Calculate S/N for detection of a Gaussian PSF Package: telescope.sn Description: Calculate the S/N (signal-to-noise ratio) for a point source with a symmetric Gaussian profile for PSF (optimal) detection.
 
 
     
@@ -243,7 +243,7 @@ Convert photometry S/N of a Gaussian source to signal Description: Given a targe
       
 ### telescope.sn.sn_phot_aper
 
-Calculate the aperture photometry S/N for a Gaussain source Package: telescope.sn Description: Calculate the S/N (signal-to-noise ratio) for a point source with a symmetric Gaussian profile for aperture
+Calculate the aperture photometry S/N for a Gaussain source Package: telescope.sn Description: Calculate the S/N (signal-to-noise ratio) for a point source with a symmetric Gaussian profile for aperture photometry.
 
 
     
@@ -403,7 +403,7 @@ Signal-to-Noise ratio calculator using full spectral components. Package: telesc
       
 ### telescope.sn.spec2photons
 
-Spectrum to photon counts in band. Package: telescope.sn Description: Given a spectrum and the effective area of an instrument as a function of wavelength, calculate the the total recieved
+Spectrum to photon counts in band. Package: telescope.sn Description: Given a spectrum and the effective area of an instrument as a function of wavelength, calculate the the total recieved flux and the photons count rate in the instrument.
 
 
     

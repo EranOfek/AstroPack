@@ -1,40 +1,40 @@
 Package: tools.math.stat
 
-bc_a - bc_a function                                                      AstroStat Description: Bias correction and acceleration for bootstrap and Jackknife estimetors of the confidence interval.
+bc_a - bc_a function                                                      AstroStat Description: Bias correction and acceleration for bootstrap and Jackknife estimetors of the confidence interval. The bc_a bias coorection and acceleration can be used
 
 bin2dFun - 2-D binning and apply functions to bins
 
 bootstrap_std - bootstrap_std function                                         AstroStat Description: Given an estimator (given by a function) calculate the Bootstrap StD for this estimator.
 
-cel_coo_rnd - cel_coo_rnd function                                               AstroStat Description: Generate random coordinates on the celestial sphere. The program can applay matrix rotation, reject
+cel_coo_rnd - cel_coo_rnd function                                               AstroStat Description: Generate random coordinates on the celestial sphere. The program can applay matrix rotation, reject coordinates, and generate non uniform coordinates.
 
-cell_stat - cell_stat function                                               AstroStat Description: Given a list of x,y coordinates (with optional property columns), count the number of points in each cell in the
+cell_stat - cell_stat function                                               AstroStat Description: Given a list of x,y coordinates (with optional property columns), count the number of points in each cell in the x-y plane and calculate the statistics (e.g., mean, medain
 
 centermass2d - centermass2d function                                                 FitFun Description: Calculate the center of mass and second moments of 2-dimensional matrix.
 
 confint_probdist - confint_probdist function                                          AstroStat Description: Calculate two-sided confidence interval of a given numerical probability distribution function.
 
-corrsim - Correlation between two vectors and confidence region using bootstrap Package: Util.stat Description: Calculate the correlation between two vectors and use the bootstrap method to estimate the probability to get
+corrsim - Correlation between two vectors and confidence region using bootstrap Package: Util.stat Description: Calculate the correlation between two vectors and use the bootstrap method to estimate the probability to get a correlation larger than the observed correlation.
 
-corrsim_cov - Correlation matrix between N columns and bootstrap estimation of errors. Package: Util.stat Description: Given a matrix with N columns, calculate the correlation between each pair of columns and use the
+corrsim_cov - Correlation matrix between N columns and bootstrap estimation of errors. Package: Util.stat Description: Given a matrix with N columns, calculate the correlation between each pair of columns and use the bootstrap method to estimate the probability to get
 
-err_cl - Numerical estimate of percentiles. Package: Util.stat Description: Given a vector of data points, calculate the lower and upper bounds of an interval that contains a given
+err_cl - Numerical estimate of percentiles. Package: Util.stat Description: Given a vector of data points, calculate the lower and upper bounds of an interval that contains a given precentage (P) of the data. (1-P)/2 of the data points are
 
 error2ensemble - error2ensemble function                                        AstroStat Description: Generate a realization of data points given the data probability distribution function.
 
-fab_counts - - fab_counts function                                           AstroStat Description: Calculate the False Alarm Probability (FAP) that a source is real rather than a background fluctutation,
+fab_counts - - fab_counts function                                           AstroStat Description: Calculate the False Alarm Probability (FAP) that a source is real rather than a background fluctutation, given the source counts and the background counts.
 
 hist2d - calculate the 2-D histogram of 2-D data set. Package: Util.stat Description: calculate the 2-D histogram of 2-D data set.
 
 iqrFast - A fast iqr (inter quantile range) function (without interpolation)
 
-jackknife - Given an estimator, calculate the Jacknife StD. Package: Util.stat Description: Given an estimator (given by a function), calculate the Jackknife StD and the first order Quenouille-Tukey
+jackknife - Given an estimator, calculate the Jacknife StD. Package: Util.stat Description: Given an estimator (given by a function), calculate the Jackknife StD and the first order Quenouille-Tukey Jacknife bias for this estimator.
 
 lognlogs - - lognlogs function                                               AstroStat Description: Calculate Log N - Log S plot for set of flux measurments.
 
-max_likelihood - Likelihood from observations and numerical probability distribution. Package: Util.stat Description: Given a numerical probability distribution and list of 'events', calculate the 'likelihood' for the events given
+max_likelihood - Likelihood from observations and numerical probability distribution. Package: Util.stat Description: Given a numerical probability distribution and list of 'events', calculate the 'likelihood' for the events given the probability distribution. In addition, calculate the
 
-maxnd - maxnd function                                                     AstroStat Description: Return the global maximum of a N-D matrix and its indices. This is equivalent to max(Data(:)), but it also returns the
+maxnd - maxnd function                                                     AstroStat Description: Return the global maximum of a N-D matrix and its indices. This is equivalent to max(Data(:)), but it also returns the indices of the global maximum.
 
 mean_error - Calculate the error on the mean using std/sqrt(N). Package: Util.stat Description: Calculate the error on the mean using std/sqrt(N).
 
@@ -42,27 +42,31 @@ meannd - meannd function                                                    Astr
 
 mediannd - mediannd function                                                  AstroStat Description: Return the global median of a N-D matrix.
 
-minnd - minnd function                                                     AstroStat Description: Return the global minimum of a N-D matrix and its indices. This is equivalent to min(Data(:)), but it also returns the
+minnd - minnd function                                                     AstroStat Description: Return the global minimum of a N-D matrix and its indices. This is equivalent to min(Data(:)), but it also returns the indices of the global minimum.
 
 mode_bin - mode_bin function                                              AstroStat Description:
 
 mode_density - Calculate the mode by estimating the density of points Package: Util.stat Description: Estimate the mode by constructing equal number of points histogram and choosing the bin with smallest range.
 
-mode_fit - Estimate the mode of an array by fitting a Gaussian to its histogram. Package: +tools.math.stat Description: Estimate the mode of an array by fitting a Gaussian to the histogram of the array around its median.
+mode_fit - Estimate the mode of an array by fitting a Gaussian to its histogram. Package: +tools.math.stat Description: Estimate the mode of an array by fitting a Gaussian to the histogram of the array around its median. Return also the Sigma of the Gaussian fit.
 
-mode_vec - mode_vec function                                              AstroStat Description: Calculate the mode of a vector using histogram. The histogram step size chosen to contain some mean number
+mode_vec - mode_vec function                                              AstroStat Description: Calculate the mode of a vector using histogram. The histogram step size chosen to contain some mean number of points per bin.
 
 moment_2d - moment_2d function                                                 AstroStat Description: Calculate first and second moments of a 2D matrix.
 
 mutual_info - Calculate the mutual information of two vectors (degree of independency) Package: Util.stat Description: Calculate the mutual information of two vectors.
 
+nanmedian - faster version of nanmedian using the 'omitnan' option. see median for options: Example: tools.math.stat.nanmedian(rand(100,100),2)
+
 nanrstd - Robust nanstd. Package: Util.stat Description: Robust nanstd. Estimating the std (like nanstd.m), based on the 50-percentile of the distribution.
+
+nanstd - faster version of nanstd using the 'omitnan' option. see median for options: Example: tools.math.stat.nanstd(rand(100,100),[],2)
 
 noiser - noiser function                                                AstroStat Description: Add multiple noise components to a vector.
 
-poissconf - Upper/lower confidence intervals on N events assuming Poisson statistics Package: Util.stat Description: Given the number of observed events, calculates the two sided upper and lower confidence intervals, assuming
+poissconf - Upper/lower confidence intervals on N events assuming Poisson statistics Package: Util.stat Description: Given the number of observed events, calculates the two sided upper and lower confidence intervals, assuming Poisson statistics. Below N=140 use the Gehrels (1986)
 
-prob2find_inr - prob2find_inr function                                             AstroStat Description: Given a density (number per unit area), and a distance from a point, calculate the the probability to find an
+prob2find_inr - prob2find_inr function                                             AstroStat Description: Given a density (number per unit area), and a distance from a point, calculate the the probability to find an object within radius R from the point (assuming Poisson
 
 psigma - psigma function                                                AstroStat Description: Return the two sided or one sided probability for a given sigma level.
 
@@ -70,9 +74,9 @@ quantileFast - A fast quantile function (without interpolation)
 
 rand_circle - rand_circle function                                               AstroStat Description: Generate random number equally distributed inside a unit circle.
 
-rand_ps - Generate a random time series with a given power spectrum. Package: Util.stat Description: Generate a random realization of a time series with a given power spectrum (e.g., power-law) and optional gaussian
+rand_ps - Generate a random time series with a given power spectrum. Package: Util.stat Description: Generate a random realization of a time series with a given power spectrum (e.g., power-law) and optional gaussian measuments errors.
 
-rand_range - rand_range function                                            AstroStat Description: Generate uniformly random number in a given range. The numbers can be uniform either in linear space or
+rand_range - rand_range function                                            AstroStat Description: Generate uniformly random number in a given range. The numbers can be uniform either in linear space or log10 space.
 
 randgen - Random numbers generator for arbitrary  distribution. Package: Util.stat Description: Random numbers generator for arbitrary function given by a numerical distribution.
 
@@ -98,7 +102,7 @@ sumnd - sumnd function                                                     Astro
 
 wmean - wmean function                                                 AstroStat Description: Calculated the weighted mean of a sample.
 
-wmedian - Weighted median for a vector. Package: Util.stat Description: Weighted median for a vector. Calculates the weighted median of a vector
+wmedian - Weighted median for a vector. Package: Util.stat Description: Weighted median for a vector. Calculates the weighted median of a vector given the error on each value in the vector.
 
 wmedian_im - wmedian_im function                                              General Description: Weighted median on a set of images in a cube, where the image index is in the 1st dimension.
 

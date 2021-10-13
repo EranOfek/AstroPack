@@ -60,7 +60,7 @@ bin_sear function                                                 FitFun Descrip
       
 ### tools.find.find_local_extremum
 
-Use stirling interpolation to find local extremum in vector. Package: tools.find Description: Given table of equally spaced data, use Stirling interpolation formula to find the local extremums of
+Use stirling interpolation to find local extremum in vector. Package: tools.find Description: Given table of equally spaced data, use Stirling interpolation formula to find the local extremums of the tabulated data. The program find all the local
 
 
     
@@ -86,7 +86,7 @@ Use stirling interpolation to find local extremum in vector. Package: tools.find
     -  
 ### tools.find.find_local_zeros
 
-- find_local_zeros function                                            FitFun Description: Given table of equally spaced data, use Stirling interpolation formula to find the local zeros of
+- find_local_zeros function                                            FitFun Description: Given table of equally spaced data, use Stirling interpolation formula to find the local zeros of the tabulated data. The program find all the local
 
 
     
@@ -197,7 +197,7 @@ find_peak_center function                                        General Descrip
       
 ### tools.find.fun_binsearch
 
-fun_binsearch function                                            FitFun Description: Given a monotonic function, Y=Fun(X), and Y, search for X that satisfy Y=F(X). The search is done using a binary
+fun_binsearch function                                            FitFun Description: Given a monotonic function, Y=Fun(X), and Y, search for X that satisfy Y=F(X). The search is done using a binary search between the values stated at X range.
 
 
     
@@ -222,7 +222,7 @@ fun_binsearch function                                            FitFun Descrip
       
 ### tools.find.mfind_bin
 
-Binary search on a vector running simolutnously on multiple values. Package: tools.find Description: Binary search on a vector running simolutnously on multiple values. A feature of this program is that it
+Binary search on a vector running simolutnously on multiple values. Package: tools.find Description: Binary search on a vector running simolutnously on multiple values. A feature of this program is that it you need to add 1 to the index in order to make sure
 
 
     

@@ -2,11 +2,11 @@ Package: celestial.time
 
 date2jd - Convert Julian/Gregorian date to Julian Day Package: @Time Description: Convert Julian/Gregorian date to Julian Day.
 
-date_str2vec - date_str2vec function                                            General Description: Convert a string or a cell array of string containing date and time in the format 'YYYY-MM-DD HH:MM:SS.frac'
+date_str2vec - date_str2vec function                                            General Description: Convert a string or a cell array of string containing date and time in the format 'YYYY-MM-DD HH:MM:SS.frac' or 'YYYY-MM-DD', to a matrix of dates with the following
 
 days_in_month - Return the number of days in month Package: @Time, adapted from +celestial.time Description: Calculate the number of days in a given Gregorian or Julian month.
 
-delta_t - Return \Delta{T} Package: celestial.time Description: Return \Delta{T} at a vector of Julian days. DeltaT is defined as ET-UT prior to 1984, and
+delta_t - Return \Delta{T} Package: celestial.time Description: Return \Delta{T} at a vector of Julian days. DeltaT is defined as ET-UT prior to 1984, and TT-UT1 after 1984 (= 32.184+(TAI-UTC)-(UT1-UTC)).
 
 easter_date - Calculate the date of Easter Package: celestial.time Description: Calculate the date of Easter for any Gregorian year.
 
@@ -18,9 +18,9 @@ jd2mjd - Convert JD to MJD Package: celestial.time Description: Convert JD to MJ
 
 jd2year - Convert JD to year Package: celestial.time Description: Convert Julian day to Julian or Besselian years. OBSOLETE: Use convert.time instead.
 
-julday - Convert Julian/Gregorain date to JD Package: celestial.time Description: Convert Julian/Gregorian date to Julian Day. OBSOLETE: Use convert.date2jd instead.
+julday - Convert Julian/Gregorain date to JD Package: celestial.time Description: Convert Julian/Gregorian date to Julian Day. OBSOLETE: Use convert.date2jd instead. See also: convert.time
 
-julday1 - Convert Gregorian date in the range 1901 to 2099 to JD Package: celestial.time Description: Convert Gregorian date in the range 1901 to 2099 to Julian days (see also: julday.m).
+julday1 - Convert Gregorian date in the range 1901 to 2099 to JD Package: celestial.time Description: Convert Gregorian date in the range 1901 to 2099 to Julian days (see also: julday.m). See also: convert.date2jd, celestial.time.julday
 
 lst - Local Sidereal Time Package: celestial.time Description: Local Sidereal Time, (mean or apparent), for vector of JDs and a given East Longitude.
 
@@ -30,13 +30,15 @@ month_name - Convert month number to name Package: celestial.time Description: G
 
 str2date - Convert a date string (usinf datevec) to date vector
 
-tai_utc - Get TAI-UTC (leap second) Package: celestial.time Description: Return the TAI-UTC time difference (leap second) for a vector of Julian days. Also return TT-UTC.
-
 tdb_tdt - Approximate TDB-TT Package: celestial.time Description: Calculate approximate difference between TDT and TDB time scales.
 
-ut1_utc - Return UT1-UTC (DUT1) Package: celestial.time Description: Return UT1-UTC (also known as DUT1).
+tt_utc - Get TT-UTC and TT-UT1 time Description: TT continues Terrestrial Dynamical Time (TDT or TD), which succeeded ephemeris time (ET). \Delta{T} = TT - UT1 TAI − GPS time = +19 seconds
 
-wget_eop - Read or get the Earth orientation parameters file from IERS Package: celestial.time Description: Get the table of historical and predicted Earth orientation parameters (EOP) from the IERS web site.
+ut1_tai - Return the UT1-TAI time (available from 1846 till now).
+
+ut1_utc - Return UT1-UTC (DUT1) - read from IERS EOP file (1992 to present day) Package: celestial.time Description: Return UT1-UTC (also known as DUT1).
+
+wget_eop - Read or get the Earth orientation parameters file from IERS Package: celestial.time OBSOLETE: see Installer/readIERS_EOP class. Description: Get the table of historical and predicted Earth orientation parameters (EOP) from the IERS web site.
 
 wget_tai_utc - Get TAI-UTC from file or IERS website Package: celestial.time Description: Get the table of historical TAI-UTC time differences (leap second) from the IERS web site.
 

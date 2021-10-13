@@ -9,7 +9,7 @@
     
 ### astro.supernova.SOPRANOS.SOPRANOS_GUI
 
-SOPRANOS_GUI MATLAB code for SOPRANOS_GUI.fig SOPRANOS_GUI, by itself, creates a new SOPRANOS_GUI or raises the existing singleton*.
+SOPRANOS_GUI MATLAB code for SOPRANOS_GUI.fig SOPRANOS_GUI, by itself, creates a new SOPRANOS_GUI or raises the existing singleton*. H = SOPRANOS_GUI returns the handle to a new SOPRANOS_GUI or the handle to
 
 
     
@@ -172,7 +172,7 @@ Prepare Observation data and ancillary data for a SN Package: AstroUtil.supernov
       
 ### astro.supernova.SOPRANOS.prepare_LCs
 
-Prepare Model light curves for interpolation Package: AstroUtil.supernove.SOPRANOS Description: Calculate model light curves grid for interpolation  by calcGrid using Sapir & Waxman 2017 shock cooling model.
+Prepare Model light curves for interpolation Package: AstroUtil.supernove.SOPRANOS Description: Calculate model light curves grid for interpolation  by calcGrid using Sapir & Waxman 2017 shock cooling model. for each band in its input it calculates 1000x1001 grid
 
 
     
@@ -230,7 +230,7 @@ read PTF out file Package: AstroUtil.supernove.SOPRANOS Description: read PTF ou
       
 ### astro.supernova.SOPRANOS.readUVOTascii
 
-readUVOTascii Import UVOT subtracted data from an ascii file. tab = readUVOTascii(FILENAME) Reads data from text file FILENAME for the default selection.
+readUVOTascii Import UVOT subtracted data from an ascii file. tab = readUVOTascii(FILENAME) Reads data from text file FILENAME for the default selection. tab = readUVOTascii(FILENAME, STARTROW, ENDROW) Reads data from
 
 
     

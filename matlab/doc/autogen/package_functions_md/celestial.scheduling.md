@@ -130,7 +130,7 @@ Simulate LAST targets scheduling Package: +celestial.schedling Description:
       
 ### celestial.scheduling.coo_visibility
 
-Calculate the visibility of celestial coordinates Package: +celestial.scheduling Description: For a given night, and a list of targets, calculate the matrix of target visibility in 5-min (default) steps.
+Calculate the visibility of celestial coordinates Package: +celestial.scheduling Description: For a given night, and a list of targets, calculate the matrix of target visibility in 5-min (default) steps. The visibility criteria, includes SunAltLimit, MaxAM,
 
 
     
@@ -257,7 +257,7 @@ Validate HA, Dec within Az,Alt and HA,Dec ranges. Package: +celestial.scheduling
       
 ### celestial.scheduling.weight_cadence
 
-Calculate the cadence weight for a list of targets. Package: +celestial.scheduling Description: The cadence weight is a combination of two weights, based on the last time the target was observed during the night, and
+Calculate the cadence weight for a list of targets. Package: +celestial.scheduling Description: The cadence weight is a combination of two weights, based on the last time the target was observed during the night, and the last time it was observed before the current night.
 
 
     

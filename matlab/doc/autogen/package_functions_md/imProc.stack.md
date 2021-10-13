@@ -266,7 +266,7 @@ Apply function/s on a single cube
       
 ### imProc.stack.functionalResponse
 
-Fit the pixel response to light as a function of intensity in a cube of images Description: Given an AstroImage of flat field or dark images which have different mean intensity, fit some linear models to each model intensity vs. a user specified expected intensity or the mean value of
+Fit the pixel response to light as a function of intensity in a cube of images Description: Given an AstroImage of flat field or dark images which have different mean intensity, fit some linear models to each model intensity vs. a user specified expected intensity or the mean value of the image.
 
 
     
@@ -305,9 +305,10 @@ Fit the pixel response to light as a function of intensity in a cube of images D
     'MeanFun' - If 'Intensity' is not porovided, this is a function  
     handle that will operate on each image in the cube in  
     order to calculate its mean value.  
-    Default is @nanmedian.  
+    Default is @median.  
     'MeanFunPar' - A cella array of additional parameters to pass  
     to the 'MeanFun' function handle.  
+    Default is {[1, 2]'omitnan'}.  
     'Intensity' - A vector if intensities for each image in the  
     cube. This can be the mean intensity of each image  
     (after gain correction), or exposure time (if flat is  

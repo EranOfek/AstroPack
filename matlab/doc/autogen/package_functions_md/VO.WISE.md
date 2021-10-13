@@ -27,7 +27,7 @@ Find all WISE coadd_id for a given coordinate. Package: VO.WISE Description: Giv
       
 ### VO.WISE.wget_corrim
 
-Get WISE coadded Atlas image from coadd_id Package: VO.WISE Description: Given a WISE field ID coadd_id for Atlas Images, get the link to, and the WISE corrected image in FITS format.
+Get WISE coadded Atlas image from coadd_id Package: VO.WISE Description: Given a WISE field ID coadd_id for Atlas Images, get the link to, and the WISE corrected image in FITS format. Furthermore, read the corrected image into matlab matrix.
 
 
     

@@ -72,7 +72,7 @@ Old map projection function (not supported) Package: celestial.map Description: 
       
 ### celestial.map.plot_monthly_smap
 
-Plot a monthly sky map Package: celestial.map Description: Plot a monthly sky map with a naked eye stars for a given time and observer Geodetic position. Optionaly mark planets
+Plot a monthly sky map Package: celestial.map Description: Plot a monthly sky map with a naked eye stars for a given time and observer Geodetic position. Optionaly mark planets position, constellations and the milky way.
 
 
     
@@ -383,7 +383,7 @@ Given a star catalog plot star map Package: celestial.map Description: Given a s
       
 ### celestial.map.usnob1_map
 
-Plot a finding chart using a local copy of the USNO-B2.0 Package: celestial.map Description: Plot a finding chart using a local copy of the USNO-B2.0 catalog. The user can select between b/w stars or color
+Plot a finding chart using a local copy of the USNO-B2.0 Package: celestial.map Description: Plot a finding chart using a local copy of the USNO-B2.0 catalog. The user can select between b/w stars or color stars (with their O-E color index color coded).
 
 
     

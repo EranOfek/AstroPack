@@ -105,6 +105,7 @@ Partition an AstroImage image into sub images
     NewNoOverlap  
     Author : Eran Ofek (May 2021)  
     Example: AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});  
+    AI.HeaderData.insertKey({'A',1});  
     Result = imProc.image.image2subimages(AI,[256 256])  
       
 ### imProc.image.images2cube
@@ -158,15 +159,13 @@ interpolate AstroImage over NaN values
     See inpaint_nans for options.  
     'DataProp' - A cell array of data properties on which to operate the  
     interpolation. Default is {'Image'}.  
-    'CreateNewObj' - Indicating if the output  
-    is a new copy of the input (true), or an  
-    handle of the input (false).  
-    If empty (default), then this argument will  
-    be set by the number of output args.  
-    If 0, then false, otherwise true.  
-    This means that IC.fun, will modify IC,  
-    while IB=IC.fun will generate a new copy in  
-    IB.  
+    'MaskInterpolated' - A logical indicating if to mark  
+    interpolated data in the Mask image.  
+    Default is true.  
+    'BitNameInterpolated' - BitName to mark interpolated data.  
+    Default is 'Interpolated'.  
+    'CreateNewObj' - A logical indicating if to copy the input  
+    object. Default is false.  
     Outout : - An AstroImage object with interpolation over NaNs  
     Author : Eran Ofek (Jul 2021)  
     Example: AI = AstroImage({ones(100,100)});  
@@ -181,5 +180,3 @@ unitTest for the +imProc.image package
 
     
     unitTest for the +imProc.image package  
-      
-    images2cube  

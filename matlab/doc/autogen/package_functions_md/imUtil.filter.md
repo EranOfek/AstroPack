@@ -50,7 +50,7 @@ Autocorrelation of a 2D image Package: imUtil.filter Description: Autocorrelatio
       
 ### imUtil.filter.conv2_fast
 
-convolve two 2-D matrices using either fft or conv, whichever faster. Package: imUtil.filter Description: Convolve two matrices in which the second matrix is smaller or equal in size to the first matrix.
+convolve two 2-D matrices using either fft or conv, whichever faster. Package: imUtil.filter Description: Convolve two matrices in which the second matrix is smaller or equal in size to the first matrix. If the second matrix is smaller then it is post-padded with
 
 
     
@@ -83,7 +83,7 @@ convolve two 2-D matrices using either fft or conv, whichever faster. Package: i
       
 ### imUtil.filter.conv2_fft
 
-convolve two 2-D matrices using fft. Package: imUtil.filter Description: Convolve two matrices in which the second matrix is smaller or equal in size to the first matrix.
+convolve two 2-D matrices using fft. Package: imUtil.filter Description: Convolve two matrices in which the second matrix is smaller or equal in size to the first matrix. If the second matrix is smaller then it is post-padded with
 
 
     
@@ -155,7 +155,7 @@ L.A. cosmic cosmic ray detection for astronomical images Package: imUtil.filter 
       
 ### imUtil.filter.filter2_fast
 
-Source/template detection in 2D images by filtering (cross-correlation) Package: imUtil.filter Description: 2D filtering (cross correkation) of an image (matrix) with a template (filter). The program chooeses which algorith to
+Source/template detection in 2D images by filtering (cross-correlation) Package: imUtil.filter Description: 2D filtering (cross correkation) of an image (matrix) with a template (filter). The program chooeses which algorith to use, either filtering via convolution or fft, which ever
 
 
     
@@ -187,7 +187,7 @@ Source/template detection in 2D images by filtering (cross-correlation) Package:
       
 ### imUtil.filter.filter2_fft
 
-cross-correlate (filter) two 2-D matrices using fft. Package: imUtil.filter Description: 2D Cross correlation (filtering) of two matrices. The second matrix is the "filter" and should be smaller or
+cross-correlate (filter) two 2-D matrices using fft. Package: imUtil.filter Description: 2D Cross correlation (filtering) of two matrices. The second matrix is the "filter" and should be smaller or equal in size to the first matrix. Note that in filter2 the
 
 
     
@@ -225,7 +225,7 @@ cross-correlate (filter) two 2-D matrices using fft. Package: imUtil.filter Desc
       
 ### imUtil.filter.filter2_fftfft
 
-cross-correlate a 2-D matrix with bank using fft. The input maybe ffted Package: imUtil.filter Description: 2D Cross correlation (filtering) of two matrices, or a matrix with a template bank of matrices.
+cross-correlate a 2-D matrix with bank using fft. The input maybe ffted Package: imUtil.filter Description: 2D Cross correlation (filtering) of two matrices, or a matrix with a template bank of matrices. The second matrix is the "filter" and should be smaller or
 
 
     
@@ -262,7 +262,7 @@ cross-correlate a 2-D matrix with bank using fft. The input maybe ffted Package:
       
 ### imUtil.filter.filter2_sn
 
-Filter an image with a PSF and calculate the S/N and Flux estimators Package: imUtil.filter Description: Filter an image with a template/PSF and calculate the signal-to-noise ratio (S/N) for
+Filter an image with a PSF and calculate the S/N and Flux estimators Package: imUtil.filter Description: Filter an image with a template/PSF and calculate the signal-to-noise ratio (S/N) for template-detection in each pixel, and the flux-estimator at
 
 
     
@@ -331,7 +331,7 @@ Filter an image with a PSF and calculate the S/N and Flux estimators Package: im
       
 ### imUtil.filter.filter2_snBank
 
-Filter an image with a bank of PSFs and calculate the S/N and Flux estimators Package: imUtil.filter Description: Filter an image with a template/PSF bank and calculate the signal-to-noise ratio (S/N) for
+Filter an image with a bank of PSFs and calculate the S/N and Flux estimators Package: imUtil.filter Description: Filter an image with a template/PSF bank and calculate the signal-to-noise ratio (S/N) for template-detection in each pixel, and the flux-estimator at
 
 
     
@@ -435,7 +435,7 @@ Calculate the variance and mean filter of an image Package: imUtil.filter Descri
       
 ### imUtil.filter.filter_sources
 
-Generate a background image filtered from sources using sucessive filtering Description: This routine filter out sources from an image and generate an approximate background image. The following steps are implemented:
+Generate a background image filtered from sources using sucessive filtering Description: This routine filter out sources from an image and generate an approximate background image. The following steps are implemented: 1. Filtering the image against template bank of sources.
 
 
     
@@ -507,7 +507,7 @@ Generate a background image filtered from sources using sucessive filtering Desc
       
 ### imUtil.filter.imlaplacian
 
-Laplacian filter for a 2-D matrix Package: imUtil.filter Description: Calculate the laplacian of a 2-D image using a convolution kernel.
+Laplacian filter for a 2-D matrix Package: imUtil.filter Description: Calculate the laplacian of a 2-D image using a convolution kernel. This function is considerably faster than del2.m
 
 
     
@@ -528,7 +528,7 @@ Laplacian filter for a 2-D matrix Package: imUtil.filter Description: Calculate 
       
 ### imUtil.filter.threshold_fluctuations
 
-Estimate the number of filtered local maxima above/below some threshold. Package: imUtil.filter Description: Estimate the two-sided false alarm rate for source detection in astronomical images. The function generate random images,
+Estimate the number of filtered local maxima above/below some threshold. Package: imUtil.filter Description: Estimate the two-sided false alarm rate for source detection in astronomical images. The function generate random images, filter the images with a Gaussian with a specified FWHM,
 
 
     
@@ -572,7 +572,7 @@ A simple unpadding of 2D matrices
       
 ### imUtil.filter.xcorr2_fft
 
-Cross-correlation of two matrices using fft, and search local maxima. Package: imUtil.filter Description: Cross correlate two 2D images. If a single image is provided then calculate the autocorrelation function.
+Cross-correlation of two matrices using fft, and search local maxima. Package: imUtil.filter Description: Cross correlate two 2D images. If a single image is provided then calculate the autocorrelation function. The cross-correlation is done using fft (unlike xcorr2.m).
 
 
     

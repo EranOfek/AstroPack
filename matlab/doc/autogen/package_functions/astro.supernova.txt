@@ -1,6 +1,6 @@
 Package: astro.supernova
 
-fit_sn_rise - Fit rise-time of SN light curve Package: astro.supernova Description: Fit various functions appropriate for the rise of SN light curve. The fitted functions are:
+fit_sn_rise - Fit rise-time of SN light curve Package: astro.supernova Description: Fit various functions appropriate for the rise of SN light curve. The fitted functions are: L_max*(1-((t-t_max)/t_rise)^2)
 
 interacting_sn_prop - Calculate the properties of CSM-ejecta interacting SN Package: astro.supernova Description: Calculate the properties of CSM-ejecta interacting SN based on the Ofek et al. (2014) formulae.
 
@@ -10,11 +10,11 @@ mildrel_synchrotron - SHORT DESCRIPTION HERE Package: astro.supernova Descriptio
 
 nickel56_decay - Energy production of Nickel56->Cobalt->Iron Package: astro.supernova Description: Calculate the energy production of Nicel56->Cobalt->Iron radioactive decay as a function of time.
 
-sn_cooling_msw - sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+sn_cooling_msw - sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the Sapir & Waxman (2017) model (ApJ 838:130).
 
-sn_cooling_rw - Shock cooling light curve (Rabinak & Waxman 2011) Package: astro.supernova Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+sn_cooling_rw - Shock cooling light curve (Rabinak & Waxman 2011) Package: astro.supernova Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the Rabinak & Waxman (2011) model.
 
-sn_cooling_sw - sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+sn_cooling_sw - sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the Sapir & Waxman (2017) model (ApJ 838:130).
 
 sync_mildly_relativistic - Synchrotron emission from mildly relativistic ejecta interacting with ISM Package: astro.supernova Description:
 

@@ -1,0 +1,66 @@
+Class: AstroWCS
+
+AstroWCS - Basic constructor for AstroWCS class. User should usually use AstroWCS.header2wcs or AstroWCS.tran2wcs
+
+alphadelta2phitheta - Convert celestial coordinates to native coordinates
+
+backwardDistortion - Apply reverse (i.e. backward) distortion to X,Y coordinates using the PV sturcture
+
+build_CD - Construct the CD matrix from AstroHeader. Either directly CD matrix, or PC+CDELT, or CDELT
+
+build_PV_from_Header - Construct a PV (distoration) structure from AstroHeader.
+
+build_PV_from_Tran2D - Construct a PV (distoration) structure from Tran2D object.
+
+build_TANSIP_from_Header - Construct a PV or RevPV structure from AstroHeader with TAN-SIP projection.
+
+build_TPV_from_Header - Construct a PV (distoration) structure from AstroHeader with TPV projection.
+
+celestial2native - Convert celestial coordinates to native coordinates
+
+copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+
+fill_TANSIP_KeyNames - Fill TANSIP keynames in a PV (or RevPV) structure.
+
+fill_TPV_KeyNames - Fill TPV keynames in a PV (distoration) structure.
+
+forwardDistortion - Apply distortion to X,Y coordinates using the PV sturcture
+
+header2wcs - Create and populate an AstroWCS object from an AstroHeader object
+
+interm2native - Project intermediate coordinates to native coordinates
+
+interm2pix - Convert intermediate pixel coordinates to pixel coordinates, if requested also include distortion
+
+native2celestial - Convert native coordinates to celestial coordinates
+
+native2interm - Project native coordinates to intermediate coordinates
+
+phitheta2alphadelta - Convert naitive coordinates (Phi,Theta) to celestial coordinates (alpha,delta)
+
+pix2interm - Convert pixel coordinates (P) to intermediate coordinates (X), if requested also include distortion
+
+polyTPVdef - Return a table of TPV polynomial definition Output : - A table of TPV polinomial power (See ColNames and RowNames) Author : Yossi Shvartzvald (August 2021) Example: PolyTPVtable = AstroWCS.polyTPVdef();
+
+populateSucess - Populate the sucess flag in the AstroWCS object The success flag indicate if the WCS solution and residuals are reasnoble.
+
+populate_projMeta - Populate projection metadata (Alpha0,Delta0,AlphaP,DeltaP,Phi0,Theta0,PhiP)
+
+read_ctype - Read Obj.CTYPE to populate the fields: ProjType, ProjClass, CooName, and CUNIT (if empty or nan)
+
+read_radesys_equinox - Read from AstroHeader the RADESYS and EQUINOX. If any are missing fill with deafults.
+
+set.ResFit - setter for ResFit - will automatically populate related properties
+
+sky2xy - Convert celestial coordinates to pixel coordinates
+
+tran2wcs - Create and populate an AstroWCS object from a Tran2D object
+
+unitTest - ImageWCS.unitTest
+
+wcs2header - Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
+
+wcs2keyCell - Create a cell array of WCS fields from AstroWCS object
+
+xy2sky - Convert pixel coordinates to celestial coordinates
+

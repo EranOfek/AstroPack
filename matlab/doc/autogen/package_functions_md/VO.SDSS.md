@@ -195,7 +195,7 @@ Convert the SDSS great circles coordinate system to J2000 RA and Dec. Package: V
       
 ### VO.SDSS.wget_corrim
 
-Get corrected SDSS image Package: VO.SDSS Description: Retrieve SDSS corrected images by Run, Rerun, CamCol, Field or RA/Dec.
+Get corrected SDSS image Package: VO.SDSS Description: Retrieve SDSS corrected images by Run, Rerun, CamCol, Field or RA/Dec. Retrieve FITS files.
 
 
     

@@ -91,7 +91,7 @@ Calculate the sigma-clipped mean of a dataset Package: imUtil.image Description:
       
 ### imUtil.image.find_within_radius_cell
 
-Find points within a radius from a list of coordinates. Package: imUtil.image Description: Given a list of coordinates within an array, return for each coordinate a vector (within a cell array) of indices of
+Find points within a radius from a list of coordinates. Package: imUtil.image Description: Given a list of coordinates within an array, return for each coordinate a vector (within a cell array) of indices of the points in the image
 
 
     
@@ -132,7 +132,7 @@ Find points within a radius from a list of coordinates. Package: imUtil.image De
       
 ### imUtil.image.find_within_radius_mat
 
-Construct a cube of stamps around specific locations in a 2D image. Package: imUtil.image Description: Given an image and a list of coordinates, construct a cybe of stamps around the coordinates. Region outside the image
+Construct a cube of stamps around specific locations in a 2D image. Package: imUtil.image Description: Given an image and a list of coordinates, construct a cybe of stamps around the coordinates. Region outside the image are padded with zeros.
 
 
     
@@ -273,7 +273,7 @@ Applay an operator on an array and its variance.
       
 ### imUtil.image.images2cube
 
-Store a set of images of the same size in a cube. Package: imUtil.image Description: Given a cell array of images or a structure array that contains a field with image, convert it to a cube of
+Store a set of images of the same size in a cube. Package: imUtil.image Description: Given a cell array of images or a structure array that contains a field with image, convert it to a cube of images. By default the image index is 3.
 
 
     
@@ -323,7 +323,7 @@ ind2sub fast version for 2D matrices Description: A fast version of ind2sub for 
       
 ### imUtil.image.local_maxima
 
-Identify local maxima above a threshold in a 2D image Package: @imUtil.image Description: This function identify local maxima, above some threshold, in an image, or alternatively, in a max over cube of images.
+Identify local maxima above a threshold in a 2D image Package: @imUtil.image Description: This function identify local maxima, above some threshold, in an image, or alternatively, in a max over cube of images. If the first input is an image and given a threshold image
 
 
     
@@ -441,7 +441,7 @@ Calculate the sigma-clipped mean of a dataset Package: imUtil.image Description:
       
 ### imUtil.image.moment2
 
-Calculate 1st, 2nd moments and (weighted) aperture photometry Package: @imUtil.image Description: Given a 2D image, or a 3D cube of image stamps, and X, Y coordinates of sources (or the center of the stamps),
+Calculate 1st, 2nd moments and (weighted) aperture photometry Package: @imUtil.image Description: Given a 2D image, or a 3D cube of image stamps, and X, Y coordinates of sources (or the center of the stamps), calculate for each stamp the 1st and 2nd moments, and
 
 
     
@@ -484,7 +484,7 @@ Calculate 1st, 2nd moments and (weighted) aperture photometry Package: @imUtil.i
     'BackFun' - Function handle to use for background estimation.  
     In order to meaningful this function must ignore  
     NaNs.  
-    Default is @nanmedian.  
+    Default is @median.  
     'MomRadius' - Radius around position in which to calculate the  
     moments. Recomended ~1.7 FWHM. Default is 8.  
     'WeightFun' - The weight function to use for weighting the  
@@ -712,7 +712,7 @@ sub2ind fast version for 2D matrices Description: A fast version of sub2ind for 
       
 ### imUtil.image.subimage_grid
 
-Partition image size into a grid of sub images Package: mUtil.image Description: Given the size of a two dimensional array (e.g., image), and a sub image size or the number of partitions in each
+Partition image size into a grid of sub images Package: mUtil.image Description: Given the size of a two dimensional array (e.g., image), and a sub image size or the number of partitions in each dimension, calculate the coordinates of the partitions
 
 
     
@@ -816,7 +816,7 @@ Trim an image or a cube using CCDSEC coordinates. Pacakge: imUtilimage Descripti
       
 ### imUtil.image.wmean_sigclip
 
-Calculate the sigma-clipped weighted mean of a dataset Package: imUtil.image Description: Calculate the sigma-clipped weighted mean of a dataset with iterations.
+Calculate the sigma-clipped weighted mean of a dataset Package: imUtil.image Description: Calculate the sigma-clipped weighted mean of a dataset with iterations. This is done by first selecting the datapoints to be used
 
 
     

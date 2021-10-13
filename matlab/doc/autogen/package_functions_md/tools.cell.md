@@ -45,7 +45,7 @@ Convert numeric cell to matrix. Replace empty cells with NaNs. Package: tools.ce
       
 ### tools.cell.cell_equal
 
-Compare the content of a cell array to its first cell. Package: Util.cell Description: Given a cell array of strings or numbers, compare the value of all the cells to the first cell and check if they are
+Compare the content of a cell array to its first cell. Package: Util.cell Description: Given a cell array of strings or numbers, compare the value of all the cells to the first cell and check if they are equal.
 
 
     
@@ -148,7 +148,7 @@ sprintf on content in cell array Pacakfe: Util.cell Description: sprintf into st
       
 ### tools.cell.cellstr2num_dictionary
 
-Given a cell array of strings, repace unique strings by numeric index Package: Util.cell Description: Concert a cell array of strings to a vector of numeric indices. Each numeric index represent a unique string.
+Given a cell array of strings, repace unique strings by numeric index Package: Util.cell Description: Concert a cell array of strings to a vector of numeric indices. Each numeric index represent a unique string. Also returns a dictionary that translate the string name to
 
 
     
@@ -219,7 +219,7 @@ Find and group distinct values in a cell array. Package: Util.cell Description: 
       
 ### tools.cell.ind_cell
 
-Select indices of vectors in cell array of vectors. Package: Util.cell Description: Given a cell vector in which each element contains a vector of the same length and a vecor of indices, return
+Select indices of vectors in cell array of vectors. Package: Util.cell Description: Given a cell vector in which each element contains a vector of the same length and a vecor of indices, return a new cell array of the same size in which each element
 
 
     
@@ -328,7 +328,7 @@ sort each row or columns in a cell array of numbers. Package: Util.cell Descript
       
 ### tools.cell.sprintf2cell
 
-Generate a cell array of string using sprintf. Package: Util.cell Description: Generate a cell array of strings using the sprintf function, where the sprintf arguments, per string in cell is
+Generate a cell array of string using sprintf. Package: Util.cell Description: Generate a cell array of strings using the sprintf function, where the sprintf arguments, per string in cell is taken from a row in a matrix.
 
 
     

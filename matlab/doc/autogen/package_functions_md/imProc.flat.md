@@ -86,14 +86,14 @@ Generate a super flat image from a set of flat images. A flat image will be gene
     image. If empty use all images.  
     The function must be a method of Flat.  
     Default is @imProc.flat.isFlat.  
-    'IsBiasArgs' - A cell array of arguments to pass  
+    'IsFlatArgs' - A cell array of arguments to pass  
     to the IsFlat function. Default is {}.  
     'StackMethod' - For options, see  
     imProc.image.Stack.coadd).  
     Default is 'sigmaclip'.  
     'StackArgs' - A cell array of arguments to pass to the  
     method function. Default is  
-    {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.  
+    {'MeanFun',@tools.math.stat.nanmedian, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.  
     'EmpiricalVarFun' - Default is @var.  
     'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.  
     'DivideEmpiricalByN' - A logical indicating if to divide  
@@ -118,6 +118,8 @@ Generate a super flat image from a set of flat images. A flat image will be gene
     'FlatLowVal_Threshold' - Flat low value  
     threshold below to flag as FlatLowVal.  
     Default is 0.5.  
+    'Replace0' - Replace 0 or negative values with NaN.  
+    Default is true.  
     'NaN_BitName' - A NaN bit name.  
     Default is 'NaN';  
     'AddHeader' - A 3 column cell array to add to  

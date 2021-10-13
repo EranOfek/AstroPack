@@ -3,7 +3,7 @@
 
 ### timeseries.arp
 
-Fit autoregression model for evently spaced time series Package: timeseries Description: Calculate the autoregessive process of order p. Moddeling an evenly spaced time series, z(t), with:
+Fit autoregression model for evently spaced time series Package: timeseries Description: Calculate the autoregessive process of order p. Moddeling an evenly spaced time series, z(t), with: z(t) = sum_i[a(i)*z(t-i)] + err(t)
 
 
     
@@ -32,7 +32,7 @@ Fit autoregression model for evently spaced time series Package: timeseries Desc
       
 ### timeseries.bin_by_eye
 
-Bin data by define bins interactively Package: timeseries Description: Bin light curve by eye. The function plots the light curve and let the user to define bins using the mouse.
+Bin data by define bins interactively Package: timeseries Description: Bin light curve by eye. The function plots the light curve and let the user to define bins using the mouse. The user mark (with the mouse) the beginning and end
 
 
     
@@ -63,7 +63,7 @@ Bin data by define bins interactively Package: timeseries Description: Bin light
       
 ### timeseries.binning
 
-Binning function. Calculate various functions in data bins. Package: timeseries Description: Binning a timeseries. In each bin, calculate various functions (e.g., mean) or
+Binning function. Calculate various functions in data bins. Package: timeseries Description: Binning a timeseries. In each bin, calculate various functions (e.g., mean) or any user supplied functions.
 
 
     
@@ -111,6 +111,38 @@ Binning function. Calculate various functions in data bins. Package: timeseries 
     Example: B=timeseries.binning(rand(1000,2),0.1,[0 1]);  
     B=timeseries.binning(rand(1000,2),0.1,[0 1],{'MeanBin',@rstd,@numel});  
     Reliable: 2  
+      
+      
+### timeseries.binningFast
+
+Bin [X,Y] data and apply functions to Y values in each bin defined by X This is a faster version of timeseries.binning
+
+
+    
+    Bin [X,Y] data and apply functions to Y values in each bin defined by X  
+    This is a faster version of timeseries.binning  
+    Input  : - [X, Y] data.  
+    - Bin size. Default is 1.  
+    - [Start End] points. If one of them is NaN than replace  
+    with min(X)-eps or max(X)+eps.  
+    Default is [NaN NaN].  
+    - Cell array of column names to calculate. Possible column  
+    names are:  
+    'MidBin'  
+    'MeanBin'  
+    'MedianBin'  
+    'StdBin'  
+    Or any function that returns a scalar to apply to the  
+    observations (e.g., @numel, @mean, @median,  
+    @tools.math.stat.nanmedian).  
+    For other special functions use timeseries.binning.  
+    Default is {'MidBin', @numel, @mean, @median, @std,  
+    @tools.math.stat.nanmedian, }.  
+    Output : - A matrix with the requested columns. One line per bin.  
+    Author : Eran Ofek (Sep 2021)  
+    Example: XY = rand(1000,2);  
+    Result = timeseries.binningFast(XY, 0.1, [0 1]);  
+    tic;for I=1:1:1000, Result = timeseries.binningFast(XY, 0.01, [0 1]); end, toc  
       
       
 ### timeseries.binning_adaptive
@@ -167,7 +199,7 @@ Binning a time series by equal number of sucssesive points Package: timeseries D
       
 ### timeseries.binning_old
 
-The old version of the binning function. Use binning instead. Package: timeseries Description: Binning a timeseries using equally spaced bins. In each bin, calculate the mean, median, std,
+The old version of the binning function. Use binning instead. Package: timeseries Description: Binning a timeseries using equally spaced bins. In each bin, calculate the mean, median, std, skewness of the data.
 
 
     
@@ -205,7 +237,7 @@ The old version of the binning function. Use binning instead. Package: timeserie
       
 ### timeseries.calib_flux_lsq
 
-Best fit zeropoints and mean magnitudes to a matrix of magnitudes. Package: timeseries Description: Calculate the best fit photometric zero point (ZP) per image and mean magnitude per source to a set of instrumental
+Best fit zeropoints and mean magnitudes to a matrix of magnitudes. Package: timeseries Description: Calculate the best fit photometric zero point (ZP) per image and mean magnitude per source to a set of instrumental magnitudes.
 
 
     
@@ -240,7 +272,7 @@ Best fit zeropoints and mean magnitudes to a matrix of magnitudes. Package: time
       
 ### timeseries.calib_flux_sum
 
-Normalize (calibrate) a matrix of fluxes using sum of flux in each epoch. Package: timeseries Description: Normalize (calibrate) a matrix of fluxes (Stars, Epochs) using sum of flux in each epoch.
+Normalize (calibrate) a matrix of fluxes using sum of flux in each epoch. Package: timeseries Description: Normalize (calibrate) a matrix of fluxes (Stars, Epochs) using sum of flux in each epoch. Select stars that appear in all epochs.
 
 
     
@@ -291,7 +323,7 @@ Normalize (calibrate) a matrix of fluxes using sum of flux in each epoch. Packag
       
 ### timeseries.ccf
 
-ccf function                                                      timeseries Description: Discrete cross-correlation function for two sets of unequaly spaced stationary time series.
+ccf function                                                      timeseries Description: Discrete cross-correlation function for two sets of unequaly spaced stationary time series. ccf.m is obsolte - use dcf.m instead.
 
 
     
@@ -412,7 +444,7 @@ Cross coorelation between two equally spaced series Package: timeseries Descript
       
 ### timeseries.cosbell
 
-Cosine bell function (Obsolete: use timeseries.taper instead) Package: timeseries Description: cosine bell function Generating cosine bell function in the range
+Cosine bell function (Obsolete: use timeseries.taper instead) Package: timeseries Description: cosine bell function Generating cosine bell function in the range [Start:End] with its inner PercentFlat part
 
 
     
@@ -436,7 +468,7 @@ Cosine bell function (Obsolete: use timeseries.taper instead) Package: timeserie
       
 ### timeseries.dcf
 
-ccf function                                                  timeseries Description: Discrete cross-correlation function and structure function for two sets of unequaly spaced stationary
+ccf function                                                  timeseries Description: Discrete cross-correlation function and structure function for two sets of unequaly spaced stationary time series.
 
 
     
@@ -660,7 +692,7 @@ Folding a timeseries by some period Package: timeseries Description: Folding a t
       
 ### timeseries.folding_solarsys
 
-Folding a timeseries for a solar system object Package: timeseries Description: Folding a time series of a solar system object into a period, and calculate the phase for each data point in
+Folding a timeseries for a solar system object Package: timeseries Description: Folding a time series of a solar system object into a period, and calculate the phase for each data point in the time series.  Taking
 
 
     
@@ -689,7 +721,7 @@ Folding a timeseries for a solar system object Package: timeseries Description: 
       
 ### timeseries.glsper_4github
 
-Calculates The generalized Lomb-Scargle periodogram (Zechmeister 2009). Package: +timeseries Description: Calculates The generalized Lomb-Scargle periodogram (Zechmeister 2009).
+Calculates The generalized Lomb-Scargle periodogram (Zechmeister 2009). Package: +timeseries Description: Calculates The generalized Lomb-Scargle periodogram (Zechmeister 2009). If errors are not given, then unweighted means are used.
 
 
     
@@ -807,7 +839,7 @@ Power-law weighted mean of a time series. Package: timeseries Description:
       
 ### timeseries.minclp
 
-minclp function                                                   timeseries Description: Search for periodicity in a time series, using the minimum-curve-length method. The program calculates the
+minclp function                                                   timeseries Description: Search for periodicity in a time series, using the minimum-curve-length method. The program calculates the curve length for each trail frequency, and return the curve
 
 
     
@@ -835,7 +867,7 @@ minclp function                                                   timeseries Des
       
 ### timeseries.pdm
 
-Periodicity search using period dispersion minimization Package: timeseries Description: Periodicity search using phase dispersion minimization. The time series is folded into trail frequencies, and in
+Periodicity search using period dispersion minimization Package: timeseries Description: Periodicity search using phase dispersion minimization. The time series is folded into trail frequencies, and in each trial frequency, the dispersion in bins is calculated.
 
 
     
@@ -886,7 +918,7 @@ pdm_phot function    Phase Dispersion Minimization to Photon arrival time data.
       
 ### timeseries.period
 
-Periodicity search in a non-equally spaced time series Package: timeseries Description: Periodicy search in a time series. This function can be used to run different types of periodicity searches and
+Periodicity search in a non-equally spaced time series Package: timeseries Description: Periodicy search in a time series. This function can be used to run different types of periodicity searches and window functions, and automatically select the range
 
 
     
@@ -965,7 +997,7 @@ Periodicity search in a non-equally spaced time series Package: timeseries Descr
       
 ### timeseries.period_complex
 
-Fourier transform of non equally spaced time series Package: timeseries Description: Calculate the complex fourier transform of an unevenly spaced time series.
+Fourier transform of non equally spaced time series Package: timeseries Description: Calculate the complex fourier transform of an unevenly spaced time series. See period.m for a more flexiable function.
 
 
     
@@ -1018,7 +1050,7 @@ SHORT DESCRIPTION HERE Package: timeseries Description:
       
 ### timeseries.period_events
 
-- period_events function                                           timeseries Description: Search for periodicity in a list of "time tagged" events. The search is done by folding the events
+- period_events function                                           timeseries Description: Search for periodicity in a list of "time tagged" events. The search is done by folding the events and background event to each trial period. In each
 
 
     
@@ -1050,7 +1082,7 @@ SHORT DESCRIPTION HERE Package: timeseries Description:
     -  
 ### timeseries.period_fft
 
-Power spectrum of evenly spaced time series using fft Package: timeseries Description: Calculate power spectrum for evenly spaced time series using fast Fourier transform.
+Power spectrum of evenly spaced time series using fft Package: timeseries Description: Calculate power spectrum for evenly spaced time series using fast Fourier transform. See also period.m
 
 
     
@@ -1079,7 +1111,7 @@ Power spectrum of evenly spaced time series using fft Package: timeseries Descri
       
 ### timeseries.period_fitfourier
 
-Fit a Fourier series to a time series Package: timeseries Description: Fit a polynomial and fourier series as a function of frequency to a time series.
+Fit a Fourier series to a time series Package: timeseries Description: Fit a polynomial and fourier series as a function of frequency to a time series. The fitted series is:
 
 
     
@@ -1137,7 +1169,7 @@ SHORT DESCRIPTION HERE Package: timeseries Description:
       
 ### timeseries.period_min_curve_length
 
-Periodicity search using minimum curve length Package: timeseries Description: Search for periodicity in a time series, using the minimum-curve-length method. The program calculates the
+Periodicity search using minimum curve length Package: timeseries Description: Search for periodicity in a time series, using the minimum-curve-length method. The program calculates the curve length for each trail frequency, and return the curve
 
 
     
@@ -1233,7 +1265,7 @@ Run bootstrap normal pertiodogram on a light curve. Package: timeseries Descript
       
 ### timeseries.period_norm_order2
 
-2nd order harmonic power spectrum of non evenly spaced time series Package: timeseries Description: Calculate the normalized power spectrum of the second order of a times series (i.e., assuming that the first and second
+2nd order harmonic power spectrum of non evenly spaced time series Package: timeseries Description: Calculate the normalized power spectrum of the second order of a times series (i.e., assuming that the first and second harmonies have the same amplitude).
 
 
     
@@ -1265,7 +1297,7 @@ Run bootstrap normal pertiodogram on a light curve. Package: timeseries Descript
       
 ### timeseries.period_norm_solarsys
 
-Normalized power spectrum for a Solar System object Package: timeseries Description: Calculate the normalized normal power spectrum of a times series for a solar system object orbiting the Sun. Taking
+Normalized power spectrum for a Solar System object Package: timeseries Description: Calculate the normalized normal power spectrum of a times series for a solar system object orbiting the Sun. Taking into account ligh travel effect, phase correction due to
 
 
     
@@ -1302,7 +1334,7 @@ Normalized power spectrum for a Solar System object Package: timeseries Descript
       
 ### timeseries.period_normnl
 
-Normzlied power spectrum using no loops (may be faster in some cases) Package: timeseries Description: Calculate the classical (Lomb) power spectrum of a time series using no loops.
+Normzlied power spectrum using no loops (may be faster in some cases) Package: timeseries Description: Calculate the classical (Lomb) power spectrum of a time series using no loops. See period.m for a more flexiable function.
 
 
     
@@ -1448,7 +1480,7 @@ Scargle power spectrum of non equally spaced time series Package: timeseries Des
       
 ### timeseries.period_scarglenl
 
-Scargle power spectrum of non equally spaced time series / no loops Package: timeseries Description: Calculate the un-normalized Scargle power spectrum of a times series using no loops.
+Scargle power spectrum of non equally spaced time series / no loops Package: timeseries Description: Calculate the un-normalized Scargle power spectrum of a times series using no loops. See period.m for a more flexiable function.
 
 
     
@@ -1480,7 +1512,7 @@ Scargle power spectrum of non equally spaced time series / no loops Package: tim
       
 ### timeseries.periodia
 
-Classical power spectrum of non-evenly space time series (OBSOLETE) Package: timeseries Description: Classical power-spectrum of a non-evenly spaced time series. The power spectrum is normalized by the variance of the data.
+Classical power spectrum of non-evenly space time series (OBSOLETE) Package: timeseries Description: Classical power-spectrum of a non-evenly spaced time series. The power spectrum is normalized by the variance of the data. OBSOLETE: Use timeseries.period instead.
 
 
     
@@ -1513,7 +1545,7 @@ Classical power spectrum of non-evenly space time series (OBSOLETE) Package: tim
       
 ### timeseries.periodis
 
-Scargle periodogram. OBSOLETE: Use period.m instead. Package: timeseries Description: Lomb-Scargle periodigram. Calculate the Lomb-Scargle power spectrum for a time series.
+Scargle periodogram. OBSOLETE: Use period.m instead. Package: timeseries Description: Lomb-Scargle periodigram. Calculate the Lomb-Scargle power spectrum for a time series. OBSOLETE: Use timeseries.period instead.
 
 
     
@@ -1544,7 +1576,7 @@ Scargle periodogram. OBSOLETE: Use period.m instead. Package: timeseries Descrip
       
 ### timeseries.periodit
 
-Calculate the periodogram as a function of time (will be removed) Package: timeseries Description: Calculate periodogram as function of time. This script can be used for searchnig for long term varibility in
+Calculate the periodogram as a function of time (will be removed) Package: timeseries Description: Calculate periodogram as function of time. This script can be used for searchnig for long term varibility in periodicities. The time series ins divided into blocks
 
 
     
@@ -1597,7 +1629,7 @@ Calculate the periodogram as a function of time (will be removed) Package: times
       
 ### timeseries.periodmulti_norm
 
-Simultanous power spectrum of time series with common times Package: timeseries periodmulti_norm function                                     timeseries Description: Calculate the normal power spectrum of a set of multiple
+Simultanous power spectrum of time series with common times Package: timeseries periodmulti_norm function                                     timeseries Description: Calculate the normal power spectrum of a set of multiple times series which have common times.
 
 
     
@@ -1628,7 +1660,7 @@ Simultanous power spectrum of time series with common times Package: timeseries 
       
 ### timeseries.perioent
 
-Periodogram using information entropy Package: timeseries Description: Periodogram using information entropy. For each trail period, the phase-magnitude space is divided into m by m
+Periodogram using information entropy Package: timeseries Description: Periodogram using information entropy. For each trail period, the phase-magnitude space is divided into m by m cells, and the information entropy is calculated.
 
 
     
@@ -1655,7 +1687,7 @@ Periodogram using information entropy Package: timeseries Description: Periodogr
       
 ### timeseries.phot_event_me
 
-phot_event_me function     Searching periodicity in time-tagged events using information entropy. For each trail period, the phase-magnitude space
+phot_event_me function     Searching periodicity in time-tagged events using information entropy. For each trail period, the phase-magnitude space is divided into m by m cells, and the information
 
 
     
@@ -1707,7 +1739,7 @@ plot and inspect light curve and power spectrum Package: timeseries Description:
       
 ### timeseries.plot_period_folder
 
-plot_period_folder function                                       timeseries Description: Given the power spectrum and light curve, let the user to interactively select peaks in the power spectrum, and
+plot_period_folder function                                       timeseries Description: Given the power spectrum and light curve, let the user to interactively select peaks in the power spectrum, and present the folded (and binned) light curve for the
 
 
     
@@ -1836,7 +1868,7 @@ Uniform resampling of a non-evenly spaced time series. Package: timeseries Descr
       
 ### timeseries.rmsflux_select
 
-Select points in an flux/mag vs. rms like diagram Package: timeseries Description: Select points in an rms vs. flux like diagram. Bin the flux/mag vs. rms diagram by flux bins or by constant
+Select points in an flux/mag vs. rms like diagram Package: timeseries Description: Select points in an rms vs. flux like diagram. Bin the flux/mag vs. rms diagram by flux bins or by constant number of points per bin. Calculate the median and rstd in
 
 
     
@@ -1957,7 +1989,7 @@ Running mean on equally spaced 1-D vector Package: timeseries Description: runni
       
 ### timeseries.sf_interp
 
-sf_interp function                                            timeseries Description: Interpolate a time series, and estimate the errors due to the interpolation using the structure function
+sf_interp function                                            timeseries Description: Interpolate a time series, and estimate the errors due to the interpolation using the structure function of the time series. The error in each interpolated
 
 
     
@@ -1988,7 +2020,7 @@ sf_interp function                                            timeseries Descrip
       
 ### timeseries.simulated_elc
 
-Simulated photons light curve Package: timeseries Description: Given a model light curve, generate a list of time-tagged events that their rate follows the model light curve.
+Simulated photons light curve Package: timeseries Description: Given a model light curve, generate a list of time-tagged events that their rate follows the model light curve. The events are generated between the first and last time
 
 
     
@@ -2107,7 +2139,7 @@ subtract_back1d function                                             General Des
       
 ### timeseries.sysrem
 
-Apply the Tamuz et al. sysrem decomposition to a matrix of residuals Package: timeseries Description: Given a matrix of residuals (R_ij), of star i in image j, iteratively decompose the matrix by minimizing
+Apply the Tamuz et al. sysrem decomposition to a matrix of residuals Package: timeseries Description: Given a matrix of residuals (R_ij), of star i in image j, iteratively decompose the matrix by minimizing R'_ij = R_ij - C_i*A_j. The C and A vectors are free
 
 
     
@@ -2159,7 +2191,7 @@ Apply the Tamuz et al. sysrem decomposition to a matrix of residuals Package: ti
       
 ### timeseries.taper
 
-Generate a taper function Package: timeseries Description: Generate a taper function for a timeseries. Taper function is a weight/window function in the time domain.
+Generate a taper function Package: timeseries Description: Generate a taper function for a timeseries. Taper function is a weight/window function in the time domain. This can be used in order to give reduce weight to data
 
 
     

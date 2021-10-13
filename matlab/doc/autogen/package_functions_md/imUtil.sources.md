@@ -112,7 +112,7 @@ Find cosmic rays in a catalog using hypothesis testing Package: +imUtil.sources 
       
 ### imUtil.sources.find_sources
 
-find sources in an image Package: imUtil.sources Description: Find sources in an image using a matched filter of template bank and calculate basic properties for all the sources
+find sources in an image Package: imUtil.sources Description: Find sources in an image using a matched filter of template bank and calculate basic properties for all the sources including first and second moment, aperture photometry, and
 
 
     

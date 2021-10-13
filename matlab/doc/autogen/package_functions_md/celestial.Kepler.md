@@ -121,7 +121,7 @@ B1950.0 FK4 orbital elements to J2000.0 FK5 Package: celestial.Kepler Descriptio
       
 ### celestial.Kepler.gauss_grav_const
 
-Gaussian gravitational constant for a system Package: celestial.Kepler Description: Get the analog of the Gaussian gravitational constant for a system with a given primary mass, secondary mass and
+Gaussian gravitational constant for a system Package: celestial.Kepler Description: Get the analog of the Gaussian gravitational constant for a system with a given primary mass, secondary mass and unit distance. This program is useful in order to apply
 
 
     
@@ -175,7 +175,7 @@ Kepler 3rd law Package: celestial.Kepler Description: Calculate the velocity, se
       
 ### celestial.Kepler.kepler_elliptic
 
-Solve Kepler equation for elliptic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = E - e sin E) and find the true anomaly and radius vector for elliptical orbit (i.e., 0<=e<1).
+Solve Kepler equation for elliptic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = E - e sin E) and find the true anomaly and radius vector for elliptical orbit (i.e., 0<=e<1). The function requires the time since periastron (t-T), the
 
 
     
@@ -249,7 +249,7 @@ Solve Kepler equatin (fast version) Package: celestial.Kepler Description: Fast 
       
 ### celestial.Kepler.kepler_hyperbolic
 
-SOlve Kepler equation for hyperpolic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = e sinh H - H) and find the true anomaly and radius vector for hyperbolic orbit (i.e., e>1).
+SOlve Kepler equation for hyperpolic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = e sinh H - H) and find the true anomaly and radius vector for hyperbolic orbit (i.e., e>1). The function requires the time since periastron (t-T), the
 
 
     
@@ -284,7 +284,7 @@ SOlve Kepler equation for hyperpolic orbit Package: celestial.Kepler Description
       
 ### celestial.Kepler.kepler_lowecc
 
-A low eccentricity serise solution for the Kepler equation Package: celestial.Kepler Description: Solve the Kepler Equation for low eccentricity using a series approximation. This is typically better than 1"
+A low eccentricity serise solution for the Kepler equation Package: celestial.Kepler Description: Solve the Kepler Equation for low eccentricity using a series approximation. This is typically better than 1" for e<0.1.
 
 
     
@@ -312,7 +312,7 @@ A low eccentricity serise solution for the Kepler equation Package: celestial.Ke
       
 ### celestial.Kepler.kepler_parabolic
 
-Solve the Kepler equation for Parabolic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = E - e sin E) and find the true anomaly (related to the eccentric anomaly, E) and radius
+Solve the Kepler equation for Parabolic orbit Package: celestial.Kepler Description: Solve Kepler equation (M = E - e sin E) and find the true anomaly (related to the eccentric anomaly, E) and radius vector for parabolic orbit (i.e., e=1). The function
 
 
     
@@ -345,6 +345,29 @@ Solve the Kepler equation for Parabolic orbit Package: celestial.Kepler Descript
     URL : http://weizmann.ac.il/home/eofek/matlab/  
     Example: [Nu,R,S]=celestial.Kepler.kepler_parabolic([7.0;7.8],0.1);  
     Reliable: 2  
+      
+### celestial.Kepler.lightTimeCorrection
+
+Calculate the c\tau' parameters required for light time convergence calculation. Here: u_B - The Barycentric position of the object. E_B - The Barycentric position of the earth. S_B - The Barycentric position of the Sun.
+
+
+    
+    Calculate the c\tau' parameters required for light time convergence  
+    calculation. Here:  
+    u_B - The Barycentric position of the object.  
+    E_B - The Barycentric position of the earth.  
+    S_B - The Barycentric position of the Sun.  
+    E_H - The Heliocenric position of the Earth (E_B - S_B)  
+    U = u_B(t-tau) - E_B(t)  
+    Q = u_B(t-tau) - S_B(t-tau)  
+    For definitions and formulae, see Explanatory Supplement to the Astronomical  
+    Alamanac (Seidelmann 2006), chapter 3.315, p. 148.  
+    Input  : - A 3 x N matrix of U, or a 1 X N vector of |U|.  
+    - A 3 X N matrix of E_H, or a 1 X N vector of |E_H|.  
+    - A 3 X N matrix of Q, or a 1 X N vector of !Q|.  
+    Output : - The c\tau' parameter.  
+    Author : Eran Ofek (Sep 2021)  
+    Example: C_TauTag = celestial.Kepler.lightTimeCorrection(1, 1, 2)  
       
 ### celestial.Kepler.position2elements
 
@@ -448,7 +471,7 @@ True anomaly to eccentric anomaly Package: celestial.Kepler Description: Convert
       
 ### celestial.Kepler.trueanom2pos
 
-True anomaly, radius vector and orbital elements to cartezian position Package: celestial.Kepler Description: Given an object true anomaly, radius vector, time and orbital elements and time, calculate its orbital position
+True anomaly, radius vector and orbital elements to cartezian position Package: celestial.Kepler Description: Given an object true anomaly, radius vector, time and orbital elements and time, calculate its orbital position in respect to the orbital elements reference frame.
 
 
     
@@ -478,9 +501,15 @@ True anomaly, radius vector and orbital elements to cartezian position Package: 
     Reliable: 1  
       
       
+      
+    X = R.*(cos(OmP+Ni).*cos(Omega) - sin(OmP+Ni).*sin(Omega).*cos(Inc));  
+    Y = R.*(cos(OmP+Ni).*sin(Omega) + sin(OmP+Ni).*cos(Omega).*cos(Inc));  
+    Z = R.*sin(OmP+Ni).*sin(Inc);  
+      
+    Faster to calculate:  
 ### celestial.Kepler.trueanom2vel
 
-True anomaly, radius vector and orbital elements to position and velocity Package: celestial.Kepler Description: Given an object true anomaly, radius vector, their derivatives and orbital elements and time, calculate its
+True anomaly, radius vector and orbital elements to position and velocity Package: celestial.Kepler Description: Given an object true anomaly, radius vector, their derivatives and orbital elements and time, calculate its orbital position and velocity in respect to the orbital
 
 
     

@@ -2,6 +2,8 @@ Class: Configuration
 
 Configuration - 
 
+clear - Clear entire configuration
+
 expandFolder - Expand Path with macros from Configuration.System.EnvFolders
 
 getRange - Get minimum and maximum values from cell array Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
@@ -10,10 +12,6 @@ getSingleton - Return singleton Configuration object
 
 init - Return singleton Configuration object
 
-listItem - 
-
-listLen - Return list length
-
 loadConfig - Load ALL configuration files in Obj.Path folder
 
 loadFile - Load specified file to property
@@ -21,6 +19,8 @@ loadFile - Load specified file to property
 loadFolder - Load specified folder to properties
 
 loadYaml - Read YAML file to struct, add FileName field
+
+reload - Reload configuration
 
 reloadFile - Reload specified configuration object (file name)
 

@@ -3,7 +3,7 @@
 
 ### astro.supernova.fit_sn_rise
 
-Fit rise-time of SN light curve Package: astro.supernova Description: Fit various functions appropriate for the rise of SN light curve. The fitted functions are:
+Fit rise-time of SN light curve Package: astro.supernova Description: Fit various functions appropriate for the rise of SN light curve. The fitted functions are: L_max*(1-((t-t_max)/t_rise)^2)
 
 
     
@@ -174,7 +174,7 @@ Energy production of Nickel56->Cobalt->Iron Package: astro.supernova Description
       
 ### astro.supernova.sn_cooling_msw
 
-sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the Sapir & Waxman (2017) model (ApJ 838:130).
 
 
     
@@ -275,7 +275,7 @@ sn_cooling_sw function                                           General Descrip
       
 ### astro.supernova.sn_cooling_rw
 
-Shock cooling light curve (Rabinak & Waxman 2011) Package: astro.supernova Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+Shock cooling light curve (Rabinak & Waxman 2011) Package: astro.supernova Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the Rabinak & Waxman (2011) model.
 
 
     
@@ -329,7 +329,7 @@ Shock cooling light curve (Rabinak & Waxman 2011) Package: astro.supernova Descr
       
 ### astro.supernova.sn_cooling_sw
 
-sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the
+sn_cooling_sw function                                           General Description: Calculate the shock cooling light curve (following the shock breakout) of a supernova, based on the Sapir & Waxman (2017) model (ApJ 838:130).
 
 
     

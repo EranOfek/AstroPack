@@ -39,7 +39,7 @@ delete lines with specific keys
       
 ### imUtil.headerCell.getByKey
 
-get keyword value from an header in a cell format Package: @headCl Description: Given a 3 column cell array [Key, Val, Comment] search for a keyword name and return the sub header that
+get keyword value from an header in a cell format Package: @headCl Description: Given a 3 column cell array [Key, Val, Comment] search for a keyword name and return the sub header that contains the keyword.
 
 
     
@@ -80,6 +80,34 @@ get keyword value from an header in a cell format Package: @headCl Description: 
     [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN',''},{'ExpTime','A'})  
     [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN','';'A',1,''},{'ExpTime','A'},'ReturnN',Inf)  
     [SC,FE,II,IK]=imUtil.headerCell.getByKey({'ExpTime','2','';'A','NaN','';'A',1,''},{'ExpTime','A'},'ReturnN',1)  
+    Reliable: 2  
+      
+### imUtil.headerCell.getIndKey
+
+get a cell array in which each cell contains the indices of the found keys in the cell-header. This function is a subset of imUtil.headerCell.getBeyKey Description: Given a 3 column cell array [Key, Val, Comment] search for a keyword name and return the sub header that contains the keyword.
+
+
+    
+    get a cell array in which each cell contains the indices of the found keys in the cell-header.  
+    This function is a subset of imUtil.headerCell.getBeyKey  
+    Description: Given a 3 column cell array [Key, Val, Comment]  
+    search for a keyword name and return the sub header that  
+    contains the keyword.  
+    Input  : - A 2 or 3 columnn cell array [Key, Val, Comment].  
+    - Keyword name, or a cell array of keyword names to serch.  
+    * ...,key,val,... or ...,key=val',... list  
+    'SearchAlgo' - search using: ['strcmp'] | 'regexp'  
+    'CaseSens' - Default is true.  
+    'Fill' - Fill value if not exist: [] - skip. Default is NaN.  
+    'Col' - Column in cell in which to search. Default is 1.  
+    'ReturnN' - What to do if more than one is found.  
+    [1] - return first, Inf - return all; 2 - return  
+    second,...  
+    Output : - A cell array (number of elements equal to the number of keys)  
+    in which each cell contains the indices of the found keys in  
+    the cell-header.  
+    Author: Eran Ofek  (Mar 2021)  
+    Example: [II]=imUtil.headerCell.getIndKey({'ExpTime',2,'';'A','a',''},'ExpTime')  
     Reliable: 2  
       
 ### imUtil.headerCell.getValBySynonym
@@ -176,7 +204,7 @@ Replace an cell-header keywords and values, or add if doesn't exist
       
 ### imUtil.headerCell.replace_illegal_char
 
-replace illegal characters in keyword names (e.g. '-'). Description: Given a 3 column cell array. Replace illegal characters in the first column. List of illegal characters:
+replace illegal characters in keyword names (e.g. '-'). Description: Given a 3 column cell array. Replace illegal characters in the first column. List of illegal characters: '-' replace with '_'
 
 
     
@@ -212,7 +240,7 @@ Remove non-unique keywords from a cell header
       
 ### imUtil.headerCell.updateCell_fromStruct
 
-update cell header by adding elements in struct not in header Description: Given a 3 column cell array (i.e., cell header) and a structure with keywords and values. First make sure all the header keywords have no
+update cell header by adding elements in struct not in header Description: Given a 3 column cell array (i.e., cell header) and a structure with keywords and values. First make sure all the header keywords have no illegal characters. Then look for fields in the
 
 
     

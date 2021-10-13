@@ -4,27 +4,27 @@ hist - Plot the histogram of a single property in a single AstroImage object ima
 
 histcounts - Return the histcounts of a single property in a single AstroImage object image.
 
-max - Return the max of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+max - Return the max of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.
 
-mean - Return the mean of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+mean - Return the mean of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.
 
-median - Return the median of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+median - Return the median of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.
 
-min - Return the min of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+min - Return the min of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.
 
-mode - Return the mode of AstroImage object images using imUtil.background.mode. The output is an array in which each element corresponds to an element in the AstroImage.
+mode - Return the mode of AstroImage object images using imUtil.background.mode. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
 
-moment - Return the moment of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+moment - Return the moment of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.
 
-quantile - Return the quantile of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+quantile - Return the quantile of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.
 
-range - Return the range of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+range - Return the range of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.
 
-rstd - Return the rstd (robust std) of AstroImage object images using imUtil.background.rstd. The output is an array in which each element corresponds to an element in the AstroImage.
+rstd - Return the rstd (robust std) of AstroImage object images using imUtil.background.rstd. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
 
-std - Return the std of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+std - Return the std of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.c
 
 unitTest - unitTest for the +imProc.stat package Example: Result = imProc.stat.unitTest
 
-var - Return the var of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask,
+var - Return the var of AstroImage object images. The output is an array in which each element corresponds to an element in the AstroImage. The output arguments corresponds to the Image, Back, Var, Mask, respectively.c
 

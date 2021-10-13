@@ -1,6 +1,0 @@
-Class: classarg
-
-classarg - Constructor
-
-test - 
-

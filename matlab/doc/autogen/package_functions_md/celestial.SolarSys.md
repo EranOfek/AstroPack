@@ -1,6 +1,28 @@
 # Package: celestial.SolarSys
 
 
+### celestial.SolarSys.aberrationSolarSystem
+
+
+
+
+    
+      
+      
+    Here:  
+    u_B - The Barycentric position of the object.  
+    E_B - The Barycentric position of the earth.  
+    S_B - The Barycentric position of the Sun.  
+    E_H - The Heliocenric position of the Earth (E_B - S_B)  
+    U = u_B(t-tau) - E_B(t)  
+    Q = u_B(t-tau) - S_B(t-tau)  
+    For definitions and formulae, see Explanatory Supplement to the Astronomical  
+    Alamanac (Seidelmann 2006), chapter 3.315, p. 148.  
+    Vel should be in the Barycentric system, but here we  
+    approximate it in the Heliocentric system  
+      
+    Example: U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta)  
+      
 ### celestial.SolarSys.asteroid_magnitude
 
 Calculate the magnitude of minor planets in the HG system Package: celestial.SolarSys Description: Calculate the magnitude of minor planets in the HG system. Valid for phase angles (Beta) in range 0 to 120 deg.
@@ -13,15 +35,17 @@ Calculate the magnitude of minor planets in the HG system Package: celestial.Sol
     Valid for phase angles (Beta) in range 0 to 120 deg.  
     Input  : - MP-Sun distance in au.  
     - MP-observer distance in au.  
-    - Phase angle in radians.  
+    - Phase angle in radians (Sun-Target-Observer angle).  
     - The mean absolute visual magnitude (H).  
     - The slope parameter (G), default is 0.15.  
+    If G is NaN, then G is ignored and only H is used.  
     Output : - The minor planet visual magnitude.  
     Tested : Matlab 5.3  
     By : Eran O. Ofek                    Oct 2001  
     URL : http://weizmann.ac.il/home/eofek/matlab/  
     Example: Mag=celestial.SolarSys.asteroid_magnitude(3,2,0,15,0.15)  
     Reliable: 2  
+      
       
 ### celestial.SolarSys.calc_all_planets_lun_occ
 
@@ -75,9 +99,34 @@ Planetary coordinates based on the VSOP87 theory Package: celestial.SolarSys Des
     Reliable: 2  
       
       
+### celestial.SolarSys.earthShadowCoo
+
+Calculate the J2000.0 equatorial coordinates of the Earth shadow at a given height
+
+
+    
+    Calculate the J2000.0 equatorial coordinates of the Earth shadow at a given height  
+    Input  : - JD (UT1 time scale).  
+    - Topocentric distance to point in shadow for which to  
+    calculate the position. Default is 42164 km.  
+    * ...,key,val,...  
+    'DistUnits' - Default is 'km'.  
+    'GeoPos' - [Lon, Lat, Height] must be in [rad, rad, m].  
+    Default is [35 32 0]./(180./pi);   [rad rad m]  
+    'RefEllipsoid' - Default is 'WGS84'.  
+    'OutUnitsDeg' - Output is in degrees. Default is true.  
+    Output : - J2000.0 RA of shadow point.  
+    - J2000.0 Dec of shadow point.  
+    - J2000.0 RA of anti Sun direction.  
+    - J2000.0 Dec of anti Sun direction.  
+    Author : Eran Ofek (Oct 2021)  
+    Example: JD = 2451545 + (0:0.1:365)';  
+    [RA, Dec, RAas, Decas] = celestial.SolarSys.earthShadowCoo(JD, 'OutUnitsDeg',false);  
+    plot(JD, RAD.*celestial.coo.sphere_dist_fast(RA,Dec,RAas,Decas))  
+      
 ### celestial.SolarSys.earth_vel_ron_vondrak
 
-Earth barycentric velocity Package: celestial.SolarSys Description: Calculate the Earth barycentric velocity in respect to the mean equator and equinox of J2000.0, using a version
+Earth barycentric velocity Package: celestial.SolarSys Description: Calculate the Earth barycentric velocity in respect to the mean equator and equinox of J2000.0, using a version of the Ron & Vondrak (1986) trigonometric series.
 
 
     
@@ -104,7 +153,7 @@ Earth barycentric velocity Package: celestial.SolarSys Description: Calculate th
       
 ### celestial.SolarSys.equinox_solstice
 
-Approximate time of Equinox and Solstice Package: celestial.SolarSys Description: Calculate the approximate time of Equinox and Solstice for a given list of years. Accurate to about 100s between
+Approximate time of Equinox and Solstice Package: celestial.SolarSys Description: Calculate the approximate time of Equinox and Solstice for a given list of years. Accurate to about 100s between year -1000 to 3000.
 
 
     
@@ -126,7 +175,7 @@ Approximate time of Equinox and Solstice Package: celestial.SolarSys Description
       
 ### celestial.SolarSys.get_horizons
 
-Get an ephemerides for a solar system body from JPL horizons get_horizons function                                              ephem Description: get an ephemerides for a solar system body from the JPL
+Get an ephemerides for a solar system body from JPL horizons get_horizons function                                              ephem Description: get an ephemerides for a solar system body from the JPL horizons system.
 
 
     
@@ -232,12 +281,13 @@ Get Moon position (low accuracy) Package: celestial.SolarSys Description: Get Mo
       
 ### celestial.SolarSys.get_orbit_files
 
-Get asteroids/comets orbital elements from JPL, save locally and read. Package: celestial.SolarSys Description: Get asteroids and comets orbital elements from JPL and read into a matlab structure.
+Get asteroids/comets orbital elements from JPL, save locally and read. Package: celestial.SolarSys OBSOLETE: see Installer/install and Installer.readElementsFileJPL Description: Get asteroids and comets orbital elements from JPL and read into a matlab structure.
 
 
     
     Get asteroids/comets orbital elements from JPL, save locally and read.  
     Package: celestial.SolarSys  
+    OBSOLETE: see Installer/install and Installer.readElementsFileJPL  
     Description: Get asteroids and comets orbital elements from JPL  
     and read into a matlab structure.  
     Input  : - 'wget','get' - get the latest orbital elements file from JPL  
@@ -385,7 +435,7 @@ Plot Jupiter image as observed from Earth at a given time Package: celestial.Sol
       
 ### celestial.SolarSys.kuiper_check
 
-Parallax due to Earth and object motion of a solar system object Package: celestial.SolarSys Description: Given a date and coordinates of a celestial object, calculate the parallax due to the Earth motion (Par_E)
+Parallax due to Earth and object motion of a solar system object Package: celestial.SolarSys Description: Given a date and coordinates of a celestial object, calculate the parallax due to the Earth motion (Par_E) and the parallax due to the object motion (Par_K),
 
 
     
@@ -413,7 +463,7 @@ Parallax due to Earth and object motion of a solar system object Package: celest
       
 ### celestial.SolarSys.moon_elp82
 
-ELP2000-82 ecliptic coordinates of the Moon Package: celestial.SolarSys Description: Calculate accurate ELP2000-82 ecliptic coordinates of the Moon, referred to the inertial mean ecliptic and equinox of
+ELP2000-82 ecliptic coordinates of the Moon Package: celestial.SolarSys Description: Calculate accurate ELP2000-82 ecliptic coordinates of the Moon, referred to the inertial mean ecliptic and equinox of date. This function was previously called moonpos.m.
 
 
     
@@ -451,7 +501,7 @@ ELP2000-82 ecliptic coordinates of the Moon Package: celestial.SolarSys Descript
       
 ### celestial.SolarSys.moon_ephem
 
-ELP2000-82 Moon ephemeris Package: celestial.SolarSys Description: Calculate very accurate ELP2000-82 apparent coordinates of the moon as observed from one of the solar system planet's.
+ELP2000-82 Moon ephemeris Package: celestial.SolarSys Description: Calculate very accurate ELP2000-82 apparent coordinates of the moon as observed from one of the solar system planet's. Assuming no light deflection.
 
 
     
@@ -579,7 +629,7 @@ Return a list of moon phases in range of dates Package: celestial.SolarSys Descr
       
 ### celestial.SolarSys.moon_sky_brightness
 
-Krisciunas & Schaefer (1991) sky brightness model due to the Moon Package: celestial.SolarSys Description: Given the date, object equatorial coordinates, and observer geodetic position, calculate the excess in
+Krisciunas & Schaefer (1991) sky brightness model due to the Moon Package: celestial.SolarSys Description: Given the date, object equatorial coordinates, and observer geodetic position, calculate the excess in sky brightness (V-band) in the object celestial position.
 
 
     
@@ -642,7 +692,7 @@ Low-accuracy topocentric equatorial coordinates of the Moon Package: celestial.S
       
 ### celestial.SolarSys.moonecool
 
-Low-accuracy geocentric ecliptical coordinate of the Moon Package: celestial.SolarSys Description: Calculate low accuracy geocentric ecliptical coordinates of the Moon, referred to the mean equinox of date.
+Low-accuracy geocentric ecliptical coordinate of the Moon Package: celestial.SolarSys Description: Calculate low accuracy geocentric ecliptical coordinates of the Moon, referred to the mean equinox of date. Accuracy: in longitude and latitude ~1', distance ~50km
 
 
     
@@ -668,7 +718,7 @@ Low-accuracy geocentric ecliptical coordinate of the Moon Package: celestial.Sol
       
 ### celestial.SolarSys.moonlight
 
-Calculate the Moon illumination in Lux on horizontal surface Package: celestial.SolarSys Description: Calculate the Moon illumination in Lux on horizontal surface as a function of the Moon altitude, horizontal
+Calculate the Moon illumination in Lux on horizontal surface Package: celestial.SolarSys Description: Calculate the Moon illumination in Lux on horizontal surface as a function of the Moon altitude, horizontal parallax and Elongation.
 
 
     
@@ -687,6 +737,14 @@ Calculate the Moon illumination in Lux on horizontal surface Package: celestial.
     URL : http://weizmann.ac.il/home/eofek/matlab/  
     Example: Illum=celestial.SolarSys.moonlight(1,0.01,1)  
     Reliable: 2  
+      
+### celestial.SolarSys.orbEl2ephem
+
+
+
+
+    
+      
       
 ### celestial.SolarSys.orbelem2ephem
 
@@ -896,7 +954,7 @@ Low-accuracy ephemeris of the planets (~1 arcmin) Package: celestial.SolarSys De
       
 ### celestial.SolarSys.planet_obj_conj
 
-planets_obj_conj function                                            ephem Description:   Calculate planet-object conjunctions/occultations, In which two planets are occult or found within
+planets_obj_conj function                                            ephem Description:   Calculate planet-object conjunctions/occultations, In which two planets are occult or found within DistThresh from each other as observed from
 
 
     
@@ -960,7 +1018,7 @@ Planet radius and flattening factor and angular diameter. Package: celestial.Sol
       
 ### celestial.SolarSys.planets_lunar_occultations
 
-Search and calculates for lunar occultations of the planets Package: celestial.SolarSys Description: Calculate local circumstences for lunar occultations of Planets and asteroids.
+Search and calculates for lunar occultations of the planets Package: celestial.SolarSys Description: Calculate local circumstences for lunar occultations of Planets and asteroids. Only events in which the planet is above the local horizon
 
 
     
@@ -1101,7 +1159,7 @@ Local circumstences for conjunctions of planets with a given object Package: cel
     -  
 ### celestial.SolarSys.ple_earth
 
-Low-accuracy planetray ephemeris for Earth Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Earth. Calculate Earth heliocentric longitude, latitude and radius
+Low-accuracy planetray ephemeris for Earth Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Earth. Calculate Earth heliocentric longitude, latitude and radius vector referred to the mean ecliptic and equinox of date.
 
 
     
@@ -1128,7 +1186,7 @@ Low-accuracy planetray ephemeris for Earth Package: celestial.SolarSys Descripti
       
 ### celestial.SolarSys.ple_jupiter
 
-Low accuracy planetray ephemeris for Jupiter. Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Jupiter. Calculate Jupiter heliocentric longitude, latitude and radius
+Low accuracy planetray ephemeris for Jupiter. Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Jupiter. Calculate Jupiter heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 
     
@@ -1155,7 +1213,7 @@ Low accuracy planetray ephemeris for Jupiter. Package: celestial.SolarSys Descri
       
 ### celestial.SolarSys.ple_mars
 
-Low-accuracy planetray ephemeris for Mars Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Mars. Calculate Mars heliocentric longitude latitude and radius vector
+Low-accuracy planetray ephemeris for Mars Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Mars. Calculate Mars heliocentric longitude latitude and radius vector referred to mean ecliptic and equinox of date.
 
 
     
@@ -1182,7 +1240,7 @@ Low-accuracy planetray ephemeris for Mars Package: celestial.SolarSys Descriptio
       
 ### celestial.SolarSys.ple_mercury
 
-Low accuracy ephemerides for Mercury Package: celestial.SolarSys Description: Low accuracy ephemerides for Mercury. Calculate Mercury heliocentric longitude, latitude and radius
+Low accuracy ephemerides for Mercury Package: celestial.SolarSys Description: Low accuracy ephemerides for Mercury. Calculate Mercury heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 
     
@@ -1209,7 +1267,7 @@ Low accuracy ephemerides for Mercury Package: celestial.SolarSys Description: Lo
       
 ### celestial.SolarSys.ple_neptune
 
-Low accuracy planetray ephemeris for Neptune Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Neptune. Calculate Neptune heliocentric longitude, latitude and radius
+Low accuracy planetray ephemeris for Neptune Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Neptune. Calculate Neptune heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 
     
@@ -1236,7 +1294,7 @@ Low accuracy planetray ephemeris for Neptune Package: celestial.SolarSys Descrip
       
 ### celestial.SolarSys.ple_planet
 
-Low accuracy ephemeris for the main planets Package: celestial.SolarSys Description: Low accuracy ephemeris for the main planets. Given a planet name calculate its heliocentric coordinates
+Low accuracy ephemeris for the main planets Package: celestial.SolarSys Description: Low accuracy ephemeris for the main planets. Given a planet name calculate its heliocentric coordinates referred to mean ecliptic and equinox of date.
 
 
     
@@ -1266,7 +1324,7 @@ Low accuracy ephemeris for the main planets Package: celestial.SolarSys Descript
       
 ### celestial.SolarSys.ple_saturn
 
-Low accuracy planetray ephemeris for Saturn Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Saturn. Calculate Saturn heliocentric longitude, latitude and radius
+Low accuracy planetray ephemeris for Saturn Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Saturn. Calculate Saturn heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 
     
@@ -1293,7 +1351,7 @@ Low accuracy planetray ephemeris for Saturn Package: celestial.SolarSys Descript
       
 ### celestial.SolarSys.ple_uranus
 
-Low accuracy ephemeris for Uranus Package: celestial.SolarSys Description: Low accuracy ephemeris for Uranus. Calculate Uranus heliocentric longitude, latitude and radius vector
+Low accuracy ephemeris for Uranus Package: celestial.SolarSys Description: Low accuracy ephemeris for Uranus. Calculate Uranus heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 
     
@@ -1320,7 +1378,7 @@ Low accuracy ephemeris for Uranus Package: celestial.SolarSys Description: Low a
       
 ### celestial.SolarSys.ple_venus
 
-Low accuracy ephemeris for Venus Package: celestial.SolarSys Description: Low accuracy ephemeris for Venus. Calculate Venus heliocentric longitude, latitude and radius
+Low accuracy ephemeris for Venus Package: celestial.SolarSys Description: Low accuracy ephemeris for Venus. Calculate Venus heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 
     
@@ -1366,7 +1424,7 @@ Convert the MPC packed date format to JD Package: celestial.SolarSys Description
       
 ### celestial.SolarSys.rise_set
 
-Calculate rise/set times Package: celestial.SolarSys Description: Given an object coordinates and observer position, calculate rise/set/transit times, and azimuth and altitude.
+Calculate rise/set times Package: celestial.SolarSys Description: Given an object coordinates and observer position, calculate rise/set/transit times, and azimuth and altitude. The times are in the UT1 (not UTC) system.
 
 
     
@@ -1445,7 +1503,7 @@ Calculate the orientation angles for Saturn's rings Package: celestial.SolarSys 
     -  
 ### celestial.SolarSys.search_conj
 
-Celestial conjunctions between moving objects Package: celestial.SolarSys Description: Search for conjunctions on the celestial sphere between two moving objects given thier coordinates as a function
+Celestial conjunctions between moving objects Package: celestial.SolarSys Description: Search for conjunctions on the celestial sphere between two moving objects given thier coordinates as a function of time.
 
 
     
@@ -1502,7 +1560,7 @@ Celestial conjunctions between moving objects Package: celestial.SolarSys Descri
       
 ### celestial.SolarSys.search_conj_sm
 
-Celestial conjunctions on the between moving and stationary objects Package: celestial.SolarSys Description: Search for conjunctions on the celestial sphere between a list of stationary points and a moving object given the
+Celestial conjunctions on the between moving and stationary objects Package: celestial.SolarSys Description: Search for conjunctions on the celestial sphere between a list of stationary points and a moving object given the coordinates of the moving object as a function of time.
 
 
     
@@ -1556,7 +1614,7 @@ Celestial conjunctions on the between moving and stationary objects Package: cel
       
 ### celestial.SolarSys.skylight
 
-Calculate the total sky illumination in Lux on horizontal surface Package: celestial.SolarSys Description: Calculate the total sky illumination due to the Sun, Moon, stars and air-glow, in Lux on horizontal surface as a
+Calculate the total sky illumination in Lux on horizontal surface Package: celestial.SolarSys Description: Calculate the total sky illumination due to the Sun, Moon, stars and air-glow, in Lux on horizontal surface as a function of time.
 
 
     
@@ -1655,7 +1713,7 @@ Sun ephemeris POackage: celestial.SolarSys Description:  Sun ephemerids generato
       
 ### celestial.SolarSys.sun_rise_set
 
-Calculate Sun rise/set Package: celestial.SolarSys Description: Given the coordinates and observer position, calculate rise/set/transit/twilight times and azimuth and altitude
+Calculate Sun rise/set Package: celestial.SolarSys Description: Given the coordinates and observer position, calculate rise/set/transit/twilight times and azimuth and altitude for the Sun. The accuracy depends on the function used
 
 
     
@@ -1722,7 +1780,7 @@ Low-accuracy position of the Sun (0.01 deg in long). Package: celestial.SolarSys
       
 ### celestial.SolarSys.suncoo1
 
-Low-accuracy coordinates of the Sun (1950-2050 range) Package: celestial.SolarSys Description: Calculate the Sun equatorial coordinates using low accuracy formaulae for the range 1950 to 2050.
+Low-accuracy coordinates of the Sun (1950-2050 range) Package: celestial.SolarSys Description: Calculate the Sun equatorial coordinates using low accuracy formaulae for the range 1950 to 2050. Accuracy : 0.01 deg. in long, 0.1m in Equation of Time
 
 
     

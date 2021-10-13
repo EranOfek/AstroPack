@@ -3,7 +3,7 @@
 
 ### celestial.meteors.meteor_multistation
 
-Direction for detection of a meteor observed from another station Package: celestial.meteors Description: Given a list of observers geodetic coordinates in which the first point is a reference point; the azimuth and
+Direction for detection of a meteor observed from another station Package: celestial.meteors Description: Given a list of observers geodetic coordinates in which the first point is a reference point; the azimuth and altitude in which an observer (located in the reference
 
 
     

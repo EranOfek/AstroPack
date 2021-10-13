@@ -3,7 +3,7 @@
 
 ### imUtil.util.file.construct_filename
 
-Construct image/catalog file name based on the LAST/ULTRASAT standard Package: +imUtil/+util/+file Description: Return data product file name and path according to the LAST/ULTRASAT standard.
+Construct image/catalog file name based on the LAST/ULTRASAT standard Package: +imUtil/+util/+file Description: Return data product file name and path according to the LAST/ULTRASAT standard. <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
 
 
     
@@ -60,7 +60,7 @@ Construct image/catalog file name based on the LAST/ULTRASAT standard Package: +
       
 ### imUtil.util.file.construct_path
 
-Construct image/catalog file path based on the LAST/ULTRASAT standard Package: +imUtil/+util/+file Description: Construct file path for ULTRASAT/LAST standard. The file path is described in the LAST/ULTRASAT file naming
+Construct image/catalog file path based on the LAST/ULTRASAT standard Package: +imUtil/+util/+file Description: Construct file path for ULTRASAT/LAST standard. The file path is described in the LAST/ULTRASAT file naming convension document.
 
 
     
@@ -141,7 +141,7 @@ Convert file name to properties Package: +imUtil.util.file
       
 ### imUtil.util.file.load2
 
-Load a mat file into a variable Package: imUtil.util.file Description: load a mat file containing a single variable to a variable name (rather than a structure, like load.m).
+Load a mat file into a variable Package: imUtil.util.file Description: load a mat file containing a single variable to a variable name (rather than a structure, like load.m). If multiple variables are returned then will behave like
 
 
     
@@ -163,7 +163,7 @@ Load a mat file into a variable Package: imUtil.util.file Description: load a ma
       
 ### imUtil.util.file.load_check
 
-Load, but check if variable exist in workspace. Package: +imUtil.util.file Description: Load a matlab variable or file from disk (similar to the load.m command). However, before the variable is loaded the
+Load, but check if variable exist in workspace. Package: +imUtil.util.file Description: Load a matlab variable or file from disk (similar to the load.m command). However, before the variable is loaded the function checks if the variable with name identical to the
 
 
     

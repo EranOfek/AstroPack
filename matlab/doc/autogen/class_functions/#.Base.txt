@@ -2,11 +2,13 @@ Class: Base
 
 Base - Constructor
 
-copyObject - Copy by value an object and its content
+copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
 
-copyProp - Copy the content of properties from object1 into object2.
+copyProp - Copy the content of properties from Obj into Target.
 
 createNewObj - A utility function for creation of an object new copy based on nargout
+
+openMLX - added by O.S., opens the MLX of the class, Run by using: classname.empty.openMLX
 
 setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied
 

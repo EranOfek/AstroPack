@@ -242,7 +242,7 @@ Identify flaring pixels in a cube of images Searched by looking at (Cube-Mean)/S
       
 ### imProc.dark.identifySimilarImages
 
-Search for sucessive images with a fraction of identical pixel values This is useful in order to identify problems with the detector firmware (i.e., some regions of the detector in two surcessive images are identical due to a readout
+Search for sucessive images with a fraction of identical pixel values This is useful in order to identify problems with the detector firmware (i.e., some regions of the detector in two surcessive images are identical due to a readout problem).
 
 
     
@@ -435,3 +435,11 @@ Create overscan images and optionally subtract from images
     [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[6379 6388 1 9600])  
     [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[6379 6388 1 9600],'Method','medmedfilt')  
       
+### imProc.dark.unitTest
+
+unitTest for +dark Example: Result = imProc.dark.unitTest
+
+
+    
+    unitTest for +dark  
+    Example: Result = imProc.dark.unitTest  

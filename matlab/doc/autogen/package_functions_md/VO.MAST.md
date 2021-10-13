@@ -23,7 +23,7 @@ SHORT DESCRIPTION HERE Package: VO.MAST Description:
       
 ### VO.MAST.query_casjobs
 
-Query MAST CasJobs service (requires casjobs.jar) Package: VO.MAST Description: Query the MAST CasJobs service (requires casjobs.jar) For casjobs.jar instellation see:
+Query MAST CasJobs service (requires casjobs.jar) Package: VO.MAST Description: Query the MAST CasJobs service (requires casjobs.jar) For casjobs.jar instellation see: http://mastweb.stsci.edu/mcasjobs/casjobscl.aspx
 
 
     
@@ -143,7 +143,7 @@ Query MAST CasJobs service into MAST mydb (requires casjobs.jar) Package: VO.MAS
       
 ### VO.MAST.query_casjobs_recur
 
-Query MAST CasJobs service recursively for a box (requires casjobs.jar) Package: VO.MAST Description: Query the MAST CasJobs service recursively for a coordinates in a box (requires casjobs.jar). For non recursive query use
+Query MAST CasJobs service recursively for a box (requires casjobs.jar) Package: VO.MAST Description: Query the MAST CasJobs service recursively for a coordinates in a box (requires casjobs.jar). For non recursive query use VO.MAST.query_casjobs.
 
 
     
@@ -211,7 +211,7 @@ Prepare a local copy of the PS1-DR1 catalog Package: VO.MAST Example: VO.MAST.wg
       
 ### VO.MAST.wget_hsc_sources
 
-Query sources in the HST source catalog tables Package: VO.MAST Description: Query sources in the HST catalog tables. By default the query is done on a predefined columns in the SExtractor
+Query sources in the HST source catalog tables Package: VO.MAST Description: Query sources in the HST catalog tables. By default the query is done on a predefined columns in the SExtractor catalogs of the WFPC2, ACS, and WFPC3.
 
 
     
@@ -243,7 +243,7 @@ Query sources in the HST source catalog tables Package: VO.MAST Description: Que
       
 ### VO.MAST.wget_ps1_api
 
-Query the PS1 catalog via the web API Package: VO Description: Query the PS1 catalog via the web API See API details in: https://catalogs.mast.stsci.edu/docs/panstarrs.html
+Query the PS1 catalog via the web API Package: VO Description: Query the PS1 catalog via the web API See API details in: https://catalogs.mast.stsci.edu/docs/panstarrs.html and https://archive.stsci.edu/panstarrs/
 
 
     

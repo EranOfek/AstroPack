@@ -23,12 +23,27 @@
     We currently use postgresql-42.2.19.jar  
       
       
+      
+      
+
+### Functions List
+
+    DbDriver - 
+    close - Unload database driver
+    copyDriverFile - Copy driver file from source folder to target path
+    delete - Destructor
+    getDbDriver - Get singleton Map object that maps database type to DbDriver object
+    open - Load database driver library
+    unitTest - DbDriver.unitTest
+
 ### DbDriver
 
 
 
 
     
+
+
 ### close
 
 Unload database driver
@@ -36,6 +51,8 @@ Unload database driver
 
     
     Unload database driver  
+
+
 ### copyDriverFile
 
 Copy driver file from source folder to target path
@@ -43,6 +60,8 @@ Copy driver file from source folder to target path
 
     
     Copy driver file from source folder to target path  
+
+
 ### delete
 
 Destructor
@@ -50,6 +69,8 @@ Destructor
 
     
     Destructor  
+
+
 ### getDbDriver
 
 Get singleton Map object that maps database type to DbDriver object
@@ -57,6 +78,8 @@ Get singleton Map object that maps database type to DbDriver object
 
     
     Get singleton Map object that maps database type to DbDriver object  
+
+
 ### open
 
 Load database driver library
@@ -64,6 +87,8 @@ Load database driver library
 
     
     Load database driver library  
+
+
 ### unitTest
 
 DbDriver.unitTest
@@ -72,3 +97,5 @@ DbDriver.unitTest
     
     DbDriver.unitTest  
       
+
+

@@ -20,11 +20,8 @@ Add or update RA/Dec coordinates in catalogs in AstroImage/Astrocatalog
     'ColNameRA' - RA column name to insert. Default is 'RA'.  
     'ColNameDec' - Dec column name to insert. Default is 'Dec'.  
     'Pos' - Column poistion. Default is Inf.  
-    'CreateNewObj' - [], true, false.  
-    If true, create new deep copy  
-    If false, return pointer to object  
-    If [] and Nargout0 then do not create new copy.  
-    Otherwise, create new copy. Default is [].  
+    'CreateNewObj' - Create a new copy of the object.  
+    Default is false.  
     'DicNamesX' - Dictionary X column name.  
     Default is AstroCatalog.DefNamesX.  
     'DicNamesY' - Dictionary Y column name.  
@@ -127,11 +124,14 @@ Compare the astrometry of a catalog with a reference astrometric catalog. Return
       
 ### imProc.astrometry.astrometryCore
 
-A core function for astrometry. Match pattern and fit transformation.
+A core function for astrometry. Match pattern and fit transformation. The function is designed to solve the astrometry of an image in a single shoot (no partitioning). A new copy of the catalog is always created.
 
 
     
     A core function for astrometry. Match pattern and fit transformation.  
+    The function is designed to solve the astrometry of an image in  
+    a single shoot (no partitioning).  
+    A new copy of the catalog is always created.  
     Input  : - An AstroImage with populated CatData or an AstroCatalog object,  
     with sources X, Y positions.  
     This can be a multiple element object. In this case, the  
@@ -140,9 +140,13 @@ A core function for astrometry. Match pattern and fit transformation.
     'RA' - A single J2000.0 RA coordinates  
     in rad, deg, or sexagesimal string.  
     This is a mandatory argument.  
+    If first input is an AstroImage this can also be an  
+    header keyword name. Default is 'RA'.  
     'Dec' - A single J2000.0 Dec coordinates  
     in rad, deg, or sexagesimal string.  
     This is a mandatory argument.  
+    If first input is an AstroImage this can also be an  
+    header keyword name. Default is 'DEC'.  
     'CooUnits' - RA/Dec coordinates units ('deg','rad').  
     This is ignored if RA/Dec are sexagesimal.  
     Default is 'deg'.  
@@ -274,7 +278,7 @@ A core function for astrometry. Match pattern and fit transformation.
       
 ### imProc.astrometry.astrometryRefine
 
-Refine an astrometric solution of an AstroCatalog object This function may work on images which have either an approximate WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec coordinates. The coordinates should be good to a few arcseconds.
+Refine an astrometric solution of an AstroCatalog object This function may work on images which have either an approximate WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec coordinates. The coordinates should be good to a few arcseconds. For no solutions use imProc.astrometry.astrometryCore.
 
 
     
@@ -283,7 +287,8 @@ Refine an astrometric solution of an AstroCatalog object This function may work 
     WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec  
     coordinates. The coordinates should be good to a few arcseconds.  
     For no solutions use imProc.astrometry.astrometryCore.  
-    Input  : - An AstroCatalog object (multiple elements supported).  
+    A new copy of the catalog is always created.  
+    Input  : - An AstroCatalog or AstroImage object (multiple elements supported).  
     * ...,key,val,...  
     'SearchRadius' - Sources search radius [arcsec].  
     Default is 3.  
@@ -304,6 +309,8 @@ Refine an astrometric solution of an AstroCatalog object This function may work 
     'RA' - RA corrsponding to catalog/image center. This will be  
     used as the coordinate for the astrometric catalog  
     query and the CRVAL argument.  
+    If first input is an AstroImage, this can be a char  
+    array containing header keyword name (e.g., 'RA').  
     If empty, and WCS is given then will estimate from  
     WCS. If empty, then will estimate using  
     boundingCircle on the catalog. Default is [].  
@@ -339,7 +346,7 @@ Refine an astrometric solution of an AstroCatalog object This function may work 
     'BinSize' - Bin size for binning. Default is 1 (mag).  
     'FunMean' - A function handle to use when calculating the mean  
     of the data in each bin.  
-    Default is @nanmedian.  
+    Default is @tools.math.stat.nanmedian.  
     'FunStd' - A function handle to use when calculating the std  
     of the data in each bin, or when calculating the global  
     std after the polynomial fit.  
@@ -437,14 +444,32 @@ Solve astrometry for sub images of a single contigious image The solution is don
     The solution is done by executing astrometryCore for a limited  
     number of sub images, and astrometryRefine for all the rest,  
     based on the solution from astrometryCore.  
-    Input  : -  
+    Input  : - An AstroImage object with multiple sub images of a  
+    contigous field of view.  
+    * ...,key,val,...  
+    'CCDSEC' - A mandatory argument. This is a 4 column matrix  
+    of [Xmin, Xmax, Ymin, Ymax] of the CCDSEC fir each  
+    sub image.  
+    This is typically obtained from the second output  
+    argument of imProc.image.image2subimages.  
+    'CenterXY' -  
+    'RA'  
+    'Dec'  
+    'CooUnits'  
+    'Scale'  
+    'Tran'  
+    'EpochOut'  
+    'CreateNewObj'  
+    'CatName'  
+    'astrometryCoreArgs'  
+    'astrometryRefineArgs'  
     Output : -  
     Author : Eran Ofek (Aug 2021)  
     Example:  
       
 ### imProc.astrometry.fitWCS
 
-Perform the Tran2D.fitAstrometricTran and prepare the WCS info This is an auxilary function that performs the fitting stage between an astrometric catalog and an image catalog, and return the Tran2D object as well as the information needed for the WCS (e.g.,
+Perform the Tran2D.fitAstrometricTran and prepare the WCS info This is an auxilary function that performs the fitting stage between an astrometric catalog and an image catalog, and return the Tran2D object as well as the information needed for the WCS (e.g., CRPIX, CRVAL, etc.).
 
 
     
@@ -465,15 +490,14 @@ Perform the Tran2D.fitAstrometricTran and prepare the WCS info This is an auxila
     * ...,key,val,...  
     'ImageCenterXY'  
     'Scale' - Scale ["/pix]  
+    'Flip'  - [X Y] flip operated already on the coordinates.  
+    Default is [1 1].  
     'ProjType' - Projection type. See imProc.trans.projection.  
     Default is 'TPV'.  
     'TranMethod' - ['TPV'] | 'tran2d'  
     This dictates the fitting scheme.  
     'Tran' - A Tran2D object for the transformation to fit.  
     Default is Tran2D.  
-    'UseFlag' - - A vector of logicals indicating which  
-    sources (in the vectors of coordinates) to  
-    use. Default is true.  
     'ExtraData' - Additional columns to pass to the Tran2D  
     transformation. Default is [].  
     'ErrPos' - Error in positions [pix].  
@@ -492,7 +516,6 @@ Perform the Tran2D.fitAstrometricTran and prepare the WCS info This is an auxila
     'BinSize' - Bin size for binning. Default is 1 (mag).  
     'FunMean' - A function handle to use when calculating the mean  
     of the data in each bin.  
-    Default is @nanmedian.  
     'FunStd' - A function handle to use when calculating the std  
     of the data in each bin, or when calculating the global  
     std after the polynomial fit.  
@@ -500,6 +523,9 @@ Perform the Tran2D.fitAstrometricTran and prepare the WCS info This is an auxila
     'InterpMethod' - Interpolation method. Default is 'linear'.  
     'ThresholdSigma' - Threshold in sigmas (std) for flagging good  
     data. Default is 3.  
+    'TestNbin' - Number of binx in each dimensions, when  
+    counting the number of good sources as a function of  
+    position in the image. Default is 3.  
     Output : - The Tran2D object with the fitted transformations  
     - (ParWCS) A structure with some of the parameters required  
     in order to build the WCS.  

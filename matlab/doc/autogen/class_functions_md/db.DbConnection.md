@@ -9,12 +9,29 @@
       
     Used internally by DbQuery  
       
+      
+      
+
+### Functions List
+
+    DbConnection - 
+    close - Disconnect from database,  @Todo
+    delete - 
+    getConnectionKey - Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+    getDbConnection - 
+    newQuery - Create new DbQuery instance linked to this connection
+    open - Connect to database specified by Host:Port:Database as UserName/Password
+    setupDefault - 
+    unitTest - dbConnection.unitTest
+
 ### DbConnection
 
 
 
 
     
+
+
 ### close
 
 Disconnect from database,  @Todo
@@ -23,12 +40,16 @@ Disconnect from database,  @Todo
     
     Disconnect from database,  @Todo  
       
+
+
 ### delete
 
 
 
 
     
+
+
 ### getConnectionKey
 
 Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
@@ -36,12 +57,16 @@ Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.Data
 
     
     Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];  
+
+
 ### getDbConnection
 
 
 
 
     
+
+
 ### newQuery
 
 Create new DbQuery instance linked to this connection
@@ -50,6 +75,8 @@ Create new DbQuery instance linked to this connection
     
     Create new DbQuery instance linked to this connection  
       
+
+
 ### open
 
 Connect to database specified by Host:Port:Database as UserName/Password
@@ -58,6 +85,8 @@ Connect to database specified by Host:Port:Database as UserName/Password
     
     Connect to database specified by Host:Port:Database as UserName/Password  
       
+
+
 ### setupDefault
 
 
@@ -65,6 +94,8 @@ Connect to database specified by Host:Port:Database as UserName/Password
 
     
       
+
+
 ### unitTest
 
 dbConnection.unitTest
@@ -73,3 +104,5 @@ dbConnection.unitTest
     
     dbConnection.unitTest  
       
+
+

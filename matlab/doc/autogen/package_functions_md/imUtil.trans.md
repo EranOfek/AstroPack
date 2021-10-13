@@ -34,7 +34,7 @@ Package: mUtil.trans Description: In a 2-D image interpolate over NaNs or over p
       
 ### imUtil.trans.imTransform
 
-Image transformation Example: TC=Tran2D; TC.ParY=zeros(1,13);  TC.ParX=zeros(1,13); TC.ParX(1:2) = 1; TC.ParX(5)=0.03; TC.ParX(7)=0.01;
+Image transformation Example: TC=Tran2D; TC.ParY=zeros(1,13);  TC.ParX=zeros(1,13); TC.ParX(1:2) = 1; TC.ParX(5)=0.03; TC.ParX(7)=0.01; TC.ParY(1) = 2; TC.ParY(3)=1.01; TC.ParY(5)=0.01; TC.ParY(8)=0.001;
 
 
     
@@ -90,7 +90,7 @@ Interpolate a 2D image over NaNs or mask image Package: mUtil.trans Description:
       
 ### imUtil.trans.shift_fft
 
-Shift Image using the sub pixel Fourier shift theorem (sinc interp.) Package: imUtil.image Description: Shift an image using the FFT shift thorem. This works well when the image does not contain sharp artifacts.
+Shift Image using the sub pixel Fourier shift theorem (sinc interp.) Package: imUtil.image Description: Shift an image using the FFT shift thorem. This works well when the image does not contain sharp artifacts. Sharp artifacts will produce ringing.
 
 
     
@@ -126,7 +126,7 @@ Shift Image using the sub pixel Fourier shift theorem (sinc interp.) Package: im
       
 ### imUtil.trans.shift_lanczos
 
-Shift Image using the sub pixel Lanczos filter Package: imUtil.image Description: Shift an image using the Lanczos interpolation kernel. This is works for sub pixel shifts and can treat images
+Shift Image using the sub pixel Lanczos filter Package: imUtil.image Description: Shift an image using the Lanczos interpolation kernel. This is works for sub pixel shifts and can treat images which are larger then 9x9.
 
 
     

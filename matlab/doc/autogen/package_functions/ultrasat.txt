@@ -6,7 +6,7 @@ GEO_object_visibility - SHORT DESCRIPTION HERE Package: ultrasat Description:
 
 ULTRASAT_restricted_visibility - SHORT DESCRIPTION HERE Package: ultrasat Description:
 
-dEdX_calc - Calculate dE/dX as a function of energy Package: ultrasat Description: Calculate the energy loss of electrons propagating in a material. This is used in order to estimate the Cernekov
+dEdX_calc - Calculate dE/dX as a function of energy Package: ultrasat Description: Calculate the energy loss of electrons propagating in a material. This is used in order to estimate the Cernekov background.
 
 event_rate - Calculate event rate for ULTRASAT given event and host abs. mag. Package: ultrasat Description: Calculate event rate for ULTRASAT given event and host abs. mag.
 
@@ -20,5 +20,5 @@ zodiac_bck - Calculate the zodi calibrated spectrum and magnitude at a given pos
 
 zodiac_bck_V - Get the Zodiac V light surface brightness as a function of coordinates Package: @AstSpec Description: Calculate the zodiac V vand Vega magnitude for a sky.
 
-zodiac_spectrum - Get the Zodiac light spectrum Package: @AstSpec Description: Return the zodiac spectrum as adopted from the HST STIS handbook. The high zodiacal ligh is defined where V=22.1
+zodiac_spectrum - Get the Zodiac light spectrum Package: @AstSpec Description: Return the zodiac spectrum as adopted from the HST STIS handbook. The high zodiacal ligh is defined where V=22.1 mag/arcsec^-2.
 

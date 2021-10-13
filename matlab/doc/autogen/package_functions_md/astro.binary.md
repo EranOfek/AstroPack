@@ -89,7 +89,7 @@ Binary star radial velocity (RV) Package : AstroUtil.binary Description: Calcula
       
 ### astro.binary.chi2_astrometric_binary
 
-Find astrometric binary elements from observations Package: AstroUtil.binary Description: Given the astrometric observations of a binary and its eccentricity, Time of periastron and period, fit linearly
+Find astrometric binary elements from observations Package: AstroUtil.binary Description: Given the astrometric observations of a binary and its eccentricity, Time of periastron and period, fit linearly the remaining four orbital elements (omega, Omega, i, a).
 
 
     
@@ -218,7 +218,7 @@ Calculate the gravitational potential of a binary star on a grid. Package: Astro
       
 ### astro.binary.fit_astrometric_binary
 
-Fit an elliptical-orbit binary orbit to astrometric data. Package: AstroUtil.binary Description: Fit an elliptical-orbit binary orbit to astrometric data. The fit has 7 free parameters, 4 of which (omega, Omega, i,
+Fit an elliptical-orbit binary orbit to astrometric data. Package: AstroUtil.binary Description: Fit an elliptical-orbit binary orbit to astrometric data. The fit has 7 free parameters, 4 of which (omega, Omega, i, and a) are fitted linearly while two (T, e) are fitted
 
 
     
@@ -268,7 +268,7 @@ Fit an elliptical-orbit binary orbit to astrometric data. Package: AstroUtil.bin
       
 ### astro.binary.fit_rv_ellipse
 
-Fit radial velocity to ellipse as a function of period Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period, fit an ellipse and calculate the RMS as a function
+Fit radial velocity to ellipse as a function of period Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period, fit an ellipse and calculate the RMS as a function of trial period.
 
 
     
@@ -322,7 +322,7 @@ Limb darkening function Package: AstroUtil.binary Description: Calculate the sta
       
 ### astro.binary.obstruction
 
-Stellar obstruction due to the eclipse Package: AstroUtil.binary Description: Calculate stellar obstruction due to the eclipse given the stars radii, distance and limb darkening function of the
+Stellar obstruction due to the eclipse Package: AstroUtil.binary Description: Calculate stellar obstruction due to the eclipse given the stars radii, distance and limb darkening function of the background star.
 
 
     
@@ -414,7 +414,7 @@ Plot eclipsing binary light curve as a function of phase. Package: AstroUtil.bin
     -  
 ### astro.binary.rv2ellipse
 
-Convert radial velocity as a function of time to ellipse Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period convert it to a RV_Odd vs RV_Even (ellipse).
+Convert radial velocity as a function of time to ellipse Package: AstroUtil.binary Description: Given radial velocity as a function of time and a trial period convert it to a RV_Odd vs RV_Even (ellipse). I.e., for a good period plot(RV_Even,RV_Odd,'.') should be
 
 
     

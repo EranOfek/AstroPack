@@ -137,9 +137,42 @@ Return sources inside polygon
     Example: AC=AstroCatalog({'asu.fit'},'HDU',2);  
     [InP, Flag] = imProc.match.inPolygon(AC,[1 1; 1.1 1.1; 0.5 0.1],'CooUnits','rad')  
       
+### imProc.match.insertCol_matchIndices
+
+Insert Dist/Nmatch columns to a single element AstroCatalog based on ResInd. This is a utility function for users of imProc.match.matchReturnIndices. The function gets the input of imProc.match.matchReturnIndices (called here ResInd), and produce two AstroCatalog objects:
+
+
+    
+    Insert Dist/Nmatch columns to a single element AstroCatalog based on ResInd.  
+    This is a utility function for users of  
+    imProc.match.matchReturnIndices. The function gets the input of  
+    imProc.match.matchReturnIndices (called here ResInd), and  
+    produce two AstroCatalog objects:  
+    1. The original AstroCatalog with possibly Dist and Nmatch  
+    columns.  
+    2. Selected lines in the original AstroCatalog which has  
+    matches, with possibly Dist and Nmatch  
+    columns.  
+    Input  : - A single element AstroCatalog object.  
+    - ResInd. This is the output of imProc.match.matchReturnIndices  
+    * ...,key,val,...  
+    'AddColDist' - Default is true.  
+    'ColDistPos' - Default is Inf.  
+    'ColDistName' - Default is 'Dist'.  
+    'ColDistUnits' - Default is 'arcsec'.  
+    'AddColNmatch' - Default is true.  
+    'ColNmatchPos' - Default is Inf.  
+    'ColNmatchName' - Default is 'Nmatch'.  
+    Output : - The input catalog with added columns for the nearest match  
+    in the catsHTM catalog.  
+    - Select lines only from the input catalog. Only sources  
+    with matches are selected.  
+    Author : Eran Ofek (Apr 2021)  
+    Example:  
+      
 ### imProc.match.match
 
-Match two catalogs in AstroCatalog objects This functin returens: a matched source catalog, and an unmatched source catalog. The matched catalog result has the same number of
+Match two catalogs in AstroCatalog objects This functin returens: a matched source catalog, and an unmatched source catalog. The matched catalog result has the same number of sources as in the Obj2 catalog, and for each Obj2 source,
 
 
     
@@ -153,6 +186,8 @@ Match two catalogs in AstroCatalog objects This functin returens: a matched sour
     contains NaNs.  
     The sources in Obj1 that doesn't have counterparts in  
     Obj2 are listed in the unmatched catalog.  
+    The angular distance and index of the source in Obj1 may be  
+    added to the matched catalog.  
     Also return a catalog of TruelyUnMatchedObj.  
     This exclude not only the nearest source within the  
     search radius, but all the sources in Obj1 which have  
@@ -171,7 +206,7 @@ Match two catalogs in AstroCatalog objects This functin returens: a matched sour
     'RadiusUnits' - Search radius units (if spherical  
     coordinates search). Default is 'arcsec'.  
     'AddIndInRef' - A logical indicating if to add a  
-    column to  Obj1 that include the index of  
+    column to Obj1 that include the index of  
     the source in the reference catalog (Obj2).  
     Default is true.  
     'IndInRefColName' - The column name of the Index  
@@ -220,6 +255,189 @@ Match two catalogs in AstroCatalog objects This functin returens: a matched sour
     AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};  
     [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')  
       
+### imProc.match.match2solarSystem
+
+Match sources in AstroCatalog object to Solar System objects. This is done using the celestial.OrbitalEl class. For each source in the AstroCatalog, search for minor planets at the same position and epoch. Returns the lines from the AstroCatalog that are matched with
+
+
+    
+    Match sources in AstroCatalog object to Solar System objects.  
+    This is done using the celestial.OrbitalEl class.  
+    For each source in the AstroCatalog, search for minor planets  
+    at the same position and epoch.  
+    Returns the lines from the AstroCatalog that are matched with  
+    minor planets, and add the angular distance of the match and  
+    the minor planet designation.  
+    Input  : - An AstroCatalog, or AstroImage object (multi-elements supported).  
+    Note that unless 'CreateNewObj'=true, this ibject may be  
+    modified by the function.  
+    * ...,key,val,...  
+    'JD' - Scalar Julian Day (JD), corresponding to the epoch of the  
+    catalog. If empty, and input is an AstroImage, then  
+    will attempt to read the JD from the image header.  
+    Default is [].  
+    'OrbEl' - An OrbitalEl class with the orbital elements of  
+    all the minor planets to match against the sources.  
+    If empty, then will load the JPL orbital elements  
+    from disk. For instellation of the JPL orbital  
+    elements file see the Installer class.  
+    Default is [].  
+    'SearchSingleEpoch' - A logical indicating which search  
+    option to use:  
+    If false [default], then each image/catalog is  
+    search seperatly.  
+    If true, then all the images must have a common  
+    epoch (provided in input JD), and they are within  
+    ImageRadius from ImageRA, ImageDec.  
+    'ImageRadius' - Big image Radius, for the  
+    SearchSingleEpoch=true option. Default is 4.  
+    'ImageRA' - Big image RA, for the  
+    SearchSingleEpoch=true option. Default is [].  
+    'ImageDec' - Big image Dec, for the  
+    SearchSingleEpoch=true option. Default is [].  
+    'ImageCooUnits' - ImageRadius, ImageRA, ImageDec units.  
+    Default is 'deg'.  
+    'AddPlanets' - Match sources also against planets.  
+    THIS OPTION IS NOT YET AVAILABLE.  
+    Default is false.  
+    'SearchRadius' - Matching search radius between source and  
+    minor planets. Deafult is 5.  
+    'SearchRadiusUnits' - Units for the SearchRadius argument.  
+    Default is 'arcsec'.  
+    'MagLimit' - Magnitude limit for minor planets. Default is Inf.  
+    'KeyLon' - Obs. Longitude main keyword dictionary  
+    name. Default is 'OBSLON'.  
+    'KeyLat' - Obs. Latitude main keyword dictionary  
+    name. Default is 'OBSLAT'.  
+    'KeyAlt' - Obs. Altitude main keyword dictionary  
+    name. Default is 'OBSALT'.  
+    'IsInputAlt' - IsInputAlt argument to pass to  
+    getVal. If true, will search keyword name  
+    in alternate names list. Default is false.  
+    'GeoPos' - Geodetic position of the observer (on  
+    Earth). [Lon (rad), Lat (rad), Height (m)].  
+    This parameter superceeds KeyLat,KeyLon.  
+    If 'geo' then calculate geocentric position.  
+    Default is [].  
+    'RefEllipsoid' - Reference ellipsoid for the  
+    geodetic positions. Default is 'WGS84'.  
+    'AddColDist' - Adding match angular distance column to  
+    output catalog. Default is true.  
+    'ColDistPos' - Position in which to add ang. dist column.  
+    Default is Inf.  
+    'ColDistName' - Name of ang. dist column.  
+    Default is 'DistMP'.  
+    'ColDistUnits' - Units of ang. dist column.  
+    Default is 'arcsec'.  
+    'AddColNmatch' - Adding number of matches column to  
+    output catalog. Default is true.  
+    'ColNmatchPos' - Position in which to add Nmatch column.  
+    Default is Inf.  
+    'ColNmatchName' - Name of Nmatch column.  
+    Default is 'NmatchMP'.  
+    'AddColDesignation' -Adding minor planet designation column to  
+    output catalog. If true, then the output 'Catalog'  
+    field in the AStroCatalog will be of table class.  
+    Default is true.  
+    'ColDesigPos' - Position in which to add designation column.  
+    Default is Inf.  
+    'ColDesigName' - Name of designation column.  
+    Default is 'Designation'.  
+    'CreateNewObj' - {false|true} Indicating if to create a  
+    new copy of the input Astrocatalog object.  
+    Default is false.  
+    If nargout>1, then add, for each  
+    source in the input AstroCatalog object, the  
+    angular distance to the nearest minor planet (NaN if no match).  
+    'SourcesColDistPos' - The position of the ang. dist.  
+    column that will be added to the input AstroCatalog  
+    object. Default is Inf.  
+    'SourcesColDistName' - The name of the ang. dist.  
+    column that will be added to the input AstroCatalog  
+    object. Default is 'DistMP.  
+    'SourcesColDistUnits' - The units of the ang. dist. added  
+    to the input AstroCatalog object.  
+    Default is 'arcsec'.  
+    Output : - An AstroCatalog object containing only the sources in the  
+    input AstroCatalog that are matched with minor planets.  
+    Possibly adding ang. dist, Nmatch, and minor planet  
+    designation to the output.  
+    - If a second output is requested, then the input  
+    AstroCatalog object will be modified (see 'CreateNewObj'  
+    argument). The modified object may be sorted and may  
+    include additional information on the angular distance to  
+    the nearest minor planet.  
+    Author : Eran Ofek (Sep 2021)  
+    Example: Cat = ephem(OrbEl, JD, 'AddDesignation',false);  
+    R = rand(10,8); R(:,2:3) = R(:,2:3) + [82 11];  
+    Cat1 = AstroCatalog({R});  
+    Cat2  = merge([Cat;Cat1]);  
+    Cat2  = deleteCol(Cat2, 'JD');  
+    Result = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[]);  
+    O = celestial.OrbitalEl.loadSolarSystem;  
+    Result = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[], 'OrbEl',O);  
+    [Result, CatOut] = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[], 'OrbEl',O);  
+      
+### imProc.match.matchReturnIndices
+
+Match two catalogs in AstroCatalog objects and return the matched indices. This is a basic utility function that returns the two-directional indices of the matched sources. This function is used by the more advanced matching programs.
+
+
+    
+    Match two catalogs in AstroCatalog objects and return the matched indices.  
+    This is a basic utility function that returns the two-directional  
+    indices of the matched sources.  
+    This function is used by the more advanced matching programs.  
+    Input  : - An AstroCatalog/AstroImage object.  
+    If multiple elements then each element will be  
+    matched against the corresponding element (or a  
+    single element) in the second object.  
+    If this object is not sorted, then the object will be  
+    sorted (and modified, unlse CreateNewObj=true).  
+    - A second AstroCatalog object - The function will  
+    attempt to match every source in this catalog with  
+    objects in the first input catalog.  
+    * ..., key, val,..  
+    'Radius'  - Search radius. Default is 5.  
+    'RadiusUnits' - Search radius units (if spherical  
+    coordinates search). Default is 'arcsec'.  
+    'CreateNewObj' - A logical indicating if to create a new  
+    copy of Obj1 if it is not sorted. If false, then  
+    Obj1 will be modified. Default is false.  
+    'CooType' - CooType (i.e., 'pix','sphere').  
+    If empty, will use what is available in the catalog  
+    with preference for 'sphere'. Default is empty.  
+    'ColCatX' - If CooType is not empty, this is the column  
+    names/index from which to select the catalog X  
+    coordinate. Default is [].  
+    'ColCatY' - Like 'ColCatX', but for the Y coordinate.  
+    'ColRefX' - Like 'ColCatX', but for te ref catalog.  
+    'ColRefY' - Like 'ColRefX', but for the Y coordinate.  
+    Output : - A structure array (element per Obj1/Obj2 matching) with  
+    the following fields:  
+    'Obj2_IndInObj1' - A vector, for each source in Obj2, of  
+    its matched indices in Obj1. NaN if no match.  
+    'Obj2_Dist' - A vector, for each source in Obj2, of the  
+    angular distance ['rad' if 'sphere'] between the  
+    matched sources.  
+    'Obj2_NmatchObj1' - A vector, for each source in Obj2, of the  
+    number of matches within search radius.  
+    'Obj1_IndInObj2' - A vector, for each source in Obj1, of  
+    its matched indices in Obj2. NaN if no match.  
+    'Obj1_FlagNearest' - A vector, for each source in Obj1,  
+    of logicals indicating if this source is the neaest  
+    match to a source is Obj2.  
+    'Obj1_FlagAll' - A vector, for each source in Obj1,  
+    of logicals indicating if this source is a  
+    match (within search radius) to a source is Obj2.  
+    Author : Eran Ofek (Sep 2021)  
+    Example : AC = AstroCatalog;  
+    AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];  
+    AC.ColNames = {'RA','Dec'}; AC.ColUnits = {'rad','rad'};  
+    AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]  
+    AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};  
+    Result = imProc.match.matchReturnIndices(AC,AC2,'Radius',0.01,'CooType','sphere','RadiusUnits','rad')  
+      
 ### imProc.match.match_catsHTM
 
 Match an AstroCatalog object with catsHTM catalog
@@ -255,13 +473,18 @@ Match an AstroCatalog object with catsHTM catalog
     'catsHTMisRef' - A logical indicating if the  
     catsHTM catalog is treated as the reference  
     catalog. Default is false.  
-    If true, then the number of sources of the matched  
-    catalog is like the catsHTM object, while  
-    false the size is like the input object.  
-    Output : - A matched AstroCatalog object. See Match.match.  
-    - An unatched AstroCatalog object. See Match.match.  
-    - A truely unatched AstroCatalog object. See Match.match.  
-    - The catsHTM AstroCatalog object.  
+    If true, then the output is the same but for the catsHTM catalog.  
+    'AddColDist' - Default is true.  
+    'ColDistPos' - Default is Inf.  
+    'ColDistName' - Default is 'Dist'.  
+    'ColDistUnits' - Default is 'arcsec'.  
+    'AddColNmatch' - Default is true.  
+    'ColNmatchPos' - Default is Inf.  
+    'ColNmatchName' - Default is 'Nmatch'.  
+    Output : - The input catalog with added columns for the nearest match  
+    in the catsHTM catalog.  
+    - Select lines only from the input catalog. Only sources  
+    with matches are selected.  
     Author : Eran Ofek (Apr 2021)  
     Example: AC=AstroCatalog({'asu.fit'},'HDU',2);  
     M = imProc.cat.Match;  
@@ -270,7 +493,7 @@ Match an AstroCatalog object with catsHTM catalog
       
 ### imProc.match.matched2matrix
 
-A matched AstroCatalog object into a matrix of epochs by index AstCat object to a matrix of matched sources. Description: Given an AstroCatalog object containing multiple elements, in which each element containing the same number of rows
+A matched AstroCatalog object into a matrix of epochs by index AstCat object to a matrix of matched sources. Description: Given an AstroCatalog object containing multiple elements, in which each element containing the same number of rows (e.g., the output of Match/match.m), return a matrix
 
 
     

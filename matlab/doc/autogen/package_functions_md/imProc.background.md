@@ -42,6 +42,9 @@ Calculate background and variance of an AstroImage object.
     'Overlap' - The [X,Y] additional overlaping buffer between  
     sub images to add to each sub image.  
     Default is 16.  
+    'DiluteStep' - Dilution for background calculation. This is  
+    the step size in which the data in each sub image is selected.  
+    Default is 1 (no dilution).  
     'ExtendFull' - A logical indicating if to extend the  
     background map into a full-size image. Default is true.  
       
@@ -73,7 +76,7 @@ Calculate background and variance of an AstroImage object.
       
 ### imProc.background.filterSources
 
-Generate a background image filtered from sources using sucessive filtering The image is populated in the Back field or returned as an IBackImage object. Description: This routine filter out sources from an image and
+Generate a background image filtered from sources using sucessive filtering The image is populated in the Back field or returned as an IBackImage object. Description: This routine filter out sources from an image and generate an approximate background image.
 
 
     

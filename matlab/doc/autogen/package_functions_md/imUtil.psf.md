@@ -31,7 +31,7 @@ Calculate the curve of growth of a PSF Package: imUtil.psf Description: Calculat
       
 ### imUtil.psf.fwhm_fromBank
 
-Measure the FWHM of an image by cross corr. with a Gaussian template bank Package: +imUtil.psf Description: Measure the FWHM of an image by cross corr. with a Gaussian template bank and choose the best FWHM by the mode of most
+Measure the FWHM of an image by cross corr. with a Gaussian template bank Package: +imUtil.psf Description: Measure the FWHM of an image by cross corr. with a Gaussian template bank and choose the best FWHM by the mode of most detection above some S/N.
 
 
     

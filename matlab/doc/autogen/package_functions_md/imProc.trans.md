@@ -3,7 +3,7 @@
 
 ### imProc.trans.fitPattern
 
-Match two catalogs using stars pattern and return approximate transformation Description: Given two catalogs that coordinadte systems are related by flip, scale, rotation and shift, search the the approximate affine transformation
+Match two catalogs using stars pattern and return approximate transformation Description: Given two catalogs that coordinadte systems are related by flip, scale, rotation and shift, search the the approximate affine transformation that is required in order to align the coordinate systems of
 
 
     

@@ -96,7 +96,7 @@ Retrieve a list of all IPAC/IRSA public catalogs Package: VO.IRSA Description: R
       
 ### VO.IRSA.wget_cat_columns
 
-Retrieve a list of all columns for an IPAC/IRSA public catalog Package: VO.IRSA Description: Given an IPAC/IRSA catalog name (see Catalog.IRSA.wget_all_catnames) retrieve all columns
+Retrieve a list of all columns for an IPAC/IRSA public catalog Package: VO.IRSA Description: Given an IPAC/IRSA catalog name (see Catalog.IRSA.wget_all_catnames) retrieve all columns in the catalog.
 
 
     

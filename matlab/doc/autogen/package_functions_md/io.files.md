@@ -23,7 +23,7 @@ Concatenate files into a single file. Package: Util.files Description: Concatena
       
 ### io.files.copy_files_from_dirtree
 
-Copy or movde all files recursively in a directory tree. Package: Util.files Description: Given a location (or the present working directory), look for all files in the subdirectories and copy them to the main
+Copy or movde all files recursively in a directory tree. Package: Util.files Description: Given a location (or the present working directory), look for all files in the subdirectories and copy them to the main directory.
 
 
     
@@ -46,7 +46,7 @@ Copy or movde all files recursively in a directory tree. Package: Util.files Des
       
 ### io.files.create_list
 
-Create a file and a ell array containing a list of files. Package: io.files Description: Create a file and a cell array containing a list of files. The list is created from a cell array, or file name
+Create a file and a ell array containing a list of files. Package: io.files Description: Create a file and a cell array containing a list of files. The list is created from a cell array, or file name with wildcards.
 
 
     
@@ -187,6 +187,9 @@ Check if all files in a list arrived to disk (i.e., size not increasing). Packag
     Description: Check if all files in a list arrived to disk. This is done  
     by checking that the file size does not increase with time.  
     Input  : - Cell array of files to check.  
+    If empty, then check all files in directory.  
+    Default is empty.  
+    - Time to wait between tests. Default is 1 s.  
     Output : null. Return when file sizes converged.  
     License: GNU general public license version 3  
     By : Eran O. Ofek                    May 2017  
@@ -215,7 +218,7 @@ Select files by date Package: Util.files
       
 ### io.files.for_each_file
 
-Execute a function on a list of files. Package: Util.files Description: Given a file name containing list of files, load each file into a matrix and execute a function with the loaded
+Execute a function on a list of files. Package: Util.files Description: Given a file name containing list of files, load each file into a matrix and execute a function with the loaded matrix as a paramter.
 
 
     
@@ -245,7 +248,7 @@ Execute a function on a list of files. Package: Util.files Description: Given a 
     -  
 ### io.files.fpf
 
-Easy to use fprintf, with automatic formatting. Package: Util.IO Description: Easy to use fprintf, with automatic formatting. This function is similar to fprintf, but (i) open and close the file
+Easy to use fprintf, with automatic formatting. Package: Util.IO Description: Easy to use fprintf, with automatic formatting. This function is similar to fprintf, but (i) open and close the file automaticaly; (ii) in case that format string
 
 
     
@@ -452,7 +455,7 @@ Author: Andriy Nych ( nych.andriy@gmail.com ) Version:        733341.41557417822
     =  
 ### io.files.inifile
 
-INIFILE Creates, reads, or writes data from/to a standard ini (ascii) file. Such a file is organized into sections ([section name]), subsections(enclosed by {subsection name}), and keys (key=value).  Empty lines and lines with the first non-empty
+INIFILE Creates, reads, or writes data from/to a standard ini (ascii) file. Such a file is organized into sections ([section name]), subsections(enclosed by {subsection name}), and keys (key=value).  Empty lines and lines with the first non-empty character being ; (comment lines) are ignored.
 
 
     
@@ -668,7 +671,7 @@ Find all functions in a matlab package. Package: Util.files Description: Find al
       
 ### io.files.load2
 
-Load a mat file into a variable Package: Util.IO Description: load a mat file containing a single variable to a variable name (rather than a structure, like load.m).
+Load a mat file into a variable Package: Util.IO Description: load a mat file containing a single variable to a variable name (rather than a structure, like load.m). If multiple variables are returned then will behave like
 
 
     
@@ -690,7 +693,7 @@ Load a mat file into a variable Package: Util.IO Description: load a mat file co
       
 ### io.files.load_check
 
-Load, but check if variable exist in workspace. Package: Util.IO Description: Load a matlab variable or file from disk (similar to the load.m command). However, before the variable is loaded the
+Load, but check if variable exist in workspace. Package: Util.IO Description: Load a matlab variable or file from disk (similar to the load.m command). However, before the variable is loaded the function checks if the variable with name identical to the
 
 
     
@@ -739,7 +742,7 @@ Extract and load files from a zip file. Package: Util.IO Description: Extract an
       
 ### io.files.loadh
 
-Load a matrix from HDF5 file. Package: Util.IO Description: Load a matrix from HDF5 file. If dataset name is not provided than will read all
+Load a matrix from HDF5 file. Package: Util.IO Description: Load a matrix from HDF5 file. If dataset name is not provided than will read all datasets into a structure. This function doesn't support
 
 
     
@@ -814,7 +817,7 @@ recursive dir function Package: Util.IO Description: run the dir function recurs
     Out = Util.struct.struct_def({'name','folder','date','bytes','isdir','datenum'},0,1);  
 ### io.files.read_delimted_head
 
-Read delimited file with header Package: Util.IO Description: Read a delimited table in which one of the first lines is the header of the delimited table. The program returns
+Read delimited file with header Package: Util.IO Description: Read a delimited table in which one of the first lines is the header of the delimited table. The program returns a cell array in which each cell is a column in the table
 
 
     
@@ -852,7 +855,7 @@ Read delimited file with header Package: Util.IO Description: Read a delimited t
       
 ### io.files.read_formatted
 
-Read text with column position format. Package: Util.IO Description: Read text/data file with constant format (i.e., columns at specfied locations). The start and end
+Read text with column position format. Package: Util.IO Description: Read text/data file with constant format (i.e., columns at specfied locations). The start and end column for each entry should be specified.
 
 
     
@@ -905,7 +908,7 @@ Read user/password from file Package: Util.files Description: Read user/password
     assume user/pass are given in file  
 ### io.files.saveh
 
-Save a matrix into HDF5 file. Package: Util.IO Description: Save a matrix into HDF5 file. If file exist then will add it as a new dataset to the same file.
+Save a matrix into HDF5 file. Package: Util.IO Description: Save a matrix into HDF5 file. If file exist then will add it as a new dataset to the same file. This is becoming faster than matlab (2014a) for matices with
 
 
     
@@ -995,7 +998,7 @@ Count the number of lines in a file. Package: Util.files Description: Count the 
       
 ### io.files.which_dir
 
-Return the directory in which a matlab program resides. Package: Util.files Description: Return the directory in which a matlab program resides. This program is a version of "which.m" that trim the
+Return the directory in which a matlab program resides. Package: Util.files Description: Return the directory in which a matlab program resides. This program is a version of "which.m" that trim the program name from the full path.
 
 
     

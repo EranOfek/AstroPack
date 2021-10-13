@@ -3,7 +3,7 @@
 
 ### celestial.Earth.earth_gravity_field
 
-Calculate the Earth gravity field for a set of locations. Package: celestial.Earth Description: Calculate the Earth gravity field for a set of locations. For both rotating and non rotating Earth.
+Calculate the Earth gravity field for a set of locations. Package: celestial.Earth Description: Calculate the Earth gravity field for a set of locations. For both rotating and non rotating Earth. Mean IRTF pole is assumed.
 
 
     

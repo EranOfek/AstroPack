@@ -3,7 +3,7 @@
 
 ### VO.Util.cat_band_dictionary
 
-Return the band (filter) name in a given catalog. Package: VO.util Description: Given a catalog name (e.g., 'sdss') and a band name (e.g., 'r'), return the corresponding band in the catalog
+Return the band (filter) name in a given catalog. Package: VO.util Description: Given a catalog name (e.g., 'sdss') and a band name (e.g., 'r'), return the corresponding band in the catalog (e.g., 'modelMag_g') its error and color for photometric
 
 
     
@@ -29,7 +29,7 @@ Return the band (filter) name in a given catalog. Package: VO.util Description: 
       
 ### VO.Util.read_casjobs_table
 
-Read SDSS CasJobs table into a matrix or table. Package: VO.util Description: Read SDSS CasJobs table into a matrix or table. If output is a matrix and some columns contains strings than
+Read SDSS CasJobs table into a matrix or table. Package: VO.util Description: Read SDSS CasJobs table into a matrix or table. If output is a matrix and some columns contains strings than the unique strings will be replaced by numbers and a
 
 
     
@@ -61,7 +61,7 @@ Read SDSS CasJobs table into a matrix or table. Package: VO.util Description: Re
       
 ### VO.Util.read_csv_with_header
 
-Read SDSS CasJobs table into a matrix or table. Package: VO.util Description: Read SDSS CasJobs table into a matrix or table. If output is a matrix and some columns contains strings than
+Read SDSS CasJobs table into a matrix or table. Package: VO.util Description: Read SDSS CasJobs table into a matrix or table. If output is a matrix and some columns contains strings than the unique strings will be replaced by numbers and a
 
 
     

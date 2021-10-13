@@ -32,7 +32,7 @@ Divide image by gain and update header.
       
 ### imProc.calib.photometricZP
 
-Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog or AstroImage with a catalog, match the sources against a photometric catalog, and calculate the zero point (ZP) of the catalog.
+Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog or AstroImage with a catalog, match the sources against a photometric catalog, and calculate the zero point (ZP) of the catalog. Inout  : -
 
 
     
@@ -73,6 +73,49 @@ Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog 
     Output :  
     Author :  
     Example:  
+      
+### imProc.calib.selectMainSequenceFromGAIA
+
+Select main sequence stars from GAIA catalog in AstroCatalog object.
+
+
+    
+    Select main sequence stars from GAIA catalog in AstroCatalog object.  
+    Input  : - An AstroCatalog object containing a GAIA EDR3 catalog  
+    (e.g., using catsHTM).  
+    * ...,key,val,...  
+    'CreateNewObj' - [], true, false.  
+    If true, create new deep copy  
+    If false, return pointer to object  
+    If [] and Nargout0 then do not create new copy.  
+    Otherwise, create new copy.  
+    Default is [].  
+    Selection parameters  
+    'PlxLimit' - Default is 1 mas  
+    'PlxSNLimit' - Default is 10.  
+    'ExcessNoiseLimit' - Default is 500 micro arcsec.  
+    'ExcessNoiseSigLimit' - Default is 2.  
+    Fitting parameters  
+    'ParMS' - A vector of main-sequence abs mag vs. color  
+    polynomials. If empty, will fit polynomial.  
+    Default is [].  
+    'PolyOrder' - Polynomial order to fit. Default is 9.  
+    'DiffClip' - A vector of difference clipping.  
+    In each iteration will clip sources with residuals  
+    larger than the corresponding value.  
+    Default is [2 1 0.3].  
+    'ColorLimit' - Color boundries. Default is [0.5 2].  
+    'Plot - A logical indicating if to plot the best fit data.  
+    Output : - An AstroCatalog object with the selected main sequence  
+    stars.  
+    - As tructure array containing a 'Flag' field for the  
+    selected rows per catalog.  
+    - A structure array with the best fitted polynomial  
+    parameters.  
+    Author : Eran Ofek (Sep 2021)  
+    Example: DataSampleDir = tools.os.getTestDataDir; cd(DataSampleDir);  
+    GM = io.files.load2('AstrometricCat_PTF_Cropped.mat');  
+    [Result, FlagRes, Par] = imProc.calib.selectMainSequenceFromGAIA(GM)  
       
 ### imProc.calib.unitTest
 

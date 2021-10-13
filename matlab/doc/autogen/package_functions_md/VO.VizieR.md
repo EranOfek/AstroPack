@@ -26,7 +26,7 @@ Mapping of VizieR catalogs columns Package: VO.VizieR Description: Get the Vizie
       
 ### VO.VizieR.cds_astcat_search
 
-Query a VizieR catalog using the cdsclient tools Package: VO.VizieR Description: Query a VizieR catalog using the cdsclient command line tools. Allow to query a specific catalog by coordinates, or
+Query a VizieR catalog using the cdsclient tools Package: VO.VizieR Description: Query a VizieR catalog using the cdsclient command line tools. Allow to query a specific catalog by coordinates, or object name and return the output in various formats.
 
 
     

@@ -2,7 +2,7 @@ Package: celestial.proj
 
 pr_aitoff - Project coordinates using equal area Aitoff projection Package: celestial.proj Description: Project coordinates (longitude and latitude) using equal area Aitoff projection.
 
-pr_albers - Albers Equal-Area projection. Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Albers Equal-Area projection. The coordinates are projected on
+pr_albers - Albers Equal-Area projection. Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Albers Equal-Area projection. The coordinates are projected on ellipse with axis ratio of 2:1.
 
 pr_azimuthal_equidist - Azimuthal equidistant projection. Package: celestial.proj Description: Project longitude and latitude using Azimuthal equidistant projection (constant radial scale).
 
@@ -14,15 +14,15 @@ pr_conic - Conic projection. Package: celestial.proj Description: Project coordi
 
 pr_cylindrical - pr_cylindrical function                                             AstroMap Description: Project coordinates (longitude and latitude) using a general cylindrical projection.
 
-pr_gnomonic - pr_gnomonic function                                            AstroMap Description: Project coordinates (longitude and latitude) using the Gnomonic non conformal projection
+pr_gnomonic - pr_gnomonic function                                            AstroMap Description: Project coordinates (longitude and latitude) using the Gnomonic non conformal projection This is a nonconformal projection from a sphere center in
 
-pr_hammer - pr_hammer function                                                  AstroMap Description: Project coordinates (longitude and latitude) using the Hammer projection. The coordinates are projected on an ellipse
+pr_hammer - pr_hammer function                                                  AstroMap Description: Project coordinates (longitude and latitude) using the Hammer projection. The coordinates are projected on an ellipse with axis ratio of 2:1.
 
 pr_hammer_aitoff - pr_hammer_aitoff function                                           AstroMap Description: Project coordinates (longitude and latitude) using equal area Hammer-Aitoff projection used in the FITS/WCS standard.
 
 pr_ignomonic - roject coordinates using the inverse Gnomonic non conformal projection Package: celestial.proj Description: Project coordinates (X and Y) using the inverse Gnomonic non conformal projection,
 
-pr_ihammer_aitoff - pr_ihammer_aitoff function                                          AstroMap Description: Project coordinates (longitude and latitude) using the inverse of the equal area Hammer-Aitoff projection used in the
+pr_ihammer_aitoff - pr_ihammer_aitoff function                                          AstroMap Description: Project coordinates (longitude and latitude) using the inverse of the equal area Hammer-Aitoff projection used in the FITS/WCS standard.
 
 pr_mercator - - pr_mercator function                                               AstroMap Description: Project coordinates (longitude and latitude) using the Mercator projection.
 
@@ -38,9 +38,9 @@ pr_sin - Slant ortographic (SIN) projection Package: celestial.proj Description:
 
 pr_sinusoidal - pr_sinusoidal function                                              AstroMap Description: Project coordinates (longitude and latitude) using the Sinusoidal projection.
 
-pr_stereographic - pr_stereographic function                                           AstroMap Description: Project coordinates (longitude and latitude) using the Stereographic projection.
+pr_stereographic - pr_stereographic function                                           AstroMap Description: Project coordinates (longitude and latitude) using the Stereographic projection. This is a map projection in which great circles and Loxodromes
 
-pr_stereographic_polar - Project coordinates using the Stereographic polar projection Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Stereographic polar projection.
+pr_stereographic_polar - Project coordinates using the Stereographic polar projection Package: celestial.proj Description: Project coordinates (longitude and latitude) using the Stereographic polar projection. This projection preservs angles.
 
 pr_xy - X-Y projection (no transformation). Package: celestial.proj Description: Project coordinates (longitude and latitude) to X-Y projection (no transformation).
 

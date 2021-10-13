@@ -191,7 +191,7 @@ Search GALEX images by coordinates Package: VO.GALEX Description: Search GALEX i
       
 ### VO.GALEX.src_number_count
 
-The cumulative number of sources in the GALEX-NUV band at high Gal. lat. Package: VO.GALEX Description: A simplistic, order of magnitude estimate of the surfae area of sources in the GALEX-NUV band at high Galactic latitude
+The cumulative number of sources in the GALEX-NUV band at high Gal. lat. Package: VO.GALEX Description: A simplistic, order of magnitude estimate of the surfae area of sources in the GALEX-NUV band at high Galactic latitude based on interpolation of the Bianchi et al. (2007) data in
 
 
     

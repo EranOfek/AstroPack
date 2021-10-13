@@ -101,7 +101,7 @@ Estimate the read noise from bias mage/s in native units. The read noise is esti
     the blck. Default is @imProc.stat.rstd.  
     'BlockMeanFun' - Function handle for calculating the global  
     readnoise from the blocks readnoise.  
-    Default is @nanmedian.  
+    Default is @tools.math.stat.nanmedian.  
     'BlockMeanStdFun' - Function handle for calculating the rms  
     of the global readnoise.  
     Default is @imUtil.background.rstd.  

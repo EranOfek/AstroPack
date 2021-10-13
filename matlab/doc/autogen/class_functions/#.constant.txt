@@ -60,7 +60,7 @@ all_st - Return the values of selected constants in a structure Package: @consta
 
 all_var - Assign selected constants into the workspace Package: @constant Description: Assign into the workspace variables with the constant names and values.
 
-all_var_clear - Clear selected constants from the workspace Package: @constant Description: Use this function in order ro clear the variables assigin into the workspace by the
+all_var_clear - Clear selected constants from the workspace Package: @constant Description: Use this function in order ro clear the variables assigin into the workspace by the constant.all_var function.
 
 alpha - Return the value of the alpha Package: @constant Description: Return the value of the alpha
 
@@ -99,4 +99,6 @@ re - Classical radius of the electron Package: @constant Description: Return the
 sigma - The Stefan-Boltzmann constant Package: @constant Description: Return the value of the sigma Stefan-Boltzmann constant.
 
 sigmaT - Thompson cross-section constant Package: @constant Description: Return the value of the SigmaT Thompson cross-section constant.
+
+unitTest - 
 

@@ -20,7 +20,7 @@ Build a symbolic polynomial Package: Util.symbolic Description: Construct a symb
       
 ### tools.math.symbolic.symerror
 
-Calculate symbolic errors Package: Util.symbolic Description: Given a symbolic expression and the variables in the expression, calculate the symbolic error function of the
+Calculate symbolic errors Package: Util.symbolic Description: Given a symbolic expression and the variables in the expression, calculate the symbolic error function of the expression, with respect to the variables. The output
 
 
     
@@ -54,7 +54,7 @@ Calculate symbolic errors Package: Util.symbolic Description: Given a symbolic e
       
 ### tools.math.symbolic.symerror_calc
 
-Calculate and evaluate symbolic errors Package: tools.math.symbolic Description: Given a symbolic expression, the names of the variables in the expression and the value of the variables and errors,
+Calculate and evaluate symbolic errors Package: tools.math.symbolic Description: Given a symbolic expression, the names of the variables in the expression and the value of the variables and errors, calculate the symbolic error function and evaluate it.
 
 
     

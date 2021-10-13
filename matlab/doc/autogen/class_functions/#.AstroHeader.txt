@@ -12,7 +12,11 @@ get.Key - getter for Key, generate key structure array if needed
 
 getCellKey - Get multiple  keys from multiple headers and store in a cell array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
 
+getCoo - get RA/Dec coordinates from header
+
 getDictionary - 
+
+getObsCoo - Get Observatory geodetic position from Header
 
 getStructKey - Get multiple  keys from multiple headers and store in a structure array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
 
@@ -32,7 +36,7 @@ isKeyExist - Check if a single keyword value equal to some value.
 
 isKeyVal - Check if a single keyword value equal to some value.
 
-julday - Calculate mid exposure JD and ExpTime for AstroHeader object Given the header keywords attempt calculating the mid JD of the exposure. This is done by retrieving the relevank header keywords (default in
+julday - Calculate mid exposure JD and ExpTime for AstroHeader object Given the header keywords attempt calculating the mid JD of the exposure. This is done by retrieving the relevank header keywords (default in config/Header.Time.KeyNames.yml).
 
 read - read as a single/multiple headers from file/s into an Header object
 
@@ -44,5 +48,5 @@ setVal - @Todo - use Dictionaries
 
 show - Display all headers in an AstroHeader object
 
-unitTest - unitTest for AstroHeader Example: Result = AstroHeader.unitTest To do:
+unitTest - unitTest for AstroHeader Example: Result = AstroHeader.unitTest To do: -Add output checks for:
 

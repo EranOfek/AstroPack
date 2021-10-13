@@ -1,6 +1,29 @@
 # Package: tools.struct
 
 
+### tools.struct.copyProp
+
+Copy properties between struct, with optional checking they exist. Copy selected fields in in the first input, to the second input, possibly doing the copy only if the field exist in both structures.
+
+
+    
+    Copy properties between struct, with optional checking they exist.  
+    Copy selected fields in in the first input, to the second  
+    input, possibly doing the copy only if the field exist in both  
+    structures.  
+    Input  : - First structure.  
+    - Second structure.  
+    - A cell array of field names to copy.  
+    If empty, use all fields in St1.  
+    - A logical indicating if to perform the copy only if the  
+    specific field exist in both structures.  
+    Default is true.  
+    Output : - The second structure with the copied fields from the first  
+    struct.  
+    Author : Eran Ofek (Sep 2021)  
+    Example: St1.A = 1; St1.B = 2; St2.A=[]; St2.B = [];  
+    St2 = tools.struct.copyProp(St1, St2, {'B'}, true)  
+      
 ### tools.struct.isfield_check
 
 If field exist run a function of fiel. Package: Util.struct Description: Check if a field name exist in structure, run a function on the field content and return the function output.
@@ -155,7 +178,7 @@ Structure field name and content to cell array of key,val pairs Package: Util.st
       
 ### tools.struct.struct2varargin
 
-Structure field name and content to cell array of key,val pairs Package: Util.struct Description: Given a structure, prepare a cell array of all the field_names, field_values,...
+Structure field name and content to cell array of key,val pairs Package: Util.struct Description: Given a structure, prepare a cell array of all the field_names, field_values,... This is useful for converting InPar to varargin input.
 
 
     
@@ -196,7 +219,7 @@ Define a structure array of a specific size with fields. Package: Util.struct De
       
 ### tools.struct.structcon
 
-Concatenate two structures into one. Package: Util.struct Description: Concatenate two structures into one. Example: S1.A S1.B, and S2.A, S2.B:
+Concatenate two structures into one. Package: Util.struct Description: Concatenate two structures into one. Example: S1.A S1.B, and S2.A, S2.B: S=structcon(S1,S2,1); will return a structure S,
 
 
     
@@ -225,7 +248,7 @@ Concatenate two structures into one. Package: Util.struct Description: Concatena
       
 ### tools.struct.structcut
 
-Select elements in structure fields by indices. Pacakage: Util.struct - structcut function                                                General
+Select elements in structure fields by indices. Pacakage: Util.struct - structcut function                                                General Description: Given a structure and a vector of indices, select
 
 
     

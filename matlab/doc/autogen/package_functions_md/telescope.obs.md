@@ -3,7 +3,7 @@
 
 ### telescope.obs.daily_observability
 
-Observability plot fot a specific coordinates Package: telescope.obs Description: Plot the observability of a given object from a give location on Earth during one night.
+Observability plot fot a specific coordinates Package: telescope.obs Description: Plot the observability of a given object from a give location on Earth during one night. This program will plot the object Alt during the night,
 
 
     
@@ -48,7 +48,7 @@ Observability plot fot a specific coordinates Package: telescope.obs Description
       
 ### telescope.obs.keck_obs_limits
 
-Rise/set time for object in Keck observatory given telescope limits. Package: telescope.obs Description: Given a date and object celestial positions, calculate the rise and set time of an object in Keck observatory, given
+Rise/set time for object in Keck observatory given telescope limits. Package: telescope.obs Description: Given a date and object celestial positions, calculate the rise and set time of an object in Keck observatory, given the Nasmyth mount limits.
 
 
     
@@ -114,7 +114,7 @@ Geodetic coordinates of selected observatories Package: telescope.obs observator
       
 ### telescope.obs.obspl
 
-GUI observations planner Package: telescope.obs Description: GUI Observation Planer. Plot Alt/Airmass and moon sky brightness as a function of time in night, or yearly
+GUI observations planner Package: telescope.obs Description: GUI Observation Planer. Plot Alt/Airmass and moon sky brightness as a function of time in night, or yearly visibility plot per celestial object.
 
 
     

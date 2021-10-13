@@ -8,3 +8,5 @@ unitTest - unitTest for ImageIO class
 
 write1 - Write a single data array into a file
 
+writeHDF5 - Save matrix data to HDF5 file with possible attributes
+

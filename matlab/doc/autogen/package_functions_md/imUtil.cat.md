@@ -33,6 +33,8 @@ Applay a 2D affine transformation to [X,Y] coordinates Package: +imUtil.cat Desc
     Output : - A vector of new X coordinates.  
     - A vector of new Y coordinates.  
     - A 3x3 affine matrix for 2D transformation.  
+    - A 3x3 affine matrix for 2D transformation, but without the  
+    flip.  
     By: Eran O. Ofek                         May 2020  
     Example: Cat = rand(10,2);  
     [NewX,NewY]=imUtil.cat.affine2d_transformation(Cat,[0 10 10])  
@@ -85,7 +87,7 @@ Get astrometric catalog, corrected for proper motion Package: +imUtil.cat
       
 ### imUtil.cat.dilute_cat_by_mag
 
-Remove faint sources from a catalog to have a specific surface density Package: +imUtil.cat Description: Dilute sources from a acatalog based on sources magnitude. Remove the faintest sources and sources which have NaN
+Remove faint sources from a catalog to have a specific surface density Package: +imUtil.cat Description: Dilute sources from a acatalog based on sources magnitude. Remove the faintest sources and sources which have NaN magnitude, such that the surface density of the diluted
 
 
     
@@ -114,7 +116,7 @@ Remove faint sources from a catalog to have a specific surface density Package: 
       
 ### imUtil.cat.flag_overdense
 
-Flag sources that are found in overdense (box shaped) regions Package: +imUtil.cat Description: Given a catalog of [X,Y] positions, flag sources that are found in regions which their density is above a threshold.
+Flag sources that are found in overdense (box shaped) regions Package: +imUtil.cat Description: Given a catalog of [X,Y] positions, flag sources that are found in regions which their density is above a threshold. The function uses two algorithms:
 
 
     
@@ -175,7 +177,7 @@ Flag sources that are found in overdense (box shaped) regions Package: +imUtil.c
       
 ### imUtil.cat.flag_overdense_colrow
 
-Flag sources that are found in overdense (box shaped) regions Package: +imUtil.cat Description: Given a catalog of [X,Y] positions, flag sources that are found in regions which their density is above a threshold.
+Flag sources that are found in overdense (box shaped) regions Package: +imUtil.cat Description: Given a catalog of [X,Y] positions, flag sources that are found in regions which their density is above a threshold. The function uses two algorithms:
 
 
     
@@ -237,7 +239,7 @@ Flag sources that are found in overdense (box shaped) regions Package: +imUtil.c
       
 ### imUtil.cat.match_sources
 
-Match sources in two catalogs with the same coordinates systems. Package: imUtil.cat Description: Match a catalog and reference catalog which are on the same 2-D coordinate system.
+Match sources in two catalogs with the same coordinates systems. Package: imUtil.cat Description: Match a catalog and reference catalog which are on the same 2-D coordinate system. The catalogs may have spherical or planner coordinates.
 
 
     
@@ -336,7 +338,7 @@ Match sources between Cat and Ref catalogs using their X/Y (planar) coordinates.
       
 ### imUtil.cat.surface_density
 
-Estimate surface density in catalog, optionally using convex hull Package: +imUtil.cat Description: Estimate the surface density and area that a catalog is covering. The area is estimated using either the box size,
+Estimate surface density in catalog, optionally using convex hull Package: +imUtil.cat Description: Estimate the surface density and area that a catalog is covering. The area is estimated using either the box size, circle radius, and if not provided using the convex hull.
 
 
     

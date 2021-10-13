@@ -1,6 +1,0 @@
-Class: UnitTest
-
-unitTest - set your own directory
-
-unit_Test - AstroCatalog.unitTest AstroDb.unitTest
-

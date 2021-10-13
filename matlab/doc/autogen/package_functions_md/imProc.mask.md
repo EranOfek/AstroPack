@@ -68,11 +68,11 @@ set mask bits for saturated and non-linear pixels
       
 ### imProc.mask.replaceMaskedPixVal
 
-Replace the values of image pixels with specific bit mask
+Replace the values of image pixels which have specific bit mask
 
 
     
-    Replace the values of image pixels with specific bit mask  
+    Replace the values of image pixels which have specific bit mask  
     Input  : - An AstroImage object.  
     - A cell array of mask bit names. Pixels in which this bits  
     are on (any | or) will be set to ReplaceVal.  
@@ -85,11 +85,8 @@ Replace the values of image pixels with specific bit mask
     Default is 'any'.  
     'DataProp' - Data property in AstroImage for which to  
     modify value. Default is 'Image'.  
-    'CreateNewObj' - [], true, false.  
-    If true, create new deep copy  
-    If false, return pointer to object  
-    If [] and Nargout0 then do not create new copy.  
-    Otherwise, create new copy. Default is [].  
+    'CreateNewObj' - Logical indicating if to copy the input  
+    object. Default is false.  
     Output : - An AstroImage object with the pixel values replaced.  
     Author : Eran Ofek (Aug 2021)  
     Example: imProc.mask.replaceMaskedPixVal(AI,  'Saturated', NaN);  

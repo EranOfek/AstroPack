@@ -2,35 +2,37 @@ Package: tools.array
 
 and_mat - Perform logical and operation between all the columns or rows of a matrix Package: Util.array Description: Perform logical and operation between all the columns or rows of a matrix.
 
-and_nan - Logical function "and" for NaNs. Package: Util.array Description: Logical function "and" for NaNs. This function is similar to "and" logical function, but NaNs are regarded as no
+and_nan - Logical function "and" for NaNs. Package: Util.array Description: Logical function "and" for NaNs. This function is similar to "and" logical function, but NaNs are regarded as no information using the following logical table:
 
-array_select - Select lines in an array which columns satisfay some criteria. Package: Util.array Description: Given a matrix, select lines which their column fullfill a specific criteria. For example, the values in the second
+array_select - Select lines in an array which columns satisfay some criteria. Package: Util.array Description: Given a matrix, select lines which their column fullfill a specific criteria. For example, the values in the second columns are in some range or follow a specific criterion.
 
-assoc_range - Index of points in each bin. Package: Util.array Description: Given a vector of data points and a vector of edges, for each value in the vector, return the index of the
+assoc_range - Index of points in each bin. Package: Util.array Description: Given a vector of data points and a vector of edges, for each value in the vector, return the index of the bin (defined by the edges) to which it belongs.
 
 bitand_array - Perform a bitand operation along all elements in an array. Package: Util.array Description: Perform a bitand operation along all elements in an array along a specific dimension.
 
 bitor_array - Perform a bitor operation along all elements in an array. Package: Util.array Description: Perform a bitor operation along all elements in an array along a specific dimension.
 
-bsx_nsize - bsx_nsize gets multiple of array sizes (i.e. result of the size function), verifies they are candidates for bsxfun operation, and the size of the result array of bsxfun operation (S). The function also padding the sizes of the input arrays with ones, in
+bsx_nsize - bsx_nsize gets multiple of array sizes (i.e. result of the size function), verifies they are candidates for bsxfun operation, and the size of the result array of bsxfun operation (S). The function also padding the sizes of the input arrays with ones, in case one of the size arrays is shorter (i.e. its last dimensions are singleton).
 
-bsx_size - bsx_size gets two arrays S1,S2 and calculates the size of the result array after a bsxfun operation is performed. The function verifies that the sizes are either identical, or for dimensions where thtey are differs, the dimension of one of the array
+bsx_size - bsx_size gets two arrays S1,S2 and calculates the size of the result array after a bsxfun operation is performed. The function verifies that the sizes are either identical, or for dimensions where thtey are differs, the dimension of one of the array must be scalar.
 
-check_range - Replace out of bound indices with bound indices. Package: Util.array Description: Given the size of an N-dimensional array, and minimum and maximum indices per each dimension, check if the indices
+check_range - Replace out of bound indices with bound indices. Package: Util.array Description: Given the size of an N-dimensional array, and minimum and maximum indices per each dimension, check if the indices are out of bounds. If the minimum or maximum indices are
 
 delete_ind - Delete a column/s or row/s from a matrix. Package: Util.array Description: Delete a column/s or row/s from a matrix.
 
-find_ranges - Indices of vector values found within one of several ranges. Package: Util.array Description: Given a vector and several ranges, return the indices of values in the vector which are found within one of the
+find_ranges - Indices of vector values found within one of several ranges. Package: Util.array Description: Given a vector and several ranges, return the indices of values in the vector which are found within one of the ranges.
 
-find_ranges_flag - Check if values are within some ranges. Package: Util.array Description: Given a vector and several ranges, return the a vector indicating if a given position in the input vector
+find_ranges_flag - Check if values are within some ranges. Package: Util.array Description: Given a vector and several ranges, return the a vector indicating if a given position in the input vector is included in one of the ranges.
 
 findmany - Find all values in a vector in another vector or matrix. Package: Util.array Description: Find all values in a vector in another vector or matrix.
 
-flag2regions - Identify continous ranges of true values. Package: Util.array Description: Given a column vector flags (true/false) returns pairs of indices of the positions of continuus regions in which the
+flag2regions - Identify continous ranges of true values. Package: Util.array Description: Given a column vector flags (true/false) returns pairs of indices of the positions of continuus regions in which the flag is true.
 
-ind2sub_array - ind2sub_array Multiple subscripts from linear index. IND2SUB is used to determine the equivalent subscript values corresponding to a given single index into an array.
+hist2d_fast - A fast version of histcounts2 (without all the overheads) This is faster than imUtil.patternMatch.hist2d BUT unlike, imUtil.patternMatch.hist2d, the returned matrix X/Y directions I like those of histcounts2.
 
-index_outofbound - Remove from vector of indices valu8es which are out of bounds. Package: Util.array Description: Given a vector of indices and the allowed size of the array will remove from the vector of indices any indices which
+ind2sub_array - ind2sub_array Multiple subscripts from linear index. IND2SUB is used to determine the equivalent subscript values corresponding to a given single index into an array. ind2sub_array is identical to matlab function IND2SUB except for the
+
+index_outofbound - Remove from vector of indices valu8es which are out of bounds. Package: Util.array Description: Given a vector of indices and the allowed size of the array will remove from the vector of indices any indices which are out of bound.
 
 insert_ind - Insert a column/s or row/s to a specific position in a matrix. Package: Util.array Description: Insert a column/s or row/s to a specific position in a matrix.
 
@@ -38,7 +40,7 @@ is_evenint - Check for each integer number in array if even. Package: Util.array
 
 list2vec - Concatenate all vectors to a single vector. Package: Util.array Description: Given an arbitrary number of arguments, each containing a vector, concatenate all vectors to a single vector.
 
-maskflag_check - maskflag_check function                                          General Description: Given a matrix or vector of bit masks and a list of bits to test, return true for indices in the matrix in which
+maskflag_check - maskflag_check function                                          General Description: Given a matrix or vector of bit masks and a list of bits to test, return true for indices in the matrix in which one of the bits specified in the list of bits is open.
 
 maskflag_set - maskflag_set function                                            General Description: Given a matrix or vector of bit masks, set specific bits of specific indices.
 
@@ -46,17 +48,17 @@ mat2vec - Convert matrix to vector. Use (:) instead. Package: Util.array Descrip
 
 nan2val - Replace NaNs in an array with a specific values Package: Util.array Description: Replace NaNs in an array with a specific values
 
-nangetind - Replace value with NaNs when index is out of bound. Package: Util.array Description: Get elements from an array by its indices. However, unlike A(I,J) operation in matlab if I or J are
+nangetind - Replace value with NaNs when index is out of bound. Package: Util.array Description: Get elements from an array by its indices. However, unlike A(I,J) operation in matlab if I or J are out of bound then return NaN.
 
-nearest_unflag - Nearest coordinate to an unflagged point. Package Util.array Description: Given a coordinate X0, a list of X-coordinates and a flag (0 | 1) for each coordinate, find the nearest X
+nearest_unflag - Nearest coordinate to an unflagged point. Package Util.array Description: Given a coordinate X0, a list of X-coordinates and a flag (0 | 1) for each coordinate, find the nearest X coordinate in the list to X0 that is Flag0.
 
-or_nan - Logical function "or" for NaNs. Package: Util.array Description: Logical function "or" for NaNs. This function is similar to "or" logical function, but NaNs are regarded as no
+or_nan - Logical function "or" for NaNs. Package: Util.array Description: Logical function "or" for NaNs. This function is similar to "or" logical function, but NaNs are regarded as no information using the following logical table:
 
 replace - Replace values in specific range, or equal NaN, with another value. Package: Util.array Description: Given an array replace any value in the array within some specific range, or equal NaN, with another value.
 
-select_by_ind - Select lines by index, return NaN when index is NaN. Package: Util.array select_by_ind function                                               General Description: Select lines from a matrix, given the indices of the lines
+select_by_ind - Select lines by index, return NaN when index is NaN. Package: Util.array select_by_ind function                                               General Description: Select lines from a matrix, given the indices of the lines contains NaNs. Return lines with NaNs from NaNs indices.
 
-sub2ind_array - sub2ind_array Linear index from multiple subscripts. sub2ind_array is used to determine the equivalent single index corresponding to a given set of subscript values.
+sub2ind_array - sub2ind_array Linear index from multiple subscripts. sub2ind_array is used to determine the equivalent single index corresponding to a given set of subscript values. sub2ind_array is identical to matlab function sub2ind except for the
 
 sub2ind_fast - sub2ind fast version for 2D matrices Description: A fast version of sub2ind for 2D arrays.
 
