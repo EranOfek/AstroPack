@@ -1,6 +1,10 @@
 # Component class - this class hinerits from Base class, and most
 
-import Base
+import uuid
+from base import Base
+from msglogger import MsgLogger
+from configuration import Configuration
+
 
 # Parent class for all components
 class Component(Base):
@@ -23,42 +27,24 @@ class Component(Base):
 
     # (re)Generate unique ID for each element in object
     def makeUuid(self):
-
-        for i = 1:numel(Obj)
-            Obj(i).Uuid = Component.newUuid();
-        end
-
-        if numel(Obj) == 1
-            Result = Obj.Uuid;
-        else
-            Result = [];
+        self.Uuid = uuid.uuid1()
+        return self.Uuid
 
 
     # Generate unique ID only if not empty
     def needUuid(self):
+        if self.Uuid == '':
+            self.makeUuid()
 
-        for i = 1:numel(Obj)
-            if isempty(Obj(i).Uuid)
-                Obj(i).makeUuid();
-
-        if numel(Obj) == 1:
-            Result = Obj.Uuid;
-        else:
-            Result = [];
+        return self.Uuid
 
 
     # If empty, generate map key as uuid
     def needMapKey(self)
+        if self.MapKey == '':
+            self.MapKey = uuid.uuid1()
 
-        for i = 1:numel(Obj)
-            if isempty(Obj(i).MapKey)
-                Obj(i).MapKey = Obj(i).needUuid();
-
-        if numel(Obj) == 1
-            Result = Obj.MapKey;
-        else
-            Result = [];
-
+        return self.MapKey
 
     # Write message to log
     def msgLog(self, Level, varargin):
@@ -71,25 +57,11 @@ class Component(Base):
         self(1).Log.msgStyle(Level, Style, varargin{:});
 
 
-    '''
-    function Args = selectDefaultArgsFromProp(Obj, Args)
-        % Given an Args structure, go over fields - if empty, take
-        % value from object property. Otherwise, use value.
-        
-        ArgNames = fieldnames(Args);
-        for Ian=1:1:numel(ArgNames)
-            if isempty(Args.(ArgNames{Ian}))
-                Args.(ArgNames{Ian}) = Obj.(ArgNames{Ian});
-            end
-            
-    '''
-
     # Generate Uuid
     @staticmethod
     def newUuid():
-
-        Temp = java.util.UUID.randomUUID;
-        Result = string(Temp.toString()).char;
+        temp = uuid.uuid1()
+        return temp
 
 
     # Generate simple serial number, used as fast local uuid
@@ -146,3 +118,5 @@ class Component(Base):
         io.msgStyle(LogLevel.Test, '@passed', 'Component test passed');
 
         Result = true;
+
+

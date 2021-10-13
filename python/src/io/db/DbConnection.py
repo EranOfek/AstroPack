@@ -1,7 +1,8 @@
 import psycopg2
-import Component
+from dbcomponent import DbComponent
 
-class DbConnection(Component):
+
+class DbConnection(DbComponent):
     
     def __init__(self):
         
@@ -24,31 +25,17 @@ class DbConnection(Component):
         self.msgLog(LogLevel.Debug, 'DbConnection deleted: %s', self.Uuid);
 
 
-
+    #
     def open(self):
         if self.DriverName == 'postgres':
-        self.Conn = psycopg2.connect(
-            host=self.Host,
-            database=self.DatabaseName,
-            user=self.UserName,
-            password=self.Password);
+            self.msgLog('Connect to Postgres')
+            self.Conn = psycopg2.connect(host=self.Host, database=self.DatabaseName, user=self.UserName,
+                password=self.Password)
+
+        else:
+            self.msgLog('Database not supported: ' + self.DriverName)
 
 
-
-% Connect to database specified by Host:Port:Database as UserName/Password
-        f_ = io.FuncLog('DbConnection.open');
-        Obj.msgLog(LogLevel.Info, 'DbConnection.open');
-
-        % Already open
-        if Obj.IsOpen
-            Obj.msgLog(LogLevel.Info, 'DbConnection.open: already open');
-            return
-        end
-
-        % Setup driver
-        if isempty(Obj.Driver)
-            Obj.Driver = io.db.DbDriver.getDbDriver(Obj.DriverName);
-        end
 
         % Open driver
         if ~Obj.Driver.IsOpen
@@ -88,20 +75,11 @@ class DbConnection(Component):
 
 
 
+    #
+    def close(self):
+        # Disconnect from database
 
-    function Result = close(Obj)
-        % Disconnect from database
-
-        Obj.msgLog(LogLevel.Info, 'DbConnection.close');
-        try
-            Obj.IsOpen = false;
-        catch
-        end
-
-        Result = ~Obj.IsOpen;
-    end
-
-
+        return True
 
     # Create new DbQuery instance
     function Result = newQuery(Obj)
@@ -112,7 +90,6 @@ class DbConnection(Component):
 
 
 
-methods(Static) % getDbConnection
 
     function Result = getConnectionKey()
         %Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];

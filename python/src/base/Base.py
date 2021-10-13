@@ -5,7 +5,7 @@
 import LogLevel, io
 
 # Base class for all objects
-class  Base:
+class Base:
 
     def __init__(self):
         self.UserData = None
