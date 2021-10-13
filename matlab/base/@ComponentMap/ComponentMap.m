@@ -93,7 +93,7 @@ classdef ComponentMap < handle
             % Release all components from map
 
             for Key = Obj.Map.keys
-                Comp = Obj.Map(Key);
+                % Comp = Obj.Map(Key);
 
                 % @TODO: Need release or delete??
                 %Comp.release();

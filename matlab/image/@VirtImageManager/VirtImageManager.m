@@ -24,7 +24,7 @@ classdef VirtImageManager < ComponentMap
         function delete(Obj)
             % Destructor
             Obj.msgLog(LogLevel.Debug, 'VirtImageManager deleted');
-            release();
+            Obj.release();
         end
     end
     

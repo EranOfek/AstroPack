@@ -4,8 +4,9 @@
 % Load all YML files in folder
 % Access each file as property of the Configuration object.
 %
-% Usually we work with only one singleton configuration object in the
-% system.
+% Usually we work with only one singleton configuration object in the system.
+%
+% Use init() / reload() to load entire system configuration from /config folder.
 %
 % Note: Since Configuration.getSingleton() uses persistant object,
 %       in order to load fresh configuration you need to do 'clear all'
@@ -172,11 +173,14 @@ classdef Configuration < handle
             persistent Conf
 
             % Clear configuration
-            if numel(varargin) > 0
+            if numel(varargin) > 0 && strcmp(varargin{1}, 'clear')
+                io.msgLog(LogLevel.Info, 'Configuration.init: Clearing Conf');
                 Conf = [];
             end
 
+            % Load/reload entire configuration
             if isempty(Conf)
+                io.msgLog(LogLevel.Info, 'Configuration.init: Creating Conf');
                 Conf = Configuration;
             end
             Result = Conf;
@@ -185,6 +189,8 @@ classdef Configuration < handle
 
         function Result = getSingleton()
             % Return singleton Configuration object
+            
+            % Call init() to create the singleton object
             Conf = Configuration.init();
             if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
                 Conf.loadConfig();
@@ -193,6 +199,23 @@ classdef Configuration < handle
         end
 
 
+        function Result = clear()
+            % Clear entire configuration
+            io.msgLog(LogLevel.Warning, 'Configuration.clear: Configuration cleared, was it on purpose?');
+            Configuration.init('clear');
+            Result = true;
+        end
+        
+        
+        function Result = reload()
+            % Reload configuration            
+            io.msgStyle(LogLevel.Info, 'red', 'Configuration.reload: Calling "clear java" which is required until we find better solution');
+            Conf = Configuration.init('clear');
+            Conf.loadConfig();
+            Result = true;
+        end
+
+        
         function YamlStruct = loadYaml(FileName)
             % Read YAML file to struct, add FileName field
             io.msgLog(LogLevel.Info, 'loadYaml: Loading file: %s', FileName);

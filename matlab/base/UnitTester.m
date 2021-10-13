@@ -131,13 +131,13 @@ classdef UnitTester < handle
             % Result = Obj.processFolder(Obj.SourcePath);
             
             % Run core unit-tests
-            Result = Obj.testCore();
+            Obj.testCore();
 
             % Run image-related unit-tests
-            Result = Obj.testImage();
+            Obj.testImage();
 
             % Run tests by scanning source files
-            Result = Obj.processFolder(Obj.SourcePath);
+            Obj.processFolder(Obj.SourcePath);
             
             % Print report
             Obj.report();
@@ -148,6 +148,8 @@ classdef UnitTester < handle
             else
                 Obj.msgStyle(LogLevel.Test, '@failed', 'BeforePush FAILED - DO NOT PUSH !!!');
             end
+            
+            Result = (Obj.FailCount == 0);
         end
 
 
