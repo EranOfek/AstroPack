@@ -1445,7 +1445,7 @@ classdef AstroHeader < Component
             for Iobj=1:1:Nobj
                 Lon(Iobj)    = getVal(Obj(Iobj), Args.KeyLon, 'IsInputAlt',Args.IsInputAlt);
                 Lat(Iobj)    = getVal(Obj(Iobj), Args.KeyLat, 'IsInputAlt',Args.IsInputAlt);
-                Alt(Iobj)    = getVal(Obj(Iobj), Args.KeyHeight, 'IsInputAlt',Args.IsInputAlt);
+                Alt(Iobj)    = getVal(Obj(Iobj), Args.KeyAlt, 'IsInputAlt',Args.IsInputAlt);
             end
 
         end
