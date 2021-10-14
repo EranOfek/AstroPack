@@ -173,6 +173,11 @@ interpolate AstroImage over NaN values
     AI.Image(70,70) = NaN;  
     imProc.image.interpOverNan(AI);  
       
+    Example with SINGLE for testing:  
+    addpath('D:\Ultrasat\AstroPack.git\matlab\external\Inpaint_nans')  
+    AI = AstroImage({rand(100,100)});  AI.cast('single');  AI.Image(10,10) = NaN;  BI = imProc.image.interpOverNan(AI)  
+      
+      
 ### imProc.image.unitTest
 
 unitTest for the +imProc.image package

@@ -32,17 +32,17 @@
 % is linked to the singleton Configuration object.
 % The first instace of Component which is created triggers loading of the
 % system configuration.
-% 
+%
 % Example:  Access global configuration from Component decendent:
 %           Get the value of 'Key1' inside configuration file 'unittest.yml'.
 %           This will load the entire configuration folder if not loaded yet.
 %           Comp = Component
-%           disp(Comp.Config.Data.unittest.Key1) 
+%           disp(Comp.Config.Data.unittest.Key1)
 %
 % Example:  Access global configuration without Component:
 %           Get the value of 'Key1' inside configuration file 'unittest.yml'.
 %           This will load the entire configuration folder if not loaded yet.
-%           disp(Configuration.getSingleton().Data.unittest.Key1) 
+%           disp(Configuration.getSingleton().Data.unittest.Key1)
 %
 %
 % Create/load configuration:
@@ -52,7 +52,7 @@
 % Configuration.reload()
 
 %--------------------------------------------------------------------------
-% Working with user defined Configuration instances 
+% Working with user defined Configuration instances
 % (i.e. not using the global singleton object):
 %
 % Private configuration file, load directly to Data
@@ -80,21 +80,21 @@
 
 % #functions (autogen)
 % Configuration -
-% clear - Clear entire configuration
-% expandFolder - Expand Path with macros from Configuration.System.EnvFolders
-% getRange - Get minimum and maximum values from cell array Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
-% getSingleton - Return singleton Configuration object
-% init - Return singleton Configuration object
+% expandFolder - Expand Path with macros from Configuration.System.EnvFolders This functions assume that we already loaded a configuration file called System.yml which has EnvFolders section.
+% getRange - Get minimum and maximum values from cell array, assuming that cell{1} holds the minimum and cell{2} folds the maximum This is usefull when storing Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
+% getSingleton - Return the singleton Configuration object, this is the 'Global' configuration object of the system
+% getSysConfigPath - Get path to system configuration file, from ASTROPACK_CONFIG_PATH or repository
+% initSysConfig - Return singleton Configuration object, clear entire configuration if argument is 'clear' This function DOES NOT load any configuration file, just create/clear the object
+% internal_loadYaml - Read YAML file to struct, add FileName field
+% internal_reloadYaml - Reload configuration file, YamlStruct.FileName property must exist FileName is created by Configuration.loadYaml() on loading.
 % listLen - Return list length
-% loadConfig - Load ALL configuration files in Obj.Path folder
-% loadFile - Load specified file to property
-% loadFolder - Load specified folder to properties
-% loadYaml - Read YAML file to struct, add FileName field
-% reload - Reload configuration
-% reloadFile - Reload specified configuration object (file name)
-% reloadFolder - Reload all configuration files from default folder
-% reloadYaml - Reload configurastion file, 'FileName' field must exist
-% unmacro - Replace macros in string with values from struct Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc" conf.unmacro(conf.Yaml.DarkImage.InputFolder, conf.Yaml.EnvFolders)
+% loadFile - Load specified file to new property inside Obj.Data. When Args.Field is true, a new property based on the file name will be created in Obj.Data Use this function when working with user Confguuration object, or when you want to explictly load/reload specific
+% loadFolder - Load all configuration files inside the specified folder Each file is loaded to Obj.Data.FileName struct. Example: MyConfig = Configuration(); MyConfig.loadFile('C:/Temp/MyConfigFolder');
+% loadSysConfig - Load entire system configuration, same as getSingleton()
+% reload - Reload all configuration files from folder used by last call to loadFolder(), if Obj.Path is empty, it reloads existing structs by the stored FileName field Example: MyConfig.reloadFolder()
+% reloadFile - Reload specified configuration object (file name) Call this function with the Example: MyConfig.reloadFile(MyConfig.Data.unittest)
+% reloadSysConfig - Reload entire system configuration, Warning: calls 'clear java'
+% unmacro - Replace macros in string with values from struct Example: Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc" Configuration.unmacro(Component.Config.Data.DarkImage.InputFolder, Component.Config.Data.EnvFolders)
 % #/functions (autogen)
 %
 
@@ -104,31 +104,31 @@ classdef Configuration < handle
     % Properties
     properties (SetAccess = public)
         ConfigName              % Optional name for the entire configuration
-        Path                    % Path of configuration files, set by 
+        Path                    % Path of configuration files, set by
         ExternalPath            % Path to external packages
         Data struct = struct()  % Initialize empty struct, all YML files are added here in tree structure
     end
 
     %--------------------------------------------------------
     methods % Constructor
-        function Obj = Configuration(Args)            
+        function Obj = Configuration(Args)
             arguments
                 Args.Name = '';
                 Args.File = '';
                 Args.Folder = '';
             end
             
-            % Constructor: Validate that we have access to 'external/' folder 
+            % Constructor: Validate that we have access to 'external/' folder
             % that contains the yaml package.
             % Master Configuration files are located in AstroPack/config
             
             % Set path to yaml external package
             % @Todo: Replace it with env? move to startup.m?
             MyFileName = mfilename('fullpath');
-            [MyPath, ~, ~] = fileparts(MyFileName);                            
+            [MyPath, ~, ~] = fileparts(MyFileName);
             Obj.ExternalPath = fullfile(MyPath, '..', '..', 'external');
 
-            % Validate access to folders, make sure that we will find the yaml package                        
+            % Validate access to folders, make sure that we will find the yaml package
             assert(~isempty(Obj.ExternalPath));
             assert(isfolder(Obj.ExternalPath));
             
@@ -143,7 +143,7 @@ classdef Configuration < handle
             end
             
             if ~isempty(Args.File)
-                Obj.loadFile(Args.File);                
+                Obj.loadFile(Args.File);
             elseif ~isempty(Args.Folder)
                     Obj.loadFolder(Args.Folder);
             end
@@ -160,7 +160,7 @@ classdef Configuration < handle
             % Use this function when working with user Confguuration
             % object, or when you want to explictly load/reload specific
             % file.
-            % Example: 
+            % Example:
             % MyConfig = Configuration();
             % MyConfig.loadFile('C:/Temp/MyConfig.yml');
 
@@ -210,7 +210,7 @@ classdef Configuration < handle
         function loadFolder(Obj, Path)
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
-            % Example: 
+            % Example:
             % MyConfig = Configuration();
             % MyConfig.loadFile('C:/Temp/MyConfigFolder');
             Obj.Path = Path;
@@ -257,7 +257,7 @@ classdef Configuration < handle
         
     end
     
-    %----------------------------------------------------------------------    
+    %----------------------------------------------------------------------
     methods % Utility Functions
         function Result = expandFolder(Obj, Path)
             % Expand Path with macros from Configuration.System.EnvFolders
@@ -313,13 +313,13 @@ classdef Configuration < handle
             if isempty(Conf)
                 io.msgLog(LogLevel.Info, 'Configuration.init: Creating Conf');
                 Conf = Configuration;
-            end            
+            end
 
-            % Load ALL configuration files in Obj.SysConfig/ and Obj.SysConfig/local/            
+            % Load ALL configuration files in Obj.SysConfig/ and Obj.SysConfig/local/
             if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
 
                 % Get path to config
-                Path = Configuration.getSysConfigPath();               
+                Path = Configuration.getSysConfigPath();
                 assert(~isempty(Path));
                 assert(isfolder(Path));
             
@@ -349,7 +349,7 @@ classdef Configuration < handle
                 % Get full path and name of the file in which the call occurs,
                 % not including the filename extension
                 MyFileName = mfilename('fullpath');
-                [MyPath, ~, ~] = fileparts(MyFileName);                
+                [MyPath, ~, ~] = fileparts(MyFileName);
                 Path = fullfile(MyPath, '..', '..', '..', 'config');
                 io.msgLog(LogLevel.Info, 'Configuration.getSysConfigPath: Using git path: %s', Path);
             end
@@ -357,7 +357,7 @@ classdef Configuration < handle
         end
     end
     
-    %----------------------------------------------------------------------    
+    %----------------------------------------------------------------------
     methods(Static) % For internal use, calls the yaml package
         
         function YamlStruct = internal_loadYaml(FileName)
@@ -417,7 +417,7 @@ classdef Configuration < handle
         function [Min, Max] = getRange(Cell)
             % Get minimum and maximum values from cell array, assuming
             % that cell{1} holds the minimum and cell{2} folds the maximum
-            % This is usefull when storing 
+            % This is usefull when storing
             % Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
             Min = Cell{1};
             Max = Cell{2};

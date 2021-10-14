@@ -6,7 +6,7 @@
 % add -
 % delete - Destructor
 % getSingleton -
-% release -
+% release - @Todo - use keys(Map) for Key = Obj.Map.keys Obj.Map.remove(Key); end
 % remove -
 % #/functions (autogen)
 %

@@ -2,37 +2,35 @@ Class: Configuration
 
 Configuration - 
 
-clear - Clear entire configuration
+expandFolder - Expand Path with macros from Configuration.System.EnvFolders This functions assume that we already loaded a configuration file called System.yml which has EnvFolders section.
 
-expandFolder - Expand Path with macros from Configuration.System.EnvFolders
+getRange - Get minimum and maximum values from cell array, assuming that cell{1} holds the minimum and cell{2} folds the maximum This is usefull when storing Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
 
-getRange - Get minimum and maximum values from cell array Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
+getSingleton - Return the singleton Configuration object, this is the 'Global' configuration object of the system
 
-getSingleton - Return singleton Configuration object
+getSysConfigPath - Get path to system configuration file, from ASTROPACK_CONFIG_PATH or repository
 
-init - Return singleton Configuration object
+initSysConfig - Return singleton Configuration object, clear entire configuration if argument is 'clear' This function DOES NOT load any configuration file, just create/clear the object
 
-listItem - 
+internal_loadYaml - Read YAML file to struct, add FileName field
+
+internal_reloadYaml - Reload configuration file, YamlStruct.FileName property must exist FileName is created by Configuration.loadYaml() on loading.
 
 listLen - Return list length
 
-loadConfig - Load ALL configuration files in Obj.Path folder
+loadFile - Load specified file to new property inside Obj.Data. When Args.Field is true, a new property based on the file name will be created in Obj.Data Use this function when working with user Confguuration object, or when you want to explictly load/reload specific
 
-loadFile - Load specified file to property
+loadFolder - Load all configuration files inside the specified folder Each file is loaded to Obj.Data.FileName struct. Example: MyConfig = Configuration(); MyConfig.loadFile('C:/Temp/MyConfigFolder');
 
-loadFolder - Load specified folder to properties
+loadSysConfig - Load entire system configuration, same as getSingleton()
 
-loadYaml - Read YAML file to struct, add FileName field
+reload - Reload all configuration files from folder used by last call to loadFolder(), if Obj.Path is empty, it reloads existing structs by the stored FileName field Example: MyConfig.reloadFolder()
 
-reload - Reload configuration
+reloadFile - Reload specified configuration object (file name) Call this function with the Example: MyConfig.reloadFile(MyConfig.Data.unittest)
 
-reloadFile - Reload specified configuration object (file name)
-
-reloadFolder - Reload all configuration files from default folder
-
-reloadYaml - Reload configurastion file, 'FileName' field must exist
+reloadSysConfig - Reload entire system configuration, Warning: calls 'clear java'
 
 unitTest - Configuration.unitTest
 
-unmacro - Replace macros in string with values from struct Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc" conf.unmacro(conf.Yaml.DarkImage.InputFolder, conf.Yaml.EnvFolders)
+unmacro - Replace macros in string with values from struct Example: Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc" Configuration.unmacro(Component.Config.Data.DarkImage.InputFolder, Component.Config.Data.EnvFolders)
 

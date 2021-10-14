@@ -1,4 +1,4 @@
-Package: imProc.cat
+Package: imProc.CAT
 
 applyProperMotion - Apply proper motion and parallax to sources in AstroCatalog object
 
