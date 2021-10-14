@@ -1339,6 +1339,7 @@ classdef AstroHeader < Component
 %                                 end
 %                             end
                             MidJD(Iobj) = JD;
+                            Found       = true;
                         end
                     end
                 end

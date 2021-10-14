@@ -104,7 +104,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     Date = AI.HeaderData.getVal('DATE-OBS');
     Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
     JD   = celestial.time.julday(Date);
-    StrJD = sprintf('%14.6f',JD);
+    StrJD = sprintf('%16.8f',JD);
     AI.setKeyVal('JD',StrJD);
     
     AI = CI.processImages(AI, 'SubtractOverscan',false, 'InterpolateOverSaturated',true,...
