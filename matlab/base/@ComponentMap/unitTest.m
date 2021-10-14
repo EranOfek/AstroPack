@@ -14,6 +14,10 @@ function Result = unitTest()
     Map.remove(Comp1);
     assert(isempty(Map.find(Comp1.MapKey)));
 
+    Comp1 = Component;
+    Map.add(Comp1);    
+    clear Map;
+    
     io.msgLog(LogLevel.Test, 'ComponentMap test passed');
     Result = true;
 end

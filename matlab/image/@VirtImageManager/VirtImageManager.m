@@ -57,12 +57,13 @@ classdef VirtImageManager < ComponentMap
         
         
         function release(Obj)
-            for Key = Obj.Map.Map.keys
-                Obj.Map.remove(Key);
-            end
+		   % @Todo - use keys(Map)
+            %for Key = Obj.Map.keys
+            %    Obj.Map.remove(Key);
+            %end
             
             % Make sure that everything was removed
-            assert(Obj.Map.Map.Count == 0);
+            %assert(Obj.Map.keys.Count == 0);
         end
         
     end
