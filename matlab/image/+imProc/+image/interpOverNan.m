@@ -22,11 +22,9 @@ function Result = interpOverNan(Obj, Args)
     %          AI.Image(70,70) = NaN;
     %          imProc.image.interpOverNan(AI);
     %
-    % Example with Single for testing:
-    %   AI = AstroImage({rand(100,100)});
-    %   AI.cast('single');  % if you set to 'double' it is working
-    %   AI.Image(10,10) = NaN;
-    %   BI = imProc.image.interpOverNan(AI)
+    % Example with SINGLE for testing:
+    %   addpath('D:\Ultrasat\AstroPack.git\matlab\external\Inpaint_nans')
+    %   AI = AstroImage({rand(100,100)});  AI.cast('single');  AI.Image(10,10) = NaN;  BI = imProc.image.interpOverNan(AI)
     %
     
     arguments
@@ -73,8 +71,11 @@ function Result = interpOverNan(Obj, Args)
                         end
                     else
                         % 2D image
-                        % This line fails for Single
-                        Result(Iobj).(Args.DataProp{Iprop}) = inpaint_nans(Obj(Iobj).(Args.DataProp{Iprop}), Args.MethodInpaint);
+                        if isa(Obj(Iobj).(Args.DataProp{Iprop}), 'single')
+                            Result(Iobj).(Args.DataProp{Iprop}) = inpaint_nans_single(Obj(Iobj).(Args.DataProp{Iprop}), Args.MethodInpaint);
+                        else
+                            Result(Iobj).(Args.DataProp{Iprop}) = inpaint_nans(Obj(Iobj).(Args.DataProp{Iprop}), Args.MethodInpaint);
+                        end
                     end
                 otherwise
                     error('Unknown Method option');
