@@ -5,19 +5,33 @@ function Result = unitTest()
 
     % Clear java to avoid failure of yaml.ReadYaml()
     clear java;
-
+    
+    ConfigPath = Configuration.getSysConfigPath();
+    assert(~isempty(ConfigPath));
+    ConfigFileName = fullfile(ConfigPath, 'UnitTest.yml');
+    
+    % Test low level loading of Yaml struct
+    io.msgLog(LogLevel.Test, 'Testing low level functions');
+    yml = Configuration.internal_loadYaml(ConfigFileName);
+    uTest = yml;
+    io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);
+    io.msgLog(LogLevel.Test, 'Key2: %s', uTest.Key2);
+    io.msgLog(LogLevel.Test, 'Key: %s', uTest.Key0x2D3);
+    io.msgLog(LogLevel.Test, 'Key: %s', uTest.x0x2DKeyMinus);
+    yml = Configuration.internal_reloadYaml(yml);
+    uTest = yml;
+    io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);                  
+    
+    %----------------------------------------------------------------------
     % Initialize and get a singletone persistant object
-    Conf = Configuration.init();
+    Conf = Configuration.getSingleton();
     assert(~isempty(Conf.Path));
-    assert(~isempty(Conf.External));
+    assert(~isempty(Conf.ExternalPath));
     assert(isfolder(Conf.Path));
-    assert(isfolder(Conf.External));            
+    assert(isfolder(Conf.ExternalPath));            
 
     fprintf('Conf.Path: %s\n', Conf.Path);
-    fprintf('Conf.External: %s\n', Conf.External);
-
-    ConfigPath = Conf.Path;
-    ConfigFileName = fullfile(ConfigPath, 'UnitTest.yml');
+    fprintf('Conf.External: %s\n', Conf.ExternalPath);
 
     % Private configuration file, load directly to Data
     PrivateConf = Configuration;
@@ -33,17 +47,7 @@ function Result = unitTest()
     assert(isfield(PrivateConf2.Data, 'UnitTest'));
     assert(isfield(PrivateConf2.Data.UnitTest, 'Key1'));
 
-    % Test low level loading of Yaml struct
-    io.msgLog(LogLevel.Test, 'Testing low level functions');
-    yml = Configuration.loadYaml(ConfigFileName);
-    uTest = yml;
-    io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);
-    io.msgLog(LogLevel.Test, 'Key2: %s', uTest.Key2);
-    io.msgLog(LogLevel.Test, 'Key: %s', uTest.Key0x2D3);
-    io.msgLog(LogLevel.Test, 'Key: %s', uTest.x0x2DKeyMinus);
-    yml = Configuration.reloadYaml(yml);
-    uTest = yml;
-    io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);                  
+    %----------------------------------------------------------------------
 
     % Test Configuration class
     io. msgLog(LogLevel.Test, 'Testing Configuration object');
