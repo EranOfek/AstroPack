@@ -29,8 +29,8 @@
 %       cast - Cast the image/back/var data in AstroImage (transform to a new type)
 %       funCat - Apply function of Cat properties in AstroImage array.
 %       funHeader - Apply function of HeaderData properties in AstroImage array.
-%       funHeaderScalar - Apply function that return a scalae on HeaderData properties in AstroImage array
-%       getStructKey - Get multiple  keys from headers in multiple AstroImage and store in a structure array
+%       funHeaderScalar - Apply function that return a scalar on HeaderData properties in AstroImage array
+%       getStructKey - Get multiple keys from headers in multiple AstroImage and store in a structure array
 %       funWCS - Apply function of WCS properties in AstroImage array
 %       funPSF - Apply function of PSF properties in AstroImage array
 %       maskSet - Set the value of a bit in a bit mask (Maskdata) in AstroImage
