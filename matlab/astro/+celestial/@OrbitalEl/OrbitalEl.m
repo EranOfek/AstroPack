@@ -448,6 +448,9 @@ classdef OrbitalEl < Base
             V = (sqrt(2).*2.*pi.*Obj.A ./ period(Obj,TimeUnits)).*sqrt( 1./R - 1./(2.*Obj.A) );
         end
 
+    end
+    
+    methods % Solving Kepler equation and related functions
         function [Nu, R, E, Vel, M] = keplerSolve(Obj, Time, Args)
             % Solve the Kepler equation for OrbitalEl object.
             %   For elliptic, parabolic, and hyperbolic orbits
@@ -583,6 +586,54 @@ classdef OrbitalEl < Base
             [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node.*Factor, Obj.W.*Factor, Obj.Incl.*Factor);
         end
 
+        function [X, V] = nu2posOrbitalFrame(Obj, Nu, E, R, Units)
+            % Convert true anomaly to position in orbital frame
+            % Input  : - OrbitalEl object.
+            %          - Vector of true anomaly.
+            %          - Vector of Eccentric anomaly. If empty, then calc.
+            %            Default is [].
+            %          - Vector of radius vector. If empty, then calc.
+            %            Default is [].
+            %          - Units of true and eccentric anomaly.
+            %            Default is 'rad'.
+            % Output : - A 3 lines matrix of X positions of the body on its
+            %            orbital plan. Column per object/true anomaly.
+            %            [au].
+            %          - A 3 lines matrix of velocity [au/day].
+            % Author : Eran Ofek (Oct 2021)
+            % Example: [X, V] = nu2posOrbitalFrame(OrbEl,1);
+            
+            arguments
+                Obj
+                Nu
+                E       = [];
+                R       = [];
+                Units   = 'rad';
+            end
+           
+            %SqrtMu = k.*constant.au.^1.5 ./86400;  % cgs
+            Mu = Obj.K.^2;  % au/day
+            
+            if isempty(E)
+                E = trueAnom2eccAnom(Obj, Nu, Units);
+            end
+            if isempty(R)
+                R = eccAnom2radius(Obj, E, Units);
+            end
+            Nu = convert.angular(Units, 'rad', Nu);
+            E  = convert.angular(Units, 'rad', E);
+            
+            Nu = Nu(:).';
+            E  = E(:).';
+            R  = R(:).';
+            N  = numel(Obj.Eccen);
+            
+            X = [R.*cos(Nu); R.*sin(Nu); zeros(1,N)];
+            V = sqrt(Mu .* Obj.A(:).')./R .* [-sin(E); sqrt(1-Obj.Eccen(:).'.^2).*cos(E); zeros(1,N)];
+            
+            
+        end
+            
     end
     
     methods % ephemerides

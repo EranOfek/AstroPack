@@ -164,7 +164,8 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     if ~isempty(Args.OrbEl)
         % NOTE TIME SHOULD be in TT scale
         tic;
-        [SourcesWhichAreMP, SI] = imProc.match.match2solarSystem(SI, 'JD',JD, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
+        TTmUTC = 70./86400;
+        [SourcesWhichAreMP, SI] = imProc.match.match2solarSystem(SI, 'JD',JD+TTmUTC, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
         toc
     end
     

@@ -3,6 +3,8 @@ function Result = unitTest()
     
     io.msgLog(LogLevel.Test, 'OrbitalEl test started');
 
+    RAD = 180./pi;
+    
     % selectFlag
     OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
     Res   = selectFlag(OrbEl, 1, true);
