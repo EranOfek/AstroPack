@@ -585,6 +585,56 @@ classdef OrbitalEl < Base
             Factor = convert.angular(Obj.AngUnits, 'rad', 1);
             [varargout{1:nargout}] = celestial.Kepler.trueanom2pos(R, Nu, Obj.Node.*Factor, Obj.W.*Factor, Obj.Incl.*Factor);
         end
+        
+        function [V,X] = trueAnom2rectVel(Obj, Nu, R, E, AngUnits)
+            % Return rectangular velocity and position vectors in Equatorial system
+            %   calculated from the orbital elements and the true anomaly.
+            % Input  : - Vector of true anomaly.
+            %          - Vector of Eccentric anomaly. If empty, then calc.
+            %            Default is [].
+            %          - Vector of radius vector. If empty, then calc.
+            %            Default is [].
+            %          - Units of true and eccentric anomaly.
+            %            Default is 'rad'.
+            % Output : - A 3 lines matrix of the rectangular velocity in
+            %            the reference frame of the orbital elements (e.g.,
+            %            equatorial J2000). [au/day]
+            %          - The same, but for the position [au].
+            % Author : Eran Ofek (Oct 2021)
+            % Example: [V,X] = trueAnom2rectVel(OrbEl, 1);
+           
+            arguments
+                Obj
+                Nu
+                R    = [];
+                E    = [];
+                AngUnits = 'rad';
+            end
+            
+            RAD = 180./pi;
+            
+            [XP, VP] = nu2posOrbitalFrame(Obj, Nu, E, R, AngUnits);
+            
+            CosW = cos(Obj.W(:).'./RAD);
+            SinW = sin(Obj.W(:).'./RAD);
+            CosO = cos(Obj.Node(:).'./RAD);
+            SinO = sin(Obj.Node(:).'./RAD);
+            CosI = cos(Obj.Incl(:).'./RAD);
+            SinI = sin(Obj.Incl(:).'./RAD);
+            SinWcosI = SinW.*CosI;
+            CosWcosI = CosW.*CosI;
+            
+            
+            Part1 = [(CosW.*CosO - SinWcosI.*SinO);  (CosW.*SinO + SinWcosI.*CosO); SinW.*SinI];
+            Part2 = [(-SinW.*CosO + CosWcosI.*SinO); (CosWcosI.*CosO - SinW.*SinO); CosW.*SinI];
+                 
+            V     = VP(1,:) .* Part1 + VP(2,:) .* Part2;
+            
+            if nargout>1
+                X  = XP(1,:) .* Part1 + XP(2,:) .* Part2;
+            end
+            
+        end
 
         function [X, V] = nu2posOrbitalFrame(Obj, Nu, E, R, Units)
             % Convert true anomaly to position in orbital frame

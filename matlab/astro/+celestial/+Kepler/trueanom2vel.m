@@ -35,3 +35,5 @@ Yd = Rd.*Y./R - R.*Nid.*(sin(OmP+Ni).*sin(Omega) - cos(OmP+Ni).*cos(Omega).*cos(
 Zd = Rd.*Z./R + R.*Nid.*cos(OmP+Ni).*sin(Inc);
 
 
+
+
