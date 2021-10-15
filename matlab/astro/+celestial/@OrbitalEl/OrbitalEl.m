@@ -601,6 +601,7 @@ classdef OrbitalEl < Base
             %            equatorial J2000). [au/day]
             %          - The same, but for the position [au].
             % Author : Eran Ofek (Oct 2021)
+            % Ref: https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
             % Example: [V,X] = trueAnom2rectVel(OrbEl, 1);
            
             arguments

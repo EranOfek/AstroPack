@@ -7,8 +7,8 @@ function [L,B,R]=ple_earth(Date)
 %              Accuarcy: Better than 1' in long/lat, ~0.001 au in dist.
 % Input  : - matrix of dates, [D M Y frac_day] per line,
 %            or JD per line. In TT time scale.
-% Output : - Longitude in radians.
-%          - Latitude in radians.
+% Output : - Ecliptic Longitude in radians.
+%          - Ecliptic Latitude in radians.
 %          - Radius vector in au.
 % Reference: VSOP87
 % See also: ple_planet.m
