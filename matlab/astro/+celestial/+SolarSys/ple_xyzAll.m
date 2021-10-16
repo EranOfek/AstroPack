@@ -1,7 +1,7 @@
 function XYZ = ple_xyzAll(JD, OutType)
     % Get approximate cartesian coordinates of major planets in a matrix.
     %   Return a matrix of 3 X Ntimes X Nplanets of cartesian coordinates.
-    % Input  : - A vector of JD
+    % Input  : - A vector of JD.
     %          - Output type (always cartesian): 
     %               'Ecdate' - Ecliptic of date.
     %               'Eqdate' - Equatorial mean equinox of date.
