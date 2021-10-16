@@ -55,6 +55,7 @@ db
 draft_alerts
 draft_obs
 draft_pipeline
+imProc.CAT
 imProc.astrometry
 imProc.background
 imProc.calib

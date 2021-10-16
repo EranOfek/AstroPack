@@ -1,4 +1,5 @@
 # Top level gitignore
+matlab\startup\startup.m
 
 # Temporary and backup files
 **/_unused/*

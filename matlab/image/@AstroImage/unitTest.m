@@ -72,9 +72,16 @@ function Result = unitTest()
     s=Result(1).MaskData.bitStat;
     s.BitSummary;
 
-
-    AI = AstroImage({rand(100,100),rand(100,200)},'Back',{rand(100,100),rand(100,200)});
-    Res = crop(AI,[11 20 11 30])
+    % check crop - complete
+    AI = AstroImage({rand(100,100)},'Back',{rand(100,100)});
+    Sec_ccdsec = [11 20 11 30];
+    Res = crop(AI,Sec_ccdsec);
+    Sec_center = [Sec_ccdsec(1)+Sec_ccdsec(2),Sec_ccdsec(3)+Sec_ccdsec(4),...
+                  Sec_ccdsec(2)-Sec_ccdsec(1),Sec_ccdsec(4)-Sec_ccdsec(3)]/2;
+    Res2 = crop(AI,Sec_center,'Type','center');
+     if ~all(Res.Image==Res2.Image,'all')
+        error('Problem with crop or plus operator with crop');
+    end
 
 
     % overload operators
@@ -117,14 +124,27 @@ function Result = unitTest()
     if ~all(R(2).Image==2./3)
         error('Problem with rdivide operator');
     end
+    
+        
+    % overload operators with CCDSEC
+    io.msgLog(LogLevel.Test, 'testing AstroImage operators with CCDSEC')
+    AI = AstroImage({ones(1024, 1024)});
+    Sec = [1 256 1 256];
+    Res = funBinaryProp(AI,AI,@plus,'CCDSEC1',Sec,'CCDSEC2',Sec,'CCDSEC',Sec);
+    if ~all(crop(Res,Sec).Image==2)
+        error('Problem with plus CCDSEC');
+    end
 
     % conv
     io.msgLog(LogLevel.Test, 'testing AstroImage conv');
     AI = AstroImage({rand(100,100), rand(200,200)});
-    AI.conv(imUtil.kernel2.annulus);
+    AI.conv(imUtil.kernel2.annulus); % create new object default is true, on purpose?
     Mat = zeros(30,30); Mat(15,15)=1;
     AI = AstroImage({Mat});
     Res = conv(AI, @imUtil.kernel2.gauss);
+    
+  
+    
 
     % filter (cross-correlation)
     io.msgLog(LogLevel.Test, 'testing AstroImage filter')
@@ -218,14 +238,14 @@ function Result = unitTest()
     % maskSet
     io.msgLog(LogLevel.Test, 'testing AstroImage maskSet')
     AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))});
-    AI.MaskData.Dict=BitDictionary('BitMask.Image.Default')
+    AI.MaskData.Dict=BitDictionary('BitMask.Image.Default');
     Flag = false(3,3); Flag(1,2)=true;
     Res = AI.maskSet(Flag,'Saturated');
     Res = AI.maskSet(Flag,'Streak');
 
     % isImType
     io.msgLog(LogLevel.Test, 'testing AstroImage isImType')
-    AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))})
+    AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))});
     assert(~isImType(AI, 'bias'));
     AI.setKeyVal('IMTYPE','bias');
     assert(isImType(AI,'bias'))

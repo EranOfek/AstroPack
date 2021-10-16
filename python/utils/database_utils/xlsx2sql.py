@@ -42,7 +42,11 @@ GEN_DELPHI = False          # Delphi/Lazarus
 GEN_DART = False            # Flutter
 
 #
-GEN_DESTRUCTOR = False
+GEN_DESTRUCTOR = False      # Generate destructor code
+GEN_DB_FUNCS = True         # Generate database function: read, write
+
+
+
 OUTPUT_PATH = ''
 
 if DEBUG:
@@ -714,6 +718,28 @@ class DatabaseDef:
             #self.wrln('    # Destructor')
             self.wrln('    def __del__(self):')
             self.wrln('        pass\n\n')
+
+        '''
+        if GEN_DB_FUNCS:
+            self.wrln('\n')
+            self.wrln('    # Read from database')
+            self.wrln('    def read(self, query):')
+            for field in self.field_list:
+                ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'python')
+                field_name = field.field_name
+                comment = '# ' + ftype
+                self.wrln('        self.{:20} = {:8} {}'.format(field_name, field_value, comment))
+
+
+            self.wrln('\n')
+            self.wrln('    # Write to database')
+            for field in self.field_list:
+                ftype, field_value = get_field_type_lang(field.field_name, field.field_type, 'python')
+                field_name = field.field_name
+                comment = '# ' + ftype
+                self.wrln('        self.{:20} = {:8} {}'.format(field_name, field_value, comment))
+        '''
+
 
         log('create_class_python done: ' + self.table_name)
         log('')

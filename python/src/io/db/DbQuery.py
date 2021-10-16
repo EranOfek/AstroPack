@@ -1,7 +1,13 @@
 
+from dbcomponent import DbComponent
 
-class  DbQuery(Component)
-    
+class  DbQuery(DbComponent):
+
+
+    def __init__(self):
+
+        pass
+
     % Properties
     properties (SetAccess = public)            
         
@@ -44,12 +50,14 @@ class  DbQuery(Component)
             Obj.Conn = Conn;
         end
         
-        
-        % Destructor
+
+    # Destructor
+    def __del__(self):
+        pass
+
         function delete(Obj)
             Obj.msgLog(LogLevel.Debug, 'DbQuery deleted: %s', Obj.Uuid);
-        end                        
-    end
+
     
     
     methods % open, close
@@ -425,10 +433,7 @@ class  DbQuery(Component)
         end
     end
 
-    
-    methods(Static)
-    end
-    
+
     
     %----------------------------------------------------------------------
     % Unit test

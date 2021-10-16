@@ -106,8 +106,10 @@ classdef ComponentMap < handle
         function release(Obj)
             % Release all components from map
 
-            for Key = Obj.Map.keys
-                % Comp = Obj.Map(Key);
+            Keys = keys(Obj.Map);
+            for i = 1:numel(Keys)
+                Key = Keys{i};
+                Comp = Obj.Map(Key);
 
                 % @TODO: Need release or delete??
                 %Comp.release();

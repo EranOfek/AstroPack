@@ -303,33 +303,10 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
             end
 
             % Geodetic position
-            GeoPos = getGeoPos(Obj, Args); % internal function
-%             if isempty(Args.GeoPos)
-%                 if isa(Obj, 'AstroImage')
-%                     [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon,...
-%                                                                   'KeyLat',Args.KeyLat,...
-%                                                                   'KeyAlt',Args.KeyAlt,...
-%                                                                   'IsInputAlt',Args.IsInputAlt); % assmed [deg, deg, m]
-%                     if isnan(Lon) || isnan(Lat) || isnan(Alt)
-%                         GeoPos = [];
-%                     else
-%                         GeoPos = [Lon./RAD, Lat./RAD, Alt];  % assume [deg deg m] -> [rad rad m]
-%                     end
-%                 else
-%                     % no header - try to use user input
-%                     error('GeoPos must be provided');
-%                 end
-%             else
-%                 if ischar(Args.GeoPos)
-%                     % geocentric position
-%                     GeoPos = [];
-%                 else
-%                     GeoPos = Args.GeoPos;
-%                 end
-%             end
+            GeoPos = getGeoPos(Obj(Iobj), Args); % internal function
 
             % get bounding box
-            [RA, Dec, FOV_Radius] = boundingCircle(Obj(Iobj), 'OutUnits','rad' ,'CooType','sphere');
+            [RA, Dec, FOV_Radius] = boundingCircle(Cat, 'OutUnits','rad' ,'CooType','sphere');
 
             % search all asteroids within bounding box
             if isa(Args.OrbEl, 'AstroCatalog')
@@ -358,9 +335,9 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
                                                                             'Radius',Args.SearchRadius,...
                                                                             'RadiusUnits',Args.SearchRadiusUnits);
             % we are inside Iobj loop, so there is only one ResInd:
-            SourcesWhichAreMP(Iobj) = selectRows(Obj(Iobj), ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
+            SourcesWhichAreMP(Iobj) = selectRows(Cat, ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
 
-            LinesNN = ~isnan(ResInd(Iobj).Obj2_IndInObj1);
+            LinesNN = ~isnan(ResInd.Obj2_IndInObj1);
             % add columns: Dist, Nmatch, Designation
             if Args.AddColDist
                 Dist = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist(LinesNN));
@@ -372,7 +349,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
             end
 
             if Args.AddColDesignation
-                Desig = getCol(ResultNear(Iobj), 'Designation', 'SelectRows',LinesNN);
+                Desig = getCol(ResultNear, 'Designation', 'SelectRows',LinesNN);
                 SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Desig, Args.ColDesigPos, Args.ColDesigName, '');
             end
 
@@ -409,12 +386,13 @@ end
 % internal functions
 % Geodetic position
 function GeoPos = getGeoPos(Obj, Args)
+    RAD = 180./pi;
     if isempty(Args.GeoPos)
         if isa(Obj, 'AstroImage')
-            [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon,...
-                                                          'KeyLat',Args.KeyLat,...
-                                                          'KeyAlt',Args.KeyAlt,...
-                                                          'IsInputAlt',Args.IsInputAlt); % assmed [deg, deg, m]
+            [Lon, Lat, Alt] = getObsCoo(Obj.HeaderData, 'KeyLon',Args.KeyLon,...
+                                                        'KeyLat',Args.KeyLat,...
+                                                        'KeyAlt',Args.KeyAlt,...
+                                                        'IsInputAlt',Args.IsInputAlt); % assmed [deg, deg, m]
             if isnan(Lon) || isnan(Lat) || isnan(Alt)
                 GeoPos = [];
             else

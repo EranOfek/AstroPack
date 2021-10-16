@@ -95,6 +95,17 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     AI.setKeyVal('FILTER','clear');
     AI.setKeyVal('SATURVAL',55000);
+    AI.setKeyVal('OBSLON',35.0);
+    AI.setKeyVal('OBSLAT',31.0);
+    AI.setKeyVal('OBSALT',400);
+    
+    % fix date
+    % JD is can't be written with exponent
+    Date = AI.HeaderData.getVal('DATE-OBS');
+    Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
+    JD   = celestial.time.julday(Date);
+    StrJD = sprintf('%16.8f',JD);
+    AI.setKeyVal('JD',StrJD);
     
     AI = CI.processImages(AI, 'SubtractOverscan',false, 'InterpolateOverSaturated',true,...
                               'MaskSaturated',Args.MaskSaturated,...
@@ -152,7 +163,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % match known solar system objects
     if ~isempty(Args.OrbEl)
         % NOTE TIME SHOULD be in TT scale
-        [SourcesWhichAreMP, SI] = match2solarSystem(SI, 'JD',JD, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
+        tic;
+        TTmUTC = 70./86400;
+        [SourcesWhichAreMP, SI] = imProc.match.match2solarSystem(SI, 'JD',JD+TTmUTC, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
+        toc
     end
     
     % match against external catalogs
