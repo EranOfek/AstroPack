@@ -1,5 +1,5 @@
 function [X,Y,Z] = ec_longlat2cart(L,B,R,JD,OutType)
-    % Convert Heliocentric ecliptic long/lat/rad refered to mean equinox of date to cartesian coordinates.
+    % Convert Heliocentric ecliptic long/lat/rad referred to mean equinox of date to cartesian coordinates.
     % Input  : - Heliocentric ecliptic long refered to mean equinox of date.
     %          - Heliocentric ecliptic lat refered to mean equinox of date.
     %          - Heliocentric ecliptic rad refered to mean equinox of date.
