@@ -75,7 +75,10 @@
 % disp(MyConf.Data.anothertest.Key1)
 %
 % Reload single configuration file:
-
+%
+% Use online YAML validators to check your YML files:
+%    http://www.yamllint.com/ (Use the GO button...)
+%
 %--------------------------------------------------------------------------
 
 % #functions (autogen)

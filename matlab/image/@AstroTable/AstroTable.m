@@ -7,6 +7,7 @@
 % Example :
 % Reliable: 2
 %--------------------------------------------------------------------------
+% See https://www.stsci.edu/instruments/wfpc2/Wfpc2_dhb/intro_ch23.html
 
 % #functions (autogen)
 % AstroTable - Constrt an AstroTable object or transform AstCat/struct/ to AstroTable

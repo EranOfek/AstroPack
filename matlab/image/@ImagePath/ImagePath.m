@@ -26,7 +26,7 @@ classdef ImagePath < Component
         SubLevel        = '';           % Subleve, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
-        Product         = 'im';         % Product: im, back, var, imflag, exp, Nim, psf, cat, spec.
+        Product         = 'im';         % Product: im, back, var, imflag, exp, nim, psf, cat, spec.
         Version         = '1';          % Version (for multiple processing)
         FileType        = 'fits';       % fits / hdf5 / fits.gz          
         Area            = '';           % Used by genPath()
@@ -38,9 +38,9 @@ classdef ImagePath < Component
         FormatCropID    = '03d';        % Used with CropID
         FormatVersion   = '%03d';       % Used with Version
         
-        % Defaults should be loaded from configuration
-        BasePath        = '/home/last'; % Base storage path
-        DataDir         = 'data';       % Parent folder under BasePath       
+        % @Todo: Defaults should be loaded from configuration
+        BasePath        = '/euler/archive'; % Loaded from Config
+        DataDir         = 'LAST';           % Loaded from Config
     end
         
     properties(Hidden)
@@ -62,6 +62,12 @@ classdef ImagePath < Component
        
         function Obj = ImagePath(varargin)
             % Constructor
+            
+            % Load defaults from configuration
+            % i.e.
+            Obj.BasePath = Obj.Config.Data.System.ImagePath.BasePath;
+            Obj.DataDir  = Obj.Config.Data.System.ImagePath.DataDir;
+            Obj.TimeZone = Obj.Config.Data.System.Time.TimeZone;
             
             % Load header key names mapping from configuation
             Obj.DictKeyNames = Dictionary.getDict('Header.ImagePath.KeyNames');
@@ -108,27 +114,29 @@ classdef ImagePath < Component
             % /data/YYYY/MM/DD/raw/     - contains all the science raw data
             % /data/YYYY/MM/DD/log/     - contains all the log files
             % /data/YYYY/MM/DD/proc/    - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
-            % /data/YYYY/MM/DD/calib/   - contains all the processed calibration images/variance/masks/catalogs
             % /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
-            %
+            %            
             % Form 2: 
             % /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
             %
             % Form 3: 
             % /data/coadd/area/          - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
             %
+            % Form 4:
+            % /data/YYYY/MM/DD/calib/   - contains all the processed calibration images/variance/masks/catalogs            
+            %
             % Example: Path=imUtil.util.file.genPath('Level','ref','SubDir','x')
             %
             arguments
                 Obj
-                Args.BasePath   = '/euler/archive';     %
-                Args.DataDir    = 'LAST';           %
-                Args.SubDir     = '';               %
-                Args.Time       = [];               % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
+                Args.BasePath       % See constructor
+                Args.DataDir        % See constructor
+                Args.SubDir         %
+                Args.Time           % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
 %      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}
-                Args.TimeZone   = 2;                % Hours
-                Args.Level      = 'raw';            % Also in file name
-                Args.Area       = '';               %
+                Args.TimeZone       % Hours
+                Args.Level          % Also in file name
+                Args.Area
             end
             
             % Set properties from arguments, only properties that exist in Args are set
@@ -152,7 +160,7 @@ classdef ImagePath < Component
                     PostDate = sprintf('%s%s%s%s', Obj.Level, filesep, Obj.Area, ...
                         filesep, Obj.Version);
                         
-                case { 'raw', 'log', 'proc', 'stacked'}
+                case { 'raw', 'log', 'proc', 'stacked' }
                     UseYMD = true;                     
                     PostDate = Obj.Level;                    
                 
@@ -166,12 +174,12 @@ classdef ImagePath < Component
 
             %
             if UseYMD
-                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
+                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
                    Obj.DataDir, filesep, PreDate, filesep, YMD, filesep, PostDate, ...
-                   filesep, Obj.SubDir);
+                   filesep, Obj.SubDir, filesep);
             else
-                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
-                   Obj.DataDir, filesep, PostDate, filesep, filesep, Obj.SubDir);
+                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
+                   Obj.DataDir, filesep, PostDate, filesep, filesep, Obj.SubDir, filesep);
                 
             end                      
    
@@ -215,7 +223,7 @@ classdef ImagePath < Component
             %                   r - proper coaddition R
             %                   m - matched filter with unspecified filter
             %                   Default is ''.
-            %            'Product' - either: im, back, var, imflag, exp, Nim, psf, cat, spec.
+            %            'Product' - either: im, back, var, imflag, exp, nim, psf, cat, spec.
             %                   Default is 'im'.
             %            'Version' - Default is 1.
             
@@ -248,7 +256,7 @@ classdef ImagePath < Component
                 Args.Product            %
                 Args.Version            % (char or number) [saved as char]
                 Args.FileType           % - default is ‘fits’.                                    
-                Args.TimeZone = 2;      %
+                Args.TimeZone           % Hours
                 Args.Area               % Used when FullPath is true
                 Args.FullPath = false;  %               
                 Args.FormatFieldID      %
@@ -493,7 +501,7 @@ classdef ImagePath < Component
             % Verify Level
             Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
             switch Obj.Level
-                case {'log', 'raw', 'proc', 'stack', 'ref', 'coadd'}
+                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'calib'}
                     % Ok
                 otherwise
                     error('Unknown Level option: %s', Obj.Level);

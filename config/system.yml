@@ -26,8 +26,18 @@ EnvFolders:
 Folders:
     TestImages: $PRJ/data/test_images/fits_samples
     VirtImageStore: $TEMP/virt_images/
+
     
-    
+# ImagePath
+ImagePath:
+    BasePath : /euler/archive
+    DataDir  : LAST
+
+
+
+Time:
+    TimeZone : 2
+
 #==========================================================================
 # Pipeline - IAI GCS Interface
 GcsInterface:

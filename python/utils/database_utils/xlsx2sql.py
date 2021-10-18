@@ -71,6 +71,15 @@ def log(msg, dt = False):
         logfile.flush()
 
 
+mdfile = None #open(os.path.join(LOG_PATH, 'convert_csv_to_sql_db.log'), 'a')
+def write_md(line):
+    global mdfile
+    if mdfile:
+        mdfile.write(line)
+        mdfile.write("\n")
+        mdfile.flush()
+
+
 XLSX_FILENAME = ''
 
 # Field types

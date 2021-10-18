@@ -1,4 +1,5 @@
 % AstroCatalog class - A container of AstroTable with coordinates
+% See https://www.stsci.edu/instruments/wfpc2/Wfpc2_dhb/intro_ch23.html
 
 % #functions (autogen)
 % AstroCatalog - Constructor for AstroCatalog For parameters input see: AstroTable Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
@@ -45,9 +46,7 @@ classdef AstroCatalog < AstroTable
         DefNamesRV cell                  = {'RV'};
         DefNamesPlx cell                 = {'Plx'};
         DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2'};
-    end
-  
-    
+    end    
     
     methods % constructor
         function Obj = AstroCatalog(varargin)

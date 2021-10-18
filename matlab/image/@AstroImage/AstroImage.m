@@ -9,7 +9,7 @@
 %       Header
 %       Key
 %       Cat
-%       PSF
+%       PSFf
 % Properties:
 %       ImageData
 %       BackData
