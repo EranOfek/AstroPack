@@ -143,6 +143,26 @@ classdef DbQuery < Component
     methods % High-level: Select
         
         function Result = select(Obj, Fields, Args)
+            % Execute SELECT Fields FROM TableName and load results to memory
+            % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
+            arguments
+                Obj                     %
+                Fields                  %
+                Args.TableName = ''     %
+                Args.Where = ''         %
+                Args.Order = ''         %
+                Args.Limit = -1         %
+            end
+            
+            Result = [];
+            Res = Obj.runSelect(Fields, Args);
+            if Res
+                Result = Obj.loadResultSet();
+            end
+        end
+                
+        
+        function Result = runSelect(Obj, Fields, Args)
             % Execute: SELECT Fields FROM TableName
             % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
             arguments
@@ -209,7 +229,7 @@ classdef DbQuery < Component
         end
        
         
-        function Result = loadAll(Obj, Args)
+        function Result = loadResultSet(Obj, Args)
             % Load entire ResultSet to memory, might be time/memory consuming!
             % @Todo?: add arg max row
             % @Todo: load to Table (instead?)

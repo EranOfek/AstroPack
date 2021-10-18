@@ -181,35 +181,39 @@ classdef DbRecord < Base
                
         
         function Result = convert2mat(Obj)
+            % Convert record(s) to matrix, non-numeric fields are 
             Mat = [];
             for i = 1:numel(Obj.Data)
+                c = struct2cell(Obj.Data(i));
+                Mat(i) = cell2mat(c);
             end
             Result = Mat;
         end
     
         
         function Result = convert2table(Obj)
+            % Convert record(s) to table
             Table = table;
-             for i = 1:numel(Obj.Data)
+            for i = 1:numel(Obj.Data)
             end
             Result = Table;
         end
 
         
         function Result = convert2cell(Obj)
-            Cell = {};
-            for i = 1:numel(Obj.Data)
-            end
-            Result = Cell;
+            % Convert record(s) to cell
+            Result = struct2table(Obj.Data);
         end
 
 
         function Result = convert2AstroTable(Obj)
+            % Convert record(s) to AstroTable
             Result = AstroTable();
         end      
 
         
         function Result = convert2AstroCatalog(Obj)
+            % Convert record(s) to AstroCatalog
             Result = AstroCatalog();
         end      
                         
