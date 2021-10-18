@@ -14,7 +14,7 @@
 % #/functions (autogen)
 %
 
-classdef DbRecord < Base
+classdef DbRecord < dynamicprops
     
     % Properties
     properties (SetAccess = public)
@@ -22,8 +22,7 @@ classdef DbRecord < Base
         Query_       = []           % Linked DbQuery
         KeyField_    = ''           % Key field(s)
         Uuid_        = ''           % Used when UseUuid is true
-        UseUuid      = false;       % True to use Uuid, otherwise the faster SerialStr is used
-        Data struct                 % Array of data struct per table row
+        UseUuid_     = false        % True to use Uuid, otherwise the faster SerialStr is used
     end
     
     %--------------------------------------------------------
@@ -134,17 +133,6 @@ classdef DbRecord < Base
         end
         
                         
-        function Result = newKey(Obj)
-            % Generate unique id, as Uuid or SerialStr (more compact and fast)
-            
-            if Obj.UseUuid
-                Result = Component.newUuid();
-            else
-                Result = Component.newSerialStr('DbRecord');
-            end
-        end
-        
-    
         function addProp(Obj, Prop, Value)
             % Add new property with value
             addprop(Obj, Prop);
@@ -174,45 +162,7 @@ classdef DbRecord < Base
                 end
             end
         end
-    end
-    
-    
-    methods % Convert
-               
         
-        function Result = convert2mat(Obj)
-            Mat = [];
-            for i = 1:numel(Obj.Data)
-            end
-            Result = Mat;
-        end
-    
-        
-        function Result = convert2table(Obj)
-            Table = table;
-             for i = 1:numel(Obj.Data)
-            end
-            Result = Table;
-        end
-
-        
-        function Result = convert2cell(Obj)
-            Cell = {};
-            for i = 1:numel(Obj.Data)
-            end
-            Result = Cell;
-        end
-
-
-        function Result = convert2AstroTable(Obj)
-            Result = AstroTable();
-        end      
-
-        
-        function Result = convert2AstroCatalog(Obj)
-            Result = AstroCatalog();
-        end      
-                        
     end
     
     %----------------------------------------------------------------------

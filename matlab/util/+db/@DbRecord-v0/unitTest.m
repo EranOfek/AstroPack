@@ -1,5 +1,6 @@
 function Result = unitTest()
-    % DbRecord.unitTest   
+    % DbRecord.unitTest
+    
     io.msgStyle(LogLevel.Test, '@start', 'DbRecord test started');
 
     % Load from struct

@@ -71,65 +71,60 @@ classdef DbQuery < Component
         % Connection details
         ConnectionStr   = ''        %
         Conn            = []        % DbConnection
-        ConnName        = ''        % Key to ConnectionList 
+        ConnName        = ''        %
         
         % Current SQL statement data
         SqlText         = ''        % SQL text
-
-        TableName       = '';       %        
-        PrimaryKey                  % char or celarray
+        Statement       = []        % Prepared statement object
         
-        % Separate props to 
+        ResultSet       = []        % Returned result-set
+        Record          = []        % Current record
+        Metadata        = []        %
+        ColCount        = 0         %
+        ColNames        = []        %
+        ColType         = []        %
+        IsOpen          = false     % Last result of query()
+        ExecOk          = false     % Last result of exec()
+        Eof             = true      % True when cursor reached last record of current ResultSet
+        Toc             = 0         % Time of last operation
         
-
-        Record          = []        % DbRecord - Current record
-
-        % Metadata
-        ColCount        = 0;        % Number of columns
-        ColNames        = [];       % cell
-        ColType         = [];       % cell
-        
-        % Flags and statistics
-        IsOpen          = false;    % Last result of query()
-        ExecOk          = false;    % Last result of exec()
-        Eof             = true;     % True when cursor reached last record of current ResultSet
-        Toc             = 0;        % Time of last operation
-
-        
-        % Internals
-        Statement       = []        % Java object - Prepared statement object
-        Metadata        = []        % Java object, set by getMetadata()
-        ResultSet       = []        % Java object, returned result-set from SELECT
+        % Need to think (03/08/2021)
+        TableName       = '';       %
     end
     
-    %----------------------------------------------------------------------
+    %--------------------------------------------------------
     methods % Constructor
         
         % Constructor
-        function Obj = DbQuery(Args)
+        function Obj = DbQuery(varargin)
             % Create new DbQuery obeject
-            arguments
-                Args.Connection         %
-                Args.TableName          %
-                Args.PrimaryKey         %
-            end
             
-            % Setup component
             Obj.setName('DbQuery');
             Obj.needUuid();
-            Obj.DebugMode = true;
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
             
-            % Connection: Default/char/DbConnection
-            if isempty(Args.Connection)
-                Obj.Conn = db.DbConnection.getDbConnection('');
-            elseif isa(Args.Connection, char)
-                Obj.Conn = db.DbConnection.getDbConnection(Args.Connection);
-            elseif isa(Args.Connection, db.DbConnection)
-                Obj.Conn = Args.Connection;
+            %
+            if numel(varargin) == 1
+                
+                % Connection object is specified
+                if strcmp(class(varargin{1}), 'db.DbConnection')
+                    Conn = varargin{1};
+                    
+                % Connection name is specified
+                elseif ischar(varargin{1}) || isa(varargin{1}, 'string')
+                    Obj.ConnName = varargin{1};
+                    Conn = db.DbConnection.getDbConnection(Obj.ConnName);
+                end
+                
+            % Use default connection
+            elseif numel(varargin) == 0
+                Conn = db.DbConnection.getDbConnection('');
             else
-                error('Unknown type for Args.Connection');
-            end                
+                error('DbQuery: Unknown parameters');
+            end
+
+            Obj.DebugMode = true;
+            Obj.Conn = Conn;
         end
         
         
@@ -139,28 +134,333 @@ classdef DbQuery < Component
         end
     end
     
-    %----------------------------------------------------------------------    
-    methods % High-level: Select
+    
+    methods % open, close, query, exec
+                         
+        function Result = openConn(Obj)
+            % Open connection, throw exception on failure
+            Result = false;
+            if isempty(Obj.Conn)
+                error('DbQuery.query: No connection');
+            end
+            
+            if ~Obj.Conn.IsOpen
+                Obj.Conn.open();
+                if Obj.Conn.IsOpen
+                    Result = true;
+                else
+                    error('DbQuery.openConn: Open connection failed');
+                end
+            end
+        end
+
+                
+        function Result = close(Obj)
+            % Close current query
+            Result = Obj.clear();
+        end
+
         
-        function Result = select(Obj, Fields, Args)
+        function Result = query(Obj, varargin)
+            % Run SELECT query, for other statements use exec()
+            % @Todo: Replace varargin with arguments block?
+            % Example:
+            %   Result = query('SELECT COUNT(*) from master_table')
+            
+            % Run SELECT statement (using java calls)
+            Obj.msgLog(LogLevel.Debug, 'query');
+            Result = false;
+            tic();
+            
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
+            
+            % Set SQL text
+            if numel(varargin) == 1
+                Obj.SqlText = varargin{1};
+            end
+        
+            % Prepare query
+            Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
+            try
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
+            catch
+                Obj.msgLog(LogLevel.Error, 'query: prepareStatement failed: %s', Obj.SqlText);
+            end
+            
+            % executeQuery
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+            try
+                Obj.ResultSet = Obj.Statement.executeQuery();
+                Obj.IsOpen = true;
+
+                % Get metadata (@Todo: Make it Optional?)
+                Obj.getMetadata();
+
+                % Get first result record
+                Obj.next();
+                Result = true;
+            catch
+                Obj.IsOpen = false;
+                Obj.msgLog(LogLevel.Error, 'query: executeQuery failed: %s', Obj.SqlText);
+            end
+            
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Debug, 'query time: %.6f', Obj.Toc);
+        end
+        
+
+        function Result = exec(Obj, varargin)
+            % Execute SQL statement (that does not return data)
+            % Example: exec('INSERT ...')
+            
+            Obj.msgLog(LogLevel.Debug, 'exec');
+            Result = false;
+            tic();
+            
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
+            
+            % Set SQL text
+            if numel(varargin) >= 1
+                Obj.SqlText = varargin{1};
+            end
+        
+            % Prepare query
+            Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
+            try
+                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
+            catch
+                Obj.msgLog(LogLevel.Error, 'exec: prepareStatement failed: %s', Obj.SqlText);
+            end
+            
+            % See https://www.codota.com/code/java/methods/java.sql.PreparedStatement/setBigDecimal
+            if numel(varargin) >= 1
+                try
+                catch
+                end
+            end
+                        
+            % Execute
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+            try
+                Obj.ResultSet = Obj.Statement.executeUpdate();
+                Obj.ExecOk = true;
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'exec: executeQuery failed: %s', Obj.SqlText);
+            end
+            
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Debug, 'exec time: %.6f', Obj.Toc);
+        end
+               
+    end
+
+
+    methods % Record, Fields
+        
+        function Result = next(Obj)
+            % Move cursor to next record, return false if reached end of
+            % data
+            Result = false;
+            Obj.Eof = true;
+            try
+                Obj.Eof = ~Obj.ResultSet.next();
+                Result = ~Obj.Eof;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
+            end
+        end
+        
+        
+        function Result = prev(Obj)
+            % Move cursor to previous record, return false if reached end
+            % of data
+            Result = false;
+            Obj.Eof = true;
+            try
+                Obj.Eof = ~Obj.ResultSet.previous();
+                Result = ~Obj.Eof;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
+            end
+        end
+        
+        
+        function Result = getField(Obj, FieldName)
+            % Get field value from current ResultSet, when FieldName is
+            % numeric, it is used as column index
+            % Example:
+            %    Value = getField('MyFieldName')
+            
+            if isnumeric(FieldName)
+                ColIndex = FieldName;
+            else
+                ColIndex = Obj.getFieldIndex(lower(FieldName));
+            end
+                
+            if ColIndex > 0
+                try
+                    Type = Obj.ColType{ColIndex};
+                    
+                    switch Type
+                        case { 'Float', 'Double' }
+                            Result = Obj.ResultSet.getDouble(ColIndex);
+                        case { 'Long', 'Integer', 'Short', 'BigDecimal' }
+                            Result = double(Obj.ResultSet.getDouble(ColIndex));
+                        case 'Boolean'
+                            Result = logical(Obj.ResultSet.getBoolean(ColIndex));
+                        case 'String'
+                            Result = char(Obj.ResultSet.getString(ColIndex));
+                        otherwise % case { 'Date', 'Time', 'Timestamp' }
+                            Result = char(Obj.ResultSet.getString(ColIndex));
+                    end
+                    if Obj.DebugMode
+                        Obj.msgLog(LogLevel.Debug, 'getField %s = %s', string(FieldName).char, string(Result).char);
+                    end
+                    
+                catch
+                    Obj.msgLog(LogLevel.Error, 'getField failed: %s', string(FieldName).char);
+                end
+            else
+                Obj.msgLog(LogLevel.Error, 'getField failed: Field not found: %s', string(FieldName).char);
+            end
+        end
+        
+        
+        function Result = isField(Obj, FieldName)
+            % Check if field exists by name
+            if isempty(Obj.ResultSet)
+                Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
+                Result = '';
+            else
+                try
+                    if ~isempty(Obj.Metadata)
+                        Index = getFieldIndex(FieldName);
+                        Result = (Index > 0);
+                    else
+                        Result = Obj.ResultSet.getString(FieldName);
+                        Result = true;
+                    end
+                catch
+                    Obj.msgLog(LogLevel.Error, 'Field not found: %s', FieldName);
+                end
+            end
+        end
+        
+        
+        function Result = getFieldIndex(Obj, FieldName)
+            % Get field index by field name, search in ColNames{}
+            Result = find(strcmp(Obj.ColNames, FieldName));
+        end
+         
+        
+        function Result = getFieldType(Obj, FieldName)
+            % Get field type
+            if isnumeric(FieldName)
+                Index = FieldName;
+            else
+                Index = Obj.getFieldIndex(FieldName);
+            end
+                
+            if Index > 0
+                Result = Obj.ColType{Index};
+            else
+            end
+        end
+                    
+        
+        function Result = getFieldList(Obj)
+            % Get fields list of current ResultSet as celarray
+            Result = Obj.ColNames;
+        end
+              
+
+        function Result = getTableFieldList(Obj, TableName)
+            % Get fields list of specified table as celarray
+
+            % Select single record from table
+            % @Todo: Check how to get it without slect
+            Text = ['SELECT * from ', TableName, ' LIMIT 1'];
+            Obj.query(Text);
+            
+            % @Todo This still does not work
+            % Obj.getMetadata(TableName);
+            
+            % Loop over all columns in the row
+            Result = Obj.ColNames;
+        end
+        
+        
+        function Result = getFieldNames(Obj, Rec)
+            if isstruct(Rec)
+                Result = fieldnames(Rec);
+            else %if isa(Rec, 'DbRecord')
+                Result = Rec.getFieldNames();
+            end
+        end
+        
+        
+        function Result = getRecord(Obj)
+            % Get current record from ResultSet as DbRecord
+            % NOTE: Field names are loaded in lower-case (because Postgres
+            % creates field names lower-cased)
+            
+            % Create new record object
+            Rec = db.DbRecord(Obj);
+            
+            % Loop over all columns in the row
+            for ColIndex = 1 : Obj.ColCount
+                FieldName = Obj.ColNames{ColIndex};
+                Value = Obj.getField(ColIndex);
+                addprop(Rec, FieldName);
+                Rec.(FieldName) = Value;
+            end
+            
+            Result = Rec;
+        end
+        
+                        
+        function Result = getStruct(Obj)
+            % Get current record from ResultSet as struct
+            % NOTE: Field names are loaded in lower-case (because Postgres
+            % creates field names lower-cased)
+            
+            % Create new record object
+            Rec = struct;
+            
+            % Loop over all columns in the row
+            for ColIndex = 1 : Obj.ColCount
+                FieldName = Obj.ColNames{ColIndex};
+                Value = Obj.getField(ColIndex);
+                Rec.(FieldName) = Value;
+            end
+            
+            Result = Rec;
+        end
+        
+    end
+        
+    
+    methods % Select
+        
+        function Result = select(Obj, Fields, TableName, Args)
             % Execute: SELECT Fields FROM TableName
             % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
             arguments
-                Obj                     %
-                Fields                  %
-                Args.TableName = ''     %
-                Args.Where = ''         %
-                Args.Order = ''         %
-                Args.Limit = -1         %
+                Obj
+                Fields
+                TableName
+                Args.Where = ''
+                Args.Order = ''
+                Args.Limit = -1
             end
             
-            if isempty(Args.TableName)
-                Args.TableName = Obj.TableName;
-            end
-            assert(~isempty(Args.TableName));
-            
-            % Prepare Select
-            Obj.SqlText = sprintf('SELECT %s FROM %s', Fields, Args.TableName);
+            % Select
+            Obj.SqlText = sprintf('SELECT %s FROM %s', Fields, TableName);  %.char;
             
             % Where
             if ~isempty(Args.Where)
@@ -177,33 +477,25 @@ classdef DbQuery < Component
                 Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
             end
             
-            % Run query
+            % Open
             Obj.query();
         end
         
         
-        function Result = selectCount(Obj, Args)
+        function Result = selectWhere(Obj, Fields, TableName, Where)
+            % SELECT the specified fields from table, using where clause
+            Obj.SqlText = sprintf('%s FROM %s WHERE %s', Fields, TableName, Where).char;
+            Result = Obj.query();
+        end
+        
+        
+        function Result = selectCount(Obj, TableName, varargin)
             % Select number of records with optionally where clause
-            arguments
-                Obj                     %
-                Args.TableName = ''     %
-                Args.Where = ''         %
+            if numel(varargin) > 0
+                Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s WHERE %s', TableName, varargin{1});
+            else
+                Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s', TableName);
             end
-            
-            if isempty(Args.TableName)
-                Args.TableName = Obj.TableName;
-            end
-            assert(~isempty(Args.TableName));
-            
-            % Prepare Select
-            Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s', Fields, Args.TableName);
-            
-            % Where
-            if ~isempty(Args.Where)
-                Obj.SqlText = [Obj.SqlText, ' WHERE ', Args.Where];
-            end                      
-            
-            % Run query and return result
             Obj.query();
             Result = Obj.getField('count');
         end
@@ -306,9 +598,9 @@ classdef DbQuery < Component
     end % Select
     
     
-    %----------------------------------------------------------------------    
-    methods % High-level: Insert, Update, Delete
-              
+                   
+    methods % Insert
+        
         function Result = insert(Obj, TableName, Keys, Values)
             % Insert new record to table, Keys and Values are celarray
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
@@ -327,7 +619,26 @@ classdef DbQuery < Component
             % Prepare statement
             Sql = sprintf("INSERT INTO %s (%s) VALUES (%s)", TableName, SqlKeys, SqlValues);
             Result = Obj.exec(Sql, Values);
-        end        
+        end
+        
+                
+        function Result = getFieldTable(Obj)
+            % Get fields as empty table
+            
+            Fields = Obj.getFieldList();
+            Result = table(Fields);
+        end
+        
+    end
+    
+    
+    methods
+                    
+        function Result = newRecord(Obj)
+            % Create new empty record associated with this query
+            
+            Result = db.DbQuery(Obj);
+        end
         
 
         function Result = insertRecord(Obj, TableName, Rec, Args)
@@ -492,8 +803,11 @@ classdef DbQuery < Component
 
             Result = Obj.insertRecord(TableName, Rec);
         end
-
         
+    end
+    
+    
+    methods % Update
         function Result = updateRecord(Obj, TableName, Rec, WhereRec, Args)
             % Update record
             arguments
@@ -556,8 +870,10 @@ classdef DbQuery < Component
                   
             Result = true;
         end
-   
-        
+    end
+    
+    
+    methods % Delete
         function Result = deleteRecord(Obj, TableName, Rec, Args)
             % Delete record by fields specified in Rec
             arguments
@@ -615,17 +931,10 @@ classdef DbQuery < Component
                   
             Result = true;
         end
-    end    
-    
-    
-    %----------------------------------------------------------------------    
-    methods % High-level: 
     end
-    
-    
-    %----------------------------------------------------------------------    
-    methods % High-level: Utilities
-        
+
+    %----------------------------------------------------------------------
+    methods % Other
         
         function Result = createDatabase(Obj, DbName, Args)
             % Create database
@@ -689,328 +998,9 @@ classdef DbQuery < Component
             Result = Obj.exec(ASql);
             Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);
         end
-              
+        
     end
     
-    %======================================================================
-    %                      Low-Level & Internal Functions
-    %======================================================================
-    
-    methods % Low-level: open, close, query, exec
-                         
-        function Result = openConn(Obj)
-            % Open connection, throw exception on failure
-            Result = false;
-            if isempty(Obj.Conn)
-                error('DbQuery.query: No connection');
-            end
-            
-            if ~Obj.Conn.IsOpen
-                Obj.Conn.open();
-                if Obj.Conn.IsOpen
-                    Result = true;
-                else
-                    error('DbQuery.openConn: Open connection failed');
-                end
-            end
-        end
-
-                
-        function Result = close(Obj)
-            % Close current query
-            Result = Obj.clear();
-        end
-
-        
-        function Result = query(Obj, varargin)
-            % Run SELECT query, for other statements use exec()
-            % @Todo: Replace varargin with arguments block?
-            % Example:
-            %   Result = query('SELECT COUNT(*) from master_table')
-            
-            % Run SELECT statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'query');
-            Result = false;
-            tic();
-            
-            % Need connection, clear current query
-            Obj.openConn();
-            Obj.clear();
-            
-            % Set SQL text
-            if numel(varargin) == 1
-                Obj.SqlText = varargin{1};
-            end
-        
-            % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
-            try
-                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'query: prepareStatement failed: %s', Obj.SqlText);
-            end
-            
-            % executeQuery
-            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
-            try
-                Obj.ResultSet = Obj.Statement.executeQuery();
-                Obj.IsOpen = true;
-
-                % Get metadata (@Todo: Make it Optional?)
-                Obj.getMetadata();
-
-                % Get first result record
-                Obj.next();
-                Result = true;
-            catch
-                Obj.IsOpen = false;
-                Obj.msgLog(LogLevel.Error, 'query: executeQuery failed: %s', Obj.SqlText);
-            end
-            
-            Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Debug, 'query time: %.6f', Obj.Toc);
-        end
-        
-
-        function Result = exec(Obj, varargin)
-            % Execute SQL statement (that does not return data)
-            % Example: exec('INSERT ...')
-            
-            Obj.msgLog(LogLevel.Debug, 'exec');
-            Result = false;
-            tic();
-            
-            % Need connection, clear current query
-            Obj.openConn();
-            Obj.clear();
-            
-            % Set SQL text
-            if numel(varargin) >= 1
-                Obj.SqlText = varargin{1};
-            end
-        
-            % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
-            try
-                Obj.Statement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'exec: prepareStatement failed: %s', Obj.SqlText);
-            end
-            
-            % See https://www.codota.com/code/java/methods/java.sql.PreparedStatement/setBigDecimal
-            if numel(varargin) >= 1
-                try
-                catch
-                end
-            end
-                        
-            % Execute
-            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
-            try
-                Obj.ResultSet = Obj.Statement.executeUpdate();
-                Obj.ExecOk = true;
-                Result = true;
-            catch
-                Obj.msgLog(LogLevel.Error, 'exec: executeQuery failed: %s', Obj.SqlText);
-            end
-            
-            Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Debug, 'exec time: %.6f', Obj.Toc);
-        end
-               
-    end
-    %----------------------------------------------------------------------
-
-    methods % Low-level: Record, Fields
-        
-        function Result = next(Obj)
-            % Move cursor to next record, return false if reached end of data
-            Result = false;
-            Obj.Eof = true;
-            try
-                Obj.Eof = ~Obj.ResultSet.next();
-                Result = ~Obj.Eof;
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
-            end
-        end
-        
-        
-        function Result = prev(Obj)
-            % Move cursor to previous record, return false if reached end of data
-            Result = false;
-            Obj.Eof = true;
-            try
-                Obj.Eof = ~Obj.ResultSet.previous();
-                Result = ~Obj.Eof;
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
-            end
-        end
-        
-        
-        function Result = getField(Obj, FieldName)
-            % Get field value from current ResultSet, when FieldName is
-            % numeric, it is used as column index
-            % Example:
-            %    Value = getField('MyFieldName')
-            
-            if isnumeric(FieldName)
-                ColIndex = FieldName;
-            else
-                ColIndex = Obj.getFieldIndex(lower(FieldName));
-            end
-                
-            if ColIndex > 0
-                try
-                    Type = Obj.ColType{ColIndex};
-                    
-                    switch Type
-                        case { 'Float', 'Double' }
-                            Result = Obj.ResultSet.getDouble(ColIndex);
-                        case { 'Long', 'Integer', 'Short', 'BigDecimal' }
-                            Result = double(Obj.ResultSet.getDouble(ColIndex));
-                        case 'Boolean'
-                            Result = logical(Obj.ResultSet.getBoolean(ColIndex));
-                        case 'String'
-                            Result = char(Obj.ResultSet.getString(ColIndex));
-                        otherwise % case { 'Date', 'Time', 'Timestamp' }
-                            Result = char(Obj.ResultSet.getString(ColIndex));
-                    end
-                    if Obj.DebugMode
-                        Obj.msgLog(LogLevel.Debug, 'getField %s = %s', string(FieldName).char, string(Result).char);
-                    end
-                    
-                catch
-                    Obj.msgLog(LogLevel.Error, 'getField failed: %s', string(FieldName).char);
-                end
-            else
-                Obj.msgLog(LogLevel.Error, 'getField failed: Field not found: %s', string(FieldName).char);
-            end
-        end
-        
-        
-        function Result = isField(Obj, FieldName)
-            % Check if field exists by name
-            if isempty(Obj.ResultSet)
-                Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
-                Result = '';
-            else
-                try
-                    if ~isempty(Obj.Metadata)
-                        Index = getFieldIndex(FieldName);
-                        Result = (Index > 0);
-                    else
-                        Result = Obj.ResultSet.getString(FieldName);
-                        Result = true;
-                    end
-                catch
-                    Obj.msgLog(LogLevel.Error, 'Field not found: %s', FieldName);
-                end
-            end
-        end
-        
-        
-        function Result = getFieldIndex(Obj, FieldName)
-            % Get field index by field name, search in ColNames{}
-            Result = find(strcmp(Obj.ColNames, FieldName));
-        end
-         
-        
-        function Result = getFieldType(Obj, FieldName)
-            % Get field type
-            if isnumeric(FieldName)
-                Index = FieldName;
-            else
-                Index = Obj.getFieldIndex(FieldName);
-            end
-                
-            if Index > 0
-                Result = Obj.ColType{Index};
-            else
-            end
-        end
-                    
-        
-        function Result = getFieldList(Obj)
-            % Get fields list of current ResultSet as celarray
-            Result = Obj.ColNames;
-        end
-              
-
-        function Result = getTableFieldList(Obj, TableName)
-            % Get fields list of specified table as celarray
-
-            % Select single record from table
-            % @Todo: Check how to get it without slect
-            Text = ['SELECT * from ', TableName, ' LIMIT 1'];
-            Obj.query(Text);
-            
-            % @Todo This still does not work
-            % Obj.getMetadata(TableName);
-            
-            % Loop over all columns in the row
-            Result = Obj.ColNames;
-        end
-        
-        
-        function Result = getFieldNames(Obj, Rec)
-            if isstruct(Rec)
-                Result = fieldnames(Rec);
-            else %if isa(Rec, 'DbRecord')
-                Result = Rec.getFieldNames();
-            end
-        end
-        
-        
-        function Result = getRecord(Obj)
-            % Get current record from ResultSet as DbRecord
-            % NOTE: Field names are loaded in lower-case (because Postgres
-            % creates field names lower-cased)
-            
-            % Create new record object
-            Rec = db.DbRecord(Obj);
-            
-            % Loop over all columns in the row
-            for ColIndex = 1 : Obj.ColCount
-                FieldName = Obj.ColNames{ColIndex};
-                Value = Obj.getField(ColIndex);
-                addprop(Rec, FieldName);
-                Rec.(FieldName) = Value;
-            end
-            
-            Result = Rec;
-        end
-        
-                        
-        function Result = getStruct(Obj)
-            % Get current record from ResultSet as struct
-            % NOTE: Field names are loaded in lower-case (because Postgres
-            % creates field names lower-cased)
-            
-            % Create new record object
-            Rec = struct;
-            
-            % Loop over all columns in the row
-            for ColIndex = 1 : Obj.ColCount
-                FieldName = Obj.ColNames{ColIndex};
-                Value = Obj.getField(ColIndex);
-                Rec.(FieldName) = Value;
-            end
-            
-            Result = Rec;
-        end
-        
-       
-                
-        function Result = getFieldTable(Obj)
-            % Get fields as empty table
-            
-            Fields = Obj.getFieldList();
-            Result = table(Fields);
-        end
-        
-    end    
     %======================================================================
     %                         Internal Functions
     %======================================================================
@@ -1019,7 +1009,6 @@ classdef DbQuery < Component
         
         function Result = clear(Obj)
             % Clear current statement and ResultSet
-            
             Obj.clearResultSet();
             if ~isempty(Obj.ResultSet)
                 Obj.ResultSet.close();
@@ -1049,27 +1038,19 @@ classdef DbQuery < Component
         end
         
         
-        function Result = getMetadata(Obj, Args)
-            % Get metadata of the specified table or the current result-set
-            arguments
-                Obj
-                Args.TableName = '';        % Table name, if not specified 
-            end
-            
-            % Clear metadata
+        function Result = getMetadata(Obj, varargin)
+            % Get metadata of current result-set or specified table
             Obj.ColCount = 0;
             Obj.ColNames = {};
             Obj.ColType = {};
             Result = false;
             try
-                
-                % Query metadata of specified table
-                if ~isempty(Args.TableName)
-                    Obj.Metadata = Obj.Conn.Conn.getMetaData();                  
-                    null = libpointer;
-                    Obj.ResultSet = Obj.Metadata.getColumns(null, null, Args.TableName, null);
+                if numel(varargin) == 1
+                    TableName = varargin{1};
+                    Obj.Metadata = Obj.Conn.Conn.getMetaData();
                     
-                % Get metadata of current statement
+                    null = libpointer;
+                    Obj.ResultSet = Obj.Metadata.getColumns(null, null, TableName, null);
                 else
                     Obj.Metadata = Obj.Statement.getMetaData();
                 end
@@ -1098,14 +1079,8 @@ classdef DbQuery < Component
         end
                
         
-        function [SqlFields, SqlValues] = makeInsertFieldsText(Obj, FieldNames, Args)
-            arguments
-                Obj
-                FieldNames
-                Args.FieldMap = [];     % Optional struct.FieldName = ActualFieldName;
-            end
-            
-            % Prepare SQL text from cell array of field names
+        function [SqlFields, SqlValues] = makeInsertFieldsText(Obj, FieldNames, FieldMap)
+            % Prepare SQL text from cell array
             % "INSERT INTO master_table(RecID, FInt) VALUES (?,?)"
             SqlFields = '';
             SqlValues = '';
@@ -1119,8 +1094,8 @@ classdef DbQuery < Component
                 FieldName = FieldNames{i};
                 
                 % Optionally replace field name from mapping
-                if ~isempty(Args.FieldMap) && isfield(Args.FieldMap, FieldName)
-                    FieldName = Args.FieldMap.(FieldName);
+                if ~isempty(FieldMap) && isfield(FieldMap, FieldName)
+                    FieldName = FieldMap.(FieldName);
                 end
             
                 %
@@ -1140,13 +1115,6 @@ classdef DbQuery < Component
         function SqlFields = makeUpdateFieldsText(Obj, FieldNames, FieldMap)
             % Prepare SQL text from cell array
             % "UPDATE master_table set RecID=?,FInt=? WHERE..."
-            arguments
-                Obj
-                FieldNames
-                Args.FieldMap = [];     % Optional struct.FieldName = ActualFieldName;
-            end
-
-            
             SqlFields = '';
 
             % Iterate struct fields
@@ -1156,8 +1124,8 @@ classdef DbQuery < Component
                 FieldName = FieldNames{i};
             
                 % Optionally replace field name from mapping
-                if ~isempty(Args.FieldMap) && isfield(Args.FieldMap, FieldName)
-                    FieldName = Args.FieldMap.(FieldName);
+                if ~isempty(FieldMap) && isfield(FieldMap, FieldName)
+                    FieldName = FieldMap.(FieldName);
                 end
                 
                 %
@@ -1208,24 +1176,20 @@ classdef DbQuery < Component
         end
             
         
-        function Result = setStatementValues(Obj, FieldNames, Rec, Args)
+        function Result = setStatementValues(Obj, FieldNames, Rec, FieldMap, Args)
             % Set statement values from specified DbRecord or struct
             arguments
-                Obj                     %
-                FieldNames              %
-                Rec                     %
-                Args.FieldMap           %
-                Args.FieldIndex = 1     %
-            end            
+                Obj
+                FieldNames
+                Rec
+                FieldMap
+                Args.FieldIndex = 1
+            end
+            
             
             % Iterate struct fields
             % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
             %Obj.msgLog(LogLevel.DebugEx, 'setStatementValues: setting values');
-            % int8, uint8, int16, uint16, int32, uint32 -> setInt()
-            % int64, uint64 -> setLong()
-            % logical -> setBoolean()
-            % float, single, double -> setDouble()
-            % char -> setString()
             Index = Args.FieldIndex;
             for i = 1:numel(FieldNames)
                 f = FieldNames{i};
@@ -1261,9 +1225,6 @@ classdef DbQuery < Component
 
         
         function Result = getValidFieldName(Obj, Str)
-            % Convert specified table field name to valid Matlab
-            % property/struct-field name, replace non-valid chars with '_'
-            % Example: getValidFieldName('') -> 
             for i=1:numel(Str)
                 Ch = Str(i);
                 %Valid = isletter(Ch) || isnumeric(Ch) || Ch == '_';
@@ -1275,13 +1236,15 @@ classdef DbQuery < Component
             Result = Str;
         end
         
-                
+        
+        
         function Result = getFieldNamesOfType(Obj, FieldType)
-            % Get cell array field names that match the specified field type
+            %
             arguments
                 Obj
-                FieldType       % Specified field type
-            end            
+                FieldType
+            end
+            
             
             % Iterate struct fields
             % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
@@ -1299,19 +1262,20 @@ classdef DbQuery < Component
     
     %======================================================================
     
-    methods(Static) % Unit-Tests
-
-        Result = unitTest()
-            % Unit-Test
-        
+    %======================================================================
+    % Performance Test
+    methods(Static)
         Result = perfTest()
             % Performance Test
               
         Result = stressTest()
             % Stree Test @Todo
-               
+        
+        
         Result = unitTestDev()
-            % Development helper to test specific functinality
-                            
+        
+        Result = unitTest()
+            % Unit-Test
+                
     end
 end
