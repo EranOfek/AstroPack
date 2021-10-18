@@ -1,0 +1,50 @@
+
+Observation, Operation - 
+
+Operations - SOC Command & Control of ULTRASAT:
+
+SOC Command & Control: Functional design (Including incoming alerts, LSST, etc.)
+
+SOC Command & Control: Software design
+
+SOC Command & Control: Design - UX
+
+SOC Command & Control: GUI design
+
+--------------------------------------------------------------------------------------
+
+Observation Planning: Functional design
+
+Observation Planning: Software design
+
+Observation Planning: GUI design
+
+--------------------------------------------------------------------------------------
+
+GCS: Complete protocol specifications with IAI-GCS
+
+
+--------------------------------------------------------------------------------------
+
+Pipeline: Functional design
+
+Pipeline: Databases design
+
+Pipeline: AstroPack Packages/Class design
+
+Pipeline: Design & Status Review - Phase 1 - Prepare with Eran for Design
+
+--------------------------------------------------------------------------------------
+
+WIS Databases & Archives: Specifications and design
+
+
+SOC HMI Concept (GUI)
+
+
+Design - Functional requirements
+
+Procedures and Rule Engine: Requirements and design
+
+
+System Monitoring: Requirements and design
