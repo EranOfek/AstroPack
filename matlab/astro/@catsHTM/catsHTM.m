@@ -2401,6 +2401,30 @@ classdef catsHTM
 %         end
     end
     
+    
+    methods (Static)  % prepare some sub/merged catalogs
+    
+        function prep_mergedSuperCat
+            %
+           
+            arguments
+                
+            end
+            
+            % load GAIA Ind
+            
+            % for each triangle
+            % go over all other catalogs and load all sources in triangle
+            
+            
+        end
+        
+        
+        
+        
+        
+    end
+    
     % plots
     methods (Static)
         function [H,Table]=plot_density(CatName,Args)
