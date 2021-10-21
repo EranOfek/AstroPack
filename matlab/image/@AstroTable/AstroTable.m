@@ -145,9 +145,9 @@ classdef AstroTable < Component
             if isempty(FileName)
                 Obj.Catalog = [];
             else
-                if isa(FileName,'AstroTable')
+                if isa(FileName, 'AstroTable')
                     Obj = FileName;
-                elseif isa(FileName,'AstCat')
+                elseif isa(FileName, 'AstCat')
                     % read AstCat or catCl objects
                     Nobj = numel(FileName);
                     for Iobj=1:1:Nobj

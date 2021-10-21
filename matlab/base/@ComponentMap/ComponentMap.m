@@ -1,5 +1,13 @@
 % ComponentMap - Wrapper for MATLAB's containers.Map dictionary object
 % Note that this class is derived from Base and not from Component
+%
+% ComponentMap is used to hold global (i.e. 'persistent') 
+% maps (key -> object) of singleton objects, such as database driver, 
+% database connection, etc.
+%
+% There is a default singleton ComponentMap accessible by
+% ComponentMap.getSingleton()
+%
 
 % #functions (autogen)
 % ComponentMap - Constructor, optional parameter is used as map name, otherwise the default '(unnamed)' is used
@@ -140,7 +148,7 @@ classdef ComponentMap < handle
             % Return singleton object
             persistent PersObj
             if isempty(PersObj)
-                PersObj = ComponentMap;
+                PersObj = ComponentMap('Default');
             end
             Result = PersObj;
         end

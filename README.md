@@ -1,2 +1,3 @@
-# AstroPack
-Astronomy &amp; Astrophysics Software Pacakge
+# AstroPack - Astrophysics Software Pacakge
+
+

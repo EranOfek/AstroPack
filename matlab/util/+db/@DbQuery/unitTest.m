@@ -4,69 +4,99 @@ function Result = unitTest()
     % Unit-Test
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
     % On Linux, use DataGrip by JetBrains 
+    
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
 
-    % ---------------------------------------------- Connect
+    % Connect
     % NOTE: Database 'unittest' should exist
-
-    % Create database connection
-    %Conn = db.DbConnection;
-    %Conn.DatabaseName = 'unittest';
-    %Conn.open();
-
     Conn = db.Db.getUnitTest();
-
+    Q = db.DbQuery('Connection', Conn);
+    
     % Query Postgres version, result should be similar to
-    % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-    Q = db.DbQuery(Conn);
-    Q.query('SELECT version()');
-    assert(Q.ColCount == 1);
-    pgver = Q.getField('version');
+    % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'    
+    pgver = Q.getDbVersion();
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
+    R = Q.loadResultSet();
+    assert(strcmp(R.Data(1).version, pgver));
+    
+    % Select    
+    %testSelect(Q);
 
-    % ---------------------------------------------- copy
-    % https://www.postgresqltutorial.com/psql-commands/
-    % https://kb.objectrocket.com/postgresql/postgresql-psql-examples-part-2-1043
-    % From psql:
-    % psql -U postgres
-    % dbname unittest
-    % \dt
-    % \d master_table
-    % \COPY master_table TO 'c:\temp\aa1.csv' DELIMITER ',' CSV HEADER
+    % Copy (import from file)
+    %testCopy();
+    
+    % Insert
+    testInsert(Q);
+    
+    % Update
+    testUpdate(Q);
 
-    Q.copyFrom('master_table', 'c:\temp\aa1c.csv');
+    % Delete
+    testDelete(Q);
 
-    Q.copyFrom('master_table', 'c:\\temp\\aa1c.csv', 'Fields', 'recid,fint');
+    % Other operations
+    testMisc();
 
-    Q.copyTo('master_table', 'c:\\temp\\a1.csv');           
-    Q.copyTo('master_table', 'c:\\temp\\a2.csv', 'Fields', 'recid,fint');
+    io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
+    Result = true;
+end
 
-    % Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
 
-    MyFileName = mfilename('fullpath');       
-    [MyPath, ~, ~] = fileparts(MyFileName);            
-    CsvFileName = 'unittest_csv1_to.csv';  %fullfile(MyPath, 'unittest_csv1.csv');
+%==========================================================================
 
-    %Q.copyFrom('master_table', CsvFileName);
+function Result = testSelect(Q)
 
-    % ---------------------------------------------- getTableFieldList 
-    Q = db.DbQuery(Conn);
+    % Select all fields, load to table and cell
+    Q.TableName = 'master_table';
+    R = Q.select('*');
+
+    % Table
+    Tab = R.convert2table();
+    for i=1:numel(R.Data)
+        assert(strcmp(Tab(i, 'recid').recid{1}, R.Data(i).recid));
+    end
+
+    % Cell
+    Cel = R.convert2cell();
+    for i=1:numel(R.Data)
+        assert(strcmp(Cel{1, i}, R.Data(i).recid));
+    end    
+
+    % Select and load to matrix
+    R = Q.select('fdouble,ftimestamp', 'Where', 'fdouble > 0');    
+    Mat = R.convert2mat();
+    for i=1:numel(R.Data)
+        assert(Mat(1, i) == R.Data(i).fdouble);
+        assert(Mat(2, i) == R.Data(i).ftimestamp);
+    end    
+
+    % 
+    AstTab = R.convert2AstroTable();     
+    AstCat = R.convert2AstroCatalog();
+
+    % Test copy to/from table - high performance insert/export operations
+    % DbQuery.copyTest();
+
+    R = Q.select('*', 'Limit', 1);
+    assert(numel(R.Data) == 1);
+
+    % getTableFieldList     
     Fields = Q.getTableFieldList('master_table');
+    assert(numel(Fields) > 0);
     disp(Fields);
 
-    % ---------------------------------------------- Select
+    % ---------------------------------------------- Select (more)
     % NOTE: At this point, we assume that tables master_table and
     % details_table exist and are not empty
 
     % Select two fields from table, using LIMIT
-    Q = db.DbQuery(Conn);
-    Q.query('SELECT count(*) FROM master_table');
+    Q.query('SELECT count(*)');
     count = Q.getField('count');
     if count > 0
 
-        Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
+        R = Q.select('RecId, FInt', 'Limit', 5);
         assert(Q.ColCount == 2);
 
         % Get fields list as celarray
@@ -77,40 +107,10 @@ function Result = unitTest()
         tab = Q.getFieldTable();
         assert(all(size(tab)) > 0);
 
-        % Get entire record (Note: Field names are lower-case only)
-        Rec = Q.getRecord();
-        assert(~isempty(Rec.recid));
-        assert(~isempty(Rec.fint));
-
-        % Load entire result set
-        Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
-        B = Q.loadAll();
-        assert(~isempty(B));
-
-        % Load entire result set to memory
-        Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
-        Data = Q.loadAll();
-        assert(size(Data, 2) == 2);
-
-%                 % Load as table
-%                 Q.query('SELECT RecId, FInt FROM master_table LIMIT 5');
-%                 Tab = Q.loadTable();
-%                 sz = size(Tab)
-%                 assert(sz(1) > 1);
-%                 assert(sz(2) > 1);
-
-        % Select all fields from table, using LIMIT
-        Q.query(['SELECT * FROM master_table LIMIT 10']);
-
-        % Load current record to memory
-        delete(Rec);
-        Rec = [];
-        assert(isempty(Rec));
-        Rec = Q.getRecord();
-        assert(~isempty(Rec));
-
         % Get all fields (Note: Field names are lower-case only)
         % All these fields should exist in table 'master_table'
+        R = Q.select('*', 'Limit', 5);
+        Rec = R.Data(1);
         RecID = Rec.recid;
         assert(~isempty(Rec.recid));            
         InsertTime = Rec.inserttime;
@@ -133,16 +133,29 @@ function Result = unitTest()
 
         % Test select() function
         % select RecId, FInt, FBigInt from master_table where recid != ''
-        Q.select('RecID, Fint', 'master_table', 'where', 'Fint > 0');
-        Rec2 = Q.getRecord();
-        assert(~isempty(Rec2));  
+        Rec2 = Q.select('RecID, Fint', 'TableName', 'master_table', 'Where', 'Fint > 0');
+        assert(numel(Rec2.Data) > 0);
     else
         io.msgStyle(LogLevel.Test, '@warn', 'Table master_table is empty, select tests are skipped');
     end
-
-    % @Todo - fails on changes of 22/06/2021 !!!
+    
     Result = true;
 
+end
+
+%==========================================================================
+
+function Result = testInsert(Q)
+    
+    % insert using raw sql
+ 
+    for i = 1:10
+        Q.SqlText = sprintf('INSERT INTO master_table (recid, fint, fdouble) VALUES(''%s'', %d, %f)',...
+            Component.newUuid(), randi(100), randi(100000));
+        Q.exec();
+    end
+    
+    
     % ---------------------------------------------- insertRecord: struct
 
     % Create struct with different types of fields
@@ -228,8 +241,15 @@ function Result = unitTest()
         assert(Q.ExecOk);            
     end
 
-    % Test insert() function
 
+end
+
+
+%==========================================================================
+
+function Result = testUpdate(Q)
+
+    
     % ---------------------------------------------- Update
 
     % string
@@ -265,6 +285,15 @@ function Result = unitTest()
     count2 = Q.selectCount('master_table');
     assert(count2 == count+1);
 
+    
+    Result = true;
+end
+
+%==========================================================================
+
+function Result = testDelete(Q)
+
+    
     % ---------------------------------------------- Delete
     sql = sprintf("DELETE FROM master_table WHERE RecID='%s'", uuid);
     Q.exec(sql);           
@@ -274,7 +303,47 @@ function Result = unitTest()
     % ---------------------------------------------- Create database
     %
 
-    io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
+    
     Result = true;
 end
 
+%==========================================================================
+
+function Result = testMisc(Q)
+
+    
+    Result = true;
+end
+
+
+%==========================================================================
+
+function Result = testCopy(Q)
+    
+    % ---------------------------------------------- copy
+    % https://www.postgresqltutorial.com/psql-commands/
+    % https://kb.objectrocket.com/postgresql/postgresql-psql-examples-part-2-1043
+    % From psql:
+    % psql -U postgres
+    % dbname unittest
+    % \dt
+    % \d master_table
+    % \COPY master_table TO 'c:\temp\aa1.csv' DELIMITER ',' CSV HEADER
+
+    Q.copyFrom('master_table', 'c:\temp\aa1c.csv');
+    Q.copyFrom('master_table', 'c:\\temp\\aa1c.csv', 'Fields', 'recid,fint');
+    Q.copyTo('master_table', 'c:\\temp\\a1.csv');           
+    Q.copyTo('master_table', 'c:\\temp\\a2.csv', 'Fields', 'recid,fint');
+
+    % Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
+
+    MyFileName = mfilename('fullpath');       
+    [MyPath, ~, ~] = fileparts(MyFileName);            
+    CsvFileName = 'unittest_csv1_to.csv';  %fullfile(MyPath, 'unittest_csv1.csv');
+
+    %Q.copyFrom('master_table', CsvFileName);
+
+    Result = true;
+end
+
+%==========================================================================

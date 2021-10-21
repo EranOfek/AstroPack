@@ -3,19 +3,28 @@
 %
 % The native MATLAB database functions require installation of MATLAB
 % Database Toolbox. To avoid dependency on it, we implement our database
-% class using Java packages.
+% classes using Java packages.
 %
 % Some workaround is required to use the java interface.
 %
 % See:
 % https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
 %
-% Postgresql driver must be installed, download page:
+% Postgresql Java driver (jar file) must be installed, download page:
 %
 % https://jdbc.postgresql.org/
 % https://jdbc.postgresql.org/download.html
 %
 % We currently use postgresql-42.2.19.jar
+%
+% There should be only one driver object for each database type.
+% For example, when working with Postgress, we need only one DbDriver for
+% it. We hold a persistent ComponentMap of all created DbDriver objects with 
+% the database type (i.e. 'postgres') as the key.            
+%
+% Usage:
+%   Drv = DbDriver.getDbDriver('postgres');
+%   Drv.loadDriver();
 %--------------------------------------------------------------------------
 
 % #functions (autogen)
@@ -29,7 +38,7 @@
 %
 
 classdef DbDriver < Component
-    % Database Driver Class
+    % Database Driver Class, internally used by DbConnection
     
     % Properties
     properties (SetAccess = public)
@@ -40,15 +49,20 @@ classdef DbDriver < Component
         % Driver Java package file (.jar)
         PostgresJar = 'postgresql-42.2.19.jar'
         
-        SourceJarFile = ''          % Source file
-        TargetJarFile = ''          % Target
-        Driver = []                 % Java Driver object, returned by org.postgresql.Driver
-        IsOpen = false              %
+        % We copy the jar file from its original loation in the repository
+        % to a target folder that is added by javaclasspath()
+        SourceJarFile = ''          % Full path of source jar file to be copied
+        TargetJarFile = ''          % Full path of target jar file 
+        IsLoaded = false            % True when driver is open
+        
+        % Java objects
+        JavaDriver = []             % Java Driver object, returned by org.postgresql.Driver        
     end
     
     %--------------------------------------------------------
     methods % Constructor
         function Obj = DbDriver()
+            % Constructor
             Obj.setName('DbDriver');
             Obj.needUuid();
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
@@ -56,7 +70,9 @@ classdef DbDriver < Component
         
         
         function delete(Obj)
-            % Destructor
+            % Destructor            
+            Obj.msgLog(LogLevel.Debug, 'deleted started: %s', Obj.Uuid);
+            Obj.unloadDriver();
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end
     end
@@ -64,13 +80,14 @@ classdef DbDriver < Component
     
     methods % Connect, disconnect
                         
-        function Result = open(Obj)
+        function Result = loadDriver(Obj)
             % Load database driver library
-            Obj.msgLog(LogLevel.Info, 'open');
+            % See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
+            Obj.msgLog(LogLevel.Info, 'loadDriver');
             
             % Already open
-            if Obj.IsOpen
-                Obj.msgLog(LogLevel.Info, 'open: already open');
+            if Obj.IsLoaded
+                Obj.msgLog(LogLevel.Info, 'loadDriver: already loaded');
                 Result = true;
                 return
             end
@@ -83,24 +100,43 @@ classdef DbDriver < Component
                                 
                     % Create Java driver object
                     try
-                        Obj.Driver = org.postgresql.Driver;
-                        Obj.IsOpen = true;
+                        Obj.JavaDriver = org.postgresql.Driver;
+                        Obj.IsLoaded = true;
                     catch
                         Obj.msgLog(LogLevel.Error, 'open: Failed to get org.postgresql.Driver');
                     end
                 end
                 
-            % Other type
+            % Other type, currently not supported
             else
-                Obj.msgLog(LogLevel.Error, 'open: Database type not supported: %s', Obj.DatabaseType);
+                Obj.msgLog(LogLevel.Error, 'openDriver: Database type not supported: %s', Obj.DatabaseType);
             end
             
-            Result = Obj.IsOpen;
+            Result = Obj.IsLoaded;
+        end
+                
+        
+        function Result = unloadDriver(Obj)
+            % Unload database driver
+            Obj.msgLog(LogLevel.Info, 'unloadDriver');
+            if Obj.IsLoaded
+                try
+                    % Is this the correct function
+                    % @Todo, do we need to call disconnect() or ???
+                    clear Obj.JavaDriver;
+                catch
+                    Obj.msgLog(LogLevel.Error, 'unloadDriver: Exception');
+                end
+                Obj.JavaDriver = [];
+                Obj.IsLoaded = false;
+            end
+            Result = true;
         end
         
         
         function Result = copyDriverFile(Obj, FileName)
             % Copy driver file from source folder to target path
+            % This is requried to call javaclasspath()
             Result = false;
             
             % Get full path and name of the file in which the call occurs
@@ -108,7 +144,9 @@ classdef DbDriver < Component
             [MyPath, ~, ~] = fileparts(MyFileName);
             Obj.SourceJarFile = fullfile(MyPath, FileName);
                         
-            % Target is temporary folder
+            % Target is system temporary folder
+            % On Linux we use /tmp, on Windows we assume 
+            % that we can use C:\Temp
             if tools.os.iswindows()
                 Obj.TargetJarFile = fullfile('C:\Temp', FileName);
             else
@@ -118,7 +156,7 @@ classdef DbDriver < Component
             Obj.msgLog(LogLevel.Info, 'copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
             if copyfile(Obj.SourceJarFile, Obj.TargetJarFile)
             else
-                Obj.msgLog(LogLevel.Error, 'cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
+                Obj.msgLog(LogLevel.Warning, '(already running?) cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
             end
             
             % Add jar file to javaclasspath (ensure it is present in your current dir)
@@ -131,24 +169,12 @@ classdef DbDriver < Component
             end
         end
                 
-        
-        function Result = close(Obj)
-            % Unload database driver
-            Obj.msgLog(LogLevel.Info, 'close');
-            try
-                Obj.Driver = [];
-                Obj.IsOpen = false;
-            catch
-            end
-            
-            Result = true;
-        end
     end
     
     
     methods(Static) % getDbDriver
         
-        function Result = getDbDriver(DatabaseType)
+        function Result = getDbDriver(varargin)
             % Get singleton Map object that maps database type to DbDriver object
             persistent Map
             if isempty(Map)
@@ -156,7 +182,9 @@ classdef DbDriver < Component
             end
             
             % Set default database type
-            if isempty(DatabaseType)
+            if numel(varargin) > 0
+                DatabaseType = varargin{1};
+            else                
                 DatabaseType = 'postgres';
             end
             
@@ -166,10 +194,12 @@ classdef DbDriver < Component
                 % Not found, create new DbDriver object for this database type
                 Comp = db.DbDriver();
                 Comp.DatabaseType = DatabaseType;
+                
+                % Add to map
                 Comp.MapKey = DatabaseType;
                 Map.add(Comp);
             else
-                % Already exist
+                % Already exist in map, just return Comp
             end
             Result = Comp;
         end

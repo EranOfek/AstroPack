@@ -3,20 +3,13 @@ function Result = unitTest()
     io.msgStyle(LogLevel.Test, '@start', 'DbRecord test started');
 
     % Load from struct
-    S.MyX = 1;
-    S.MyY = 2;
-    S.MyZ = 3;
-    R = db.DbRecord;
-    R.loadStruct(S);
-    assert(R.MyX == S.MyX);
-    assert(R.MyY == S.MyY);
-    assert(R.MyX ~= S.MyY);
-
-    % Convert to struct
-    Q = db.DbRecord;
-    Q.loadStruct(S);
-    assert(R.Equal(Q));
-
+    D = db.DbRecord;
+    for i = 1:4
+        D.Data(i).a = 10*i + 1;
+        D.Data(i).b = 10*i + 2;
+        D.Data(i).c = 10*i + 3;
+    end
+    
     % Done
     io.msgStyle(LogLevel.Test, '@passed', 'DbRecord test passed');
     Result = true;
