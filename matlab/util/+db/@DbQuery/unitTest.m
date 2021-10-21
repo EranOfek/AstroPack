@@ -34,13 +34,13 @@ function Result = unitTest()
     testInsert(Q);
     
     % Update
-    testUpdate(Q);
+    %testUpdate(Q);
 
     % Delete
-    testDelete(Q);
+    %testDelete(Q);
 
     % Other operations
-    testMisc();
+    %testMisc();
 
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
     Result = true;
@@ -180,57 +180,79 @@ function Result = testInsert(Q)
         assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     end
 
-      
-    % ---------------------------------------------- insertRecord: struct
-
-    % Create struct with different types of fields
-    s = struct;            
-    s.recid = Component.newUuid();
-    Q.insertRecord('master_table', s);            
-
-    % int32
-    s = struct;            
-    s.recid = Component.newUuid();
-    s.fint = int32(1);
-    Q.insertRecord('master_table', s);            
-
-    % bool
-    s = struct;            
-    s.recid = Component.newUuid();
-    s.fbool = true;
-    Q.insertRecord('master_table', s);             
-
-    % bigint            
-    s = struct;            
-    s.recid = Component.newUuid();            
-    s.fbigint = int64(3);
-    Q.insertRecord('master_table', s);             
-
-    % double
-    s = struct;            
-    s.recid = Component.newUuid();            
-    s.fdouble = double(5);
-    Q.insertRecord('master_table', s);                         
-
-    % string
-    s = struct;            
-    s.recid = Component.newUuid();                        
-    s.fstring = 'abcd';
-    Q.insertRecord('master_table', s);             
-
-    % Insert struct with field mapping
-    s = struct;            
-    s.recid = Component.newUuid();
-    s.fintTest = int32(1);
-    map = struct;
-    map.fintTest = 'fint';            
-    Q.insertRecord('master_table', s, 'FieldMap', map);
-
-    % ---------------------------------------------- insertRecord: DbRecord
-    r = db.DbRecord;
-    r.addProp('recid', Component.newUuid());
-    r.addProp('fint', 3);
-    Q.insertRecord('master_table', r);
+    % Test 
+    % Prepare DbRecord with 3 records
+    R = db.DbRecord;    
+    for i = 1:300
+        R.Data(i).recid = R.newKey();
+        R.Data(i).fint = 1000 + i;
+        R.Data(i).fstring = sprintf('MyStr_%03d', i);        
+    end
+    
+    Result = Q.insertDbRecord(R, 'BatchSize', 100);
+    
+    % Todo: @Eran - What is the correct order of row,col ???
+    Rows = 10;
+    Mat = rand(2, Rows);
+    R = db.DbRecord(Mat, 'ColNames', {'fdouble', 'ftimestamp'});
+    S = struct;
+    for i=1:Rows
+        S(i).recid = db.DbRecord.newKey();
+    end
+    R.merge(S);
+    Result = Q.insertDbRecord(R, 'BatchSize', 100);
+    
+%       
+%     % ---------------------------------------------- insertRecord: struct
+% 
+%     % Create struct with different types of fields
+%     s = struct;            
+%     s.recid = Component.newUuid();
+%     Q.insertRecord('master_table', s);            
+% 
+%     % int32
+%     s = struct;            
+%     s.recid = Component.newUuid();
+%     s.fint = int32(1);
+%     Q.insertRecord('master_table', s);            
+% 
+%     % bool
+%     s = struct;            
+%     s.recid = Component.newUuid();
+%     s.fbool = true;
+%     Q.insertRecord('master_table', s);             
+% 
+%     % bigint            
+%     s = struct;            
+%     s.recid = Component.newUuid();            
+%     s.fbigint = int64(3);
+%     Q.insertRecord('master_table', s);             
+% 
+%     % double
+%     s = struct;            
+%     s.recid = Component.newUuid();            
+%     s.fdouble = double(5);
+%     Q.insertRecord('master_table', s);                         
+% 
+%     % string
+%     s = struct;            
+%     s.recid = Component.newUuid();                        
+%     s.fstring = 'abcd';
+%     Q.insertRecord('master_table', s);             
+% 
+%     % Insert struct with field mapping
+%     s = struct;            
+%     s.recid = Component.newUuid();
+%     s.fintTest = int32(1);
+%     map = struct;
+%     map.fintTest = 'fint';            
+%     Q.insertRecord('master_table', s, 'FieldMap', map);
+% 
+%     % ---------------------------------------------- insertRecord: DbRecord
+%     r = db.DbRecord;
+%     r.addProp('recid', Component.newUuid());
+%     r.addProp('fint', 3);
+%     Q.insertRecord('master_table', r);
 
 end
 

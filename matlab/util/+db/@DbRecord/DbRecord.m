@@ -22,7 +22,7 @@ classdef DbRecord < Base
         Query        = []           % Linked DbQuery
         KeyField     = ''           % Key field(s)
         Uuid         = ''           % Used when UseUuid is true
-        UseUuid      = false;       % True to use Uuid, otherwise the faster SerialStr is used
+        UseUuid      = true;        % True to use Uuid, otherwise the faster SerialStr is used
         
         ColCount     = 0;           % Number of columns
         ColNames     = [];          % cell
@@ -34,7 +34,7 @@ classdef DbRecord < Base
     %--------------------------------------------------------
     methods % Constructor
         function Obj = DbRecord(Data, Args)
-            % Constructor
+            % Constructor - @Todo - discuss corret row,col order!
             % Data: struct array, table, cell array, matrix
             arguments
                 Data = [];
@@ -49,7 +49,7 @@ classdef DbRecord < Base
                 elseif iscell(Data)
                     Obj.Data = cell2struct(Data, Args.ColNames, 1);
                 elseif isnumeric(Data)
-                    Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 1);
+                    Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 1);  %numel(Args.ColNames));
                 end
             end
             
@@ -92,7 +92,27 @@ classdef DbRecord < Base
             Result = fieldnames(Obj.Data);
         end
         
-                        
+        
+        function Result = merge(Obj, Stru)
+            % Merge struct array with current data
+            % Usefull when we constructed from matrix and need key fields
+            FieldList = fieldnames(Stru);
+            StruRows = numel(Stru);
+            for Row=1:numel(Obj.Data)
+                for Field=1:numel(FieldList)
+                    FieldName = FieldList{Field};
+                    if Row <= StruRows
+                        Obj.Data(Row).(FieldName) = Stru(Row).(FieldName);
+                    else
+                        Obj.Data(Row).(FieldName) = Stru(StruRows).(FieldName);
+                    end                        
+                end
+            end
+            Result = true;                
+            
+        end
+        
+        
         function Result = newKey(Obj)
             % Generate unique id, as Uuid or SerialStr (more compact and fast)            
             if Obj.UseUuid

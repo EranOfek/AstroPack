@@ -237,21 +237,149 @@ classdef DbQuery < Component
     
     %----------------------------------------------------------------------    
     methods % High-level: Insert
-              
-        function Result = insert(Obj, Values, Args)
+%               
+%         function Result = insert(Obj, Values, Args)
+%             % Simple insert, all arguments are char
+%             % Insert new record to table, Keys and Values are celarray
+%             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
+%             arguments
+%                 Obj                     
+%                 Values                      %
+%                 Args.TableName = '';        %
+%                 Args.FieldNames = [];       %
+%                 Args.FieldMap = []      % Optional field map
+%                 Args.ExFields struct = []     % Additional fields as struct                
+%                 Args.BatchSize = 1          % Number of records per commit operation - @TODO                
+%             end
+%             
+%             % Execute SQL statement (using java calls)
+%             Obj.msgLog(LogLevel.Debug, 'DbQuery: insert');
+%             Result = false;
+%             
+%             % Use speified TableName or Obj.TableName
+%             if isempty(Args.TableName)
+%                 Args.TableName = Obj.TableName;
+%             end
+%             assert(~isempty(Args.TableName));
+%                             
+%             if iscell(Values)
+%                 SqlKeys = '';
+%                 SqlValues = '';
+%                 for i = 1:numel(Keys)
+%                     SqlKeys = [SqlKeys, string(SqlKeys).char];
+%                     SqlValues = [SqlValues, '?'];
+%                     if i < numel(Keys)
+%                         SqlKeys = [SqlKeys ','];
+%                         SqlValues = [SqlValues ','];
+%                     end
+%                 end
+% 
+%                 % Prepare statement
+%                 Sql = sprintf("INSERT INTO %s (%s) VALUES (%s)", TableName, SqlKeys, SqlValues);
+%                 Result = Obj.exec(Sql, Values);
+%             
+%             elseif isa(Values, 'db.DbRecord')
+%                   
+%                 % Use all fields that exist in the table
+%                 % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
+% 
+%                 T1 = tic();
+% 
+%                 % Need connection, clear current query
+%                 if ~Obj.openConn()
+%                     return;
+%                 end
+% 
+%                 % Prepare SQL statement
+%                 % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+%                 FieldNames = Obj.getFieldNames(Rec);
+%                 FieldNamesCount = numel(FieldNames);
+%                 [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
+% 
+%                 %
+%                 RecSqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ');'];
+%                 Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', RecSqlText);
+% 
+%                 % Iterate struct array
+%                 RecordCount = numel(Rec);
+%                 RecIndex = 1;
+%                 LastBatchCount = 0;
+%                 BatchNum = 0;
+%                 while RecordCount > 0
+% 
+%                     if RecordCount > Args.BatchSize
+%                         BatchCount = Args.BatchSize;
+%                     else
+%                         BatchCount = RecordCount;
+%                     end
+%                     RecordCount = RecordCount - BatchCount;
+%                     BatchNum = BatchNum + 1;
+% 
+%                     Obj.clear();
+% 
+%                     if BatchCount ~= LastBatchCount
+%                         Obj.SqlText = repmat(RecSqlText, 1, BatchCount);
+%                         LastBatchCount = BatchCount;
+%                     end
+% 
+%                     % Prepare query
+%                     %Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
+%                     try
+%                         Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
+%                     catch
+%                         Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
+%                     end
+% 
+%                     % Iterate struct fields
+%                     T2 = tic();
+%                     FieldIndex = 1;
+%                     for i = 1:BatchCount
+%                         Obj.setStatementValues(FieldNames, Rec(RecIndex), Args.FieldMap, 'FieldIndex', FieldIndex);
+%                         RecIndex = RecIndex + 1;
+%                         FieldIndex = FieldIndex + FieldNamesCount;
+%                     end
+%                     Toc2 = toc(T2);
+%                     Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchCount);
+% 
+%                     % Execute
+%                     % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+%                     T3 = tic();
+%                     try
+%                         Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
+%                         Obj.ExecOk = true;
+%                     catch
+%                         Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);
+%                         Obj.ExecOk = false;
+%                         break;
+%                     end
+%                     Toc3 = toc(T3);
+%                     Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchCount);
+%                 end
+%             end
+%             
+%             Obj.Toc = toc(T1);
+%             Obj.msgLog(LogLevel.Debug, 'insert time: %f', Obj.Toc);
+%             Result = Obj.ExecOk;
+%         end
+%                      
+%                 
+        
+        function Result = insertDbRecord(Obj, Rec, Args)
             % Simple insert, all arguments are char
             % Insert new record to table, Keys and Values are celarray
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
             arguments
                 Obj                     
-                Values                      %
+                Rec                         %
                 Args.TableName = '';        %
                 Args.FieldNames = [];       %
+                Args.FieldMap = []          % Optional field map
+                Args.ExFields struct = []   % Additional fields as struct                
                 Args.BatchSize = 1          % Number of records per commit operation - @TODO                
             end
             
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: insert');
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: insertDbRecord');
             Result = false;
             
             % Use speified TableName or Obj.TableName
@@ -260,107 +388,88 @@ classdef DbQuery < Component
             end
             assert(~isempty(Args.TableName));
                             
-            if iscell(Values)
-                SqlKeys = '';
-                SqlValues = '';
-                for i = 1:numel(Keys)
-                    SqlKeys = [SqlKeys, string(SqlKeys).char];
-                    SqlValues = [SqlValues, '?'];
-                    if i < numel(Keys)
-                        SqlKeys = [SqlKeys ','];
-                        SqlValues = [SqlValues ','];
-                    end
-                end
-
-                % Prepare statement
-                Sql = sprintf("INSERT INTO %s (%s) VALUES (%s)", TableName, SqlKeys, SqlValues);
-                Result = Obj.exec(Sql, Values);
+            % Need connection, clear current query
+            if ~Obj.openConn()
+                return;
+            end
             
-            elseif isa(Values, 'db.DbRecord')
-                  
-                % Use all fields that exist in the table
-                % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
+            % Use all fields that exist in the table
+            % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
+            T1 = tic();
 
-                T1 = tic();
+            % Prepare SQL statement
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;            
+            FieldNames = fieldnames(Rec.Data);
+            [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, 'FieldMap', Args.FieldMap);
 
-                % Need connection, clear current query
-                if ~Obj.openConn()
-                    return;
+            %
+            RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ');'];
+            Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', RecSqlText);
+
+            % Iterate struct array and insert in batchs
+            RecordCount = numel(Rec.Data);
+            RecIndex = 1;
+            LastBatchSize = 0;
+            BatchNum = 0;
+            while RecordCount > 0
+
+                % Update counters
+                if RecordCount > Args.BatchSize
+                    BatchSize = Args.BatchSize;
+                else
+                    BatchSize = RecordCount;
+                end
+                RecordCount = RecordCount - BatchSize;
+                BatchNum = BatchNum + 1;
+
+                % Prepare INSERTs for each line in the batch
+                if BatchSize ~= LastBatchSize
+                    Obj.SqlText = repmat(RecSqlText, 1, BatchSize);
+                    LastBatchSize = BatchSize;
                 end
 
-                % Prepare SQL statement
-                % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-                FieldNames = Obj.getFieldNames(Rec);
-                FieldNamesCount = numel(FieldNames);
-                [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, Args.FieldMap);
-
-                %
-                RecSqlText = ['INSERT INTO ', string(TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ');'];
-                Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', RecSqlText);
-
-                % Iterate struct array
-                RecordCount = numel(Rec);
-                RecIndex = 1;
-                LastBatchCount = 0;
-                BatchNum = 0;
-                while RecordCount > 0
-
-                    if RecordCount > Args.BatchSize
-                        BatchCount = Args.BatchSize;
-                    else
-                        BatchCount = RecordCount;
-                    end
-                    RecordCount = RecordCount - BatchCount;
-                    BatchNum = BatchNum + 1;
-
-                    Obj.clear();
-
-                    if BatchCount ~= LastBatchCount
-                        Obj.SqlText = repmat(RecSqlText, 1, BatchCount);
-                        LastBatchCount = BatchCount;
-                    end
-
-                    % Prepare query
-                    %Obj.msgLog(LogLevel.Debug, 'insertRecord: %s', Obj.SqlText);
-                    try
-                        Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
-                    catch
-                        Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
-                    end
-
-                    % Iterate struct fields
-                    T2 = tic();
-                    FieldIndex = 1;
-                    for i = 1:BatchCount
-                        Obj.setStatementValues(FieldNames, Rec(RecIndex), Args.FieldMap, 'FieldIndex', FieldIndex);
-                        RecIndex = RecIndex + 1;
-                        FieldIndex = FieldIndex + FieldNamesCount;
-                    end
-                    Toc2 = toc(T2);
-                    Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchCount);
-
-                    % Execute
-                    % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
-                    T3 = tic();
-                    try
-                        Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
-                        Obj.ExecOk = true;
-                    catch
-                        Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);
-                        Obj.ExecOk = false;
-                        break;
-                    end
-                    Toc3 = toc(T3);
-                    Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchCount);
+                % Clear current statement
+                if ~isempty(Obj.JavaStatement)
+                    Obj.JavaStatement.close();
+                    Obj.JavaStatement = [];
                 end
-          
+
+                try
+                    Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
+                catch
+                    Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
+                end
+
+                % Iterate struct fields
+                T2 = tic();
+                Obj.setStatementValues(Rec, RecIndex, BatchSize);  %Args.FieldMap, 'FirstIndex', FieldIndex);
+                RecIndex = RecIndex + BatchSize;
+                Toc2 = toc(T2);
+                
+                Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
+
+                % Execute
+                % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+                T3 = tic();
+                try
+                    Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
+                    Obj.ExecOk = true;
+                catch
+                    Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);
+                    Obj.ExecOk = false;
+                    break;
+                end
+                Toc3 = toc(T3);
+                Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchSize);
+            end
+            
             Obj.Toc = toc(T1);
             Obj.msgLog(LogLevel.Debug, 'insert time: %f', Obj.Toc);
             Result = Obj.ExecOk;
         end
                      
-               
-        function Result = insertCell(Obj, TableName, Cell, Args)
+                       
+        function Result = insertCell(Obj, TableName, Cell, Args)           
             
             % Insert DbRecord or struct fields to specified table
             arguments
@@ -956,27 +1065,8 @@ classdef DbQuery < Component
             
             % Loop over all columns in the row
             Result = Obj.ColNames;
-        end
-        
-        
-        function Result = getFieldNames(Obj, Rec)
-            % Get list of field of the speified DbRecord or struct
-            % Returns cell array
-            if isstruct(Rec)
-                Result = fieldnames(Rec);
-            elseif isa(Rec, 'DbRecord')
-                Result = Rec.getFieldNames();
-            end
-        end
-        
-                             
-        function Result = getFieldTable(Obj)
-            % Get fields as empty table
-            
-            Fields = Obj.getFieldList();
-            Result = table(Fields);
-        end
-        
+        end        
+
     end    
     %======================================================================
     %                         Internal Functions
@@ -1174,14 +1264,16 @@ classdef DbQuery < Component
         end
             
         
-        function Result = setStatementValues(Obj, FieldNames, Rec, Args)
+        function Result = setStatementValues(Obj, Rec, FirstRecord, RecordCount, Args)
             % Set statement values from specified DbRecord or struct
             arguments
                 Obj                     %
-                FieldNames              %
-                Rec                     %
-                Args.FieldMap           %
-                Args.FieldIndex = 1     %
+                Rec                     % DbRecord
+                FirstRecord
+                RecordCount
+                Args.FieldNames = [];   % cell                
+                Args.FieldMap = []      % Optional
+                Args.StartIndex = 1     % Index of field in current JavaStatement
             end            
             
             % Iterate struct fields
@@ -1192,41 +1284,43 @@ classdef DbQuery < Component
             % logical -> setBoolean()
             % float, single, double -> setDouble()
             % char -> setString()
-            Index = Args.FieldIndex;
-            for i = 1:numel(FieldNames)
-                f = FieldNames{i};
-                
-                % Get value
-                if isstruct(Rec)
-                    val = Rec.(f);
-                elseif isa(Rec, 'db.DbRecord')
-                    val = Rec.Data.(f);
-                else
-                    error('DbQuery.setStatementValues: Unknown type of Rec');
+            
+            if isempty(Args.FieldNames)
+                Args.FieldNames = fieldnames(Rec.Data);
+            end
+            
+            Index = Args.StartIndex;            
+            for DataIndex = FirstRecord:FirstRecord+RecordCount-1
+
+                for FieldNo = 1:numel(Args.FieldNames)
+                    FieldName = Args.FieldNames{FieldNo};
+
+                    % Get value
+                    Value = Rec.Data(DataIndex).(FieldName);
+
+                    if isa(Value, 'int8') || isa(Value, 'uint8') || ...
+                       isa(Value, 'int16') || isa(Value, 'uint16') || ...
+                       isa(Value, 'int32') || isa(Value, 'uint32')
+                        %Obj.msgLog(LogLevel.DebugEx, 'integer: %s = %d', f, Value);
+                        Obj.JavaStatement.setInt(Index, Value);
+                    elseif isa(Value, 'int64') || isa(Value, 'uint64')
+                        %Obj.msgLog(LogLevel.DebugEx, 'int64: %s = %d', f, Value);
+                        Obj.JavaStatement.setLong(Index, Value);
+                    elseif isa(Value, 'logical')
+                        %Obj.msgLog(LogLevel.DebugEx, 'bool: %s = %d', f, Value);
+                        Obj.JavaStatement.setBoolean(Index, Value);
+                    elseif isa(Value, 'float') || isa(Value, 'single') || isa(Value, 'double')
+                        %Obj.msgLog(LogLevel.DebugEx, 'double: %s = %f', f, Value);
+                        Obj.JavaStatement.setDouble(Index, Value);
+                    elseif isa(Value, 'char')
+                        %Obj.msgLog(LogLevel.DebugEx, 'char: %s = %s', f, Value);
+                        Obj.JavaStatement.setString(Index, Value);
+                    else
+                        % Other not supported (yet?)
+                        Obj.msgLog(LogLevel.Warn, 'setStatementValues: ERROR: other type - not supported: %s', FieldName);
+                    end
+                    Index = Index+1;
                 end
-                
-                if isa(val, 'int8') || isa(val, 'uint8') || ...
-                   isa(val, 'int16') || isa(val, 'uint16') || ...
-                   isa(val, 'int32') || isa(val, 'uint32')
-                    %Obj.msgLog(LogLevel.DebugEx, 'integer: %s = %d', f, val);
-                    Obj.JavaStatement.setInt(Index, val);
-                elseif isa(val, 'int64') || isa(val, 'uint64')
-                    %Obj.msgLog(LogLevel.DebugEx, 'int64: %s = %d', f, val);
-                    Obj.JavaStatement.setLong(Index, val);
-                elseif isa(val, 'logical')
-                    %Obj.msgLog(LogLevel.DebugEx, 'bool: %s = %d', f, val);
-                    Obj.JavaStatement.setBoolean(Index, val);
-                elseif isa(val, 'float') || isa(val, 'single') || isa(val, 'double')
-                    %Obj.msgLog(LogLevel.DebugEx, 'double: %s = %f', f, val);
-                    Obj.JavaStatement.setDouble(Index, val);
-                elseif isa(val, 'char')
-                    %Obj.msgLog(LogLevel.DebugEx, 'char: %s = %s', f, val);
-                    Obj.JavaStatement.setString(Index, val);
-                else
-                    % Other not supported (yet?)
-                    Obj.msgLog(LogLevel.Warn, 'setStatementValues: ERROR: other type - not supported: %s', f);
-                end
-                Index = Index+1;
             end
             Result = true;
         end

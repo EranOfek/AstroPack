@@ -74,6 +74,24 @@ function Result = unitTest()
         assert(Mat(3, i) == R.Data(i).Double3);
     end    
 
+    % Merge
+    Stru = struct;
+    for i=1:numel(R.Data)    
+        Stru(i).Str1 = sprintf('Str1_%03d', i);
+        Stru(i).Str2 = sprintf('Str2_%03d', i);
+    end
+    R.merge(Stru);
+    for i=1:numel(R.Data)
+        assert(strcmp(R.Data(i).Str1, Stru(i).Str1));
+        assert(strcmp(R.Data(i).Str2, Stru(i).Str2));
+    end    
+    
+    Stru = struct;
+    Stru.Str3 = '';
+    R.merge(Stru);
+    for i=1:numel(R.Data)
+        assert(strcmp(R.Data(i).Str3, Stru.Str3));
+    end        
     
     % Done
     io.msgStyle(LogLevel.Test, '@passed', 'DbRecord test passed');
