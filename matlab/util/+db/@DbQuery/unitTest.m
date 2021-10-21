@@ -21,6 +21,9 @@ function Result = unitTest()
     R = Q.loadResultSet();
     assert(strcmp(R.Data(1).version, pgver));
     
+    %
+    Q.TableName = 'master_table';
+    
     % Select    
     %testSelect(Q);
 
@@ -147,15 +150,37 @@ end
 
 function Result = testInsert(Q)
     
-    % insert using raw sql
- 
-    for i = 1:10
-        Q.SqlText = sprintf('INSERT INTO master_table (recid, fint, fdouble) VALUES(''%s'', %d, %f)',...
+    % Insert using raw sql
+    CountBeforeInsert = Q.selectTableCount();
+    InsertCount = 10;
+    for i = 1:InsertCount
+        Q.SqlText = sprintf("INSERT INTO master_table (recid, fint, fdouble) VALUES('%s', %d, %f)",...
             Component.newUuid(), randi(100), randi(100000));
         Q.exec();
     end
+    CountAfterInsert = Q.selectTableCount();
+    assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     
-    
+    % Insert batch using raw sql: Prepare multiple INSERT lines   
+    % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
+    TestBatch = true;
+    if (TestBatch)
+        CountBeforeInsert = Q.selectTableCount();
+        InsertCount = 10;
+        Sql = '';
+        for i = 1:InsertCount
+            % Prepare statement
+            uuid = Component.newUuid();
+            SqlLine = sprintf("INSERT INTO master_table(RecID,FInt,FString) VALUES ('%s',%d,'Batch_%03d');", uuid, i, i).char;
+            Sql = [Sql, SqlLine];
+        end           
+        Q.exec(Sql);
+        assert(Q.ExecOk);            
+        CountAfterInsert = Q.selectTableCount();
+        assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
+    end
+
+      
     % ---------------------------------------------- insertRecord: struct
 
     % Create struct with different types of fields
@@ -206,41 +231,6 @@ function Result = testInsert(Q)
     r.addProp('recid', Component.newUuid());
     r.addProp('fint', 3);
     Q.insertRecord('master_table', r);
-
-    % ---------------------------------------------- Insert with plain SQL text
-
-    % Insert records            
-    io.msgLog(LogLevel.Test, 'testing INSERT...');
-    InsertCount = 1;
-    for i = 1:InsertCount
-        % Prepare statement
-        uuid = Component.newUuid();
-        sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
-        Q.exec(sql);
-        assert(Q.ExecOk);
-    end           
-
-    % Make sure all records were inserted
-    Q.query('SELECT count(*) FROM master_table');
-    count = Q.getField('count');
-    assert(count > InsertCount);
-
-    % Insert batch
-    % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
-    TestBatch = false;
-    if (TestBatch)
-        InsertCount = 1;
-        sql = '';
-        for i = 1:InsertCount
-            % Prepare statement
-            uuid = Component.newUuid();
-            sql2 = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d);", uuid, i).char;
-            sql = [sql sql2];
-        end           
-        Q.exec(sql);
-        assert(Q.ExecOk);            
-    end
-
 
 end
 

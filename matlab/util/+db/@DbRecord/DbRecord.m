@@ -33,7 +33,26 @@ classdef DbRecord < Base
     
     %--------------------------------------------------------
     methods % Constructor
-        function Obj = DbRecord(varargin)
+        function Obj = DbRecord(Data, Args)
+            % Constructor
+            % Data: struct array, table, cell array, matrix
+            arguments
+                Data = [];
+                Args.ColNames cell = [];  % Required when Data is Cell or Matrix
+            end
+            
+            if ~isempty(Data)
+                if isstruct(Data)
+                    Obj.Data = Data;
+                elseif istable(Data)
+                    Obj.Data = table2struct(Data);
+                elseif iscell(Data)
+                    Obj.Data = cell2struct(Data, Args.ColNames, 1);
+                elseif isnumeric(Data)
+                    Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 1);
+                end
+            end
+            
         end
         
 %         
