@@ -1115,12 +1115,16 @@ class MatlabProcessor:
         package_list = list(self.package_dict.keys())
         package_list.sort()
         self.write_file(self.package_list_filename, package_list)
+
         for pkg_name in package_list:
             pkg = self.get_package(pkg_name)
             func_list = list(pkg.func_dict.keys())
             func_list.sort()
             if len(func_list) == 0:
                 continue
+
+            pkg_fname_txt = os.path.join(out_path_txt, pkg_name + '.txt')
+            pkg_fname_md = os.path.join(out_path_md, pkg_name + '.md')
 
             lines = []
             lines.append('Package: ' + self.unpack_name(pkg_name))
@@ -1139,9 +1143,8 @@ class MatlabProcessor:
                 self.append_indent(md_lines, func.long_comment.split('\n'))
 
             # Write txt and md files to disk
-            pkg_fname_txt = os.path.join(out_path_txt, pkg_name + '.txt')
+
             self.write_file(pkg_fname_txt, lines)
-            pkg_fname_md = os.path.join(out_path_md, pkg_name + '.md')
             self.write_file(pkg_fname_md, md_lines)
 
         # ---------------------------------------------- Classes
@@ -1166,6 +1169,11 @@ class MatlabProcessor:
             if len(func_list) == 0:
                 continue
 
+            cls_fname_txt = os.path.join(out_path_txt, cls_name + '.txt')
+            cls_fname_md = os.path.join(out_path_md, cls_name + '.md')
+            cls_fname_mlx = os.path.join(out_path_mlx, cls_name + '.mlx')
+
+            # Txt
             lines = []
             lines.append('Class: ' + self.unpack_name(cls_name))
             lines.append('')
@@ -1178,6 +1186,7 @@ class MatlabProcessor:
             self.append_indent(md_lines, cls.long_comment.split('\n'))
             md_lines.append('')
 
+            # MD
             md_lines.append('### Functions List\n')
             md_func_list = []
             for func_name in func_list:
@@ -1186,6 +1195,34 @@ class MatlabProcessor:
                 md_func_list.append(line)
             self.append_indent(md_lines, md_func_list)
             md_lines.append('')
+
+            # MLX
+            mlx = MlxWriter(cls_fname_mlx)
+            mlx.title(cls_name)
+
+            mlx.heading1('Description')
+            mlx.text('Description')
+
+            mlx.heading1('Properties')
+            mlx.text('Properties')
+
+            #mlx.heading2('Additional & Hidden Properties')
+            #mlx.text('Properties')
+
+            mlx.heading1('Constructor')
+            mlx.text('Constructor')
+
+            mlx.heading1('Methods')
+            mlx.text('Methods')
+
+            mlx.heading1('Static Methods')
+            mlx.text('Static Methods')
+
+            mlx.heading1('See Also')
+            mlx.text('See also')
+
+            mlx.heading1('Notes')
+            mlx.text('Notes')
 
             # Iterate class functions
             for func_name in func_list:
@@ -1200,10 +1237,9 @@ class MatlabProcessor:
                 md_lines.append('\n')
 
             # Write txt and md files to disk
-            cls_fname_txt = os.path.join(out_path_txt, cls_name + '.txt')
             self.write_file(cls_fname_txt, lines)
-            cls_fname_md = os.path.join(out_path_md, cls_name + '.md')
             self.write_file(cls_fname_md, md_lines)
+            mlx.close()
 
             # Update class files - called from process_class_file()
             if UPDATE_M:
