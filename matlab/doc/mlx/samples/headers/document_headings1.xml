@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="heading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r><w:t>Header 1</w:t></w:r>
+</w:p>
+
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r><w:t>Text under header 1</w:t></w:r>
+</w:p>
+
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r><w:t></w:t></w:r>
+</w:p>
+
+
+
+
+<w:p><mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+<mc:Choice Requires="R2018b">
+<w:pPr>
+<w:pStyle w:val="heading2"/><w:jc w:val="left"/>
+</w:pPr>
+</mc:Choice>
+<mc:Fallback>
+<w:pPr><w:pStyle w:val="heading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</mc:Fallback>
+</mc:AlternateContent>
+<w:r><w:t>Header 2</w:t></w:r>
+</w:p>
+
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r><w:t>Text under header 2</w:t></w:r>
+</w:p>
+
+
+<w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+
+<w:p><mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+<mc:Choice Requires="R2018b">
+<w:pPr>
+<w:pStyle w:val="heading3"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</mc:Choice>
+<mc:Fallback>
+<w:pPr>
+<w:pStyle w:val="heading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</mc:Fallback>
+</mc:AlternateContent>
+<w:r><w:t>Header 3</w:t></w:r>
+</w:p>
+
+
+
+<w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr>
+
+<w:r><w:t>Text under header 3</w:t></w:r></w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r><w:t></w:t></w:r>
+</w:p>
+
+
+
+</w:body></w:document>
+
