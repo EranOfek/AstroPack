@@ -63,6 +63,86 @@ def log(msg, dt = False):
 def log_line(msg, line_num, line):
     log(msg + ' (line ' + str(line_num) + '): ' + line)
 
+
+# ===========================================================================
+#
+class MlxWriter:
+
+    def __init__(self):
+        self.xml_start = self.load('start')
+        self.xml_end = self.load('end')
+        self.xml_title = self.load('title')
+        self.xml_heading1 = self.load('heading1')
+        self.xml_heading2 = self.load('heading2')
+        self.xml_heading3 = self.load('heading3')
+        self.xml_text_line = self.load('text_line')
+        self.xml_code = self.load('code')
+        self.xml_numbered = self.load('numbered')
+        self.xml_bullet = self.load('bullet')
+        self.doc_end = '</w:body></w:document>'
+        self.doc_text = ''
+
+
+    #
+    def create(self):
+        self.doc_text = ''
+        self.wr(self.doc_start)
+
+
+    #
+    def close(self):
+        self.wr(self.doc_start)
+
+
+    # ---------------------------------------------------------
+    # Title
+    def title(self, text):
+        self.wr(self.xml_title, text)
+
+    # Heading 1
+    def heading1(self, text):
+        self.wr(self.xml_heading1, text)
+
+    # Heading 2
+    def heading2(self, text):
+        self.wr(self.xml_heading2, text)
+
+    # Heading 3
+    def heading3(self, text):
+        self.wr(self.xml_heading3, text)
+
+    # Text line
+    def writeln(self, text, align = 'left'):
+        self.wr(self.xml_text_line.replace('$Align', align), text)
+
+    def code(self, text):
+        self.wr(self.xml_code, text)
+
+    def bullet(self, text):
+        self.wr(self.xml_bullet, text)
+
+    def numbered(self, text):
+        self.wr(self.xml_numbered, text)
+
+    # ---------------------------------------------------------
+    #
+    def wr(self, template, text):
+        s = template.replace('$Text', text)
+        self.doc_text = self.doc_text + s
+
+
+    def load(self, fname):
+        text = ''
+        fname = fname + '.xml'
+        if os.path.exists(fname):
+            with open(fname) as f:
+                lines = f.read().splitlines()
+                for line in lines:
+                    text = text + line.strip()
+
+        return text
+
+
 # ===========================================================================
 # Data for each package
 class PackageData:
@@ -157,10 +237,10 @@ class MatlabProcessor:
 
 
     # Write lines
-    def write_file(self, fname, lines):
+    def write_file(self, fname, lines, line_sep = '\n'):
         with open(fname, 'wt') as f:
             for line in lines:
-                f.write(line + '\n')
+                f.write(line + line_sep)
 
     # -----------------------------------------------------------------------
     # Get package from dict, add if not exist
@@ -444,6 +524,21 @@ class MatlabProcessor:
     # -----------------------------------------------------------------------
     def update_mlx_document(self, filename):
 
+        lines = []
+
+        mlx_base = '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t>Text1</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t>Text2</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t></w:t></w:r></w:p></w:body></w:document>'
+
+        doc_start = '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
+        doc_end = '</w:body></w:document>'
+
+
+        lines.append(doc_start)
+        lines.append()
+        lines.append(doc_end)
+
+        self.write_file(filename, lines, '')
+        return True
+
         # But we should allow creating an empty mlx???
         if not self.cur_class in self.class_dict:
             return
@@ -490,7 +585,10 @@ class MatlabProcessor:
 
         # Copy template
         if not os.path.exists(mlx_filename):
-            mlx_template_filename = os.path.join(ASTROPACK_PATH, '/matlab/help/+manuals/_ClassTemplate.mlx')
+            #mlx_template_filename = os.path.join(ASTROPACK_PATH, '/matlab/help/+manuals/_ClassTemplate.mlx')
+
+            mlx_template_filename = os.path.join(ASTROPACK_PATH, '/matlab/doc/mlx/simple1.mlx')
+
             log('copying mlx template: {} to {}'.format(mlx_template_filename, mlx_filename))
             shutil.copyfile(mlx_template_filename, mlx_filename)
 
@@ -1027,6 +1125,9 @@ def main():
 
     # Test updating .m file with function list
     #proc.process('c:/_m1')
+
+    mlx_filename = 'c:/temp/_mlx1.mlx'
+    proc.write_mlx(mlx_filename)
 
     proc.process('D:/Ultrasat/AstroPack.git/matlab')
 
