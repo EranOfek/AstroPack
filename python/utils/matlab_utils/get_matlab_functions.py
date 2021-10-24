@@ -39,6 +39,7 @@ ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
 
 # Prepare path to autogen documentation
 AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
+MLX_ELEMENTS_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/mlx/mlx_elements')
 
 # Markers
 FUNC_BLOCK_BEGIN = '% #functions (autogen)'
@@ -68,7 +69,16 @@ def log_line(msg, line_num, line):
 #
 class MlxWriter:
 
-    def __init__(self):
+    def __init__(self, fname = ''): #, template_fname = ''):
+
+        #
+        self.doc_text = ''
+        self.fname = fname
+        self.temp_path = 'c:/_mlx/temp'
+        self.template_fname = os.path.join(MLX_ELEMENTS_PATH, 'empty.mlx')
+        #self.template_fname = template_fname
+
+        # Load elements
         self.xml_start = self.load('start')
         self.xml_end = self.load('end')
         self.xml_title = self.load('title')
@@ -79,22 +89,40 @@ class MlxWriter:
         self.xml_code = self.load('code')
         self.xml_numbered = self.load('numbered')
         self.xml_bullet = self.load('bullet')
-        self.doc_end = '</w:body></w:document>'
-        self.doc_text = ''
+        self.xml_toc = self.load('toc')
+
+        #
+        self.create()
 
 
+    def __enter__(self):
+        return self
+
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    # -----------------------------------------------------------------------
     #
     def create(self):
         self.doc_text = ''
-        self.wr(self.doc_start)
+        self.wr(self.xml_start)
 
 
     #
     def close(self):
-        self.wr(self.doc_start)
+        self.writeln('')
+        self.wr(self.xml_end)
+        if self.fname != '':
+            fname = self.fname.lower()
+            if fname.endswith('.xml'):
+                with open(fname, 'wt') as f:
+                    f.write(self.doc_text)
+            elif fname.endswith('.mlx') or fname.endswith('.zip'):
+                self.write_mlx(self.fname)
 
 
-    # ---------------------------------------------------------
+    # -----------------------------------------------------------------------
     # Title
     def title(self, text):
         self.wr(self.xml_title, text)
@@ -115,6 +143,11 @@ class MlxWriter:
     def writeln(self, text, align = 'left'):
         self.wr(self.xml_text_line.replace('$Align', align), text)
 
+    def text(self, text, align = 'left'):
+        lines = text.split('\n')
+        for line in lines:
+            self.writeln(line, align)
+
     def code(self, text):
         self.wr(self.xml_code, text)
 
@@ -124,24 +157,118 @@ class MlxWriter:
     def numbered(self, text):
         self.wr(self.xml_numbered, text)
 
-    # ---------------------------------------------------------
+    def toc(self):
+        self.wr(self.xml_toc)
+
+    # -----------------------------------------------------------------------
     #
-    def wr(self, template, text):
+    def wr(self, template, text = ''):
         s = template.replace('$Text', text)
         self.doc_text = self.doc_text + s
 
 
     def load(self, fname):
         text = ''
-        fname = fname + '.xml'
+        fname = os.path.join(MLX_ELEMENTS_PATH, fname + '.xml')
         if os.path.exists(fname):
             with open(fname) as f:
                 lines = f.read().splitlines()
                 for line in lines:
                     text = text + line.strip()
+        else:
+            log('MlxWriter.load: File not found: ' + fname)
 
         return text
 
+    # -----------------------------------------------------------------------
+    # MLX files are ZIP files with structured format
+    # Open Packaging Conventions - https://en.wikipedia.org/wiki/Open_Packaging_Conventions
+    # Office Open XML - https://en.wikipedia.org/wiki/Office_Open_XML
+    # Inside the ZIP file, the document is stored in matlab/document.xml file
+    # See matlab.internal.liveeditor.openAndConvert, matlab.internal.liveeditor.openAndSave
+    def write_mlx(self, mlx_fname):
+
+        template_fname = self.template_fname
+
+        _remove = True
+        if _remove and os.path.exists(mlx_fname):
+            os.remove(mlx_fname)
+
+        # Copy template if file does not exist yet
+        if template_fname != '' and not os.path.exists(mlx_fname):
+            log('copying mlx template: {} to {}'.format(template_fname, mlx_fname))
+            shutil.copyfile(template_fname, mlx_fname)
+
+        # Extract mlx as zip file
+        fname = os.path.split(mlx_fname)[1]
+        mlx_temp_folder = os.path.join(self.temp_path, fname)
+        try:
+            shutil.unpack_archive(mlx_fname, mlx_temp_folder, 'zip')
+        except:
+            log('error extracting mlx file: ' + mlx_fname)
+            return
+
+        # @Todo? Read existing xml file and process it????
+
+        # Write document.xml
+        doc_fname = os.path.join(mlx_temp_folder, 'matlab/document.xml')
+        try:
+            with open(doc_fname, 'wt') as f:
+                f.write(self.doc_text)
+        except:
+            log('not updated')
+            return
+
+        # Create new zip file
+        mlx_temp_fname = os.path.join(self.temp_path, fname + '_new')
+        if os.path.exists(mlx_temp_fname):
+            os.remove(mlx_temp_fname)
+
+        try:
+            shutil.make_archive(mlx_temp_fname, 'zip', mlx_temp_folder)
+        except:
+            return
+
+        # Copy new zip file
+        mlx_temp_filename = mlx_temp_fname + '.zip'
+        try:
+            log('copying mlx template: {} to {}'.format(mlx_temp_filename, mlx_fname))
+            if os.path.exists(mlx_fname):
+                os.remove(mlx_fname)
+            shutil.copyfile(mlx_temp_filename, mlx_fname)
+        except:
+            log('error copying file: {} to {}'.format(mlx_temp_filename, mlx_fname))
+            return
+
+    # -----------------------------------------------------------------------
+    @staticmethod
+    def unit_test():
+        path = os.path.join(MLX_ELEMENTS_PATH, 'unit_test/')
+
+        with MlxWriter(path + 'line1.xml') as m:
+            m.writeln('This is my line in XML file')
+
+        with MlxWriter(path + 'line1.mlx') as m:
+            m.writeln('This is my line in MLX file')
+
+        with MlxWriter(path + 'test1.mlx') as m:
+            #m.toc()
+            m.title('My Title')
+            m.heading1('My Heading One')
+            m.writeln('Line under heading one')
+            m.writeln('Second Line under heading one')
+            m.heading2('My Heading Two')
+            m.writeln('Line under heading two')
+            m.writeln('Second Line under heading two')
+            m.heading3('My Heading Three')
+            m.writeln('Line under heading three')
+            m.writeln('SecondLine under heading three')
+
+            m.code('Sample code:\nLine 1\nLine 2\nLine3\Last line.')
+
+            m.text('More text\nLine two')
+            m.code('More code:\nLine 1\nLine 2\nLine3\Last line.')
+            m.writeln('THE END')
 
 # ===========================================================================
 # Data for each package
@@ -982,6 +1109,7 @@ class MatlabProcessor:
         # Generate .txt and .md files
         out_path_txt = os.path.join(AUTOGEN_PATH, 'package_functions')
         out_path_md = os.path.join(AUTOGEN_PATH, 'package_functions_md')
+        out_path_mlx = os.path.join(AUTOGEN_PATH, 'package_functions_mlx')
 
         # ---------------------------------------------- Packages
         package_list = list(self.package_dict.keys())
@@ -1020,6 +1148,7 @@ class MatlabProcessor:
         # Update class list files
         out_path_txt = os.path.join(AUTOGEN_PATH, 'class_functions')
         out_path_md = os.path.join(AUTOGEN_PATH, 'class_functions_md')
+        out_path_mlx = os.path.join(AUTOGEN_PATH, 'class_functions_mlx')
         class_list = list(self.class_dict.keys())
         class_list.sort()
         lines = class_list.copy()
@@ -1118,21 +1247,12 @@ def main():
     #
     proc = MatlabProcessor()
 
-    # Test creating mlx file
-    #mlx_filename = 'c:/_mlx/2.mlx'
-    #proc.write_mlx(mlx_filename)
-    #return
+    MlxWriter.unit_test()
 
-    # Test updating .m file with function list
-    #proc.process('c:/_m1')
-
-    mlx_filename = 'c:/temp/_mlx1.mlx'
-    proc.write_mlx(mlx_filename)
-
-    proc.process('D:/Ultrasat/AstroPack.git/matlab')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab')
 
 
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
