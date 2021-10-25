@@ -78,6 +78,8 @@ class MlxWriter:
         self.template_fname = os.path.join(MLX_ELEMENTS_PATH, 'empty.mlx')
         #self.template_fname = template_fname
 
+        self.align = 'left'
+
         # Load elements
         self.xml_start = self.load('start')
         self.xml_end = self.load('end')
@@ -85,8 +87,13 @@ class MlxWriter:
         self.xml_heading1 = self.load('heading1')
         self.xml_heading2 = self.load('heading2')
         self.xml_heading3 = self.load('heading3')
-        self.xml_text_line = self.load('text_line')
+        self.xml_text = self.load('text')
         self.xml_code = self.load('code')
+        self.xml_paragraph_start = self.load('paragraph_start')
+        self.xml_paragraph_end = self.load('paragraph_end')
+        self.xml_normal = self.load('normal')
+        self.xml_bold = self.load('bold')
+        self.xml_italic = self.load('italic')
         self.xml_numbered = self.load('numbered')
         self.xml_bullet = self.load('bullet')
         self.xml_toc = self.load('toc')
@@ -109,9 +116,9 @@ class MlxWriter:
         self.wr(self.xml_start)
 
 
-    #
+    # Close file, update XML or MLX file on disk
     def close(self):
-        self.writeln('')
+        self.text('')
         self.wr(self.xml_end)
         if self.fname != '':
             fname = self.fname.lower()
@@ -124,49 +131,93 @@ class MlxWriter:
 
     # -----------------------------------------------------------------------
     # Title
-    def title(self, text):
+    def title(self, text, body=''):
         self.wr(self.xml_title, text)
+        if body != '':
+            self.text(body)
 
     # Heading 1
-    def heading1(self, text):
+    def heading1(self, text, body=''):
         self.wr(self.xml_heading1, text)
+        if body != '':
+            self.text(body)
 
     # Heading 2
-    def heading2(self, text):
+    def heading2(self, text, body=''):
         self.wr(self.xml_heading2, text)
+        if body != '':
+            self.text(body)
 
     # Heading 3
-    def heading3(self, text):
+    def heading3(self, text, body=''):
         self.wr(self.xml_heading3, text)
+        if body != '':
+            self.text(body)
 
-    # Text line
-    def writeln(self, text, align = 'left'):
-        self.wr(self.xml_text_line.replace('$Align', align), text)
-
-    def text(self, text, align = 'left'):
+    # Single/mutli-line paragraph
+    def text(self, text):
         lines = text.split('\n')
         for line in lines:
-            self.writeln(line, align)
+            self.wr(self.xml_text, line)
 
+    # -----------------------------------------------------------------------
+    #
+    def start_par(self):
+        self.wr(self.xml_paragraph_start)
+
+    #
+    def end_par(self):
+        self.wr(self.xml_paragraph_end)
+
+    #
+    def normal(self, text):
+        self.wr(self.xml_normal, text)
+
+    #
+    def bold(self, text):
+        self.wr(self.xml_bold, text)
+
+    #
+    def italic(self, text):
+        self.wr(self.xml_italic, text)
+
+    # -----------------------------------------------------------------------
+
+    #
     def code(self, text):
         self.wr(self.xml_code, text)
 
-    def bullet(self, text):
-        self.wr(self.xml_bullet, text)
+    #
+    def bullet(self, text=''):
+        self.wr(self.xml_bullet)
+        if text != '':
+            self.normal(text)
+            self.end_par()
 
-    def numbered(self, text):
-        self.wr(self.xml_numbered, text)
+    #
+    def numbered(self, text=''):
+        self.wr(self.xml_numbered)
+        if text != '':
+            self.normal(text)
+            self.end_par()
 
+    # Add table-of-contents, should be added at top
     def toc(self):
         self.wr(self.xml_toc)
 
     # -----------------------------------------------------------------------
     #
-    def wr(self, template, text = ''):
+    def wr(self, template, text=''):
+        # Replace alignment in <w:jc w:val="left"/>
+        if self.align != 'left' and '<w:jc w:val=' in template:
+            template = template.replace('"left"', '"' + self.align + '"')
+
+        text = text.replace('&', '&amp;')
         s = template.replace('$Text', text)
         self.doc_text = self.doc_text + s
 
 
+    # Load element from XML file, ignore comments starting with # or ;
     def load(self, fname):
         text = ''
         fname = os.path.join(MLX_ELEMENTS_PATH, fname + '.xml')
@@ -174,6 +225,8 @@ class MlxWriter:
             with open(fname) as f:
                 lines = f.read().splitlines()
                 for line in lines:
+                    if line.startswith('#') or line.startswith(';'):
+                        continue
                     text = text + line.strip()
         else:
             log('MlxWriter.load: File not found: ' + fname)
@@ -241,34 +294,70 @@ class MlxWriter:
             return
 
     # -----------------------------------------------------------------------
+    # Unit-Test
     @staticmethod
     def unit_test():
-        path = os.path.join(MLX_ELEMENTS_PATH, 'unit_test/')
+        path = os.path.join(MLX_ELEMENTS_PATH, '../unit_test/')
 
+        # Write bare XML file
         with MlxWriter(path + 'line1.xml') as m:
-            m.writeln('This is my line in XML file')
+            m.text('This is my line in XML file')
 
+        # Write MLX file
         with MlxWriter(path + 'line1.mlx') as m:
-            m.writeln('This is my line in MLX file')
+            m.text('This is my line in MLX file')
 
+        # Test 1
         with MlxWriter(path + 'test1.mlx') as m:
             #m.toc()
-            m.title('My Title')
-            m.heading1('My Heading One')
-            m.writeln('Line under heading one')
-            m.writeln('Second Line under heading one')
-            m.heading2('My Heading Two')
-            m.writeln('Line under heading two')
-            m.writeln('Second Line under heading two')
-            m.heading3('My Heading Three')
-            m.writeln('Line under heading three')
-            m.writeln('SecondLine under heading three')
-
+            m.title('My Title', 'Text line 1\nText line 2\nText line 3\n')
+            m.heading1('My Heading One', 'Text line 1\nText line 2\nText line 3\n')
+            m.heading2('My Heading Two under one', 'Text line 1\nText line 2\nText line 3\n')
+            m.heading3('My Heading Three under two', 'Text line 1\nText line 2\nText line 3\n')
             m.code('Sample code:\nLine 1\nLine 2\nLine3\Last line.')
-
             m.text('More text\nLine two')
+
+            m.heading1('My Heading One', 'Text line 1\nText line 2\nText line 3\n')
+            m.heading3('My Heading Three under one', 'Text line 1\nText line 2\nText line 3\n')
             m.code('More code:\nLine 1\nLine 2\nLine3\Last line.')
-            m.writeln('THE END')
+
+            m.heading3('Numbered list')
+            m.numbered('numbered item 1')
+            m.numbered('numbered item 2')
+            m.numbered('numbered item 3')
+
+            m.heading3('Bullet list')
+            m.bullet('bullet item 1')
+            m.bullet('bullet item 2')
+            m.bullet('bullet item 3')
+
+            m.start_par()
+            for i in range(0,10):
+                m.normal('This text is normal ')
+                m.bold('then changes to Bold')
+                m.normal(' back to normal ')
+                m.italic('now in Italic')
+                m.normal(' back to normal. ')
+            m.end_par()
+
+            m.text('THE END')
+
+
+        # Test 2
+        with MlxWriter(path + 'test2.mlx') as m:
+
+            m.text('Bullet list of bold items')
+            m.bullet()
+            m.bold('Item One')
+            m.normal(' is blabla blabla')
+            m.end_par()
+
+            m.bullet()
+            m.bold('Item Two')
+            m.normal(' is blabla blabla')
+            m.end_par()
+
+            m.text('THE END')
 
 # ===========================================================================
 # Data for each package
@@ -931,11 +1020,6 @@ class MatlabProcessor:
         if UPDATE_M:
             self.update_class_m_file()
 
-        # Update output only if not class folder
-        if not self.is_class_folder and self.cur_class != '':
-            pass
-            #self.update_files(fname)
-
     # -----------------------------------------------------------------------
     # Process class function file (file in class folder which is not the main class file)
     def process_class_func_file(self, lines):
@@ -1046,11 +1130,6 @@ class MatlabProcessor:
                 log('Exception processing file: ' + fname)
 
 
-        # Update output only if class folder
-        if self.is_class_folder:
-            pass
-            #self.update_files()
-
     # -----------------------------------------------------------------------
     # Check if should process folder
     def should_process_folder(self, path):
@@ -1104,14 +1183,13 @@ class MatlabProcessor:
 
     # -----------------------------------------------------------------------
     # Process all collected data and update output files
-    def process_data(self):
+    def generate_packages_txt_md(self):
 
-        # Generate .txt and .md files
+        # Prepare folder names
         out_path_txt = os.path.join(AUTOGEN_PATH, 'package_functions')
         out_path_md = os.path.join(AUTOGEN_PATH, 'package_functions_md')
-        out_path_mlx = os.path.join(AUTOGEN_PATH, 'package_functions_mlx')
 
-        # ---------------------------------------------- Packages
+        # List of all packages
         package_list = list(self.package_dict.keys())
         package_list.sort()
         self.write_file(self.package_list_filename, package_list)
@@ -1143,25 +1221,67 @@ class MatlabProcessor:
                 self.append_indent(md_lines, func.long_comment.split('\n'))
 
             # Write txt and md files to disk
-
             self.write_file(pkg_fname_txt, lines)
             self.write_file(pkg_fname_md, md_lines)
 
-        # ---------------------------------------------- Classes
-        # Update class list files
+
+    def generate_packages_mlx(self):
+
+        # Prepare folder names
+        out_path_mlx = os.path.join(AUTOGEN_PATH, 'package_functions_mlx')
+
+        # Packages
+        package_list = list(self.package_dict.keys())
+        package_list.sort()
+        #self.write_file(self.package_list_filename, package_list)
+
+        '''
+        for pkg_name in package_list:
+            pkg = self.get_package(pkg_name)
+            func_list = list(pkg.func_dict.keys())
+            func_list.sort()
+            if len(func_list) == 0:
+                continue
+
+            pkg_fname_mlx = os.path.join(out_path_mlx, pkg_name + '.mlx')
+
+            lines = []
+            lines.append('Package: ' + self.unpack_name(pkg_name))
+            lines.append('')
+            md_lines = []
+            md_lines.append('# Package: ' + self.unpack_name(pkg_name))
+            md_lines.append('\n')
+            for func_name in func_list:
+                func = pkg.func_dict[func_name]
+                line = func.name + ' - ' + func.comment
+                lines.append(line + '\n')
+
+                # MD
+                md_lines.append('### ' + self.unpack_name(pkg_name + '.' + func.name) + '\n')
+                md_lines.append(func.comment + '\n\n')
+                self.append_indent(md_lines, func.long_comment.split('\n'))
+
+        '''
+
+
+
+    # Classes
+    def generate_classes_txt_md(self):
+
+        #
         out_path_txt = os.path.join(AUTOGEN_PATH, 'class_functions')
         out_path_md = os.path.join(AUTOGEN_PATH, 'class_functions_md')
-        out_path_mlx = os.path.join(AUTOGEN_PATH, 'class_functions_mlx')
+
+        #
         class_list = list(self.class_dict.keys())
         class_list.sort()
         lines = class_list.copy()
         for i, line in enumerate(lines):
             lines[i] = self.unpack_name(line)
         self.write_file(self.class_list_filename, lines)
-        for cls_name in class_list:
 
-            #if 'AstroHeader' in cls_name:
-            #    log('break')
+        #
+        for cls_name in class_list:
 
             cls = self.get_class(cls_name)
             func_list = list(cls.func_dict.keys())
@@ -1171,7 +1291,6 @@ class MatlabProcessor:
 
             cls_fname_txt = os.path.join(out_path_txt, cls_name + '.txt')
             cls_fname_md = os.path.join(out_path_md, cls_name + '.md')
-            cls_fname_mlx = os.path.join(out_path_mlx, cls_name + '.mlx')
 
             # Txt
             lines = []
@@ -1196,34 +1315,6 @@ class MatlabProcessor:
             self.append_indent(md_lines, md_func_list)
             md_lines.append('')
 
-            # MLX
-            mlx = MlxWriter(cls_fname_mlx)
-            mlx.title(cls_name)
-
-            mlx.heading1('Description')
-            mlx.text('Description')
-
-            mlx.heading1('Properties')
-            mlx.text('Properties')
-
-            #mlx.heading2('Additional & Hidden Properties')
-            #mlx.text('Properties')
-
-            mlx.heading1('Constructor')
-            mlx.text('Constructor')
-
-            mlx.heading1('Methods')
-            mlx.text('Methods')
-
-            mlx.heading1('Static Methods')
-            mlx.text('Static Methods')
-
-            mlx.heading1('See Also')
-            mlx.text('See also')
-
-            mlx.heading1('Notes')
-            mlx.text('Notes')
-
             # Iterate class functions
             for func_name in func_list:
                 func = cls.func_dict[func_name]
@@ -1239,11 +1330,99 @@ class MatlabProcessor:
             # Write txt and md files to disk
             self.write_file(cls_fname_txt, lines)
             self.write_file(cls_fname_md, md_lines)
+
+
+    def generate_classes_mlx(self):
+
+        # Update class list files
+        out_path_mlx = os.path.join(AUTOGEN_PATH, 'class_functions_mlx')
+        class_list = list(self.class_dict.keys())
+        class_list.sort()
+        lines = class_list.copy()
+        for i, line in enumerate(lines):
+            lines[i] = self.unpack_name(line)
+        #self.write_file(self.class_list_filename, lines)
+
+        for cls_name in class_list:
+
+            cls = self.get_class(cls_name)
+            func_list = list(cls.func_dict.keys())
+            func_list.sort()
+            if len(func_list) == 0:
+                continue
+
+            cls_fname_mlx = os.path.join(out_path_mlx, self.unpack_name(cls_name) + '.mlx')
+
+            # MD
+            '''
+            md_lines.append('### Functions List\n')
+            md_func_list = []
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                line = func.name + ' - ' + func.comment
+                md_func_list.append(line)
+            self.append_indent(md_lines, md_func_list)
+            '''
+
+
+            # MLX
+            mlx = MlxWriter(cls_fname_mlx)
+            mlx.title(cls_name)
+
+            #
+            mlx.heading1('Description')
+            mlx.start_par()
+            mlx.bold(self.unpack_name(cls_name))
+            mlx.normal(cls.comment)
+            mlx.end_par()
+
+            #
+            mlx.text(cls.long_comment)
+            mlx.text('For additional help see manuals.main')
+
+            mlx.heading1('Properties')
+            mlx.text('Properties')
+
+            mlx.heading2('Additional & Hidden Properties')
+            mlx.text('Properties')
+
+            mlx.heading1('Constructor')
+            mlx.text('Constructor')
+
+            mlx.heading1('Methods')
+            mlx.text('Methods')
+
+            # Iterate class functions
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                mlx.text(cls.long_comment)
+                mlx.bullet()
+                mlx.bold(func.name)
+                mlx.normal(' - ' + func.comment)
+                mlx.end_par()
+
+            # Section per function
+            mlx.text('')
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                mlx.heading3(func.name)
+                mlx.start_par()
+                mlx.bold(func.name)
+                mlx.normal(' - ' + func.comment)
+                mlx.end_par()
+                #mlx.text(func.long_comment)
+                #mlx.text('Example')
+                #mlx.code('Example code here')
+
+
+            mlx.heading1('Static Methods')
+            mlx.text('Static Methods')
+
+            mlx.heading1('See Also', 'Add related issues here')
+            mlx.heading1('Notes', 'Add notes here')
+
             mlx.close()
 
-            # Update class files - called from process_class_file()
-            if UPDATE_M:
-                pass
 
     # -----------------------------------------------------------------------
     # Main function
@@ -1265,7 +1444,11 @@ class MatlabProcessor:
 
         # Process folders tree
         self.process_tree(path)
-        self.process_data()
+
+        self.generate_packages_txt_md()
+        self.generate_packages_mlx()
+        self.generate_classes_txt_md()
+        self.generate_classes_mlx()
 
 
 # ---------------------------------------------------------------------------
@@ -1285,11 +1468,10 @@ def main():
 
     MlxWriter.unit_test()
 
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab')
-
-
     proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
+
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab')
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
