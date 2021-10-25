@@ -359,6 +359,20 @@ class MlxWriter:
 
             m.text('THE END')
 
+
+        # Test 3
+        with MlxWriter(path + 'test3.mlx') as m:
+            m.toc()
+            m.title('My Title', 'Text line 1\nText line 2\nText line 3\n')
+            m.heading1('My Heading One', 'Text line 1\nText line 2\nText line 3\n')
+            m.heading2('My Heading Two under one', 'Text line 1\nText line 2\nText line 3\n')
+            m.heading3('My Heading Three under two', 'Text line 1\nText line 2\nText line 3\n')
+            m.code('Sample code:\nLine 1\nLine 2\nLine3\Last line.')
+            m.text('More text\nLine two')
+
+            m.text('THE END')
+
+
 # ===========================================================================
 # Data for each package
 class PackageData:
@@ -395,15 +409,17 @@ class FunctionData:
         self.params = ''
         self.comment = ''
         self.long_comment = ''
+        self.is_constructor = False
 
 # ===========================================================================
 # Data for each class property (currently unused)
-class PropData:
+class PropertyData:
 
     def __init__(self):
         self.name = ''
         self.type = ''              # Datatype
         self.comment = ''
+        self.long_comment = ''
 
 # ===========================================================================
 # Data for each class property (currently unused)
@@ -713,12 +729,12 @@ class MatlabProcessor:
                 self.update_m_file(fname)
 
     # -----------------------------------------------------------------------
-    # @todo
+    # @todo - Maybe it would be enough to export from MLX ?
     def write_html(self):
         log('write_html')
 
     # -----------------------------------------------------------------------
-    # todo !!!!
+    # todo Unused
     def new_mlx_block(self, lines):
         start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
         end_idx   = self.index_starts_with(lines, FUNC_BLOCK_END)
@@ -736,122 +752,6 @@ class MatlabProcessor:
                     break
 
         return lines, start_idx
-
-    # -----------------------------------------------------------------------
-    def update_mlx_document(self, filename):
-
-        lines = []
-
-        mlx_base = '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t>Text1</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t>Text2</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t></w:t></w:r></w:p></w:body></w:document>'
-
-        doc_start = '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
-        doc_end = '</w:body></w:document>'
-
-
-        lines.append(doc_start)
-        lines.append()
-        lines.append(doc_end)
-
-        self.write_file(filename, lines, '')
-        return True
-
-        # But we should allow creating an empty mlx???
-        if not self.cur_class in self.class_dict:
-            return
-
-        fname = self.cur_fname
-        func_list_lines = []
-
-        log('update_mlx_document: ' + filename)
-        lines = self.read_file(filename)
-        lines.insert(0, 'This is my test!')
-
-        #
-        cls = self.class_dict[self.cur_class]
-        func_list = list(cls.func_dict.keys())
-        func_list.sort()
-        for func_name in func_list:
-            func = cls.func_dict[func_name]
-            line = func.name + ' - ' + func.comment
-            func_list_lines.append(line)
-
-        # Read source file
-        lines = self.read_file(fname)
-        start_idx = 0
-
-        # Insert functions list at to of file
-        #lines.insert(start_idx+0, FUNC_BLOCK_BEGIN)  # (auto-generated list python script)
-        for i, func in enumerate(func_list_lines):
-            line = '% ' + func
-            lines.insert(start_idx+i+1, line)
-
-        self.write_file(filename, lines)
-        return True
-
-    # -----------------------------------------------------------------------
-    # MLX files are ZIP files with structured format
-    # Open Packaging Conventions - https://en.wikipedia.org/wiki/Open_Packaging_Conventions
-    # Office Open XML - https://en.wikipedia.org/wiki/Office_Open_XML
-    # Inside the ZIP file, the document is stored in matlab/document.xml file
-    # See matlab.internal.liveeditor.openAndConvert, matlab.internal.liveeditor.openAndSave
-    # @todo
-    def write_mlx(self, mlx_filename):
-        log('write_mlx: ' + mlx_filename)
-        temp_path = 'c:/_mlx/temp'
-
-        # Copy template
-        if not os.path.exists(mlx_filename):
-            #mlx_template_filename = os.path.join(ASTROPACK_PATH, '/matlab/help/+manuals/_ClassTemplate.mlx')
-
-            mlx_template_filename = os.path.join(ASTROPACK_PATH, '/matlab/doc/mlx/simple1.mlx')
-
-            log('copying mlx template: {} to {}'.format(mlx_template_filename, mlx_filename))
-            shutil.copyfile(mlx_template_filename, mlx_filename)
-
-        # Extract mlx
-        fname = os.path.split(mlx_filename)[1]
-        mlx_temp_folder = os.path.join(temp_path, fname) #temp/mlx'
-        try:
-            shutil.unpack_archive(mlx_filename, mlx_temp_folder, 'zip')
-        except:
-            log('error extracting mlx file: ' + mlx_filename)
-            return
-
-        # Read document.xml
-        doc_filename = os.path.join(mlx_temp_folder, 'matlab/document.xml')
-
-        # Update document.xml
-        try:
-            updated = self.update_mlx_document(doc_filename)
-            if not updated:
-                log('not updated')
-                return
-        except:
-            log('not updated')
-            return
-
-        # Create new zip file
-        mlx_temp_filename = os.path.join(temp_path, fname + '_new')
-        if os.path.exists(mlx_temp_filename):
-            os.remove(mlx_temp_filename)
-
-        try:
-            shutil.make_archive(mlx_temp_filename, 'zip', mlx_temp_folder)
-        except:
-            return
-
-        # Copy new zip file
-        mlx_temp_filename = mlx_temp_filename + '.zip'
-        try:
-            log('copying mlx template: {} to {}'.format(mlx_temp_filename, mlx_filename))
-            if os.path.exists(mlx_filename):
-                os.remove(mlx_filename)
-            shutil.copyfile(mlx_temp_filename, mlx_filename)
-        except:
-            log('error copying file: {} to {}'.format(mlx_temp_filename, mlx_filename))
-            return
-
-
 
     # -----------------------------------------------------------------------
     # @todo
@@ -888,6 +788,37 @@ class MatlabProcessor:
                 log('exception parsing line: ' + line)
 
         return class_name
+
+    # -----------------------------------------------------------------------
+    # Get property name from line
+    # function Result = funcWithRet(Obj, FileName)
+    # function funcWithoutRet()
+    # Result = classFuncInOtherFile
+    def get_property_name(self, code_line):
+        prop_name = ''
+        comment = code_line.split('%')
+        if len(comment) > 1:
+            comment = comment[1].strip()
+        else:
+            comment = ''
+
+        code = code_line.split('%')[0].strip()
+        tokens = code.replace('=', ' ').strip().split(' ')
+
+        # Found function keyword
+        if len(tokens) > 0:
+
+            prop_name = tokens[0].strip()
+
+            # Function with return value(s)
+            #if '=' in tokens:
+            #    func_name = code_line.split('=')[1].strip().split('(')[0].strip()
+
+            # Function without return values
+            #else:
+            #    func_name = code_line.split('function')[1].strip().split('(')[0].strip()
+
+        return prop_name, comment
 
     # -----------------------------------------------------------------------
     # Get function name from line
@@ -975,12 +906,49 @@ class MatlabProcessor:
         cls.long_comment = self.get_comment(lines, 0, False)
 
         methods_type = ''
+        prop_type = ''
+        in_properties = False
+
         for line_num, line in enumerate(lines):
             try:
                 code_line = self.get_code_line(line)
                 tokens = code_line.split(' ')
+
+                # Ignore empty lines
                 if len(tokens) == 0:
                     continue
+
+                # properties
+                if tokens[0] == 'properties':
+                    in_properties = True
+                    new_prop_type = ''
+                    if 'Static' in tokens:
+                        new_prop_type = 'Static'
+
+                    # swtiched type
+                    if new_prop_type != prop_type:
+                        prop_type = new_prop_type
+                        #outf.write('\n% properties ' + new_prop_type_type + '\n%\n')
+
+                elif in_properties and tokens[0] == 'end':
+                    in_properties = False
+
+                # Get property name
+                elif in_properties:
+                    prop_name, comment = self.get_property_name(code_line)
+                    if prop_name != '':
+                        #log_line('found property', line_num, line)
+
+                        if prop_name in cls.prop_dict:
+                            log_line('Duplicate property definition:', line_num, line)
+                            continue
+
+                        prop = PropertyData()
+                        prop.name = prop_name
+                        prop.comment = comment #self.get_comment(lines, line_num)
+                        #prop.long_comment = self.get_comment(lines, line_num, short=False)
+                        cls.prop_dict[prop_name] = prop
+
 
                 # methods
                 if tokens[0] == 'methods':
@@ -1005,6 +973,9 @@ class MatlabProcessor:
 
                         func = FunctionData()
                         func.name = func_name
+
+                        if func_name == self.unpack_name(cls.name):
+                            func.is_constructor = True
 
                         # Debug
                         if 'copyElement' in func_name:
@@ -1348,26 +1319,16 @@ class MatlabProcessor:
             cls = self.get_class(cls_name)
             func_list = list(cls.func_dict.keys())
             func_list.sort()
-            if len(func_list) == 0:
+            prop_list = list(cls.prop_dict.keys())
+            prop_list.sort()
+            if len(func_list) == 0 and len(prop_list) == 0:
                 continue
 
             cls_fname_mlx = os.path.join(out_path_mlx, self.unpack_name(cls_name) + '.mlx')
 
-            # MD
-            '''
-            md_lines.append('### Functions List\n')
-            md_func_list = []
-            for func_name in func_list:
-                func = cls.func_dict[func_name]
-                line = func.name + ' - ' + func.comment
-                md_func_list.append(line)
-            self.append_indent(md_lines, md_func_list)
-            '''
-
-
             # MLX
             mlx = MlxWriter(cls_fname_mlx)
-            mlx.title(cls_name)
+            mlx.title(self.unpack_name(cls_name))
 
             #
             mlx.heading1('Description')
@@ -1381,38 +1342,52 @@ class MatlabProcessor:
             mlx.text('For additional help see manuals.main')
 
             mlx.heading1('Properties')
-            mlx.text('Properties')
+            for prop_name in prop_list:
+                prop = cls.prop_dict[prop_name]
+                mlx.bullet()
+                mlx.bold(prop.name)
+                mlx.normal(' - ' + prop.comment)
+                mlx.end_par()
+
 
             mlx.heading2('Additional & Hidden Properties')
             mlx.text('Properties')
 
             mlx.heading1('Constructor')
-            mlx.text('Constructor')
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                if not func.is_constructor:
+                    continue
+                mlx.start_par()
+                mlx.bold(func.name)
+                mlx.normal(' - ' + func.comment)
+                mlx.end_par()
 
+            mlx.text('')
             mlx.heading1('Methods')
-            mlx.text('Methods')
 
             # Iterate class functions
             for func_name in func_list:
                 func = cls.func_dict[func_name]
-                mlx.text(cls.long_comment)
+                if func.is_constructor:
+                    continue
                 mlx.bullet()
                 mlx.bold(func.name)
                 mlx.normal(' - ' + func.comment)
                 mlx.end_par()
 
             # Section per function
-            mlx.text('')
             for func_name in func_list:
                 func = cls.func_dict[func_name]
+                mlx.text('')
                 mlx.heading3(func.name)
                 mlx.start_par()
                 mlx.bold(func.name)
                 mlx.normal(' - ' + func.comment)
                 mlx.end_par()
-                #mlx.text(func.long_comment)
-                #mlx.text('Example')
-                #mlx.code('Example code here')
+                mlx.text(func.long_comment)
+                mlx.text('Example')
+                mlx.code('Example code here')
 
 
             mlx.heading1('Static Methods')
