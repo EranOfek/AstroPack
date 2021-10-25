@@ -26,6 +26,7 @@
 
 import os, glob, argparse, shutil, zipfile
 from datetime import datetime
+from random import randint
 
 # --- Global flags ---
 UPDATE_M = True # False #True
@@ -67,6 +68,13 @@ def log_line(msg, line_num, line):
 
 # ===========================================================================
 #
+class MlxBookmark:
+    def __init__(self, text, type, tag):
+        self.text = text
+        self.type = type
+        self.tag = tag
+
+
 class MlxWriter:
 
     def __init__(self, fname = ''): #, template_fname = ''):
@@ -76,9 +84,9 @@ class MlxWriter:
         self.fname = fname
         self.temp_path = 'c:/_mlx/temp'
         self.template_fname = os.path.join(MLX_ELEMENTS_PATH, 'empty.mlx')
-        #self.template_fname = template_fname
-
         self.align = 'left'
+        self.with_toc = True
+        self.toc_list = []
 
         # Load elements
         self.xml_start = self.load('start')
@@ -136,23 +144,38 @@ class MlxWriter:
         if body != '':
             self.text(body)
 
+        if self.with_toc:
+            self.toc()
+
+
     # Heading 1
     def heading1(self, text, body=''):
-        self.wr(self.xml_heading1, text)
-        if body != '':
-            self.text(body)
+        self.heading(self.xml_heading1, text, body, 'heading1')
 
     # Heading 2
     def heading2(self, text, body=''):
-        self.wr(self.xml_heading2, text)
-        if body != '':
-            self.text(body)
+        self.heading(self.xml_heading2, text, body, 'heading2')
 
     # Heading 3
     def heading3(self, text, body=''):
-        self.wr(self.xml_heading3, text)
+        self.heading(self.xml_heading3, text, body, 'heading3')
+
+    #
+    def heading(self, template, text, body='', bookmark_type = ''):
+        if self.with_toc:
+            tag, bm_start, bm_end = self.get_bookmark()
+            template = template.replace('$BmStart', bm_start)
+            template = template.replace('$BmEnd', bm_end)
+            bookmark = MlxBookmark(text, bookmark_type, tag)
+            self.toc_list.append(bookmark)
+        else:
+            template = template.replace('$BmStart', '')
+            template = template.replace('$BmEnd', '')
+
+        self.wr(template, text)
         if body != '':
             self.text(body)
+
 
     # Single/mutli-line paragraph
     def text(self, text):
@@ -205,6 +228,13 @@ class MlxWriter:
     def toc(self):
         self.wr(self.xml_toc)
 
+    # '<w:bookmarkStart w:name="MW_H_DFC5E6A7" w:id="H_DFC5E6A7"/>'
+    def get_bookmark(self):
+        tag = hex(randint(0, 65536 ** 2)).upper()[2:]
+        start = '<w:bookmarkStart w:name="MW_H_{}" w:id="H_{}"/>'.format(tag, tag)
+        end = '<w:bookmarkEnd w:id="H_{}"/>'.format(tag)
+        return tag, start, end
+
     # -----------------------------------------------------------------------
     #
     def wr(self, template, text=''):
@@ -234,6 +264,22 @@ class MlxWriter:
         return text
 
     # -----------------------------------------------------------------------
+    def write_toc(self):
+
+        # Save text
+        save_doc_text = self.doc_text
+        self.doc_text = ''
+
+        # Generate TOC
+        for item in self.toc_list:
+            pass
+
+
+        # Get the generated TOC
+        toc_text = self.doc_text
+        self.doc_text = save_doc_text.replace('$TOC', toc_text)
+
+    # -----------------------------------------------------------------------
     # MLX files are ZIP files with structured format
     # Open Packaging Conventions - https://en.wikipedia.org/wiki/Open_Packaging_Conventions
     # Office Open XML - https://en.wikipedia.org/wiki/Office_Open_XML
@@ -241,6 +287,11 @@ class MlxWriter:
     # See matlab.internal.liveeditor.openAndConvert, matlab.internal.liveeditor.openAndSave
     def write_mlx(self, mlx_fname):
 
+        #
+        if self.with_toc:
+            self.write_toc()
+
+        #
         template_fname = self.template_fname
 
         _remove = True
@@ -1443,10 +1494,11 @@ def main():
 
     MlxWriter.unit_test()
 
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
 
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab')
+
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
