@@ -21,8 +21,10 @@
 </mc:Fallback>
 </mc:AlternateContent>
 
+$BmStart
 <w:r>
 <w:t>$Text</w:t>
 </w:r>
+$BmEnd
 
 </w:p>

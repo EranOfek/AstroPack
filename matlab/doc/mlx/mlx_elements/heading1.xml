@@ -7,8 +7,10 @@
 <w:jc w:val="left"/>
 </w:pPr>
 
+$BmStart
 <w:r>
 <w:t>$Text</w:t>
 </w:r>
+$BmEnd
 
 </w:p>
