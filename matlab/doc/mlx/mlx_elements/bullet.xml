@@ -1,36 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+# MLX Element - Bullet list item
 
 <w:p>
-<w:pPr>
-<w:pStyle w:val="text"/>
-<w:jc w:val="left"/>
-</w:pPr>
-<w:r><w:t></w:t>
-</w:r>
-</w:p>
 
-
-<w:p>
-<w:pPr>
-<w:pStyle w:val="text"/>
-<w:jc w:val="left"/>
-</w:pPr>
-<w:r>
-<w:t>Bullet List:</w:t>
-</w:r>
-</w:p>
-
-
-<w:p>
-<w:pPr>
-<w:pStyle w:val="text"/>
-<w:jc w:val="left"/>
-</w:pPr>
-<w:r><w:t></w:t></w:r>
-</w:p>
-
-
-<w:p>
 <w:pPr>
 <w:pStyle w:val="ListParagraph"/>
 <w:numPr>
@@ -38,52 +9,3 @@
 </w:numPr>
 <w:jc w:val="left"/>
 </w:pPr>
-<w:r><w:t>Bullet 1</w:t></w:r>
-</w:p>
-
-
-<w:p>
-<w:pPr>
-<w:pStyle w:val="ListParagraph"/>
-<w:numPr>
-<w:numId w:val="1"/>
-</w:numPr>
-<w:jc w:val="left"/>
-</w:pPr>
-<w:r><w:t>Bullet 2</w:t></w:r>
-</w:p>
-
-
-<w:p>
-<w:pPr>
-<w:pStyle w:val="ListParagraph"/>
-<w:numPr>
-<w:numId w:val="1"/>
-</w:numPr>
-<w:jc w:val="left"/>
-</w:pPr>
-<w:r><w:t>Bullet 3</w:t></w:r>
-</w:p>
-
-
-
-<w:p>
-<w:pPr>
-<w:pStyle w:val="text"/>
-<w:jc w:val="left"/>
-</w:pPr>
-<w:r><w:t></w:t></w:r>
-</w:p>
-
-
-<w:p>
-<w:pPr>
-<w:pStyle w:val="text"/>
-<w:jc w:val="left"/>
-</w:pPr>
-<w:r><w:t></w:t></w:r>
-</w:p>
-
-
-</w:body></w:document>
-

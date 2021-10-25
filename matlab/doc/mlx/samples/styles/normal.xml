@@ -1,0 +1,10 @@
+# MLX Element - Text - Normal
+
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+
+<w:r>
+<w:t>Normal </w:t>
+</w:r>
