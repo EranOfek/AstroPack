@@ -19,8 +19,8 @@
 %
 % There should be only one driver object for each database type.
 % For example, when working with Postgress, we need only one DbDriver for
-% it. We hold a persistent ComponentMap of all created DbDriver objects with 
-% the database type (i.e. 'postgres') as the key.            
+% it. We hold a persistent ComponentMap of all created DbDriver objects with
+% the database type (i.e. 'postgres') as the key.
 %
 % Usage:
 %   Drv = DbDriver.getDbDriver('postgres');
@@ -28,12 +28,12 @@
 %--------------------------------------------------------------------------
 
 % #functions (autogen)
-% DbDriver -
-% close - Unload database driver
-% copyDriverFile - Copy driver file from source folder to target path
+% DbDriver - Constructor
+% copyDriverFile - Copy driver file from source folder to target path This is requried to call javaclasspath()
 % delete - Destructor
 % getDbDriver - Get singleton Map object that maps database type to DbDriver object
-% open - Load database driver library
+% loadDriver - Load database driver library See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
+% unloadDriver - Unload database driver
 % #/functions (autogen)
 %
 
@@ -52,11 +52,11 @@ classdef DbDriver < Component
         % We copy the jar file from its original loation in the repository
         % to a target folder that is added by javaclasspath()
         SourceJarFile = ''          % Full path of source jar file to be copied
-        TargetJarFile = ''          % Full path of target jar file 
+        TargetJarFile = ''          % Full path of target jar file
         IsLoaded = false            % True when driver is open
         
         % Java objects
-        JavaDriver = []             % Java Driver object, returned by org.postgresql.Driver        
+        JavaDriver = []             % Java Driver object, returned by org.postgresql.Driver
     end
     
     %--------------------------------------------------------
@@ -70,7 +70,7 @@ classdef DbDriver < Component
         
         
         function delete(Obj)
-            % Destructor            
+            % Destructor
             Obj.msgLog(LogLevel.Debug, 'deleted started: %s', Obj.Uuid);
             Obj.unloadDriver();
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
@@ -145,7 +145,7 @@ classdef DbDriver < Component
             Obj.SourceJarFile = fullfile(MyPath, FileName);
                         
             % Target is system temporary folder
-            % On Linux we use /tmp, on Windows we assume 
+            % On Linux we use /tmp, on Windows we assume
             % that we can use C:\Temp
             if tools.os.iswindows()
                 Obj.TargetJarFile = fullfile('C:\Temp', FileName);
@@ -184,7 +184,7 @@ classdef DbDriver < Component
             % Set default database type
             if numel(varargin) > 0
                 DatabaseType = varargin{1};
-            else                
+            else
                 DatabaseType = 'postgres';
             end
             

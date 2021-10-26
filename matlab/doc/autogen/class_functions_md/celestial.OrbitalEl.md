@@ -23,6 +23,7 @@
     magnitude - Calculate magnitude for an OrbitalEl object
     meanMotion - Return the mean motion [deg/day]
     merge - Merge the orbital elements in several elements of the OrbitalEl object. This function is custom made for merging the JPL epehmerides, and may fail in other cases.
+    nu2posOrbitalFrame - Convert true anomaly to position in orbital frame
     nuDot - Calculate the time derivative of the true anomaly Description: Calculate the time derivative of the true anomaly. Correct only for e<1
     numEl - Return the number or orbital elements in each OrbitalEl element.
     period - Return the orbital period
@@ -36,6 +37,7 @@
     trueAnom2eccAnom - True Anomaly to Eccentric Anomaly
     trueAnom2radius - True anomaly to radius vector
     trueAnom2rectPos - True anomaly and radius vector to rectangular position Description: True anomaly to rectangular position
+    trueAnom2rectVel - Return rectangular velocity and position vectors in Equatorial system calculated from the orbital elements and the true anomaly.
     unitTest - OrbitalEl.unitTest
 
 ### OrbitalEl
@@ -328,6 +330,30 @@ Merge the orbital elements in several elements of the OrbitalEl object. This fun
       
 
 
+### nu2posOrbitalFrame
+
+Convert true anomaly to position in orbital frame
+
+
+    
+    Convert true anomaly to position in orbital frame  
+    Input  : - OrbitalEl object.  
+    - Vector of true anomaly.  
+    - Vector of Eccentric anomaly. If empty, then calc.  
+    Default is [].  
+    - Vector of radius vector. If empty, then calc.  
+    Default is [].  
+    - Units of true and eccentric anomaly.  
+    Default is 'rad'.  
+    Output : - A 3 lines matrix of X positions of the body on its  
+    orbital plan. Column per object/true anomaly.  
+    [au].  
+    - A 3 lines matrix of velocity [au/day].  
+    Author : Eran Ofek (Oct 2021)  
+    Example: [X, V] = nu2posOrbitalFrame(OrbEl,1);  
+      
+
+
 ### nuDot
 
 Calculate the time derivative of the true anomaly Description: Calculate the time derivative of the true anomaly. Correct only for e<1
@@ -588,6 +614,31 @@ True anomaly and radius vector to rectangular position Description: True anomaly
     [x,y,z] = trueAnom2rectPos(OrbEl(1), 1, 1)  
     OrbEl = celestial.OrbitalEl.loadSolarSystem('num',9804);  
     BodyPos = trueAnom2rectPos(OrbEl, [1;2], [1;2])  
+      
+
+
+### trueAnom2rectVel
+
+Return rectangular velocity and position vectors in Equatorial system calculated from the orbital elements and the true anomaly.
+
+
+    
+    Return rectangular velocity and position vectors in Equatorial system  
+    calculated from the orbital elements and the true anomaly.  
+    Input  : - Vector of true anomaly.  
+    - Vector of Eccentric anomaly. If empty, then calc.  
+    Default is [].  
+    - Vector of radius vector. If empty, then calc.  
+    Default is [].  
+    - Units of true and eccentric anomaly.  
+    Default is 'rad'.  
+    Output : - A 3 lines matrix of the rectangular velocity in  
+    the reference frame of the orbital elements (e.g.,  
+    equatorial J2000). [au/day]  
+    - The same, but for the position [au].  
+    Author : Eran Ofek (Oct 2021)  
+    Ref: https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf  
+    Example: [V,X] = trueAnom2rectVel(OrbEl, 1);  
       
 
 

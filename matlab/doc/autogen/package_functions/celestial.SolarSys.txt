@@ -12,6 +12,8 @@ earthShadowCoo - Calculate the J2000.0 equatorial coordinates of the Earth shado
 
 earth_vel_ron_vondrak - Earth barycentric velocity Package: celestial.SolarSys Description: Calculate the Earth barycentric velocity in respect to the mean equator and equinox of J2000.0, using a version of the Ron & Vondrak (1986) trigonometric series.
 
+ec_longlat2cart - Convert Heliocentric ecliptic long/lat/rad referred to mean equinox of date to cartesian coordinates.
+
 equinox_solstice - Approximate time of Equinox and Solstice Package: celestial.SolarSys Description: Calculate the approximate time of Equinox and Solstice for a given list of years. Accurate to about 100s between year -1000 to 3000.
 
 get_horizons - Get an ephemerides for a solar system body from JPL horizons get_horizons function                                              ephem Description: get an ephemerides for a solar system body from the JPL horizons system.
@@ -76,6 +78,8 @@ plants_object_conjunctions - Local circumstences for conjunctions of planets wit
 
 ple_earth - Low-accuracy planetray ephemeris for Earth Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Earth. Calculate Earth heliocentric longitude, latitude and radius vector referred to the mean ecliptic and equinox of date.
 
+ple_force - Calculate the net Sun+planets force on a solar system body.
+
 ple_jupiter - Low accuracy planetray ephemeris for Jupiter. Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Jupiter. Calculate Jupiter heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 ple_mars - Low-accuracy planetray ephemeris for Mars Package: celestial.SolarSys Description: Low accuracy planetray ephemeris for Mars. Calculate Mars heliocentric longitude latitude and radius vector referred to mean ecliptic and equinox of date.
@@ -91,6 +95,8 @@ ple_saturn - Low accuracy planetray ephemeris for Saturn Package: celestial.Sola
 ple_uranus - Low accuracy ephemeris for Uranus Package: celestial.SolarSys Description: Low accuracy ephemeris for Uranus. Calculate Uranus heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
 
 ple_venus - Low accuracy ephemeris for Venus Package: celestial.SolarSys Description: Low accuracy ephemeris for Venus. Calculate Venus heliocentric longitude, latitude and radius vector referred to mean ecliptic and equinox of date.
+
+ple_xyzAll - Get approximate cartesian coordinates of major planets in a matrix. Return a matrix of 3 X Nplanets X Ntimes of cartesian coordinates.
 
 read_mpc_packed_epoch - Convert the MPC packed date format to JD Package: celestial.SolarSys Description: Convert the MPC packed date format to JD.
 

@@ -1546,7 +1546,7 @@ def main():
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
 
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab')
 
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')

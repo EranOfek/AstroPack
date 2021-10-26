@@ -5,11 +5,11 @@
 % Used internally by DbQuery
 
 % #functions (autogen)
-% DbConnection -
+% DbConnection - Constructor
 % close - Disconnect from database,  @Todo
-% delete -
-% getConnectionKey - Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
-% getDbConnection -
+% delete - Destructor
+% getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+% getDbConnection - Search global (singleton) map of DbConnection for the specified connection key
 % newQuery - Create new DbQuery instance linked to this connection
 % open - Connect to database specified by Host:Port:Database as UserName/Password
 % setupDefault -
@@ -22,7 +22,7 @@ classdef DbConnection < Component
     properties (SetAccess = public)
         
         % Connection details provided by user
-        DriverName = 'postgres'     % Driver name        
+        DriverName = 'postgres'     % Driver name
         DatabaseName = 'pipeline'   % Database name
         UserName = 'postgres'       % Login user
         Password = 'pass'           % Login password
@@ -37,8 +37,8 @@ classdef DbConnection < Component
         Driver          = []        % DbDriver used by this connection
         
         % Java objects
-        JavaConn        = []        % Java Connection object, returned by connect()                
-        JavaMetadata    = []        % Metadata        
+        JavaConn        = []        % Java Connection object, returned by connect()
+        JavaMetadata    = []        % Metadata
 
     end
     
@@ -127,7 +127,7 @@ classdef DbConnection < Component
             Obj.msgLog(LogLevel.Info, 'close');
             if Obj.IsOpen
                 Obj.IsOpen = false;
-                try                
+                try
                     Obj.JavaConn.close();
                 catch
                     Obj.msgLog(LogLevel.Error, 'close: failed');
@@ -139,7 +139,7 @@ classdef DbConnection < Component
        
         
         function Result = newQuery(Obj)
-            % Create new DbQuery instance linked to this connection            
+            % Create new DbQuery instance linked to this connection
             Result = db.DbQuery(Obj);
         end
                 

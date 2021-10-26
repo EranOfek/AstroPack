@@ -491,6 +491,15 @@ Match an AstroCatalog object with catsHTM catalog
     M.coneSearch(AC,[1 1],'Radius',3600);  
     [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = M.match_catsHTM(AC,'GAIADR2')  
       
+### imProc.match.match_catsHTM_multiInsertFlag
+
+
+
+
+    
+      
+      
+      
 ### imProc.match.matched2matrix
 
 A matched AstroCatalog object into a matrix of epochs by index AstCat object to a matrix of matched sources. Description: Given an AstroCatalog object containing multiple elements, in which each element containing the same number of rows (e.g., the output of Match/match.m), return a matrix

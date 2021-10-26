@@ -1,8 +1,8 @@
 % ComponentMap - Wrapper for MATLAB's containers.Map dictionary object
 % Note that this class is derived from Base and not from Component
 %
-% ComponentMap is used to hold global (i.e. 'persistent') 
-% maps (key -> object) of singleton objects, such as database driver, 
+% ComponentMap is used to hold global (i.e. 'persistent')
+% maps (key -> object) of singleton objects, such as database driver,
 % database connection, etc.
 %
 % There is a default singleton ComponentMap accessible by

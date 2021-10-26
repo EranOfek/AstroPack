@@ -14,11 +14,11 @@
 
 ### Functions List
 
-    DbConnection - 
+    DbConnection - Constructor
     close - Disconnect from database,  @Todo
-    delete - 
-    getConnectionKey - Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
-    getDbConnection - 
+    delete - Destructor
+    getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+    getDbConnection - Search global (singleton) map of DbConnection for the specified connection key
     newQuery - Create new DbQuery instance linked to this connection
     open - Connect to database specified by Host:Port:Database as UserName/Password
     setupDefault - 
@@ -26,10 +26,11 @@
 
 ### DbConnection
 
-
+Constructor
 
 
     
+    Constructor  
 
 
 ### close
@@ -44,27 +45,31 @@ Disconnect from database,  @Todo
 
 ### delete
 
-
+Destructor
 
 
     
+    Destructor  
 
 
 ### getConnectionKey
 
-Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
 
 
     
+    Create connection key f - @TBD  
     Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];  
 
 
 ### getDbConnection
 
-
+Search global (singleton) map of DbConnection for the specified connection key
 
 
     
+    Search global (singleton) map of DbConnection for the  
+    specified connection key  
 
 
 ### newQuery
@@ -74,7 +79,6 @@ Create new DbQuery instance linked to this connection
 
     
     Create new DbQuery instance linked to this connection  
-      
 
 
 ### open
