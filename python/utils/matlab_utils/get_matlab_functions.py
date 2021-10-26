@@ -70,9 +70,9 @@ def log_line(msg, line_num, line):
 #
 class MlxBookmark:
     def __init__(self, text, type, tag):
-        self.text = text
-        self.type = type
-        self.tag = tag
+        self.text = text        # Text to display
+        self.type = type        # 'heading1', 'heading2', 'heading3'
+        self.tag = tag          # Bookmark tag (8 hex digits)
 
 
 class MlxWriter:
@@ -85,7 +85,7 @@ class MlxWriter:
         self.temp_path = 'c:/_mlx/temp'
         self.template_fname = os.path.join(MLX_ELEMENTS_PATH, 'empty.mlx')
         self.align = 'left'
-        self.with_toc = True
+        self.with_toc = False
         self.toc_list = []
 
         # Load elements
@@ -105,69 +105,86 @@ class MlxWriter:
         self.xml_numbered = self.load('numbered')
         self.xml_bullet = self.load('bullet')
         self.xml_toc = self.load('toc')
+        self.xml_toc_heading1 = self.load('toc_heading1')
+        self.xml_toc_heading2 = self.load('toc_heading2')
+        self.xml_toc_heading3 = self.load('toc_heading3')
 
         #
         self.create()
 
 
+    # Called on entering 'with ...'
     def __enter__(self):
         return self
 
 
+    # Called on exiting 'with ...'
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
     # -----------------------------------------------------------------------
-    #
+    # Create new document
     def create(self):
         self.doc_text = ''
         self.wr(self.xml_start)
 
 
-    # Close file, update XML or MLX file on disk
+    # Close document, create file as bare XML or MLX based on template
     def close(self):
         self.text('')
         self.wr(self.xml_end)
         if self.fname != '':
             fname = self.fname.lower()
+
+            # Bare XML
             if fname.endswith('.xml'):
                 with open(fname, 'wt') as f:
                     f.write(self.doc_text)
+
+            # MLX
             elif fname.endswith('.mlx') or fname.endswith('.zip'):
                 self.write_mlx(self.fname)
 
 
     # -----------------------------------------------------------------------
-    # Title
-    def title(self, text, body=''):
+    # Add Title
+    def title(self, text, body='', with_toc = True):
         self.wr(self.xml_title, text)
         if body != '':
             self.text(body)
 
+        # Table of contents
+        self.with_toc = with_toc
         if self.with_toc:
             self.toc()
 
 
-    # Heading 1
+    # Add Heading 1
     def heading1(self, text, body=''):
         self.heading(self.xml_heading1, text, body, 'heading1')
 
-    # Heading 2
+    # Add Heading 2
     def heading2(self, text, body=''):
         self.heading(self.xml_heading2, text, body, 'heading2')
 
-    # Heading 3
+    # Add Heading 3
     def heading3(self, text, body=''):
         self.heading(self.xml_heading3, text, body, 'heading3')
 
-    #
+    # Add heading with optional TOC bookmark
     def heading(self, template, text, body='', bookmark_type = ''):
+
+        # Document with TOC, add new bookmark
         if self.with_toc:
             tag, bm_start, bm_end = self.get_bookmark()
             template = template.replace('$BmStart', bm_start)
             template = template.replace('$BmEnd', bm_end)
+
+            # Add bookmark to list
             bookmark = MlxBookmark(text, bookmark_type, tag)
             self.toc_list.append(bookmark)
+
+        # Document without TOC, remove bookmark references
         else:
             template = template.replace('$BmStart', '')
             template = template.replace('$BmEnd', '')
@@ -183,51 +200,55 @@ class MlxWriter:
         for line in lines:
             self.wr(self.xml_text, line)
 
+
+    # Add code section
+    def code(self, text):
+        self.wr(self.xml_code, text)
+
     # -----------------------------------------------------------------------
-    #
+    # Start new paragraph
     def start_par(self):
         self.wr(self.xml_paragraph_start)
 
-    #
+    # End current paragraph
     def end_par(self):
         self.wr(self.xml_paragraph_end)
 
-    #
+    # Add Normal text
     def normal(self, text):
         self.wr(self.xml_normal, text)
 
-    #
+    # Add Bold text
     def bold(self, text):
         self.wr(self.xml_bold, text)
 
-    #
+    # Add Italic text
     def italic(self, text):
         self.wr(self.xml_italic, text)
 
     # -----------------------------------------------------------------------
 
-    #
-    def code(self, text):
-        self.wr(self.xml_code, text)
-
-    #
+    # Add bullet list item
     def bullet(self, text=''):
         self.wr(self.xml_bullet)
         if text != '':
             self.normal(text)
             self.end_par()
 
-    #
+    # Add numbered list item
     def numbered(self, text=''):
         self.wr(self.xml_numbered)
         if text != '':
             self.normal(text)
             self.end_par()
 
+    # -----------------------------------------------------------------------
+
     # Add table-of-contents, should be added at top
     def toc(self):
         self.wr(self.xml_toc)
 
+    # Generate new bookmark, return start, end, and tag (8 hex digits)
     # '<w:bookmarkStart w:name="MW_H_DFC5E6A7" w:id="H_DFC5E6A7"/>'
     def get_bookmark(self):
         tag = hex(randint(0, 65536 ** 2)).upper()[2:]
@@ -236,13 +257,17 @@ class MlxWriter:
         return tag, start, end
 
     # -----------------------------------------------------------------------
-    #
+
+    # Low-level write text with optional template
     def wr(self, template, text=''):
         # Replace alignment in <w:jc w:val="left"/>
         if self.align != 'left' and '<w:jc w:val=' in template:
             template = template.replace('"left"', '"' + self.align + '"')
 
+        # Handle special characters
         text = text.replace('&', '&amp;')
+
+        #
         s = template.replace('$Text', text)
         self.doc_text = self.doc_text + s
 
@@ -264,6 +289,7 @@ class MlxWriter:
         return text
 
     # -----------------------------------------------------------------------
+    # Generate Table of Contents
     def write_toc(self):
 
         # Save text
@@ -271,11 +297,23 @@ class MlxWriter:
         self.doc_text = ''
 
         # Generate TOC
-        for item in self.toc_list:
-            pass
+        # 'heading1', 'heading2', 'heading3'
+        for bm in self.toc_list:
+            if bm.type == 'heading1':
+                template = self.xml_toc_heading1
+            elif bm.type == 'heading2':
+                template = self.xml_toc_heading2
+            elif bm.type == 'heading3':
+                template = self.xml_toc_heading3
+            else:
+                log('write_toc: Unknown bookmark type: ' + bm.type)
+                continue
+
+            template = template.replace('$BmTag', bm.tag)
+            self.wr(template, bm.text + '\n')
 
 
-        # Get the generated TOC
+        # Get the generated TOC, and put it in the right place
         toc_text = self.doc_text
         self.doc_text = save_doc_text.replace('$TOC', toc_text)
 
@@ -287,7 +325,7 @@ class MlxWriter:
     # See matlab.internal.liveeditor.openAndConvert, matlab.internal.liveeditor.openAndSave
     def write_mlx(self, mlx_fname):
 
-        #
+        # Generate table of contents
         if self.with_toc:
             self.write_toc()
 
@@ -312,7 +350,9 @@ class MlxWriter:
             log('error extracting mlx file: ' + mlx_fname)
             return
 
+        #
         # @Todo? Read existing xml file and process it????
+        #
 
         # Write document.xml
         doc_fname = os.path.join(mlx_temp_folder, 'matlab/document.xml')
@@ -351,6 +391,17 @@ class MlxWriter:
         path = os.path.join(MLX_ELEMENTS_PATH, '../unit_test/')
 
         # Write bare XML file
+        with MlxWriter(path + 'toc1.mlx') as m:
+            m.title('Simple Test')
+            some_text = 'Line1\nLine2\nLine3\nLine4\nLine5\n'
+            m.heading1('Heading One A', some_text)
+            m.heading2('Heading Two A', some_text)
+            m.heading3('Heading Three A', some_text)
+            m.heading3('Heading Three B', some_text)
+            m.heading1('Heading One B', some_text)
+            m.heading1('Heading One C', some_text)
+
+        # Write bare XML file
         with MlxWriter(path + 'line1.xml') as m:
             m.text('This is my line in XML file')
 
@@ -360,7 +411,6 @@ class MlxWriter:
 
         # Test 1
         with MlxWriter(path + 'test1.mlx') as m:
-            #m.toc()
             m.title('My Title', 'Text line 1\nText line 2\nText line 3\n')
             m.heading1('My Heading One', 'Text line 1\nText line 2\nText line 3\n')
             m.heading2('My Heading Two under one', 'Text line 1\nText line 2\nText line 3\n')
@@ -413,7 +463,6 @@ class MlxWriter:
 
         # Test 3
         with MlxWriter(path + 'test3.mlx') as m:
-            m.toc()
             m.title('My Title', 'Text line 1\nText line 2\nText line 3\n')
             m.heading1('My Heading One', 'Text line 1\nText line 2\nText line 3\n')
             m.heading2('My Heading Two under one', 'Text line 1\nText line 2\nText line 3\n')
@@ -1497,7 +1546,7 @@ def main():
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
 
-    proc.process('D:/Ultrasat/AstroPack.git/matlab')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab')
 
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
