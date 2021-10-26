@@ -39,7 +39,7 @@ www.pwget(List,'',15);
 %%
 ColCell = {'RA','Dec','Epoch','ErrRA','ErrDec','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec','RA_Dec_Corr',...
            'ExcessNoise','ExcessNoiseSig','MagErr_G','Mag_G','MagErr_BP','Mag_BP','MagErr_RP','Mag_RP',...
-           'RV','ErrRV','VarFlag','Teff','Teff_low','Teff_high','A_G'};
+           'RV','ErrRV','Teff'};
     
 %%
 % list of required columns and their new names:
@@ -63,11 +63,11 @@ ColNames = {'ref_epoch','Epoch',3;...
             'nu_eff_used_in_astrometry','DofAst',17;...
             'phot_g_n_obs','NGphot',18;...
             'phot_g_mean_flux','Mag_G',19;...
-            'phot_g_mean_flux_error','ErrMag_G',20;...
+            'phot_g_mean_flux_error','MagErr_G',20;...
             'phot_bp_mean_flux','Mag_BP',21;...
-            'phot_bp_mean_flux_error','ErrMag_BP',22;...
+            'phot_bp_mean_flux_error','MagErr_BP',22;...
             'phot_rp_mean_flux','Mag_RP',23;...
-            'phot_rp_mean_flux_error','ErrMag_RP',24;...
+            'phot_rp_mean_flux_error','MagErr_RP',24;...
             'phot_bp_rp_excess_factor','BPRP_Excess',25;...
             'dr2_radial_velocity','RV',26;...
             'dr2_radial_velocity_error','ErrRV',27;...
@@ -75,22 +75,34 @@ ColNames = {'ref_epoch','Epoch',3;...
             'dr2_rv_template_logg','LogG',29;...
             'dr2_rv_template_fe_h','FeH',30};
 
+% add ColCell column index
+for I=1:1:size(ColNames,1)
+    Ind = find(strcmp(ColNames{I,2}, ColCell));
+    ColNames{I, 3} = Ind;
+end
 
 FID = fopen('GaiaSource_779915-780373.csv','r');
 Line = fgetl(FID);
 fclose(FID);
 SpLine = regexp(Line,',','split');
 
-
-ColCell = ColNames(:,2).';
+%ColCell = ColNames(:,2).';
 N = size(ColNames,1);
 for I=1:1:N
     ColInGAIA(I) = find(strcmp(ColNames{I},SpLine));
-   
+    ColInHTM(I)  = I;
 end
 
+N = numel(ColCell);    
+ActualColCell = cell(1,N); 
+K = 0;
 Format = '';
 for Icol=1:1:numel(SpLine)
+     II = find(strcmp(SpLine{Icol}, ColNames(:,1)));
+     if ~isempty(II)
+         K = K + 1;
+        ActualColCell{K} = ColNames{II,2};
+     end
      if ~any(Icol==ColInGAIA)
          % ignore
          Format = sprintf('%s%%*s ',Format);
@@ -102,14 +114,18 @@ end
 
 Format = [Format, '%*[^\n]'];
     
-   
-
+%%
+clear SI;
+for I=1:1:numel(ColCell)
+    I
+    SI(I) = find(strcmp(ColCell{I}, ActualColCell));
+end
 
 
 
 
 %%
-[~,SI]=sort(cell2mat(ColNames(:,3)));
+%[~,SI]=sort(cell2mat(ColNames(:,3)));
 
 Dir = dir('GaiaSource_*.csv');
 
@@ -133,6 +149,7 @@ for If=1:1:Nfile
     % https://gea.esac.esa.int/archive/documentation/GEDR3/Data_processing/chap_cu5pho/cu5pho_sec_photProc/cu5pho_ssec_photCal.html#Ch5.T2
     
     ZP   = 25.8010;  % AB
+    ZP   = 25.6874;
     ColM = find(strcmp('Mag_G',ColCell));
     ColE = find(strcmp('ErrMag_G',ColCell));
     
@@ -142,6 +159,7 @@ for If=1:1:Nfile
     Mat(:,ColE) = Err;
     
     ZP   = 25.3540;  % AB
+    ZP   = 25.3385;
     ColM = find(strcmp('Mag_BP',ColCell));
     ColE = find(strcmp('ErrMag_BP',ColCell));
     
@@ -151,6 +169,7 @@ for If=1:1:Nfile
     Mat(:,ColE) = Err;
     
     ZP   = 25.1040;  % AB
+    ZP   = 24.7479;
     ColM = find(strcmp('Mag_RP',ColCell));
     ColE = find(strcmp('ErrMag_RP',ColCell));
     

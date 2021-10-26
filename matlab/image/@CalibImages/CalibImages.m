@@ -244,7 +244,9 @@ classdef CalibImages < Component
             %            populated. This is an handle to the original input
             %            object.
             % Author : Eran Ofek (Jul 2021)
-            % Example:
+            % Example: cd /data/euler/archive/AstroPack/data/LAST/TestImages
+            %          CI = CalibImages;
+            %          CI.createBias('LAST*_dark.fits');
             
             arguments
                 Obj
@@ -258,8 +260,12 @@ classdef CalibImages < Component
                 % do nothing
             else
                 List  = io.files.filelist(ImObj);
+                if isempty(List)
+                    error('No bias images were supplied');
+                end
                 ImObj = AstroImage(List);
             end
+            
             
             % seperate to sub image
             % work around for reading sub images from disk...
