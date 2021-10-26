@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="title"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:bookmarkStart w:name="MW_T_7E9CC783" w:id="T_7E9CC783"/>
+<w:r>
+<w:t>
+Title</w:t>
+</w:r>
+<w:bookmarkEnd w:id="T_7E9CC783"/>
+</w:p>
+
+<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+<mc:Choice Requires="R2018a">
+<w:sdt>
+<w:sdtPr>
+<w:docPartObj>
+<w:docPartGallery w:val="Table of Contents"/>
+</w:docPartObj>
+</w:sdtPr>
+<w:sdtContent>
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="TOCHeading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:b/>
+</w:rPr>
+<w:t>
+Table of Contents</w:t>
+</w:r>
+</w:p>
+
+
+
+
+<w:p>
+
+<w:pPr>
+<w:pStyle w:val="TOC1"/>
+<w:jc w:val="left"/>
+</w:pPr>
+
+# Heading 1 - no spaces on the left
+<w:hyperlink w:anchor="internal:H_DFC5E6A7">
+<w:r>
+<w:t>Heading 1</w:t>
+</w:r>
+</w:hyperlink>
+
+
+# Heading 2 - 4 spaces on the left
+<w:r>
+<w:t>    </w:t>
+</w:r>
+<w:hyperlink w:anchor="internal:H_E46E279A">
+<w:r>
+<w:t>Heading 2</w:t>
+</w:r>
+</w:hyperlink>
+
+# Heading 3 - 8 spaces on the left
+<w:r>
+<w:t>        </w:t>
+</w:r>
+<w:hyperlink w:anchor="internal:H_0EA4ABBD">
+<w:r>
+<w:t>Heading 3</w:t>
+</w:r>
+</w:hyperlink>
+
+</w:p>
+
+
+
+</w:sdtContent>
+</w:sdt>
+</mc:Choice>
+<mc:Fallback>
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+</w:pPr>
+<w:r>
+<w:t>
+</w:t>
+</w:r>
+</w:p>
+
+</mc:Fallback>
+</mc:AlternateContent>
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:t>
+</w:t>
+</w:r>
+</w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="heading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:bookmarkStart w:name="MW_H_DFC5E6A7" w:id="H_DFC5E6A7"/>
+<w:r>
+<w:t>
+Heading 1</w:t>
+</w:r>
+<w:bookmarkEnd w:id="H_DFC5E6A7"/>
+</w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:t>
+Text One</w:t>
+</w:r>
+</w:p>
+
+
+<w:p>
+<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+<mc:Choice Requires="R2018b">
+<w:pPr>
+<w:pStyle w:val="heading2"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</mc:Choice>
+<mc:Fallback>
+<w:pPr>
+<w:pStyle w:val="heading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</mc:Fallback>
+</mc:AlternateContent>
+<w:bookmarkStart w:name="MW_H_E46E279A" w:id="H_E46E279A"/>
+<w:r>
+<w:t>
+Heading 2</w:t>
+</w:r>
+<w:bookmarkEnd w:id="H_E46E279A"/>
+</w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:t>
+Text Two</w:t>
+</w:r>
+</w:p>
+
+
+<w:p>
+<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+<mc:Choice Requires="R2018b">
+<w:pPr>
+<w:pStyle w:val="heading3"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</mc:Choice>
+<mc:Fallback>
+<w:pPr>
+<w:pStyle w:val="heading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</mc:Fallback>
+</mc:AlternateContent>
+<w:bookmarkStart w:name="MW_H_0EA4ABBD" w:id="H_0EA4ABBD"/>
+<w:r>
+<w:t>
+Heading 3</w:t>
+</w:r>
+<w:bookmarkEnd w:id="H_0EA4ABBD"/>
+</w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:t>
+Text Three</w:t>
+</w:r>
+</w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:t>
+</w:t>
+</w:r>
+</w:p>
+
+</w:body>
+</w:document>
