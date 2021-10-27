@@ -32,16 +32,54 @@ Divide image by gain and update header.
       
 ### imProc.calib.photometricZP
 
-Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog or AstroImage with a catalog, match the sources against a photometric catalog, and calculate the zero point (ZP) of the catalog. Inout  : -
+Calculate an absolute photometric calibration to AstroCatalog Given an AstroCatalog or AstroImage with a catalog, match the sources against a photometric catalog, and calculate the zero point (ZP) of the catalog.
 
 
     
-    Apply an absolute photometric calibration to AstroCatalog  
+    Calculate an absolute photometric calibration to AstroCatalog  
     Given an AstroCatalog or AstroImage with a catalog, match the  
     sources against a photometric catalog, and calculate the zero  
     point (ZP) of the catalog.  
-    Inout  : -  
+    Input  : - An AstroImage or AstroCatalog object.  
     * ...,key,val,...  
+    'Radius' - Matching radius between the catalog and  
+    reference catalog. Default is 3.  
+    'RadiusUnits' - Units for the 'Radius' argument.  
+    Default is 'arcsec'.  
+    'Method' - Zero point calculation method:  
+    'Simple' - Fit a ZP + color term + width term  
+    model.  
+    'UseOnlyMainSeq' - A logical indicating if to use only  
+    Main Sequence stars. Default is false.  
+    'MaxErr' - Max error of stars to use in solution.  
+    Default is 0.02 mag.  
+    'MaxSN' - Max S/N of sources to use.  
+    Default is 1000.  
+    'CatColNameMag' - Mag. column name in Catalog.  
+    This magnitude will be calibrated.  
+    Default is 'MAG_CONV_3'.  
+    'CatColNameMagErr' - Mag. error column name in Catalog.  
+    Default is 'MAGERR_CONV_3'.  
+    'CatColNameSN' - S/N column name in Catalog.  
+    Default is 'SN_3'.  
+    'LimMagSN' - S/N for lim. mag. calculation.  
+    Default is 5.  
+    'LimMagColor' - Color in which to calculate the lim. mag.  
+    Default is 1.  
+      
+    'RefColNameMag' - Mag. column name in reference catalog.  
+    Default is 'Mag_BP'.  
+    'RefColNameMagErr' - Mag. error column name in ref. catalog.  
+    Default is 'ErrMag_BP'.  
+    'RefColNameMagBands' - A cell array of mag column names  
+    from which to calculate the colors.  
+    If a single column then, Color is calculated  
+    from 'RefColNameMag' - 'RefColNameMagBands'  
+    If multiple columns than take the diff along the  
+    second dimension. Default is {'Mag_RP','Mag_G'}.  
+    'RefColNameMagBandsErr' - Column names of mag. errors  
+    corresponding to 'RefColNameMagBands'.  
+    Default is {'ErrMag_RP','ErrMag_G'}.  
       
     'CatName' - Either an astrometric catalog name (char  
     array) to query around the requested coordinates,  
@@ -60,9 +98,9 @@ Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog 
     Default is 'arcsec'.  
     'Con' - Additional constraints for the catalog query.  
     See catsHTM.cone_search. Default is {}.  
+    'UseIndex' - UseIndex paramter for catsHTM.  
+    Default is false.  
       
-    'ColNameMag' - Column name containing mag.  
-    Default is {'Mag_BP','Mag'}.  
     'RangeMag' - Magnitude range to retrieve.  
     Default is [12 19.5].  
     'ColNamePlx' - Parallax column name.  
@@ -70,9 +108,30 @@ Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog 
     'RangePlx' - Parllax range to retrieve.  
     Default is [-Inf 50].  
       
-    Output :  
-    Author :  
-    Example:  
+    'UpdateMagCols' - A logical indicating if to update the  
+    magnbitude columns with the ZP.  
+    NOTE: This will only add the ZP (without the other  
+    terms) - we call this the telescope natural mag.  
+    system. Default is true.  
+    'MagColName2update' - Either a char array containing a  
+    string to match to all other columns, and columns containing  
+    this string will be updated, or a cell array of  
+    column names to update. Default is 'MAG_'.  
+      
+    'matchReturnIndicesArgs' - A cell array of additional  
+    arguments to pass to imProc.match.matchReturnIndices  
+    Default is {}.  
+    'CreateNewObj' - A logical indicating if to copy the input  
+    object. Default is false.  
+    'Plot' - A logical indicating if to plot  
+    Output : - The input object, with the (possible) mag. column names  
+    updated.  
+    - A structure array with the calibration fit results.  
+    - An AstroCatalog object containing all the retrieved  
+    photometric catalogs.  
+    Author : Eran Ofek (Oct 2021)  
+    Example: [Result, ZP, PhotCat] = imProc.calib.photometricZP(SI(1))  
+    [Result, ZP, PhotCat] = imProc.calib.photometricZP(SI,'UseOnlyMainSeq',0,'Plot',1, 'CreateNewObj',1);  
       
 ### imProc.calib.selectMainSequenceFromGAIA
 
@@ -84,12 +143,8 @@ Select main sequence stars from GAIA catalog in AstroCatalog object.
     Input  : - An AstroCatalog object containing a GAIA EDR3 catalog  
     (e.g., using catsHTM).  
     * ...,key,val,...  
-    'CreateNewObj' - [], true, false.  
-    If true, create new deep copy  
-    If false, return pointer to object  
-    If [] and Nargout0 then do not create new copy.  
-    Otherwise, create new copy.  
-    Default is [].  
+    'CreateNewObj' - true|false. Create a new copy of the input catalog.  
+    Default is true.  
     Selection parameters  
     'PlxLimit' - Default is 1 mas  
     'PlxSNLimit' - Default is 10.  

@@ -4,23 +4,18 @@
 
     
     Database Driver Class, currently supports PostgreSQL  
-    DbDriver is used internally by DbQuery  
+    DbDriver is used **internally** by DbConnection, and SHOULD NOT be  
+    accessed by the user.  
+    We currently use postgresql-42.2.19.jar  
       
     The native MATLAB database functions require installation of MATLAB  
     Database Toolbox. To avoid dependency on it, we implement our database  
-    classes using Java packages.  
+    classes using Java packages. Some workaround is required to use the java interface.  
+    See: https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database  
       
-    Some workaround is required to use the java interface.  
-      
-    See:  
-    https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database  
-      
-    Postgresql Java driver (jar file) must be installed, download page:  
-      
+    PostgreSQL Java driver (jar file) must be installed, download page:  
     https://jdbc.postgresql.org/  
     https://jdbc.postgresql.org/download.html  
-      
-    We currently use postgresql-42.2.19.jar  
       
     There should be only one driver object for each database type.  
     For example, when working with Postgress, we need only one DbDriver for  
@@ -99,7 +94,6 @@ DbDriver.unitTest
 
     
     DbDriver.unitTest  
-      
 
 
 ### unloadDriver

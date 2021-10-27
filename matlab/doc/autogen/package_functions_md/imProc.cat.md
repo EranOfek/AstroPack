@@ -1,7 +1,7 @@
-# Package: imProc.cat
+# Package: imProc.CAT
 
 
-### imProc.cat.applyProperMotion
+### imProc.CAT.applyProperMotion
 
 Apply proper motion and parallax to sources in AstroCatalog object
 
@@ -45,7 +45,7 @@ Apply proper motion and parallax to sources in AstroCatalog object
     Result = imProc.cat.applyProperMotion(C, 2015,2021,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',0)  
       
       
-### imProc.cat.filterForAstrometry
+### imProc.CAT.filterForAstrometry
 
 Given two catalogs, match their surface density and filter sources. Description: Given two catalogs (e.g., Cat and Ref), clean the catalogs by removing NaN coordinates, imUtil.cat.flag_overdense_colrow, imUtil.cat.flag_overdense, estimate their density using imUtil.cat.surface_density, and
 
@@ -125,7 +125,7 @@ Given two catalogs, match their surface density and filter sources. Description:
     Author : Eran Ofek (Jun 2021)  
     Example: [Cat,Ref]=imProc.cat.filterForAstrometry(rand(100,3).*1000,rand(200,3).*1000);  
       
-### imProc.cat.fitPeakMultipleColumns
+### imProc.CAT.fitPeakMultipleColumns
 
 Given N columns with some property (e.g., S/N) fit a parabola to the S/N values as a function of some parameter (e.g., FWHM), and return the peak S/N value and position. The best fitted S/N and position, as well as the best S/N column value and index are optionally wrotten to the AstroCatalog.
 
@@ -196,7 +196,7 @@ Given N columns with some property (e.g., S/N) fit a parabola to the S/N values 
     [FitRes, Result] = imProc.cat.fitPeakMultipleColumns(AI, 'Pos',[0.1 1.2 3])  
       
       
-### imProc.cat.getAstrometricCatalog
+### imProc.CAT.getAstrometricCatalog
 
 Get Astrometric catalog from local/external database and optionally apply proper motion, parallax and units conversions.
 
@@ -255,7 +255,7 @@ Get Astrometric catalog from local/external database and optionally apply proper
     Example: Result = imProc.cat.getAstrometricCatalog(1,1);  
       
       
-### imProc.cat.insertAzAlt
+### imProc.CAT.insertAzAlt
 
 Calculate and insert Az, Alt, AirMass, ParAng columns to AstroCatalog object
 
@@ -302,7 +302,7 @@ Calculate and insert Az, Alt, AirMass, ParAng columns to AstroCatalog object
     Example: AC = AstroCatalog({rand(100,2)},'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});  
     imProc.cat.insertAzAlt(AC, 'JD',2451545, 'ObsCoo',[35 32]);  
       
-### imProc.cat.unitTest
+### imProc.CAT.unitTest
 
 unitTest for imProc.cat Example: imProc.cat.unitTest
 

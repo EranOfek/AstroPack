@@ -2,7 +2,7 @@ Package: imProc.calib
 
 gainCorrect - Divide image by gain and update header.
 
-photometricZP - Apply an absolute photometric calibration to AstroCatalog Given an AstroCatalog or AstroImage with a catalog, match the sources against a photometric catalog, and calculate the zero point (ZP) of the catalog. Inout  : -
+photometricZP - Calculate an absolute photometric calibration to AstroCatalog Given an AstroCatalog or AstroImage with a catalog, match the sources against a photometric catalog, and calculate the zero point (ZP) of the catalog.
 
 selectMainSequenceFromGAIA - Select main sequence stars from GAIA catalog in AstroCatalog object.
 

@@ -2,9 +2,9 @@ Class: LogFile
 
 LogFile - Constructor for LogFile
 
-delete - Destructor - close file
+defaultPath - Set/get default log path
 
-getFileName - 
+delete - Destructor - close file
 
 getFileNameTimestamp - Return current date/time as sortable string
 
