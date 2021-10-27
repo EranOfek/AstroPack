@@ -3,6 +3,9 @@ function Result = unitTest()
     
     fprintf('MsgLogger test started\n');
 
+    % Uncomment to call this function
+    % exampleFromConstructor()
+    
     % Get singleton object
     if ~isunix
         Path = 'C:\Temp';
@@ -62,7 +65,7 @@ function Result = unitTest()
     MyLog.msgLog(LogLevel.Debug,   'Test: %d', uint32(LogLevel.Debug));
     MyLog.msgLog(LogLevel.Info,    'Test: %d', uint32(LogLevel.Info));
     MyLog.msgLog(LogLevel.Warning, 'Test: %d', uint32(LogLevel.Warning));    
-    
+           
     fprintf('MsgLogger test passed\n');
     Result = true;
 end
@@ -75,4 +78,33 @@ function unitTestStackTrace(Count)
         M.msgStack(LogLevel.Test, 'Recursion(%d)', Count);            
         unitTestStackTrace(Count-1);
     end
+end
+
+
+function exampleFromConstructor()
+    %Usage with a singleton logger:
+    
+    % Call first to create the singleton with the file name.
+    % Must be called before creating Configuration object which
+    % uses io.MsgLog().
+
+    % Settings UseTimestamp=true add the current system time to
+    % the file name, for example:
+    % '/tmp/2021-10-27__14-44-10-OtherLogFile'
+
+    LogFileName = 'C:/temp/SystemLogFileName.log';
+    MsgLogger.getSingleton('FileName', LogFileName, 'UseTimestamp', true);
+
+    % See base/LogLevel.m for list of log levels.
+    % Set log level for log file, only messages with log level 
+    % with this and higher priority  will be logged to the file.
+    MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');            
+
+    % Set log level for log file, only messages with log level 
+    % with this and higher priority  will be logged to console.
+    MsgLogger.setLogLevel(LogLevel.Warning, 'type', 'disp');            
+
+    io.msgLog(LogLevel.Info, 'This should go to file only');              
+    io.msgLog(LogLevel.Warning, 'This should go to file and display');
+
 end
