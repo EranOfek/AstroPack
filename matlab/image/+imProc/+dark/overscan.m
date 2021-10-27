@@ -95,7 +95,7 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
     for Iim=1:1:Nim
         if ischar(Args.OverScan)
             % read from header
-            OverScan = getval(ImObj(Iim).HeaderData,'ReadCCDSEC',true);
+            OverScan = getVal(ImObj(Iim).HeaderData, Args.OverScan,'ReadCCDSEC',true);
         else
             OverScan = Args.OverScan;
         end

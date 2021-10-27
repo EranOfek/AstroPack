@@ -555,6 +555,7 @@ classdef CalibImages < Component
                 % Note taht CreateNewObj was already done (if needed)
                 Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
                                                                 'Subtract',true,...
+                                                                'RemoveOverScan',true,...
                                                                 'RemoveOthers',true,...
                                                                 'OverScan',Args.OverScan,...
                                                                 'OverScanDir',Args.OverScanDir,...
@@ -678,6 +679,10 @@ classdef CalibImages < Component
             %                   Default is {}.
             %           'SubtractOverscan' - A logical indicating if to
             %                   subtract overscan. Default is true.
+            %           'OverScan' - Either an header keyword containing
+            %                   the overscan region, or an [Xmin Xmax Ymin Ymax]
+            %                   vector for the overscan.
+            %                   Default is 'OVERSCAN'.
             %           'MethodOverScan' - see imProc.dark.overscan.
             %                   Default is 'globalmedian'.
             %           'deflatArgs' - A cell array of additional
@@ -712,6 +717,7 @@ classdef CalibImages < Component
                 Args.maskSaturatedArgs cell         = {};
                 Args.debiasArgs cell                = {};
                 Args.SubtractOverscan logical       = true;
+                Args.OverScan                       = 'OVERSCAN';
                 Args.MethodOverScan                 = 'globalmedian';
                 Args.deflatArgs cell                = {};
                 Args.CorrectFringing logical        = false;
@@ -752,9 +758,13 @@ classdef CalibImages < Component
                 
             % subtract overscan
             if Args.SubtractOverscan
-                Result = Obj.overscan(Result, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
+                Result = Obj.overscan(Result, 'OverScan',Args.OverScan, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
             end
                 
+            % The overscan may change the size of the image.
+            % Depands on how the flat was created, the new image size may
+            % not be compatible with the flat size
+            
             % divide by flat
             Result = Obj.deflat(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
             
