@@ -5,6 +5,10 @@ function Result = unitTest()
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
     % On Linux, use DataGrip by JetBrains 
     
+    %Q = DbQuery('pipeline', 'table', 'rawimages');
+    
+    %Q = DbQuery('pipeline:rawimages')
+    
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
 

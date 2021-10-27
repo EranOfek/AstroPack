@@ -45,8 +45,11 @@ classdef DbConnection < Component
     %--------------------------------------------------------
     methods % Constructor
         
-        function Obj = DbConnection(varargin)
+        function Obj = DbConnection(Args)
             % Constructor
+            arguments
+                Args.DatabaseType = 'postgres'
+            end            
             Obj.setName('DbConnection');
             Obj.needUuid();
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);

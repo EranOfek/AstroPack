@@ -1,9 +1,9 @@
 function Result = unitTest()
-    % dbConnection.unitTest
-    
+    % dbConnection.unitTest   
     io.msgStyle(LogLevel.Test, '@start', 'DbConnection test started');
 
     % Open/close connection
+    % When not specifying database 
     Conn = db.DbConnection(); %'Database', 'unittest');
     Conn.DatabaseName = 'unittest';
     Conn.open();

@@ -96,6 +96,7 @@ classdef DbQuery < Component
         function Obj = DbQuery(Args)
             % Create new DbQuery obeject
             arguments
+                Args.Db = ''
                 Args.Connection = []         %
                 Args.TableName  = ''         %
                 Args.PrimaryKey = ''         %

@@ -171,6 +171,16 @@ classdef DbDriver < Component
             end
         end
                 
+        
+        % @Todo:        
+        function Result = validateConfig(Obj)
+            % Validate that we have all configuration params that we need
+            
+            % @Todo: replace with real params
+            assert(~isempty(Obj.Config.Data.System.EnvFolders.ROOT));
+            
+            Result = true;
+        end                
     end
     
     

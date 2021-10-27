@@ -34,14 +34,14 @@ classdef Installer < Component
     
     % Properties
     properties (SetAccess = public)
-        DataName
-        InstallationLocation
-        SubDir
-        URL
-        Size
-        SearchFile
-        Description
-        ConfigFile
+        DataName                    %
+        InstallationLocation        %
+        SubDir                      %
+        URL                         %
+        Size                        %
+        SearchFile                  %
+        Description                 %
+        ConfigFile                  %
     end
     
     %--------------------------------------------------------
@@ -51,7 +51,7 @@ classdef Installer < Component
             % AstroPack installation
             
             arguments
-                DataName  = [];  %
+                DataName  = [];     %
             end
 
             if isnumeric(DataName) && ~isempty(DataName)
@@ -65,10 +65,18 @@ classdef Installer < Component
                     end
                 end
             
-                Ndn = numel(DataName);
+                % Since Config.Data.Installer contains also the generated 
+                % 'FileName' field, we should not iterate it
+                % @Todo: Find better solution, what if we have more fields
+                % like this???
+                Ndn = numel(DataName)-1;
                 ConfigStruct = Obj.Config.Data.Installer;
                 for Idn=1:1:Ndn
+                    
+                    % Create new element in array
                     Obj(Idn) = Installer(1);
+                    
+                    % Set data from configuration
                     Obj(Idn).DataName             = ConfigStruct.(DataName{Idn}).DataName;
                     Obj(Idn).InstallationLocation = ConfigStruct.(DataName{Idn}).InstallationLocation;
                     Obj(Idn).SubDir               = ConfigStruct.(DataName{Idn}).SubDir;
@@ -94,6 +102,7 @@ classdef Installer < Component
             % Input  : - A structure with the DataName, SubDir, URL,
             %            SearchFile fields fot the data to install
             % Author : Eran Ofek (Sep 2021)
+            % @Todo: Why static???
         
             arguments
                 DataStruct
@@ -102,10 +111,18 @@ classdef Installer < Component
                 Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
             end
             
+
+            IsUnix = isunix || ismac;
+            IsWindows = ~IsUnix;
             
-            if ~isunix && ~ismac
+            if IsWindows
+                
+                % Chen - Disable delete until we make sure that everything
+                % is fine
+                Args.Delete = false;
+                
                 % assume windows - replace / with \
-                DataStruct.InstellationLocation = strrep(DataStruct.InstallationLocation,'/',filesep);
+                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation,'/',filesep);
                 DataStruct.SubDir = strrep(DataStruct.SubDir,'/',filesep);
             else
                 DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation,'\',filesep);
@@ -114,11 +131,34 @@ classdef Installer < Component
     
 
             PWD = pwd;
-            cd('~/');
+            
+            % Windows
+            if IsWindows
+                PathWin = 'C:\AstroPack';
+                mkdir(PathWin)
+                cd(PathWin);
+                
+            % Linux
+            else
+                cd('~/');
+            end
+            
+            %
+            if IsWindows
+                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation, '~', PathWin);
+            end
+            
+            %
+            io.msgLog(LogLevel.Info, 'Installer: %s', DataStruct.InstallationLocation);
             mkdir(DataStruct.InstallationLocation);
             
-            % create dir for instellation
-            cd(sprintf('~%s',filesep));
+            % create dir for installation
+            if IsWindows
+                cd(sprintf('%s%s',PathWin,filesep));
+            else
+                cd(sprintf('~%s',filesep));
+            end
+            
             cd(DataStruct.InstallationLocation);
 
             Parts = regexp(DataStruct.SubDir, filesep, 'split');
@@ -158,23 +198,33 @@ classdef Installer < Component
                 if Args.Delete
                     delete('*');
                 end
+                for pi=1:numel(List)
+                    io.msgLog(LogLevel.Info, 'pwget: %s', List{pi});
+                end
                 www.pwget(List, Args.wgetPars, Args.Npwget);
-
-
+                
                 pause(5);
                 io.files.files_arrived([], 10);
                 F = dir('*.gz');
                 for I=1:1:numel(F)
+                    io.msgLog(LogLevel.Info, 'gunzip: %s', F(I).name);
                     gunzip(F(I).name);
                 end
+                
+                % Does it work on Windows???
                 F = dir('*.tar');
                 for I=1:1:numel(F)
+                    io.msgLog(LogLevel.Info, 'untar: %s', F(I).name);
                     untar(F(I).name);
                 end
+                
+                % Delete source archives                
                 try
+                    io.msgLog(LogLevel.Info, 'deleting *.gz');
                     delete('*.gz');
                 end
                 try
+                    io.msgLog(LogLevel.Info, 'deleting *.tar');
                     delete('*.tar');
                 end
             end
@@ -258,6 +308,7 @@ classdef Installer < Component
             
         end
         
+        
         function [T1, T2, T3] = readIERS_EOP(FileInd)
             % Read all IERS Earth Orientation File 'finals2000A.data.csv'
             %   documentation: http://hpiers.obspm.fr/eoppc/bul/bulb/explanatory.html
@@ -321,10 +372,9 @@ classdef Installer < Component
             else
                 T3 = [];
             end
-            
-            
         end
 
+        
         function prep_cats(Args)
             % Prepare interface functions for the catalogs in the data directory
             % Package: VO.search
@@ -423,6 +473,7 @@ classdef Installer < Component
             Ind = find(ismember({Obj.DataName}, DataName));
         end
             
+        
         function install(Obj, DataName, Args)
             % Install AstroPack data directories from AstroPack repository
             % Input  : - An Installer object.
@@ -446,8 +497,7 @@ classdef Installer < Component
             %          I.install   % install all
             %          I(5).install % install the 5th data name: PicklesStellarSpec
             %          I.install('Time'); % install the Time data name
-            %          I.install({'Time','MinorPlanets'})
-            
+            %          I.install({'Time','MinorPlanets'})           
             
             arguments
                 Obj
@@ -470,9 +520,14 @@ classdef Installer < Component
                 
             for I=1:1:numel(Ind)
                 Iobj = Ind(I);
-                Installer.installSingle(Obj(Iobj), 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
+                try
+                    Installer.installSingle(Obj(Iobj), 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
+                catch
+                    io.msgLog(LogLevel.Error, 'installSingle failed: %d', Iobj);
+                end
             end
         end
+        
         
         function Result = seeAvailableData(Obj)
             % print a table of available data sets
@@ -486,6 +541,7 @@ classdef Installer < Component
             
         end
 
+        
         function Dir = getDataDir(Obj, Name)
             % Get data directory name
             % DataName of data directory as appear in Insataller/seeAvailableData
@@ -503,6 +559,7 @@ classdef Installer < Component
             end
         end
 
+        
         function [Files, Dir] = getFilesInDataDir(Obj, Name)
             % Return all file names in directory associated with DataName
             % Input  : - Installre object.
