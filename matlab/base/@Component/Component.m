@@ -70,6 +70,10 @@ classdef Component < Base
             % Use default log and configuration
             Obj.Log = MsgLogger.getSingleton();
             Obj.Config = Configuration.getSingleton();
+            
+            % Validate configuration of derived classes
+            Obj.validateConfig();
+            
         end
     end
 
@@ -304,6 +308,16 @@ classdef Component < Base
                 end
             end
         end
+        
+        
+        function Result = validateConfig(Obj)
+            % Validate that we have all configuration params that we need
+            
+            % @Todo: replace with real params
+            assert(~isempty(Obj.Config.Data.System.EnvFolders.ROOT));
+            
+            Result = true;
+        end        
     end
 
     %----------------------------------------------------------------------
@@ -362,6 +376,7 @@ classdef Component < Base
                 Result = string(Component.newSerial()).char;
             end
         end
+        
     end
 
 

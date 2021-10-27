@@ -103,12 +103,15 @@
 
 classdef Configuration < handle
     % Note that this class is derived from Base and not from Component
-
+    
     % Properties
     properties (SetAccess = public)
         ConfigName              % Optional name for the entire configuration
         Path                    % Path of configuration files, set by
         ExternalPath            % Path to external packages
+        
+        % Consider making Data read-only property to avoid system-wide
+        % modifications to configuration at run-time (27/10/2021)
         Data struct = struct()  % Initialize empty struct, all YML files are added here in tree structure
     end
 
@@ -361,7 +364,8 @@ classdef Configuration < handle
     end
     
     %----------------------------------------------------------------------
-    methods(Static) % For internal use, calls the yaml package
+    % Access=private is experimental (27/10/2021)
+    methods(Static,Access=private) % For internal use, calls the yaml package
         
         function YamlStruct = internal_loadYaml(FileName)
             % Read YAML file to struct, add FileName field
@@ -414,22 +418,6 @@ classdef Configuration < handle
                 end
             end
             Result = Str;
-        end
-
-
-        function [Min, Max] = getRange(Cell)
-            % Get minimum and maximum values from cell array, assuming
-            % that cell{1} holds the minimum and cell{2} folds the maximum
-            % This is usefull when storing
-            % Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
-            Min = Cell{1};
-            Max = Cell{2};
-        end
-
-
-        function Len = listLen(List)
-            % Return list length
-            [~, Len] = size(List);
         end
 
     end
