@@ -14,7 +14,6 @@
 % magnitude - Calculate magnitude for an OrbitalEl object
 % meanMotion - Return the mean motion [deg/day]
 % merge - Merge the orbital elements in several elements of the OrbitalEl object. This function is custom made for merging the JPL epehmerides, and may fail in other cases.
-% nu2posOrbitalFrame - Convert true anomaly to position in orbital frame
 % nuDot - Calculate the time derivative of the true anomaly Description: Calculate the time derivative of the true anomaly. Correct only for e<1
 % numEl - Return the number or orbital elements in each OrbitalEl element.
 % period - Return the orbital period
@@ -28,7 +27,6 @@
 % trueAnom2eccAnom - True Anomaly to Eccentric Anomaly
 % trueAnom2radius - True anomaly to radius vector
 % trueAnom2rectPos - True anomaly and radius vector to rectangular position Description: True anomaly to rectangular position
-% trueAnom2rectVel - Return rectangular velocity and position vectors in Equatorial system calculated from the orbital elements and the true anomaly.
 % #/functions (autogen)
 %
 

@@ -120,7 +120,7 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
                                                 'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS', 'FLUX_WAPER', ...
                                                 'FLUXERR_APER',...
                                                 'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
-                                                'MAG_CONV'};
+                                                'MAG_CONV', 'MAGERR_CONV'};
         Args.Conn                          = 8;
         
         Args.Gain                          = 1;      % only for errors calculation
@@ -310,6 +310,12 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
                 Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);     
                 [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
                 K = K + NC - 1;    
+            case 'magerr_conv'
+                % may have multiple columns
+                NC = size(Src.FLUX_CONV,2);
+                Cat(:,K:K+NC-1) = 1.086./Src.SN;
+                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                K = K + NC - 1;   
             case 'back_im'
                 Cat(:,K) = Src.BACK_IM;
             case 'var_im'

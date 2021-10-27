@@ -3,12 +3,8 @@ function [Result, FlagRes, FitPar] = selectMainSequenceFromGAIA(Obj, Args)
     % Input  : - An AstroCatalog object containing a GAIA EDR3 catalog
     %            (e.g., using catsHTM).
     %          * ...,key,val,...
-    %            'CreateNewObj' - [], true, false.
-    %                   If true, create new deep copy
-    %                   If false, return pointer to object
-    %                   If [] and Nargout==0 then do not create new copy.
-    %                   Otherwise, create new copy.
-    %                   Default is [].
+    %            'CreateNewObj' - true|false. Create a new copy of the input catalog.
+    %                   Default is true.
     %               Selection parameters
     %            'PlxLimit' - Default is 1 mas
     %            'PlxSNLimit' - Default is 10.
@@ -38,7 +34,7 @@ function [Result, FlagRes, FitPar] = selectMainSequenceFromGAIA(Obj, Args)
 
     arguments
         Obj AstroCatalog    % Astrocatalog object
-        Args.CreateNewObj        = [];   
+        Args.CreateNewObj logical = true;   
 
         Args.PlxLimit            = 1;
         Args.PlxSNLimit          = 10;
@@ -53,7 +49,11 @@ function [Result, FlagRes, FitPar] = selectMainSequenceFromGAIA(Obj, Args)
     end
 
 
-    [Result, CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, nargout);
+    if Args.CreateNewObj
+        Result = Obj.copy;
+    else
+        Result = Obj;
+    end
 
     Cols   = {'Plx', 'ErrPlx', 'Mag_G', 'Mag_BP', 'Mag_RP', 'ExcessNoise','ExcessNoiseSig'};
     DataSt = getCol2struct(Obj, Cols);

@@ -21,6 +21,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     %          % generate CalibImages using example in CalibImages/unitTest
     %          File = 'LAST.2.1.2_20200821.020230.952_clear_0_science.fits';
     %          [SI, AstrometricCat,Result]=pipeline.generic.singleRaw2proc(File,'CalibImages',CI);
+    %          [SI, ~,Result]=pipeline.generic.singleRaw2proc(File,'CalibImages',CI, 'CatName',AstrometricCat);
     
     arguments
         File                   % FileName+path / AstroImage
@@ -56,7 +57,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
         
-        Args.OrbEl                            = celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
+        Args.OrbEl                            = []; %celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
         Args.match2solarSystemArgs            = {};
         Args.GeoPos                           = [];
         
@@ -163,10 +164,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % match known solar system objects
     if ~isempty(Args.OrbEl)
         % NOTE TIME SHOULD be in TT scale
-        tic;
+        %tic;
         TTmUTC = 70./86400;
         [SourcesWhichAreMP, SI] = imProc.match.match2solarSystem(SI, 'JD',JD+TTmUTC, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
-        toc
+        %toc
     end
     
     % match against external catalogs

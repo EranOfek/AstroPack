@@ -1362,12 +1362,8 @@ classdef AstroTable < Component
             %                   a structure, then this is the field name
             %                   that contains the vector of indices.
             %                   Default is 'Obj2_IndInObj1'.
-            %            'CreateNewObj' - [], true, false.
-            %                   If true, create new deep copy
-            %                   If false, return pointer to object
-            %                   If [] and Nargout==0 then do not create new copy.
-            %                   Otherwise, create new copy.
-            %                   Default is [].
+            %            'CreateNewObj' - true|false. Create new object.
+            %                   Default is true.
             % Output : - An AstroTable object with the selected (and optionaly filled with
             %            NaNs) lines.
             % Author : Eran Ofek (Sep 2021)
@@ -1384,10 +1380,14 @@ classdef AstroTable < Component
                 FlagInd
                 Args.IgnoreNaN(1,1) logical  = false;
                 Args.StructFieldName         = 'Obj2_IndInObj1';
-                Args.CreateNewObj            = [];
+                Args.CreateNewObj logical    = true;
             end
 
-            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout);
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
 
             Nflag = numel(FlagInd);
             Nobj  = numel(Obj);
