@@ -1,11 +1,49 @@
 function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
-    % Apply an absolute photometric calibration to AstroCatalog
+    % Calculate an absolute photometric calibration to AstroCatalog
     %       Given an AstroCatalog or AstroImage with a catalog, match the
     %       sources against a photometric catalog, and calculate the zero
     %       point (ZP) of the catalog.
-    % Inout  : -
+    % Input  : - An AstroImage or AstroCatalog object.
     %          * ...,key,val,...
-    
+    %            'Radius' - Matching radius between the catalog and
+    %                   reference catalog. Default is 3.
+    %            'RadiusUnits' - Units for the 'Radius' argument.
+    %                   Default is 'arcsec'.
+    %            'Method' - Zero point calculation method:
+    %                   'Simple' - Fit a ZP + color term + width term
+    %                       model.
+    %            'UseOnlyMainSeq' - A logical indicating if to use only
+    %                   Main Sequence stars. Default is false.
+    %            'MaxErr' - Max error of stars to use in solution.
+    %                   Default is 0.02 mag.
+    %            'MaxSN' - Max S/N of sources to use.
+    %                   Default is 1000.
+    %            'CatColNameMag' - Mag. column name in Catalog.
+    %                   This magnitude will be calibrated.
+    %                   Default is 'MAG_CONV_3'.
+    %            'CatColNameMagErr' - Mag. error column name in Catalog.
+    %                   Default is 'MAGERR_CONV_3'.
+    %            'CatColNameSN' - S/N column name in Catalog.
+    %                   Default is 'SN_3'.
+    %            'LimMagSN' - S/N for lim. mag. calculation.
+    %                   Default is 5.
+    %            'LimMagColor' - Color in which to calculate the lim. mag.
+    %                   Default is 1.
+    %
+    %            'RefColNameMag' - Mag. column name in reference catalog.
+    %                   Default is 'Mag_BP'.
+    %            'RefColNameMagErr' - Mag. error column name in ref. catalog.
+    %                   Default is 'ErrMag_BP'.
+    %            'RefColNameMagBands' - A cell array of mag column names
+    %                   from which to calculate the colors.
+    %                   If a single column then, Color is calculated
+    %                   from 'RefColNameMag' - 'RefColNameMagBands'
+    %                   If multiple columns than take the diff along the
+    %                   second dimension. Default is {'Mag_RP','Mag_G'}.
+    %            'RefColNameMagBandsErr' - Column names of mag. errors
+    %                   corresponding to 'RefColNameMagBands'.
+    %                   Default is {'ErrMag_RP','ErrMag_G'}.
+    %   
     %            'CatName' - Either an astrometric catalog name (char
     %                   array) to query around the requested coordinates,
     %                   or an AstroCatalog object containing such a
@@ -23,19 +61,40 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   Default is 'arcsec'.
     %            'Con' - Additional constraints for the catalog query.
     %                   See catsHTM.cone_search. Default is {}.
-    
-    %            'ColNameMag' - Column name containing mag.
-    %                   Default is {'Mag_BP','Mag'}.
+    %            'UseIndex' - UseIndex paramter for catsHTM.
+    %                   Default is false.
+    %
     %            'RangeMag' - Magnitude range to retrieve.
     %                   Default is [12 19.5].
     %            'ColNamePlx' - Parallax column name.
     %                   Default is {'Plx'}.
     %            'RangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
-    
-    % Output :
-    % Author :
+    %
+    %            'UpdateMagCols' - A logical indicating if to update the
+    %                   magnbitude columns with the ZP.
+    %                   NOTE: This will only add the ZP (without the other
+    %                   terms) - we call this the telescope natural mag.
+    %                   system. Default is true.
+    %            'MagColName2update' - Either a char array containing a
+    %                   string to match to all other columns, and columns containing
+    %                   this string will be updated, or a cell array of
+    %                   column names to update. Default is 'MAG_'.
+    %
+    %            'matchReturnIndicesArgs' - A cell array of additional
+    %                   arguments to pass to imProc.match.matchReturnIndices
+    %                   Default is {}.
+    %            'CreateNewObj' - A logical indicating if to copy the input
+    %                   object. Default is false.
+    %            'Plot' - A logical indicating if to plot
+    % Output : - The input object, with the (possible) mag. column names
+    %            updated.
+    %          - A structure array with the calibration fit results.
+    %          - An AstroCatalog object containing all the retrieved
+    %            photometric catalogs.
+    % Author : Eran Ofek (Oct 2021)
     % Example: [Result, ZP, PhotCat] = imProc.calib.photometricZP(SI(1))
+    %          [Result, ZP, PhotCat] = imProc.calib.photometricZP(SI,'UseOnlyMainSeq',0,'Plot',1, 'CreateNewObj',1);
     
     arguments
         Obj           % AstroCatalaog | AstroImage
@@ -47,30 +106,34 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.MaxErr                   = 0.02;
         Args.MaxSN                    = 1000;  % if empty, do not use
         
-        Args.CatColNameMag            = 'MAG_CONV_4';
-        Args.CatColNameMagErr         = 'MAGERR_CONV_4';
-        Args.CatColNameSN             = 'SN_4';
+        Args.CatColNameMag            = 'MAG_CONV_3';
+        Args.CatColNameMagErr         = 'MAGERR_CONV_3';
+        Args.CatColNameSN             = 'SN_3';
+        
+        Args.LimMagSN                 = 5;  % limiting mag for S/N calc
+        Args.LimMagColor              = 1;  % Color for lim. mag calc
         
         Args.RefColNameMag            = 'Mag_BP';
         Args.RefColNameMagErr         = 'ErrMag_BP';
-        Args.RefColNameMagBands       = {'Mag_RP'};
-        Args.RefColNameMagBandsErr    = {'ErrMag_RP'};
+        Args.RefColNameMagBands       = {'Mag_RP','Mag_G'};   % red to blue...
+        Args.RefColNameMagBandsErr    = {'ErrMag_RP','ErrMag_G'};
         
         Args.CatName                  = 'GAIAEDR3';   % or AstroCatalog
         Args.CatOrigin                = 'catsHTM';
         Args.CatRadius                = [];   % if empty, use bounding_circle
         Args.CatRadiusUnits           = 'arcsec';
-        Args.CooUnits                 = 'deg';
-        Args.Shape
         Args.OutUnits                 = 'rad';
         Args.Con cell                 = {};
         Args.UseIndex(1,1) logical    = false;
         
         % queryRange
-        Args.ColNameMag                = {'Mag_BP','Mag'};
         Args.RangeMag                  = [12 19.5];
         Args.ColNamePlx                = {'Plx'};
         Args.RangePlx                  = [0.1 100];  % remove galaxies
+        
+        % Update catalog
+        Args.UpdateMagCols logical     = true;
+        Args.MagColName2update         = 'MAG_';  % or e.g., {'MAG_APER_1','MAG_APER_2'}
         
         Args.matchReturnIndicesArgs cell = {};
         
@@ -126,7 +189,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                                                   'OutUnits','rad',...
                                                                   'Con',Args.Con,...
                                                                   'UseIndex',Args.UseIndex,...
-                                                                  'ColNameMag',Args.ColNameMag,...
+                                                                  'ColNameMag',Args.RefColNameMag,...
                                                                   'RangeMag',Args.RangeMag,...
                                                                   'ColNamePlx',Args.ColNamePlx,...
                                                                   'RangePlx',Args.RangePlx);
@@ -166,8 +229,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 end
                 
                 CatXY2         = Cat.getCol({'X2','Y2'});
-                W = sqrt(sum(CatXY2,2));
-                MedW = median(W,1,'omitnan');
+                Width          = sqrt(sum(CatXY2,2));
+                MedW           = median(Width,1,'omitnan');
                 
                 RefMag         = MatchedPhotCat.getCol(Args.RefColNameMag);
                 RefMagErr      = MatchedPhotCat.getCol(Args.RefColNameMagErr);
@@ -177,31 +240,86 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 % calculate all colors
                 [Nsrc, Nband] = size(RefMagBands);
                 
-                Color = RefMag - RefMagBands;
-                H     = [ones(Nsrc,1), Color, Color.^2, W-MedW];
-                Y     = CatMag - RefMag;
+                
+                if size(RefMagBandsErr,2)==1
+                    % Color has a single column
+                    Color = RefMag - RefMagBands;
+                else
+                    % Color has multiple columns
+                    Color = diff(RefMagBands, 1, 2);
+                end
+                    
+                H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW];
+                ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag + Par(1) + Par(2).*Color + Par(3).*Color.^2 + Par(4).*(Width-MedW);
+                
+                
+                
+                Y     = RefMag - CatMag;
                 ErrY  = sqrt(CatMagErr.^2 + sum(RefMagBandsErr.^2, 2));
                 Flag  = ~isnan(Y) & CatMagErr < Args.MaxErr & SN<Args.MaxSN;
                 
                 ResFit(Iobj).Par    = H(Flag,:)\Y(Flag);
+                ResFit(Iobj).ZP     = ResFit(Iobj).Par(1);
                 ResFit(Iobj).Resid  = Y - H*ResFit(Iobj).Par;
                 ResFit(Iobj).RefMag = RefMag;
+                ResFit(Iobj).InstMag = CatMag;
                 ResFit(Iobj).RefColor = Color;
-                ResFit(Iobj).W      = W;
+                ResFit(Iobj).Width  = Width;
                 ResFit(Iobj).MedW   = MedW;
                 ResFit(Iobj).Flag   = Flag;
                 ResFit(Iobj).RMS    = imUtil.background.rstd(ResFit(Iobj).Resid(Flag));
                 ResFit(Iobj).Chi2   = sum((ResFit(Iobj).Resid(Flag)./ErrY(Flag)).^2);
                 ResFit(Iobj).Nsrc   = sum(Flag);
                 
+                % estimate limiting magnitude
+                if isempty(Args.LimMagSN)
+                    ResFit(Iobj).LimMag = NaN;
+                else
+                    ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, MedW, MedW), 1);
+                    ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+                end
+                
             otherwise
                 error('Unknown Method option');
+        end
+        
+        
+        if Args.UpdateMagCols
+            if ischar(Args.MagColName2update)
+                MagColFlag = ~cellfun(@isempty, regexp(Cat.ColNames, Args.MagColName2update, 'match'));
+            else
+                MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
+            end
+            
+            Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + ResFit(Iobj).ZP;
+             
+            % This should happen automatically, but we are doing this for
+            % readability and order
+            if isa(Result, 'AstroImage')
+                Result(Iobj).CatData = Cat;
+            else
+                Result(Iobj) = Cat;
+            end
+        end
+        
+        Args.UpdateHeader = true;
+        if Args.UpdateHeader && isa(Result, 'AstroImage')
+            % write to header the following information:
+            % 
+            
         end
         
         if Args.Plot
             semilogy(ResFit(Iobj).RefMag, abs(ResFit(Iobj).Resid),'.')
             hold on;
             semilogy(ResFit(Iobj).RefMag(ResFit(Iobj).Flag), abs(ResFit(Iobj).Resid(ResFit(Iobj).Flag)),'.')
+            H = xlabel('Mag');
+            H.FontSize = 18;
+            H.Interpreter = 'latex';
+            H = ylabel('$\vert$Resid$\vert$');
+            H.FontSize = 18;
+            H.Interpreter = 'latex';
+            
         end
     end
 end
