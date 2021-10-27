@@ -55,6 +55,9 @@ function Result = findMeasureSources(Obj, Args)
     %            'Conn' - Connectivity parameter for local maxima
     %                   identification.
     %                   Default is 8.
+    %            'Gain' - Default is 1.
+    %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
+    %            'ZP' - ZP for magnitude. Default is 25.
     %            'ColCell' - A cell array of column names to generate in the
     %                   output.
     %                   Default is
@@ -92,6 +95,10 @@ function Result = findMeasureSources(Obj, Args)
         Args.RemoveEdgeDist                = 0;  % NaN for non removal
         Args.ForcedList                    = [];
         Args.OnlyForced(1,1) logical       = false;
+        
+        Args.Gain                          = 1;      % only for errors calculation
+        Args.LupSoftPar                    = 1e-10;
+        Args.ZP                            = 25;
         
         Args.ReCalcBack logical            = false;
         Args.BackPar cell                  = {};
@@ -150,7 +157,13 @@ function Result = findMeasureSources(Obj, Args)
                                                         'OnlyForced',Args.OnlyForced,...
                                                         'MomPar',Args.MomPar,...
                                                         'Conn',Args.Conn,...
+                                                        'Gain',Args.Gain,...
+                                                        'LupSoftPar',Args.LupSoftPar,...
+                                                        'ZP',Args.ZP,...
                                                         'ColCell',Args.ColCell);
+                                                    
+                                                    
+                                                   
             % remove bad sources
             % works only for Gaussian PSF
             if Args.RemoveBadSources

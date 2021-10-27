@@ -54,6 +54,8 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.BackSubSizeXY                    = [128 128];
         Args.interpOverNanArgs cell           = {};
         Args.findMeasureSourcesArgs cell      = {};
+        Args.ZP                               = 25;
+        Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
@@ -136,6 +138,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % Source finding
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
                                                'RemoveBadSources',true,...
+                                               'ZP',Args.ZP,...
                                                'CreateNewObj',false);
     
     
@@ -157,7 +160,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % Photometric ZP
     if Args.DoPhotometry
-        % [Result, ZP, PhotCat] = imProc.calib.photometricZP(Obj, Args)
+        [SI, ZP, PhotCat] = imProc.calib.photometricZP(SI, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
     
         % Update Cat photometry
     end
