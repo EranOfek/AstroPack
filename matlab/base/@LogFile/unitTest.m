@@ -6,15 +6,34 @@ function Result = unitTest()
     fprintf('LogFile test started\n');
 
     % Get singleton object
-    Lf = LogFile.getSingleton();
-
+    if ~isunix
+        Path = 'C:\Temp';
+    else
+        Path = '/tmp';
+    end
+    
+    % Set default path for log files
+    LogFile.defaultPath(Path);
+    
+    Lf = LogFile.getSingleton('FileName', 'UnitTestLogFile', 'UseTimestamp', true);
+    
     % Write some lines to file
     Lf.write('LogFile test started');
-    for i=1:1:3
-        Lf.write('Line: %d', i);
-    end           
-    Lf.write('LogFile test passed');
+    Lf.write('Log line one');
+    Lf.write('Log line two');
 
+    % Test non-singleton log file with timestamp
+    MyLf = LogFile(fullfile(Path, 'MyLogFile'), 'UseTimestamp', true);
+    MyLf.write('My LogFile test started with TIMESTAMP');
+    MyLf.write('My log line one');
+    MyLf.write('My log line two');
+    
+    % Test non-singleton log file without timestamp
+    MyLf = LogFile(fullfile(Path, 'MyLogFile'), 'UseTimestamp', false);
+    MyLf.write('My LogFile test started WITHOUT timestamp');
+    MyLf.write('My log line one');
+    MyLf.write('My log line two');    
+    
     % Done
     fprintf('LogFile test passed\n');
     Result = true;

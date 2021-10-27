@@ -21,17 +21,54 @@ classdef MsgLogger < handle
         Enabled logical         % True to enable logging
         CurFileLevel LogLevel   % Current level for log file
         CurDispLevel LogLevel   % Current level for display
+        Console                 % True to print messages to console
         LogF LogFile            % Log file
         UserData                % Optional
     end
 
     %--------------------------------------------------------
     methods % Constructor
-        function Obj = MsgLogger()
+        function Obj = MsgLogger(Args)
+            % Usage with a singleton logger:
+            %
+            %   Call first to create the singleton with the file name.
+            %   Must be called before creating Configuration object which
+            %   uses io.MsgLog().
+            %
+            %   Settings UseTimestamp=true add the current system time to
+            %   the file name, for example:
+            %   '/tmp/2021-10-27__14-44-10-OtherLogFile'
+            %
+            %   LogFileName = '/tmp/SystemLogFileName.log';
+            %   MsgLogger.getSingleton('FileName', LogFileName, 'UseTimestamp', true);
+            %
+            %   See base/LogLevel.m for list of log levels.
+            %   Set log level for log file, only messages with log level 
+            %   with this and higher priority  will be logged to the file.
+            %   MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');            
+            %
+            %   Set log level for log file, only messages with log level 
+            %   with this and higher priority  will be logged to console.
+            %   MsgLogger.setLogLevel(LogLevel.Warning, 'type', 'disp');            
+            %
+            %   io.msgLog(LogLevel.Info, 'This should go to file only');              
+            %   io.msgLog(LogLevel.Warning, 'This should go to file and display');
+            %            
+            arguments
+                Args.FileName = 'AstroPackLog'  % Log file name, if empty it uses the singleton object
+                Args.UseTimestamp = false       % True to add timestamp to file name
+                Args.Console = true             % True to print messages to console
+            end
             Obj.Enabled = true;
             Obj.CurFileLevel = LogLevel.All;
             Obj.CurDispLevel = LogLevel.All;
-            Obj.LogF = LogFile.getSingleton();
+            Obj.Console = Args.Console;
+            
+            if isempty(Args.FileName)
+                Obj.LogF = LogFile.getSingleton();
+            else
+                Obj.LogF = LogFile(Args.FileName, 'UseTimestamp', Args.UseTimestamp);
+            end
         end
     end
 
@@ -63,7 +100,7 @@ classdef MsgLogger < handle
             LevStr = getLevelStr(Obj, Level);
 
             % Log to display
-            if uint32(Level) <= uint32(Obj.CurDispLevel)
+            if Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel)
                 fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
                 fprintf(varargin{:});
     			fprintf('\n');
@@ -91,7 +128,7 @@ classdef MsgLogger < handle
             LevStr = getLevelStr(Obj, Level);
 
             % Log to display
-            if uint32(Level) <= uint32(Obj.CurDispLevel)
+            if Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel)
                 cprintf(Style, '[%s] ', LevStr);
                 cprintf(Style, varargin{:});
                 fprintf('\n');
@@ -193,11 +230,18 @@ classdef MsgLogger < handle
 
     methods(Static) % Static functions
 
-        function Result = getSingleton()
+        function Result = getSingleton(Args)
             % Return singleton object, the deafult MsgLogger
+            arguments
+                Args.FileName       = 'AstroPackLog'    % File name, if empty, default name is used
+                Args.UseTimestamp   = false             % True to add timestamp to file name
+                Args.Console        = true              % True to enable console output
+            end
+            
             persistent PersObj
             if isempty(PersObj)
-                PersObj = MsgLogger;
+                PersObj = MsgLogger('FileName', Args.FileName, 'UseTimestamp', ...
+                    Args.UseTimestamp, 'Console', Args.Console);
             end
             Result = PersObj;
         end
@@ -227,7 +271,6 @@ classdef MsgLogger < handle
 
 
     methods(Static) % Unit test
-
 
         Result = unitTest()
     end

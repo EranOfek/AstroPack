@@ -4,7 +4,6 @@
 % #functions (autogen)
 % LogFile - Constructor for LogFile
 % delete - Destructor - close file
-% getFileName -
 % getFileNameTimestamp - Return current date/time as sortable string
 % getSingleton - Return singleton object, this is the default log file to be used by current process (or workspace)
 % getTimestamp - Return current date/time as sortable string with milliseconds
@@ -27,33 +26,41 @@ classdef LogFile < handle
     %--------------------------------------------------------
     methods % Constructor
 
-        function Obj = LogFile(FileName)
+        function Obj = LogFile(FileName, Args)
             % Constructor for LogFile
             arguments
-                FileName = 'default';
+                FileName = ''               %
+                Args.UseTimestamp = false   %
             end
 
-            % Filename includes folder name
-            if contains(FileName, '/') || contains(FileName, '\\')
-                [Obj.LogPath, FileName, Ext] = fileparts(FileName);
+            % Make timestamp
+            Obj.Timestamp = Obj.getFileNameTimestamp();            
+            
+            % Empty file name, use default
+            if isempty(FileName)
+                FileName = 'DefaultLogFile';
+            end
+            
+            % Extension is not specified, use default
+            [Path, Fn, Ext] = fileparts(FileName);
+            if isempty(Ext)
+                FileName = [FileName, '.log'];
+            end
+            
+            % Filename does not include folder name, use deafult folder
+            if ~contains(FileName, '/') && ~contains(FileName, '\')
+                FileName = fullfile(LogFile.defaultPath(), FileName);                
+            end
+                     
+            % Add timestamp before file name
+            if Args.UseTimestamp                
+                [Path, FileName, Ext] = fileparts(FileName);
                 FileName = [FileName, Ext];
-            else
-
-                % Filename does not include folder name, make sure that
-                % we have default folder name
-                if isempty(Obj.LogPath)
-                    if ~isunix
-                        Obj.LogPath = 'C:\\Temp';
-                    else
-                        Obj.LogPath = '/tmp/';
-                    end
-                end
+                FileName = fullfile(Path, sprintf('%s-%s', Obj.Timestamp, FileName));
             end
-
-            % Prepare file name from path, timestamp, and specified name
-            Obj.Timestamp = Obj.getFileNameTimestamp();
-            fn = sprintf('%s-%s.log', Obj.Timestamp, FileName);
-            Obj.FileName = fullfile(Obj.LogPath, fn);
+            
+            % Store
+            Obj.FileName = FileName;
 
             % Write separation line to clearly mark that we started now
             Obj.write('=========================================== Started');
@@ -118,12 +125,37 @@ classdef LogFile < handle
 
     methods(Static)
 
-        function Result = getSingleton()
+        function Result = defaultPath(varargin)
+            % Set/get default log path
+            
+            % Argument is specified, store it as default
+            persistent Path
+            if numel(varargin) > 0
+                Path = varargin{1};
+            end
+            
+            % Use system folder if not set
+            if isempty(Path)
+                if ~isunix
+                    Path = 'C:\Temp';
+                else
+                    Path = '/tmp/';
+                end                
+            end
+            Result = Path;
+        end
+        
+        
+        function Result = getSingleton(Args)
             % Return singleton object, this is the default log file
             % to be used by current process (or workspace)
+            arguments
+                Args.FileName = ''
+                Args.UseTimestamp = false
+            end
             persistent PersObj
             if isempty(PersObj)
-                PersObj = LogFile();
+                PersObj = LogFile(Args.FileName, 'UseTimestamp', Args.UseTimestamp);
             end
             Result = PersObj;
         end
@@ -141,12 +173,12 @@ classdef LogFile < handle
         end
 
 
-        function Result = getFileName(SubName)
-            %
-            Obj = LogFile.getSingleton();
-            fn = sprintf('%s-%s.log', Obj.Timestamp, SubName);
-            Result = fullfile(Obj.LogPath, fn);
-        end
+        %function Result = getFileName(SubName)
+            % Currently unused
+            %Obj = LogFile.getSingleton();
+            %fn = sprintf('%s-%s.log', Obj.Timestamp, SubName);
+            %Result = fullfile(Obj.LogPath, fn);
+        %end
     end
 
 
