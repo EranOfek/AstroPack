@@ -20,6 +20,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % Example: pipeline.generic.singleRaw2proc
     %          % generate CalibImages using example in CalibImages/unitTest
     %          File = 'LAST.2.1.2_20200821.020230.952_clear_0_science.fits';
+    %          File = 'LAST.2.1.2_20200820.184642.957_clear_0_science.fits';
     %          [SI, AstrometricCat,Result]=pipeline.generic.singleRaw2proc(File,'CalibImages',CI);
     %          [SI, ~,Result]=pipeline.generic.singleRaw2proc(File,'CalibImages',CI, 'CatName',AstrometricCat);
     

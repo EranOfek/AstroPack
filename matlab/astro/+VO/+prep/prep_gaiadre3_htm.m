@@ -181,9 +181,9 @@ for If=1:1:Nfile
     
     K = K + 1;
     SaveFile = sprintf('H5_%d.hdf5',K);
-    cd(InPar.Dir)
+    %cd(InPar.Dir)
     HDF5.save(Mat,SaveFile);
-    cd ..
+    %cd ..
 
     Ifile = 1;
     SumC(K,:) = [Ifile, K, min(Mat(:,1)), max(Mat(:,1)), min(Mat(:,2)), max(Mat(:,2)), size(Mat,1)];
