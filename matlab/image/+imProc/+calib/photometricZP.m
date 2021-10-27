@@ -81,6 +81,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   this string will be updated, or a cell array of
     %                   column names to update. Default is 'MAG_'.
     %
+    %            'MagSys' - Magnitude system for photometric calibration.
+    %                   'Vega'|'AB'. Default is 'AB',
     %            'MagZP' - Zero point that was used in order to convert
     %                   instrumental flux to instrumental mag.
     %                   Default is 25.
@@ -113,6 +115,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.CatColNameMagErr         = 'MAGERR_CONV_3';
         Args.CatColNameSN             = 'SN_3';
         Args.MagZP                    = 25;
+        Args.MagSys                   = 'AB';  % 'AB' | 'Vega'
         
         Args.LimMagSN                 = 5;  % limiting mag for S/N calc
         Args.LimMagColor              = 1;  % Color for lim. mag calc
@@ -241,6 +244,25 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 RefMagBands    = MatchedPhotCat.getCol(Args.RefColNameMagBands);
                 RefMagBandsErr = MatchedPhotCat.getCol(Args.RefColNameMagBandsErr);
                 
+                switch lower(Args.MagSys)
+                    case 'vega'
+                        % do nothing GAIA is already in Vega sys
+                    case 'ab'
+                        VegaToAB_Filters = {'Mag_G','Mag_BP','Mag_RP'};
+                        VegaToAB = [NaN NaN NaN];
+                        
+                        I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
+                        RefMag = RefMag + VegaToAB(I1);
+                        
+                        I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                        RefMagBands = RefMagBands + VegaToAB(I2);
+                        
+                        error('Not implemented yet')
+                    otherwise
+                        error('Unknown MagSys option');
+                end
+                
+                
                 % calculate all colors
                 [Nsrc, Nband] = size(RefMagBands);
                 
@@ -253,6 +275,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     Color = diff(RefMagBands, 1, 2);
                 end
                     
+                
                 H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW];
                 ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag + Par(1) + Par(2).*Color + Par(3).*Color.^2 + Par(4).*(Width-MedW);
                 
@@ -264,6 +287,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 
                 ResFit(Iobj).Par    = H(Flag,:)\Y(Flag);
                 ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+                ResFit(Iobj).MagSys = Args.MagSys;
                 ResFit(Iobj).Resid  = Y - H*ResFit(Iobj).Par;
                 ResFit(Iobj).RefMag = RefMag;
                 ResFit(Iobj).InstMag = CatMag;
