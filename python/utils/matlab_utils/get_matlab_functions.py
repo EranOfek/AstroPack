@@ -27,13 +27,20 @@
 import os, glob, argparse, shutil, zipfile
 from datetime import datetime
 from random import randint
+import xml.sax.saxutils
+
+#----------------------------------------------------------------------------
+# USE WITH CARE!
+# When true, update_class_m_file() will be called on each processed .m files to update
+# the #functions comment block on top of file. This results in wide modifications
+# to the repository, so use with care, and let the other team members know about it.
+UPDATE_M = False
+#----------------------------------------------------------------------------
 
 # --- Global flags ---
-UPDATE_M = True # False #True
 UPDATE_M_OUT_FILE = False           # True to write updated output to '$out' file instead of modifying the original file
 BACKUP_M_FILE = False               # True to copy original files to $bkp.m
 TRIM_TRAILING_SPACES = True         # True to clear trailing spaces from all processd files
-
 
 # Get path to repository root folder
 ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
@@ -42,9 +49,15 @@ ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
 AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
 MLX_ELEMENTS_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/mlx/mlx_elements')
 
-# Markers
-FUNC_BLOCK_BEGIN = '% #functions (autogen)'
-FUNC_BLOCK_END = '% #/functions (autogen)'
+# Auto-generated Markers
+FUNC_BLOCK_BEGIN = '% #functions (autogen)'     # Start of function list block
+FUNC_BLOCK_END = '% #/functions (autogen)'      # End of function list block
+
+# Source code markers
+MARK_COMMENT_END = '#end'                       # End of comment block
+MARK_EXAMPLE_START = '#example'                 # Start of example block
+MARK_EXAMPLE_END = '#/example'                  # end of example block
+MARK_INCLUDE = '#include'                       # Include comment file
 
 # ===========================================================================
 
@@ -265,12 +278,16 @@ class MlxWriter:
             template = template.replace('"left"', '"' + self.align + '"')
 
         # Handle special characters
-        text = text.replace('&', '&amp;')
+        text = self.esc(text)
 
         #
         s = template.replace('$Text', text)
         self.doc_text = self.doc_text + s
 
+
+    def esc(self, text):
+        text = xml.sax.saxutils.escape(text)
+        return text
 
     # Load element from XML file, ignore comments starting with # or ;
     def load(self, fname):
@@ -631,6 +648,8 @@ class MatlabProcessor:
     # Extract H1 comment from comment lines below the function/class line
     # function Result = openConn(Obj)
     #    % Open connection, throw exception on failure
+    #
+    # short = True
     def get_comment(self, lines, idx, short = True):
         comment = ''
 
@@ -678,7 +697,6 @@ class MatlabProcessor:
                 comment_line = line + '  ' #' '.join(words)
                 comment = (comment + '\n' + comment_line) #.strip()
 
-
             # Stop if comment is too long, by number of lines, or by text length
             count = count + 1
             if short and (count >= 5 or len(comment) > 300):
@@ -686,6 +704,15 @@ class MatlabProcessor:
 
         return comment
 
+
+    def clean_comment(self, long_comment):
+        comment = ''
+        lines = long_comment.split('\n')
+        for line in lines:
+            line = line.strip()
+            comment = comment + line
+
+        return comment
     # -----------------------------------------------------------------------
     # Look for line that starts with specified text
     def index_starts_with(self, lines, text):
@@ -794,39 +821,6 @@ class MatlabProcessor:
             for func_name in func_list:
                 func = func_dict[func_name]
                 f.write(func.name + '\n')
-
-    # -----------------------------------------------------------------------
-    # @todo - Currently UNUSED
-    def update_files(self, fname):
-
-        # Create output file
-        path, fn = os.path.split(fname)
-
-        # Sort the function list
-        self.func_list.sort()
-        self.pkg_func_list.sort()
-
-        out_func_list = self.func_list
-
-        if self.is_class_folder:
-            out_fname = os.path.join(self.out_path, self.cur_package_class + '.txt')
-        else:
-            pre, ext = os.path.splitext(fn)
-            out_fname = os.path.join(self.out_path, pre + '.txt')
-
-        #write_func_list_file
-
-        # Write function list file
-        with open(out_fname, 'wt') as f:
-            f.write('% class: {}\n%\n'.format(self.cur_class))
-            for line in out_func_list:
-                f.write(line + '\n')
-
-        if UPDATE_M:
-            if self.is_class_folder:
-                self.update_m_file(self.class_fname)
-            else:
-                self.update_m_file(fname)
 
     # -----------------------------------------------------------------------
     # @todo - Maybe it would be enough to export from MLX ?
@@ -1428,7 +1422,7 @@ class MatlabProcessor:
 
             # MLX
             mlx = MlxWriter(cls_fname_mlx)
-            mlx.title(self.unpack_name(cls_name))
+            mlx.title('Class ' + self.unpack_name(cls_name))
 
             #
             mlx.heading1('Description')
@@ -1438,7 +1432,8 @@ class MatlabProcessor:
             mlx.end_par()
 
             #
-            mlx.text(cls.long_comment)
+            comment = self.clean_comment(cls.long_comment)
+            mlx.text(comment)
             mlx.text('For additional help see manuals.main')
 
             mlx.heading1('Properties')
@@ -1453,6 +1448,7 @@ class MatlabProcessor:
             mlx.heading2('Additional & Hidden Properties')
             mlx.text('Properties')
 
+            #
             mlx.heading1('Constructor')
             for func_name in func_list:
                 func = cls.func_dict[func_name]
@@ -1462,6 +1458,19 @@ class MatlabProcessor:
                 mlx.bold(func.name)
                 mlx.normal(' - ' + func.comment)
                 mlx.end_par()
+
+            #
+            mlx.heading1('General Class Usage')
+            mlx.text('Overview ...')
+
+            mlx.heading3('Example 1', 'Example description')
+            mlx.code('Example code ...')
+
+            mlx.heading3('Example 2', 'Example description')
+            mlx.code('Example code ...')
+
+            mlx.heading3('Example 3', 'Example description')
+            mlx.code('Example code ...')
 
             mlx.text('')
             mlx.heading1('Methods')
@@ -1485,7 +1494,8 @@ class MatlabProcessor:
                 mlx.bold(func.name)
                 mlx.normal(' - ' + func.comment)
                 mlx.end_par()
-                mlx.text(func.long_comment)
+                comment = self.clean_comment(cls.long_comment)
+                mlx.text(comment)
                 mlx.text('Example')
                 mlx.code('Example code here')
 
