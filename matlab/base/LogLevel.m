@@ -14,12 +14,12 @@ classdef LogLevel < uint32
 	enumeration
         None(0)         % Not set
         Fatal(1)        % Fatal error, must terminate
-		Error(2)        % Error
+        Error(2)        % Error
         Assert(3)       % Assert
-		Warning(4)      % Warning
-		Info(5)         % General info
+        Warning(4)      % Warning
+        Info(5)         % General info
         Verbose(6)      % Verbose
-		Debug(7)        % Detailed debug
+        Debug(7)        % Detailed debug
         Test(8)         % Unit-Test
         DebugEx(9)      % Very detailed debug, above Test level
         All(10)          % All

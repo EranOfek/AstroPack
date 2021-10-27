@@ -86,7 +86,7 @@ function exampleFromConstructor()
     
     % Call first to create the singleton with the file name.
     % Must be called before creating Configuration object which
-    % uses io.MsgLog().
+    % uses io.msgLog().
 
     % Settings UseTimestamp=true add the current system time to
     % the file name, for example:

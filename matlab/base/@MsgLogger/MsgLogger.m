@@ -33,11 +33,15 @@ classdef MsgLogger < handle
             %
             %   Call first to create the singleton with the file name.
             %   Must be called before creating Configuration object which
-            %   uses io.MsgLog().
+            %   uses io.msgLog().
             %
             %   Settings UseTimestamp=true add the current system time to
             %   the file name, for example:
             %   '/tmp/2021-10-27__14-44-10-OtherLogFile'
+            %
+            %   UseTimestamp=true will add the current date/time to the 
+            %   file name, so each time the process is started, a new log 
+            %   file will be created, allowing you to differentiate the executions.
             %
             %   LogFileName = '/tmp/SystemLogFileName.log';
             %   MsgLogger.getSingleton('FileName', LogFileName, 'UseTimestamp', true);
