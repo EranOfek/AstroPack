@@ -151,6 +151,27 @@ Earth barycentric velocity Package: celestial.SolarSys Description: Calculate th
     Reliable: 2  
       
       
+### celestial.SolarSys.ec_longlat2cart
+
+Convert Heliocentric ecliptic long/lat/rad referred to mean equinox of date to cartesian coordinates.
+
+
+    
+    Convert Heliocentric ecliptic long/lat/rad referred to mean equinox of date to cartesian coordinates.  
+    Input  : - Heliocentric ecliptic long refered to mean equinox of date.  
+    - Heliocentric ecliptic lat refered to mean equinox of date.  
+    - Heliocentric ecliptic rad refered to mean equinox of date.  
+    - Vector of JD (one per Long/lat/rad).  
+    - Output type (always cartesian):  
+    'Ecdate' - Ecliptic of date.  
+    'Eqdate' - Equatorial mean equinox of date.  
+    'EqJ2000' - Equatorial mean equinox of J2000.  
+    Output : - Vector of X.  
+    - Vector of Y.  
+    - Vector of Z.  
+    Author : Eran Ofek (Oct 2021)  
+    Example: [X,Y,Z] = celestial.SolarSys.ec_longlat2cart([1 2],[0 1],[1 2],2451545+[100, 200])  
+      
 ### celestial.SolarSys.equinox_solstice
 
 Approximate time of Equinox and Solstice Package: celestial.SolarSys Description: Calculate the approximate time of Equinox and Solstice for a given list of years. Accurate to about 100s between year -1000 to 3000.
@@ -1171,8 +1192,8 @@ Low-accuracy planetray ephemeris for Earth Package: celestial.SolarSys Descripti
     Accuarcy: Better than 1' in long/lat, ~0.001 au in dist.  
     Input  : - matrix of dates, [D M Y frac_day] per line,  
     or JD per line. In TT time scale.  
-    Output : - Longitude in radians.  
-    - Latitude in radians.  
+    Output : - Ecliptic Longitude in radians.  
+    - Ecliptic Latitude in radians.  
     - Radius vector in au.  
     Reference: VSOP87  
     See also: ple_planet.m  
@@ -1183,6 +1204,29 @@ Low-accuracy planetray ephemeris for Earth Package: celestial.SolarSys Descripti
     Reliable: 2  
       
       
+      
+### celestial.SolarSys.ple_force
+
+Calculate the net Sun+planets force on a solar system body.
+
+
+    
+    Calculate the net Sun+planets force on a solar system body.  
+    Input  : - Target body positiopn vector.  
+    This is a 3 X Ntimes matrix, where 3 is the numbr of  
+    coordinates, and Ntimes the number of times.  
+    - Vector of JD.  
+    - Output type (always cartesian):  
+    'Ecdate' - Ecliptic of date.  
+    'Eqdate' - Equatorial mean equinox of date.  
+    'EqJ2000' - Equatorial mean equinox of J2000.  
+    Default is 'EqJ2000'  
+    - A logical indicating if to include the Sun force.  
+    Default is true.  
+    Output : - A 3 X Ntimes matrix of force vectors on the body in each  
+    epoch (JD). Units: Solar-mass * au / day^2  
+    Author : Eran Ofek (Oct 2021)  
+    Example: Force = celestial.SolarSys.ple_force([2 2 2]', 2451545)  
       
 ### celestial.SolarSys.ple_jupiter
 
@@ -1402,6 +1446,24 @@ Low accuracy ephemeris for Venus Package: celestial.SolarSys Description: Low ac
     Reliable: 2  
       
       
+      
+### celestial.SolarSys.ple_xyzAll
+
+Get approximate cartesian coordinates of major planets in a matrix. Return a matrix of 3 X Nplanets X Ntimes of cartesian coordinates.
+
+
+    
+    Get approximate cartesian coordinates of major planets in a matrix.  
+    Return a matrix of 3 X Nplanets X Ntimes of cartesian coordinates.  
+    Input  : - A vector of JD.  
+    - Output type (always cartesian):  
+    'Ecdate' - Ecliptic of date.  
+    'Eqdate' - Equatorial mean equinox of date.  
+    'EqJ2000' - Equatorial mean equinox of J2000.  
+    Default is 'EqJ2000'.  
+    Output : - A matrix of 3 X Nplanets X Ntimes of cartesian coordinates.  
+    Author : Eran Ofek (Oct 2021)  
+    Example: S = celestial.SolarSys.ple_xyzAll(2451545+(1:1:10));  
       
 ### celestial.SolarSys.read_mpc_packed_epoch
 

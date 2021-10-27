@@ -1,0 +1,10 @@
+# MLX Element - Heading 3 - 8 spaces on the left
+
+<w:r>
+<w:t>        </w:t>
+</w:r>
+<w:hyperlink w:anchor="internal:H_$BmTag">
+<w:r>
+<w:t>$Text</w:t>
+</w:r>
+</w:hyperlink>

@@ -3,14 +3,16 @@
 % Used by DbQuery with select and insert SQL operations.
 
 % #functions (autogen)
-% DbRecord - Constructor DbRecord()          - Create new empty record object DbRecord(DbQuery)   - Create object linked to specified query
-% Equal - Compare two records, return true if equal
-% addProp - Add new property with value
+% DbRecord - Constructor - @Todo - discuss corret row,col order! Data: struct array, table, cell array, matrix
+% convert2AstroCatalog - Convert record(s) to AstroCatalog
+% convert2AstroTable - Convert record(s) to AstroTable
+% convert2cell - Convert record(s) to cell
+% convert2mat - Convert record(s) to matrix, non-numeric fields are
+% convert2table - Convert record(s) to table
 % delete -
 % getFieldNames - Get list of field names, properties ending with '_' are excluded
-% getStruct - Return new struct with field values Field names ending with '_' are ignored
-% loadFile - Load specified file to property @Todo - not implemented yet
-% loadStruct - Load all struct fields to properties
+% merge - Merge struct array with current data Usefull when we constructed from matrix and need key fields
+% newKey - Generate unique id, as Uuid or SerialStr (more compact and fast)
 % #/functions (autogen)
 %
 
@@ -55,19 +57,19 @@ classdef DbRecord < Base
             
         end
         
-%         
+%
 %             % Constructor
 %             %   DbRecord()          - Create new empty record object
 %             %   DbRecord(DbQuery)   - Create object linked to specified query
-%             
-%             
+%
+%
 %             % Generate unique id, as Uuid or SerialStr (more compact and fast)
 %             if Obj.UseUuid
 %                 Obj.Uuid = Component.newUuid();
 %             else
 %                 Obj.Uuid = Component.newSerialStr('DbRecord');
 %             end
-%             
+%
 %             % Set DbQuery
 %             if numel(varargin) == 1
 %                 Obj.Query = varargin{1};
@@ -85,10 +87,10 @@ classdef DbRecord < Base
     end
 
     
-    methods % Main functions        
+    methods % Main functions
         
         function Result = getFieldNames(Obj)
-            % Get list of field names, properties ending with '_' are excluded            
+            % Get list of field names, properties ending with '_' are excluded
             Result = fieldnames(Obj.Data);
         end
         
@@ -105,22 +107,22 @@ classdef DbRecord < Base
                         Obj.Data(Row).(FieldName) = Stru(Row).(FieldName);
                     else
                         Obj.Data(Row).(FieldName) = Stru(StruRows).(FieldName);
-                    end                        
+                    end
                 end
             end
-            Result = true;                
+            Result = true;
             
         end
         
         
         function Result = newKey(Obj)
-            % Generate unique id, as Uuid or SerialStr (more compact and fast)            
+            % Generate unique id, as Uuid or SerialStr (more compact and fast)
             if Obj.UseUuid
                 Result = Component.newUuid();
             else
                 Result = Component.newSerialStr('DbRecord');
             end
-        end         
+        end
         
     end
     
@@ -140,7 +142,7 @@ classdef DbRecord < Base
 
 
         function Result = convert2mat(Obj)
-            % Convert record(s) to matrix, non-numeric fields are 
+            % Convert record(s) to matrix, non-numeric fields are
             Result = cell2mat(squeeze(struct2cell(Obj.Data)));
         end
 
@@ -149,14 +151,14 @@ classdef DbRecord < Base
             % Convert record(s) to AstroTable
             Mat = cell2mat(squeeze(struct2cell(Obj.Data)));
             Result = AstroTable({Mat}, 'ColNames', Obj.ColNames)
-        end      
+        end
 
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
             Mat = cell2mat(squeeze(struct2cell(Obj.Data)));
             Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames)
-        end      
+        end
                         
     end
     

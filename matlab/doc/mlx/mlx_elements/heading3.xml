@@ -1,4 +1,7 @@
+# MLX Element - Heading 3
+
 <w:p>
+
 <mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
 <mc:Choice Requires="R2018b">
 
@@ -18,5 +21,10 @@
 </mc:Fallback>
 </mc:AlternateContent>
 
-<w:r><w:t>$Text</w:t></w:r>
+$BmStart
+<w:r>
+<w:t>$Text</w:t>
+</w:r>
+$BmEnd
+
 </w:p>

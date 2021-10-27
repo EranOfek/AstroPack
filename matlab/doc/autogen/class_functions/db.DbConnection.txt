@@ -1,14 +1,14 @@
 Class: db.DbConnection
 
-DbConnection - 
+DbConnection - Constructor
 
 close - Disconnect from database,  @Todo
 
-delete - 
+delete - Destructor
 
-getConnectionKey - Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
 
-getDbConnection - 
+getDbConnection - Search global (singleton) map of DbConnection for the specified connection key
 
 newQuery - Create new DbQuery instance linked to this connection
 

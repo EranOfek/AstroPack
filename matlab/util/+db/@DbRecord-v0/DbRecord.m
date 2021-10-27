@@ -3,14 +3,22 @@
 % Used by DbQuery with select and insert SQL operations.
 
 % #functions (autogen)
-% DbRecord - Constructor DbRecord()          - Create new empty record object DbRecord(DbQuery)   - Create object linked to specified query
+% DbRecord - Constructor - @Todo - discuss corret row,col order! Data: struct array, table, cell array, matrix
 % Equal - Compare two records, return true if equal
 % addProp - Add new property with value
+% convert2AstroCatalog - Convert record(s) to AstroCatalog
+% convert2AstroTable - Convert record(s) to AstroTable
+% convert2cell - Convert record(s) to cell
+% convert2mat - Convert record(s) to matrix, non-numeric fields are
+% convert2table - Convert record(s) to table
 % delete -
 % getFieldNames - Get list of field names, properties ending with '_' are excluded
 % getStruct - Return new struct with field values Field names ending with '_' are ignored
 % loadFile - Load specified file to property @Todo - not implemented yet
 % loadStruct - Load all struct fields to properties
+% merge - Merge struct array with current data Usefull when we constructed from matrix and need key fields
+% newKey - Generate unique id, as Uuid or SerialStr (more compact and fast)
+% unitTest - DbRecord.unitTest
 % #/functions (autogen)
 %
 

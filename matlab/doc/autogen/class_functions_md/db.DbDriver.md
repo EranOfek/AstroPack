@@ -8,19 +8,28 @@
       
     The native MATLAB database functions require installation of MATLAB  
     Database Toolbox. To avoid dependency on it, we implement our database  
-    class using Java packages.  
+    classes using Java packages.  
       
     Some workaround is required to use the java interface.  
       
     See:  
     https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database  
       
-    Postgresql driver must be installed, download page:  
+    Postgresql Java driver (jar file) must be installed, download page:  
       
     https://jdbc.postgresql.org/  
     https://jdbc.postgresql.org/download.html  
       
     We currently use postgresql-42.2.19.jar  
+      
+    There should be only one driver object for each database type.  
+    For example, when working with Postgress, we need only one DbDriver for  
+    it. We hold a persistent ComponentMap of all created DbDriver objects with  
+    the database type (i.e. 'postgres') as the key.  
+      
+    Usage:  
+    Drv = DbDriver.getDbDriver('postgres');  
+    Drv.loadDriver();  
       
       
       
@@ -28,38 +37,31 @@
 
 ### Functions List
 
-    DbDriver - 
-    close - Unload database driver
-    copyDriverFile - Copy driver file from source folder to target path
+    DbDriver - Constructor
+    copyDriverFile - Copy driver file from source folder to target path This is requried to call javaclasspath()
     delete - Destructor
     getDbDriver - Get singleton Map object that maps database type to DbDriver object
-    open - Load database driver library
+    loadDriver - Load database driver library See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
     unitTest - DbDriver.unitTest
+    unloadDriver - Unload database driver
 
 ### DbDriver
 
-
-
-
-    
-
-
-### close
-
-Unload database driver
+Constructor
 
 
     
-    Unload database driver  
+    Constructor  
 
 
 ### copyDriverFile
 
-Copy driver file from source folder to target path
+Copy driver file from source folder to target path This is requried to call javaclasspath()
 
 
     
     Copy driver file from source folder to target path  
+    This is requried to call javaclasspath()  
 
 
 ### delete
@@ -80,13 +82,14 @@ Get singleton Map object that maps database type to DbDriver object
     Get singleton Map object that maps database type to DbDriver object  
 
 
-### open
+### loadDriver
 
-Load database driver library
+Load database driver library See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
 
 
     
     Load database driver library  
+    See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database  
 
 
 ### unitTest
@@ -97,5 +100,14 @@ DbDriver.unitTest
     
     DbDriver.unitTest  
       
+
+
+### unloadDriver
+
+Unload database driver
+
+
+    
+    Unload database driver  
 
 

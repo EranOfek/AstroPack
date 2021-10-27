@@ -16,6 +16,8 @@ matchReturnIndices - Match two catalogs in AstroCatalog objects and return the m
 
 match_catsHTM - Match an AstroCatalog object with catsHTM catalog
 
+match_catsHTM_multiInsertFlag - 
+
 matched2matrix - A matched AstroCatalog object into a matrix of epochs by index AstCat object to a matrix of matched sources. Description: Given an AstroCatalog object containing multiple elements, in which each element containing the same number of rows (e.g., the output of Match/match.m), return a matrix
 
 unifiedSourcesCatalog - Match multiple catalogs and create a catalog of all unique (by position) sources. i.e., generate a list of all unique positions that appears in all the AstroCatalog object.
