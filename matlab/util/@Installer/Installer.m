@@ -135,7 +135,9 @@ classdef Installer < Component
             % Windows
             if IsWindows
                 PathWin = 'C:\AstroPack';
-                mkdir(PathWin)
+                if ~isfolder(PathWin)
+                    mkdir(PathWin)
+                end
                 cd(PathWin);
                 
             % Linux
@@ -150,7 +152,9 @@ classdef Installer < Component
             
             %
             io.msgLog(LogLevel.Info, 'Installer: %s', DataStruct.InstallationLocation);
-            mkdir(DataStruct.InstallationLocation);
+            if ~isfolder(DataStruct.InstallationLocation)
+                mkdir(DataStruct.InstallationLocation);
+            end
             
             % create dir for installation
             if IsWindows
@@ -167,7 +171,9 @@ classdef Installer < Component
             SubDir = '';
             for Iparts=1:1:Nparts
                 SubDir = sprintf('%s%s%s',SubDir,filesep,Parts{Iparts});
-                mkdir(Parts{Iparts});
+                if ~isfolder(Parts{Iparts})
+                    mkdir(Parts{Iparts});
+                end
                 cd(Parts{Iparts});
             end
         
@@ -198,8 +204,8 @@ classdef Installer < Component
                 if Args.Delete
                     delete('*');
                 end
-                for pi=1:numel(List)
-                    io.msgLog(LogLevel.Info, 'pwget: %s', List{pi});
+                if numel(List) > 0
+                    io.msgLog(LogLevel.Info, 'pwget: %d items - %s', numel(List), List{1});
                 end
                 www.pwget(List, Args.wgetPars, Args.Npwget);
                 
