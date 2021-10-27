@@ -81,6 +81,9 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
     %            'Conn' - Connectivity parameter for local maxima
     %                   identification.
     %                   Default is 8.
+    %            'Gain' - Default is 1.
+    %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
+    %            'ZP' - ZP for magnitude. Default is 25.
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
     %            'VarField' - Variance field. Default is 'Var'.

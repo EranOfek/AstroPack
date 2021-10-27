@@ -5,7 +5,7 @@ function NewCell=insertKey(Cell,KeyVal,Pos)
 %            If a string or a cell-column of keys, than these will be
 %            padded with '' and inserted to the cell.
 %            Alternatively, this can be a sub cell-header.
-%          - Position to insert the new block: ['end-1'], 'end' or number.
+%          - Position to insert the new block: ['end-1'], 'end' | Inf or number.
 % Author: Eran Ofek  (Mar 2021)
 % Example:
 % NewCell=imUtil.headerCell.insertKey({'A','','';'B',1,'';'END','',''},'C','end-1')
@@ -20,6 +20,10 @@ function NewCell=insertKey(Cell,KeyVal,Pos)
         Pos                 = 'end-1';
     end
 
+    if isinf(Pos)
+        Pos = 'end';
+    end
+    
     if ~iscell(KeyVal)
         KeyVal = {KeyVal};
     end

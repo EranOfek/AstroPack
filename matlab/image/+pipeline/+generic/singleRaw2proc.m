@@ -34,6 +34,13 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.BlockSize                        = [1600 1600];  % empty - full image
         Args.Scale                            = 1.25;
         
+        Args.AddHeadKeys                      = {'FILTER','clear';
+                                                 'SATURVAL',55000;
+                                                 'OBSLON',35.0;
+                                                 'OBSLAT',31.0;
+                                                 'OBSALT',400;
+                                                 'OVERSCAN','[6355 6388 1 9600]'};   % '[1 6354 1 9600]'};
+        
         Args.MultiplyByGain logical           = true; % after fringe correction
         Args.MaskSaturated(1,1) logical       = true;
         Args.InterpOverSaturated(1,1) logical = true;
@@ -45,6 +52,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.maskSaturatedArgs cell           = {};
         Args.debiasArgs cell                  = {};
         Args.SubtractOverscan logical         = false;
+        Args.FinalCrop                        = [1 6354 1 9600];  % if empty do nothing
         Args.MethodOverScan                   = 'globalmedian';
         Args.deflatArgs cell                  = {};
         Args.CorrectFringing logical          = false;
@@ -54,6 +62,8 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.BackSubSizeXY                    = [128 128];
         Args.interpOverNanArgs cell           = {};
         Args.findMeasureSourcesArgs cell      = {};
+        Args.ZP                               = 25;
+        Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
@@ -94,12 +104,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         CI = Args.CalibImages;
     end
         
-    
-    AI.setKeyVal('FILTER','clear');
-    AI.setKeyVal('SATURVAL',55000);
-    AI.setKeyVal('OBSLON',35.0);
-    AI.setKeyVal('OBSLAT',31.0);
-    AI.setKeyVal('OBSALT',400);
+    % add additional header keywords
+    if ~isempty(Args.AddHeadKeys)
+        AI.setKeyVal(Args.AddHeadKeys(:,1), Args.AddHeadKeys(:,2));
+    end
     
     % fix date
     % JD is can't be written with exponent
@@ -120,8 +128,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
                               'MultiplyByGain',Args.MultiplyByGain);
                               
     % crop overscan
-    AI.crop([1 6354 1 9600]);
-   
+    if ~isempty(Args.FinalCrop)
+        AI.crop(Args.FinalCrop);
+    end
+    
     % get JD from header
     JD = julday(AI.HeaderData);
     
@@ -136,6 +146,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     % Source finding
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
                                                'RemoveBadSources',true,...
+                                               'ZP',Args.ZP,...
                                                'CreateNewObj',false);
     
     
@@ -157,7 +168,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % Photometric ZP
     if Args.DoPhotometry
-        % [Result, ZP, PhotCat] = imProc.calib.photometricZP(Obj, Args)
+        [SI, ZP, PhotCat] = imProc.calib.photometricZP(SI, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
     
         % Update Cat photometry
     end

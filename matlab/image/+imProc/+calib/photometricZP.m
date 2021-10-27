@@ -81,6 +81,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   this string will be updated, or a cell array of
     %                   column names to update. Default is 'MAG_'.
     %
+    %            'MagZP' - Zero point that was used in order to convert
+    %                   instrumental flux to instrumental mag.
+    %                   Default is 25.
     %            'matchReturnIndicesArgs' - A cell array of additional
     %                   arguments to pass to imProc.match.matchReturnIndices
     %                   Default is {}.
@@ -109,6 +112,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.CatColNameMag            = 'MAG_CONV_3';
         Args.CatColNameMagErr         = 'MAGERR_CONV_3';
         Args.CatColNameSN             = 'SN_3';
+        Args.MagZP                    = 25;
         
         Args.LimMagSN                 = 5;  % limiting mag for S/N calc
         Args.LimMagColor              = 1;  % Color for lim. mag calc
@@ -259,7 +263,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 Flag  = ~isnan(Y) & CatMagErr < Args.MaxErr & SN<Args.MaxSN;
                 
                 ResFit(Iobj).Par    = H(Flag,:)\Y(Flag);
-                ResFit(Iobj).ZP     = ResFit(Iobj).Par(1);
+                ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
                 ResFit(Iobj).Resid  = Y - H*ResFit(Iobj).Par;
                 ResFit(Iobj).RefMag = RefMag;
                 ResFit(Iobj).InstMag = CatMag;
@@ -291,7 +295,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
             end
             
-            Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + ResFit(Iobj).ZP;
+            Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + ResFit(Iobj).Par(1);  % donot add full ZP
              
             % This should happen automatically, but we are doing this for
             % readability and order
@@ -305,7 +309,18 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.UpdateHeader = true;
         if Args.UpdateHeader && isa(Result, 'AstroImage')
             % write to header the following information:
-            % 
+            % PH_ZP
+            % PH_COL1
+            % PH_COL2
+            % PH_W
+            % PH_MEDW
+            % PH_RMS
+            % PH_NSRC
+            % LIMMAG
+            
+            Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','LIMMAG'};
+            Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).LimMag};
+            Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);
             
         end
         
