@@ -150,14 +150,14 @@ classdef DbRecord < Base
         function Result = convert2AstroTable(Obj)
             % Convert record(s) to AstroTable
             Mat = cell2mat(squeeze(struct2cell(Obj.Data)));
-            Result = AstroTable({Mat}, 'ColNames', Obj.ColNames)
+            Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
         end
 
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
             Mat = cell2mat(squeeze(struct2cell(Obj.Data)));
-            Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames)
+            Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
         end
                         
     end
