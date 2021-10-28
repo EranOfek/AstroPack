@@ -248,7 +248,7 @@ VecDec = (-90:1:90)';
 Ndec   = numel(VecDec);
 SumDec = zeros(Ndec-1,1);
 for Idec=1:1:Ndec-1
-   
+    Idec
     tic;
     
     D1 = VecDec(Idec);
@@ -265,6 +265,7 @@ for Idec=1:1:Ndec-1
     Nind = numel(Ind);
     DataDec = zeros(0,27);
     for Iread=1:1:Nread
+        
         Ind = IndRead(Iread);
         
         StrInd = num2str(Ind);
@@ -282,9 +283,9 @@ for Idec=1:1:Ndec-1
         %[StrInd, Dir]
         
         File = sprintf('H5_%s.hdf5',StrInd);
-        cd(Dir)
+        %cd(Dir)
         Data = h5read(File,'/V');
-        cd ..
+        %cd ..
         
         FlagSrc = Data(:,2)>=D1 & Data(:,2)<D2;
         sum(FlagSrc);
@@ -308,9 +309,13 @@ for Idec=1:1:Ndec-1
     else
         D2s = '';
     end
-    FileW = sprintf('GaiaDR2_%s%d_%s%d.hdf5',D1s,abs(D1),D2s,abs(D2));
+    
+    FileW = sprintf('GaiaDRE3_%s%04.1f_%s%04.1f.hdf5',D1s,abs(D1),D2s,abs(D2));
     DataDec(:,1:2) = DataDec(:,1:2)./RAD;
-    HDF5.save(DataDec,FileW,'/V');
+    Size = size(DataDec)
+    h5create(FileW,'/V',Size, 'ChunkSize',[min(Size(1), 1e5), Size(2)]);
+    h5write(FileW,'/V',DataDec);
+    %HDF5.save(DataDec,FileW,'/V');
     
     toc
 end

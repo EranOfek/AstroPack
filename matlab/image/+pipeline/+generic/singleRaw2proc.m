@@ -65,7 +65,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
+        Args.astrometryRefineArgs cell        = {};
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
+        Args.Tran                             = Tran2D('poly3');
+        Args.WCS                              = [];   % WCS/AstroImage with WCS - will use astrometryRefine...
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
         
         Args.OrbEl                            = []; %celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
@@ -104,6 +107,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         CI = Args.CalibImages;
     end
         
+    
     % add additional header keywords
     if ~isempty(Args.AddHeadKeys)
         AI.setKeyVal(Args.AddHeadKeys(:,1), Args.AddHeadKeys(:,2));
@@ -132,6 +136,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         AI.crop(Args.FinalCrop);
     end
     
+    
     % get JD from header
     JD = julday(AI.HeaderData);
     
@@ -140,8 +145,10 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     [SI, InfoCCDSEC] = imProc.image.image2subimages(AI, Args.BlockSize, 'UpdateCat',false, Args.image2subimagesArgs{:}, 'OverlapXY',Args.OverlapXY);
     clear AI;
     
+    
     % Background 
     SI = imProc.background.background(SI, Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY);
+    
     
     % Source finding
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
@@ -152,14 +159,24 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % Astrometry, including update coordinates in catalog
     if Args.DoAstrometry
-        Tran = Tran2D('poly3');
-        [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
-                                                                                        'EpochOut',JD,...
-                                                                                        'Scale',Args.Scale,...
-                                                                                        'CatName',Args.CatName,...
-                                                                                        'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
-                                                                                        'Tran',Tran,...
-                                                                                        'CreateNewObj',false);
+        if isempty(Args.WCS)
+            [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
+                                                                                            'EpochOut',JD,...
+                                                                                            'Scale',Args.Scale,...
+                                                                                            'CatName',Args.CatName,...
+                                                                                            'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
+                                                                                            'Tran',Args.Tran,...
+                                                                                            'CreateNewObj',false);
+        else
+            [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometryRefine(SI, Args.astrometryRefineArgs{:},...
+                                                                                            'WCS',Args.WCS,...
+                                                                                            'EpochOut',JD,...
+                                                                                            'Scale',Args.Scale,...
+                                                                                            'CatName',Args.CatName,...
+                                                                                            'Tran',Args.Tran,...
+                                                                                            'CreateNewObj',false);
+            
+        end
                                                                                     
     
         % Update Cat astrometry
@@ -168,7 +185,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
     % Photometric ZP
     if Args.DoPhotometry
-        [SI, ZP, PhotCat] = imProc.calib.photometricZP(SI, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
+        [SI, Result.ZP, PhotCat] = imProc.calib.photometricZP(SI, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
     
         % Update Cat photometry
     end
