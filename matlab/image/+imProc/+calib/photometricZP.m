@@ -116,6 +116,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.CatColNameSN             = 'SN_3';
         Args.MagZP                    = 25;
         Args.MagSys                   = 'AB';  % 'AB' | 'Vega'
+        Args.CatZP                    = 'GAIAEDR3';   % catalog origin of magnitudes
         
         Args.LimMagSN                 = 5;  % limiting mag for S/N calc
         Args.LimMagColor              = 1;  % Color for lim. mag calc
@@ -248,14 +249,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     case 'vega'
                         % do nothing GAIA is already in Vega sys
                     case 'ab'
-                        VegaToAB_Filters = {'Mag_G','Mag_BP','Mag_RP'};
-                        VegaToAB = [NaN NaN NaN];
+                        VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
                         
+                        GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+                                                
                         I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                        RefMag = RefMag + VegaToAB(I1);
+                        RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
                         
                         I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                        RefMagBands = RefMagBands + VegaToAB(I2);
+                        RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
                         
                         error('Not implemented yet')
                     otherwise
@@ -340,10 +342,11 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             % PH_MEDW
             % PH_RMS
             % PH_NSRC
+            % PH_MAGSY
             % LIMMAG
             
-            Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','LIMMAG'};
-            Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).LimMag};
+            Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY''LIMMAG'};
+            Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).MagSys, ResFit(Iobj).LimMag};
             Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);
             
         end

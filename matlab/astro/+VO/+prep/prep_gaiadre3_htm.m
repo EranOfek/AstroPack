@@ -195,7 +195,7 @@ save SumC.mat SumC
 
 %%
 %cd /raid/eran/catsHTM/GAIA/DRE3/
-cd /data/euler/catsHTM/GAIA/DRE3/
+cd /data/euler/catsHTM/GAIA/DRE3/zz1
 load SumC.mat
 
 VecDec = (-90:1:90)';
@@ -223,9 +223,9 @@ for Isum=1:1:Nsum
     Dir = 'zz1';
     
     File = sprintf('H5_%s.hdf5',StrInd);
-    cd(Dir)
+    %cd(Dir)
     Data = h5read(File,'/V');
-    cd ..
+    %cd ..
     
     % 
     for Idec=1:1:Ndec-1
