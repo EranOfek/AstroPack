@@ -2,14 +2,7 @@ function Result = unitTest(Obj)
 	%
 	io.msgStyle(LogLevel.Test, '@start', 'BitDictionary test started');
 
-	Obj = BitDictionary;
-	Tbl = cell2table({'Saturation', 'Saturated pixel', 0; ...
-					  'DeadPix',    'Pixel level at Flat is low', 1; ...
-					  'NoisyPix',   'High noise in dark image', 3;...
-					  'Spike',      'Stellar spike',            11});
-				  
-	Tbl.Properties.VariableNames = {'BitName','BitDescription','BitInd'};
-	Obj.Dic = Tbl;
+	Obj = BitDictionary('BitMask.Image.Default');
 	
 	
 	[BitName,BitDescription,BitInd] = bitind2name(Obj,[0 1 17]);
