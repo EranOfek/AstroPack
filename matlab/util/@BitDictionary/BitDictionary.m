@@ -199,6 +199,9 @@ classdef BitDictionary < Component
             BitDescription   = cell(size(DecVal));
             BitInd           = cell(size(DecVal));
             Nbitval   = numel(DecVal);
+            
+            % Note: de2bi() requires installation of Communications Toolbox
+            % Consider rewriting this function for better performance
             Flag = logical(de2bi(DecVal,Obj.Nbit)); % dec 2 bin and cast as logicals
             for Ibit=1:1:Nbitval
                 BitName{Ibit}        = Obj.Dic.(Obj.ColBitName)(Flag(Ibit,:));
