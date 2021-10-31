@@ -1,4 +1,4 @@
-function Result = unifiedSourcesCatalog(Obj, Args)
+function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
     % Match multiple catalogs and create a catalog of all unique (by position) sources.
     %       i.e., generate a list of all unique positions that appears in all the AstroCatalog object.
     % Input  : - A multi-element AstroCatalog object.
@@ -71,7 +71,11 @@ function Result = unifiedSourcesCatalog(Obj, Args)
     % X, Y of all sources found
     Result  = AstroCatalog({[X, Y]}, 'ColNames',{ColNameX{1},ColNameY{1}}, 'ColUnits',{Xunit{1}, Yunit{1}});
     
-
+    Nsrc = size(Result.Catalog,1);
+    ResInd(Iobj).IndInUnified = (1:1:Nsrc).';
+    ResInd(Iobj).IndInObj     = (1:1:Nsrc).';
+    
+    
     for Iobj=2:1:Nobj
         
         % read AstroCatalog/AstroImage into Cat
@@ -99,7 +103,12 @@ function Result = unifiedSourcesCatalog(Obj, Args)
         IndCatNaN = isnan(ResMatch.Obj2_IndInObj1);
         Result.Catalog = [Result.Catalog; Cat.Catalog(IndCatNaN, [ColIndX, ColIndY])];
       
-    
+        if nargout>1
+            Ncat           = size(Result.Catalog, 1);
+            Nnan           = sum(IndCatNaN);
+            ResInd(Iobj).IndInUnified = (Ncat+1:1:Ncat+Nnan).';
+            ResInd(Iobj).IndInObj     = find(IndCatNaN);
+        end
     
 %         [~, UnMatchedObj] = imProc.match.match(Cat, Result, 'CooType',Args.CooType,...
 %                                                             'Radius',Args.Radius,...
