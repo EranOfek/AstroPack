@@ -12,7 +12,7 @@
 % I.install               % install all data sets [very large!]
 % I.install({'Time','MinorPlanets'});
 % I.install({'GAIA_SpecTemplate'}); % install specific datasets
-% I.install({'+cats'}); % install specific datasets (and open tar file)
+% I.install({'cats'}); % install specific datasets (and open tar file)
 
 % #functions (autogen)
 % Installer - constructor for the Installre class (a utility class for AstroPack installation
