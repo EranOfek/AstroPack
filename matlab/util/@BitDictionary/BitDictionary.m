@@ -56,8 +56,17 @@ classdef BitDictionary < Component
                     Obj.Dic.(Obj.ColBitDescription){Ifn} = St.(FN{Ifn}){2};
                     Obj.Dic.(Obj.ColBitInd)(Ifn)         = St.(FN{Ifn}){1};
                 end
-                Obj.Nbit = ceil(Nfn./8).*8;
-                
+                Obj.Nbit  = ceil(Nfn./8).*8;
+                switch Obj.Nbit
+                    case 8
+                        Obj.Class = @uint8;
+                    case 16
+                        Obj.Class = @uint16;
+                    case 32
+                        Obj.Class = @uint32;
+                    otherwise
+                        error('Unknown Nbit option - only 8, 16, 32 are supported');
+                end
                 Obj.BitDictName = DictionaryName;
             end
         end
