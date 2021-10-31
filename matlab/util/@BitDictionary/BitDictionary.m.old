@@ -19,10 +19,10 @@
 classdef BitDictionary < Component
     properties
         BitDictName char     = '';   % BitDictionary name - e.g., 'HeaderKeySynonyms'
-        Dic struct           = struct('BitName',[],'BitDescription',[],'BitInd',[]);    % Name, Description, BitInd
+        Dic table            = table();    % Name, Description, BitInd
     end
     properties (SetAccess=private)
-        Nbit                 = 8; % setter by constructor
+        Nbit                 = 8; % setter by Dic
         Class                = @uint8;
     end
     properties (Hidden, Constant)
@@ -45,89 +45,75 @@ classdef BitDictionary < Component
             if ~isempty(DictionaryName)
                 St  = eval(sprintf('Obj.Config.Data.%s',DictionaryName));
                 FN  = fieldnames(St);
-                Frem = strcmp(FN, 'FileName');
-                FN   = FN(~Frem);
                 Nfn = numel(FN);
-                Obj.Dic.(Obj.ColBitName)        = cell(Nfn,1);
-                Obj.Dic.(Obj.ColBitDescription) = cell(Nfn,1);
-                Obj.Dic.(Obj.ColBitInd)         = nan(Nfn,1);
+                Cell = cell(Nfn-1,3);
                 for Ifn=1:1:Nfn
-                    Obj.Dic.(Obj.ColBitName){Ifn}        = FN{Ifn};
-                    Obj.Dic.(Obj.ColBitDescription){Ifn} = St.(FN{Ifn}){2};
-                    Obj.Dic.(Obj.ColBitInd)(Ifn)         = St.(FN{Ifn}){1};
+                    if iscell(St.(FN{Ifn}))
+                        Cell{Ifn,1} = FN{Ifn};
+                        Cell(Ifn,2) = St.(FN{Ifn})(2);
+                        Cell(Ifn,3) = St.(FN{Ifn})(1);
+                    end
                 end
-                Obj.Nbit  = ceil(Nfn./8).*8;
-                switch Obj.Nbit
-                    case 8
-                        Obj.Class = @uint8;
-                    case 16
-                        Obj.Class = @uint16;
-                    case 32
-                        Obj.Class = @uint32;
-                    otherwise
-                        error('Unknown Nbit option - only 8, 16, 32 are supported');
-                end
+                Obj.Dic = cell2table(Cell);
                 Obj.BitDictName = DictionaryName;
             end
         end
     end
     
     methods % setters/getters
-%         function set.Dic(Obj,BinDic)
-%             % setter for Dic property
-%             % BinDic can be: 'table' | 'cell'
-%             
-%             if istable(BinDic)
-%                 Obj.Dic.(Obj.ColBitName)        = table2array(BinDic(:,1));
-%                 Obj.Dic.(Obj.ColBitDescription) = table2array(BinDic(:,2));
-%                 Obj.Dic.(Obj.ColBitInd)         = table2array(BinDic(:,3));
-%                 
-%             elseif iscell(BinDic)
-%                 Obj.Dic.(Obj.ColBitName)        = BinDic(:,1);
-%                 Obj.Dic.(Obj.ColBitDescription) = BinDic(:,2);
-%                 Obj.Dic.(Obj.ColBitInd)         = cell2array(BinDic(:,3));
-%             else
-%                 error('Illegal BinDic class option');
-%             end
-%             
-%             % make sure the dictionary is formatted correctly
-%             MaxBitInd = max(Obj.Dic.(Obj.ColBitInd));
-%             Ndigits  = ceil(log(MaxBitInd)./log(2));  % number of binary digits required to represent the dictionary
-%             if MaxBitInd<=8
-%                 Obj.Nbit  = 8;
-%                 Obj.Class = @uint8;
-%             else
-%                 if MaxBitInd<=16
-%                     Obj.Nbit = 16;
-%                     Obj.Class = @uint16;
-%                 else
-%                     if MaxBitInd<=32
-%                         Obj.Nbit = 32;
-%                         Obj.Class = @uint32;
-%                     else
-%                         if MaxBitInd<=64
-%                             Obj.Nbit = 64;
-%                             Obj.Class = @uint64;
-%                         else
-%                             error('More than 64 bits in BitDictionary are not supported');
-%                         end
-%                     end
-%                 end
-%             end
-%             % add missing entries with empty indices
-%             
-%             NewCell = cell(Obj.Nbit,3);
-%             VecBit  = (0:1:Obj.Nbit-1);
-%             NewCell(:,3) = num2cell(VecBit);
-%             for I=1:1:size(Obj.Dic,1)
-%                 J = (Obj.Dic.(Obj.ColBitInd)(I)==VecBit);
-%                 NewCell(J,:) = Obj.Dic(I,:);
-%             end
-%             
-%             Obj.Dic = NewTbl;
-%             Obj.Dic.Properties.VariableNames = {Obj.ColBitName, Obj.ColBitDescription, Obj.ColBitInd};
-%             
-%         end
+        function set.Dic(Obj,BinDic)
+            % setter for Dic property
+            % BinDic can be: 'table' | 'cell'
+            
+            if istable(BinDic)
+                Obj.Dic = BinDic;
+                Obj.Dic.Properties.VariableNames = {Obj.ColBitName, Obj.ColBitDescription, Obj.ColBitInd};
+            elseif iscell(BinDic)
+                Obj.Dic = cell2table(BinDic);
+                Obj.Dic.Properties.VariableNames = {Obj.ColBitName, Obj.ColBitDescription, Obj.ColBitInd};
+            else
+                error('Illegal BinDic class option');
+            end
+            
+            % make sure the dictionary is formatted correctly
+            MaxBitInd = max(Obj.Dic.(Obj.ColBitInd));
+            Ndigits  = ceil(log(MaxBitInd)./log(2));  % number of binary digits required to represent the dictionary
+            if MaxBitInd<=8
+                Obj.Nbit  = 8;
+                Obj.Class = @uint8;
+            else
+                if MaxBitInd<=16
+                    Obj.Nbit = 16;
+                    Obj.Class = @uint16;
+                else
+                    if MaxBitInd<=32
+                        Obj.Nbit = 32;
+                        Obj.Class = @uint32;
+                    else
+                        if MaxBitInd<=64
+                            Obj.Nbit = 64;
+                            Obj.Class = @uint64;
+                        else
+                            error('More than 64 bits in BitDictionary are not supported');
+                        end
+                    end
+                end
+            end
+            % add missing entries with empty indices
+            
+            NewCell = cell(Obj.Nbit,3);
+            VecBit  = (0:1:Obj.Nbit-1);
+            NewCell(:,3) = num2cell(VecBit);
+            NewTbl = cell2table(NewCell);
+            for I=1:1:size(Obj.Dic,1)
+                J = (Obj.Dic.(Obj.ColBitInd)(I)==VecBit);
+                NewTbl(J,:) = Obj.Dic(I,:);
+            end
+            
+            Obj.Dic = NewTbl;
+            Obj.Dic.Properties.VariableNames = {Obj.ColBitName, Obj.ColBitDescription, Obj.ColBitInd};
+            
+        end
         
     end
     
@@ -174,7 +160,7 @@ classdef BitDictionary < Component
             
             BitInd = zeros(size(BitVal));
             for Ibit=1:1:Nbitval
-                Flag = Obj.Dic.(Obj.ColBitInd)==BitVal(Ibit);
+                Flag = Obj.Dic.BitInd==BitVal(Ibit);
                 if any(Flag)
                     BitName{Ibit}        = Obj.Dic.(Obj.ColBitName){Flag};
                     BitDescription{Ibit} = Obj.Dic.(Obj.ColBitDescription){Flag};

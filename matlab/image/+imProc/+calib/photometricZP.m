@@ -245,10 +245,13 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 RefMagBands    = MatchedPhotCat.getCol(Args.RefColNameMagBands);
                 RefMagBandsErr = MatchedPhotCat.getCol(Args.RefColNameMagBandsErr);
                 
+                %CatXY          = Cat.getCol({'X','Y'});
+                
                 switch lower(Args.MagSys)
                     case 'vega'
                         % do nothing GAIA is already in Vega sys
                     case 'ab'
+                        if 1==0
                         VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
                         
                         GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
@@ -258,8 +261,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                         
                         I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
                         RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
-                        
-                        error('Not implemented yet')
+                        end
                     otherwise
                         error('Unknown MagSys option');
                 end
@@ -278,11 +280,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 end
                     
                 
-                H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW];
+                H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW]; % CatXY];
                 ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag + Par(1) + Par(2).*Color + Par(3).*Color.^2 + Par(4).*(Width-MedW);
-                
-                
-                
+                                
                 Y     = RefMag - CatMag;
                 ErrY  = sqrt(CatMagErr.^2 + sum(RefMagBandsErr.^2, 2));
                 Flag  = ~isnan(Y) & CatMagErr < Args.MaxErr & SN<Args.MaxSN;
@@ -345,7 +345,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             % PH_MAGSY
             % LIMMAG
             
-            Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY''LIMMAG'};
+            Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG'};
             Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).MagSys, ResFit(Iobj).LimMag};
             Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);
             

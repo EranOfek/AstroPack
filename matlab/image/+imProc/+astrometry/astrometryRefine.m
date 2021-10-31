@@ -18,7 +18,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   AstroWCS. If empty, will attempt to use the user
     %                   supplied AstroWCS in the 'WCS' function key.
     %                   Default is [].
-    %            'WCS' - An AstroWCS object. If empty, will look for 'RA',
+    %            'WCS' - An AstroWCS object or AstroImage with WCS.
+    %                   If empty, will look for 'RA',
     %                   and 'Dec' columns in the AstroCatalog object.
     %                   Otherwise the RA and Dec will be calculated from
     %                   the AstroWCS object.
@@ -266,6 +267,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     else
         AstrometricCat        = AstroCatalog(size(Obj));  % []
     end
+    NastCat = numel(Args.CatName);
     
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
@@ -278,14 +280,26 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 % get WCS from AstroImage
                 WCS = Obj(Iobj).WCS;
             else
-                WCS = Args.WCS(Iwcs);
+                % WCS can be WCS or AstroImage with WCS
+                if isa(Args.WCS, 'AstroWCS')
+                    WCS = Args.WCS(Iwcs);
+                else
+                    % assume WCS in AstroImage
+                    WCS = Args.WCS(Iwcs).WCS;
+                end
             end
         elseif isa(Obj, 'AstroCatalog')
             Cat = Obj(Iobj);
             if isempty(Args.WCS)
                 WCS = [];
             else
-                WCS = Args.WCS(Iwcs);
+                % WCS can be WCS or AstroImage with WCS
+                if isa(Args.WCS, 'AstroWCS')
+                    WCS = Args.WCS(Iwcs);
+                else
+                    % assume WCS in AstroImage
+                    WCS = Args.WCS(Iwcs).WCS;
+                end
             end
         else
             error('Unsupported input class. First input must be AstroCatalog or AstroImage');
@@ -332,12 +346,19 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         if Args.ReuseAstrometricCat && ~isempty(AstrometricCat) 
             Args.CatName = AstrometricCat(1);
         end
+        
+        if isa(Args.CatName, 'AstroCatalog')
+            Icat = min(Iobj, NastCat);
+            CatName = Args.CatName(Icat);
+        else
+            CatName = Args.CatName;
+        end
             
         % Get astrometric catalog / incluidng proper motion
         % RA and Dec output are in radians
         % If CatName is an AstroCatalog, then will retun as is, but RA and Dec
         % will be converted to OutUnits
-        [AstrometricCat(Iobj), RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
+        [AstrometricCat(Iobj), RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',CatName,...
                                                                                         'CatOrigin',Args.CatOrigin,...
                                                                                         'Radius',Args.CatRadius,...
                                                                                         'RadiusUnits',Args.CatRadiusUnits,...

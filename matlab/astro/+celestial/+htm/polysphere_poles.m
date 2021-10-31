@@ -29,6 +29,6 @@ CD1 = CD1(SI);
 CD2 = CD2(SI);
 CD3 = CD3(SI);
 Corners = [[CD1, CD2, CD3]; [CD1(1), CD2(1), CD3(1)]];
-PoleVec = Util.math.cross_fast(Corners(1:end-1,:),Corners(2:end,:));
+PoleVec = tools.math.geometry.cross_fast(Corners(1:end-1,:),Corners(2:end,:));
 % convert to long/lat
 [PoleLong,PoleLat] = celestial.coo.cosined2coo(PoleVec(:,1),PoleVec(:,2),PoleVec(:,3));
