@@ -1,7 +1,8 @@
 function [AllSI, Result] = multiRaw2proc(FilesList, Args)
     %
     % Example: L=io.files.filelist('LAST*science.fits');
-    % [AllSI,Result]=pipeline.generic.multiRaw2proc(L(200:201),'CalibImages',CI);
+    % [AllSI,Result]=pipeline.generic.multiRaw2proc(L(289:308),'CalibImages',CI);
+    
     
     arguments
         FilesList                                               % Cell array, regexp, or AstroIamge
