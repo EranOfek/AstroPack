@@ -885,13 +885,14 @@ classdef AstroTable < Component
     
         end
 
-        function [Result, Units, Ind] = getColDic(Obj, Columns)
+        function [Result, Units, Ind, ColName] = getColDic(Obj, Columns)
             % get a single Column data from a dictionary of column names
             % Input  : - A single-element AstroTable object.
             %          - A cell array of columns. The first exitsing column will be selected.
             % Output : - A vector of the column content.
             %          - Column units.
             %          - Selected column index.
+            %          - Selected column name.
             % Author : Eran Ofek (Jul 2021)
             % Example: [Result, Units] = getColDic(MatchedCat,Args.CatColNamesX)
             
@@ -900,7 +901,7 @@ classdef AstroTable < Component
                 Columns
             end
                         
-            Ind             = colnameDict2ind(Obj, Columns);
+            [Ind, ColName]             = colnameDict2ind(Obj, Columns);
             if isempty(Ind)
                 Result = [];
                 Units  = '';

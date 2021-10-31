@@ -44,19 +44,28 @@ function Result = unifiedSourcesCatalog(Obj, Args)
     Result  = AstroCatalog(size(Obj));
 
     Iobj = 1;
+    if isa(Obj, 'AstroImage')
+        Cat = Obj(Iobj).CatData;
+    else
+        % assuming AstroCatalog
+        Cat = Obj(Iobj);
+    end
+    
     switch lower(Args.CooType)
         case 'sphere'
-            [ColIndX, ColNameX] = colnameDict2ind(Obj(Iobj), Args.ColNamesRA);
-            [ColIndY, ColNameY] = colnameDict2ind(Obj(Iobj), Args.ColNamesDec);
+            
+            [ColIndX, ColNameX] = colnameDict2ind(Cat, Args.ColNamesRA);
+            [ColIndY, ColNameY] = colnameDict2ind(Cat, Args.ColNamesDec);
         case 'pix'
-            [ColIndX, ColNameX] = colnameDict2ind(Obj(Iobj), Args.ColNamesX);
-            [ColIndY, ColNameY] = colnameDict2ind(Obj(Iobj), Args.ColNamesY);
+            
+            [ColIndX, ColNameX] = colnameDict2ind(Cat, Args.ColNamesX);
+            [ColIndY, ColNameY] = colnameDict2ind(Cat, Args.ColNamesY);
         otherwise
             error('Unknown CooType option');
     end
     
-    [X, Xunit] = Obj(Iobj).getCol(ColIndX);
-    [Y, Yunit] = Obj(Iobj).getCol(ColIndY);
+    [X, Xunit] = Cat.getCol(ColIndX);
+    [Y, Yunit] = Cat.getCol(ColIndY);
 
     % MergedCoo is an AstroCatalog with two columns
     % X, Y of all sources found
@@ -81,6 +90,12 @@ function Result = unifiedSourcesCatalog(Obj, Args)
         %       contains NaNs.
         %       The sources in Obj1 that doesn't have counterparts in
         %       Obj2 are listed in the unmatched catalog.
+
+        % FFU:
+        %ResMatch = matchReturnIndices(Result, Cat, Args)
+        %IndCatNaN = isnan(ResMatch.Obj2_IndInObj1);
+        
+        
         [~, UnMatchedObj] = imProc.match.match(Cat, Result, 'CooType',Args.CooType,...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits,...
