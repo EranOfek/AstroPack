@@ -1,4 +1,4 @@
-function Result = unifiedSourcesCatalog(Obj, Args)
+function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
     % Match multiple catalogs and create a catalog of all unique (by position) sources.
     %       i.e., generate a list of all unique positions that appears in all the AstroCatalog object.
     % Input  : - A multi-element AstroCatalog object.
@@ -44,25 +44,38 @@ function Result = unifiedSourcesCatalog(Obj, Args)
     Result  = AstroCatalog(size(Obj));
 
     Iobj = 1;
+    if isa(Obj, 'AstroImage')
+        Cat = Obj(Iobj).CatData;
+    else
+        % assuming AstroCatalog
+        Cat = Obj(Iobj);
+    end
+    
     switch lower(Args.CooType)
         case 'sphere'
-            [ColIndX, ColNameX] = colnameDict2ind(Obj(Iobj), Args.ColNamesRA);
-            [ColIndY, ColNameY] = colnameDict2ind(Obj(Iobj), Args.ColNamesDec);
+            
+            [ColIndX, ColNameX] = colnameDict2ind(Cat, Args.ColNamesRA);
+            [ColIndY, ColNameY] = colnameDict2ind(Cat, Args.ColNamesDec);
         case 'pix'
-            [ColIndX, ColNameX] = colnameDict2ind(Obj(Iobj), Args.ColNamesX);
-            [ColIndY, ColNameY] = colnameDict2ind(Obj(Iobj), Args.ColNamesY);
+            
+            [ColIndX, ColNameX] = colnameDict2ind(Cat, Args.ColNamesX);
+            [ColIndY, ColNameY] = colnameDict2ind(Cat, Args.ColNamesY);
         otherwise
             error('Unknown CooType option');
     end
     
-    [X, Xunit] = Obj(Iobj).getCol(ColIndX);
-    [Y, Yunit] = Obj(Iobj).getCol(ColIndY);
+    [X, Xunit] = Cat.getCol(ColIndX);
+    [Y, Yunit] = Cat.getCol(ColIndY);
 
     % MergedCoo is an AstroCatalog with two columns
     % X, Y of all sources found
     Result  = AstroCatalog({[X, Y]}, 'ColNames',{ColNameX{1},ColNameY{1}}, 'ColUnits',{Xunit{1}, Yunit{1}});
     
-
+    Nsrc = size(Result.Catalog,1);
+    ResInd(Iobj).IndInUnified = (1:1:Nsrc).';
+    ResInd(Iobj).IndInObj     = (1:1:Nsrc).';
+    
+    
     for Iobj=2:1:Nobj
         
         % read AstroCatalog/AstroImage into Cat
@@ -81,18 +94,34 @@ function Result = unifiedSourcesCatalog(Obj, Args)
         %       contains NaNs.
         %       The sources in Obj1 that doesn't have counterparts in
         %       Obj2 are listed in the unmatched catalog.
-        [~, UnMatchedObj] = imProc.match.match(Cat, Result, 'CooType',Args.CooType,...
-                                                            'Radius',Args.Radius,...
-                                                            'RadiusUnits',Args.RadiusUnits,...
-                                                            'AddIndInRef',false,...
-                                                            'AddDistCol',false,...
-                                                            'ColCatX',ColIndX,...
-                                                            'ColCatY',ColIndY,...
-                                                            'ColRefX',1,...
-                                                            'ColRefY',2);
-        
-        % add UnMatchedObj to MergedCoo
-        Result = merge([Result, UnMatchedObj], {ColNameX{1}, ColNameY{1}});
+
+        % FFU:
+        ResMatch = imProc.match.matchReturnIndices(Result, Cat, 'Radius',Args.Radius,...
+                                                                'RadiusUnits',Args.RadiusUnits,...
+                                                                'CooType',Args.CooType);
+                                                                
+        IndCatNaN = isnan(ResMatch.Obj2_IndInObj1);
+        Result.Catalog = [Result.Catalog; Cat.Catalog(IndCatNaN, [ColIndX, ColIndY])];
+      
+        if nargout>1
+            Ncat           = size(Result.Catalog, 1);
+            Nnan           = sum(IndCatNaN);
+            ResInd(Iobj).IndInUnified = (Ncat+1:1:Ncat+Nnan).';
+            ResInd(Iobj).IndInObj     = find(IndCatNaN);
+        end
+    
+%         [~, UnMatchedObj] = imProc.match.match(Cat, Result, 'CooType',Args.CooType,...
+%                                                             'Radius',Args.Radius,...
+%                                                             'RadiusUnits',Args.RadiusUnits,...
+%                                                             'AddIndInRef',false,...
+%                                                             'AddDistCol',false,...
+%                                                             'ColCatX',ColIndX,...
+%                                                             'ColCatY',ColIndY,...
+%                                                             'ColRefX',1,...
+%                                                             'ColRefY',2);
+%         
+%         % add UnMatchedObj to MergedCoo
+%         Result = merge([Result, UnMatchedObj], {ColNameX{1}, ColNameY{1}});
     end
     
 end

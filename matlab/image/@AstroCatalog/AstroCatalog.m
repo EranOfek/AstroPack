@@ -217,7 +217,7 @@ classdef AstroCatalog < AstroTable
             ColRA  = nan(size(Obj));
             ColDec = nan(size(Obj));
             for Iobj=1:1:Nobj
-                [~, UnitsRA,  IndRA]  = getColDic(Obj(Iobj), DicCooRA);
+                [~, UnitsRA,  IndRA]   = getColDic(Obj(Iobj), DicCooRA);
                 [~, UnitsDec, IndDec] = getColDic(Obj(Iobj), DicCooDec);
                 
                 if ~strcmp(UnitsRA, UnitsDec)

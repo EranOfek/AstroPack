@@ -80,6 +80,46 @@ def log_line(msg, line_num, line):
 
 
 # ===========================================================================
+
+class MarkdownReader:
+
+    def __init__(self, fname):
+        self.fname = fname
+        self.lines = []
+        if fname != '':
+            self.lines = self.read(self.fname)
+
+
+    # Get all lines of specified section (until next heading or end of file)
+    def get_section(self, heading):
+        section_lines = []
+        found = False
+        for i, line in enumerate(self.lines):
+            if line.strip().lower() == heading.strip().lower():
+                found = True
+            elif found:
+                if line.startswith('#'):
+                    break
+
+                section_lines.append(line)
+
+        return section_lines
+
+
+    # Read file to text lines
+    def read(self, fname, fail_non_exist = True):
+        lines = []
+        if os.path.exists(fname):
+            with open(fname) as f:
+                lines = f.read().splitlines()
+        elif fail_non_exist:
+            log('File not found: ' + fname)
+            raise Exception('File not found: ' + fname)
+
+        return lines
+
+
+# ===========================================================================
 #
 class MlxBookmark:
     def __init__(self, text, type, tag):
@@ -500,6 +540,7 @@ class PackageData:
         self.class_dict = {}        # Currently unused
         self.func_dict = {}
         self.comment = ''
+        self.markdown = MarkdownReader()
 
 # ===========================================================================
 # Data for each class
@@ -513,7 +554,9 @@ class ClassData:
         self.prop_dict = {}         # Currently unused
         self.comment = ''
         self.long_comment = ''
-        self.unitTest_lines = []
+        self.unit_test_lines = []
+        self.markdown = MarkdownReader()
+
 
 # ===========================================================================
 # Data for each function (in package or class)
