@@ -300,7 +300,18 @@ classdef AstroWCS < Component
                 Obj
                 Header      = AstroHeader(1);
             end
-
+            
+            % Delete all distortion coefficients from original header (if
+            % exist). Required in order not to leave old coefficinets that
+            % are not overwritten
+            Header.deleteKey('PV\d+_\d+');
+            Header.deleteKey('A_\d+_\d+');
+            Header.deleteKey('B_\d+_\d+');
+            Header.deleteKey('AP_\d+_\d+');
+            Header.deleteKey('BP_\d+_\d+');
+            
+            
+            % Add/create all keywords
             KeyCell = Obj.wcs2keyCell;
             Header.replaceVal(KeyCell(:,1),KeyCell(:,2),'Comment',KeyCell(:,3));
        end
