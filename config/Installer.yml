@@ -1,7 +1,19 @@
 # Installer Configuration
 
+# Common and default settings
+Default:
+    # Linux, override by setting it explicitly in the items below
+    InstallationLocation        : '~/matlab/data'
+    
+    # Windows
+    InstallationRootWindows     : 'C:/AstroPack'
+    InstallationLocationWindows : 'C:/AstroPack/matlab/data'
+
+
 Atmosphere:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'Atmosphere'
     SubDir               : 'spec/Atmosphere'
@@ -12,7 +24,9 @@ Atmosphere:
 
 
 CALSPEC:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'CALSPEC'
     SubDir               : 'spec/CALSPEC'
@@ -23,7 +37,9 @@ CALSPEC:
 
 
 cats:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'cats'
     SubDir               : '+cats'
@@ -34,7 +50,9 @@ cats:
 
 
 EarthGravity:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'EarthGravity'
     SubDir               : 'SolarSystem/EarthGravity'
@@ -45,7 +63,9 @@ EarthGravity:
 
 
 GAIA_SpecTemplate:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'GAIA_SpecTemplate'
     SubDir               : 'spec/GAIA_SpecTemplate'
@@ -56,7 +76,9 @@ GAIA_SpecTemplate:
 
 
 MinorPlanets:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'MinorPlanets'
     SubDir               : 'SolarSystem/MinorPlanets'
@@ -67,7 +89,9 @@ MinorPlanets:
 
 
 MoonELP:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'MoonELP'
     SubDir               : 'SolarSystem/ELP'
@@ -78,7 +102,9 @@ MoonELP:
 
 
 PicklesStellarSpec:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'PicklesStellarSpec'
     SubDir               : 'spec/PicklesStellarSpec'
@@ -89,7 +115,9 @@ PicklesStellarSpec:
 
 
 SpecGalQSO:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'SpecGalQSO'
     SubDir               : 'spec/SpecGalQSO'
@@ -100,7 +128,9 @@ SpecGalQSO:
 
 
 TestImagesLAST:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'TestImagesLAST'
     SubDir               : 'LAST/TestImages'
@@ -111,7 +141,9 @@ TestImagesLAST:
 
 
 Time:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'Time'
     SubDir               : 'SolarSystem/Time'
@@ -122,7 +154,9 @@ Time:
 
 
 VSOPE87:
-    InstallationLocation : '~/matlab/data'
+    # Uncomment to override the default
+    #InstallationLocation : '~/matlab/data'
+
     # The following are cell arrays of entry per dataset
     DataName             : 'VSOPE87'
     SubDir               : 'SolarSystem/VSOPE87'
