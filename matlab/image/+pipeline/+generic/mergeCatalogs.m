@@ -33,7 +33,7 @@ function Result = mergeCatalogs(Obj, Args)
         
         Args.unifiedSourcesCatalogArgs cell     = {};
         Args.matchArgs cell          = {};
-        Args.MatchedColums           = {'RA','Dec','PSF_MAG','PSF_MAGERR','APER_MAG_1','APER_MAGERR_1','APER_MAG_2','APER_MAGERR_2'};
+        Args.MatchedColums           = {'RA','Dec','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3'};
         Args.fitMotionArgs cell      = {'Prob',1e-5};
     end
     
@@ -49,6 +49,7 @@ function Result = mergeCatalogs(Obj, Args)
         
     MatchedS = MatchedSources;
     MatchedS.addMatrix(Matched, Args.MatchedColums);
+    % populate JD
     
     
     

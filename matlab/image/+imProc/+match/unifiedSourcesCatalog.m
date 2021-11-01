@@ -156,6 +156,9 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
             FFM = ~isnan(ResMatchInd.Obj1_IndInObj2);
             Matched(Iobj).Catalog = nan(Nunified, Ncol);
             Matched(Iobj).Catalog(FFM, :) = Cat.Catalog(ResMatchInd.Obj1_IndInObj2(FFM),:);
+            Matched(Iobj).ColNames        = Cat.ColNames;
+            Matched(Iobj).ColUnits        = Cat.ColUnits;
+            Matched(Iobj).ColDesc         = Cat.ColDesc;
             
         end
     end
