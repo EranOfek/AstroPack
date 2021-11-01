@@ -12,7 +12,7 @@
 % I.install               % install all data sets [very large!]
 % I.install({'Time','MinorPlanets'});
 % I.install({'GAIA_SpecTemplate'}); % install specific datasets
-% I.install({'+cats'}); % install specific datasets (and open tar file)
+% I.install({'cats'}); % install specific datasets (and open tar file)
 
 % #functions (autogen)
 % Installer - constructor for the Installre class (a utility class for AstroPack installation
@@ -120,6 +120,7 @@ classdef Installer < Component
                 % Chen - Disable delete until we make sure that everything
                 % is fine
                 Args.Delete = false;
+                io.msgLog(LogLevel.Info, 'installSingle: delete is currently disabled on Windows');
                 
                 % assume windows - replace / with \
                 DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation,'/',filesep);
@@ -136,6 +137,7 @@ classdef Installer < Component
             if IsWindows
                 PathWin = 'C:\AstroPack';
                 if ~isfolder(PathWin)
+                    io.msgLog(LogLevel.Info, 'creating folder: %s', PathWin);
                     mkdir(PathWin)
                 end
                 cd(PathWin);
@@ -153,6 +155,7 @@ classdef Installer < Component
             %
             io.msgLog(LogLevel.Info, 'Installer: %s', DataStruct.InstallationLocation);
             if ~isfolder(DataStruct.InstallationLocation)
+                io.msgLog(LogLevel.Info, 'creating folder: %s', DataStruct.InstallationLocation);
                 mkdir(DataStruct.InstallationLocation);
             end
             
@@ -172,6 +175,7 @@ classdef Installer < Component
             for Iparts=1:1:Nparts
                 SubDir = sprintf('%s%s%s',SubDir,filesep,Parts{Iparts});
                 if ~isfolder(Parts{Iparts})
+                    io.msgLog(LogLevel.Info, 'creating folder: %s', Parts{Iparts});
                     mkdir(Parts{Iparts});
                 end
                 cd(Parts{Iparts});
@@ -202,35 +206,41 @@ classdef Installer < Component
             if numel(List)>0
                 % delete content before reload
                 if Args.Delete
+                    io.msgLog(LogLevel.Info, 'deleting content before reload: %s/*', pwd);
                     delete('*');
                 end
                 if numel(List) > 0
-                    io.msgLog(LogLevel.Info, 'pwget: %d items - %s', numel(List), List{1});
+                    io.msgLog(LogLevel.Info, 'pwget: %d item(s) - %s', numel(List), List{1});
                 end
-                www.pwget(List, Args.wgetPars, Args.Npwget);
+                
+                try
+                    www.pwget(List, Args.wgetPars, Args.Npwget);
+                catch
+                    io.msgLog(LogLevel.Error, 'www.pwget exception');1
+                end
                 
                 pause(5);
                 io.files.files_arrived([], 10);
                 F = dir('*.gz');
                 for I=1:1:numel(F)
-                    io.msgLog(LogLevel.Info, 'gunzip: %s', F(I).name);
+                    io.msgLog(LogLevel.Info, 'gunzip: %s in %s', F(I).name, pwd);
                     gunzip(F(I).name);
                 end
                 
                 % Does it work on Windows???
                 F = dir('*.tar');
                 for I=1:1:numel(F)
-                    io.msgLog(LogLevel.Info, 'untar: %s', F(I).name);
+                    io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
                     untar(F(I).name);
                 end
                 
                 % Delete source archives                
                 try
-                    io.msgLog(LogLevel.Info, 'deleting *.gz');
+                    io.msgLog(LogLevel.Info, 'deleting %s/*.gz', pwd);
                     delete('*.gz');
                 end
                 try
-                    io.msgLog(LogLevel.Info, 'deleting *.tar');
+                    io.msgLog(LogLevel.Info, 'deleting %s/*.tar', pwd);
                     delete('*.tar');
                 end
             end
@@ -423,8 +433,9 @@ classdef Installer < Component
                     %--- Generate the interface file ---
                     ProgName = regexprep(List(If).name,Args.Exten{Iext},'m');
                     FunName  = regexprep(ProgName,'.m','');
+                    
                     % print status to screen
-                    fprintf('Generating function %s\n',FunName);
+                    io.msgLog(LogLevel.Info, 'Generating function %s\n', FunName);
 
                     switch lower(Args.Exten{Iext})
                         case 'mat'
@@ -446,7 +457,6 @@ classdef Installer < Component
                             fprintf(FID,'\n');
                             fprintf(FID,'Nout = nargout;\n');
                             fprintf(FID,'[varargout{1:Nout}]=FITS.fitsread(''%s%s%s'',varargin{:});\n',List(If).folder,filesep,List(If).name);
-
                             fclose(FID);
 
                         otherwise
@@ -523,13 +533,14 @@ classdef Installer < Component
             else
                 Ind = Obj.search(DataName);
             end
-                
+               
+            io.msgLog(LogLevel.Info, 'install: items to install with installSingle: %d', numel(Ind));
             for I=1:1:numel(Ind)
                 Iobj = Ind(I);
                 try
                     Installer.installSingle(Obj(Iobj), 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
                 catch
-                    io.msgLog(LogLevel.Error, 'installSingle failed: %d', Iobj);
+                    io.msgLog(LogLevel.Error, 'installSingle failed: %d: %s', Iobj, Obj(Iobj));
                 end
             end
         end
