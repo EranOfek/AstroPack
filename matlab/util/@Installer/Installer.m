@@ -540,7 +540,7 @@ classdef Installer < Component
                 Ind = Obj.search(DataName);
             end
                
-            io.msgLog(LogLevel.Info, 'install: items to install with installSingle: %d', numel(Ind));
+            io.msgLog(LogLevel.Info, 'install started: items to install with installSingle: %d', numel(Ind));
             for I=1:1:numel(Ind)
                 Iobj = Ind(I);
                 try
@@ -553,9 +553,10 @@ classdef Installer < Component
                 switch DataName{I}
                     case 'cats'
                         VO.prep.prep_data_dir;
-                end
-                        
+                end                        
             end
+            
+            io.msgLog(LogLevel.Info, 'install: done');
         end
         
         
