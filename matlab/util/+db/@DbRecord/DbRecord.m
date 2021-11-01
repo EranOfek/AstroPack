@@ -43,15 +43,16 @@ classdef DbRecord < Base
                 Args.ColNames cell = [];  % Required when Data is Cell or Matrix
             end
             
+            % Check what we need to transpose
             if ~isempty(Data)
                 if isstruct(Data)
                     Obj.Data = Data;
                 elseif istable(Data)
                     Obj.Data = table2struct(Data);
                 elseif iscell(Data)
-                    Obj.Data = cell2struct(Data, Args.ColNames, 1);
+                    Obj.Data = cell2struct(Data, Args.ColNames, 2);
                 elseif isnumeric(Data)
-                    Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 1);  %numel(Args.ColNames));
+                    Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 2);  %numel(Args.ColNames));
                 end
             end
             
@@ -137,13 +138,15 @@ classdef DbRecord < Base
         
         function Result = convert2cell(Obj)
             % Convert record(s) to cell
-            Result = squeeze(struct2cell(Obj.Data));
+            % Note that we need to transpose it
+            Result = squeeze(struct2cell(Obj.Data))';
         end
 
 
         function Result = convert2mat(Obj)
             % Convert record(s) to matrix, non-numeric fields are
-            Result = cell2mat(squeeze(struct2cell(Obj.Data)));
+            % Note that we need to transpose it
+            Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
         end
 
         

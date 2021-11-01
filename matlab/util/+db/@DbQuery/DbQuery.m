@@ -122,7 +122,17 @@ classdef DbQuery < Component
         end
     end
     
-    
+%----------------------------------------------------------------------    
+    methods % Setup
+        function Result = init(Obj, Args)
+            arguments
+                Obj
+                Args.Db
+            end
+            
+            Result = true;
+        end
+    end
     %----------------------------------------------------------------------
     methods % High-level: Select
         

@@ -1,0 +1,11 @@
+# Database Configuration File
+
+#
+Pipeline:
+    DriverName : postgres     # Driver name
+    DatabaseName : pipeline   # Database name
+    UserName : postgres       # Login user
+    Password : pass           # Login password
+    Host : localhost          # Host name or IP address
+    Port : 5432               # Post number, 5432 is Postgres default
+
