@@ -7,12 +7,12 @@
 %
 % Author : Eran Ofek (Sep 2021)
 % Examples:
-% I = Installer;  % create installer object
-% I.seeAvailableData      % print a table of all available datasets and description and size
-% I.install               % install all data sets [very large!]
+% I = Installer;                        % create installer object
+% I.seeAvailableData                    % print a table of all available datasets and description and size
+% I.install                             % install all data sets [very large!]
 % I.install({'Time','MinorPlanets'});
-% I.install({'GAIA_SpecTemplate'}); % install specific datasets
-% I.install({'cats'}); % install specific datasets (and open tar file)
+% I.install({'GAIA_SpecTemplate'});     % install specific datasets
+% I.install({'cats'});                  % install specific datasets (and open tar file)
 
 % #functions (autogen)
 % Installer - constructor for the Installre class (a utility class for AstroPack installation
@@ -54,48 +54,57 @@ classdef Installer < Component
                 DataName  = [];     %
             end
 
+            % Check O/S
+            IsUnix = isunix || ismac;
+            IsWindows = ~IsUnix;
+                        
+            if IsWindows
+                DefaultPath = Obj.Config.Data.Installer.Default.InstallationLocationWindows;
+            else
+                DefaultPath = Obj.Config.Data.Installer.Default.InstallationLocation;
+            end
+
             if isnumeric(DataName) && ~isempty(DataName)
                 Obj.DataName = [];
             else
                 if isempty(DataName)
                     % load all files
-                    DataName = fieldnames(Obj.Config.Data.Installer);
+                    DataName = fieldnames(Obj.Config.Data.Installer.Items);
                     if isempty(DataName)
                         error('Installer yml files are not loaded into configuration');
                     end
                 end
             
-                % Since Config.Data.Installer contains also the generated 
-                % 'FileName' field, we should not iterate it
-                % @Todo: Find better solution, what if we have more fields
-                % like this???
-                Ndn = numel(DataName)-1;
-                ConfigStruct = Obj.Config.Data.Installer;
+                % Load all sections under 'Items'
+                Ndn = numel(DataName);
+                ConfigStruct = Obj.Config.Data.Installer.Items;
                 for Idn=1:1:Ndn
                     
                     % Create new element in array
                     Obj(Idn) = Installer(1);
                     
                     % Set data from configuration
-                    Obj(Idn).DataName             = ConfigStruct.(DataName{Idn}).DataName;
-                    Obj(Idn).InstallationLocation = ConfigStruct.(DataName{Idn}).InstallationLocation;
+                    Obj(Idn).DataName             = ConfigStruct.(DataName{Idn}).DataName;                    
                     Obj(Idn).SubDir               = ConfigStruct.(DataName{Idn}).SubDir;
                     Obj(Idn).URL                  = ConfigStruct.(DataName{Idn}).URL;
                     Obj(Idn).Size                 = ConfigStruct.(DataName{Idn}).Size;
                     Obj(Idn).SearchFile           = ConfigStruct.(DataName{Idn}).SearchFile;
                     Obj(Idn).Description          = ConfigStruct.(DataName{Idn}).Description;
+                    
+                    % Use default if not defined
+                    if isfield(ConfigStruct.(DataName{Idn}), 'InstallationLocation') && ...
+                            ~isempty(ConfigStruct.(DataName{Idn}).InstallationLocation)
+                        Obj(Idn).InstallationLocation = ConfigStruct.(DataName{Idn}).InstallationLocation;
+                    else
+                        Obj(Idn).InstallationLocation = DefaultPath;
+                    end
                 end
             end
             
         end
     end
     
-    
-    methods % setters/getters
-    
-       
-    end
-    
+        
     methods (Static)
         function installSingle(DataStruct, Args)
             % Install single DataName (utility function for install)
@@ -111,14 +120,13 @@ classdef Installer < Component
                 Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
             end
             
-
+            % Check O/S
             IsUnix = isunix || ismac;
             IsWindows = ~IsUnix;
             
             if IsWindows
                 
-                % Chen - Disable delete until we make sure that everything
-                % is fine
+                % Chen - Disable delete until we make sure that everything is fine
                 Args.Delete = false;
                 io.msgLog(LogLevel.Info, 'installSingle: delete is currently disabled on Windows');
                 
@@ -133,24 +141,20 @@ classdef Installer < Component
 
             PWD = pwd;
             
-            % Windows
+            % Windows - use absolute folder name
             if IsWindows
-                PathWin = 'C:\AstroPack';
+                PathWin = Configuration.getSingleton().Data.Installer.Default.InstallationRootWindows;
                 if ~isfolder(PathWin)
                     io.msgLog(LogLevel.Info, 'creating folder: %s', PathWin);
                     mkdir(PathWin)
                 end
                 cd(PathWin);
+                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation, '~', PathWin);
                 
-            % Linux
+            % Linux - allow folder relative to user root
             else
                 cd('~/');
-            end
-            
-            %
-            if IsWindows
-                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation, '~', PathWin);
-            end
+            end    
             
             %
             io.msgLog(LogLevel.Info, 'Installer: %s', DataStruct.InstallationLocation);
@@ -247,6 +251,7 @@ classdef Installer < Component
             cd(PWD);
             
         end
+        
         
         function T = readElementsFileJPL(FileName, Type)
             % Read JPL orbital elements file
@@ -530,6 +535,7 @@ classdef Installer < Component
             Nobj = numel(Obj);
             if isempty(DataName)
                 Ind = (1:1:Nobj);
+                DataName = {Obj.DataName};
             else
                 Ind = Obj.search(DataName);
             end
@@ -540,7 +546,7 @@ classdef Installer < Component
                 try
                     Installer.installSingle(Obj(Iobj), 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
                 catch
-                    io.msgLog(LogLevel.Error, 'installSingle failed: %d: %s', Iobj, Obj(Iobj));
+                    io.msgLog(LogLevel.Error, 'installSingle failed: %d', I);
                 end
                 
                 % special treatment
