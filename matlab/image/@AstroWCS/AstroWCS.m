@@ -47,7 +47,6 @@
 classdef AstroWCS < Component
     % Component should contain:
     
-    % Add comments
     properties (Access = public)
         NAXIS(1,1)   uint8  = 2;            % Number of axes
         WCSAXES(1,1) uint8  = 2;            % WCS dimensionality
