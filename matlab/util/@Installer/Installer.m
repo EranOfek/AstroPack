@@ -28,7 +28,6 @@
 % #/functions (autogen)
 %
 
-
 classdef Installer < Component
     % Installer class
     
