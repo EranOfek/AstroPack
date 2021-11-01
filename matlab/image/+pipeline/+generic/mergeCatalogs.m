@@ -33,17 +33,24 @@ function Result = mergeCatalogs(Obj, Args)
         
         Args.unifiedSourcesCatalogArgs cell     = {};
         Args.matchArgs cell          = {};
-        Args.MatchedColums           = {'RA','Dec','PSF_MAG','PSF_MAGERR','APER_MAG_1_','APER_MAGERR_1_','APER_MAG_2_','APER_MAGERR_2_'});
+        Args.MatchedColums           = {'RA','Dec','PSF_MAG','PSF_MAGERR','APER_MAG_1','APER_MAGERR_1','APER_MAG_2','APER_MAGERR_2'};
         Args.fitMotionArgs cell      = {'Prob',1e-5};
     end
     
     % find all unique sources
-    Obj=AllSI(:,1);
-    
-    [AllSources, AllInd] = imProc.match.unifiedSourcesCatalog(Obj, 'CooType',Args.CooType,...
+    [Nepochs, Nfields] = size(Obj);
+
+    for Ifields=1:1:Nfields
+        [AllSources, AllInd, Matched] = imProc.match.unifiedSourcesCatalog(Obj(:,Ifields), 'CooType',Args.CooType,...
                                                          'Radius',Args.Radius,...
                                                          'RadiusUnits',Args.RadiusUnits,...
                                                          Args.unifiedSourcesCatalogArgs{:});
+    end
+        
+    MatchedS = MatchedSources;
+    MatchedS.addMatrix(Matched, Args.MatchedColums);
+    
+    
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
