@@ -60,6 +60,7 @@ classdef Installer < Component
                         
             if IsWindows
                 DefaultPath = Obj.Config.Data.Installer.Default.InstallationLocationWindows;
+                io.msgLog(LogLevel.Warning, 'Installer is not working for Windows, wget is missing and there are other issues with ~ folder');
             else
                 DefaultPath = Obj.Config.Data.Installer.Default.InstallationLocation;
             end
