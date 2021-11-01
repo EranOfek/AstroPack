@@ -46,6 +46,7 @@ classdef Installer < Component
     
     %--------------------------------------------------------
     methods % constructor
+	
         function Obj = Installer(DataName)
             % constructor for the Installre class (a utility class for
             % AstroPack installation
