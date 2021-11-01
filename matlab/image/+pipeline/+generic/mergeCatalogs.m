@@ -4,6 +4,8 @@ function Result = mergeCatalogs(Obj, Args)
     arguments
         Obj
         Args.CooType                 = 'sphere';
+        Args.Radius                  = 2;
+        Args.RadiusUnits             = 'arcsec';
         
         Args.ColPrefix cell          = {'Mean_', 'Med_', 'Std_', 'Err_'};
         Args.ColGeneratingFun        = {@mean, @median, @std, @tools.math.stat.mean_error};
@@ -36,10 +38,24 @@ function Result = mergeCatalogs(Obj, Args)
     end
     
     % find all unique sources
-    AllSources = imProc.match.unifiedSourcesCatalog(Obj, 'CooType',Args.CooType, Args.unifiedSourcesCatalogArgs{:});
+    Obj=AllSI(:,1);
     
+    [AllSources, AllInd] = imProc.match.unifiedSourcesCatalog(Obj, 'CooType',Args.CooType,...
+                                                         'Radius',Args.Radius,...
+                                                         'RadiusUnits',Args.RadiusUnits,...
+                                                         Args.unifiedSourcesCatalogArgs{:});
+    
+    Nobj = numel(Obj);
+    for Iobj=1:1:Nobj
+        
+    end
+    
+                                                     
     % Match catalogs by RA/Dec or X/Y
-    [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = imProc.match.match(Obj, AllSources, 'CooType',Args.CooType, Args.matchArgs{:});
+    [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = imProc.match.match(Obj, AllSources, 'CooType',Args.CooType,...
+                                                                                         'Radius',Args.Radius,...
+                                                                                         'RadiusUnits',Args.RadiusUnits,...
+                                                                                         Args.matchArgs{:});
     
     % Define the matched columns
     MatchedColums = unique([Args.MatchedColums(:), Args.ColsToCalcMean(:); Args.ColsToCalcMedian(:); Args.ColsToCalcStd(:); Args.ColsToCalcErr(:)]);

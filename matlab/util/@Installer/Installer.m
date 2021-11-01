@@ -542,6 +542,13 @@ classdef Installer < Component
                 catch
                     io.msgLog(LogLevel.Error, 'installSingle failed: %d: %s', Iobj, Obj(Iobj));
                 end
+                
+                % special treatment
+                switch DataName{I}
+                    case 'cats'
+                        VO.prep.prep_data_dir;
+                end
+                        
             end
         end
         
