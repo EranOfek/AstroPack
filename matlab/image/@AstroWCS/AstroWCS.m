@@ -966,18 +966,20 @@ classdef AstroWCS < Component
             % Create and populate an AstroWCS object from an AstroHeader object
             % Input  : - AstroHeader object.
             % Output : - AstroWCS object.
-            % Author : Yossi Shvartzvald (August 2021)
+            % Author : Yossi Shvartzvald (October 2021)
             % Example:
             %           AH = AstroHeader(Im_name); AW = AstroWCS.header2wcs(AH);
             
             Nobj   = numel(AH);
             Result = AstroWCS(size(AH));
             for Iobj=1:1:Nobj
-            
-                % Read number of axes
+                
+                % Read all single val parmeters
+                KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE'});
+                
                 % if WCSAXES is not available use NAXIS as default
-                Result(Iobj).NAXIS = AH(Iobj).getVal('NAXIS');
-                Result(Iobj).WCSAXES = AH(Iobj).getVal('WCSAXES');
+                Result(Iobj).NAXIS = KeyValStruct.NAXIS;
+                Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
                 if (Result(Iobj).WCSAXES==0)
                     Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
                 end
@@ -1003,13 +1005,13 @@ classdef AstroWCS < Component
                 Result(Iobj).read_ctype;
             
                 [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
+                
                 % Get base WCS info
-
-                if AH(Iobj).isKeyExist('LONPOLE')
-                    Result(Iobj).LONPOLE = AH(Iobj).getVal('LONPOLE');
+                if ~isnan(KeyValStruct.LONPOLE)
+                    Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
                 end
-                if AH(Iobj).isKeyExist('LATPOLE')
-                    Result(Iobj).LATPOLE = AH(Iobj).getVal('LATPOLE');
+                if ~isnan(KeyValStruct.LATPOLE)
+                    Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
                 end
 
 
