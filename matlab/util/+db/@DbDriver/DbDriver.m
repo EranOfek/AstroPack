@@ -190,7 +190,7 @@ classdef DbDriver < Component
             % Get singleton Map object that maps database type to DbDriver object
             persistent Map
             if isempty(Map)
-                Map = ComponentMap('DbDriver');
+                Map = ComponentMap('Name', 'DbDriver');
             end
             
             % Set default database type

@@ -26,7 +26,7 @@ classdef VirtImageManager < ComponentMap
     methods % Constructor
         
         function Obj = VirtImageManager()
-            Obj@ComponentMap('VirtImage');
+            Obj@ComponentMap('Name', 'VirtImage');
             Obj.msgLog(LogLevel.Debug, 'VirtImageManager created');
             
         end

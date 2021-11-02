@@ -242,7 +242,7 @@ classdef Dictionary < Component
         function Result = getDict(DictName)
             persistent Map
             if isempty(Map)
-                Map = ComponentMap('DictionaryFromConfig');
+                Map = ComponentMap('Name', 'DictionaryFromConfig');
             end
             
             % Set default database type

@@ -1,18 +1,25 @@
-% DbConnection Class, connection to database on host, as use
-% Wrapper for Java Connection class
+% DbConnection Class, connection to database
+% Impleented as wrapper for Java Connection class
 % 'jdbc:postgresql://localhost:5432/pipeline'
 %
 % Used internally by DbQuery
+%
+% Usual usage:
+%
+% Use the static function getDbConnection() to get or create DbConnection
+% object, settings will be loaded from configuration.
+%
+%   DbConn = db.DbConnection.getDbConnection('unittest');
+%
+%
 
 % #functions (autogen)
 % DbConnection - Constructor
 % close - Disconnect from database,  @Todo
 % delete - Destructor
-% getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
 % getDbConnection - Search global (singleton) map of DbConnection for the specified connection key
 % newQuery - Create new DbQuery instance linked to this connection
 % open - Connect to database specified by Host:Port:Database as UserName/Password
-% setupDefault -
 % #/functions (autogen)
 %
 
@@ -21,24 +28,28 @@ classdef DbConnection < Component
     % Properties
     properties (SetAccess = public)
         
+        % Database alias from Config.Data.Database.Items
+        Db              = 'UnitTest'    % Alias
+        
         % Connection details provided by user
-        DriverName = 'postgres'     % Driver name
-        DatabaseName = 'pipeline'   % Database name
-        UserName = 'postgres'       % Login user
-        Password = 'pass'           % Login password
-        Host = 'localhost'          % Host name or IP address
-        Port = 5432                 % Post number, 5432 is Postgres default
-                                    
+        % All values should be loaded from Config
+        DriverName      = '' %postgres'    % Driver name
+        DatabaseName    = '' %unittest'    % Database name
+        UserName        = '' %postgres'    % Login user
+        Password        = '' %pass'        % Login password
+        Host            = '' %localhost'   % Host name or IP address
+        Port            = 0  %5432         % Post number, 5432 is Postgres default
+        DriverUrl       = ''               % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
+        
         % Internal data and flags
-        Url = ''                    % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
-        IsOpen = false              % True if connection is open
+        IsOpen = false                  % True if connection is open
         
         % Objects
-        Driver          = []        % DbDriver used by this connection
+        Driver          = []            % DbDriver used by this connection
         
         % Java objects
-        JavaConn        = []        % Java Connection object, returned by connect()
-        JavaMetadata    = []        % Metadata
+        JavaConn        = []            % Java Connection object, returned by connect()
+        JavaMetadata    = []            % Metadata
 
     end
     
@@ -48,19 +59,62 @@ classdef DbConnection < Component
         function Obj = DbConnection(Args)
             % Constructor
             arguments
-                Args.Conf = []
+                % Use to specify database alias from Config.Data.Database.Items
+                Args.Db = ''
+                Args.UseConfig = true
+                
+                % Allow user to set value explicitly
                 Args.DriverName
                 Args.Host
                 Args.DatabaseName
                 Args.User
                 Args.Password
                 Args.Port
+                Args.DriverUrl
             end            
+            
+            % Check if already exists
+            if ~isempty(Args.Db)
+                DbConn = db.DbConnection.getDbConnection(Args.Db, 'Create', false);
+                if ~isempty(DbConn)
+                    io.msgLog(LogLevel.Error, 'DbConnection: Already created by alias: %s', Args.Db);
+                    
+                    % @Todo: Throw exception!
+                    return;
+                end
+            end
+
             Obj.setName('DbConnection');
             Obj.needUuid();
-            Obj.init(Args.Conf);
-            Obj.setProps(Args);
-            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
+            
+            % Set default values from config
+            if ~isempty(Obj.Config.Data.Database)
+                Conf = Obj.Config.Data.Database.Default;
+                Obj.setProps(Conf);
+            end
+
+            % Alias specified, set values from config
+            if ~isempty(Args.Db) && Args.UseConfig
+                Obj.Db = Args.Db;
+                Alias = db.DbConnection.findFieldIC(Obj.Config.Data.Database.Items, Obj.Db);
+                if ~isempty(Alias)
+                    Obj.Db = Alias;
+                    Obj.msgLog(LogLevel.Info, 'Using db alias from config: %s', Obj.Db);
+                    Item = Obj.Config.Data.Database.Items.(Obj.Db);
+                    Obj.setProps(Item);
+                else
+                    Obj.msgLog(LogLevel.Warning, 'Db alias not found in config, make sure this is on purpose: %s', Obj.Db);
+                end
+                
+            % Alias not speified, use explict values
+            else
+                Obj.setProps(Args);               
+            end
+            
+            % Register 
+            db.DbConnection.getDbConnection('', 'DbConn', Obj, 'Register', true);
+
+            Obj.msgLog(LogLevel.Debug, 'created: %s, uuid: %s', Obj.Db, Obj.Uuid);
         end
         
                 
@@ -71,32 +125,12 @@ classdef DbConnection < Component
     end
     
     
-    methods % Connect, disconnect
-        
-        function Result = setup(Obj, Args)
-            arguments
-                Obj
-                Args.Conf = []
-            end
-            
-            if isempty(Args.Conf)
-                Args.Conf = Obj.Config.Data.Database;
-            end
-            
-            Obj.setProps(Args.Conf);  %DriverName  = Conf.DriverName;
-            %Obj.Host        = Conf.Host;
-            %Obj.Database    = Conf.Database;
-            %Obj.User        = Conf.User;
-            %Obj.Password    = Conf.Password;
-            %Obj.Port        = Conf.Port;
-            Result = true;
-        end
-        
+    methods % Connect, disconnect         
         
         function Result = open(Obj)
             % Connect to database specified by Host:Port:Database as UserName/Password
             
-            PerfLog = io.FuncLog('DbConnection.open');
+            %PerfLog = io.FuncLog('DbConnection.open');
             Obj.msgLog(LogLevel.Info, 'open');
             Result = false;
             
@@ -115,9 +149,11 @@ classdef DbConnection < Component
                 end
             end
 
-            % Prepare URL
-            Obj.Url = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
-            Obj.msgLog(LogLevel.Info, 'open: Url: %s', Obj.Url);
+            % Prepare DriverUrl (or use the specified one)
+            if isempty(Obj.DriverUrl)
+                Obj.DriverUrl = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+            end
+            Obj.msgLog(LogLevel.Info, 'open: Url: %s', Obj.DriverUrl);
                 
             % Prepare username and password
             try
@@ -132,14 +168,14 @@ classdef DbConnection < Component
             % Connect to database
             try
                 % Prepare URL from host/port/database
-                Obj.JavaConn = Obj.Driver.JavaDriver.connect(Obj.Url, JavaProps);
+                Obj.JavaConn = Obj.Driver.JavaDriver.connect(Obj.DriverUrl, JavaProps);
                 Obj.IsOpen = true;
-                Obj.msgLog(LogLevel.Info, 'open: connect OK: %s', Obj.Url);
+                Obj.msgLog(LogLevel.Info, 'open: connect OK: %s', Obj.DriverUrl);
             catch
                 Obj.msgLog(LogLevel.Error, 'open: JavaDriver.connect failed');
             end
 
-            % Get connetion metadata
+            % Get connection metadata
             try
                 Obj.msgLog(LogLevel.Debug, 'open: calling getMetaData');
                 Obj.JavaMetadata = Obj.JavaConn.getMetaData();
@@ -185,51 +221,69 @@ classdef DbConnection < Component
         end
         
         
-        function Result = getDbConnection(ConnKey)
+        function Result = getDbConnection(Alias, Args)
             % Search global (singleton) map of DbConnection for the
             % specified connection key
+            %
+            % Since persistent data is visible only inside this function,
+            % we call the function with different option for find and to
+            % register
             arguments
-                ConnKey
+                Alias
+                Args.Create     = true
+                Args.Register   = false
+                Args.DbConn     = []
+            end
+
+            if isempty(Alias) && isempty(Args.DbConn)
+                error('getDbConnection: Must specify Db alias');
             end
             
+            % Create persisent (singleton) map for all DbConnection(s)
             persistent Map
             if isempty(Map)
-                Map = ComponentMap('DbConnection');
+                Map = ComponentMap('Name', 'DbConnection');
+            end                       
+           
+            % Register in map
+            if ~isempty(Args.DbConn) && Args.Register
+                Res = Map.find(Args.DbConn.Db);            
+                if isempty(Res)
+                    io.msgLog(LogLevel.Debug, 'getDbConnection: Register: %s', Args.DbConn.Db);
+                    Args.DbConn.MapKey = Args.DbConn.Db;
+                    Map.add(Args.DbConn);
+                end
+                Result = Args.DbConn;
+                return;
             end
-            
-            if isempty(ConnKey)
-                ConnKey = 'Default';
-            end
-            
-            Key = ConnKey;
-            Comp = Map.find(Key);
             
             % Not found, create new connection object
-            if isempty(Comp)
-                Comp = db.DbConnection();
-                Comp.MapKey = ConnKey;
-                Map.add(Comp);
-                
-            % Already exist in the map, just return it
-            else
+            % Already exist in the map, just return it            
+            DbConn = Map.find(Alias);            
+            if isempty(DbConn) && Args.Create
+                % This will call us again with Register=true
+                io.msgLog(LogLevel.Debug, 'getDbConnection: Creating: %s', Alias);
+                DbConn = db.DbConnection('Db', Alias);
             end
-            Result = Comp;
+            Result = DbConn;
         end
     end
-    
     
 
-    % Unit test
     methods(Static)
-        function Result = setupDefault()
-            
-            Con = db.DbConnection.getDbConnection('default');
-            assert(~isempty(Con));
-            Result = true;
+        function Result = findFieldIC(Struct, Field)
+            % Search struct field name, ignore case
+            Result = '';
+            List = fieldnames(Struct);
+            for i=1:numel(List)
+                if strcmpi(List{i}, Field)
+                    Result = List{i};
+                    break;
+                end                
+            end            
         end
-        
     end
-        
+    
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)

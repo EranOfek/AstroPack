@@ -42,6 +42,7 @@ classdef Installer < Component
             % constructor for the Installer class (a utility class for
             % AstroPack installation
 
+            Obj.setName('Installer');
             if tools.os.iswindows
                 io.msgLog(LogLevel.Info, 'Download wget for Windows from https://eternallybored.org/misc/wget/');
                 io.msgLog(LogLevel.Info, 'and put wget.exe in a folder on the system path search');

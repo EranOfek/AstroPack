@@ -4,23 +4,24 @@ function Result = unitTest()
 
     % Open/close connection
     % When not specifying database 
-    Conn = db.DbConnection(); %'Database', 'unittest');
-    Conn.DatabaseName = 'unittest';
+    Conn = db.DbConnection.getDbConnection('unittest');
     Conn.open();
     assert(Conn.IsOpen);        
     Conn.close();
     assert(~Conn.IsOpen);                        
+    Conn.open();
 
+    % Try to create DbConnection which is already registered,
+    % this SHOULD FAIL and the returned object should not be used
+    % @Todo: Replace with exception
+    Conn2 = db.DbConnection('Db', 'unitTeST');
+    assert(Conn2 ~= Conn);
+    assert(~Conn2.IsOpen);        
+            
     % Get/register connection, open, close
-    Con = db.DbConnection.getDbConnection('test');
-    Con.DatabaseName = 'unittest';
-    assert(~isempty(Con));
-    Con.open();
-    assert(Con.IsOpen);
-    Con.close();
-    Con2 = db.DbConnection.getDbConnection('test');
-    assert(~isempty(Con2));
-    assert(~Con2.IsOpen);
+    Conn3 = db.DbConnection.getDbConnection('unittest');
+    assert(Conn3 == Conn);
+    assert(Conn3.IsOpen);
 
     % Done            
     io.msgStyle(LogLevel.Test, '@passed', 'DbConnection test passed');

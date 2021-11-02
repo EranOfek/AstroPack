@@ -1,31 +1,49 @@
 # Database Configuration File
-
 #
-Common:
+# Notes:
+#   1. Key names should match DbConnection's properties names 
+#      (i.e. there is DbConnection.Host)
+#
+#
+#
+
+
+# Default values, override by adding values to per-database section under Items below
+Default:
+    Host            : 'localhost'       # Host name or IP address
     DriverName      : 'postgres'        # Driver name
-    DatabaseName    : ''                # Database name
     UserName        : 'postgres'        # Login user
     Password        : 'pass'            # Login password
-    Host            : 'localhost'       # Host name or IP address
     Port            : 5432              # Post number, 5432 is Postgres default
 
 
-#
-UnitTest:
-    DriverName      : 'postgres'        # Driver name
-    DatabaseName    : 'unittest'        # Database name
-    UserName        : 'postgres'        # Login user
-    Password        : 'pass'            # Login password
-    Host            : 'localhost'       # Host name or IP address
-    Port            : 5432              # Post number, 5432 is Postgres default
+# Databases, items names are used by DbConnection
+Items:
+
+    #
+    UnitTest:
+        DatabaseName    : 'unittest'        # Database name
+        Host            : 'localhost'       # Host name or IP address
 
 
-#
-Pipeline:
-    DriverName      : 'postgres'        # Driver name
-    DatabaseName    : 'pipeline'        # Database name
-    UserName        : 'postgres'        # Login user
-    Password        : 'pass'            # Login password
-    Host            : 'localhost'       # Host name or IP address
-    Port            : 5432              # Post number, 5432 is Postgres default
+    #
+    Pipeline:
+        DatabaseName    : 'pipeline'        # Database name
+        Host            : 'localhost'       # Host name or IP address
+
+    #
+    Last:
+        DatabaseName    : 'last'            # Database name
+        Host            : 'localhost'       # Host name or IP address
+
+    #
+    Observations:
+        DatabaseName    : 'observations'    # Database name
+        Host            : 'localhost'       # Host name or IP address
+
+
+    #
+    Soc:
+        DatabaseName    : 'observations'    # Database name
+        Host            : 'localhost'       # Host name or IP address
 

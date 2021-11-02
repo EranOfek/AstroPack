@@ -49,7 +49,7 @@
 % prev - Move cursor to previous record, return false if reached end of data
 % query - Run SELECT query, for other statements use exec() If no char argument is specified, use the current Obj.SqlText @Todo: Support query with params Example: Result = query('SELECT COUNT(*) from master_table')
 % select - Execute SELECT Fields FROM TableName and load results to memory Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
-% selectTableCount - Select number of records with optionally where clause
+% selectCount - Select number of records with optionally where clause
 % setConnection - Set connection Connection argument may be either: - Empty string: use default connetion() - Non empty string: used as connection key for DbConnection.getDbConnection - DbConnection object
 % setStatementValues - Set statement values from specified DbRecord or struct
 % updateRecord - Update record
@@ -93,13 +93,12 @@ classdef DbQuery < Component
     methods % Constructor
         
         % Constructor
-        function Obj = DbQuery(Args)
+        function Obj = DbQuery(DbTableOrConn, Args)
             % Create new DbQuery obeject
             arguments
-                Args.Db = ''
-                Args.Connection = []         %
-                Args.TableName  = ''         %
-                Args.PrimaryKey = ''         %
+                DbTableOrConn   = []        %
+                Args.TableName              %
+                Args.PrimaryKey             %
             end
             
             % Setup component
@@ -109,9 +108,9 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
                         
             % Connection
-            Obj.setConnection(Args.Connection);
-            Obj.TableName = Args.TableName;
-            Obj.PrimaryKey = Args.PrimaryKey;
+            Obj.setConnection(DbTableOrConn);
+            Obj.setProps(Args);
+
         end
         
         
@@ -121,18 +120,7 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end
     end
-    
-%----------------------------------------------------------------------    
-    methods % Setup
-        function Result = init(Obj, Args)
-            arguments
-                Obj
-                Args.Db
-            end
-            
-            Result = true;
-        end
-    end
+
     %----------------------------------------------------------------------
     methods % High-level: Select
         
@@ -686,7 +674,7 @@ classdef DbQuery < Component
     methods % High-level: Utilities
         
         
-        function Result = selectTableCount(Obj, Args)
+        function Result = selectCount(Obj, Args)
             % Select number of records with optionally where clause
             arguments
                 Obj                     %
@@ -789,7 +777,7 @@ classdef DbQuery < Component
     
     methods % Low-level: open, close, query, exec
                        
-        function Result = setConnection(Obj, Connection)
+        function Result = setConnection(Obj, DbTableOrConn)
             % Set connection
             % Connection argument may be either:
             %   - Empty string: use default connetion()
@@ -798,12 +786,21 @@ classdef DbQuery < Component
             %
             
             Result = true;
-            if isempty(Connection)
-                Obj.Conn = db.DbConnection.getDbConnection('');
-            elseif isa(Connection, 'char')
-                Obj.Conn = db.DbConnection.getDbConnection(Connection);
-            elseif isa(Connection, 'db.DbConnection')
-                Obj.Conn = Connection;
+            if isempty(DbTableOrConn)
+                %Obj.Conn = db.DbConnection.getDbConnection('');
+                
+            elseif isa(DbTableOrConn, 'char')
+                [Split, Delimiter] = split(DbTableOrConn, ':');
+                if numel(Split) >= 1
+                    Obj.Conn = db.DbConnection.getDbConnection(Split{1});                    
+                end
+                
+                if numel(Split) >= 2
+                    Obj.TableName = Split{2};
+                end
+                
+            elseif isa(DbTableOrConn, 'db.DbConnection')
+                Obj.Conn = DbTableOrConn;
             else
                 Result = false;
                 error('setConnection: Unknown type');
