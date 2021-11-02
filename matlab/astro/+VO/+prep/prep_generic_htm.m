@@ -17,7 +17,7 @@ function prep_generic_htm(varargin)
 RAD = 180./pi;
 
 DefV.CatName             = 'GAIAEDR3'; %'URAT1'; % 'GALEX2mEpochs'; %'URAT1'; %'PS1ps';  %'NEDz'; %'GAIADR2'; %'HSCv2'; %'SAGE'; %'SWIREz'; %'SDSSoffset'; %'VSTkids';
-DefV.FileBaseName        = 'GaiaDR2'; %'urat1'; % 'GALEX2mEpochs'; %'URAT1'; % 'ned'; %'GaiaDR2'; %'HSC'; %'SpitzerSAGE'; % 'swire'; %'MyTable'; %'kids';
+DefV.FileBaseName        = 'GaiaDRE3'; %'urat1'; % 'GALEX2mEpochs'; %'URAT1'; % 'ned'; %'GaiaDR2'; %'HSC'; %'SpitzerSAGE'; % 'swire'; %'MyTable'; %'kids';
 DefV.FileExtName         = '.hdf5'; %'.fit'; %'h5'; %'txt';%'hdf5'; %'.mat'; %'.fit'; %'.mat'; %'.fit';
 DefV.FileSplit           = '_';
 DefV.FileType            = 'hdf5'; %'fits'; %'hdf5'; %'ned'; %'hdf5'; %'astcat'; %'astcat'; 'fits'; %'mat'; %'fits';
@@ -86,7 +86,7 @@ for If=1:1:Nf
         %Id
         %Iid
            
-            %Files(Id(Iid)).name
+            Files(Id(Iid)).name;
             Cat(Iid) = load_file(Files(Id(Iid)).name,InPar.FileType,  DecLim );
     end
     Cat = merge(Cat);
@@ -187,8 +187,11 @@ for If=1:1:Nf
     
     %GAIAEDR3
   
-    Cat.ColCell = {'RA','Dec','Epoch','ErrRA','ErrDec','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec','RA_Dec_Corr','NobsAst','ExcessNoise','ExcessNoiseSig','Chi2Ast','DofAst','NGphot','Mag_G','ErrMag_G','Mag_BP','ErrMag_BP','Mag_RP','ErrMag_RP','BPRP_Excess','RV','ErrRV','Teff','LogG','FeH'};
-    Cat.ColUnits = {'rad','rad','JYear','mas','mas','mas','mas','mas/yr','mas/yr','mas/yr','mas/yr','','','mas','','','','','AB','AB','AB','AB','AB','AB',   '','km/s','km/s','K','',''};
+    ColCell = {'RA','Dec','Epoch','ErrRA','ErrDec','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec','RA_Dec_Corr',...
+           'ExcessNoise','ExcessNoiseSig','MagErr_G','Mag_G','MagErr_BP','Mag_BP','MagErr_RP','Mag_RP',...
+           'RV','ErrRV','Teff'};
+
+    Cat.ColUnits = {'rad','rad','JYear','mas','mas','mas','mas','mas/yr','mas/yr','mas/yr','mas/yr','','mas','','Vega','Vega','Vega','Vega','Vega','Vega',   'km/s','km/s','K'};
 
     
     DecRange    = [Dec1(If), Dec2(If)]./RAD;

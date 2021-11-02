@@ -64,7 +64,7 @@ Ind = 0;
 if (IsClassHTM)
     HTM = ClassHTM;
 else
-    HTM = Util.struct.struct_def({'level','id','coo','cosd','center_coo','center_cosd','father','son','cat'},1,1);
+    HTM = tools.struct.struct_def({'level','id','coo','cosd','center_coo','center_cosd','father','son','cat'},1,1);
 end
 for I=1:1:4
    Ind = Ind + 1;

@@ -48,10 +48,18 @@ classdef DbConnection < Component
         function Obj = DbConnection(Args)
             % Constructor
             arguments
-                Args.DatabaseType = 'postgres'
+                Args.Conf = []
+                Args.DriverName
+                Args.Host
+                Args.DatabaseName
+                Args.User
+                Args.Password
+                Args.Port
             end            
             Obj.setName('DbConnection');
             Obj.needUuid();
+            Obj.init(Args.Conf);
+            Obj.setProps(Args);
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
         end
         
@@ -64,7 +72,27 @@ classdef DbConnection < Component
     
     
     methods % Connect, disconnect
-               
+        
+        function Result = setup(Obj, Args)
+            arguments
+                Obj
+                Args.Conf = []
+            end
+            
+            if isempty(Args.Conf)
+                Args.Conf = Obj.Config.Data.Database;
+            end
+            
+            Obj.setProps(Args.Conf);  %DriverName  = Conf.DriverName;
+            %Obj.Host        = Conf.Host;
+            %Obj.Database    = Conf.Database;
+            %Obj.User        = Conf.User;
+            %Obj.Password    = Conf.Password;
+            %Obj.Port        = Conf.Port;
+            Result = true;
+        end
+        
+        
         function Result = open(Obj)
             % Connect to database specified by Host:Port:Database as UserName/Password
             
@@ -144,8 +172,7 @@ classdef DbConnection < Component
         function Result = newQuery(Obj)
             % Create new DbQuery instance linked to this connection
             Result = db.DbQuery(Obj);
-        end
-                
+        end                
     end
     
     %----------------------------------------------------------------------
