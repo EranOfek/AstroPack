@@ -47,11 +47,15 @@ function Result = mergeCatalogs(Obj, Args)
                                                          Args.unifiedSourcesCatalogArgs{:});
     end
         
+    
+    
     MatchedS = MatchedSources;
     MatchedS.addMatrix(Matched, Args.MatchedColums);
     % populate JD
+    MatchedS.JD = julday(Obj(:,1));
     
-    
+    semilogy(nanmedian(MatchedS.Data.MAG_CONV_2,1),  nanstd(MatchedS.Data.MAG_CONV_2,[],1),'.')
+    semilogy(nanmedian(MatchedS.Data.MAG_CONV_2,1),  nanstd(MatchedS.Data.Dec,[],1).*3600,'.')
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
