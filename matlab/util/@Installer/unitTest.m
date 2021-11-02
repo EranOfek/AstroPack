@@ -9,9 +9,9 @@ function Result = unitTest(Obj)
     I.getDataDir(I.Items.cats)
     I.getFilesInDataDir('cats')
     
-    I.install('Atmosphere');
-    I.install(2);
-    I.install({'cats', 'EarthGravity'});
+    %I.install('Atmosphere');
+    %I.install(2);
+    %I.install({'cats', 'EarthGravity'});
     
 	io.msgStyle(LogLevel.Test, '@passed', 'Installer test passed');
 	Result = true;
