@@ -1,7 +1,7 @@
-function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
+function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
     % Match multiple catalogs and create a catalog of all unique (by position) sources.
     %       i.e., generate a list of all unique positions that appears in all the AstroCatalog object.
-    % Input  : - A multi-element AstroCatalog object.
+    % Input  : - A multi-element AstroCatalog or AstroImage object.
     %            Each element must contain a catalog which have the same
     %            coordinate system as all the other catalogs, and the
     %            coordinates have the same column names.
@@ -21,6 +21,13 @@ function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
     %                   Default is AstroCatalog.DefNamesDec.
     % Output : - An AstroCatalog object containing a single element catalog
     %            with X and Y positions.
+    %          - A structure array of matched indices.
+    %            For each image, there are two vectors:
+    %            .IndInUnified - index in unified catalog.
+    %            .IndInObj - Index in original catalog.
+    %          - An array of matched catalogs. Each catalog size is equal
+    %            to that of the unified catalog, and it contains only the
+    %            sources which are in the specific catalog.
     % Author : Eran Ofek (Sep 2021)
     % Example: AC=AstroCatalog({rand(10,3), rand(10,3), rand(10,3)},'ColNames',{'RA','Dec','Z'},'ColUnits',{'rad','rad',''});
     %          AC(1).Catalog = [AC(1).Catalog; AC(3).Catalog(1:5,:); AC(2).Catalog(1:2,:)];
@@ -46,9 +53,11 @@ function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
     Iobj = 1;
     if isa(Obj, 'AstroImage')
         Cat = Obj(Iobj).CatData;
+        IsAstroImage = true;
     else
         % assuming AstroCatalog
         Cat = Obj(Iobj);
+        IsAstroImage = false;
     end
     
     switch lower(Args.CooType)
@@ -79,12 +88,11 @@ function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
     for Iobj=2:1:Nobj
         
         % read AstroCatalog/AstroImage into Cat
-        if isa(Obj(Iobj), 'AstroImage')
+        if IsAstroImage
             Cat = Obj(Iobj).CatData;
-        elseif isa(Obj(Iobj), 'AstroCatalog')
-            Cat = Obj(Iobj);
         else
-            error('Unknown Obj input class - 1st input argument must be an AstroImage or AstroCatalog object');
+            % assuming AstroCataloh
+            Cat = Obj(Iobj);
         end
             
         %       The matched catalog result has the same number of
@@ -104,9 +112,10 @@ function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
         Result.Catalog = [Result.Catalog; Cat.Catalog(IndCatNaN, [ColIndX, ColIndY])];
       
         if nargout>1
-            Ncat           = size(Result.Catalog, 1);
-            Nnan           = sum(IndCatNaN);
-            ResInd(Iobj).IndInUnified = (Ncat+1:1:Ncat+Nnan).';
+            Ncat                      = size(Result.Catalog, 1);
+            Nnan                      = sum(IndCatNaN);
+            Nunified                  = Ncat + Nnan;
+            ResInd(Iobj).IndInUnified = (Ncat+1:1:Nunified).';
             ResInd(Iobj).IndInObj     = find(IndCatNaN);
         end
     
@@ -123,5 +132,36 @@ function [Result, ResInd] = unifiedSourcesCatalog(Obj, Args)
 %         % add UnMatchedObj to MergedCoo
 %         Result = merge([Result, UnMatchedObj], {ColNameX{1}, ColNameY{1}});
     end
+    
+    % sort the Result by the second column (Declination)
+    Result.sortrows(2);
+    
+    
+    % merge the catalogs
+    if nargout>2
+        Matched = AstroCatalog([Nobj 1]);
+        for Iobj=1:1:Nobj
+            if IsAstroImage
+                Cat = Obj(Iobj).CatData;
+            else
+                % assuming AstroCataloh
+                Cat = Obj(Iobj);
+            end
+            Ncol                  = size(Cat.Catalog, 2);
+            
+            ResMatchInd = imProc.match.matchReturnIndices(Result, Cat, 'Radius',Args.Radius,...
+                                                                'RadiusUnits',Args.RadiusUnits,...
+                                                                'CooType',Args.CooType);
+            
+            FFM = ~isnan(ResMatchInd.Obj1_IndInObj2);
+            Matched(Iobj).Catalog = nan(Nunified, Ncol);
+            Matched(Iobj).Catalog(FFM, :) = Cat.Catalog(ResMatchInd.Obj1_IndInObj2(FFM),:);
+            Matched(Iobj).ColNames        = Cat.ColNames;
+            Matched(Iobj).ColUnits        = Cat.ColUnits;
+            Matched(Iobj).ColDesc         = Cat.ColDesc;
+            
+        end
+    end
+    
     
 end
