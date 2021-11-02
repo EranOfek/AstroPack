@@ -110,7 +110,7 @@ classdef Installer < Component
                     try
                         Obj.installSingle(Item, 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
                     catch
-                        io.msgLog(LogLevel.Error, 'installSingle failed: %d', i);
+                        io.msgLog(LogLevel.Error, 'installSingle failed: %s', Name);
                     end
 
                     % special treatment
@@ -302,11 +302,15 @@ classdef Installer < Component
             % Example: I = Insatller; I.getFilesInDataDir('SpecGalQSO')
 
             Dir = Obj.getDataDir(Name);
-            PWD = pwd;
-            cd(Dir);
-            Files = dir('*');
-            Files = Files(~[Files.isdir]);
-            cd(PWD);
+            if isfolder(Dir)
+                PWD = pwd;
+                cd(Dir);
+                Files = dir('*');
+                Files = Files(~[Files.isdir]);
+                cd(PWD);
+            else
+                Files = [];
+            end
         end
               
     end    
