@@ -33,20 +33,29 @@ function Result = mergeCatalogs(Obj, Args)
         
         Args.unifiedSourcesCatalogArgs cell     = {};
         Args.matchArgs cell          = {};
-        Args.MatchedColums           = {'RA','Dec','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3'};
+        Args.MatchedColums           = {'RA','Dec','X','Y','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3'};
         Args.fitMotionArgs cell      = {'Prob',1e-5};
     end
     
     % find all unique sources
     [Nepochs, Nfields] = size(Obj);
+    JD  = julday(Obj(:,1));     
 
+    tic;
     for Ifields=1:1:Nfields
-        [AllSources, AllInd, Matched] = imProc.match.unifiedSourcesCatalog(Obj(:,Ifields), 'CooType',Args.CooType,...
+        [~, ~, Matched(Ifields,:)] = imProc.match.unifiedSourcesCatalog(Obj(:,Ifields), 'CooType',Args.CooType,...
                                                          'Radius',Args.Radius,...
                                                          'RadiusUnits',Args.RadiusUnits,...
                                                          Args.unifiedSourcesCatalogArgs{:});
+                                                     
+        MatchedS(Ifields) = MatchedSources;
+        MatchedS(Ifields).addMatrix(Matched(Ifields,:), Args.MatchedColums);
+        % populate JD
+        MatchedS(Ifields).JD = JD;                                   
     end
-        
+    toc
+    
+    
     
     
     MatchedS = MatchedSources;
@@ -54,8 +63,16 @@ function Result = mergeCatalogs(Obj, Args)
     % populate JD
     MatchedS.JD = julday(Obj(:,1));
     
-    semilogy(nanmedian(MatchedS.Data.MAG_CONV_2,1),  nanstd(MatchedS.Data.MAG_CONV_2,[],1),'.')
-    semilogy(nanmedian(MatchedS.Data.MAG_CONV_2,1),  nanstd(MatchedS.Data.Dec,[],1).*3600,'.')
+    I= 9;
+    
+    semilogy(nanmedian(MatchedS(I).Data.MAG_CONV_2,1),  nanstd(MatchedS(I).Data.MAG_CONV_2,[],1),'.')
+    semilogy(nanmedian(MatchedS(I).Data.MAG_CONV_2,1),  nanstd(MatchedS(I).Data.Dec,[],1).*3600,'.')
+    
+    % image 2 image X shift (pix)
+    nanmedian(diff(MatchedS(1).Data.X,1,1),2)
+    nanmedian(diff(MatchedS(1).Data.Y,1,1),2)
+    
+    
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
