@@ -1,21 +1,23 @@
 # Installer Configuration
+#
+# Notes:
+#       1. DataName should match its parent item name
+#
+
 
 # Common and default settings
 Default:
-    # Linux, override by setting it explicitly in the items below
+    # To override the installation location for each item,
+    # add 'InstallationLocation' to its section
     InstallationLocation        : '~/matlab/data'
-    
+
     # Windows
-    InstallationRootWindows     : 'C:/AstroPack'
     InstallationLocationWindows : 'C:/AstroPack/matlab/data'
 
 
 Items:
 
     Atmosphere:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'Atmosphere'
         SubDir               : 'spec/Atmosphere'
@@ -26,9 +28,6 @@ Items:
 
 
     CALSPEC:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'CALSPEC'
         SubDir               : 'spec/CALSPEC'
@@ -39,9 +38,6 @@ Items:
 
 
     cats:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'cats'
         SubDir               : '+cats'
@@ -52,9 +48,6 @@ Items:
 
 
     EarthGravity:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'EarthGravity'
         SubDir               : 'SolarSystem/EarthGravity'
@@ -65,9 +58,6 @@ Items:
 
 
     GAIA_SpecTemplate:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'GAIA_SpecTemplate'
         SubDir               : 'spec/GAIA_SpecTemplate'
@@ -78,9 +68,6 @@ Items:
 
 
     MinorPlanets:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'MinorPlanets'
         SubDir               : 'SolarSystem/MinorPlanets'
@@ -91,9 +78,6 @@ Items:
 
 
     MoonELP:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'MoonELP'
         SubDir               : 'SolarSystem/ELP'
@@ -104,9 +88,6 @@ Items:
 
 
     PicklesStellarSpec:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'PicklesStellarSpec'
         SubDir               : 'spec/PicklesStellarSpec'
@@ -117,9 +98,6 @@ Items:
 
 
     SpecGalQSO:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'SpecGalQSO'
         SubDir               : 'spec/SpecGalQSO'
@@ -130,9 +108,6 @@ Items:
 
 
     TestImagesLAST:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'TestImagesLAST'
         SubDir               : 'LAST/TestImages'
@@ -143,9 +118,6 @@ Items:
 
 
     Time:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'Time'
         SubDir               : 'SolarSystem/Time'
@@ -156,9 +128,6 @@ Items:
 
 
     VSOPE87:
-        # Uncomment to override the default
-        #InstallationLocation : '~/matlab/data'
-
         # The following are cell arrays of entry per dataset
         DataName             : 'VSOPE87'
         SubDir               : 'SolarSystem/VSOPE87'

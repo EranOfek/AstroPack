@@ -94,7 +94,18 @@ for Iloop=1:1:Nloop
                  if (~isempty(Str))
                      Str = sprintf('%s &',Str);
                  end
-                 Str = sprintf('%s wget %s "%s%s"',Str,Extra,BaseURL,Links{Ind});
+                 wget = 'wget';
+                 
+                 % Under Windows try to use wget.exe from our repo
+                 if tools.os.iswindows
+                    MyFileName = mfilename('fullpath');
+                    [MyPath, ~, ~] = fileparts(MyFileName);
+                    wget = fullfile(MyPath, '../../../deployment/install/windows/wget.exe');
+                    if ~isfile(wget)
+                        wget = 'wget';
+                    end
+                 end
+                 Str = sprintf('%s %s %s "%s%s"',Str,wget,Extra,BaseURL,Links{Ind});
                  
                  Split=regexp(Links{Ind},'/','split');
                  Files{Ind} = Split{end};
@@ -107,6 +118,7 @@ for Iloop=1:1:Nloop
                Abort = true;
            else
                
+              io.msgLog(LogLevel.Debug, 'pwget: %s', Str);
               [Stat,Res]=system(Str);
            end
         case 'urlwrite'
