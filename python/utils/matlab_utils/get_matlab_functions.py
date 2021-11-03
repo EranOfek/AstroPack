@@ -91,19 +91,30 @@ class MarkdownReader:
 
 
     # Get all lines of specified section (until next heading or end of file)
-    def get_section(self, heading):
+    def get_section(self, heading, default_text = ''):
         section_lines = []
         found = False
+        heading_level = heading.split(' ')[0].strip()
+
         for i, line in enumerate(self.lines):
+            # @Todo - should be better solution
+            line = line.replace('\t', '    ')
+
             if line.strip().lower() == heading.strip().lower():
                 found = True
             elif found:
                 if line.startswith('#'):
-                    break
+                    level = line.split(' ')[0].strip()
+                    if len(level) <= len(heading_level):
+                        break
 
                 section_lines.append(line)
 
-        return section_lines
+        if len(section_lines) == 0 and default_text != '':
+            section_lines = default_text.split('\n')
+
+        text = '\n'.join(section_lines)
+        return text
 
 
     # Read file to text lines
@@ -213,19 +224,19 @@ class MlxWriter:
 
 
     # Add Heading 1
-    def heading1(self, text, body=''):
-        self.heading(self.xml_heading1, text, body, 'heading1')
+    def heading1(self, text, body='', markdown=''):
+        self.heading(self.xml_heading1, text=text, body=body, markdown=markdown, bookmark_type='heading1')
 
     # Add Heading 2
-    def heading2(self, text, body=''):
-        self.heading(self.xml_heading2, text, body, 'heading2')
+    def heading2(self, text, body='', markdown=''):
+        self.heading(self.xml_heading2, text=text, body=body, markdown=markdown, bookmark_type='heading2')
 
     # Add Heading 3
-    def heading3(self, text, body=''):
-        self.heading(self.xml_heading3, text, body, 'heading3')
+    def heading3(self, text, body='', markdown=''):
+        self.heading(self.xml_heading3, text=text, body=body, markdown=markdown, bookmark_type='heading3')
 
     # Add heading with optional TOC bookmark
-    def heading(self, template, text, body='', bookmark_type = ''):
+    def heading(self, template, text='', body='', markdown='', bookmark_type = ''):
 
         # Document with TOC, add new bookmark
         if self.with_toc:
@@ -245,6 +256,8 @@ class MlxWriter:
         self.wr(template, text)
         if body != '':
             self.text(body)
+        elif markdown != '':
+            self.markdown(markdown)
 
 
     # Single/mutli-line paragraph
@@ -297,6 +310,71 @@ class MlxWriter:
 
     # -----------------------------------------------------------------------
 
+    def markdown(self, markdown_text):
+        markdown_lines = markdown_text.split('\n')
+        code_lines = []
+        prev_line_empty = True
+        for line in markdown_lines:
+            heading_level, text = self.get_markdown_heading_level(line)
+            is_code = False
+
+            if heading_level == 1:
+                self.heading1(text)
+                prev_line_empty = True
+            elif heading_level == 2:
+                self.heading2(text)
+                prev_line_empty = True
+            elif heading_level >= 3:
+                self.heading3(text)
+                prev_line_empty = True
+            else:
+                # @Todo - better solution for tabs?
+                line = line.replace('\t', '    ')
+
+                # Code
+                if line.startswith('    ') and prev_line_empty:
+                    is_code = True
+                    code_lines.append(line.strip())
+
+            #
+            if not is_code:
+                if len(code_lines) > 0:
+                    while len(code_lines) > 0 and code_lines[0] == '':
+                        code_lines.pop(0)
+
+                    while len(code_lines) > 0 and code_lines[len(code_lines)-1] == '':
+                        code_lines.pop(len(code_lines)-1)
+
+                    self.code('\n'.join(code_lines))
+                    code_lines = []
+
+                if heading_level == 0:
+                    self.text(line)
+                    prev_line_empty = line == ''
+
+    # -----------------------------------------------------------------------
+    def get_markdown_heading_level(self, line):
+        level = 0
+        text = ''
+        if line.startswith('#'):
+            s = line.split(' ')[0]
+            if s == '#####':
+                level = 5
+            elif s == '####':
+                level = 4
+            elif s == '###':
+                level = 3
+            elif s == '##':
+                level = 2
+            elif s == '#':
+                level = 1
+
+            if level > 0:
+                text = line[len(s):].strip()
+
+        return level, text
+    # -----------------------------------------------------------------------
+
     # Add table-of-contents, should be added at top
     def toc(self):
         self.wr(self.xml_toc)
@@ -311,7 +389,7 @@ class MlxWriter:
 
     # -----------------------------------------------------------------------
 
-    # Low-level write text with optional template
+    # Low-level write partial or single-line text with optional template
     def wr(self, template, text=''):
         # Replace alignment in <w:jc w:val="left"/>
         if self.align != 'left' and '<w:jc w:val=' in template:
@@ -540,7 +618,7 @@ class PackageData:
         self.class_dict = {}        # Currently unused
         self.func_dict = {}
         self.comment = ''
-        self.markdown = MarkdownReader()
+        self.markdown = None        # MarkdownReader()
 
 # ===========================================================================
 # Data for each class
@@ -555,7 +633,7 @@ class ClassData:
         self.comment = ''
         self.long_comment = ''
         self.unit_test_lines = []
-        self.markdown = MarkdownReader()
+        self.markdown = None        # MarkdownReader()
 
 
 # ===========================================================================
@@ -565,11 +643,15 @@ class FunctionData:
     def __init__(self):
         self.name = ''
         self.filename = ''
+        self.line_num = -1          # Line number of 'function' line
         self.type = ''              # Static
         self.params = ''
         self.comment = ''
         self.long_comment = ''
         self.is_constructor = False
+        self.arguments = []         # List of function arguments PropertyData (when 'arguments' block exists)
+        self.markdown = None        # MarkdownReader()
+
 
 # ===========================================================================
 # Data for each class property (currently unused)
@@ -602,6 +684,8 @@ class MatlabProcessor:
         self.out_path = os.path.join(AUTOGEN_PATH, 'all_classes')
         self.cur_fname = ''
         self.cur_folder = ''
+        self.cur_file = ''
+        self.markdown_fname = ''
         self.cur_package = ''
         self.cur_class = ''
         self.package_dict = {}
@@ -696,11 +780,13 @@ class MatlabProcessor:
     def get_comment(self, lines, idx, short = True):
         comment = ''
 
+        # Look for #functions block to exclude it from scanned lines
         start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
         end_idx   = self.index_starts_with(lines, FUNC_BLOCK_END)
 
         # Look for comment line below the function line
         count = 0
+
         for line_num in range(idx+1, len(lines)):
 
             # Skip autogen #functions block
@@ -708,7 +794,7 @@ class MatlabProcessor:
                 if line_num >= start_idx and line_num <= end_idx:
                     continue
 
-            line = lines[line_num].strip().replace('\t', ' ')
+            line = lines[line_num].replace('\t', ' ').rstrip()
             if short:
                 # Stop on non-comment line or empty line
                 if not line.strip().startswith('%'):
@@ -718,14 +804,21 @@ class MatlabProcessor:
                 if not line.strip().startswith('%') and line.strip() != '':
                     break
 
+            if line.startswith('% '):
+                line = line[2:]
+            elif line.startswith('%'):
+                    line = line[1:]
+
             # Clean comment marks and separators
-            line = line.replace('%', '').strip()
-            line = line.replace('--', '').strip()
-            line = line.replace('==', '').strip()
+            #line = line.replace('%', '').rstrip()
+            line = line.replace('--', '').rstrip()
+            line = line.replace('==', '').rstrip()
             words = line.split(' ')
             words_lower = line.lower().split(' ')
 
             # Stop on special cases
+
+            # Short comment
             if short:
                 if 'example' in words_lower:
                     break
@@ -735,10 +828,33 @@ class MatlabProcessor:
                 # Append text to comment
                 comment_line = ' '.join(words)
                 comment = (comment + ' ' + comment_line).strip()
+
+            # Long comment
             else:
                 # Append text to comment, use double-space for new line in MD file
-                comment_line = line + '  ' #' '.join(words)
-                comment = (comment + '\n' + comment_line) #.strip()
+
+                #comment_line = line + ' ' #' '.join(words)
+
+                if line.strip() == '':
+                    comment += '\n'
+                elif line.startswith('#'):
+                    if comment != '' and not comment.endswith('\n'):
+                        comment += '\n'
+                    comment += line + '\n'
+                elif line.startswith('    '):
+                    if comment != '' and not comment.endswith('\n'):
+                        comment += '\n'
+                    comment += '    ' + line.strip() + '\n'
+                else:
+                    if comment != '' and not comment.endswith('\n'):
+                        comment += ' '
+
+                    comment += line.strip()
+                    if line.endswith('.') or line.endswith(':'):
+                        line += '\n'
+
+                #comment_line = line + '  ' #' '.join(words)
+                #comment = (comment + '\n' + comment_line) #.strip()
 
             # Stop if comment is too long, by number of lines, or by text length
             count = count + 1
@@ -751,11 +867,23 @@ class MatlabProcessor:
     def clean_comment(self, long_comment):
         comment = ''
         lines = long_comment.split('\n')
+        comment_lines = []
+        prev_line = ''
         for line in lines:
-            line = line.strip()
-            comment = comment + line
+            line = line.rstrip()
+            if line == '' and prev_line == '':
+                continue
 
+            comment_lines.append(line)
+            prev_line = line
+
+        comment = '\n'.join(comment_lines)
         return comment
+
+    # -----------------------------------------------------------------------
+    def get_arguments(self, func_data, lines, func_line_num):
+        pass
+
     # -----------------------------------------------------------------------
     # Look for line that starts with specified text
     def index_starts_with(self, lines, text):
@@ -994,9 +1122,12 @@ class MatlabProcessor:
         if 'LogLevel' in fname:
             log('LogLevel')
 
+        # Split file name
         fname = fname.replace('\\', '/')
         self.cur_fname = fname
         self.cur_folder, self.cur_file = os.path.split(fname)
+        self.markdown_fname = os.path.join(self.cur_folder, os.path.splitext(self.cur_file)[0] + '.md')
+
         #fn, ext = os.path.splitext(self.cur_file)
 
         # Check if we are inside a package
@@ -1005,6 +1136,10 @@ class MatlabProcessor:
             pkg_name = '#'
         self.cur_package = pkg_name
         pkg = self.get_package(pkg_name, self.cur_folder)
+
+        # @Todo - Look for package markdown in the package folder
+        if not pkg.markdown:
+            pass
 
         # Check if we are inside class folder
         class_name = self.get_class_from_path(self.cur_folder)
@@ -1025,13 +1160,27 @@ class MatlabProcessor:
 
         # Look for classdef
         class_name = self.find_classdef(lines)
+
+        # This file contains 'classdef'
         if class_name != '':
             class_name = pkg_name + '.' + class_name
             self.cur_class = class_name
+
+            # Look for Markdown file in the same folder
+            if os.path.exists(self.markdown_fname):
+                cls = self.get_class(self.cur_class)
+                cls.markdown = MarkdownReader(self.markdown_fname)
+
+            # Process class main file
             self.process_class_file(lines)
+
+        # File without 'classdef'
         else:
+            # Class function file
             if self.is_class_folder:
                 self.process_class_func_file(lines)
+
+            # Non-class function file
             else:
                 self.process_func_file(lines)
 
@@ -1173,10 +1322,16 @@ class MatlabProcessor:
                     if func_name in pkg.func_dict:
                         log_line('Duplicate function definition:', line_num, line)
                     else:
+                        # Create data
                         func = FunctionData()
                         func.name = func_name
                         func.comment = self.get_comment(lines, line_num)
                         func.long_comment = self.get_comment(lines, line_num, short=False)
+
+                        if os.path.exists(self.markdown_fname):
+                            func.markdown = MarkdownReader(self.markdown_fname)
+
+                        # Add to functions list
                         pkg.func_dict[func_name] = func
 
                         # Stop after the first function, so internal (unexposed) functions will not be listed
@@ -1463,6 +1618,12 @@ class MatlabProcessor:
 
             cls_fname_mlx = os.path.join(out_path_mlx, self.unpack_name(cls_name) + '.mlx')
 
+            # Markdown
+            if cls.markdown:
+                markdown = cls.markdown
+            else:
+                markdown = MarkdownReader()
+
             # MLX
             mlx = MlxWriter(cls_fname_mlx)
             mlx.title('Class ' + self.unpack_name(cls_name))
@@ -1476,7 +1637,8 @@ class MatlabProcessor:
 
             #
             comment = self.clean_comment(cls.long_comment)
-            mlx.text(comment)
+            mlx.markdown(comment)
+            #mlx.text(comment)
             mlx.text('For additional help see manuals.main')
 
             mlx.heading1('Properties')
@@ -1503,8 +1665,11 @@ class MatlabProcessor:
                 mlx.end_par()
 
             #
-            mlx.heading1('General Class Usage')
-            mlx.text('Overview ...')
+            overview = markdown.get_section('# Overview', default_text='Class/package/function overview here...')
+            mlx.heading1('Overview', markdown=overview)
+
+            usage = markdown.get_section('# Usage', default_text='Usage description here...')
+            mlx.heading1('General Class Usage', markdown=usage)
 
             mlx.heading3('Example 1', 'Example description')
             mlx.code('Example code ...')
@@ -1546,8 +1711,15 @@ class MatlabProcessor:
             mlx.heading1('Static Methods')
             mlx.text('Static Methods')
 
-            mlx.heading1('See Also', 'Add related issues here')
-            mlx.heading1('Notes', 'Add notes here')
+            # Add additional sections
+            known_issus = markdown.get_section('# Known Issues', default_text='Add related issues here')
+            mlx.heading1('Known Issues', markdown=known_issus)
+
+            see_also = markdown.get_section('# See Also', default_text='Add related issues here')
+            mlx.heading1('See Also', markdown=see_also)
+
+            notes = markdown.get_section('# Notes', default_text='Add notes here')
+            mlx.heading1('Notes', markdown=notes)
 
             mlx.close()
 
@@ -1594,12 +1766,13 @@ def main():
     #
     proc = MatlabProcessor()
 
-    MlxWriter.unit_test()
+    #MlxWriter.unit_test()
 
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
 
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Configuration')
 
-    proc.process('D:/Ultrasat/AstroPack.git/matlab')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab')
 
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')

@@ -5,8 +5,9 @@
 % Note: Since Configuration.getSingleton() uses persistant object,
 %       in order to load fresh configuration you need to do 'clear all'
 %--------------------------------------------------------------------------
-% Usage:
+% ### Usage
 % Configuration may be used in two ways:
+%
 %  1. 'Global' configuration object (stored as singleton object), there is
 %     always such Configuration object which is linked by default to
 %     Component.Config when Component is created.
@@ -25,7 +26,7 @@
 % file name.
 % Example: config/unitTest.yml is loaded to struct Obj.Data.unittest.
 %
-% Additional FileName property is added to the struct, to keep tracking of
+% Additional **FileName** property is added to the struct, to keep tracking of
 % which file was loaded, allowed a reload if required.
 %
 % When you create a decended of Component, it has a Config property which
@@ -33,23 +34,28 @@
 % The first instace of Component which is created triggers loading of the
 % system configuration.
 %
-% Example:  Access global configuration from Component decendent:
-%           Get the value of 'Key1' inside configuration file 'unittest.yml'.
-%           This will load the entire configuration folder if not loaded yet.
-%           Comp = Component
-%           disp(Comp.Config.Data.unittest.Key1)
+% ### Example
+%   Access global configuration from Component decendent:
+%   Get the value of 'Key1' inside configuration file 'unittest.yml'.
+%   This will load the entire configuration folder if not loaded yet.
+%       Comp = Component
+%       disp(Comp.Config.Data.unittest.Key1)
 %
-% Example:  Access global configuration without Component:
-%           Get the value of 'Key1' inside configuration file 'unittest.yml'.
-%           This will load the entire configuration folder if not loaded yet.
-%           disp(Configuration.getSingleton().Data.unittest.Key1)
+% ### Example
+%    Access global configuration without Component:
+%    Get the value of 'Key1' inside configuration file 'unittest.yml'.
+%    This will load the entire configuration folder if not loaded yet.
+%
+%       disp(Configuration.getSingleton().Data.unittest.Key1)
 %
 %
 % Create/load configuration:
-% Configuration.load()
+%
+%       Configuration.load()
 %
 % Reload entire system configuration:
-% Configuration.reload()
+%
+%       Configuration.reload()
 
 %--------------------------------------------------------------------------
 % Working with user defined Configuration instances
@@ -57,22 +63,27 @@
 %
 % Private configuration file, load directly to Data
 
-% Example: Load unittest.yml to Data.unittest:
-% MyConf = Configuration;
-% MyConf.loadFile('c:/temp/unittest.yml');
-% disp(MyConf.Data.unittest.Key1)
+% ### Example: Load unittest.yml to Data.unittest:
 %
-% Example: Load unittest.yml to Data:
-% MyConf = Configuration;
-% MyConf.loadFile('c:/temp/unittest.yml', 'Field', false);
-% disp(MyConf.Data.Key1)
+%     MyConf = Configuration;
+%     MyConf.loadFile('c:/temp/unittest.yml');
+%     disp(MyConf.Data.unittest.Key1)
 %
-% Load entire folder (suppose you have two files, 'c:/temp/myconfig/unittest.yml'
+% ### Example: Load unittest.yml to Data:
+%
+%     MyConf = Configuration;
+%     MyConf.loadFile('c:/temp/unittest.yml', 'Field', false);
+%     disp(MyConf.Data.Key1)
+%
+% ### Load entire folder 
+
+% Suppose you have two files, 'c:/temp/myconfig/unittest.yml'
 % and 'c:/temp/myconfig/anothertest.yml':
-% MyConf = Configuration;
-% MyConf.loadFolder('c:/temp/myconfig');
-% disp(MyConf.Data.unittest.Key1)
-% disp(MyConf.Data.anothertest.Key1)
+%
+%     MyConf = Configuration;
+%     MyConf.loadFolder('c:/temp/myconfig');
+%     disp(MyConf.Data.unittest.Key1)
+%     disp(MyConf.Data.anothertest.Key1)
 %
 % Reload single configuration file:
 %
