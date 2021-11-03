@@ -11,12 +11,10 @@
 %  1. 'Global' configuration object (stored as singleton object), there is
 %     always such Configuration object which is linked by default to
 %     Component.Config when Component is created.
-%
 %     Global configuration is loaded from:
 %        A. By environment variable ASTROPACK_CONFIG_PATH, and if not found
 %        B. From the 'config/' folder inside the source code repository (i.e.,
 %           '../../../config/')
-%
 %     Note that files under config/local folder are excluded from git.
 %
 %  2. User defined configuration object, may be used to load specific YML
@@ -38,6 +36,7 @@
 %   Access global configuration from Component decendent:
 %   Get the value of 'Key1' inside configuration file 'unittest.yml'.
 %   This will load the entire configuration folder if not loaded yet.
+%
 %       Comp = Component
 %       disp(Comp.Config.Data.unittest.Key1)
 %

@@ -75,9 +75,61 @@ def log(msg, dt = False):
         logfile.flush()
 
 
+#
 def log_line(msg, line_num, line):
     log(msg + ' (line ' + str(line_num) + '): ' + line)
 
+
+# Check if string contains repeated char
+def contains_repch(s, ch_list, min_count):
+    if not type(ch_list) is list:
+        ch_list = [ch_list]
+    for ch in ch_list:
+        found = False
+        count = 0
+        for c in s:
+            if c == ch:
+                count += 1
+                if count >= min_count:
+                    return True
+            else:
+                count = 0
+
+    return False
+
+
+# Replace
+def replace_repch(s, ch_list, min_count, newch):
+    if not type(ch_list) is list:
+        ch_list = [ch_list]
+
+    for ch in ch_list:
+        found = False
+        count = 0
+        for c in s:
+            if c == ch:
+                count += 1
+                if count >= min_count:
+                    s = s.replace(min_count * ch, newch)
+                    return s
+            else:
+                count = 0
+
+    return s
+
+    '''
+    count = 0
+    r = ''
+    for c in s:
+        if c == ch:
+            count += 1
+        else:
+            if count >= min_count:
+            else:
+            count = 0
+
+    return r
+    '''
 
 # ===========================================================================
 
@@ -775,91 +827,117 @@ class MatlabProcessor:
     # Extract H1 comment from comment lines below the function/class line
     # function Result = openConn(Obj)
     #    % Open connection, throw exception on failure
-    #
-    # short = True
-    def get_comment(self, lines, idx, short = True):
-        comment = ''
+    def get_short_comment(self, lines, idx):
 
         # Look for #functions block to exclude it from scanned lines
         start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
-        end_idx   = self.index_starts_with(lines, FUNC_BLOCK_END)
+        end_idx = self.index_starts_with(lines, FUNC_BLOCK_END)
 
         # Look for comment line below the function line
+        comment = ''
         count = 0
-
         for line_num in range(idx+1, len(lines)):
 
             # Skip autogen #functions block
             if start_idx > -1 and end_idx > -1:
-                if line_num >= start_idx and line_num <= end_idx:
+                if start_idx <= line_num <= end_idx:
                     continue
 
-            line = lines[line_num].replace('\t', ' ').rstrip()
-            if short:
-                # Stop on non-comment line or empty line
-                if not line.strip().startswith('%'):
-                    break
-            else:
-                # Stop on non-comment line (assuming it is a code)
-                if not line.strip().startswith('%') and line.strip() != '':
-                    break
+            # Stop on non-comment line
+            line = lines[line_num].replace('\t', ' ').strip()
+            if not line.strip().startswith('%'):
+                break
 
+            # Stop on non simple comment marks
+            if contains_repch(line, ['-', '=', '*', '%', ], 4):
+                break
+
+            # Remove leading comment mark
             if line.startswith('% '):
                 line = line[2:]
             elif line.startswith('%'):
-                    line = line[1:]
+                line = line[1:]
 
-            # Clean comment marks and separators
-            #line = line.replace('%', '').rstrip()
-            line = line.replace('--', '').rstrip()
-            line = line.replace('==', '').rstrip()
+            # Check for special cases in text
             words = line.split(' ')
             words_lower = line.lower().split(' ')
 
-            # Stop on special cases
+            # Example block
+            if 'example' in words_lower:
+                break
 
-            # Short comment
-            if short:
-                if 'example' in words_lower:
+            # Input block, Output block
+            if len(words) > 0:
+                if words[0] in ['Input', 'Output']:
                     break
-                if len(words) > 0 and words[0] == 'Input':
-                    break
 
-                # Append text to comment
-                comment_line = ' '.join(words)
-                comment = (comment + ' ' + comment_line).strip()
-
-            # Long comment
-            else:
-                # Append text to comment, use double-space for new line in MD file
-
-                #comment_line = line + ' ' #' '.join(words)
-
-                if line.strip() == '':
-                    comment += '\n'
-                elif line.startswith('#'):
-                    if comment != '' and not comment.endswith('\n'):
-                        comment += '\n'
-                    comment += line + '\n'
-                elif line.startswith('    '):
-                    if comment != '' and not comment.endswith('\n'):
-                        comment += '\n'
-                    comment += '    ' + line.strip() + '\n'
-                else:
-                    if comment != '' and not comment.endswith('\n'):
-                        comment += ' '
-
-                    comment += line.strip()
-                    if line.endswith('.') or line.endswith(':'):
-                        line += '\n'
-
-                #comment_line = line + '  ' #' '.join(words)
-                #comment = (comment + '\n' + comment_line) #.strip()
+            # Append text to comment, making a single sentence or text block
+            comment_line = ' '.join(words)
+            comment = (comment + ' ' + comment_line).strip()
 
             # Stop if comment is too long, by number of lines, or by text length
             count = count + 1
-            if short and (count >= 5 or len(comment) > 300):
+            if count >= 5 or len(comment) > 300:
                 break
+
+        return comment
+
+    # -----------------------------------------------------------------------
+    # Extract entire comment block, assuming it may contain Markdown formatting.
+    def get_long_comment(self, lines, idx):
+
+        # Look for #functions block to exclude it from scanned lines
+        start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
+        end_idx = self.index_starts_with(lines, FUNC_BLOCK_END)
+
+        # Look for comment block below the function line
+        comment = ''
+        for line_num in range(idx+1, len(lines)):
+
+            # Skip autogen #functions block
+            if start_idx > -1 and end_idx > -1:
+                if start_idx <= line_num <= end_idx:
+                    continue
+
+            # Stop on non-comment line (assuming it is a code)
+            line = lines[line_num].replace('\t', ' ').strip()
+            if not line.strip().startswith('%') and line.strip() != '':
+                break
+
+            # Remove leading comment mark
+            if line.startswith('% '):
+                line = line[2:]
+            elif line.startswith('%'):
+                line = line[1:]
+
+            # Clean comment marks and separators
+            # Stop on non simple comment marks
+            if contains_repch(line, ['-', '=', '*', '%', ], 4):
+                line = replace_repch(line, ['-', '=', '*', '%', ], 4, '').rstrip()
+
+            # Check for special cases in text
+            words = line.split(' ')
+            words_lower = line.lower().split(' ')
+
+            # Append text to comment, use double-space for new line in MD file
+
+            if line.strip() == '':
+                comment += '\n'
+            elif line.startswith('#'):
+                if comment != '' and not comment.endswith('\n'):
+                    comment += '\n'
+                comment += line + '\n'
+            elif line.startswith('    '):
+                if comment != '' and not comment.endswith('\n'):
+                    comment += '\n'
+                comment += '    ' + line.strip() + '\n'
+            else:
+                if comment != '' and not comment.endswith('\n'):
+                    comment += ' '
+
+                comment += line.strip()
+                if line.endswith('.') or line.endswith(':'):
+                    line += '\n'
 
         return comment
 
@@ -1189,7 +1267,7 @@ class MatlabProcessor:
     def process_class_file(self, lines):
 
         cls = self.get_class(self.cur_class)
-        cls.long_comment = self.get_comment(lines, 0, False)
+        cls.long_comment = self.get_long_comment(lines, 0)
 
         methods_type = ''
         prop_type = ''
@@ -1231,8 +1309,7 @@ class MatlabProcessor:
 
                         prop = PropertyData()
                         prop.name = prop_name
-                        prop.comment = comment #self.get_comment(lines, line_num)
-                        #prop.long_comment = self.get_comment(lines, line_num, short=False)
+                        prop.comment = comment
                         cls.prop_dict[prop_name] = prop
 
 
@@ -1267,8 +1344,8 @@ class MatlabProcessor:
                         if 'copyElement' in func_name:
                             log('debug')
 
-                        func.comment = self.get_comment(lines, line_num)
-                        func.long_comment = self.get_comment(lines, line_num, short=False)
+                        func.comment = self.get_short_comment(lines, line_num)
+                        func.long_comment = self.get_long_comment(lines, line_num)
                         cls.func_dict[func_name] = func
             except:
                 log('exception parsing line: ' + line)
@@ -1286,7 +1363,7 @@ class MatlabProcessor:
 
         #
         for line_num, line in enumerate(lines):
-            try:
+            #try:
                 code_line = self.get_code_line(line)
                 func_name = self.get_function_name(code_line)
                 if func_name != '':
@@ -1296,15 +1373,15 @@ class MatlabProcessor:
                     else:
                         func = FunctionData()
                         func.name = func_name
-                        func.comment = self.get_comment(lines, line_num)
-                        func.long_comment = self.get_comment(lines, line_num, short=False)
+                        func.comment = self.get_short_comment(lines, line_num)
+                        func.long_comment = self.get_long_comment(lines, line_num)
                         cls.func_dict[func_name] = func
 
                         # Stop after the first function, so internal (unexposed) functions will not be listed
                         break
 
-            except:
-                log_line('process_func_file exception', line_num, line)
+            #except:
+            #    log_line('process_func_file exception', line_num, line)
 
     # -----------------------------------------------------------------------
     # Process function file (non-class)
