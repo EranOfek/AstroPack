@@ -199,7 +199,7 @@ function Result = findMeasureSources(Obj, Args)
             % remove bad sources
             % works only for Gaussian PSF
             if Args.RemoveBadSources
-                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj).CatData, 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
+                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
                                                                            'ColNamsSN',{'SN_1','SN_2'},...
                                                                            'RemoveBadSources',Args.RemoveBadSources,...
                                                                            'CreateNewObj',false);
@@ -209,7 +209,8 @@ function Result = findMeasureSources(Obj, Args)
             % populate Flags from the Mask image
             if Args.AddFlags
                 XY                   = getXY(Result(Iobj).CatData, 'ColX', Args.ColNamesX, 'ColY',Args.ColNamesY); 
-                Flags                = bitwise_cutouts(Result(Iobj).Maskdata, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                % need to decide what to do about NaN positions
+                Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
             end                
         end
