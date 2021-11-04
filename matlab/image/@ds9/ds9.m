@@ -136,6 +136,9 @@ classdef ds9 < handle
             % Reliable: 2
             
             % ds9_disp(Image,varargin{:});
+
+            % O.S. added test for ds9 working window
+            
             ds9.disp(Image,varargin{:});
             clear Obj; % Output Object Not Assigned, therefore need to clear it
         end
