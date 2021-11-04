@@ -70,7 +70,7 @@ end
 
 
 % Prepare the design matrix and observation vectors
-[H,CalibH] = Util.fit.design_matrix_calib(Nsrc,Nep,InPar.Sparse,InPar.Class);
+[H,CalibH] = tools.fit.design_matrix_calib(Nsrc,Nep,InPar.Sparse,InPar.Class);
 MagVec     = Mag(:);
 ErrVec     = Err(:);
 
