@@ -86,7 +86,7 @@ for If=1:1:Nf
         %Id
         %Iid
            
-            Files(Id(Iid)).name
+            Files(Id(Iid)).name;
             Cat(Iid) = load_file(Files(Id(Iid)).name,InPar.FileType,  DecLim );
     end
     Cat = merge(Cat);
@@ -187,7 +187,10 @@ for If=1:1:Nf
     
     %GAIAEDR3
   
-    Cat.ColCell = {'RA','Dec','Epoch','ErrRA','ErrDec','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec','RA_Dec_Corr','ExcessNoise','ExcessNoiseSig','ErrMag_G','Mag_G','ErrMag_BP','Mag_BP','ErrMag_RP','Mag_RP','RV','ErrRV','Teff'};
+    ColCell = {'RA','Dec','Epoch','ErrRA','ErrDec','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec','RA_Dec_Corr',...
+           'ExcessNoise','ExcessNoiseSig','MagErr_G','Mag_G','MagErr_BP','Mag_BP','MagErr_RP','Mag_RP',...
+           'RV','ErrRV','Teff'};
+
     Cat.ColUnits = {'rad','rad','JYear','mas','mas','mas','mas','mas/yr','mas/yr','mas/yr','mas/yr','','mas','','Vega','Vega','Vega','Vega','Vega','Vega',   'km/s','km/s','K'};
 
     

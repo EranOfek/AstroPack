@@ -1,3 +1,7 @@
 
+# Don't add large files to the repo
 *.exe
 *.msi
+
+# Excluded files
+!wget.exe

@@ -12,6 +12,9 @@ function Result = unitTest()
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
 
+    Q = db.DbQuery('unittest:master_table');
+    Q.selectCount()
+    
     % Connect
     % NOTE: Database 'unittest' should exist
     Conn = db.Db.getUnitTest();
@@ -155,21 +158,21 @@ end
 function Result = testInsert(Q)
     
     % Insert using raw sql
-    CountBeforeInsert = Q.selectTableCount();
+    CountBeforeInsert = Q.selectCount();
     InsertCount = 10;
     for i = 1:InsertCount
         Q.SqlText = sprintf("INSERT INTO master_table (recid, fint, fdouble) VALUES('%s', %d, %f)",...
             Component.newUuid(), randi(100), randi(100000));
         Q.exec();
     end
-    CountAfterInsert = Q.selectTableCount();
+    CountAfterInsert = Q.selectCount();
     assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     
     % Insert batch using raw sql: Prepare multiple INSERT lines   
     % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
     TestBatch = true;
     if (TestBatch)
-        CountBeforeInsert = Q.selectTableCount();
+        CountBeforeInsert = Q.selectCount();
         InsertCount = 10;
         Sql = '';
         for i = 1:InsertCount
@@ -180,7 +183,7 @@ function Result = testInsert(Q)
         end           
         Q.exec(Sql);
         assert(Q.ExecOk);            
-        CountAfterInsert = Q.selectTableCount();
+        CountAfterInsert = Q.selectCount();
         assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     end
 

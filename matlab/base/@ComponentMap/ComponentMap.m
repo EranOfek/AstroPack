@@ -33,22 +33,24 @@ classdef ComponentMap < handle
         % vectors. As a result, they provide more flexibility for data
         % access than array indices, which must be positive integers.
         % Values can be scalar or nonscalar arrays.
-        Map = []        % containers.Map(Key) -> Component
-        Name = []       % Map name
+        Map = []            % containers.Map(Key) -> Component
+        Name = []           % Map name
+        IgnoreCase = true   %
     end
 
     %--------------------------------------------------------
     methods % Constructor
 
-        function Obj = ComponentMap(varargin)
+        function Obj = ComponentMap(Args)
             % Constructor, optional parameter is used as map name,
             % otherwise the default '(unnamed)' is used
-            if numel(varargin) > 0
-                Obj.Name = varargin{1};
-            else
-                Obj.Name = '(unnamed)';
+            arguments
+                Args.Name       = '(unnamed)'
+                Args.IgnoreCase = true
             end
+            
             Obj.Map = containers.Map();
+            Obj.IgnoreCase = Args.IgnoreCase;
             Obj.msgLog(LogLevel.Debug, 'ComponentMap created: %s', Obj.Name);
         end
 
@@ -66,7 +68,11 @@ classdef ComponentMap < handle
             % Add Component to the map using its MapKey property
 
             Key = Obj.getKey(Comp);
-            Obj.msgLog(LogLevel.Info, 'ComponentMap.add: %s', Key);
+            if Obj.IgnoreCase
+                Key = lower(Key);
+            end
+            
+            Obj.msgLog(LogLevel.Debug, 'ComponentMap.add: %s', Key);
             if ~Obj.Map.isKey(Key)
                 Obj.Map(Key) = Comp;
             else
@@ -79,6 +85,10 @@ classdef ComponentMap < handle
             % Remove the specified component from map
 
             Key = Obj.getKey(Comp);
+            if Obj.IgnoreCase
+                Key = lower(Key);
+            end
+            
             Obj.msgLog(LogLevel.Debug, 'ComponentMap.remove: %s', Key);
             if Obj.Map.isKey(Key)
                 Obj.Map.remove(Key);
@@ -91,6 +101,10 @@ classdef ComponentMap < handle
         function Result = find(Obj, CompKey)
             % Find component in map by the specified key, returns [] if not
             % found
+            if Obj.IgnoreCase
+                CompKey = lower(CompKey);
+            end
+            
             if Obj.Map.isKey(CompKey)
                 Result = Obj.Map(CompKey);
             else
@@ -102,6 +116,9 @@ classdef ComponentMap < handle
         function Result = getKey(Obj, Comp)
             % Get component map key, generate it if required
             Result = Comp.needMapKey();
+            if Obj.IgnoreCase
+                Result = lower(Result);
+            end            
         end
 
 
@@ -148,7 +165,7 @@ classdef ComponentMap < handle
             % Return singleton object
             persistent PersObj
             if isempty(PersObj)
-                PersObj = ComponentMap('Default');
+                PersObj = ComponentMap('Global');
             end
             Result = PersObj;
         end

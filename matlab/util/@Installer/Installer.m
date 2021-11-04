@@ -7,12 +7,12 @@
 %
 % Author : Eran Ofek (Sep 2021)
 % Examples:
-% I = Installer;  % create installer object
-% I.seeAvailableData      % print a table of all available datasets and description and size
-% I.install               % install all data sets [very large!]
-% I.install({'Time','MinorPlanets'});
-% I.install({'GAIA_SpecTemplate'}); % install specific datasets
-% I.install({'cats'}); % install specific datasets (and open tar file)
+% I = Installer;                        % create installer object
+% I.seeAvailableData                    % print a table of all available datasets and description and size
+% I.install                             % install all data sets [very large!]
+% I.install({'Time','MinorPlanets'});   % install specific datasets
+% I.install({'GAIA_SpecTemplate'});     % install specific datasets
+% I.install({'cats'});                  % install specific datasets (and open tar file)
 
 % #functions (autogen)
 % Installer - constructor for the Installre class (a utility class for AstroPack installation
@@ -23,7 +23,6 @@
 % prep_cats - Prepare interface functions for the catalogs in the data directory Package: VO.search Description: Prepare interface functions for the catalogs in the data directory
 % readElementsFileJPL - Read JPL orbital elements file
 % readIERS_EOP - Read all IERS Earth Orientation File 'finals2000A.data.csv' documentation: http://hpiers.obspm.fr/eoppc/bul/bulb/explanatory.html http://maia.usno.navy.mil http://www.iers.org/nn_10968/IERS/EN/DataProducts/EarthOrientationData/eop.html?__nnn=true x_pole/y_pole:  Celestial Ephemeris Pole (CEP) relative to the International Reference Pole (IRP) are defined as x and y
-% search - Search data name in Installer object
 % seeAvailableData - print a table of available data sets Example: I = Installer; I.seeAvailableData
 % #/functions (autogen)
 %
@@ -33,160 +32,134 @@ classdef Installer < Component
     
     % Properties
     properties (SetAccess = public)
-        DataName                    %
-        InstallationLocation        %
-        SubDir                      %
-        URL                         %
-        Size                        %
-        SearchFile                  %
-        Description                 %
-        ConfigFile                  %
+        Items       % From configuration
     end
     
     %--------------------------------------------------------
     methods % constructor
 	
-        function Obj = Installer(DataName)
-            % constructor for the Installre class (a utility class for
+        function Obj = Installer(varargin)
+            % constructor for the Installer class (a utility class for
             % AstroPack installation
-            
-            arguments
-                DataName  = [];     %
+
+            Obj.setName('Installer');
+            if tools.os.iswindows
+                io.msgLog(LogLevel.Info, 'Download wget for Windows from https://eternallybored.org/misc/wget/');
+                io.msgLog(LogLevel.Info, 'and put wget.exe in a folder on the system path search');
             end
 
-            if isnumeric(DataName) && ~isempty(DataName)
-                Obj.DataName = [];
-            else
-                if isempty(DataName)
-                    % load all files
-                    DataName = fieldnames(Obj.Config.Data.Installer);
-                    if isempty(DataName)
-                        error('Installer yml files are not loaded into configuration');
-                    end
-                end
-            
-                % Since Config.Data.Installer contains also the generated 
-                % 'FileName' field, we should not iterate it
-                % @Todo: Find better solution, what if we have more fields
-                % like this???
-                Ndn = numel(DataName)-1;
-                ConfigStruct = Obj.Config.Data.Installer;
-                for Idn=1:1:Ndn
-                    
-                    % Create new element in array
-                    Obj(Idn) = Installer(1);
-                    
-                    % Set data from configuration
-                    Obj(Idn).DataName             = ConfigStruct.(DataName{Idn}).DataName;
-                    Obj(Idn).InstallationLocation = ConfigStruct.(DataName{Idn}).InstallationLocation;
-                    Obj(Idn).SubDir               = ConfigStruct.(DataName{Idn}).SubDir;
-                    Obj(Idn).URL                  = ConfigStruct.(DataName{Idn}).URL;
-                    Obj(Idn).Size                 = ConfigStruct.(DataName{Idn}).Size;
-                    Obj(Idn).SearchFile           = ConfigStruct.(DataName{Idn}).SearchFile;
-                    Obj(Idn).Description          = ConfigStruct.(DataName{Idn}).Description;
-                end
-            end
-            
+            % Load all items from configuration
+            Obj.Items = Obj.Config.Data.Installer.Items;            
+            if isempty(Obj.Items)
+                error('Installer yml file is not loaded into configuration');
+            end            
+                        
         end
     end
     
-    
-    methods % setters/getters
-    
-       
-    end
-    
-    methods (Static)
-        function installSingle(DataStruct, Args)
+    %--------------------------------------------------------	
+    methods % main functions           
+        
+        function install(Obj, DataName, Args)
+            % Install AstroPack data directories from AstroPack repository
+            % Input  : - An Installer object.
+            %          - A DataName to install (e.g., 'GAIA_SpecTemplate'),
+            %            or a cell array of data names. If empty, install
+            %            all data names in ConfigStruct.
+            %            Default is empty.
+            %          * ...,key,val,...
+            %            'DataName' - A DataName to install (e.g., 'GAIA_SpecTemplate'),
+            %                   or a cell array of data names. If empty, install
+            %                   all data names in ConfigStruct.
+            %                   Default is empty.
+            %            'Delete' - A logical indicating if to delete
+            %                   data before installation.
+            %                   Default is true.
+            %            'Npwget' - Number of parallel wget. Default is 10.
+            %            'wgetPars' - A cell array of additional wget
+            %                   arguments. Default is '-q -o /dev/null -U Mozilla --no-check-certificate'.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: I = Installer;
+            %          I.install            % install all
+            %          I.install(5)         % install the 5th data name: PicklesStellarSpec
+            %          I.install('Time');   % install the Time data name
+            %          I.install({'Time','MinorPlanets'})           
+            
+            arguments
+                Obj
+                DataName                  = {};
+                Args.Delete(1,1) logical  = true;
+                Args.Npwget               = 10;
+                Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
+            end
+
+            % Allow index to Items, single char value, or cell with list of items
+            if isnumeric(DataName)
+                List = fieldnames(Obj.Items);
+                DataName = List(DataName);           
+            elseif ischar(DataName)
+                DataName = {DataName};
+            elseif isempty(DataName)
+                DataName = fieldnames(Obj.Items);
+            end
+                       
+            io.msgLog(LogLevel.Info, 'install started: items to install: %d', numel(DataName));
+            for i=1:1:numel(DataName)
+                Name = DataName{i};
+                if isfield(Obj.Items, Name)
+                    Item = Obj.Items.(Name);                                                                         
+                    try
+                        Obj.installSingle(Item, 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
+                    catch
+                        io.msgLog(LogLevel.Error, 'installSingle failed: %s', Name);
+                    end
+
+                    % special treatment
+                    switch Item.DataName
+                        case 'cats'
+                            Dir = Obj.getDataDir('cats');
+                            Obj.prep_cats('Dir', Dir);
+                    end                        
+                else
+                    io.msgLog(LogLevel.Error, 'install: unknown DataName: %s', Name);
+                end
+            end
+            
+            io.msgLog(LogLevel.Info, 'install: done');
+        end
+                
+        
+        function installSingle(Obj, DataStruct, Args)
             % Install single DataName (utility function for install)
             % Input  : - A structure with the DataName, SubDir, URL,
-            %            SearchFile fields fot the data to install
+            %            SearchFile fields for the data to install
             % Author : Eran Ofek (Sep 2021)
             % @Todo: Why static???
         
             arguments
+                Obj
                 DataStruct
                 Args.Delete(1,1) logical  = true;
                 Args.Npwget               = 10;
                 Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
             end
             
-
-            IsUnix = isunix || ismac;
-            IsWindows = ~IsUnix;
-            
-            if IsWindows
-                
-                % Chen - Disable delete until we make sure that everything
-                % is fine
-                Args.Delete = false;
-                io.msgLog(LogLevel.Info, 'installSingle: delete is currently disabled on Windows');
-                
-                % assume windows - replace / with \
-                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation,'/',filesep);
-                DataStruct.SubDir = strrep(DataStruct.SubDir,'/',filesep);
-            else
-                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation,'\',filesep);
-                DataStruct.SubDir               = strrep(DataStruct.SubDir,'\',filesep);
-            end
-    
-
+            % Create folder if not exist
             PWD = pwd;
-            
-            % Windows
-            if IsWindows
-                PathWin = 'C:\AstroPack';
-                if ~isfolder(PathWin)
-                    io.msgLog(LogLevel.Info, 'creating folder: %s', PathWin);
-                    mkdir(PathWin)
-                end
-                cd(PathWin);
-                
-            % Linux
-            else
-                cd('~/');
-            end
-            
+            Dir = Obj.getDataDir(DataStruct);          
+            if ~isfolder(Dir)
+                io.msgLog(LogLevel.Info, 'creating folder: %s', Dir);
+                mkdir(Dir);
+            end            
+            cd(Dir);
+       
             %
-            if IsWindows
-                DataStruct.InstallationLocation = strrep(DataStruct.InstallationLocation, '~', PathWin);
-            end
-            
-            %
-            io.msgLog(LogLevel.Info, 'Installer: %s', DataStruct.InstallationLocation);
-            if ~isfolder(DataStruct.InstallationLocation)
-                io.msgLog(LogLevel.Info, 'creating folder: %s', DataStruct.InstallationLocation);
-                mkdir(DataStruct.InstallationLocation);
-            end
-            
-            % create dir for installation
-            if IsWindows
-                cd(sprintf('%s%s',PathWin,filesep));
-            else
-                cd(sprintf('~%s',filesep));
-            end
-            
-            cd(DataStruct.InstallationLocation);
-
-            Parts = regexp(DataStruct.SubDir, filesep, 'split');
-
-            Nparts = numel(Parts);
-            SubDir = '';
-            for Iparts=1:1:Nparts
-                SubDir = sprintf('%s%s%s',SubDir,filesep,Parts{Iparts});
-                if ~isfolder(Parts{Iparts})
-                    io.msgLog(LogLevel.Info, 'creating folder: %s', Parts{Iparts});
-                    mkdir(Parts{Iparts});
-                end
-                cd(Parts{Iparts});
-            end
-        
             PartsURL = regexp(DataStruct.URL,'/','split');
             Nfile    = numel(DataStruct.URL);
             if Nfile==1
                 % check if file is index.html
                 switch lower(PartsURL{1}{end})
-                    case {'index.html','index.htm'}
+                    case {'index.html', 'index.htm'}
                         % get all files in dir
 
                         [List, IsDir, FileName] = www.find_urls(DataStruct.URL{1}, 'match', DataStruct.SearchFile);
@@ -203,7 +176,7 @@ classdef Installer < Component
                 FileName = '*';
             end
             
-            if numel(List)>0
+            if numel(List) > 0
                 % delete content before reload
                 if Args.Delete
                     io.msgLog(LogLevel.Info, 'deleting content before reload: %s/*', pwd);
@@ -216,25 +189,26 @@ classdef Installer < Component
                 try
                     www.pwget(List, Args.wgetPars, Args.Npwget);
                 catch
-                    io.msgLog(LogLevel.Error, 'www.pwget exception');1
+                    io.msgLog(LogLevel.Error, 'www.pwget exception: %s', List{:});
                 end
                 
+                % Wait for completion
                 pause(5);
                 io.files.files_arrived([], 10);
+                
+                % Extract files
                 F = dir('*.gz');
                 for I=1:1:numel(F)
                     io.msgLog(LogLevel.Info, 'gunzip: %s in %s', F(I).name, pwd);
                     gunzip(F(I).name);
                 end
-                
-                % Does it work on Windows???
                 F = dir('*.tar');
                 for I=1:1:numel(F)
                     io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
                     untar(F(I).name);
                 end
                 
-                % Delete source archives                
+                % Delete original archives                
                 try
                     io.msgLog(LogLevel.Info, 'deleting %s/*.gz', pwd);
                     delete('*.gz');
@@ -247,6 +221,103 @@ classdef Installer < Component
             cd(PWD);
             
         end
+        
+        
+        function Result = seeAvailableData(Obj)
+            % print a table of available data sets
+            % Example: I = Installer; I.seeAvailableData
+            
+            % The long way, until I find how to do it shorter
+            DataName = {};
+            SubDir = {};
+            Size = {};
+            Description = {};
+            URL = {};
+            
+            Names = fieldnames(Obj.Items);
+            Cel = {};
+            for i=1:numel(Names)
+                 Item = Obj.Items.(Names{i});
+%                 DataName{end+1} = Item.DataName;
+%                 SubDir{end+1} = Item.SubDir;
+%                 Size{end+1} = Item.Size;
+%                 Description{end+1} = Item.Description;
+%                 URL{end+1} = Item.URL;
+                
+                Cel{i, 1} = {Item.DataName};
+                Cel{i, 2} = Item.SubDir;
+                Cel{i, 3} = Item.Size;
+                Cel{i, 4} = Item.Description;
+                Cel{i, 5} = Item.URL{:};                
+            end
+
+            Result = cell2table(Cel, 'VariableNames', {'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'} );
+
+             
+%              Result = cell2table(...
+%              [ {DataName}', {SubDir}', {Size}', {Description}', {URL}' ], ...
+%                  'VariableNames', {'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'} );
+                
+%             Result = cell2table([{Obj.DataName}', ...
+%                    {Obj.SubDir}', ...
+%                    {Obj.Size}', ...
+%                    {Obj.Description}',...
+%                    {Obj.URL}'], 'VariableNames',{'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'});
+            
+        end
+        
+        
+        function Dir = getDataDir(Obj, Item)
+            % Get data directory name
+            % DataName of data directory as appear in Insataller/seeAvailableData
+            % Input  : - Installre object.
+            %          - DataName
+            % Output : - Directory name. Return empty if not found.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: I = Insatller; I.getDataDir('Time')
+            if ischar(Item) && isfield(Obj.Items, Item)
+                Item = Obj.Items.(Item);
+            end
+            
+            if ~isempty(Item)
+                if tools.os.iswindows
+                    Path = Obj.Config.Data.Installer.Default.InstallationLocationWindows;
+                else
+                    Path = Obj.Config.Data.Installer.Default.InstallationLocation;                    
+                end                               
+                Dir = fullfile(Path, Item.SubDir);
+            else
+                Dir = '';
+            end
+        end
+
+        
+        function [Files, Dir] = getFilesInDataDir(Obj, Name)
+            % Return all file names in directory associated with DataName
+            % Input  : - Installer object.
+            %          - DataName
+            % Output : - dir-function like output of all the file names in
+            %            the data directory. Directories are removed.
+            %          - Data dir containing the files.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: I = Insatller; I.getFilesInDataDir('SpecGalQSO')
+
+            Dir = Obj.getDataDir(Name);
+            if isfolder(Dir)
+                PWD = pwd;
+                cd(Dir);
+                Files = dir('*');
+                Files = Files(~[Files.isdir]);
+                cd(PWD);
+            else
+                Files = [];
+            end
+        end
+              
+    end    
+
+    %--------------------------------------------------------
+    methods (Static)
         
         function T = readElementsFileJPL(FileName, Type)
             % Read JPL orbital elements file
@@ -348,7 +419,7 @@ classdef Installer < Component
             % Example: [T1, T2, T3] = Installer.readIERS_EOP
             
             arguments
-                FileInd = [1 2 3];
+                FileInd = [1, 2, 3];
             end
             
             Finals   = 'finals2000A.data.csv';
@@ -411,16 +482,10 @@ classdef Installer < Component
 
             arguments
                 Args.Dir = [];
-                Args.Exten = {'mat','fits'};
+                Args.Exten = {'mat', 'fits'};
             end
 
-            if isempty(Args.Dir)
-                I   = Installer;
-                Args.Dir = getDataDir(I, '+cats');
-            end
-
-            Next  = numel(Args.Exten);
-
+            Next = numel(Args.Exten);
             PWD = pwd;
 
             for Iext=1:1:Next
@@ -435,7 +500,7 @@ classdef Installer < Component
                     FunName  = regexprep(ProgName,'.m','');
                     
                     % print status to screen
-                    io.msgLog(LogLevel.Info, 'Generating function %s\n', FunName);
+                    io.msgLog(LogLevel.Info, 'prep_cats: Generating function %s\n', FunName);
 
                     switch lower(Args.Exten{Iext})
                         case 'mat'
@@ -448,6 +513,7 @@ classdef Installer < Component
                             fprintf(FID,'Nout = nargout;\n');
                             fprintf(FID,'[varargout{1:Nout}]=VO.search.catalog_interface(''%s'',''%s'',varargin{:});\n',List(If).name,List(If).folder);
                             fclose(FID);
+                            
                         case 'fits'
                             % create and write FITS read function
                             FID=fopen(ProgName,'w');
@@ -469,144 +535,11 @@ classdef Installer < Component
 
         end
     end
-   
-	
-    methods % main functions
-        function Ind = search(Obj, DataName)
-            % Search data name in Installer object
-            % Input  : - An Installer object
-            %          - data name to search (e.g., 'Time')
-            %            ir a cell array of data names.
-            % Output : - Index of found data name in Installer object
-            % Author : Eran Ofek (Sep 2021)
-            % Example: Ind = search(I, 'MinorPlanets')
-            %          Ind = search(I, {'Time','MinorPlanets'})
-            
-            if ischar(DataName)
-                DataName = {DataName};
-            end
-            
-            Ind = find(ismember({Obj.DataName}, DataName));
-        end
-            
-        
-        function install(Obj, DataName, Args)
-            % Install AstroPack data directories from AstroPack repository
-            % Input  : - An Installer object.
-            %          - A DataName to install (e.g., 'GAIA_SpecTemplate'),
-            %            or a cell array of data names. If empty, install
-            %            all data names in ConfigStruct.
-            %            Default is empty.
-            %          * ...,key,val,...
-            %            'DataName' - A DataName to install (e.g., 'GAIA_SpecTemplate'),
-            %                   or a cell array of data names. If empty, install
-            %                   all data names in ConfigStruct.
-            %                   Default is empty.
-            %            'Delete' - A logical indicating if to delete
-            %                   data before installation.
-            %                   Default is true.
-            %            'Npwget' - Number of parallel wget. Default is 10.
-            %            'wgetPars' - A cell array of additional wget
-            %                   arguments. Default is '-q -o /dev/null -U Mozilla --no-check-certificate'.
-            % Author : Eran Ofek (Sep 2021)
-            % Example: I = Installer;
-            %          I.install   % install all
-            %          I(5).install % install the 5th data name: PicklesStellarSpec
-            %          I.install('Time'); % install the Time data name
-            %          I.install({'Time','MinorPlanets'})           
-            
-            arguments
-                Obj
-                DataName                  = {};
-                Args.Delete(1,1) logical  = true;
-                Args.Npwget               = 10;
-                Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
-            end
-
-            if ischar(DataName)
-                DataName = {DataName};
-            end
-            
-            Nobj = numel(Obj);
-            if isempty(DataName)
-                Ind = (1:1:Nobj);
-            else
-                Ind = Obj.search(DataName);
-            end
-               
-            io.msgLog(LogLevel.Info, 'install: items to install with installSingle: %d', numel(Ind));
-            for I=1:1:numel(Ind)
-                Iobj = Ind(I);
-                try
-                    Installer.installSingle(Obj(Iobj), 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
-                catch
-                    io.msgLog(LogLevel.Error, 'installSingle failed: %d: %s', Iobj, Obj(Iobj));
-                end
-                
-                % special treatment
-                switch DataName{I}
-                    case 'cats'
-                        VO.prep.prep_data_dir;
-                end
-                        
-            end
-        end
-        
-        
-        function Result = seeAvailableData(Obj)
-            % print a table of available data sets
-            % Example: I = Installer; I.seeAvailableData
-            
-            Result = cell2table([{Obj.DataName}', ...
-                   {Obj.SubDir}', ...
-                   {Obj.Size}', ...
-                   {Obj.Description}',...
-                   {Obj.URL}'], 'VariableNames',{'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'});
-            
-        end
-
-        
-        function Dir = getDataDir(Obj, Name)
-            % Get data directory name
-            % DataName of data directory as appear in Insataller/seeAvailableData
-            % Input  : - Installre object.
-            %          - DataName
-            % Output : - Directory name. Return empty if not found.
-            % Author : Eran Ofek (Sep 2021)
-            % Example: I = Insatller; I.getDataDir('Time')
-
-            Ind = search(Obj, Name);
-            if isempty(Ind)
-                Dir = [];
-            else
-                Dir  = sprintf('%s%s%s' ,Obj(Ind).InstallationLocation, filesep, Obj(Ind).SubDir);
-            end
-        end
-
-        
-        function [Files, Dir] = getFilesInDataDir(Obj, Name)
-            % Return all file names in directory associated with DataName
-            % Input  : - Installre object.
-            %          - DataName
-            % Output : - dir-function like output of all the file names in
-            %            the data directory. Directories are removed.
-            %          - Data dir containing the files.
-            % Author : Eran Ofek (Sep 2021)
-            % Example: I = Insatller; I.getFilesInDataDir('SpecGalQSO')
-
-            Dir = getDataDir(Obj, Name);
-            PWD = pwd;
-            cd(Dir);
-            Files = dir('*');
-            Files = Files(~[Files.isdir]);
-
-        end
-    end
-	
+  	
     
     methods(Static) % unitTest
         Result = unitTest(Obj)
-            % Dictionary unit test
+            % Unit test
             
    end
     
