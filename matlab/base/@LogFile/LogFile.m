@@ -62,6 +62,13 @@ classdef LogFile < handle
             % Store
             Obj.FileName = FileName;
 
+            % Create folder
+            [Path, FileName, Ext] = fileparts(FileName);
+            if ~isfolder(Path)
+                fprintf('LogFile: Creating folder: %s\n', Path);
+                mkdir(Path);
+            end
+                
             % Write separation line to clearly mark that we started now
             Obj.write('=========================================== Started');
         end
@@ -137,9 +144,9 @@ classdef LogFile < handle
             % Use system folder if not set
             if isempty(Path)
                 if ~isunix
-                    Path = 'C:\Temp';
+                    Path = 'C:/AstroPack/log';
                 else
-                    Path = '/tmp/';
+                    Path = '~/AstroPack/log';
                 end                
             end
             Result = Path;

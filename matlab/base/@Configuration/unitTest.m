@@ -5,7 +5,7 @@ function Result = unitTest()
 
     % Clear java to avoid failure of yaml.ReadYaml()
     clear java;
-    FileName = 'unittest';
+    FileName = 'UnitTest';
     
     ConfigPath = Configuration.getSysConfigPath();
     assert(~isempty(ConfigPath));
@@ -70,7 +70,7 @@ function Result = unitTest()
     % Load all config files in folder
     io.msgLog(LogLevel.Test, 'Testing folder');
     Conf.loadFolder(ConfigPath);
-    disp(Conf.Data.system.EnvFolders);
+    disp(Conf.Data.System.EnvFolders);
 
     io.msgLog(LogLevel.Test, 'Testing utility functions');
     %io.msgLog(LogLevel.Test, 'unmacro: %s', Configuration.unmacro("$Key1/abc", confUnitTest));
