@@ -367,6 +367,10 @@ class MlxWriter:
         code_lines = []
         prev_line_empty = True
         for line in markdown_lines:
+            # Skip comments (not Markdown standard)
+            if line.startswith(';'):
+                continue
+
             heading_level, text = self.get_markdown_heading_level(line)
             is_code = False
 

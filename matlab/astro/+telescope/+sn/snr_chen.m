@@ -49,7 +49,7 @@ DefPar.ULTRASAT           = {'FWHM',12,...
 % R is selected by user from combo
 
 
-% ULTRASAT Fixed Parameters
+% ULTRASAT Fixed Parameters - Load from Config
 DefV.Aper                 = 33;         % [cm]
 DefV.FL                   = 36;         % [cm]
 DefV.PixSize              = 9.5;        % [micron]

@@ -488,16 +488,18 @@ classdef UnitTester < handle
                 
         
         function Result = shouldProcessFile(Obj, FileName)
-            %
+            % Return true if file should be procssed, check for special
+            % folders (i.e. 'unused')
             Result = true;
             fn = lower(FileName);
-            if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || contains(fn, 'draft')
+            if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || contains(fn, 'draft') || contains(fn, 'external')
                 Result = false;
             end
         end
         
         
         function Result = Warn(Obj, Text)
+            % Add text to warnings list
             if ~any(find(strcmp(Obj.WarnList, Text)))
                 Obj.WarnList{end+1} = Text;
             end
@@ -506,7 +508,7 @@ classdef UnitTester < handle
         
         
         function Result = fullName(Obj, PackageName, ClassOrFunc)
-            %
+            % Return full file name including package
             Result = ClassOrFunc;
             if ~isempty(PackageName)
                 Result = [PackageName, '.', ClassOrFunc];
