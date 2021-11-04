@@ -189,7 +189,7 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
 
             % update the NAXIS keywords
             SizeImage = size(Result(Iim).(Args.DataProp).(Args.DataPropIn));
-            Result(Iim).HeaderData.replaceVal('NAXIS1', {SizeImage(1)});
+            Result(Iim).HeaderData.replaceVal('NAXIS2', {SizeImage(1)});
             Result(Iim).HeaderData.replaceVal('NAXIS1', {SizeImage(2)});
         end
 
