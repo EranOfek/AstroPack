@@ -4,8 +4,6 @@ Configuration -
 
 expandFolder - Expand Path with macros from Configuration.System.EnvFolders This functions assume that we already loaded a configuration file called System.yml which has EnvFolders section.
 
-getRange - Get minimum and maximum values from cell array, assuming that cell{1} holds the minimum and cell{2} folds the maximum This is usefull when storing Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
-
 getSingleton - Return the singleton Configuration object, this is the 'Global' configuration object of the system
 
 getSysConfigPath - Get path to system configuration file, from ASTROPACK_CONFIG_PATH or repository
@@ -15,8 +13,6 @@ initSysConfig - Return singleton Configuration object, clear entire configuratio
 internal_loadYaml - Read YAML file to struct, add FileName field
 
 internal_reloadYaml - Reload configuration file, YamlStruct.FileName property must exist FileName is created by Configuration.loadYaml() on loading.
-
-listLen - Return list length
 
 loadFile - Load specified file to new property inside Obj.Data. When Args.Field is true, a new property based on the file name will be created in Obj.Data Use this function when working with user Confguuration object, or when you want to explictly load/reload specific
 

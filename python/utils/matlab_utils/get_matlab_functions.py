@@ -99,6 +99,7 @@ def contains_repch(s, ch_list, min_count):
 
 
 # Replace
+# @Todo - need to fix this function, currently it returns empty line
 def replace_repch(s, ch_list, min_count, newch):
     if not type(ch_list) is list:
         ch_list = [ch_list]
@@ -110,7 +111,8 @@ def replace_repch(s, ch_list, min_count, newch):
             if c == ch:
                 count += 1
                 if count >= min_count:
-                    s = s.replace(min_count * ch, newch)
+                    #s = s.replace(min_count * ch, newch)
+                    s = ''
                     return s
             else:
                 count = 0
@@ -261,7 +263,6 @@ class MlxWriter:
             elif fname.endswith('.mlx') or fname.endswith('.zip'):
                 self.write_mlx(self.fname)
 
-
     # -----------------------------------------------------------------------
     # Add Title
     def title(self, text, body='', with_toc = True):
@@ -273,7 +274,6 @@ class MlxWriter:
         self.with_toc = with_toc
         if self.with_toc:
             self.toc()
-
 
     # Add Heading 1
     def heading1(self, text, body='', markdown=''):
@@ -318,6 +318,19 @@ class MlxWriter:
         for line in lines:
             self.wr(self.xml_text, line)
 
+    # Single/mutli-line paragraph
+    def wr_markdown(self, text):
+        is_bold = False
+        is_italic = False
+
+        '''
+        if '**' in text:
+            
+        lines = text.split('\n')
+        for line in lines:
+            self.wr(self.xml_text, line)
+        '''
+        
 
     # Add code section
     def code(self, text):
@@ -363,6 +376,12 @@ class MlxWriter:
     # -----------------------------------------------------------------------
 
     def markdown(self, markdown_text):
+
+        # Debug
+        with open('c:/temp/_md1.md', 'wt') as f:
+            f.write(markdown_text)
+
+
         markdown_lines = markdown_text.split('\n')
         code_lines = []
         prev_line_empty = True
@@ -395,15 +414,22 @@ class MlxWriter:
             #
             if not is_code:
                 if len(code_lines) > 0:
-                    while len(code_lines) > 0 and code_lines[0] == '':
-                        code_lines.pop(0)
 
-                    while len(code_lines) > 0 and code_lines[len(code_lines)-1] == '':
-                        code_lines.pop(len(code_lines)-1)
+                    # Write last code block
+                    if len(code_lines) > 0:
 
-                    self.code('\n'.join(code_lines))
-                    code_lines = []
+                        # Clear empty code lines from the top
+                        while len(code_lines) > 0 and code_lines[0] == '':
+                            code_lines.pop(0)
 
+                        # Clear empty code lines from the bottom
+                        while len(code_lines) > 0 and code_lines[len(code_lines)-1] == '':
+                            code_lines.pop(len(code_lines)-1)
+
+                        self.code('\n'.join(code_lines))
+                        code_lines = []
+
+                # Text (not heading and not code)
                 if heading_level == 0:
                     self.text(line)
                     prev_line_empty = line == ''
@@ -908,7 +934,7 @@ class MatlabProcessor:
             if not line.strip().startswith('%') and line.strip() != '':
                 break
 
-            # Remove leading comment mark
+            # Remove leading comment mark, so we are left only with the comment itself
             if line.startswith('% '):
                 line = line[2:]
             elif line.startswith('%'):
@@ -927,14 +953,20 @@ class MatlabProcessor:
 
             if line.strip() == '':
                 comment += '\n'
+
+            # Markdown heading
             elif line.startswith('#'):
                 if comment != '' and not comment.endswith('\n'):
                     comment += '\n'
                 comment += line + '\n'
+
+            # Markdown code block
             elif line.startswith('    '):
                 if comment != '' and not comment.endswith('\n'):
                     comment += '\n'
                 comment += '    ' + line.strip() + '\n'
+
+            # Normal text
             else:
                 if comment != '' and not comment.endswith('\n'):
                     comment += ' '
