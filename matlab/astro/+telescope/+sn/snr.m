@@ -12,6 +12,12 @@ function [SN]=snr(varargin)
 % Example: [SN]=telescope.sn.snr
 % Reliable: 2
 %--------------------------------------------------------------------------
+% ### Requirements
+%
+%    i = Installer
+%    i.install({'cats', 'PicklesStellarSpec', 'SpecGalQSO'})
+%
+%
 
 RAD = 180./pi;
 

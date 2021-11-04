@@ -884,8 +884,12 @@ classdef AstSpec < HEAD
                 % do nothing
             end
 
-
-            DirPic = '~/matlab/data/spec/PicklesStellarSpec';
+            % Chen, with fallback to old code  (04/11/2021)
+            DirPic = fullfile(tools.os.getAstroPackDataPath(), 'spec', 'PicklesStellarSpec');
+            if ~isfolder(DirPic)
+                DirPic = '~/matlab/data/spec/PicklesStellarSpec';
+            end            
+            
             PWD    = pwd;
             cd(DirPic);
 
@@ -966,7 +970,12 @@ classdef AstSpec < HEAD
             
             Dir = io.files.which_dir(mfilename);
             SpecDir = 'SpecGalQSO';
-            DirPath = sprintf('~/matlab/data/spec/%s%s',SpecDir,filesep);
+            
+            % Chen, with fallback to old code  (04/11/2021)
+            DirPath = fullfile(tools.os.getAstroPackDataPath(), 'spec', SpecDir, '/');
+            if ~isfolder(DirPath)
+                DirPath = sprintf('~/matlab/data/spec/%s%s',SpecDir,filesep);
+            end
             
             if (isempty(Name))
                 % show all spectral template available

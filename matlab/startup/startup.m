@@ -23,8 +23,9 @@ fprintf('Master startup.m file is located in AstroPack/matlab/startup\n');
 doStartup();
 
 fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
-fprintf('\nRemember to set environment variable ASTROPACK_PATH to AstroPack root folder\n');
-fprintf('for example /home/eran/matlab/AstroPack\n');
+fprintf('Remember to set environment variable ASTROPACK_PATH to AstroPack root folder, for example /home/eran/matlab/AstroPack\n');
+fprintf('Remember to set environment variable ASTROPACK_DATA_PATH to AstroPack root folder, for example ~/matlab/data\n');
+fprintf('Remember to set environment variable ASTROPACK_CONFIG_PATH to configuration files folder, if not set, repo config/ is used\n');
 
 %--------------------------------------------------------------------------
 function doStartup()
@@ -63,13 +64,23 @@ function doStartup()
         if isempty(AstroPackPath)    
             AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
         end
+        
+        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');        
+        if isempty(AstroPackPath)    
+            AstroPackDataPath = fullfile(HomeDir, MatlabDir, 'data');
+        end        
     else
         % Windows
         HomeDir = getenv('HOMEPATH');
         AstroPackPath = getenv('ASTROPACK_PATH');    
         if isempty(AstroPackPath)
             AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
-        end    
+        end
+        
+        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');    
+        if isempty(AstroPackDataPath)
+            AstroPackDataPath = 'C:/AstroPack/matlab/data';  % @Todo - Fix to use C:\AstroPack from getenv
+        end            
     end
 
     if (isempty(HomeDir))
@@ -79,6 +90,10 @@ function doStartup()
     if (isempty(AstroPackPath))
         error('Can not find AstroPack directory, set ASTROPACK_PATH - edit the startup.m file accordingly');
     end
+    
+    if (isempty(AstroPackDataPath))
+        fprintf('Warning: Can not find AstroPack Data directory, set ASTROPACK_DATA_PATH (default is ~/matlab/data on Linux, C:\AstroPack\matlab\data on Windows');
+    end    
 
 
     % Configuation path, default is in repo config/ 
@@ -164,6 +179,15 @@ function doStartup()
                            {CatsHTMDir,'ZTF','ztfDR1var'}};                     
     end       
 
+    % Folders installed by Installer.install(), note that Installer.prep_cats()
+    % is automatically called when installing 'cats' (same as the older
+    % VO.prep.prep.data.dir() function)
+    InstallerDataDir = AstroPackDataPath;
+    DirList.InstallerData = {{InstallerDataDir},...
+                             {InstallerDataDir, 'spec'},...
+                             {InstallerDataDir, 'spec/SpecGalQSO/'},...
+                             {InstallerDataDir, 'spec/PicklesStellarSpec/'}};       
+
     % add all DirList to path                 
     FN  = fieldnames(DirList);
     Nfn = numel(FN);
@@ -188,4 +212,3 @@ function doStartup()
     fprintf('AstroPack doStartup() done: %s\n', mfilename('fullpath'));
 
 end
-
