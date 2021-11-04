@@ -68,6 +68,27 @@ function Result = findMeasureSources(Obj, Args)
     %                                            'FLUXERR_APER',...
     %                                            'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
     %                                            'MAG_CONV'};
+    %            'AddFlags' - A logical indicating if to add a columns of
+    %                   flags to the catalog. The flags are generated from
+    %                   the mask image. An or operator is used for all the
+    %                   pixels within a 'FlagRadius' pixels from the source
+    %                   position specified by the 'ColNamesX' and
+    %                   'ColNamesY' arguments. Default is true.
+    %            'FlagHalfSize' - Half size [pix] of coutout around the source X/Y position
+    %                   from which to extract all the Mask values for the
+    %                   source Flag. The cutout size is twice the half size plus 1.
+    %                   Default is 3.
+    %            'FlasgPos' - The column index in which to add the Flags
+    %                   column. Default is Inf.
+    %            'ColNameFlags' - The column name of Flags to add to the
+    %                   catalog. Default is 'FLAGS'.
+    %            'ColNamesX' - X column names dictionary from which to get
+    %                   the X position for the flags retrival.
+    %                   Default is AstroCatalog.DefNamesX.
+    %            'ColNamesY' - Y column names dictionary from which to get
+    %                   the Y position for the flags retrival.
+    %                   Default is AstroCatalog.DefNamesY.
+    %
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
@@ -112,7 +133,18 @@ function Result = findMeasureSources(Obj, Args)
                                                 'FLUXERR_APER',...
                                                 'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
                                                 'MAG_CONV', 'MAGERR_CONV'};
+        
+        % Flags
+        Args.AddFlags logical              = true;
+        Args.FlagHalfSize                  = 3;
+        Args.FlasgPos                      = Inf;
+        Args.ColNameFlags                  = 'FLAGS';
+        Args.ColNamesX                     = AstroCatalog.DefNamesX;
+        Args.ColNamesY                     = AstroCatalog.DefNamesY;
+            
         Args.CreateNewObj                  = [];
+        
+        
         
         % hidden
         Args.ImageProp char            = 'ImageData';
@@ -167,11 +199,19 @@ function Result = findMeasureSources(Obj, Args)
             % remove bad sources
             % works only for Gaussian PSF
             if Args.RemoveBadSources
-                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
+                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj).CatData, 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
                                                                            'ColNamsSN',{'SN_1','SN_2'},...
                                                                            'RemoveBadSources',Args.RemoveBadSources,...
                                                                            'CreateNewObj',false);
             end
+            
+            
+            % populate Flags from the Mask image
+            if Args.AddFlags
+                XY                   = getXY(Result(Iobj).CatData, 'ColX', Args.ColNamesX, 'ColY',Args.ColNamesY); 
+                Flags                = bitwise_cutouts(Result(Iobj).Maskdata, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+            end                
         end
                                                     
                                                         

@@ -4,7 +4,7 @@ function [Result, Flag] = cleanSources(Obj, Args)
     %   testing between a delta function and some PSF, and finding sources
     %   which S/N based on the annulus std is low (i.e. identify cases in
     %   which the local background/variance estimation is not reliable).
-    % Input  : - An Astrocatalog or AstroImage (w/ Astrocatalog) object.
+    % Input  : - An AstroCatalog or AstroImage (w/ Astrocatalog) object.
     %            The AstroCatalog must contains at least two S/N columns
     %            measured using two PSF matched filters,
     %            an 'STD_ANNULUS' column of the std measured in an annulus
