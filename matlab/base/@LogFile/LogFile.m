@@ -1,3 +1,4 @@
+% #autogen:_off
 % Simple textual log file
 % Note that this class is derived from handle and not from Component
 

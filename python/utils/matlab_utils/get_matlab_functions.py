@@ -137,7 +137,7 @@ def replace_repch(s, ch_list, min_count, newch):
 
 class MarkdownReader:
 
-    def __init__(self, fname):
+    def __init__(self, fname = ''):
         self.fname = fname
         self.lines = []
         if fname != '':
@@ -154,7 +154,7 @@ class MarkdownReader:
             # @Todo - should be better solution
             line = line.replace('\t', '    ')
 
-            if line.strip().lower() == heading.strip().lower():
+            if line.strip().lower().startswith(heading.strip().lower()):
                 found = True
             elif found:
                 if line.startswith('#'):
@@ -385,9 +385,10 @@ class MlxWriter:
         markdown_lines = markdown_text.split('\n')
         code_lines = []
         prev_line_empty = True
+        prev_line = ''
         for line in markdown_lines:
-            # Skip comments (not Markdown standard)
-            if line.startswith(';'):
+            # Skip comments (not Markdown standard) and special directives
+            if line.startswith(';') or '#autogen' in line.lower():
                 continue
 
             heading_level, text = self.get_markdown_heading_level(line)
@@ -407,7 +408,8 @@ class MlxWriter:
                 line = line.replace('\t', '    ')
 
                 # Code
-                if line.startswith('    ') and prev_line_empty:
+                allow_start_code = prev_line_empty or 'example:' in prev_line.lower()
+                if line.startswith('    ') and allow_start_code:
                     is_code = True
                     code_lines.append(line.strip())
 
@@ -433,6 +435,9 @@ class MlxWriter:
                 if heading_level == 0:
                     self.text(line)
                     prev_line_empty = line == ''
+
+            #
+            prev_line = line
 
     # -----------------------------------------------------------------------
     def get_markdown_heading_level(self, line):
@@ -922,6 +927,8 @@ class MatlabProcessor:
 
         # Look for comment block below the function line
         comment = ''
+        prev_line = ''
+        prev_line_is_code = False
         for line_num in range(idx+1, len(lines)):
 
             # Skip autogen #functions block
@@ -929,10 +936,18 @@ class MatlabProcessor:
                 if start_idx <= line_num <= end_idx:
                     continue
 
+
             # Stop on non-comment line (assuming it is a code)
             line = lines[line_num].replace('\t', ' ').strip()
             if not line.strip().startswith('%') and line.strip() != '':
                 break
+
+            # Skip directives
+            if '#autogen' in line:
+                continue
+
+            if 'Create/load configuration' in line:
+                log('debug')
 
             # Remove leading comment mark, so we are left only with the comment itself
             if line.startswith('% '):
@@ -946,34 +961,52 @@ class MatlabProcessor:
                 line = replace_repch(line, ['-', '=', '*', '%', ], 4, '').rstrip()
 
             # Check for special cases in text
-            words = line.split(' ')
-            words_lower = line.lower().split(' ')
+            #words = line.split(' ')
+            #words_lower = line.lower().split(' ')
+
+            is_heading = False
+            is_code = False
 
             # Append text to comment, use double-space for new line in MD file
-
             if line.strip() == '':
+                if comment != '' and not comment.endswith('\n'):
+                    comment += '\n'
+
                 comment += '\n'
 
             # Markdown heading
-            elif line.startswith('#'):
+            if line.startswith('#'):
                 if comment != '' and not comment.endswith('\n'):
                     comment += '\n'
                 comment += line + '\n'
+                is_heading = True
 
-            # Markdown code block
-            elif line.startswith('    '):
-                if comment != '' and not comment.endswith('\n'):
-                    comment += '\n'
-                comment += '    ' + line.strip() + '\n'
+            # Markdown code block, note that we allow 3-spaces or more to mark block
+            # while Markdown's notation is 4-spaces or more
+            if line.startswith('   '):
+
+                if 'example:' in prev_line.lower() or prev_line.strip() == '' or prev_line_is_code:
+
+                    if comment != '' and not comment.endswith('\n'):
+                        comment += '\n'
+
+                    comment += '    ' + line.strip() + '\n'
+                    is_code = True
 
             # Normal text
-            else:
+            if not is_heading and not is_code:
                 if comment != '' and not comment.endswith('\n'):
                     comment += ' '
 
                 comment += line.strip()
+
+                # New line when line ends with '.' or ':'
                 if line.endswith('.') or line.endswith(':'):
-                    line += '\n'
+                    comment += '\n'
+
+            prev_line = line
+            prev_line_is_code = is_code
+
 
         return comment
 
@@ -1236,8 +1269,24 @@ class MatlabProcessor:
         if 'LogLevel' in fname:
             log('LogLevel')
 
-        # Split file name
+        # Read source file, add empty lines at beginning and end to allow +/-1 indexing without exceptions
         fname = fname.replace('\\', '/')
+        lines = self.read_file(fname)
+        if len(lines) == 0:
+            return
+
+        # Check for special directives
+        line = lines[0]
+        if '#autogen' in line:
+            if '#autogen:off' in line:
+                log('#autogen:off: file ignored: ' + fname)
+                return
+
+        # Append empty lines at top and bottom for easier loops
+        lines.insert(0, '')
+        lines.append('')
+
+        # Split file name
         self.cur_fname = fname
         self.cur_folder, self.cur_file = os.path.split(fname)
         self.markdown_fname = os.path.join(self.cur_folder, os.path.splitext(self.cur_file)[0] + '.md')
@@ -1266,11 +1315,6 @@ class MatlabProcessor:
             self.is_class_folder = False
 
         is_class_file = self.is_class_folder
-
-        # Read source file, add empty lines at beginning and end to allow +/-1 indexing without exceptions
-        lines = self.read_file(fname)
-        lines.insert(0, '')
-        lines.append('')
 
         # Look for classdef
         class_name = self.find_classdef(lines)
@@ -1303,6 +1347,7 @@ class MatlabProcessor:
     def process_class_file(self, lines):
 
         cls = self.get_class(self.cur_class)
+        cls.filename = self.cur_fname
         cls.long_comment = self.get_long_comment(lines, 0)
 
         methods_type = ''
@@ -1310,7 +1355,11 @@ class MatlabProcessor:
         in_properties = False
 
         for line_num, line in enumerate(lines):
-            try:
+            #try:
+                # Skip directives
+                if '#autogen' in line:
+                    continue
+
                 code_line = self.get_code_line(line)
                 tokens = code_line.split(' ')
 
@@ -1383,8 +1432,8 @@ class MatlabProcessor:
                         func.comment = self.get_short_comment(lines, line_num)
                         func.long_comment = self.get_long_comment(lines, line_num)
                         cls.func_dict[func_name] = func
-            except:
-                log('exception parsing line: ' + line)
+            #except:
+            #    log('exception parsing line: ' + line)
 
         # Update the class source file with list of functions and other collected data
         if UPDATE_M:
@@ -1400,6 +1449,11 @@ class MatlabProcessor:
         #
         for line_num, line in enumerate(lines):
             #try:
+
+                # Skip directives
+                if '#autogen' in line:
+                    continue
+
                 code_line = self.get_code_line(line)
                 func_name = self.get_function_name(code_line)
                 if func_name != '':
@@ -1427,7 +1481,12 @@ class MatlabProcessor:
         pkg = self.get_package(self.cur_package)
 
         for line_num, line in enumerate(lines):
-            try:
+            #try:
+
+                # Skip directives
+                if '#autogen' in line:
+                    continue
+
                 code_line = self.get_code_line(line)
                 func_name = self.get_function_name(code_line)
                 if func_name != '':
@@ -1450,8 +1509,8 @@ class MatlabProcessor:
                         # Stop after the first function, so internal (unexposed) functions will not be listed
                         break
 
-            except:
-                log_line('process_func_file exception', line_num, line)
+            #except:
+            #    log_line('process_func_file exception', line_num, line)
 
     # -----------------------------------------------------------------------
     # Process folder files (without recursion)
@@ -1754,6 +1813,7 @@ class MatlabProcessor:
             #mlx.text(comment)
             mlx.text('For additional help see manuals.main')
 
+            # Properties list
             mlx.heading1('Properties')
             for prop_name in prop_list:
                 prop = cls.prop_dict[prop_name]
@@ -1762,11 +1822,11 @@ class MatlabProcessor:
                 mlx.normal(' - ' + prop.comment)
                 mlx.end_par()
 
-
+            #
             mlx.heading2('Additional & Hidden Properties')
             mlx.text('Properties')
 
-            #
+            # Constructor
             mlx.heading1('Constructor')
             for func_name in func_list:
                 func = cls.func_dict[func_name]
@@ -1777,10 +1837,11 @@ class MatlabProcessor:
                 mlx.normal(' - ' + func.comment)
                 mlx.end_par()
 
-            #
+            # Overview from MD file
             overview = markdown.get_section('# Overview', default_text='Class/package/function overview here...')
             mlx.heading1('Overview', markdown=overview)
 
+            # Usage from MD file
             usage = markdown.get_section('# Usage', default_text='Usage description here...')
             mlx.heading1('General Class Usage', markdown=usage)
 
@@ -1793,6 +1854,7 @@ class MatlabProcessor:
             mlx.heading3('Example 3', 'Example description')
             mlx.code('Example code ...')
 
+            # Methods list
             mlx.text('')
             mlx.heading1('Methods')
 
@@ -1815,7 +1877,7 @@ class MatlabProcessor:
                 mlx.bold(func.name)
                 mlx.normal(' - ' + func.comment)
                 mlx.end_par()
-                comment = self.clean_comment(cls.long_comment)
+                comment = self.clean_comment(func.long_comment)
                 mlx.text(comment)
                 mlx.text('Example')
                 mlx.code('Example code here')
@@ -1834,6 +1896,12 @@ class MatlabProcessor:
             notes = markdown.get_section('# Notes', default_text='Add notes here')
             mlx.heading1('Notes', markdown=notes)
 
+            timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
+            text = 'Generated by autogen from ' + os.path.split(cls.filename)[1]
+            if cls.markdown and cls.markdown.fname != '':
+                text += ', ' + os.path.split(cls.markdown.fname)[1]
+            text += ', ' + timestamp
+            mlx.text(text)
             mlx.close()
 
 
