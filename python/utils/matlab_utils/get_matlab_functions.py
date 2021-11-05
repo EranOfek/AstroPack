@@ -10,6 +10,15 @@
 #    Open Packaging Conventions - https://en.wikipedia.org/wiki/Open_Packaging_Conventions
 #    Office Open XML - https://en.wikipedia.org/wiki/Office_Open_XML
 #
+#
+# Todo (05/11/2021)
+#    - Support %#autogen: example and %#autogen: /example to allow extraction of
+#       code and comments from unitTests etc
+#    - Package MD to MLX (file name will start with +)
+#    - Other non class/package MD to MLX, with directive: %#autogen:mlx
+#    - Generate MLX only for packages with +...md file so subpackges will be included
+#      for example +celestial.md and there are no separate .md/mlx files for the sub-packages
+
 # Generate HTML - see Eran's page:
 #
 #   https://webhome.weizmann.ac.il/home/eofek/matlab/FunList.html
@@ -142,6 +151,12 @@ class MarkdownReader:
         self.lines = []
         if fname != '':
             self.lines = self.read(self.fname)
+
+            # Check for directives
+            if len(self.lines) > 0:
+                if self.lines[0].strip() == ';#autogen:ignore':
+                    self.fname = ''
+                    self.lines = []
 
 
     # Get all lines of specified section (until next heading or end of file)
@@ -400,8 +415,13 @@ class MlxWriter:
             elif heading_level == 2:
                 self.heading2(text)
                 prev_line_empty = True
-            elif heading_level >= 3:
+            elif heading_level == 3:
                 self.heading3(text)
+                prev_line_empty = True
+            elif heading_level >= 4:
+                self.start_par()
+                self.bold(text)
+                self.end_par()
                 prev_line_empty = True
             else:
                 # @Todo - better solution for tabs?
@@ -719,6 +739,7 @@ class ClassData:
         self.prop_dict = {}         # Currently unused
         self.comment = ''
         self.long_comment = ''
+        self.hierarchy = '@TODO'
         self.unit_test_lines = []
         self.markdown = None        # MarkdownReader()
 
@@ -790,7 +811,7 @@ class MatlabProcessor:
     def read_file(self, fname, fail_non_exist = False):
         lines = []
         if os.path.exists(fname):
-            with open(fname) as f:
+            with open(fname, encoding="utf8") as f:
                 lines = f.read().splitlines()
         elif fail_non_exist:
             log('File not found: ' + fname)
@@ -801,7 +822,7 @@ class MatlabProcessor:
 
     # Write lines
     def write_file(self, fname, lines, line_sep = '\n'):
-        with open(fname, 'wt') as f:
+        with open(fname, 'wt', encoding="utf8") as f:
             for line in lines:
                 f.write(line + line_sep)
 
@@ -1262,6 +1283,14 @@ class MatlabProcessor:
         return name
 
     # -----------------------------------------------------------------------
+    def is_directive(self, line):
+        line = line.replace(' ', '').strip().lower()
+        if '#autogen' in line:
+            tokens = line.split('#autogen:')
+            return True, tokens
+
+        return False, []
+    # -----------------------------------------------------------------------
     # Process single .m file
     def process_file(self, fname):
 
@@ -1277,10 +1306,10 @@ class MatlabProcessor:
 
         # Check for special directives
         line = lines[0]
-        if '#autogen' in line:
-            if '#autogen:off' in line:
-                log('#autogen:off: file ignored: ' + fname)
-                return
+        is_dir, tokens = self.is_directive(line)
+        if is_dir and ('off' in tokens or 'sealed' in tokens):
+            log('#autogen:off: file ignored: ' + fname)
+            return
 
         # Append empty lines at top and bottom for easier loops
         lines.insert(0, '')
@@ -1300,9 +1329,11 @@ class MatlabProcessor:
         self.cur_package = pkg_name
         pkg = self.get_package(pkg_name, self.cur_folder)
 
-        # @Todo - Look for package markdown in the package folder
+        #  Look for package markdown in the package folder
         if not pkg.markdown:
-            pass
+            self.markdown_fname = os.path.join(self.cur_folder, pkg_name + '.md')
+            if os.path.exists(self.markdown_fname):
+                pkg.markdown = MarkdownReader(self.markdown_fname)
 
         # Check if we are inside class folder
         class_name = self.get_class_from_path(self.cur_folder)
@@ -1497,8 +1528,8 @@ class MatlabProcessor:
                         # Create data
                         func = FunctionData()
                         func.name = func_name
-                        func.comment = self.get_comment(lines, line_num)
-                        func.long_comment = self.get_comment(lines, line_num, short=False)
+                        func.comment = self.get_short_comment(lines, line_num)
+                        func.long_comment = self.get_long_comment(lines, line_num)
 
                         if os.path.exists(self.markdown_fname):
                             func.markdown = MarkdownReader(self.markdown_fname)
@@ -1555,14 +1586,16 @@ class MatlabProcessor:
             else:
                 log('Missing class file: '  + class_fname)
 
+        # @Todo: Need to process MD files in package folders, even when there are no
+        # .m files in it, for example: D:\Ultrasat\AstroPack.git\matlab\astro\+celestial
 
         # Process files
         for fname in files_to_process:
-            try:
+            #try:
                 log('Processing file: ' + fname)
                 self.process_file(fname)
-            except:
-                log('Exception processing file: ' + fname)
+            #except:
+            #    log('Exception processing file: ' + fname)
 
 
     # -----------------------------------------------------------------------
@@ -1618,7 +1651,7 @@ class MatlabProcessor:
 
     # -----------------------------------------------------------------------
     # Process all collected data and update output files
-    def generate_packages_txt_md(self):
+    def generate_packages_txt_md(self, generate_all=False):
 
         # Prepare folder names
         out_path_txt = os.path.join(AUTOGEN_PATH, 'package_functions')
@@ -1628,6 +1661,9 @@ class MatlabProcessor:
         package_list = list(self.package_dict.keys())
         package_list.sort()
         self.write_file(self.package_list_filename, package_list)
+
+        if not generate_all:
+            return
 
         for pkg_name in package_list:
             pkg = self.get_package(pkg_name)
@@ -1659,49 +1695,9 @@ class MatlabProcessor:
             self.write_file(pkg_fname_txt, lines)
             self.write_file(pkg_fname_md, md_lines)
 
-
-    def generate_packages_mlx(self):
-
-        # Prepare folder names
-        out_path_mlx = os.path.join(AUTOGEN_PATH, 'package_functions_mlx')
-
-        # Packages
-        package_list = list(self.package_dict.keys())
-        package_list.sort()
-        #self.write_file(self.package_list_filename, package_list)
-
-        '''
-        for pkg_name in package_list:
-            pkg = self.get_package(pkg_name)
-            func_list = list(pkg.func_dict.keys())
-            func_list.sort()
-            if len(func_list) == 0:
-                continue
-
-            pkg_fname_mlx = os.path.join(out_path_mlx, pkg_name + '.mlx')
-
-            lines = []
-            lines.append('Package: ' + self.unpack_name(pkg_name))
-            lines.append('')
-            md_lines = []
-            md_lines.append('# Package: ' + self.unpack_name(pkg_name))
-            md_lines.append('\n')
-            for func_name in func_list:
-                func = pkg.func_dict[func_name]
-                line = func.name + ' - ' + func.comment
-                lines.append(line + '\n')
-
-                # MD
-                md_lines.append('### ' + self.unpack_name(pkg_name + '.' + func.name) + '\n')
-                md_lines.append(func.comment + '\n\n')
-                self.append_indent(md_lines, func.long_comment.split('\n'))
-
-        '''
-
-
-
+    # -----------------------------------------------------------------------
     # Classes
-    def generate_classes_txt_md(self):
+    def generate_classes_txt_md(self, generate_all=False):
 
         #
         out_path_txt = os.path.join(AUTOGEN_PATH, 'class_functions')
@@ -1714,6 +1710,9 @@ class MatlabProcessor:
         for i, line in enumerate(lines):
             lines[i] = self.unpack_name(line)
         self.write_file(self.class_list_filename, lines)
+
+        if not generate_all:
+            return
 
         #
         for cls_name in class_list:
@@ -1766,18 +1765,15 @@ class MatlabProcessor:
             self.write_file(cls_fname_txt, lines)
             self.write_file(cls_fname_md, md_lines)
 
-
+    # -----------------------------------------------------------------------
     def generate_classes_mlx(self):
 
         # Update class list files
-        out_path_mlx = os.path.join(AUTOGEN_PATH, 'class_functions_mlx')
+        out_path_mlx = os.path.join(AUTOGEN_PATH, 'class_mlx')
         class_list = list(self.class_dict.keys())
         class_list.sort()
-        lines = class_list.copy()
-        for i, line in enumerate(lines):
-            lines[i] = self.unpack_name(line)
-        #self.write_file(self.class_list_filename, lines)
 
+        #
         for cls_name in class_list:
 
             cls = self.get_class(cls_name)
@@ -1799,6 +1795,11 @@ class MatlabProcessor:
             # MLX
             mlx = MlxWriter(cls_fname_mlx)
             mlx.title('Class ' + self.unpack_name(cls_name))
+
+            mlx.start_par()
+            mlx.normal('Class Hierarchy: ')
+            mlx.bold(cls.hierarchy)
+            mlx.end_par()
 
             #
             mlx.heading1('Description')
@@ -1904,6 +1905,101 @@ class MatlabProcessor:
             mlx.text(text)
             mlx.close()
 
+    # -----------------------------------------------------------------------
+    #
+    def generate_packges_mlx(self):
+
+        # Update class list files
+        out_path_mlx = os.path.join(AUTOGEN_PATH, 'package_mlx')
+        package_list = list(self.package_dict.keys())
+        package_list.sort()
+
+        for pkg_name in package_list:
+            pkg = self.get_package(pkg_name)
+            func_list = list(pkg.func_dict.keys())
+            func_list.sort()
+            if len(func_list) == 0:
+                continue
+
+            #
+            pkg_fname_mlx = os.path.join(out_path_mlx, self.unpack_name(pkg_name) + '.mlx')
+
+            # Markdown
+            if pkg.markdown:
+                markdown = pkg.markdown
+            else:
+                markdown = MarkdownReader()
+
+            # MLX
+            mlx = MlxWriter(pkg_fname_mlx)
+            mlx.title('Package ' + self.unpack_name(pkg_name))
+
+            #
+            mlx.heading1('Description')
+            mlx.start_par()
+            mlx.bold(self.unpack_name(pkg_name))
+            mlx.normal(pkg.comment)
+            mlx.end_par()
+
+            #
+            comment = self.clean_comment(pkg.long_comment)
+            mlx.markdown(comment)
+            #mlx.text(comment)
+            mlx.text('For additional help see manuals.main')
+
+            # Overview from MD file
+            overview = markdown.get_section('# Overview', default_text='Package overview here...')
+            mlx.heading1('Overview', markdown=overview)
+
+            # Usage from MD file
+            usage = markdown.get_section('# Usage', default_text='Usage description here...')
+            mlx.heading1('General Package Usage', markdown=usage)
+
+            # Methods list
+            mlx.text('')
+            mlx.heading1('Functions')
+
+            # Iterate class functions
+            for func_name in func_list:
+                func = pkg.func_dict[func_name]
+                mlx.bullet()
+                mlx.bold(func.name)
+                mlx.normal(' - ' + func.comment)
+                mlx.end_par()
+
+            # Section per function
+            for func_name in func_list:
+                func = pkg.func_dict[func_name]
+                mlx.text('')
+                mlx.heading3(func.name)
+                mlx.start_par()
+                mlx.bold(func.name)
+                mlx.normal(' - ' + func.comment)
+                mlx.end_par()
+                comment = self.clean_comment(func.long_comment)
+                mlx.text(comment)
+                mlx.text('Example')
+                mlx.code('Example code here')
+
+
+            # Add additional sections
+            known_issus = markdown.get_section('# Known Issues', default_text='Add related issues here')
+            mlx.heading1('Known Issues', markdown=known_issus)
+
+            see_also = markdown.get_section('# See Also', default_text='Add related issues here')
+            mlx.heading1('See Also', markdown=see_also)
+
+            notes = markdown.get_section('# Notes', default_text='Add notes here')
+            mlx.heading1('Notes', markdown=notes)
+
+            timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
+            text = 'Generated by autogen from ' + os.path.split(cls.filename)[1]
+            if pkg.markdown and pkg.markdown.fname != '':
+                text += ', ' + os.path.split(pkg.markdown.fname)[1]
+            text += ', ' + timestamp
+            mlx.text(text)
+            mlx.close()
+
 
     # -----------------------------------------------------------------------
     # Main function
@@ -1926,10 +2022,11 @@ class MatlabProcessor:
         # Process folders tree
         self.process_tree(path)
 
-        self.generate_packages_txt_md()
-        self.generate_packages_mlx()
-        self.generate_classes_txt_md()
+        # Generate documentation
+        self.generate_packages_txt_md(generate_all=False)
+        self.generate_classes_txt_md(generate_all=False)
         self.generate_classes_mlx()
+        self.generate_packages_mlx()
 
 
 # ---------------------------------------------------------------------------
@@ -1949,9 +2046,9 @@ def main():
 
     #MlxWriter.unit_test()
 
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/astro/+celestial')
 
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Configuration')
+    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Configuration')
 
     #proc.process('D:/Ultrasat/AstroPack.git/matlab')
 
