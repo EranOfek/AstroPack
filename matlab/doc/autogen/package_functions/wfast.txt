@@ -1,8 +1,0 @@
-Package: wfast
-
-createMatchedSources - Example: Result = wfast.createMatchedSources('WFAST_Balor_20210529-011312-278_F505W_0_Image.h5z') [Result,JD] = wfast.createMatchedSources('WFAST_Balor_20210529-0025*','UseRegExp',false) [Result,JD] = wfast.createMatchedSources('WFAST*.h5z','UseRegExp',false)
-
-cutouts_photometry - Examples: AI(1) = wfast.read2AstroImage('WFAST_Balor_20200801-020634-879_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false); AI(2) = wfast.read2AstroImage('WFAST_Balor_20200801-020630-880_F505W_0_CutoutsStack.h5z','ReadType','cutouts','calibrate',false,'InterpOverNan',false);
-
-read2AstroImage - Read W-FAST image from HDF5 file into an AstroImage and calibrate the image using the wfast calibration object (dark subtraction, flat correction). Populate the header, mask image, image, and interpolate over NaNs. REQUIREMENTS: addpath('/home/eran/matlab/GUYN/util')
-

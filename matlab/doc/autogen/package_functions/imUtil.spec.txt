@@ -1,6 +1,0 @@
-Package: imUtil.spec
-
-applyAtmosphericExtinction - Apply extinction to spectrum
-
-trace_spec - UNDER CONSTRUCTION
-

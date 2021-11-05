@@ -1,8 +1,0 @@
-Package: imProc.sources
-
-classifySources - Classify sources found by findMeasureSources. The source classification includes: Example: [Result, Flag] = classifySources(Obj)
-
-cleanSources - Clean sources found by findMeasureSources (bad S/N and CR). Cleaning include - flaging or removal of CRs based on hypothesis testing between a delta function and some PSF, and finding sources which S/N based on the annulus std is low (i.e. identify cases in which the local background/variance estimation is not reliable).
-
-findMeasureSources - Basic sources finder and measurments on AstroImage object. This function uses the +imUtil.sources.find_sources function.
-
