@@ -5,6 +5,8 @@ function Result = maskHoles(Obj, Args)
     % Input  : - An AstroImage object. If the 'SN' argument is not provided,
     %            then the object must contains the .Back and .Var
     %            properies.
+    %            In all cases, the MaskData image and dictionary must
+    %            exist.
     %          * ...,key,val,...
     %            'Threshold' - Search threshold [sigmas]. Default is 5.
     %            'Template' - Template to search.
@@ -22,7 +24,10 @@ function Result = maskHoles(Obj, Args)
     % Output : - An AstroImage array in which the Mask image is populated
     %            with the hole bit.
     % Author : Eran Ofek (Nov 2021)
-    % Example: Result = maskHoles(Obj);
+    % Example: AI=AstroImage({rand(1000,1000)});
+    %          AI=imProc.background.background(AI)
+    %          AI.MaskData.Image=uint32(zeros(1000,1000));
+    %          AI = imProc.mask.maskHoles(AI);
     
    
     arguments
@@ -50,7 +55,7 @@ function Result = maskHoles(Obj, Args)
         % for each image
         
         % Verify Back and Var exist
-        if isempty(Obj(Iobj).Back) || Obj(Iobj).Var
+        if isempty(Obj(Iobj).Back) || isempty(Obj(Iobj).Var)
             error('Back and Var properties must exist - execute background');
         end
         
@@ -65,6 +70,10 @@ function Result = maskHoles(Obj, Args)
         
         % mask positions (only peak pixel is masked)
         Ind                   = imUtil.image.sub2ind_fast(size(Obj(Iobj).MaskData), Pos(:,2), Pos(:,1));
+%         if isempty(Obj(Iobj).MaskData.Image)
+%             % Mask image is empty - create
+%             Obj(Iobj).MaskData.Dict.Class(zeros(size(Obj(Iobj).Image)));
+%         end
         Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Ind, Args.HoleBitName, 1);
         
     end
