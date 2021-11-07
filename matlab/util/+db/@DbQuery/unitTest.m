@@ -1,54 +1,41 @@
 
-
 function Result = unitTest()
     % Unit-Test
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
     % On Linux, use DataGrip by JetBrains 
     
-    %Q = DbQuery('pipeline', 'table', 'rawimages');
-    
-    %Q = DbQuery('pipeline:rawimages')
-    
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
 
+    % Create query with database:table, get number of records
     Q = db.DbQuery('unittest:master_table');
-    Q.selectCount()
-    
-    % Connect
-    % NOTE: Database 'unittest' should exist
-    Conn = db.Db.getUnitTest();
-    Q = db.DbQuery('Connection', Conn);
-    
+    Count = Q.selectCount();
+    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Count);
+        
     % Query Postgres version, result should be similar to
     % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'    
     pgver = Q.getDbVersion();
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
-    R = Q.loadResultSet();
-    assert(strcmp(R.Data(1).version, pgver));
-    
-    %
-    Q.TableName = 'master_table';
-    
-    % Select    
-    %testSelect(Q);
+   
+    % Call tests using 'UnitTest' database
 
-    % Copy (import from file)
-    %testCopy();
-    
-    % Insert
     testInsert(Q);
+
+    TestAll = false;
+    if TestAll
+        testSelect(Q);        
+        testInsert(Q);
+        testUpdate(Q);
+        testDelete(Q);
+        testCopy(Q);
+        testMisc(Q);
+
+        % Tests using 'Pipeline' database
+        testPipeline();
+    end
     
-    % Update
-    %testUpdate(Q);
-
-    % Delete
-    %testDelete(Q);
-
-    % Other operations
-    %testMisc();
-
+    
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
     Result = true;
 end
@@ -58,10 +45,10 @@ end
 
 function Result = testSelect(Q)
 
-    % Select all fields, load to table and cell
-    Q.TableName = 'master_table';
-    R = Q.select('*');
-
+    Limit = 100;
+    R = Q.select('*', 'TableName', 'master_table', 'Limit', Limit);
+    assert(isa(R, 'db.DbRecord'));       
+    
     % Table
     Tab = R.convert2table();
     for i=1:numel(R.Data)
@@ -71,21 +58,47 @@ function Result = testSelect(Q)
     % Cell
     Cel = R.convert2cell();
     for i=1:numel(R.Data)
-        assert(strcmp(Cel{1, i}, R.Data(i).recid));
+        assert(strcmp(Cel{i, 1}, R.Data(i).recid));
     end    
 
     % Select and load to matrix
     R = Q.select('fdouble,ftimestamp', 'Where', 'fdouble > 0');    
     Mat = R.convert2mat();
     for i=1:numel(R.Data)
-        assert(Mat(1, i) == R.Data(i).fdouble);
-        assert(Mat(2, i) == R.Data(i).ftimestamp);
+        assert(Mat(i, 1) == R.Data(i).fdouble);
+        assert(Mat(i, 2) == R.Data(i).ftimestamp);
     end    
 
-    % 
+    % @Todo @QA - write test
     AstTab = R.convert2AstroTable();     
     AstCat = R.convert2AstroCatalog();
 
+    
+    % Select and load records, conevrt to table
+    Limit = 100;
+    Record = Q.select('*', 'TableName', 'master_table', 'Limit', Limit);
+    assert(isa(Record, 'db.DbRecord'));       
+    Table = Record.convert2table();
+    
+    % Select and load records, automatically convert to output type
+    Fields = '*';
+    Table = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'table', 'Limit', Limit);
+    assert(isa(Table, 'table'));       
+    Cell = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'cell', 'Limit', Limit);
+    assert(isa(Cell, 'cell'));  
+    
+    Fields = 'fdouble,ftimestamp';
+    Mat = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'mat', 'Limit', Limit);    
+    assert(isa(Mat, 'double'));       
+    AstTable = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'AstroTable', 'Limit', Limit);
+    assert(isa(AstTable, 'AstroTable'));       
+    AstCatalog = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'AstroCatalog', 'Limit', Limit);    
+    assert(isa(AstCatalog, 'AstroCatalog'));       
+    
+    % Switch to another table
+    Q.TableName = 'master_table';
+
+       
     % Test copy to/from table - high performance insert/export operations
     % DbQuery.copyTest();
 
@@ -113,9 +126,10 @@ function Result = testSelect(Q)
         fields = Q.getFieldList();
         assert(all(size(fields)) > 0);
 
+        % @Todo @Chen
         % Get fields list as empty table
-        tab = Q.getFieldTable();
-        assert(all(size(tab)) > 0);
+        %tab = Q.getFieldTable();
+        %assert(all(size(tab)) > 0);
 
         % Get all fields (Note: Field names are lower-case only)
         % All these fields should exist in table 'master_table'
@@ -135,7 +149,7 @@ function Result = testSelect(Q)
         % Try to access undefined field
         catched = false;
         try
-            temp = Rec.abcabcabcabc;
+            temp = Rec.NameOfUnknownField;
         catch
             catched = true;
         end
@@ -268,6 +282,8 @@ end
 
 function Result = testUpdate(Q)
 
+    Result = true;
+    return;
     
     % ---------------------------------------------- Update
 
@@ -312,6 +328,8 @@ end
 
 function Result = testDelete(Q)
 
+    Result = true;
+    return;
     
     % ---------------------------------------------- Delete
     sql = sprintf("DELETE FROM master_table WHERE RecID='%s'", uuid);
@@ -330,6 +348,8 @@ end
 
 function Result = testMisc(Q)
 
+    Result = true;
+    return;
     
     Result = true;
 end
@@ -338,6 +358,9 @@ end
 %==========================================================================
 
 function Result = testCopy(Q)
+    
+    Result = true;
+    return;
     
     % ---------------------------------------------- copy
     % https://www.postgresqltutorial.com/psql-commands/
@@ -366,3 +389,20 @@ function Result = testCopy(Q)
 end
 
 %==========================================================================
+%
+%==========================================================================
+
+function Result = testPipeline()
+
+    io.msgStyle(LogLevel.Test, '@start', 'DbQuery-Pipeline test started')
+    io.msgLog(LogLevel.Test, 'Postgres database "pipeline" should exist');
+    
+    %Q = DbQuery('pipeline', 'table', 'rawimages');
+    
+    %Q = DbQuery('pipeline:rawimages')
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'DbQuery-Pipeline test passed')
+    
+    Result = true;
+end
+

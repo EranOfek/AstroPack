@@ -128,11 +128,13 @@ classdef DbRecord < Base
     end
     
     
-    methods % Convert
+    methods % Convert2...
                                   
         function Result = convert2table(Obj)
             % Convert record(s) to table
             Result = struct2table(Obj.Data);
+            Size = size(Result);
+            assert(numel(Obj.Data) == Size(1));
         end
 
         
@@ -140,6 +142,8 @@ classdef DbRecord < Base
             % Convert record(s) to cell
             % Note that we need to transpose it
             Result = squeeze(struct2cell(Obj.Data))';
+            Size = size(Result);
+            assert(numel(Obj.Data) == Size(1));
         end
 
 
@@ -147,20 +151,26 @@ classdef DbRecord < Base
             % Convert record(s) to matrix, non-numeric fields are
             % Note that we need to transpose it
             Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
+            Size = size(Result);
+            assert(numel(Obj.Data) == Size(1));
         end
 
         
         function Result = convert2AstroTable(Obj)
             % Convert record(s) to AstroTable
-            Mat = cell2mat(squeeze(struct2cell(Obj.Data)));
+            Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
             Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
+            Size = size(Result.Catalog);
+            assert(numel(Obj.Data) == Size(1));
         end
 
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
-            Mat = cell2mat(squeeze(struct2cell(Obj.Data)));
+            Mat = cell2mat(squeeze(struct2cell(Obj.Data))');
             Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
+            Size = size(Result.Catalog);
+            assert(numel(Obj.Data) == Size(1));
         end
                         
     end

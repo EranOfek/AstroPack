@@ -58,12 +58,19 @@ classdef DbConnection < Component
         
         function Obj = DbConnection(Args)
             % Constructor
+            % Input:
+            %
+            % Example:
+            %   % Connection from configuration
+            %   Conn = DbConnection('Db', 'UnitTest')
+            %
             arguments
                 % Use to specify database alias from Config.Data.Database.Items
                 Args.Db = ''
                 Args.UseConfig = true
                 
-                % Allow user to set value explicitly
+                % Allow user to set value explicitly, when not empty they
+                % override the values loaded from configuration
                 Args.DriverName
                 Args.Host
                 Args.DatabaseName
@@ -73,7 +80,7 @@ classdef DbConnection < Component
                 Args.DriverUrl
             end            
             
-            % Check if already exists
+            % Check if already exists - Do not create another object
             if ~isempty(Args.Db)
                 DbConn = db.DbConnection.getDbConnection(Args.Db, 'Create', false);
                 if ~isempty(DbConn)

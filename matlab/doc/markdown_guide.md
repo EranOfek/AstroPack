@@ -1,6 +1,10 @@
-# Heading 1
+# Heading 1 - Markdown Brief for MLX.
 
-Some test, will be splitted to lines automatically until an empty line is reached.
+This is a simple text line.
+Some test, will be splitted to lines automatically 
+until an empty line is reached.
+
+New paragraph.
 
 ## Heading 2 - Formatting
 
@@ -11,19 +15,18 @@ Use *one astrike* to format text as *italic*.
 There is no support for underline formatting.
 
 
-### Heading 3 - Code block
+### Heading 3 
 
-Code block
+Use indents in insert code block
 
-
-    Code block by indent of at least 4 spaces, empty line is required above and below.
-    Another code line in the same block.
-
+    Code block by indent of at least 4 spaces.
+    Empty line is required above and below the block.
 
 
 #### Heading 4
 
-
+Note that heading 4 is converted to **Bold** in MLX which 
+supports only headings 1-3. 
 
 End of file.
 

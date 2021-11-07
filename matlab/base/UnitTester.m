@@ -218,7 +218,7 @@ classdef UnitTester < handle
 
     end
 
-
+    %----------------------------------------------------------------------
     methods % Test functions
 
         function Result = testAll(Obj)
@@ -315,8 +315,11 @@ classdef UnitTester < handle
             Obj.msgLog(LogLevel.Test, '\nUnitTester.testImage done');
             Result = true;
         end
-
-
+    end
+    
+    %----------------------------------------------------------------------
+    methods % 
+    
         function Result = runTest(Obj, ClassName, Args)
             % Run single unit test, Target is class name
             % Example: runTest('ImagePath')
@@ -386,7 +389,7 @@ classdef UnitTester < handle
             for i = 1:length(List)
                 fname = List(i).name;
 
-                % Folder recursion
+                % Folder
                 if List(i).isdir
                     if fname ~= "." && fname ~= ".."
                         Name = List(i).name;
@@ -397,6 +400,8 @@ classdef UnitTester < handle
                             continue;
                         end
                         
+                        % Class folder - call processFile() only for main
+                        % class file (i.e. 'MyClassName.m')
                         if startsWith(Name, '@')
                             FileName = fullfile(FolderName, [Name(2:end), '.m']);
                             if isfile(FileName)
@@ -405,14 +410,18 @@ classdef UnitTester < handle
                                 Obj.msgStyle(LogLevel.Warning, 'red', 'Empty class folder: %s', FolderName);
                                 Obj.Warn(['Empty class folder: ', FolderName]);
                             end
+                            
+                        % Non-class folder, recursivly call processFolder()
                         else
                             Obj.processFolder(FolderName, 'FuncName', Args.FuncName, 'Required', Args.Required);
                         end
                     end
 
-                % Process .m file
+                % File
                 else
                     [path, name, ext] = fileparts(fname);
+                    
+                    % Process .m file
                     if ext == ".m"
                         FileName = fullfile(List(i).folder, List(i).name);
                         Obj.processFile(FileName, 'FuncName', Args.FuncName, 'Required', Args.Required);
