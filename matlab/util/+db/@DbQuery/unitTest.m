@@ -169,7 +169,16 @@ end
 
 %==========================================================================
 
+function Result = makePk(Q, Rec, Index)
+    Result = '';
+
+
+
+end
+
+
 function Result = testInsert(Q)
+    % Assume that we are the single process writing to this table at the moment
     
     % Insert using raw SQL by calling Q.exec() directly
     CountBeforeInsert = Q.selectCount();
@@ -184,12 +193,14 @@ function Result = testInsert(Q)
     CountAfterInsert = Q.selectCount();
     assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     
-    % Insert batch using raw sql: Prepare multiple INSERT lines   
+    % Insert batch using raw SQL: Prepare multiple INSERT lines   
     % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
     TestBatch = true;
     if (TestBatch)
         CountBeforeInsert = Q.selectCount();
         InsertCount = 10;
+        
+        % Prepare multi-line INSERT 
         Sql = '';
         for i = 1:InsertCount
             % Prepare statement
@@ -197,33 +208,40 @@ function Result = testInsert(Q)
             SqlLine = sprintf("INSERT INTO master_table(RecID,FInt,FString) VALUES ('%s',%d,'Batch_%03d');", uuid, i, i).char;
             Sql = [Sql, SqlLine];
         end           
+        
+        % Execute as one statement
         Q.exec(Sql);
         assert(Q.ExecOk);            
         CountAfterInsert = Q.selectCount();
         assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     end
-
-    % Test 
+    
+    % Test insert()
     % Prepare DbRecord with 3 records
+    Count = 3;
     R = db.DbRecord;    
-    for i = 1:300
+    for i = 1:Count
         R.Data(i).recid = R.newKey();
         R.Data(i).fint = 1000 + i;
+        R.Data(i).fbool = 1000 + i;
         R.Data(i).fstring = sprintf('MyStr_%03d', i);        
     end
     
-    Result = Q.insertDbRecord(R, 'BatchSize', 100);
+    Result = Q.insert(R, 'BatchSize', 100);
     
-    % Todo: @Eran - What is the correct order of row,col ???
+    %
     Rows = 10;
-    Mat = rand(2, Rows);
+    Mat = rand(Rows, 2);
     R = db.DbRecord(Mat, 'ColNames', {'fdouble', 'ftimestamp'});
     S = struct;
     for i=1:Rows
         S(i).recid = db.DbRecord.newKey();
     end
+    
+    % Merge DbRecord with struct-array, for example to add primary-key or
+    % other data to Matrix
     R.merge(S);
-    Result = Q.insertDbRecord(R, 'BatchSize', 100);
+    Result = Q.insert(R, 'BatchSize', 100);
     
 %       
 %     % ---------------------------------------------- insertRecord: struct
@@ -231,37 +249,37 @@ function Result = testInsert(Q)
 %     % Create struct with different types of fields
 %     s = struct;            
 %     s.recid = Component.newUuid();
-%     Q.insertRecord('master_table', s);            
+%     Q.insert('master_table', s);            
 % 
 %     % int32
 %     s = struct;            
 %     s.recid = Component.newUuid();
 %     s.fint = int32(1);
-%     Q.insertRecord('master_table', s);            
+%     Q.insert('master_table', s);            
 % 
 %     % bool
 %     s = struct;            
 %     s.recid = Component.newUuid();
 %     s.fbool = true;
-%     Q.insertRecord('master_table', s);             
+%     Q.insert('master_table', s);             
 % 
 %     % bigint            
 %     s = struct;            
 %     s.recid = Component.newUuid();            
 %     s.fbigint = int64(3);
-%     Q.insertRecord('master_table', s);             
+%     Q.insert('master_table', s);             
 % 
 %     % double
 %     s = struct;            
 %     s.recid = Component.newUuid();            
 %     s.fdouble = double(5);
-%     Q.insertRecord('master_table', s);                         
+%     Q.insert('master_table', s);                         
 % 
 %     % string
 %     s = struct;            
 %     s.recid = Component.newUuid();                        
 %     s.fstring = 'abcd';
-%     Q.insertRecord('master_table', s);             
+%     Q.insert('master_table', s);             
 % 
 %     % Insert struct with field mapping
 %     s = struct;            
@@ -269,13 +287,13 @@ function Result = testInsert(Q)
 %     s.fintTest = int32(1);
 %     map = struct;
 %     map.fintTest = 'fint';            
-%     Q.insertRecord('master_table', s, 'FieldMap', map);
+%     Q.insert('master_table', s, 'FieldMap', map);
 % 
 %     % ---------------------------------------------- insertRecord: DbRecord
 %     r = db.DbRecord;
 %     r.addProp('recid', Component.newUuid());
 %     r.addProp('fint', 3);
-%     Q.insertRecord('master_table', r);
+%     Q.insert('master_table', r);
 
 end
 

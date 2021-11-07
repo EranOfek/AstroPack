@@ -1,24 +1,24 @@
 # Overview
 
-% DbQuery - SQL Database query
-%
-% This class provides SQL functionality, currently tested with PostgreSQL v13.
-%
-% Functionality
-%
-% Related Classes:
-%   DbDriver - Internally used to load Java package for Postgres
-%   DbConnection - Used to connect to specific database on local or remote
-%   server.
-%   DbRecord - Class with dynamic properties, used as struct to store
-%   values of database record.
-%
-% References:
-%   https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
-%
-% Unit-Test:
-%   Use unittest__tables from GDrive to test
-%
+ DbQuery - SQL Database query
+
+ This class provides SQL functionality, currently tested with PostgreSQL v13.
+
+Functionality
+
+ Related Classes:
+   DbDriver - Internally used to load Java package for Postgres
+   DbConnection - Used to connect to specific database on local or remote
+   server.
+   DbRecord - Class with dynamic properties, used as struct to store
+   values of database record.
+
+ References:
+   https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
+
+ Unit-Test:
+   Use unittest__tables from GDrive to test
+
 
 ## Database GUI
 
@@ -154,6 +154,15 @@ These classes are used internally by DbQuery:
 ### Insert DbRecord with insert()
 
 
+### Generating Primary Key
+
+    PrimaryKeyFunc  = [];       % function(DbQuery, DbRecord, Index)
+
+
+#### Example
+
+
+
 ## Update
 
 
@@ -165,6 +174,12 @@ Note: To improve performance we write data to CSV file using mex-writematrix
 (AstroPack.git/matlab/external/mex-writematrix), replacement for (slow) dlmwrite in MATLAB.
 
 
+## Create Database
+
+    createDatabase  
+
+
+### Updating structure of existing database
 
 
 
@@ -211,8 +226,7 @@ Database.yml
         UnitTest:
             DatabaseName    : 'unittest'        # Database name
             Host            : 'localhost'       # Host name or IP address
-        
-        
+         
         #
         Pipeline:
             DatabaseName    : 'pipeline'        # Database name
@@ -227,13 +241,7 @@ Database.yml
         Observations:
             DatabaseName    : 'observations'    # Database name
             Host            : 'localhost'       # Host name or IP address
-        
-        
-        #
-        Soc:
-            DatabaseName    : 'observations'    # Database name
-            Host            : 'localhost'       # Host name or IP address
-    
+ 
 
 
 # See Also
