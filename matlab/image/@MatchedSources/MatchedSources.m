@@ -866,6 +866,8 @@ classdef MatchedSources < Component
                 Result(I).Max      = max(Data, [], 1, 'omitnan');
                 Result(I).Nobs     = sum(~isnan(Data), 1);
                 
+                %isnan(Data)
+                
                 % combine flags
                 if isempty(Args.FlagsNameDic)
                     Result(I).FLAGS = uint32(zeros(size(Result(I).Nobs)));

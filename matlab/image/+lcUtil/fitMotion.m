@@ -40,24 +40,29 @@ function Result = fitMotion(Obj, Args)
     %          Result = lcUtil.fitMotion(Obj);
     
     arguments
-        Obj(1,1) MatchedSources
+        Obj MatchedSources
         Args.MinNobs                = 5;
         Args.Prob                   = [1e-3 1e-5];
         Args.Units                  = 'deg';
         Args.RenormErr(1,1) logical = true;
     end
     
-    [MatRA, MatDec, MatErrRA, MatErrDec] = getLonLat(Obj);
     
-    if isempty(MatErrRA)
-        MatErrRA = 1./(3600.*100);
-    end
-    if isempty(MatErrDec)
-        MatErrDec = 1./(3600.*100);
-    end
     
-    Result = celestial.pm.fitMultiProperMotion(Obj.JD, MatRA, MatDec, MatErrRA, MatErrDec, 'MinNobs',Args.MinNobs,...
+    Nobj = numel(Obj);
+    for Iobj=1:1:Nobj
+        
+        [MatRA, MatDec, MatErrRA, MatErrDec] = getLonLat(Obj(Iobj));
+    
+        if isempty(MatErrRA)
+            MatErrRA = 1./(3600.*100);
+        end
+        if isempty(MatErrDec)
+            MatErrDec = 1./(3600.*100);
+        end
+        Result(Iobj) = celestial.pm.fitMultiProperMotion(Obj(Iobj).JD, MatRA, MatDec, MatErrRA, MatErrDec, 'MinNobs',Args.MinNobs,...
                                                                                 'Prob',Args.Prob,...
                                                                                 'Units',Args.Units,...
                                                                                 'RenormErr',Args.RenormErr);
+    end
 end

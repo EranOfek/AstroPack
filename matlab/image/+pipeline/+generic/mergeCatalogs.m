@@ -8,6 +8,8 @@ function Result = mergeCatalogs(Obj, Args)
         Args.RadiusUnits             = 'arcsec';
         
         Args.RelPhot logical         = true;
+        Args.FitPM logical           = true;
+        Args.fitMotionArgs cell      = {'Prob',1e-5};
         
         
         
@@ -38,7 +40,6 @@ function Result = mergeCatalogs(Obj, Args)
         Args.unifiedSourcesCatalogArgs cell     = {};
         Args.matchArgs cell          = {};
         Args.MatchedColums           = {'RA','Dec','X','Y','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
-        Args.fitMotionArgs cell      = {'Prob',1e-5};
     end
     
     % find all unique sources
@@ -78,10 +79,10 @@ function Result = mergeCatalogs(Obj, Args)
     % CombFLAGS
     MagStat = statSummary(MatchedS, 'FieldNameDic','MAG_CONV_2', 'FlagsNameDic','FLAGS');
     
-    
-    
-    % proper motion
-   
+    % fit proper motion
+    if Args.FitPM
+        FitMotion = lcUtil.fitMotion(MatchedS, Args.fitMotionArgs{:});
+    end
     
     I= 9;
     
@@ -144,15 +145,7 @@ function Result = mergeCatalogs(Obj, Args)
         end
     end
     
-    % fit PM
-    if Args.FitPM
-        FitMotion = lcUtil.fitMotion(Obj, Args.fitMotionArgs{:});
-        
-        
-        
-        
-        
-    end
+    
     
     
     
