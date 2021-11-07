@@ -88,7 +88,13 @@ function Result = findMeasureSources(Obj, Args)
     %            'ColNamesY' - Y column names dictionary from which to get
     %                   the Y position for the flags retrival.
     %                   Default is AstroCatalog.DefNamesY.
-    %
+    %            'ColNamesXsec' - If ColNamesX column returns NaN replace
+    %                   it with valid value from this column name.
+    %                   Default is 'XPEAK'.
+    %            'ColNamesYsec' - Like 'ColNamesXsec', by for Y.
+    %                   Default is 'YPEAK'.
+    %            'FlagsType' - A function handle of the class to which to
+    %                   convert the Flags into. Default is @double.
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
@@ -141,6 +147,9 @@ function Result = findMeasureSources(Obj, Args)
         Args.ColNameFlags                  = 'FLAGS';
         Args.ColNamesX                     = AstroCatalog.DefNamesX;
         Args.ColNamesY                     = AstroCatalog.DefNamesY;
+        Args.ColNamesXsec                  = 'XPEAK';
+        Args.ColNamesYsec                  = 'YPEAK';
+        Args.FlagsType                     = @double;
             
         Args.CreateNewObj                  = [];
         
@@ -208,9 +217,15 @@ function Result = findMeasureSources(Obj, Args)
             
             % populate Flags from the Mask image
             if Args.AddFlags
-                XY                   = getXY(Result(Iobj).CatData, 'ColX', Args.ColNamesX, 'ColY',Args.ColNamesY); 
+                XY                   = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesX, 'ColY',Args.ColNamesY); 
+                % Replace NaN with valid X/Y position
+                XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
+                Fnan                 = isnan(XY(:,1));
+                XY(Fnan,:)           = XYpeak(Fnan,:);
+                
                 % need to decide what to do about NaN positions
                 Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                Flags                = Args.FlagsType(Flags);
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
             end                
         end
