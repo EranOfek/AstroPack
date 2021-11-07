@@ -508,6 +508,10 @@ classdef MatchedSources < Component
             %          - A char array of field name. If empty, use the
             %            first field. Default is ''.
             % Output : - A structure of summary information
+            %            .Nepoch
+            %            .Nsrc
+            %            .NepochSrcAppear
+            %            .NsrcInEpoch
             % Author : Eran Ofek (Jun 2021)
             % Example: MS=MatchedSources;
             %          MS.addMatrix(rand(100,200),'FLUX');
@@ -808,12 +812,20 @@ classdef MatchedSources < Component
     end
     
     methods  % statistics and functions
-       function Result = statSummary(Obj, FieldNameDic)
+       function Result = statSummary(Obj, Args)
             % Calculate statistical summary properties of a data property in a
             % MatchedSources object.
             % Input  : - A MatchedSources object.
-            %          - A cell array of dictionary field names for the
-            %            data property for which to calculate statistics.
+            %          * ...,key,val,...
+            %            'FieldNameDic' - A cell array of dictionary field names for the
+            %                   data property for which to calculate statistics.
+            %                   Default is 'AstroCatalog.DefNamesMag'.
+            %            'FlagsNameDic' - A cell array of dictionary field names for the
+            %                   Flags property for which to combine using or operator for each source.
+            %                   If empty, then do not calculate.
+            %                   Default is 'FLAGS'.
+            %            'FlagsType' -  Afunction handle for FLAGS type.
+            %                   Default is @uint32.
             % Output : - A structure array with the column wise (sources)
             %            basic statistcs properties for the sources in data
             %            properties. E.g., the mean, median, std, etc, for
@@ -826,17 +838,24 @@ classdef MatchedSources < Component
 
             arguments
                 Obj
-                FieldNameDic                = AstroCatalog.DefNamesMag;
+                Args.FieldNameDic                = AstroCatalog.DefNamesMag;
+                Args.FlagsNameDic                = 'FLAGS';
+                Args.FlagsType                   = @uint32;
             end
 
+            
             % get field name from dictionary
-            [FieldName] = getFieldNameDic(Obj, FieldNameDic);
-
-            % get Mag matrix
-            Data = getMatrix(Obj, FieldName);
+            [FieldName] = getFieldNameDic(Obj(1), Args.FieldNameDic);
+            [FlagsName] = getFieldNameDic(Obj(1), Args.FlagsNameDic);
+            
 
             N = numel(Obj);
             for I=1:1:N
+                % get Mag matrix
+                
+            
+                Data = getMatrix(Obj(I), FieldName);
+                
                 % calc statistics
                 Result(I).Mean     = mean(Data, 1, 'omitnan');
                 Result(I).Median   = median(Data, 1, 'omitnan');
@@ -845,6 +864,17 @@ classdef MatchedSources < Component
                 Result(I).Range    = range(Data, 1);
                 Result(I).Min      = min(Data, [], 1, 'omitnan');
                 Result(I).Max      = max(Data, [], 1, 'omitnan');
+                Result(I).Nobs     = sum(~isnan(Data), 1);
+                
+                %isnan(Data)
+                
+                % combine flags
+                if isempty(Args.FlagsNameDic)
+                    Result(I).FLAGS = uint32(zeros(size(Result(I).Nobs)));
+                else
+                    DataFlags       = getMatrix(Obj(I), FlagsName);
+                    Result(I).FLAGS = tools.array.bitor_array(Args.FlagsType(DataFlags));
+                end
             end
 
        end
