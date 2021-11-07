@@ -89,17 +89,14 @@ These classes are used internally by DbQuery:
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
 
+## Select
 
-### Get number of records in table
-
-
-### Select
+### Select number of records in table (count)
 
     % Create query with database:table, get number of records
     Q = db.DbQuery('unittest:master_table');
     Count = Q.selectCount();
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Count);
-
 
 
 ### Select all records in table
@@ -111,6 +108,68 @@ These classes are used internally by DbQuery:
     % Convert to table
     Table = Result.convert2table();
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', numel(Result.Data));
+
+### Select specified fields with 'where' filter
+
+## Insert
+
+### Insert single record with exec()
+
+    % Insert using raw SQL by calling Q.exec() directly
+    CountBeforeInsert = Q.selectCount();
+    InsertCount = 10;
+    for i = 1:InsertCount
+        Q.SqlText = sprintf("INSERT INTO master_table (recid, fint, fdouble) VALUES('%s', %d, %f)",...
+            Component.newUuid(), randi(100), randi(100000));
+        Q.exec();
+    end
+    
+    % Assume that we are the single process writing to this table at the moment
+    CountAfterInsert = Q.selectCount();
+    assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
+    
+### Insert batch with exec()
+
+
+    % Insert batch using raw sql: Prepare multiple INSERT lines   
+    % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
+    TestBatch = true;
+    if (TestBatch)
+        CountBeforeInsert = Q.selectCount();
+        InsertCount = 10;
+        Sql = '';
+        for i = 1:InsertCount
+            % Prepare statement
+            uuid = Component.newUuid();
+            SqlLine = sprintf("INSERT INTO master_table(RecID,FInt,FString) VALUES ('%s',%d,'Batch_%03d');", uuid, i, i).char;
+            Sql = [Sql, SqlLine];
+        end           
+        Q.exec(Sql);
+        assert(Q.ExecOk);            
+        CountAfterInsert = Q.selectCount();
+        assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
+    end
+
+
+### Insert DbRecord with insert()
+
+
+## Update
+
+
+## Delete
+
+## copyFrom - Batch Import from CSV file
+
+Note: To improve performance we write data to CSV file using mex-writematrix
+(AstroPack.git/matlab/external/mex-writematrix), replacement for (slow) dlmwrite in MATLAB.
+
+
+
+
+
+
+## copyTo - Batch Export to CSV file
 
 
 # Examples

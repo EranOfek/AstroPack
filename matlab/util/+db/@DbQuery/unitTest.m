@@ -171,7 +171,7 @@ end
 
 function Result = testInsert(Q)
     
-    % Insert using raw sql
+    % Insert using raw SQL by calling Q.exec() directly
     CountBeforeInsert = Q.selectCount();
     InsertCount = 10;
     for i = 1:InsertCount
@@ -179,6 +179,8 @@ function Result = testInsert(Q)
             Component.newUuid(), randi(100), randi(100000));
         Q.exec();
     end
+    
+    % Assume that we are the single process writing to this table at the moment
     CountAfterInsert = Q.selectCount();
     assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     
