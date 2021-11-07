@@ -84,7 +84,7 @@ function Result = unitTest()
     
     %------------------------------------- Construct/Convert AstroCatalog
     % convert2AstroCatalog @Todo: better testing
-    AstCat = R.convert2AstroTable();
+    AstCat = R.convert2AstroCatalog();
     assert(~isempty(AstCat.Catalog));
     
     %-------------------------------------- Merge 

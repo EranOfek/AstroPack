@@ -2,6 +2,8 @@ function Result = unitTest()
     % dbConnection.unitTest   
     io.msgStyle(LogLevel.Test, '@start', 'DbConnection test started');
 
+    % Database definitions are loaded from Database.yml
+    
     % Open/close connection
     % When not specifying database 
     Conn = db.DbConnection.getDbConnection('unittest');
@@ -23,6 +25,10 @@ function Result = unitTest()
     assert(Conn3 == Conn);
     assert(Conn3.IsOpen);
 
+    
+    % @QA: Add tests without configuration, i.e. 
+    % db.DbConnection('Db', 'MyAlias', 'UseConfig', 'false');
+    
     % Done            
     io.msgStyle(LogLevel.Test, '@passed', 'DbConnection test passed');
     Result = true;

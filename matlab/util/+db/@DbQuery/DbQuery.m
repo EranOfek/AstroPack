@@ -95,10 +95,27 @@ classdef DbQuery < Component
         % Constructor
         function Obj = DbQuery(DbTableOrConn, Args)
             % Create new DbQuery obeject
+            % Input:
+            %   DbTableOrConn - Database alias from Database.yml, with
+            %   optional table name, for example: 'UnitTest'
+            %
+            % Examples:
+            %   % Create query object for 'UnitTest' database alias 'UnitTest'
+            %   Q = DbQuery('UnitTest')
+            %
+            %   % Create query object for 'UnitTest' database and table
+            %   'master_table'
+            %   Q = DbQuery(UnitTest:master_table')
+            %
+            %   % Create query object for custom database connection (not
+            %   from Database.yml)
+            %   MyConn = DbConnection('Db', 'MyAlias', ...)
+            %   Q.DbQuery(MyConn)
+            %
             arguments
-                DbTableOrConn   = []        %
-                Args.TableName              %
-                Args.PrimaryKey             %
+                DbTableOrConn   = []        % DbAlias / DbAlias:TableName / DbConnection object
+                Args.TableName              % Set TableName when not included in DbTable parameter
+                Args.PrimaryKey             % Primary key(s)
             end
             
             % Setup component
@@ -107,8 +124,10 @@ classdef DbQuery < Component
             Obj.DebugMode = true;
             Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
                         
-            % Connection
+            % Set connection
             Obj.setConnection(DbTableOrConn);
+            
+            % Override TableName and set other properties
             Obj.setProps(Args);
 
         end
@@ -135,18 +154,19 @@ classdef DbQuery < Component
                 Args.Order = ''         %
                 Args.Limit = -1         %
                 Args.Load = true        %
+                Args.Convert = ''       %
             end
             
             Result = [];
                        
             % Use speified TableName or Obj.TableName
-            if isempty(Args.TableName)
-                Args.TableName = Obj.TableName;
+            if ~isempty(Args.TableName)
+                Obj.TableName = Args.TableName;
             end
-            assert(~isempty(Args.TableName));
+            assert(~isempty(Obj.TableName));
             
             % Prepare Select
-            Obj.SqlText = sprintf('SELECT %s FROM %s', Fields, Args.TableName);
+            Obj.SqlText = sprintf('SELECT %s FROM %s', Fields, Obj.TableName);
             
             % Where
             % @Todo: Support Where with external values
@@ -169,6 +189,20 @@ classdef DbQuery < Component
             if Res
                 if Args.Load
                     Result = Obj.loadResultSet();
+                    
+                    % Optional conversion
+                    Conv = lower(Args.Convert);
+                    if strcmp(Conv, 'table')
+                        Result = Result.convert2table();
+                    elseif strcmp(Conv, 'cell')
+                        Result = Result.convert2cell();
+                    elseif strcmp(Conv, 'mat')
+                        Result = Result.convert2mat();
+                    elseif strcmp(Conv, 'astrotable')
+                        Result = Result.convert2AstroTable();
+                    elseif strcmp(Conv, 'astrocatalog')
+                        Result = Result.convert2AstroCatalog();                        
+                    end
                 else
                     Result = true;
                 end
@@ -179,6 +213,11 @@ classdef DbQuery < Component
         function Result = loadResultSet(Obj, Args)
             % Load ResultSet to DbRecord array
             % Might be time and memory consuming!
+            % Input:
+            %
+            % Output:
+            %
+            %
             
             arguments
                 Obj
@@ -838,7 +877,7 @@ classdef DbQuery < Component
             %   Result = query('SELECT COUNT(*) from master_table')
             
             % Run SELECT statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'query');
+            % Obj.msgLog(LogLevel.Debug, 'query');
             Result = false;
             tic();
             
@@ -1370,6 +1409,10 @@ classdef DbQuery < Component
             Obj.query('SELECT version()');
             if Obj.ColCount == 1
                 Result = Obj.getField('version');
+            end
+            Valid = contains(Result, 'PostgreSQL') && contains(Result, 'build');
+            if ~Valid
+                Obj.msgLog(LogLevel.Warning, 'getDbVersion: Invalid result: %s', Result);
             end
         end
         

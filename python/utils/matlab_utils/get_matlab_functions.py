@@ -18,6 +18,11 @@
 #    - Other non class/package MD to MLX, with directive: %#autogen:mlx
 #    - Generate MLX only for packages with +...md file so subpackges will be included
 #      for example +celestial.md and there are no separate .md/mlx files for the sub-packages
+#    - Add also any other section from the MD file (at the end?)
+#    - Generate document also from the unitTest.m files (and other tests such as perf and stress)
+#    - MlxWriter.markdown - add support for bullet and number lists
+#    - Automatically create links from 'https://...' ?
+#
 
 # Generate HTML - see Eran's page:
 #
@@ -54,9 +59,13 @@ TRIM_TRAILING_SPACES = True         # True to clear trailing spaces from all pro
 # Get path to repository root folder
 ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
 
+#
+SKIP_FOLDERS = ['unused', 'obsolete', 'old', 'temp', 'bkp', 'backup', 'external', 'draft', 'testing']
+
 # Prepare path to autogen documentation
 AUTOGEN_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/autogen')
 MLX_ELEMENTS_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/mlx/mlx_elements')
+HTML_ELEMENTS_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/mlx/html_elements')
 
 # Auto-generated Markers
 FUNC_BLOCK_BEGIN = '% #functions (autogen)'     # Start of function list block
@@ -210,9 +219,10 @@ class MlxBookmark:
 
 class MlxWriter:
 
-    def __init__(self, fname = ''): #, template_fname = ''):
+    def __init__(self, fname='', output_type='mlx'): #, template_fname = ''):
 
         #
+        self.output_type = output_type
         self.doc_text = ''
         self.fname = fname
         self.temp_path = 'c:/_mlx/temp'
@@ -489,9 +499,15 @@ class MlxWriter:
     # Generate new bookmark, return start, end, and tag (8 hex digits)
     # '<w:bookmarkStart w:name="MW_H_DFC5E6A7" w:id="H_DFC5E6A7"/>'
     def get_bookmark(self):
-        tag = hex(randint(0, 65536 ** 2)).upper()[2:]
-        start = '<w:bookmarkStart w:name="MW_H_{}" w:id="H_{}"/>'.format(tag, tag)
-        end = '<w:bookmarkEnd w:id="H_{}"/>'.format(tag)
+        if self.output_type == 'mlx':
+            tag = hex(randint(0, 65536 ** 2)).upper()[2:]
+            start = '<w:bookmarkStart w:name="MW_H_{}" w:id="H_{}"/>'.format(tag, tag)
+            end = '<w:bookmarkEnd w:id="H_{}"/>'.format(tag)
+        else:
+            tag = hex(randint(0, 65536 ** 2)).upper()[2:]
+            start = '<w:bookmarkStart w:name="MW_H_{}" w:id="H_{}"/>'.format(tag, tag)
+            end = '<w:bookmarkEnd w:id="H_{}"/>'.format(tag)
+
         return tag, start, end
 
     # -----------------------------------------------------------------------
@@ -517,7 +533,11 @@ class MlxWriter:
     # Load element from XML file, ignore comments starting with # or ;
     def load(self, fname):
         text = ''
-        fname = os.path.join(MLX_ELEMENTS_PATH, fname + '.xml')
+        if self.output_type == 'mlx':
+            fname = os.path.join(MLX_ELEMENTS_PATH, fname + '.xml')
+        else:
+            fname = os.path.join(HTML_ELEMENTS_PATH, fname + '.html')
+
         if os.path.exists(fname):
             with open(fname) as f:
                 lines = f.read().splitlines()
@@ -629,7 +649,7 @@ class MlxWriter:
     # -----------------------------------------------------------------------
     # Unit-Test
     @staticmethod
-    def unit_test():
+    def unit_test(output_type='mlx'):
         path = os.path.join(MLX_ELEMENTS_PATH, '../unit_test/')
 
         # Write bare XML file
@@ -739,7 +759,8 @@ class ClassData:
         self.prop_dict = {}         # Currently unused
         self.comment = ''
         self.long_comment = ''
-        self.hierarchy = '@TODO'
+        self.parent = ''
+        self.hierarchy = ''
         self.unit_test_lines = []
         self.markdown = None        # MarkdownReader()
 
@@ -796,6 +817,7 @@ class MatlabProcessor:
         self.markdown_fname = ''
         self.cur_package = ''
         self.cur_class = ''
+        self.cur_parent = ''
         self.package_dict = {}
         self.class_dict = {}
         self.is_class_folder = False
@@ -828,29 +850,33 @@ class MatlabProcessor:
 
     # -----------------------------------------------------------------------
     # Get package from dict, add if not exist
-    def get_package(self, pkg_name, path = ''):
+    def get_package(self, pkg_name, path = '', add=True):
         if pkg_name in self.package_dict:
             pkg = self.package_dict[pkg_name]
-        else:
+        elif add:
             pkg = PackageData()
             pkg.name = pkg_name
             pkg.path = path
             self.package_dict[pkg_name] = pkg
             log('adding package: {} - folder: {}'.format(pkg_name, path))
+        else:
+            pkg = None
 
         return pkg
 
     # -----------------------------------------------------------------------
     # Get class from dict, add if not exist
-    def get_class(self, class_name, path = ''):
+    def get_class(self, class_name, path = '', add=True):
         if class_name in self.class_dict:
             cls = self.class_dict[class_name]
-        else:
+        elif add:
             cls = ClassData()
             cls.name = class_name
             cls.path = path
             self.class_dict[class_name] = cls
             log('adding class: {} - folder: {}'.format(class_name, path))
+        else:
+            cls = None
 
         return cls
 
@@ -1209,6 +1235,7 @@ class MatlabProcessor:
     # Find 'classdef', return class name
     def find_classdef(self, lines):
         class_name = ''
+        parent = ''
         for line_num, line in enumerate(lines):
             try:
                 code_line = self.get_code_line(line)
@@ -1216,11 +1243,13 @@ class MatlabProcessor:
                 if tokens[0] == 'classdef':
                     class_name = tokens[1]
                     log_line('found classdef', line_num, line)
+                    if '<' in code_line:
+                        parent = code_line.split('<')[1].strip().split('%')[0].strip()
                     break
             except:
                 log('exception parsing line: ' + line)
 
-        return class_name
+        return class_name, parent
 
     # -----------------------------------------------------------------------
     # Get property name from line
@@ -1290,6 +1319,21 @@ class MatlabProcessor:
             return True, tokens
 
         return False, []
+
+    # -----------------------------------------------------------------------
+
+    def get_class_hierarchy(self, class_name):
+        hierarchy = self.unpack_name(class_name)
+
+        cls = self.get_class(class_name, add=False)
+        while cls.parent != '':
+            hierarchy = cls.parent + ' -> ' + hierarchy
+            cls = self.get_class(cls.parent, add=False)
+            if not cls:
+                break
+
+        return hierarchy
+
     # -----------------------------------------------------------------------
     # Process single .m file
     def process_file(self, fname):
@@ -1348,12 +1392,13 @@ class MatlabProcessor:
         is_class_file = self.is_class_folder
 
         # Look for classdef
-        class_name = self.find_classdef(lines)
+        class_name, parent = self.find_classdef(lines)
 
         # This file contains 'classdef'
         if class_name != '':
             class_name = pkg_name + '.' + class_name
             self.cur_class = class_name
+            self.cur_parent = parent
 
             # Look for Markdown file in the same folder
             if os.path.exists(self.markdown_fname):
@@ -1380,6 +1425,7 @@ class MatlabProcessor:
         cls = self.get_class(self.cur_class)
         cls.filename = self.cur_fname
         cls.long_comment = self.get_long_comment(lines, 0)
+        cls.parent = self.cur_parent
 
         methods_type = ''
         prop_type = ''
@@ -1609,7 +1655,7 @@ class MatlabProcessor:
             process = False
 
         # Skip unused/obsolete/temp files
-        skip = ['unused', 'obsolete', 'old', 'temp', 'bkp', 'backup', 'external', 'draft', 'testing']
+        skip = SKIP_FOLDERS
         tokens = path.lower().split('/')
         for tok in tokens:
             tok = tok.replace('_', '')
@@ -1798,7 +1844,8 @@ class MatlabProcessor:
 
             mlx.start_par()
             mlx.normal('Class Hierarchy: ')
-            mlx.bold(cls.hierarchy)
+            hierarchy = self.get_class_hierarchy(cls_name)
+            mlx.bold(hierarchy)
             mlx.end_par()
 
             #
