@@ -1,6 +1,0 @@
-Class: BackImage
-
-BackImage - Constructor of BackImage class using the superclass (ImageComponent) constructor
-
-unitTest - unitTest for BackImage class
-

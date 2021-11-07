@@ -13,7 +13,7 @@
 ## Advanced Examples
 
 
-# Knwon Issues
+# Known Issues
 
 # See Also
 

@@ -1,8 +1,0 @@
-Package: imUtil.util
-
-filelist - Generate a cell array of files list from file name/regular expression Package: @imUtil.util
-
-filename_constructor - Package: @imUtil.util
-
-get_env - attempt to read environment variable and print error if failes Package: @imUtil.util
-

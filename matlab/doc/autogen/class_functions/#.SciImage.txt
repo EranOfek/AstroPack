@@ -1,6 +1,0 @@
-Class: SciImage
-
-SciImage - Constructor of SciImage class using the superclass (ImageComponent) constructor
-
-unitTest - unitTest for SciImage class
-

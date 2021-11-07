@@ -32,6 +32,7 @@ function [Result, CorrMS] = zp_lsq(MS, Args)
     %            'Niter' - Number of fitting iterations.
     %                   In the second iteration lscov will be used with the
     %                   errors estimated from the mag vs. std plot.
+    %                   Default is 2.
     %            'UseBL' - A logical indicating if to use the "\" operator
     %                   in the first iteration. Default is true.
     %            'CalibMag' - A vector of calibrated (external) magnitude

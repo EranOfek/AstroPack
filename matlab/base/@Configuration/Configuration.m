@@ -1,3 +1,4 @@
+% #autogen:_off
 % Configuration class for YML files, based on Java.
 % Each yml file is loaded as struct under the Data property of the object.
 %
@@ -12,7 +13,7 @@
 %     always such Configuration object which is linked by default to
 %     Component.Config when Component is created.
 %     Global configuration is loaded from:
-%        A. By environment variable ASTROPACK_CONFIG_PATH, and if not found
+%        A. By environment variable ASTROPACK_CONFIG_PATH, and if not found.
 %        B. From the 'config/' folder inside the source code repository (i.e.,
 %           '../../../config/')
 %     Note that files under config/local folder are excluded from git.
@@ -21,8 +22,7 @@
 %     files which are not part of the system configuration folder.
 %--------------------------------------------------------------------------
 % Each YML file is loaded to a property inside Obj.Data that match the YML
-% file name.
-% Example: config/unitTest.yml is loaded to struct Obj.Data.unittest.
+% file name. For example, config/unitTest.yml is loaded to struct Obj.Data.unittest.
 %
 % Additional **FileName** property is added to the struct, to keep tracking of
 % which file was loaded, allowed a reload if required.
@@ -48,7 +48,7 @@
 %       disp(Configuration.getSingleton().Data.unittest.Key1)
 %
 %
-% Create/load configuration:
+% Create/load configuration
 %
 %       Configuration.load()
 %
@@ -63,13 +63,11 @@
 % Private configuration file, load directly to Data
 
 % ### Example: Load unittest.yml to Data.unittest:
-%
 %     MyConf = Configuration;
 %     MyConf.loadFile('c:/temp/unittest.yml');
 %     disp(MyConf.Data.unittest.Key1)
 %
 % ### Example: Load unittest.yml to Data:
-%
 %     MyConf = Configuration;
 %     MyConf.loadFile('c:/temp/unittest.yml', 'Field', false);
 %     disp(MyConf.Data.Key1)
@@ -85,7 +83,6 @@
 %     disp(MyConf.Data.anothertest.Key1)
 %
 % Reload single configuration file:
-%
 % Use online YAML validators to check your YML files:
 %    http://www.yamllint.com/ (Use the GO button...)
 %
@@ -177,8 +174,8 @@ classdef Configuration < handle
             % object, or when you want to explictly load/reload specific
             % file.
             % Example:
-            % MyConfig = Configuration();
-            % MyConfig.loadFile('C:/Temp/MyConfig.yml');
+            % 	 MyConfig = Configuration();
+            % 	 MyConfig.loadFile('C:/Temp/MyConfig.yml');
 
             arguments
                 Obj         %
@@ -227,8 +224,8 @@ classdef Configuration < handle
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
             % Example:
-            % MyConfig = Configuration();
-            % MyConfig.loadFile('C:/Temp/MyConfigFolder');
+            % 	 MyConfig = Configuration();
+            % 	 MyConfig.loadFile('C:/Temp/MyConfigFolder');
             Obj.Path = Path;
             io.msgLog(LogLevel.Info, 'loadFolderInternal: %s', Obj.Path);
 
@@ -246,7 +243,8 @@ classdef Configuration < handle
         function reloadFile(Obj, YamlStructOrFileName)
             % Reload specified configuration object (file name)
             % Call this function with the
-            % Example: MyConfig.reloadFile(MyConfig.Data.unittest)
+            % Example: 
+			%     MyConfig.reloadFile(MyConfig.Data.unittest)
             if isa(YamlStructOrFileName, 'char')
                 Obj.loadFile(YamlStructOrFileName);
             else
