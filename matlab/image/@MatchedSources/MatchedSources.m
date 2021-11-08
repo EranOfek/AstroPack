@@ -43,6 +43,7 @@
 classdef MatchedSources < Component
     properties
         Data(1,1) struct  % each field [Nepoch, Nsrc]
+        Units(1,1) struct % each field [Units]
         JD                % time per epoch
     end
     
@@ -371,7 +372,7 @@ classdef MatchedSources < Component
     end
     
     methods  % functions / get/set Data
-        function Obj = addMatrix(Obj, Matrix, FieldName)
+        function Obj = addMatrix(Obj, Matrix, FieldName, Units)
             % Add matrix/struct/matched AstroTable into the MatchedSources Data
             % Obj = addMatrix(Obj, Matrix, FieldName)
             % Input  : - A single element MatchedSources object.
@@ -390,6 +391,9 @@ classdef MatchedSources < Component
             %          - A field name (or a cell array of field names).
             %            If the field already exist, then replace the
             %            current content with the new content.
+            %          - A cell array of units per field.
+            %            If empty, will generate empty units.
+            %            Default is {}.
             % Output : - A MatchedSources object.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
@@ -403,25 +407,38 @@ classdef MatchedSources < Component
                 Obj(1,1)
                 Matrix
                 FieldName   = [];
+                Units       = {};
             end
-           
+            
+            if ischar(FieldName)
+                FieldName = {FieldName};
+            end
+                
+            if ischar(Units)
+                Units = {Units};
+            end
+            
+            Nf = numel(FieldName);
+            if numel(Units) ~= Nf
+                [Units{1:1:Nf}] = deal('');
+            end
                 
             if isnumeric(Matrix)
                 % matrix is numeric - add
-                if ~ischar(FieldName)
-                    error('For numeric matrix FieldName must be a char array');
-                end
-                Obj.Data.(FieldName) = Matrix;
+                Obj.Data.(FieldName{1})  = Matrix;
+                Obj.Units.(FieldName{1}) = Units{1};
             elseif isstruct(Matrix)
                 % store the struct as is in Data
                 FN = fieldnames(Matrix);
                 for Ifn=1:1:numel(FN)
                     Obj.Data.(FN{Ifn}) = Matrix.(FN{Ifn});
+                    Obj.Units.(FieldName{Ifn}) = Units{Ifn};
                 end
             elseif iscell(Matrix)
                 Ncell = numel(Matrix);
                 for Icell=1:1:Ncell
                     Obj.Data.(FieldName{Icell}) = Matrix{Icell};
+                    Obj.Units.(FieldName{Ifn}) = Units{Ifn};
                 end
             elseif isa(Matrix, 'AstroTable')
                 % Assume input is an array of matched AstroTables
@@ -429,13 +446,13 @@ classdef MatchedSources < Component
                 if ~all(Nrow==Nrow(1))
                     error('For AstroTable/AstroCatalog input, all catalogs must have the same number of rows');
                 end
-                
-                if ischar(FieldName)
-                    FieldName = {FieldName};
-                end
-            
+                            
                 [Res, Summary, N_Ep] = imProc.match.matched2matrix(Matrix, FieldName, true);
                 Obj.addMatrix(Res);
+                for Icell=1:1:Nf
+                    Obj.Units.(FieldName{Ifn}) = Units{Ifn};
+                end
+                
 %
 %                 Nepoch = numel(Matrix);
 %                 Nfn = numel(FieldName);
@@ -481,6 +498,33 @@ classdef MatchedSources < Component
                 varargout{Ifn} = Obj.Data.(FieldNames{Ifn});
             end
             
+            
+        end
+        
+        function Result = getUnits(Obj, FieldNames)
+            % Return the units
+            % Input  : - A single element MatchedSources object.
+            %          - A char or a cell array of field names.
+            % Output : - A char or cell array (according to input) units.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: Result = getUnits(MS, 'FLUX')
+            
+            arguments
+                Obj(1,1)
+                FieldNames
+            end
+           
+            if ischar(FieldNames)
+                Result = Obj.Units.(FieldNames);
+            elseif iscell(FieldNames)
+                Nf = numel(FieldNames);
+                Result = cell(1, Nf);
+                for If=1:1:Nf
+                    Result{If} = Obj.Units.(FieldNames{If});
+                end
+            else
+                error('Unknown FieldNames type - must be a char or cell');
+            end
             
         end
         
