@@ -585,6 +585,37 @@ classdef AstroTable < Component
     
     
     methods % get general info
+        function Result = getColUnits(Obj, Fields)
+            % get column units
+            % Input  : - A single element AstroTable object.
+            %          - A char or cell array of column names.
+            % Output : - A char or cell (according to input) of units.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: Result = getColUnits(Obj, 'FLUX')            
+            
+            arguments
+                Obj(1,1)
+                Fields
+            end
+           
+            if ischar(Fields)
+                ColInd = colname2ind(Obj, Fields);
+                Result = Obj.ColUnits{ColInd};
+            elseif iscell(Fields)
+                Nf = numel(Fields);
+                Result = cell(1,Nf);
+                ColInd = colname2ind(Obj, Fields);
+                for If=1:1:Nf
+                    Result{If} = Obj.ColUnits(ColInd);
+                end
+            else
+                error('Unknown Fields type - must be a char or cell');
+            end
+            
+                
+            
+        end
+        
         function [Nrow,Ncol] = sizeCatalog(Obj)
             % Return the number o rows and columns in all elements in an AstroTable object
             % Example: [Nrow,Ncol] = sizeCatalog(Obj)

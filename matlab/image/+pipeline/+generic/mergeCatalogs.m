@@ -11,6 +11,10 @@ function Result = mergeCatalogs(Obj, Args)
         Args.FitPM logical           = true;
         Args.fitMotionArgs cell      = {'Prob',1e-5};
         
+        Args.MatchedColums           = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+        
+        
+        
         
         
         Args.ColPrefix cell          = {'Mean_', 'Med_', 'Std_', 'Err_'};
@@ -18,7 +22,6 @@ function Result = mergeCatalogs(Obj, Args)
         Args.GeneratingFunArgs       = { {1,'omitnan'}, {1,'omitnan'}, {[],1,'omitnan'}, {1} };
         Args.ColsToApplyFun          = {'RA','Dec','MAG_PSF'};   
         
-        Args.FitPM(1,1) logical      = true;
         Args.ColName_PM_DeltaChi2    = 'PM_DeltaChi2';
         Args.ColName_PM_RA           = 'PM_RA';
         Args.ColName_PM_Dec          = 'PM_Dec';
@@ -39,7 +42,7 @@ function Result = mergeCatalogs(Obj, Args)
         
         Args.unifiedSourcesCatalogArgs cell     = {};
         Args.matchArgs cell          = {};
-        Args.MatchedColums           = {'RA','Dec','X','Y','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+        
     end
     
     % find all unique sources
@@ -77,12 +80,103 @@ function Result = mergeCatalogs(Obj, Args)
     % Max2MedDev_{MagCol}
     % Nobs_{MagCol}
     % CombFLAGS
-    MagStat = statSummary(MatchedS, 'FieldNameDic','MAG_CONV_2', 'FlagsNameDic','FLAGS');
+    
+    Args.ColNameFlags   = 'FLAGS';
+    Args.ColNamesStat   = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4'};
+    Args.FunIndStat     = {true, true, [1 3], [1 3], [1 3], [1 3]};
+    Args.ColNamesAll    = {'MAG_CONV_2','MAGERR_CONV_2'};
+    
+    
     
     % fit proper motion
     if Args.FitPM
         FitMotion = lcUtil.fitMotion(MatchedS, Args.fitMotionArgs{:});
     end
+    
+    MergedCat = AstroCatalog([Nfields 1]);
+    
+        
+    %FunType   = str2func(class(MatchedS(1).getMatrix(Args.ColNameFlags)));
+    
+    for Ifields=1:1:Nfields    
+        ColNames = {};
+        ColUnits = {};
+        Cat      = [];
+        if Args.FitPM
+            ColNames = {'RA','Dec','Nobs', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_DeltaChi2'};
+            ColUnits = {'deg','deg','','deg','deg','deg/day','deg/day',''};
+            
+            
+            Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
+            Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
+            Cat(:,3)       = FitMotion(Ifields).RA.Nobs(:);
+            Cat(:,4)       = FitMotion(Ifields).RA.StdResid_H0(:);
+            Cat(:,5)       = FitMotion(Ifields).Dec.StdResid_H0(:);
+            Cat(:,6)       = FitMotion(Ifields).RA.ParH1(2,:).';
+            Cat(:,7)       = FitMotion(Ifields).Dec.ParH1(2,:).';
+            Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
+        end
+        
+        Icol = numel(ColNames) + 1;
+        Cols(Ifields).Flags = combineFlags(MatchedS(Ifields),'FlagsNameDic',Args.ColNameFlags, 'FlagsType',@uint32);
+        Cat(:,Icol) = Cols(Ifields).Flags.(Args.ColNameFlags)(:);
+        
+        Nstat = numel(Args.ColNamesStat);
+        for Istat=1:1:Nstat
+            Cols(Ifields).Stat.(Args.ColNamesStat{Istat}) = statSummary(MatchedS(Ifields),...
+                                                                        'FieldNameDic',Args.ColNamesStat{Istat},...
+                                                                        'FunInd',Args.FunIndStat{Istat});
+            
+            StatFieldNames = fieldnames(Cols(Ifields).Stat.(Args.ColNamesStat{Istat}));
+            NstatFN = numel(StatFieldNames);
+            for IstatFN=1:1:NstatFN
+                Icol           = Icol + 1;
+                Cat(:,Icol)    = Cols(Ifields).Stat.(Args.ColNamesStat{Istat}).(StatFieldNames{IstatFN})(:);
+                ColNames{Icol} = sprintf('%s_%s',StatFieldNames{IstatFN}, Args.ColNamesStat{Istat});
+                ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesStat{Istat});
+            end
+        end
+
+        Nall = numel(Args.ColNamesAll);
+        for Iall=1:1:Nall
+            Cols(Ifields).All.(Args.ColNamesAll{Iall}) = MatchedS(Ifields).getMatrix(Args.ColNamesAll{Iall}).';
+            [~,Ncol] = size(Cols(Ifields).All.(Args.ColNamesAll{Iall}));
+            
+            Cat(:,Icol+1:Icol+Ncol) = Cols(Ifields).All.(Args.ColNamesAll{Iall});
+            %Icol = Icol + Ncol;
+            for IcolEp=1:1:Ncol
+                Icol = Icol + 1;
+                ColNames{Icol} = sprintf('Epoch%03d_%s',IcolEp, Args.ColNamesAll{Iall});
+                ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesAll{Iall});
+            end
+        end
+       
+        MergedCat(Ifields).Catalog  = Cat;
+        MergedCat(Ifields).ColNames = ColNames;
+        MergedCat(Ifields).ColUnits = ColUnits;
+        MergedCat(Ifields).sortrows('Dec');
+    end
+    
+    % columns we need
+    % RA(fit), Dec(fit), Mean_RA, Mean_Dec, StdRA, StdDec, Nobs,
+    % PM_RA, PM_Dec, PM_DeltaChi2,
+    % {Ep_%03d_RA}x20, {Ep_%03d_Dec}x20,
+    % MinX, MaxX, MinY, MaxY, MedX, MedY,
+    % {Ep_%03d_SN_2}x20, {Ep_%03d_SN_3}x20,
+    % Mean_SN_1, Mean_SN_2, Mean_SN_3, Mean_SN_4,
+    % FLAGS
+    % {Ep_%03d_MAG_CONV_2}x20
+    % {Ep_%03d_MAG_CONV_2}x20
+    % {Ep_%03d_MAG_CONV_2}x20
+    % {Ep_%03d_MAG_CONV_2}x20
+    
+    
+    
+    
+    
+    
+    
+    
     
     I= 9;
     
