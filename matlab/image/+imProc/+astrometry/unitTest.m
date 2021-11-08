@@ -139,7 +139,7 @@ function Result = unitTest()
     
     PSF_Sigma = [0.1; 1.0; 1.2; 2.5];
     tic;
-    imProc.sources.findMeasureSources(SI, 'PsfFunPar', {PSF_Sigma}, 'RemoveBadSrcources',true);
+    imProc.sources.findMeasureSources(SI, 'PsfFunPar', {PSF_Sigma}, 'RemoveBadSources',true);
     toc
     
     
