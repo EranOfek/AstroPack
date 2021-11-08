@@ -812,14 +812,10 @@ classdef MatchedSources < Component
     end
     
     methods  % statistics and functions
-       function Result = statSummary(Obj, Args)
-            % Calculate statistical summary properties of a data property in a
-            % MatchedSources object.
-            % Input  : - A MatchedSources object.
+        function Result = combineFlags(Obj, Args)
+            % Combine (bitwise or) the flags of each sourc over all epochs
+            % Input  : - - A MatchedSources object.
             %          * ...,key,val,...
-            %            'FieldNameDic' - A cell array of dictionary field names for the
-            %                   data property for which to calculate statistics.
-            %                   Default is 'AstroCatalog.DefNamesMag'.
             %            'FlagsNameDic' - A cell array of dictionary field names for the
             %                   Flags property for which to combine using or operator for each source.
             %                   If empty, then do not calculate.
@@ -827,9 +823,48 @@ classdef MatchedSources < Component
             %            'FlagsType' -  Afunction handle for FLAGS type.
             %                   Default is @uint32.
             % Output : - A structure array with the column wise (sources)
+            %            of bitwise-or combine of all flags.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(uint32(rand(100,200).*1000),'FLAGS')
+            %          Result = combineFlags(MS)
+            
+            arguments
+                Obj
+                Args.FlagsNameDic                = 'FLAGS';
+                Args.FlagsType                   = @uint32;
+            end
+
+            [FlagsName] = getFieldNameDic(Obj(1), Args.FlagsNameDic);
+            
+            N = numel(Obj);
+            for I=1:1:N
+                % get Mag matrix
+                
+                DataFlags       = getMatrix(Obj(I), FlagsName);
+                Result(I).FLAGS = tools.array.bitor_array(Args.FlagsType(DataFlags));
+            end
+
+        end
+        
+        function [Result, Funs] = statSummary(Obj, Args)
+            % Calculate statistical summary properties of a data property in a
+            % MatchedSources object.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldNameDic' - A cell array of dictionary field names for the
+            %                   data property for which to calculate statistics.
+            %                   Default is 'AstroCatalog.DefNamesMag'.
+            %            'Funs' - A structure array of functions to
+            %                   calculate. If empty, use default.
+            %                   Default is empty.
+            %            'FundInd' - Indices or logical of functions in
+            %                   'Funs' to use. Default is true (all true).
+            % Output : - A structure array with the column wise (sources)
             %            basic statistcs properties for the sources in data
             %            properties. E.g., the mean, median, std, etc, for
             %            each source.
+            %          - The sturcture array of functions.
             % Author : Eran Ofek (Sep 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200),'FLUX')
@@ -839,42 +874,84 @@ classdef MatchedSources < Component
             arguments
                 Obj
                 Args.FieldNameDic                = AstroCatalog.DefNamesMag;
-                Args.FlagsNameDic                = 'FLAGS';
-                Args.FlagsType                   = @uint32;
+                Args.Funs                        = [];
+                Args.FunInd                      = true;
             end
 
             
+            if isempty(Args.Funs)
+                % use default
+                I = 0;
+                I = I+1;
+                Funs(I).Fun  = @mean;
+                Funs(I).Name = 'Mean';
+                Funs(I).Args = {1, 'omitnan'};
+                I = I+1;
+                Funs(I).Fun  = @median;
+                Funs(I).Name = 'Median';
+                Funs(I).Args = {1, 'omitnan'};
+                I = I+1;
+                Funs(I).Fun  = @std;
+                Funs(I).Name = 'Std';
+                Funs(I).Args = {[], 1, 'omitnan'};
+                I = I+1;
+                Funs(I).Fun  = @imUtil.background.rstd;
+                Funs(I).Name = 'RStd';
+                Funs(I).Args = {1};
+                I = I+1;
+                Funs(I).Fun  = @range;
+                Funs(I).Name = 'Range';
+                Funs(I).Args = {'omitnan'};
+                I = I+1;
+                Funs(I).Fun  = @min;
+                Funs(I).Name = 'Min';
+                Funs(I).Args = {[], 1, 'omitnan'};
+                I = I+1;
+                Funs(I).Fun  = @max;
+                Funs(I).Name = 'Max';
+                Funs(I).Args = {[], 1, 'omitnan'};
+                I = I+1;
+                Funs(I).Fun  = @(Data,Dim) sum(~isnan(Data),Dim);
+                Funs(I).Name = 'Nobs';
+                Funs(I).Args = {1};
+            else
+                Funs = Args.Funs;
+            end
+            
+            if islogical(Args.FunInd)
+                Args.FunInd = repmat(Args.FunInd,1,numel(Funs));
+            end
+            
+            % select functions
+            Funs = Funs(Args.FunInd);
+            
+               
+            
             % get field name from dictionary
             [FieldName] = getFieldNameDic(Obj(1), Args.FieldNameDic);
-            [FlagsName] = getFieldNameDic(Obj(1), Args.FlagsNameDic);
-            
 
+            Nfun = numel(Funs);
+            
             N = numel(Obj);
             for I=1:1:N
                 % get Mag matrix
-                
             
                 Data = getMatrix(Obj(I), FieldName);
                 
                 % calc statistics
-                Result(I).Mean     = mean(Data, 1, 'omitnan');
-                Result(I).Median   = median(Data, 1, 'omitnan');
-                Result(I).Std      = std(Data, [], 1, 'omitnan');
-                Result(I).RStd     = imUtil.background.rstd(Data, 1);
-                Result(I).Range    = range(Data, 1);
-                Result(I).Min      = min(Data, [], 1, 'omitnan');
-                Result(I).Max      = max(Data, [], 1, 'omitnan');
-                Result(I).Nobs     = sum(~isnan(Data), 1);
-                
-                %isnan(Data)
-                
-                % combine flags
-                if isempty(Args.FlagsNameDic)
-                    Result(I).FLAGS = uint32(zeros(size(Result(I).Nobs)));
-                else
-                    DataFlags       = getMatrix(Obj(I), FlagsName);
-                    Result(I).FLAGS = tools.array.bitor_array(Args.FlagsType(DataFlags));
+                for Ifun=1:1:Nfun
+                    Result(I).(Funs(Ifun).Name) = Funs(Ifun).Fun(Data, Funs(Ifun).Args{:});
                 end
+                
+%                 Result(I).Mean     = mean(Data, 1, 'omitnan');
+%                 Result(I).Median   = median(Data, 1, 'omitnan');
+%                 Result(I).Std      = std(Data, [], 1, 'omitnan');
+%                 Result(I).RStd     = imUtil.background.rstd(Data, 1);
+%                 Result(I).Range    = range(Data, 1);
+%                 Result(I).Min      = min(Data, [], 1, 'omitnan');
+%                 Result(I).Max      = max(Data, [], 1, 'omitnan');
+%                 Result(I).Nobs     = sum(~isnan(Data), 1);
+                
             end
 
        end
