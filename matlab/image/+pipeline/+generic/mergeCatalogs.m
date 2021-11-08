@@ -100,6 +100,7 @@ function Result = mergeCatalogs(Obj, Args)
     
     for Ifields=1:1:Nfields    
         ColNames = {};
+        ColUnits = {};
         Cat      = [];
         if Args.FitPM
             ColNames = {'RA','Dec','Nobs', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_DeltaChi2'};
@@ -132,6 +133,7 @@ function Result = mergeCatalogs(Obj, Args)
                 Icol           = Icol + 1;
                 Cat(:,Icol)    = Cols(Ifields).Stat.(Args.ColNamesStat{Istat}).(StatFieldNames{IstatFN})(:);
                 ColNames{Icol} = sprintf('%s_%s',StatFieldNames{IstatFN}, Args.ColNamesStat{Istat});
+                ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesStat{Istat});
             end
         end
 
@@ -145,11 +147,14 @@ function Result = mergeCatalogs(Obj, Args)
             for IcolEp=1:1:Ncol
                 Icol = Icol + 1;
                 ColNames{Icol} = sprintf('Epoch%03d_%s',IcolEp, Args.ColNamesAll{Iall});
+                ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesAll{Iall});
             end
         end
        
         MergedCat(Ifields).Catalog  = Cat;
         MergedCat(Ifields).ColNames = ColNames;
+        MergedCat(Ifields).ColUnits = ColUnits;
+        MergedCat(Ifields).sortrows('Dec');
     end
     
     % columns we need

@@ -432,13 +432,13 @@ classdef MatchedSources < Component
                 FN = fieldnames(Matrix);
                 for Ifn=1:1:numel(FN)
                     Obj.Data.(FN{Ifn}) = Matrix.(FN{Ifn});
-                    Obj.Units.(FieldName{Ifn}) = Units{Ifn};
+                    %Obj.Units.(FieldName{Ifn}) = Units{Ifn};
                 end
             elseif iscell(Matrix)
                 Ncell = numel(Matrix);
                 for Icell=1:1:Ncell
                     Obj.Data.(FieldName{Icell}) = Matrix{Icell};
-                    Obj.Units.(FieldName{Ifn}) = Units{Ifn};
+                    Obj.Units.(FieldName{Icell}) = Units{Icell};
                 end
             elseif isa(Matrix, 'AstroTable')
                 % Assume input is an array of matched AstroTables
@@ -447,10 +447,10 @@ classdef MatchedSources < Component
                     error('For AstroTable/AstroCatalog input, all catalogs must have the same number of rows');
                 end
                             
-                [Res, Summary, N_Ep] = imProc.match.matched2matrix(Matrix, FieldName, true);
+                [Res, Summary, N_Ep, Units] = imProc.match.matched2matrix(Matrix, FieldName, true);
                 Obj.addMatrix(Res);
-                for Icell=1:1:Nf
-                    Obj.Units.(FieldName{Ifn}) = Units{Ifn};
+                for Ifn=1:1:Nf
+                    Obj.Units.(FieldName{Ifn}) = Units.(FieldName{Ifn});
                 end
                 
 %

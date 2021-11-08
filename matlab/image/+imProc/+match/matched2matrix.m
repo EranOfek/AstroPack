@@ -1,4 +1,4 @@
-function [Res, Summary, N_Ep] = matched2matrix(MatchedObj, Cols, IsEpochByInd)
+function [Res, Summary, N_Ep, Units] = matched2matrix(MatchedObj, Cols, IsEpochByInd)
     %A matched AstroCatalog object into a matrix of epochs by index
     % AstCat object to a matrix of matched sources.
     % Description: Given an AstroCatalog object containing multiple elements, in
@@ -30,6 +30,7 @@ function [Res, Summary, N_Ep] = matched2matrix(MatchedObj, Cols, IsEpochByInd)
     %          - Vector of length equal to the number of epochs. The value in
     %            each element is the number of stars that appears in exactly
     %            I epochs.
+    %          - A structure with column units (per requested field).
     % Author : Eran O. Ofek (May 2016)
     % Example: AC = AstroCatalog;
     %          AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
@@ -90,6 +91,9 @@ function [Res, Summary, N_Ep] = matched2matrix(MatchedObj, Cols, IsEpochByInd)
         for Icat=1:1:Ncat
             % E.g., Res.XWIN_IMAGE(:,10) = MatchedObj(10).Cat(:,Column)
             Res.(ColName{Icol})(:,Icat) = MatchedObj(Icat).(CatField)(:,ColInd(Icol));
+        end
+        if nargout>3
+            Units.(ColName{Icol}) = getColUnits(MatchedObj(Icat), ColName{Icol});
         end
         if IsEpochByInd
             % transpose the matrix
