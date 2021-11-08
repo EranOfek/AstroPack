@@ -1,4 +1,4 @@
-function [MatchedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
+function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %
     
     arguments
