@@ -18,7 +18,6 @@ function Result = mergeCatalogs(Obj, Args)
         Args.GeneratingFunArgs       = { {1,'omitnan'}, {1,'omitnan'}, {[],1,'omitnan'}, {1} };
         Args.ColsToApplyFun          = {'RA','Dec','MAG_PSF'};   
         
-        Args.FitPM(1,1) logical      = true;
         Args.ColName_PM_DeltaChi2    = 'PM_DeltaChi2';
         Args.ColName_PM_RA           = 'PM_RA';
         Args.ColName_PM_Dec          = 'PM_Dec';
@@ -83,6 +82,9 @@ function Result = mergeCatalogs(Obj, Args)
     if Args.FitPM
         FitMotion = lcUtil.fitMotion(MatchedS, Args.fitMotionArgs{:});
     end
+    
+    
+    
     
     I= 9;
     

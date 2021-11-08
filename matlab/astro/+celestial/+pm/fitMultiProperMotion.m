@@ -98,8 +98,8 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
             Nobs   = sum(FlagNN, 1);
             for Isrc=1:1:Nsrc
                 if Nobs(Isrc)>=Args.MinNobs
-                    ParH1(:,Isrc) = H1(FlagNN(:,Isrc))\Y(FlagNN(:,Isrc),Isrc);
-                    ParH0(:,Isrc) = H0(FlagNN(:,Isrc))\Y(FlagNN(:,Isrc),Isrc);
+                    ParH1(:,Isrc) = H1(FlagNN(:,Isrc),:)\Y(FlagNN(:,Isrc),Isrc);
+                    ParH0(:,Isrc) = H0(FlagNN(:,Isrc),:)\Y(FlagNN(:,Isrc),Isrc);
                 end
             end
 
@@ -125,6 +125,7 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         
         Result.(PropStr).Chi2_H0 = nansum((ResidH0./ErrY).^2, 1);       
         if Args.RenormErr
+            
             Result.(PropStr).Chi2_H0 = Result.(PropStr).Chi2_H0./Result.(PropStr).Chi2_H1;
             Result.(PropStr).Chi2_H1 = ones(size(Result.(PropStr).Chi2_H1));
         end
