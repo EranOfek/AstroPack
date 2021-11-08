@@ -22,7 +22,7 @@ Functionality
 
 ## Database GUI
 
-On Windows, use SQL Manager Lite for PostgreSQL by EMS Software (or DataGrip):
+On Windows, use **SQL Manager Lite for PostgreSQL** by EMS Software (or DataGrip):
 
 https://www.sqlmanager.net/products/postgresql/manager
 
@@ -31,7 +31,7 @@ Download page:
 https://www.sqlmanager.net/products/postgresql/manager/download
 
 
-On Linux, use DataGrip by JetBrains 
+On Linux, use **DataGrip** by JetBrains
 
 https://www.jetbrains.com/datagrip/
 
@@ -50,7 +50,7 @@ https://www.jetbrains.com/datagrip/download/
 
 These classes are used internally by DbQuery:
 
-- DbDriver - Wrapper for the Java driver object 
+- DbDriver - Wrapper for the Java driver object
 - DbConnection - Wrapper for Java database connection object
 
 # Usage
@@ -65,16 +65,16 @@ These classes are used internally by DbQuery:
     Q = db.DbQuery('unittest:master_table');
     Count = Q.selectCount();
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Count);
-        
+
     % Query Postgres version, result should be similar to
-    % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'    
+    % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
     pgver = Q.getDbVersion();
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
-        
+
     % Switch to another table
     Q.TableName = 'master_table';
-    
+
     % Select and load all records
     Record = Q.select('*');
     Table = Record.convert2table();
@@ -84,7 +84,7 @@ These classes are used internally by DbQuery:
 
     % Query Postgres version, result should be similar to
     % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-    Q = db.DbQuery('UnitTest');    
+    Q = db.DbQuery('UnitTest');
     pgver = Q.getDbVersion();
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
@@ -123,15 +123,15 @@ These classes are used internally by DbQuery:
             Component.newUuid(), randi(100), randi(100000));
         Q.exec();
     end
-    
+
     % Assume that we are the single process writing to this table at the moment
     CountAfterInsert = Q.selectCount();
-    assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
-    
+    assert(CountBeforeInsert + InsertCount == CountAfterInsert);
+
 ### Insert batch with exec()
 
 
-    % Insert batch using raw sql: Prepare multiple INSERT lines   
+    % Insert batch using raw sql: Prepare multiple INSERT lines
     % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
     TestBatch = true;
     if (TestBatch)
@@ -143,11 +143,11 @@ These classes are used internally by DbQuery:
             uuid = Component.newUuid();
             SqlLine = sprintf("INSERT INTO master_table(RecID,FInt,FString) VALUES ('%s',%d,'Batch_%03d');", uuid, i, i).char;
             Sql = [Sql, SqlLine];
-        end           
+        end
         Q.exec(Sql);
-        assert(Q.ExecOk);            
+        assert(Q.ExecOk);
         CountAfterInsert = Q.selectCount();
-        assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
+        assert(CountBeforeInsert + InsertCount == CountAfterInsert);
     end
 
 
@@ -156,7 +156,42 @@ These classes are used internally by DbQuery:
 
 ### Generating Primary Key
 
-    PrimaryKeyFunc  = [];       % function(DbQuery, DbRecord, Index)
+    function Result = makePrimaryKeyForMat(Q, Rec, Index)
+       % Make priamry key, called for every row of Rec.Data(Index)
+
+       if Index == 0
+           First = 1;
+           Last = numel(Rec.Data);
+       else
+           First = Index;
+           Last = Index;
+       end
+
+       %
+       for i=First:Last
+           Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());
+       end
+
+       Result = true;
+    end
+
+    % 
+    Iters = 5;
+    Count = 1;
+    Cols = 20;
+    ColNames = {};
+    for i=1:Cols
+       ColNames{i} = sprintf('fdouble%d', i);
+    end
+
+    for Iter=1:Iters
+       Mat = rand(Count, Cols);
+       R = db.DbRecord(Mat, 'ColNames', ColNames);
+       Result = Q.insert(R, 'PrimaryKeyFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
+       io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
+       Count = Count * 10;
+    end
+
 
 
 #### Example
@@ -176,7 +211,7 @@ Note: To improve performance we write data to CSV file using mex-writematrix
 
 ## Create Database
 
-    createDatabase  
+    createDatabase
 
 
 ### Updating structure of existing database
@@ -194,8 +229,8 @@ Note: To improve performance we write data to CSV file using mex-writematrix
 
     Q = db.DbQuery('unittest:master_table');
     Q.selectCount()
-	
-	
+
+
 # Database Configuration File
 
 Database.yml
@@ -203,13 +238,13 @@ Database.yml
     # Database Configuration File
     #
     # Notes:
-    #   1. Key names should match DbConnection's properties names 
+    #   1. Key names should match DbConnection's properties names
     #      (i.e. there is DbConnection.Host)
     #
     #
     #
-    
-    
+
+
     # Default values, override by adding values to per-database section under Items below
     Default:
     Host            : 'localhost'       # Host name or IP address
@@ -217,36 +252,103 @@ Database.yml
     UserName        : 'postgres'        # Login user
     Password        : 'pass'            # Login password
     Port            : 5432              # Post number, 5432 is Postgres default
-    
-    
+
+
     # Databases, items names are used by DbConnection
     Items:
-    
+
         #
         UnitTest:
             DatabaseName    : 'unittest'        # Database name
             Host            : 'localhost'       # Host name or IP address
-         
+
         #
         Pipeline:
             DatabaseName    : 'pipeline'        # Database name
             Host            : 'localhost'       # Host name or IP address
-        
+
         #
         Last:
             DatabaseName    : 'last'            # Database name
             Host            : 'localhost'       # Host name or IP address
-        
+
         #
         Observations:
             DatabaseName    : 'observations'    # Database name
             Host            : 'localhost'       # Host name or IP address
- 
+
 
 
 # See Also
 
 # Notes
+
+## Create Database Scripts
+
+### Add Test Fields
+
+Add 20x double fields
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble1 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble2 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble3 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble4 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble5 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble6 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble7 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble8 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble9 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble10 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble11 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble12 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble13 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble14 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble15 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble16 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble17 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble18 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble19 DOUBLE PRECISION;
+
+    ALTER TABLE public.master_table
+    ADD COLUMN fdouble20 DOUBLE PRECISION;
+
 
 ## Creating Database from Google Sheets
 

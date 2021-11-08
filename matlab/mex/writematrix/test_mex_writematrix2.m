@@ -1,3 +1,4 @@
+% Test the improved mex_WriteMatrix2 (mex_WriteMatrix2.c)
 function test_mex_writematrix2()
 
 	% create 'magic square' matrix 5x5

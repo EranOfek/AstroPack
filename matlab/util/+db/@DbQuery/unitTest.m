@@ -20,19 +20,18 @@ function Result = unitTest()
    
     % Call tests using 'UnitTest' database
 
-    testInsert(Q);
-
-    TestAll = false;
+    TestAll = true;
     if TestAll
         testSelect(Q);        
+        testInsertRaw(Q);
         testInsert(Q);
-        testUpdate(Q);
-        testDelete(Q);
-        testCopy(Q);
-        testMisc(Q);
+        %testUpdate(Q);
+        %testDelete(Q);
+        %testCopy(Q);
+        %testMisc(Q);
 
         % Tests using 'Pipeline' database
-        testPipeline();
+        %testPipeline();
     end
     
     
@@ -44,7 +43,9 @@ end
 %==========================================================================
 
 function Result = testSelect(Q)
-
+    % Test SELECT functionality and DbQuery.select()
+    
+    %----------------------------------------------------- Simple select & convert
     Limit = 100;
     R = Q.select('*', 'TableName', 'master_table', 'Limit', Limit);
     assert(isa(R, 'db.DbRecord'));       
@@ -87,6 +88,7 @@ function Result = testSelect(Q)
     Cell = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'cell', 'Limit', Limit);
     assert(isa(Cell, 'cell'));  
     
+    %----------------------------------------------------- Select double fields into Mat/AstroTable
     Fields = 'fdouble,ftimestamp';
     Mat = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'mat', 'Limit', Limit);    
     assert(isa(Mat, 'double'));       
@@ -110,7 +112,7 @@ function Result = testSelect(Q)
     assert(numel(Fields) > 0);
     disp(Fields);
 
-    % ---------------------------------------------- Select (more)
+    % ---------------------------------------------- Select - all field types
     % NOTE: At this point, we assume that tables master_table and
     % details_table exist and are not empty
 
@@ -158,7 +160,7 @@ function Result = testSelect(Q)
         % Test select() function
         % select RecId, FInt, FBigInt from master_table where recid != ''
         Rec2 = Q.select('RecID, Fint', 'TableName', 'master_table', 'Where', 'Fint > 0');
-        assert(numel(Rec2.Data) > 0);
+        assert(numel(Rec2.Data) >= 0);
     else
         io.msgStyle(LogLevel.Test, '@warn', 'Table master_table is empty, select tests are skipped');
     end
@@ -169,25 +171,40 @@ end
 
 %==========================================================================
 
-function Result = makePk(Q, Rec, Index)
-    Result = '';
+function Result = makePrimaryKeyForMat(Q, Rec, Index)
+    % Make priamry key, called for every row of Rec.Data(Index)
 
-
-
+    if Index == 0
+        First = 1;
+        Last = numel(Rec.Data);
+    else
+        First = Index;
+        Last = Index;
+    end
+    
+    %
+    for i=First:Last
+        Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());
+    end
+    
+    Result = true;
 end
 
 
-function Result = testInsert(Q)
+function Result = testInsertRaw(Q)
     % Assume that we are the single process writing to this table at the moment
     
+    %----------------------------------------------------- INSERT with exec()
     % Insert using raw SQL by calling Q.exec() directly
     CountBeforeInsert = Q.selectCount();
     InsertCount = 10;
+    io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());
     for i = 1:InsertCount
         Q.SqlText = sprintf("INSERT INTO master_table (recid, fint, fdouble) VALUES('%s', %d, %f)",...
             Component.newUuid(), randi(100), randi(100000));
         Q.exec();
     end
+    io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
     
     % Assume that we are the single process writing to this table at the moment
     CountAfterInsert = Q.selectCount();
@@ -210,38 +227,75 @@ function Result = testInsert(Q)
         end           
         
         % Execute as one statement
+        io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());        
         Q.exec(Sql);
-        assert(Q.ExecOk);            
+        assert(Q.ExecOk);
+        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
         CountAfterInsert = Q.selectCount();
         assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     end
+end
+
+
+function Result = testInsert(Q)
+    % Assume that we are the single process writing to this table at the moment
     
-    % Test insert()
-    % Prepare DbRecord with 3 records
-    Count = 3;
-    R = db.DbRecord;    
-    for i = 1:Count
-        R.Data(i).recid = R.newKey();
-        R.Data(i).fint = 1000 + i;
-        R.Data(i).fbool = 1000 + i;
-        R.Data(i).fstring = sprintf('MyStr_%03d', i);        
+    %----------------------------------------------------- insert()
+    Test1 = true;
+    if Test1
+        % Prepare DbRecord with 3 records, generate primary key
+        Iters = 4;
+        Count = 1;
+        for Iter=1:Iters
+            R = db.DbRecord;    
+            for i = 1:Count
+                R.Data(i).recid = R.newKey();
+                R.Data(i).fint = 1000 + i;
+                R.Data(i).fbool = true;
+                R.Data(i).fstring = sprintf('MyStr_%03d', i);        
+            end    
+            io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());
+            Result = Q.insert(R, 'BatchSize', 100);
+            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
+            Count = Count*10;
+        end
+
+        % Insert Mat, generate primary key in struct and use DbRecord.merge()
+        Rows = 10;
+        Mat = rand(Rows, 2);
+        R = db.DbRecord(Mat, 'ColNames', {'fdouble', 'ftimestamp'});
+        S = struct;
+        for i=1:Rows
+            S(i).recid = R.newKey();
+        end
+
+        % Merge DbRecord with struct-array, for example to add primary-key or
+        % other data to Matrix
+        R.merge(S);
+        Result = Q.insert(R, 'BatchSize', 100);
+        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
     end
     
-    Result = Q.insert(R, 'BatchSize', 100);
     
-    %
-    Rows = 10;
-    Mat = rand(Rows, 2);
-    R = db.DbRecord(Mat, 'ColNames', {'fdouble', 'ftimestamp'});
-    S = struct;
-    for i=1:Rows
-        S(i).recid = db.DbRecord.newKey();
+    % Insert with user-function to generate primary key
+    Test2 = true;
+    if Test2
+        Iters = 5;
+        Count = 1;
+        Cols = 20;
+        ColNames = {};
+        for i=1:Cols
+            ColNames{i} = sprintf('fdouble%d', i);
+        end        
+        
+        for Iter=1:Iters
+            Mat = rand(Count, Cols);
+            R = db.DbRecord(Mat, 'ColNames', ColNames);
+            Result = Q.insert(R, 'PrimaryKeyFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
+            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
+            Count = Count * 10;
+        end
     end
-    
-    % Merge DbRecord with struct-array, for example to add primary-key or
-    % other data to Matrix
-    R.merge(S);
-    Result = Q.insert(R, 'BatchSize', 100);
     
 %       
 %     % ---------------------------------------------- insertRecord: struct

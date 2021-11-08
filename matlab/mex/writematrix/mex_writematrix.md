@@ -4,7 +4,27 @@
 
 Function to write matrix contents to file. Replacement for (slow) dlmwrite in MATLAB
 
-### 
+### Files in this folder
+
+- mex_writematrix.md - This file
+- build1.bat
+- build2.bat                   
+- mex_WriteMatrix0.c
+- mex_WriteMatrix1.c           
+- mex_WriteMatrix2.c
+- mex_phonebook.c
+- test_mex_writematrix1.m
+- test_mex_writematrix2.m      
+- test_phonebook.m
+              
+			  
+			  
+### .gitignore			  
+
+	# Compiled MEX files
+	*.mexw64
+
+### mex_WriteMatrix
 
     mex_WriteMatrix(filename,matrix,format,delimiter, writemode);
 
@@ -16,6 +36,20 @@ Parameters:
     delimiter - delimiter, for example can be ',' or ';' or sprintf('\t')
     writemode - write mode 'w+' for rewriting file 'a+' for appending
  
+
+### mex_WriteMatrix2
+
+    mex_WriteMatrix(filename,matrix,format,delimiter, writemode);
+
+Parameters:
+
+    filename  - full path for CSV file to export 
+    matrix    - matrix of type 'double' values to be exported
+    format    - format of export (sprintf) , e.g. '%10.6f'
+    delimiter - delimiter, for example can be ',' or ';' or sprintf('\t')
+    writemode - write mode 'w+' for rewriting file 'a+' for appending
+
+
 
 ## Compiling
 

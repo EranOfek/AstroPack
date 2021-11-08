@@ -167,14 +167,19 @@ classdef DbRecord < Base
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
-            Mat = cell2mat(squeeze(struct2cell(Obj.Data))');
+            Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
             Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
             Size = size(Result.Catalog);
             assert(numel(Obj.Data) == Size(1));
         end
-                        
+           
+        
+        function Result = writeCsv(Obj)
+            
+        end
+        
     end
-    
+        
     %----------------------------------------------------------------------
     methods(Static) % Unit test
                          

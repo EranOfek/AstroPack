@@ -6,12 +6,12 @@
 %
 % startup.m folder:
 %
-% Linux:   
+% Linux:
 %   Eran    - /home/eran/???
 %   Yossi   - /home/???
 %   Chen VM - /home/chent/Documents/MATLAB/startup.m
 %
-% Windows: 
+% Windows:
 %   Chen Desktop - C:\Users\chen\Documents\MATLAB\startup.m
 %   Chen Laptop  - C:\Users\chent\OneDrive\Documents\MATLAB\startup.m
 %
@@ -61,26 +61,26 @@ function doStartup()
         % Linux / Mac
         HomeDir = getenv('HOME');
         AstroPackPath = getenv('ASTROPACK_PATH');
-        if isempty(AstroPackPath)    
-            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
-        end
-        
-        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');        
-        if isempty(AstroPackPath)    
-            AstroPackDataPath = fullfile(HomeDir, MatlabDir, 'data');
-        end        
-    else
-        % Windows
-        HomeDir = getenv('HOMEPATH');
-        AstroPackPath = getenv('ASTROPACK_PATH');    
         if isempty(AstroPackPath)
             AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
         end
-        
-        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');    
+
+        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');
+        if isempty(AstroPackPath)
+            AstroPackDataPath = fullfile(HomeDir, MatlabDir, 'data');
+        end
+    else
+        % Windows
+        HomeDir = getenv('HOMEPATH');
+        AstroPackPath = getenv('ASTROPACK_PATH');
+        if isempty(AstroPackPath)
+            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
+        end
+
+        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');
         if isempty(AstroPackDataPath)
             AstroPackDataPath = 'C:/AstroPack/matlab/data';  % @Todo - Fix to use C:\AstroPack from getenv
-        end            
+        end
     end
 
     if (isempty(HomeDir))
@@ -90,44 +90,46 @@ function doStartup()
     if (isempty(AstroPackPath))
         error('Can not find AstroPack directory, set ASTROPACK_PATH - edit the startup.m file accordingly');
     end
-    
+
     if (isempty(AstroPackDataPath))
         fprintf('Warning: Can not find AstroPack Data directory, set ASTROPACK_DATA_PATH (default is ~/matlab/data on Linux, C:\AstroPack\matlab\data on Windows');
-    end    
+    end
 
 
-    % Configuation path, default is in repo config/ 
+    % Configuation path, default is in repo config/
     AstroPackConfigPath = getenv('ASTROPACK_CONFIG_PATH');
     if isempty(AstroPackConfigPath)
         AstroPackConfigPath = fullfile(AstroPackPath, 'config');
     end
     fprintf('AstroPackConfigPath: %s\n', AstroPackConfigPath);
-
-    
-    % External packages root
-    ExternalPath = fullfile(AstroPackPath, 'matlab', 'external');
-    fprintf('ExternalPath: %s\n', ExternalPath);
-
+    %----------------------------------------------------------------------
     % addpath for AstroPack
     % This is a cell array of cell arrays
     % Each cell contains one path to add.
     % The inside cell gives the directory path - e.g., {'matlab','astro'} means .../matlab/astro/
-    DirList.AstroPack = {{AstroPackPath,'data','test_images','fits_samples'},...
-			 {AstroPackPath,'..','data','SolarSystem','Time'},...
-			 {AstroPackPath,'..','data','SolarSystem','VSOPE87'},...
- 			 {AstroPackPath,'..','data','SolarSystem','MinorPlanets'},...
-			 {AstroPackPath,'..','data'},...
-			 {AstroPackPath,'..','data','spec','GAIA_SpecTemplate'},...
-                         {AstroPackPath,'matlab','astro'},...
-                         {AstroPackPath,'matlab','base'},...
-                         {AstroPackPath,'matlab','external'},...
-                         {AstroPackPath,'matlab',sprintf('%s%s%s','external',filesep,'Inpaint_nans')},...
-                         {AstroPackPath,'matlab','image'},...
-                         {AstroPackPath,'matlab','pipeline'},...
-                         {AstroPackPath,'matlab','util'},...
-                         {AstroPackPath,'matlab','help'},...
-                         {AstroPackPath,'matlab','obsolete'}};
+    % Check with @Eran if we can remove the 'data' folders because they are
+    % part of Installer
+    DirList.AstroPack = {...
+             {AstroPackPath,'data','test_images','fits_samples'},...
+             {AstroPackPath,'..','data','SolarSystem','Time'},...
+             {AstroPackPath,'..','data','SolarSystem','VSOPE87'},...
+             {AstroPackPath,'..','data','SolarSystem','MinorPlanets'},...
+             {AstroPackPath,'..','data'},...
+             {AstroPackPath,'..','data','spec','GAIA_SpecTemplate'},...
+             {AstroPackPath,'matlab','astro'},...
+             {AstroPackPath,'matlab','base'},...
+             {AstroPackPath,'matlab','external'},...
+             {AstroPackPath,'matlab',fullfile('external','Inpaint_nans')},...
+             {AstroPackPath,'matlab','mex'},...
+             {AstroPackPath,'matlab',fullfile('mex','writematrix')},...
+             {AstroPackPath,'matlab','image'},...
+             {AstroPackPath,'matlab','pipeline'},...
+             {AstroPackPath,'matlab','util'},...
+             {AstroPackPath,'matlab','help'},...
+             {AstroPackPath,'matlab','obsolete'}
+             };
 
+    %----------------------------------------------------------------------
     if ~isempty(CatsHTMDir)
         DirList.CatsHTM = {{CatsHTMDir,'2MASS'},...
                            {CatsHTMDir,'2MASSxsc'},...
@@ -176,9 +178,9 @@ function doStartup()
                            {CatsHTMDir,'XMM'},...
                            {CatsHTMDir,'ZTF','LCDR1'},...
                            {CatsHTMDir,'ZTF','SrcLCDR1'},...
-                           {CatsHTMDir,'ZTF','ztfDR1var'}};                     
-    end       
-
+                           {CatsHTMDir,'ZTF','ztfDR1var'}};
+    end
+    %----------------------------------------------------------------------
     % Folders installed by Installer.install(), note that Installer.prep_cats()
     % is automatically called when installing 'cats' (same as the older
     % VO.prep.prep.data.dir() function)
@@ -186,9 +188,9 @@ function doStartup()
     DirList.InstallerData = {{InstallerDataDir},...
                              {InstallerDataDir, 'spec'},...
                              {InstallerDataDir, 'spec/SpecGalQSO/'},...
-                             {InstallerDataDir, 'spec/PicklesStellarSpec/'}};       
-
-    % add all DirList to path                 
+                             {InstallerDataDir, 'spec/PicklesStellarSpec/'}};
+    %----------------------------------------------------------------------
+    % add all DirList to path
     FN  = fieldnames(DirList);
     Nfn = numel(FN);
     warning off;

@@ -71,6 +71,8 @@ classdef DbQuery < Component
         PrimaryKey                  % Primary Key(s) used when TableName is not empty - char or celarray
         FieldMap        = [];       % struct
         PrimaryKeyFunc  = [];       % function(DbQuery, DbRecord, Index)
+        CopyLimit       = 5000;     %
+        
         
         % Metadata from last select
         ColCount        = 0;        % Number of columns
@@ -277,16 +279,17 @@ classdef DbQuery < Component
             arguments
                 Obj
                 Rec                         %
-                Args.TableName = '';        %
-                Args.FieldNames = [];       %
+                Args.TableName = ''         %
+                Args.FieldNames = []        %
                 Args.FieldMap = []          % Optional field map
                 Args.ExFields struct = []   % Additional fields as struct
-                Args.BatchSize = 1          % Number of records per commit operation - @TODO
-                Args.PrimaryKeyFunc = [];   % See 
+                Args.BatchSize = 1          % Number of records per commit operation
+                Args.PrimaryKeyFunc = []    % Called to generate primary key if required
+                Args.CopyLimit = []         % When number of records is above this value, copyFrom() is used
             end
             
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: insertDbRecord');
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: insert');
             Result = false;
             
             % Use speified TableName or Obj.TableName
@@ -295,26 +298,60 @@ classdef DbQuery < Component
             end
             assert(~isempty(Args.TableName));
                             
+            % Convert from input type
+            if ~isa(Rec, 'db.DbRecord')
+                Rec = db.DbRecord(Rec);
+            end
+
+            %
+            if isempty(Args.PrimaryKeyFunc)
+                Args.PrimaryKeyFunc = Obj.PrimaryKeyFunc;
+            end
+                        
+            %
+            if ~isempty(Args.PrimaryKeyFunc)
+                Args.PrimaryKeyFunc(Obj, Rec, 0);
+            end
+            
+            %
+            if isempty(Args.CopyLimit)
+                Args.CopyLimit = Obj.CopyLimit;
+            end
+            
             % Need connection, clear current query
             if ~Obj.openConn()
                 return;
             end
+
+            %
+            RecordCount = numel(Rec.Data);            
+            
+            % Prepare SQL statement
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+            FieldNames = fieldnames(Rec.Data);
+            [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, 'FieldMap', Args.FieldMap);
+            
+%             if RecordCount > Args.CopyLimit
+%                 FileName = sprintf('%s.csv', tempname);
+% 
+%                 %
+%                 mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Header, Rec.Data);
+% 
+%                 %
+%                 Result = Obj.copyFrom(Args.TableName, FileName);
+%                 return;
+%             end
+           
             
             % Use all fields that exist in the table
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             T1 = tic();
 
-            % Prepare SQL statement
-            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-            FieldNames = fieldnames(Rec.Data);
-            [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, 'FieldMap', Args.FieldMap);
-
             %
             RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ');'];
-            Obj.msgLog(LogLevel.Debug, 'insertRecord: SqlText: %s', RecSqlText);
+            Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
 
             % Iterate struct array and insert in batchs
-            RecordCount = numel(Rec.Data);
             RecIndex = 1;
             LastBatchSize = 0;
             BatchNum = 0;
@@ -344,7 +381,7 @@ classdef DbQuery < Component
                 try
                     Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
                 catch
-                    Obj.msgLog(LogLevel.Error, 'insertRecord: prepareStatement failed: %s', Obj.SqlText);
+                    Obj.msgLog(LogLevel.Error, 'insert: prepareStatement failed: %s', Obj.SqlText);
                 end
 
                 % Iterate struct fields
@@ -353,7 +390,7 @@ classdef DbQuery < Component
                 RecIndex = RecIndex + BatchSize;
                 Toc2 = toc(T2);
                 
-                Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
+                Obj.msgLog(LogLevel.Debug, 'insert (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
 
                 % Execute
                 % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -362,12 +399,12 @@ classdef DbQuery < Component
                     Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
                     Obj.ExecOk = true;
                 catch
-                    Obj.msgLog(LogLevel.Error, 'insertRecord: executeQuery failed: %s', Obj.SqlText);
+                    Obj.msgLog(LogLevel.Error, 'insert: executeQuery failed: %s', Obj.SqlText);
                     Obj.ExecOk = false;
                     break;
                 end
                 Toc3 = toc(T3);
-                Obj.msgLog(LogLevel.Debug, 'insertRecord (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchSize);
+                Obj.msgLog(LogLevel.Debug, 'insert (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchSize);
             end
             
             Obj.Toc = toc(T1);
@@ -740,7 +777,7 @@ classdef DbQuery < Component
             % Execute SQL statement (that does not return data)
             % Example: exec('INSERT ...')
             
-            Obj.msgLog(LogLevel.Debug, 'exec');
+            %Obj.msgLog(LogLevel.Debug, 'exec');
             Result = false;
             tic();
             

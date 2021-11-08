@@ -1,3 +1,5 @@
+% Test the original mex_WriteMatrix (mex_WriteMatrix.c)
+
 function test_mex_writematrix()
 
 	% create 'magic square' matrix 5x5
