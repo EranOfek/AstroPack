@@ -78,7 +78,7 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
             [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
             
             % apply ZP to all Magnitudes...
-            FFU
+            %FFU
             
         end
         
@@ -155,7 +155,7 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         ColNames{Icol} = 'StdPoly';
         ColUnits{Icol} = 'mag';
         Icol           = Icol + 1;
-        Cat(:,ICol)    = ResVar(Ifields).Result(end).DeltaChi2(:);
+        Cat(:,Icol)    = ResVar(Ifields).Result(end).DeltaChi2(:);
         ColNames{Icol} = 'PolyDeltaChi2';
         ColUnits{Icol} = '';
         
