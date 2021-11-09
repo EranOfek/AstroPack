@@ -151,13 +151,14 @@ classdef DbQuery < Component
             % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
             arguments
                 Obj                     %
-                Fields                  %
-                Args.TableName = ''     %
-                Args.Where = ''         %
-                Args.Order = ''         %
-                Args.Limit = -1         %
-                Args.Load = true        %
-                Args.Convert = ''       %
+                Fields                  % Comma-separated field names to select (i.e. 'recid,fint')
+                Args.TableName = ''     % Table name, if not specified, Obj.TableName is used
+                Args.Where = ''         % Where condition (excluding WHERE keyword)
+                Args.Order = ''         % Order by clause  (excluding ORDER BY keyword)
+                Args.Limit = -1         % Maximum number of records (LIMIT)
+                Args.Load = true        % True to load entire result set
+                Args.Convert = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
+                Args.UseCopy = false    % @Todo (not implemented yet): True to use copyTo() instead of SELECT
             end
             
             Result = [];
@@ -185,6 +186,10 @@ classdef DbQuery < Component
             % Limit
             if Args.Limit > -1
                 Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
+            end
+
+            if Args.UseCopy
+                Obj.msgLog(LogLevel.Warning, 'select: UseCopy is not implemented yet, using SELECT');
             end
             
             % Run query
@@ -279,13 +284,13 @@ classdef DbQuery < Component
             arguments
                 Obj
                 Rec                         %
-                Args.TableName = ''         %
-                Args.FieldNames = []        %
+                Args.TableName = ''         % Table name, if not specified, Obj.TableName is used
+                Args.FieldNames = []        % Comma-separated field names (i.e. 'recid,fint')
                 Args.FieldMap = []          % Optional field map
                 Args.ExFields struct = []   % Additional fields as struct
                 Args.BatchSize = 1          % Number of records per commit operation
                 Args.PrimaryKeyFunc = []    % Called to generate primary key if required
-                Args.CopyLimit = []         % When number of records is above this value, copyFrom() is used
+                Args.UseCopy = 0            % When number of records is above this value, copyFrom() is used
             end
             
             % Execute SQL statement (using java calls)
@@ -303,17 +308,14 @@ classdef DbQuery < Component
                 Rec = db.DbRecord(Rec);
             end
 
-            %
+            % Generate primary keys using user function
             if isempty(Args.PrimaryKeyFunc)
                 Args.PrimaryKeyFunc = Obj.PrimaryKeyFunc;
             end
-                        
-            %
             if ~isempty(Args.PrimaryKeyFunc)
                 Args.PrimaryKeyFunc(Obj, Rec, 0);
             end
             
-            %
             if isempty(Args.CopyLimit)
                 Args.CopyLimit = Obj.CopyLimit;
             end
@@ -331,16 +333,17 @@ classdef DbQuery < Component
             FieldNames = fieldnames(Rec.Data);
             [SqlFields, SqlValues] = Obj.makeInsertFieldsText(FieldNames, 'FieldMap', Args.FieldMap);
             
-%             if RecordCount > Args.CopyLimit
-%                 FileName = sprintf('%s.csv', tempname);
-% 
-%                 %
-%                 mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Header, Rec.Data);
-% 
-%                 %
-%                 Result = Obj.copyFrom(Args.TableName, FileName);
-%                 return;
-%             end
+             if Args.UseCopy > 0 && RecordCount > Args.UseCopy
+                 CsvFileName = sprintf('%s.csv', tempname);
+                 Obj.msgLog(LogLevel.Warning, 'insert: UseCopy is not implemented yet, using INSERT');
+ 
+                 %
+                 %Rec.writeCsv(CsvFileName, Rec.Data, 'Header', Rec.Data);
+
+                 %
+                 %Result = Obj.copyFrom(Args.TableName, FileName);
+                 %return;
+             end
            
             
             % Use all fields that exist in the table

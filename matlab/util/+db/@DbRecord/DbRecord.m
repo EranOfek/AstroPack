@@ -173,10 +173,26 @@ classdef DbRecord < Base
             assert(numel(Obj.Data) == Size(1));
         end
            
+
         
-        function Result = writeCsv(Obj)
+        function Result = writeCsv(Obj, FileName, Args)            
+            % Write Obj.Data struct array to CSV file, using mex optimization
+            arguments
+                Obj
+                FileName            %
+                Args.Header         % 
+            end
             
+            mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Args.Header, Obj.Data);
+            Result = true;
         end
+        
+        
+        function Result = readCsv(Obj, FileName)
+            % Read from CSV file to Obj.Data struct-array
+            % @Todo - Not implemented yet
+            Result = [];          
+        end        
         
     end
         

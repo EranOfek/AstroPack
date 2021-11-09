@@ -350,7 +350,22 @@ Add 20x double fields
     ADD COLUMN fdouble20 DOUBLE PRECISION;
 
 
-## Creating Database from Google Sheets
+## Installatoin & Creating Database from Google Sheets
+
+#### PostgresSQL - Installation Guide
+
+https://docs.google.com/document/d/117tA4l6Dv_DSMZbMsvRINbDntChJ-FIk-2bPP-6lC_M/edit?usp=sharing
+
+#### Database Definitions Sheets
+
+https://docs.google.com/document/d/1_puwzIOCL3pqQ8byxmX_uSI054olIAVH3OZrKyVu9ys/edit?usp=sharing
+
+#### UnitTest database definition in Google Sheets:
+
+https://docs.google.com/spreadsheets/d/1ZAjdFRKAJ72p6eRuuXivN3Be_1fCsNQd5WqiSIUJxJI/edit?usp=sharing
+
+
+#### xlsx2sql.u Use Manual
 
 See AstroPack.git/python/utils/database_utils/xlsx2sql.md
 
