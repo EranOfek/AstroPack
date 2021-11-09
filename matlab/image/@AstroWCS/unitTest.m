@@ -170,7 +170,7 @@ function Result = unitTest()
     % Construct AstroWCS from Tran2D
     TC=Tran2D; 
     TC.symPoly; TC.ParX = ones(1,13);TC.ParY = ones(1,13);
-    TC.polyCoef; %TC.polyRep;
+    TC.polyCoef; TC.polyRep;
 
     NAXIS = 2; CRPIX(1,:) = [1.0 1.0]; CRVAL(1,:) = [0.0 0.0];
     CD = eye(2); CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
