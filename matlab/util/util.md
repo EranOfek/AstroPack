@@ -1,9 +1,11 @@
 # Overview
 
+The util/ folder contains general utility packages and classes.
+
 # List of Subpackages
 
 
-- db -
+- db - Database access components.
 - io -
 - plot -
 - tools -

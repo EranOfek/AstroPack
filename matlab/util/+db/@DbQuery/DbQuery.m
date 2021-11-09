@@ -70,8 +70,8 @@ classdef DbQuery < Component
         TableName       = '';       % Current table name
         PrimaryKey                  % Primary Key(s) used when TableName is not empty - char or celarray
         FieldMap        = [];       % struct
-        PrimaryKeyFunc  = [];       % function(DbQuery, DbRecord, Index)
-        CopyLimit       = 5000;     %
+        PrimaryKeyFunc  = [];       % function(DbQuery, DbRecord, First, Last)
+        InsertUseCopy   = 5000;     % Above this number of records, insert() uses copyFrom()
         
         
         % Metadata from last select
@@ -313,11 +313,11 @@ classdef DbQuery < Component
                 Args.PrimaryKeyFunc = Obj.PrimaryKeyFunc;
             end
             if ~isempty(Args.PrimaryKeyFunc)
-                Args.PrimaryKeyFunc(Obj, Rec, 0);
+                Args.PrimaryKeyFunc(Obj, Rec, 1, numel(Rec.Data));
             end
             
-            if isempty(Args.CopyLimit)
-                Args.CopyLimit = Obj.CopyLimit;
+            if isempty(Args.UseCopy)
+                Args.UseCopy = Obj.InsertUseCopy;
             end
             
             % Need connection, clear current query

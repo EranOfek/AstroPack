@@ -116,6 +116,15 @@ function Result = testSelect(Q)
     assert(numel(Fields) > 0);
     disp(Fields);
 
+    % Select and load records, automatically convert to output type
+    Fields = 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5';
+    Where = 'fdouble1 > fdouble2';
+    Limit = 100000;
+    Output = 'mat';
+    Mat = Q.select(Fields, 'TableName', 'master_table', 'where', Where, 'Convert', Output, 'Limit', Limit);
+    Size = size(Mat);
+    disp(Size(1));
+    
     % ---------------------------------------------- Select - all field types
     % NOTE: At this point, we assume that tables master_table and
     % details_table exist and are not empty
@@ -223,17 +232,9 @@ end
 
 %==========================================================================
 
-function Result = makePrimaryKeyForMat(Q, Rec, Index)
+function Result = makePrimaryKeyForMat(Q, Rec, First, Last)
     % Make priamry key, called by DbQuery.insert()
 
-    if Index == 0
-        First = 1;
-        Last = numel(Rec.Data);
-    else
-        First = Index;
-        Last = Index;
-    end
-    
     %
     for i=First:Last
         Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());

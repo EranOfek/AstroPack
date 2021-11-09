@@ -2115,22 +2115,24 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-d', dest='dir',         default=None,                           help='pcap folder')
-    parser.add_argument('-s', dest='subdirs',     action='store_true',    default=True,   help='Process pcap files in subfolders')
+    parser.add_argument('-d', dest='dir',         default=None,                           help='parent source folder')
+    parser.add_argument('-s', dest='subdirs',     action='store_true',    default=True,   help='Process files in subfolders')
     parser.add_argument('-o', dest='outdir',      default=None,                           help='Output folder')
     args = parser.parse_args()
 
-    #
+    # Create processor
     proc = MatlabProcessor()
 
-    #MlxWriter.unit_test()
+    #
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
 
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/astro/+celestial')
+    # Test for package
+    # proc.process('D:/Ultrasat/AstroPack.git/matlab/astro/+celestial')
 
-    #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Configuration')
 
+    # Testing
+    # MlxWriter.unit_test()
     #proc.process('D:/Ultrasat/AstroPack.git/matlab')
-
     #proc.process('D:\\Ultrasat\\AstroPack.git\\matlab\\util\\+tools\\+interp')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/base/@Base')
     #proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
