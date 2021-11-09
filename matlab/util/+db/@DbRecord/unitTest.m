@@ -103,6 +103,15 @@ function Result = unitTest()
         assert(strcmp(R.Data(i).Field2, Stru(i).Field2));        
     end    
 
+    
+    % @Todo: Test writeCsv
+    % writeCsv(Obj, FileName, Args)
+    
+    
+	% @Todo: Test readCsv
+    % readCsv(Obj, FileName)
+    
+    
     % Done
     io.msgStyle(LogLevel.Test, '@passed', 'DbRecord test passed');
     Result = true;

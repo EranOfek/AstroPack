@@ -25,6 +25,8 @@ function Result = unitTest()
         testSelect(Q);        
         testInsertRaw(Q);
         testInsert(Q);
+        
+        % @Todo - Not fully implemented yet
         %testUpdate(Q);
         %testDelete(Q);
         %testCopy(Q);
@@ -33,17 +35,19 @@ function Result = unitTest()
         % Tests using 'Pipeline' database
         %testPipeline();
     end
-    
-    
+        
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
     Result = true;
 end
 
 
 %==========================================================================
+%                              Test Select
+%==========================================================================
 
 function Result = testSelect(Q)
-    % Test SELECT functionality and DbQuery.select()
+    % Test SELECT functionality and DbQuery.select()    
+    io.msgStyle(LogLevel.Test, '@start', 'DbQuery.select test started')
     
     %----------------------------------------------------- Simple select & convert
     Limit = 100;
@@ -112,6 +116,15 @@ function Result = testSelect(Q)
     assert(numel(Fields) > 0);
     disp(Fields);
 
+    % Select and load records, automatically convert to output type
+    Fields = 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5';
+    Where = 'fdouble1 > fdouble2';
+    Limit = 100000;
+    Output = 'mat';
+    Mat = Q.select(Fields, 'TableName', 'master_table', 'where', Where, 'Convert', Output, 'Limit', Limit);
+    Size = size(Mat);
+    disp(Size(1));
+    
     % ---------------------------------------------- Select - all field types
     % NOTE: At this point, we assume that tables master_table and
     % details_table exist and are not empty
@@ -165,32 +178,13 @@ function Result = testSelect(Q)
         io.msgStyle(LogLevel.Test, '@warn', 'Table master_table is empty, select tests are skipped');
     end
     
+    io.msgStyle(LogLevel.Test, '@passed', 'DbQuery.select test passed')    
     Result = true;
-
 end
 
 %==========================================================================
-
-function Result = makePrimaryKeyForMat(Q, Rec, Index)
-    % Make priamry key, called for every row of Rec.Data(Index)
-
-    if Index == 0
-        First = 1;
-        Last = numel(Rec.Data);
-    else
-        First = Index;
-        Last = Index;
-    end
-    
-    %
-    for i=First:Last
-        Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());
-    end
-    
-    Result = true;
-end
-
-
+%                              Test Insert
+%==========================================================================
 function Result = testInsertRaw(Q)
     % Assume that we are the single process writing to this table at the moment
     
@@ -236,9 +230,23 @@ function Result = testInsertRaw(Q)
     end
 end
 
+%==========================================================================
+
+function Result = makePrimaryKeyForMat(Q, Rec, First, Last)
+    % Make priamry key, called by DbQuery.insert()
+
+    %
+    for i=First:Last
+        Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());
+    end
+    
+    Result = true;
+end
+
 
 function Result = testInsert(Q)
     % Assume that we are the single process writing to this table at the moment
+    io.msgStyle(LogLevel.Test, '@start', 'DbQuery.insert test started')
     
     %----------------------------------------------------- insert()
     Test1 = true;
@@ -296,6 +304,11 @@ function Result = testInsert(Q)
             Count = Count * 10;
         end
     end
+
+    % @Todo - test insert() using copy, for large number of records
+    TestCopy = false;
+    if TestCopy
+    end
     
 %       
 %     % ---------------------------------------------- insertRecord: struct
@@ -349,6 +362,8 @@ function Result = testInsert(Q)
 %     r.addProp('fint', 3);
 %     Q.insert('master_table', r);
 
+    io.msgStyle(LogLevel.Test, '@passed', 'DbQuery.insert test passed')
+    Result = true;
 end
 
 

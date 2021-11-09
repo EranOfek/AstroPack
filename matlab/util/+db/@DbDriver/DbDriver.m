@@ -158,7 +158,7 @@ classdef DbDriver < Component
             Obj.msgLog(LogLevel.Info, 'copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
             if copyfile(Obj.SourceJarFile, Obj.TargetJarFile)
             else
-                Obj.msgLog(LogLevel.Warning, '(already running?) cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
+                Obj.msgLog(LogLevel.Warning, '(already running? ignore this warning) cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
             end
             
             % Add jar file to javaclasspath (ensure it is present in your current dir)

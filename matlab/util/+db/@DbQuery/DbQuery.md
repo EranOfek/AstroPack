@@ -1,43 +1,26 @@
 # Overview
 
- DbQuery - SQL Database query
+### General
+DbQuery - SQL Database Component
 
- This class provides SQL functionality, currently tested with PostgreSQL v13.
+This class provides basic and advanced SQL functionality, along with DbRecord 
+and Database.yml configuration file it is all you need to access databases. 
 
-Functionality
+Currently, it works with **PostgreSQL v13**.
 
- Related Classes:
-   DbDriver - Internally used to load Java package for Postgres
-   DbConnection - Used to connect to specific database on local or remote
-   server.
-   DbRecord - Class with dynamic properties, used as struct to store
-   values of database record.
+### Related Classes:
+- DbRecord - Class with dynamic properties, used as struct to store values of database record.
+- DbConnection - Internally used to connect to specific database on local or remote server.
+- DbDriver - Internally used to load Java package for Postgres.
 
- References:
-   https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
+
+### References:
+
+- https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
 
  Unit-Test:
    Use unittest__tables from GDrive to test
 
-
-## Database GUI
-
-On Windows, use **SQL Manager Lite for PostgreSQL** by EMS Software (or DataGrip):
-
-https://www.sqlmanager.net/products/postgresql/manager
-
-Download page:
-
-https://www.sqlmanager.net/products/postgresql/manager/download
-
-
-On Linux, use **DataGrip** by JetBrains
-
-https://www.jetbrains.com/datagrip/
-
-Download page:
-
-https://www.jetbrains.com/datagrip/download/
 
 
 ## Database Alias
@@ -109,6 +92,17 @@ These classes are used internally by DbQuery:
     Table = Result.convert2table();
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', numel(Result.Data));
 
+### Select
+
+    Fields = 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5';
+    Where = 'fdouble1 > fdouble2';
+    Limit = 100000;
+    Output = 'mat';
+    Mat = Q.select(Fields, 'TableName', 'master_table', 'where', Where, 'Convert', Output, 'Limit', Limit);
+    Size = size(Mat);
+    disp(Size(1));
+
+
 ### Select specified fields with 'where' filter
 
 ## Insert
@@ -154,24 +148,13 @@ These classes are used internally by DbQuery:
 ### Insert DbRecord with insert()
 
 
-### Generating Primary Key
+### Generating Primary Key with Callback function
 
-    function Result = makePrimaryKeyForMat(Q, Rec, Index)
-       % Make priamry key, called for every row of Rec.Data(Index)
-
-       if Index == 0
-           First = 1;
-           Last = numel(Rec.Data);
-       else
-           First = Index;
-           Last = Index;
-       end
-
-       %
+    function Result = makePrimaryKeyForMat(Q, Rec, First, Last)
+       % Make priamry key
        for i=First:Last
            Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());
        end
-
        Result = true;
     end
 
@@ -291,66 +274,47 @@ Add 20x double fields
 
     ALTER TABLE public.master_table
     ADD COLUMN fdouble1 DOUBLE PRECISION;
-
     ALTER TABLE public.master_table
     ADD COLUMN fdouble2 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble3 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble4 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble5 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble6 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble7 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble8 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble9 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble10 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble11 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble12 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble13 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble14 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble15 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble16 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble17 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble18 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble19 DOUBLE PRECISION;
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble20 DOUBLE PRECISION;
+   ...
 
 
-## Creating Database from Google Sheets
+## Database GUI
+
+On Windows, use **SQL Manager Lite for PostgreSQL** by EMS Software (or DataGrip):
+
+https://www.sqlmanager.net/products/postgresql/manager
+
+Download page:
+
+https://www.sqlmanager.net/products/postgresql/manager/download
+
+
+On Linux, use **DataGrip** by JetBrains
+
+https://www.jetbrains.com/datagrip/
+
+Download page:
+
+https://www.jetbrains.com/datagrip/download/
+
+
+## Installatoin & Creating Database from Google Sheets
+
+#### PostgresSQL - Installation Guide
+
+https://docs.google.com/document/d/117tA4l6Dv_DSMZbMsvRINbDntChJ-FIk-2bPP-6lC_M/edit?usp=sharing
+
+#### Database Definitions Sheets
+
+https://docs.google.com/document/d/1_puwzIOCL3pqQ8byxmX_uSI054olIAVH3OZrKyVu9ys/edit?usp=sharing
+
+#### UnitTest database definition in Google Sheets:
+
+https://docs.google.com/spreadsheets/d/1ZAjdFRKAJ72p6eRuuXivN3Be_1fCsNQd5WqiSIUJxJI/edit?usp=sharing
+
+
+#### xlsx2sql.u Use Manual
 
 See AstroPack.git/python/utils/database_utils/xlsx2sql.md
 
