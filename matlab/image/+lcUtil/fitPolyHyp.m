@@ -1,4 +1,4 @@
-function Result = fitPolyHyp(Obj, Args)
+function [Result] = fitPolyHyp(Obj, Args)
     % Hypothesis testing between fitting polynomials of various degrees to
     %   a matrix of light curves in a MatchedSources object (with unknown errors).
     %   Like timeseries.fitPolyHyp, but for a MatchedSources class.

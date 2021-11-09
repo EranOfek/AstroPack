@@ -1758,7 +1758,7 @@ classdef AstroWCS < Component
                         r_power = PV.PolyY_Rdeg(I2);
                     end
                     % PV.KeyNamesY(I2) = PolyTPVtable.Row(PolyTPVtable.Axis==Axis & PolyTPVtable.xi_power==xi_power & PolyTPVtable.eta_power==eta_power & PolyTPVtable.r_power==r_power); % remove
-                    PV.KeyNamesX(I2) = PolyTPVstruct.PolyNames(PolyTPVstruct.Axis==Axis & PolyTPVstruct.xi_power==xi_power & PolyTPVstruct.eta_power==eta_power & PolyTPVstruct.r_power==r_power); % New
+                    PV.KeyNamesY(I2) = PolyTPVstruct.PolyNames(PolyTPVstruct.Axis==Axis & PolyTPVstruct.xi_power==xi_power & PolyTPVstruct.eta_power==eta_power & PolyTPVstruct.r_power==r_power); % New
                 end
             end
         

@@ -1,4 +1,4 @@
-function Result = mergeCatalogs(Obj, Args)
+function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %
     
     arguments
@@ -8,12 +8,21 @@ function Result = mergeCatalogs(Obj, Args)
         Args.RadiusUnits             = 'arcsec';
         
         Args.RelPhot logical         = true;
+        Args.fitPolyHyp logical      = true;
+        Args.PolyDeg cell            = {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]};
         Args.FitPM logical           = true;
         Args.fitMotionArgs cell      = {'Prob',1e-5};
         
         Args.MatchedColums           = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
         
+        Args.ColNameFlags            = 'FLAGS';
+        Args.ColNamesStat            = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4'};
+        Args.FunIndStat              = {true, true, [1 3], [1 3], [1 3], [1 3]};
+        Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
+        Args.MagCalibColName         = 'MAG_CONV_2';
+        Args.MagCalibErrColName      = 'MAGERR_CONV_2';
         
+    
         
         
         
@@ -66,27 +75,19 @@ function Result = mergeCatalogs(Obj, Args)
     
         % relative photometry
         if Args.RelPhot
-            [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField','MAG_CONV_2', 'MagErrField','MAGERR_CONV_2');
+            [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
+            
+            % apply ZP to all Magnitudes...
+            FFU
+            
         end
         
+        % lcUtil.fitPolyHyp
+        if Args.fitPolyHyp
+            [ResVar(Ifields).Result] = lcUtil.fitPolyHyp(MatchedS(Ifields), 'MagFieldNames',Args.MagCalibColName, 'PolyDeg',Args.PolyDeg, 'SubtractMeanT',true,'NormT',true);
+        end
+
     end    
-    
-    % variability
-    % Mean_{MagCol}
-    % Med_{MagCol}
-    % Std_{MagCol}
-    % RStd_{MagCol}
-    % MaxMedDev_{MagCol}
-    % Max2MedDev_{MagCol}
-    % Nobs_{MagCol}
-    % CombFLAGS
-    
-    Args.ColNameFlags   = 'FLAGS';
-    Args.ColNamesStat   = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4'};
-    Args.FunIndStat     = {true, true, [1 3], [1 3], [1 3], [1 3]};
-    Args.ColNamesAll    = {'MAG_CONV_2','MAGERR_CONV_2'};
-    
-    
     
     % fit proper motion
     if Args.FitPM
@@ -94,8 +95,6 @@ function Result = mergeCatalogs(Obj, Args)
     end
     
     MergedCat = AstroCatalog([Nfields 1]);
-    
-        
     %FunType   = str2func(class(MatchedS(1).getMatrix(Args.ColNameFlags)));
     
     for Ifields=1:1:Nfields    
@@ -105,7 +104,6 @@ function Result = mergeCatalogs(Obj, Args)
         if Args.FitPM
             ColNames = {'RA','Dec','Nobs', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_DeltaChi2'};
             ColUnits = {'deg','deg','','deg','deg','deg/day','deg/day',''};
-            
             
             Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
             Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
@@ -151,111 +149,44 @@ function Result = mergeCatalogs(Obj, Args)
             end
         end
        
+        % ResVar
+        Icol           = Icol + 1;
+        Cat(:,Icol)    = ResVar(Ifields).Result(end).ResidStd(:);
+        ColNames{Icol} = 'StdPoly';
+        ColUnits{Icol} = 'mag';
+        Icol           = Icol + 1;
+        Cat(:,ICol)    = ResVar(Ifields).Result(end).DeltaChi2(:);
+        ColNames{Icol} = 'PolyDeltaChi2';
+        ColUnits{Icol} = '';
+        
         MergedCat(Ifields).Catalog  = Cat;
         MergedCat(Ifields).ColNames = ColNames;
         MergedCat(Ifields).ColUnits = ColUnits;
         MergedCat(Ifields).sortrows('Dec');
-    end
+        
+        % treat unmatched sources
+        %   select all sources with Nobs<3 || PM
+        %   For each source:
+        %       search all nearby selected sources w/o time overlap
+        %       Fit PM with RANSAC
+        %           If good solution - save connected source
+        
+        
+        % match to external catalogs
+        %   
+        
     
-    % columns we need
-    % RA(fit), Dec(fit), Mean_RA, Mean_Dec, StdRA, StdDec, Nobs,
-    % PM_RA, PM_Dec, PM_DeltaChi2,
-    % {Ep_%03d_RA}x20, {Ep_%03d_Dec}x20,
-    % MinX, MaxX, MinY, MaxY, MedX, MedY,
-    % {Ep_%03d_SN_2}x20, {Ep_%03d_SN_3}x20,
-    % Mean_SN_1, Mean_SN_2, Mean_SN_3, Mean_SN_4,
-    % FLAGS
-    % {Ep_%03d_MAG_CONV_2}x20
-    % {Ep_%03d_MAG_CONV_2}x20
-    % {Ep_%03d_MAG_CONV_2}x20
-    % {Ep_%03d_MAG_CONV_2}x20
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    I= 9;
-    
-    semilogy(nanmedian(MatchedS(I).Data.MAG_CONV_2,1),  nanstd(MatchedS(I).Data.MAG_CONV_2,[],1),'.')
-    hold on;
-    semilogy(nanmedian(CorrMS(I).Data.MAG_CONV_2,1),  nanstd(CorrMS(I).Data.MAG_CONV_2,[],1),'.')
-    
-    semilogy(nanmedian(MatchedS(I).Data.MAG_CONV_2,1),  nanstd(MatchedS(I).Data.Dec,[],1).*3600,'.')
-    
-    
-    
-    
-    
-    Nobj = numel(Obj);
-    for Iobj=1:1:Nobj
         
     end
     
-                                                     
-    % Match catalogs by RA/Dec or X/Y
-    [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = imProc.match.match(Obj, AllSources, 'CooType',Args.CooType,...
-                                                                                         'Radius',Args.Radius,...
-                                                                                         'RadiusUnits',Args.RadiusUnits,...
-                                                                                         Args.matchArgs{:});
     
-    % Define the matched columns
-    MatchedColums = unique([Args.MatchedColums(:), Args.ColsToCalcMean(:); Args.ColsToCalcMedian(:); Args.ColsToCalcStd(:); Args.ColsToCalcErr(:)]);
-    
-    % Generate a matched sources matrix
-    MatchedS = MatchedSources;
-    MatchedS.addMatrix(MatchedObj, Args.MatchedColums);
-    
-    
-    % Mean position
-    Ncol    = numel(Args.ColsToApplyFun);
-    Nprefix = numel(Args.ColPrefix);
-    
-    % allocate table data variables
-    NtotCol = Ncol.*Nprefix
-    NewTableColName
-    NewTable
-    
-    ColInd  = 0;
-    for Icol=1:1:Ncol
-        % get data for Column
-        ColData = MatchedS.Data.(Args.ColsToApplyFun{Icol});
+    % DEBUG
+    %I= 9;
+    %semilogy(nanmedian(MatchedS(I).Data.MAG_CONV_2,1),  nanstd(MatchedS(I).Data.MAG_CONV_2,[],1),'.')
+    %hold on;
+    %semilogy(nanmedian(CorrMS(I).Data.MAG_CONV_2,1),  nanstd(CorrMS(I).Data.MAG_CONV_2,[],1),'.')
+    %semilogy(nanmedian(MatchedS(I).Data.MAG_CONV_2,1),  nanstd(MatchedS(I).Data.Dec,[],1).*3600,'.')
         
-        for Iprefix=1:1:Nprefix
-            ColInd = ColInd + 1;
-            
-            % apply function on ColData (column wise)
-            NewColumn = Args.ColGeneratingFun(ColData, Args.GeneratingFunArgs{Iprefix}{:});
-            
-            % NewColumn name
-            NewColName = sprintf('%s%s', Args.ColPrefix{Iprefix}, Args.ColsToApplyFun{Icol});
-            
-            % store NewColumn in table
-            NewTableColName{ColInd} = NewColName;
-            NewTable(:,ColInd) = NewColumn(:);
-        end
-    end
-    
-    
-    
-    
-    
-    
-    % relative photometry
-    
-    % photometric variability properties
-    
-    % lcUtil.fitPolyHyp
-    
-    
-    % Photometric template matching
-    
-    % treat unmatched sources
-    
-    % match to external catalogs
-    
+     
     
 end

@@ -7,7 +7,7 @@ function Result = fitMotion(Obj, Args)
     %            'MinNobs' - minimum number of data points required for fit
     %                   (used only when the number of observations is not
     %                   the same for all sources).
-    %                   Default is 5.
+    %                   Default is 3.
     %            'Prob' - Vector of probabilities for which to calculate
     %                   the probably difference between H1 and H0.
     %                   Default is [1e-3 1e-5].
@@ -41,7 +41,7 @@ function Result = fitMotion(Obj, Args)
     
     arguments
         Obj MatchedSources
-        Args.MinNobs                = 5;
+        Args.MinNobs                = 3;
         Args.Prob                   = [1e-3 1e-5];
         Args.Units                  = 'deg';
         Args.RenormErr(1,1) logical = true;
