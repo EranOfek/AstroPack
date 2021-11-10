@@ -1,5 +1,10 @@
 function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %
+    % Example: [MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
+    %          I = 1; AA=MergedCat(I).toTable; Flag = AA.PM_DeltaChi2>1.5 & AA.Nobs>5; sum(Flag)
+    %          ds9(AllSI(1,I), 1); 
+    %          ds9(AllSI(end,I), 2); 
+    %          ds9.plot(MergedCat(I).Catalog(Flag,1:2),'o','Coo','fk5')
     
     arguments
         Obj
@@ -17,40 +22,42 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         
         Args.ColNameFlags            = 'FLAGS';
         Args.ColNamesStat            = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4'};
-        Args.FunIndStat              = {true, true, [1 3], [1 3], [1 3], [1 3]};
+        Args.FunIndStat              = {[1:8], [1:8], [1 3], [1 3], [1 3], [1 3]};
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
         Args.MagCalibColName         = 'MAG_CONV_2';
         Args.MagCalibErrColName      = 'MAGERR_CONV_2';
         
-    
-        
-        
-        
-        Args.ColPrefix cell          = {'Mean_', 'Med_', 'Std_', 'Err_'};
-        Args.ColGeneratingFun        = {@mean, @median, @std, @tools.math.stat.mean_error};
-        Args.GeneratingFunArgs       = { {1,'omitnan'}, {1,'omitnan'}, {[],1,'omitnan'}, {1} };
-        Args.ColsToApplyFun          = {'RA','Dec','MAG_PSF'};   
-        
-        Args.ColName_PM_DeltaChi2    = 'PM_DeltaChi2';
-        Args.ColName_PM_RA           = 'PM_RA';
-        Args.ColName_PM_Dec          = 'PM_Dec';
-        Args.ColName_Ep_RA           = 'EpochRA';
-        Args.ColName_Ep_Dec          = 'EpochDec';
-        Args.ColName_PM_ErrRA        = 'PM_ErrRA';
-        Args.ColName_PM_ErrDec       = 'PM_ErrDec';
-        Args.ColName_Ep_ErrRA        = 'EpochErrRA';
-        Args.ColName_Ep_ErrDec       = 'EpochErrDec';
-        
-        Args.ColName_Nobs            = 'Nobs';   % if empty do not add
-        Args.ColName_Epoch           = 'Epoch';
-        Args.EpochUnits              = 'JD';
-        
-        Args.FitPoly(1,1) logical    = true;
-        
-        
-        
+
         Args.unifiedSourcesCatalogArgs cell     = {};
-        Args.matchArgs cell          = {};
+       
+%         
+%         
+%         
+%         Args.ColPrefix cell          = {'Mean_', 'Med_', 'Std_', 'Err_'};
+%         Args.ColGeneratingFun        = {@mean, @median, @std, @tools.math.stat.mean_error};
+%         Args.GeneratingFunArgs       = { {1,'omitnan'}, {1,'omitnan'}, {[],1,'omitnan'}, {1} };
+%         Args.ColsToApplyFun          = {'RA','Dec','MAG_PSF'};   
+%         
+%         Args.ColName_PM_DeltaChi2    = 'PM_DeltaChi2';
+%         Args.ColName_PM_RA           = 'PM_RA';
+%         Args.ColName_PM_Dec          = 'PM_Dec';
+%         Args.ColName_Ep_RA           = 'EpochRA';
+%         Args.ColName_Ep_Dec          = 'EpochDec';
+%         Args.ColName_PM_ErrRA        = 'PM_ErrRA';
+%         Args.ColName_PM_ErrDec       = 'PM_ErrDec';
+%         Args.ColName_Ep_ErrRA        = 'EpochErrRA';
+%         Args.ColName_Ep_ErrDec       = 'EpochErrDec';
+%         
+%         Args.ColName_Nobs            = 'Nobs';   % if empty do not add
+%         Args.ColName_Epoch           = 'Epoch';
+%         Args.EpochUnits              = 'JD';
+%         
+%         Args.FitPoly(1,1) logical    = true;
+%         
+%         
+%         
+
+%         Args.matchArgs cell          = {};
         
     end
     
@@ -58,6 +65,7 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     [Nepochs, Nfields] = size(Obj);
     JD  = julday(Obj(:,1));     
 
+    Result = [];
     for Ifields=1:1:Nfields
         [~, ~, Matched(Ifields,:)] = imProc.match.unifiedSourcesCatalog(Obj(:,Ifields), 'CooType',Args.CooType,...
                                                          'Radius',Args.Radius,...
@@ -79,6 +87,7 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
             
             % apply ZP to all Magnitudes...
             %FFU
+            'a'
             
         end
         
@@ -96,16 +105,21 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     else
         NumCol    = 0;
     end
-    Nstat = numel(Args.ColNamesStat);
-    NumCol = NumCol + 1 + Nstat
+    if Args.fitPolyHyp
+        NumCol    = NumCol + 2;
+    end
+    Nstat     = numel(Args.ColNamesStat);
+    Nall      = numel(Args.ColNamesAll);
+    NstatProp = cellfun(@numel,Args.FunIndStat);
+    NumCol    = NumCol + 1 + sum(NstatProp) + Nall.*Nepochs;
     
     MergedCat = AstroCatalog([Nfields 1]);
     %FunType   = str2func(class(MatchedS(1).getMatrix(Args.ColNameFlags)));
     
     for Ifields=1:1:Nfields    
-        ColNames = {};
-        ColUnits = {};
-        Cat      = [];
+        ColNames = cell(1, NumCol);
+        ColUnits = cell(1, NumCol);
+        Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
         if Args.FitPM
             ColNames = {'RA','Dec','Nobs', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_DeltaChi2'};
             ColUnits = {'deg','deg','','deg','deg','deg/day','deg/day',''};
@@ -142,29 +156,30 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
             end
         end
 
-        Nall = numel(Args.ColNamesAll);
+        
         for Iall=1:1:Nall
             Cols(Ifields).All.(Args.ColNamesAll{Iall}) = MatchedS(Ifields).getMatrix(Args.ColNamesAll{Iall}).';
-            [~,Ncol] = size(Cols(Ifields).All.(Args.ColNamesAll{Iall}));
             
-            Cat(:,Icol+1:Icol+Ncol) = Cols(Ifields).All.(Args.ColNamesAll{Iall});
+            Cat(:,Icol+1:Icol+Nepochs) = Cols(Ifields).All.(Args.ColNamesAll{Iall});
             %Icol = Icol + Ncol;
-            for IcolEp=1:1:Ncol
+            for IcolEp=1:1:Nepochs
                 Icol = Icol + 1;
                 ColNames{Icol} = sprintf('Epoch%03d_%s',IcolEp, Args.ColNamesAll{Iall});
                 ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesAll{Iall});
             end
         end
        
-        % ResVar
-        Icol           = Icol + 1;
-        Cat(:,Icol)    = ResVar(Ifields).Result(end).ResidStd(:);
-        ColNames{Icol} = 'StdPoly';
-        ColUnits{Icol} = 'mag';
-        Icol           = Icol + 1;
-        Cat(:,Icol)    = ResVar(Ifields).Result(end).DeltaChi2(:);
-        ColNames{Icol} = 'PolyDeltaChi2';
-        ColUnits{Icol} = '';
+        if Args.fitPolyHyp
+            % ResVar
+            Icol           = Icol + 1;
+            Cat(:,Icol)    = ResVar(Ifields).Result(end).ResidStd(:);
+            ColNames{Icol} = 'StdPoly';
+            ColUnits{Icol} = 'mag';
+            Icol           = Icol + 1;
+            Cat(:,Icol)    = ResVar(Ifields).Result(end).DeltaChi2(:);
+            ColNames{Icol} = 'PolyDeltaChi2';
+            ColUnits{Icol} = '';
+        end
         
         MergedCat(Ifields).Catalog  = Cat;
         MergedCat(Ifields).ColNames = ColNames;

@@ -37,6 +37,8 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     %                   requested proabability.
     %            .RA.StdResid_H1 - std of H1 residuals.
     %            .RA.StdResid_H0 - std of H0 residuals.
+    %            .RA.StudentT_H1 - student-t statistics (mu/rms) for RA.
+    %                   Dof is Nobs-2.
     %            .Dec. - the same as .RA, but for the Dec axis.
     % Author : Eran Ofek (May 2021)
     % Example: Time=(1:1:20)'; RA = randn(20,1e5)./(3600.*100); Dec=randn(20,1e5)./(3600.*200);
@@ -100,6 +102,10 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
                 if Nobs(Isrc)>=Args.MinNobs
                     ParH1(:,Isrc) = H1(FlagNN(:,Isrc),:)\Y(FlagNN(:,Isrc),Isrc);
                     ParH0(:,Isrc) = H0(FlagNN(:,Isrc),:)\Y(FlagNN(:,Isrc),Isrc);
+                    
+                    % calculate the std of Times and T0
+                    T0   = mean(Time(FlagNN(:,Isrc)));
+                    StdT = std(Time(FlagNN(:,Isrc)));
                 end
             end
 
@@ -108,6 +114,9 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
             ParH1 = H1 \ Y;
             ParH0 = H0 \ Y;
             Nobs  = size(Y,1);
+            
+            T0   = mean(Time);
+            StdT = std(Time);
         end
 
         Y_calcH1 = H1 * ParH1;
@@ -115,27 +124,38 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
 
         ResidH1  = Y - Y_calcH1;
         ResidH0  = Y - Y_calcH0;
-
+        
+        Result.(PropStr).StdResid_H1 = std(ResidH1,[],1,'omitnan');
+        Result.(PropStr).StdResid_H0 = std(ResidH0,[],1,'omitnan');
+        
         % store RA/Dec info
         Result.(PropStr).ParH1 = ParH1;
         Result.(PropStr).ParH0 = ParH0;
         
         Result.(PropStr).Chi2_H1 = nansum((ResidH1./ErrY).^2, 1);
         
+        Result.(PropStr).Chi2_H0 = nansum((ResidH0./ErrY).^2, 1);     
         
-        Result.(PropStr).Chi2_H0 = nansum((ResidH0./ErrY).^2, 1);       
+        % this is incorrect - need to use student-t distribution
+        % because the std is practically unknown
+        
+        % but must renorm T...
+        Result.(PropStr).StudentT_H1 = ParH1(2,:)./Result.(PropStr).StdResid_H1./StdT;        
+        
         if Args.RenormErr
             
-            Result.(PropStr).Chi2_H0 = Result.(PropStr).Chi2_H0./Result.(PropStr).Chi2_H1;
-            Result.(PropStr).Chi2_H1 = ones(size(Result.(PropStr).Chi2_H1));
+            %Result.(PropStr).Chi2_H0 = Result.(PropStr).Chi2_H0./Result.(PropStr).Chi2_H1;
+            %Result.(PropStr).Chi2_H1 = ones(size(Result.(PropStr).Chi2_H1));
+            
+            Result.(PropStr).Chi2_H1 = Result.(PropStr).Chi2_H1./Result.(PropStr).Chi2_H0;
+            Result.(PropStr).Chi2_H0 = ones(size(Result.(PropStr).Chi2_H0));
         end
         
         Result.(PropStr).Nobs    = Nobs;
 
         Result.(PropStr).DeltaChi2 = Result.(PropStr).Chi2_H0 - Result.(PropStr).Chi2_H1;
         Result.(PropStr).FlagH1    = Result.(PropStr).DeltaChi2 > ProbDeltaChi2(:);
-        Result.(PropStr).StdResid_H1 = std(ResidH1,[],1);
-        Result.(PropStr).StdResid_H0 = std(ResidH0,[],1);
+        
         
     end
     
