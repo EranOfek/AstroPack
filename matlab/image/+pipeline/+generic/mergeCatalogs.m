@@ -92,7 +92,12 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     % fit proper motion
     if Args.FitPM
         FitMotion = lcUtil.fitMotion(MatchedS, Args.fitMotionArgs{:});
+        NumCol    = 8;
+    else
+        NumCol    = 0;
     end
+    Nstat = numel(Args.ColNamesStat);
+    NumCol = NumCol + 1 + Nstat
     
     MergedCat = AstroCatalog([Nfields 1]);
     %FunType   = str2func(class(MatchedS(1).getMatrix(Args.ColNameFlags)));
@@ -118,8 +123,10 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         Icol = numel(ColNames) + 1;
         Cols(Ifields).Flags = combineFlags(MatchedS(Ifields),'FlagsNameDic',Args.ColNameFlags, 'FlagsType',@uint32);
         Cat(:,Icol) = Cols(Ifields).Flags.(Args.ColNameFlags)(:);
+        ColNames{Icol} = Args.ColNameFlags;
+        ColUnits{Icol} = '';
         
-        Nstat = numel(Args.ColNamesStat);
+        
         for Istat=1:1:Nstat
             Cols(Ifields).Stat.(Args.ColNamesStat{Istat}) = statSummary(MatchedS(Ifields),...
                                                                         'FieldNameDic',Args.ColNamesStat{Istat},...
