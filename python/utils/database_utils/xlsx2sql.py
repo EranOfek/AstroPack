@@ -11,13 +11,6 @@
 #     python xlsx2sql.py -f unittest.xlsx
 #
 #
-# Running/debugging from PyChart: Run -> Edit Configurations:
-#
-#     Script path:        D:\Ultrasat\AstroPack.git\python\utils\matlab_utils\get_matlab_functions.py
-#     Parameters:         -f unittest.xlsx
-#     Working directory:  D:\Ultrasat\AstroPack.git\python\utils\matlab_utils
-#
-#
 # Requirements:
 #
 #   Ubutnu:
@@ -39,6 +32,10 @@
 #
 # xlsx2sql.py -f D:\Ultrasat\AstroPack.git\database\xlsx\lastdb__tables.xlsx
 #
+# @Todo: fix - show psql command correctly also with input like unittest__tables.xlsx
+#
+#
+
 # ---------------------------------------------------------------------------
 import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
@@ -242,20 +239,24 @@ def get_field_type_lang(field_name, text, lang):
     text = text.strip().lower()
 
     ftype = ''
-    default_value = '0'
+    default_value = ''
 
     # Convert text to general data type
     # Default field type is double - @Todo: Do we want deafult or throw error?
-    if text == '':
+    if text == '' or text == 'double' or text == 'float' or text == 'real':
         text = 'double'
+        default_value = 0
     elif text == 'bool' or text == 'logical':
         text = 'bool'
     elif text == 'int' or text == 'int8' or text == 'int16' or text == 'int32':
         text = 'int'
+        default_value = 0
     elif text == 'uint' or text == 'uint8' or text == 'uint16' or text == 'uint32':
         text = 'uint'
+        default_value = 0
     elif text == 'bigint' or text == 'int64' or text == 'uint64':
         text = 'bigint'
+        default_value = 0
     elif text == 'string' or text == 'text' or text == 'uuid' or text == 'varchar' or text == 'charvar':
         text = 'string'
     elif text == 'timestamp' or text == 'date' or text == 'time':
@@ -563,12 +564,16 @@ class DatabaseDef:
             #if field.is_common:
             #    prefix = 'Common_'
 
-            field_def, field_value = get_field_type_lang(field.field_name, field.field_type, 'postgres')
+            field_def, default_value = get_field_type_lang(field.field_name, field.field_type, 'postgres')
 
             if field.primary_key:
                 primary_key.append(field.field_name)
                 field_def += ' NOT NULL'
+            else:
+                if default_value == 0:
+                    field_def += ' DEFAULT 0'
 
+            #
             if i < len(self.field_list)-1  or len(primary_key) > 0:
                 field_def += ','
 

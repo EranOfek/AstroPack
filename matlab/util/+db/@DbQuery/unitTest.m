@@ -6,20 +6,53 @@ function Result = unitTest()
     
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
-
-    % Create query with database:table, get number of records
-    Q = db.DbQuery('unittest:master_table');
-    Count = Q.selectCount();
-    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Count);
-        
+    
     % Query Postgres version, result should be similar to
     % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'    
+    Q = db.DbQuery('unittest');    
     pgver = Q.getDbVersion();
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
-   
-    % Call tests using 'UnitTest' database
 
+    %
+    Q = db.DbQuery('unittest:master_table');
+    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
+    
+    
+    DoubleFields = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
+    Cols = numel(strsplit(DoubleFields, ','));
+    
+    % @Eran - Why it fails with 2 ???
+    Mat = rand(10, Cols);
+    R = db.DbRecord(Mat, 'ColNames', DoubleFields);
+    Q.insert(R, 'InsertRecFunc', @make_recid);
+    
+    
+    % Select fields
+    Limit = 10000;    
+    Fields = 'recid,fdouble1,fdouble2,fdouble3';
+    RecSelect = Q.select(Fields,  'Limit', Limit);
+    RecCopy   = Q.select(Fields,  'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp1.csv');
+    
+    Mat1 = Q.select('fdouble1,fdouble2,fdouble3',       'Where', 'fdouble1 > fdouble2', 'Convert', 'mat', 'Limit', Limit);
+    Rec1 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp1.csv');
+    Rec2 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp2.csv');
+    
+    
+    
+    % Insert Mat
+    Q = db.DbQuery('unittest:master_table', 'InsertRecFunc', @make_recid);    
+    Mat = rand(10, 3);
+    R = db.DbRecord(Mat, 'ColNames', 'fdouble1,fdouble2,fdouble3');
+    Q.insert(R);
+    
+    DoubleFields = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
+    Cols = numel(strsplit(DoubleFields, ','));
+    Mat = rand(1000, Cols);
+    R = db.DbRecord(Mat, 'ColNames', DoubleFields);
+    Q.insert(R);
+    
+    % Call tests using 'UnitTest' database    
     TestAll = true;
     if TestAll
         testSelect(Q);        
@@ -38,6 +71,16 @@ function Result = unitTest()
         
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
     Result = true;
+end
+
+
+% @Perf
+function Result = make_recid(Q, Rec, First, Last)
+   UU = Rec.newKey();
+   for i=First:Last
+       Rec.Data(i).recid = sprintf('PK_%s%_%08d', UU, i);
+   end
+   Result = true;
 end
 
 
@@ -67,11 +110,11 @@ function Result = testSelect(Q)
     end    
 
     % Select and load to matrix
-    R = Q.select('fdouble,ftimestamp', 'Where', 'fdouble > 0');    
+    R = Q.select('fdouble1,fdouble2', 'Where', 'fdouble > 0');    
     Mat = R.convert2mat();
     for i=1:numel(R.Data)
-        assert(Mat(i, 1) == R.Data(i).fdouble);
-        assert(Mat(i, 2) == R.Data(i).ftimestamp);
+        assert(Mat(i, 1) == R.Data(i).fdouble1);
+        assert(Mat(i, 2) == R.Data(i).fdouble2);
     end    
 
     % @Todo @QA - write test
@@ -93,7 +136,7 @@ function Result = testSelect(Q)
     assert(isa(Cell, 'cell'));  
     
     %----------------------------------------------------- Select double fields into Mat/AstroTable
-    Fields = 'fdouble,ftimestamp';
+    Fields = 'fdouble1,fdouble2';
     Mat = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'mat', 'Limit', Limit);    
     assert(isa(Mat, 'double'));       
     AstTable = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'AstroTable', 'Limit', Limit);
@@ -263,7 +306,7 @@ function Result = testInsert(Q)
                 R.Data(i).fstring = sprintf('MyStr_%03d', i);        
             end    
             io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());
-            Result = Q.insert(R, 'BatchSize', 100);
+            Q.insert(R, 'BatchSize', 1000);
             io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
             Count = Count*10;
         end
@@ -271,7 +314,7 @@ function Result = testInsert(Q)
         % Insert Mat, generate primary key in struct and use DbRecord.merge()
         Rows = 10;
         Mat = rand(Rows, 2);
-        R = db.DbRecord(Mat, 'ColNames', {'fdouble', 'ftimestamp'});
+        R = db.DbRecord(Mat, 'ColNames', {'fdouble1', 'fdouble2'});
         S = struct;
         for i=1:Rows
             S(i).recid = R.newKey();
@@ -280,7 +323,7 @@ function Result = testInsert(Q)
         % Merge DbRecord with struct-array, for example to add primary-key or
         % other data to Matrix
         R.merge(S);
-        Result = Q.insert(R, 'BatchSize', 100);
+        Q.insert(R, 'BatchSize', 100);
         io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
     end
     
@@ -299,7 +342,7 @@ function Result = testInsert(Q)
         for Iter=1:Iters
             Mat = rand(Count, Cols);
             R = db.DbRecord(Mat, 'ColNames', ColNames);
-            Result = Q.insert(R, 'PrimaryKeyFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
+            Q.insert(R, 'InsertRecFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
             io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
             Count = Count * 10;
         end

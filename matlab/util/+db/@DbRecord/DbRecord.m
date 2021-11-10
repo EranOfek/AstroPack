@@ -40,46 +40,32 @@ classdef DbRecord < Base
             % Data: struct array, table, cell array, matrix
             arguments
                 Data = [];
-                Args.ColNames cell = [];  % Required when Data is Cell or Matrix
+                Args.ColNames = [];  % Required when Data is Cell or Matrix
+            end
+            
+            if ischar(Args.ColNames)
+                Args.ColNames = strsplit(Args.ColNames, ',');
             end
             
             % Check what we need to transpose
             if ~isempty(Data)
-                if isstruct(Data)
+                if ischar(Data)
+                    Obj.Data = table2struct(readtable(Data));
+                elseif isstruct(Data)
                     Obj.Data = Data;
                 elseif istable(Data)
                     Obj.Data = table2struct(Data);
                 elseif iscell(Data)
                     Obj.Data = cell2struct(Data, Args.ColNames, 2);
                 elseif isnumeric(Data)
+                    
+                    % @Perf
                     Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 2);  %numel(Args.ColNames));
                 end
             end
             
         end
-        
-%
-%             % Constructor
-%             %   DbRecord()          - Create new empty record object
-%             %   DbRecord(DbQuery)   - Create object linked to specified query
-%
-%
-%             % Generate unique id, as Uuid or SerialStr (more compact and fast)
-%             if Obj.UseUuid
-%                 Obj.Uuid = Component.newUuid();
-%             else
-%                 Obj.Uuid = Component.newSerialStr('DbRecord');
-%             end
-%
-%             % Set DbQuery
-%             if numel(varargin) == 1
-%                 Obj.Query = varargin{1};
-%                 io.msgLog(LogLevel.Debug, 'DbRecord created: %s, DbQuery: %s', Obj.Uuid_, Obj.Query_.Uuid);
-%             else
-%                 io.msgLog(LogLevel.Debug, 'DbRecord created: %s', Obj.Uuid_);
-%             end
-%         end
-        
+      
         
         % Destructor
         function delete(Obj)
@@ -174,7 +160,24 @@ classdef DbRecord < Base
         end
            
 
-        
+        function Result = convert2(Obj, Conv)                  
+            Conv = lower(Conv);
+            if strcmp(Conv, 'table')
+                Result = Obj.convert2table();
+            elseif strcmp(Conv, 'cell')
+                Result = Obj.convert2cell();
+            elseif strcmp(Conv, 'mat')
+                Result = Obj.convert2mat();
+            elseif strcmp(Conv, 'astrotable')
+                Result = Obj.convert2AstroTable();
+            elseif strcmp(Conv, 'astrocatalog')
+                Result = Obj.convert2AstroCatalog();
+            else
+                error('convert2: unknown output type: %s', Conv);
+            end
+        end
+                    
+                        
         function Result = writeCsv(Obj, FileName, Args)            
             % Write Obj.Data struct array to CSV file, using mex optimization
             arguments
@@ -194,6 +197,11 @@ classdef DbRecord < Base
             Result = [];          
         end        
         
+        
+        function Result = getRowCount(Obj)
+            Result = numel(Obj.Data);
+        end
+            
     end
         
     %----------------------------------------------------------------------

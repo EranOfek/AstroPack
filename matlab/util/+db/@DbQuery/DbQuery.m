@@ -1,22 +1,30 @@
 % DbQuery - SQL Database query
 %
-% This class provides SQL functionality, currently tested with PostgreSQL v13.
+% Basic usage:
 %
-% Functionality
+%   Select and load records, automatically convert to output type:
 %
-% Related Classes:
-%   DbDriver - Internally used to load Java package for Postgres
-%   DbConnection - Used to connect to specific database on local or remote
-%   server.
-%   DbRecord - Class with dynamic properties, used as struct to store
-%   values of database record.
+%     Q = db.DbQuery('unittest:master_table');
+%     Mat = Q.select('fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Convert', 'mat', 'Limit', 100000);
 %
-% References:
-%   https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
 %
-% Unit-Test:
-%   Use unittest__tables from GDrive to test
+%   Insert single record
 %
+%   Insert records with callback to add fields not in input:
+%
+%
+%     function Result = makePK(Q, Rec, First, Last)
+%        for i=First:Last
+%            Rec.Data(i).recid = sprintf('PK_%s', Rec.newKey());
+%        end
+%        Result = true;
+%     end
+% 
+%     Mat = rand(10, 3);
+%     R = db.DbRecord(Mat, 'ColNames', 'fdouble1,fdouble2,fdouble3');
+%     Q.insert(R, 'InsertRecFunc', @makePK, 'BatchSize', 10000);
+%
+%--------------------------------------------------------------------------
 
 % #functions (autogen)
 % DbQuery - Create new DbQuery obeject
@@ -70,7 +78,8 @@ classdef DbQuery < Component
         TableName       = '';       % Current table name
         PrimaryKey                  % Primary Key(s) used when TableName is not empty - char or celarray
         FieldMap        = [];       % struct
-        PrimaryKeyFunc  = [];       % function(DbQuery, DbRecord, First, Last)
+        InsertRecFunc   = [];       % function(DbQuery, DbRecord, First, Last)
+        InsertBatchSize = 100;      %
         InsertUseCopy   = 5000;     % Above this number of records, insert() uses copyFrom()
         
         
@@ -119,6 +128,7 @@ classdef DbQuery < Component
                 DbTableOrConn   = []        % DbAlias / DbAlias:TableName / DbConnection object
                 Args.TableName              % Set TableName when not included in DbTable parameter
                 Args.PrimaryKey             % Primary key(s)
+                Args.InsertRecFunc 
             end
             
             % Setup component
@@ -159,6 +169,7 @@ classdef DbQuery < Component
                 Args.Load = true        % True to load entire result set
                 Args.Convert = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
                 Args.UseCopy = false    % @Todo (not implemented yet): True to use copyTo() instead of SELECT
+                Args.TempName           %
             end
             
             Result = [];
@@ -189,30 +200,38 @@ classdef DbQuery < Component
             end
 
             if Args.UseCopy
-                Obj.msgLog(LogLevel.Warning, 'select: UseCopy is not implemented yet, using SELECT');
-            end
-            
-            % Run query
-            Res = Obj.query();
-            if Res
-                if Args.Load
-                    Result = Obj.loadResultSet();
-                    
-                    % Optional conversion
-                    Conv = lower(Args.Convert);
-                    if strcmp(Conv, 'table')
-                        Result = Result.convert2table();
-                    elseif strcmp(Conv, 'cell')
-                        Result = Result.convert2cell();
-                    elseif strcmp(Conv, 'mat')
-                        Result = Result.convert2mat();
-                    elseif strcmp(Conv, 'astrotable')
-                        Result = Result.convert2AstroTable();
-                    elseif strcmp(Conv, 'astrocatalog')
-                        Result = Result.convert2AstroCatalog();                        
+                if isempty(Args.TempName)
+                    Args.TempName = sprintf('%s.csv', tempname);
+                end                
+                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Args.TempName, ''' CSV HEADER'];
+                %Obj.msgLog(LogLevel.Debug, 'insert: UseCopy is not implemented yet, using INSERT');                                
+                              
+                Res = Obj.exec();
+                if Res
+                    if Args.Load
+                        tic();
+                        Result = db.DbRecord(Args.TempName);                        
+                        Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
+                        if ~isempty(Args.Convert)
+                            Result = Result.convert2(Args.Convert);
+                        end                        
+                    else
+                        Result = true;
+                    end                
+                end                   
+                
+            else            
+                % Run query
+                Res = Obj.query();
+                if Res
+                    if Args.Load
+                        Result = Obj.loadResultSet();                
+                        if ~isempty(Args.Convert)
+                            Result = Result.convert2(Args.Convert);
+                        end
+                    else
+                        Result = true;
                     end
-                else
-                    Result = true;
                 end
             end
         end
@@ -223,17 +242,16 @@ classdef DbQuery < Component
             % Might be time and memory consuming!
             % Input:
             %
-            % Output:
+            % Output: DbRecord
             %
             %
             
             arguments
                 Obj
                 Args.MaxRows = Inf
-                Args.OutType = 'table'      % 'table', 'cell', 'struct', 'mat', 'AstroTable', 'AstroCatalog'
             end
             
-            PerfLog = io.FuncLog('loadResultSet');
+            %PerfLog = io.FuncLog('loadResultSet');
             tic();
             
             % Initialize
@@ -268,7 +286,7 @@ classdef DbQuery < Component
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
+            Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
         end
                                             
     end % Select
@@ -288,8 +306,8 @@ classdef DbQuery < Component
                 Args.FieldNames = []        % Comma-separated field names (i.e. 'recid,fint')
                 Args.FieldMap = []          % Optional field map
                 Args.ExFields struct = []   % Additional fields as struct
-                Args.BatchSize = 1          % Number of records per commit operation
-                Args.PrimaryKeyFunc = []    % Called to generate primary key if required
+                Args.BatchSize = []         % Number of records per operation
+                Args.InsertRecFunc = []     % Called to generate primary key if required
                 Args.UseCopy = 0            % When number of records is above this value, copyFrom() is used
             end
             
@@ -302,18 +320,22 @@ classdef DbQuery < Component
                 Args.TableName = Obj.TableName;
             end
             assert(~isempty(Args.TableName));
-                            
+                         
+            if isempty(Args.BatchSize)
+                Args.BatchSize = Obj.InsertBatchSize;
+            end
+                
             % Convert from input type
             if ~isa(Rec, 'db.DbRecord')
                 Rec = db.DbRecord(Rec);
             end
 
             % Generate primary keys using user function
-            if isempty(Args.PrimaryKeyFunc)
-                Args.PrimaryKeyFunc = Obj.PrimaryKeyFunc;
+            if isempty(Args.InsertRecFunc)
+                Args.InsertRecFunc = Obj.InsertRecFunc;
             end
-            if ~isempty(Args.PrimaryKeyFunc)
-                Args.PrimaryKeyFunc(Obj, Rec, 1, numel(Rec.Data));
+            if ~isempty(Args.InsertRecFunc)
+                Args.InsertRecFunc(Obj, Rec, 1, numel(Rec.Data));
             end
             
             if isempty(Args.UseCopy)
@@ -772,7 +794,7 @@ classdef DbQuery < Component
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Debug, 'query time: %.6f', Obj.Toc);
+            Obj.msgStyle(LogLevel.Debug, 'blue', 'query time: %.6f', Obj.Toc);
         end
         
 
@@ -819,7 +841,7 @@ classdef DbQuery < Component
             end
             
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Debug, 'exec time: %.6f', Obj.Toc);
+            Obj.msgStyle(LogLevel.Debug, 'blue', 'exec time: %.6f', Obj.Toc);
         end
                
     end

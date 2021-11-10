@@ -1,6 +1,7 @@
 # Overview
 
 ### General
+
 DbQuery - SQL Database Component
 
 This class provides basic and advanced SQL functionality, along with DbRecord 
@@ -19,14 +20,7 @@ Currently, it works with **PostgreSQL v13**.
 - https://www.tutorialspoint.com/java-resultset-movetoinsertrow-method-with-example
 
  Unit-Test:
-   Use unittest__tables from GDrive to test
-
-
-
-## Database Alias
-
-
-## Working with Multiple Primary Keys
+   Use unittest from GDrive to test
 
 
 ## Related Classes
@@ -38,61 +32,13 @@ These classes are used internally by DbQuery:
 
 # Usage
 
-## Basic Database Operations
-
-### Constructor (connect)
-
-    Q = db.DbQuery('UnitTest:master_table');
-
-    % Create query with database:table, get number of records
-    Q = db.DbQuery('unittest:master_table');
-    Count = Q.selectCount();
-    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Count);
-
-    % Query Postgres version, result should be similar to
-    % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-    pgver = Q.getDbVersion();
-    io.msgLog(LogLevel.Test, 'Version: %s', pgver);
-    assert(contains(pgver, 'PostgreSQL'));
-
-    % Switch to another table
-    Q.TableName = 'master_table';
-
-    % Select and load all records
-    Record = Q.select('*');
-    Table = Record.convert2table();
-
-
-### Get Database Version
-
-    % Query Postgres version, result should be similar to
-    % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-    Q = db.DbQuery('UnitTest');
-    pgver = Q.getDbVersion();
-    io.msgLog(LogLevel.Test, 'Version: %s', pgver);
-    assert(contains(pgver, 'PostgreSQL'));
-
-## Select
-
 ### Select number of records in table (count)
 
-    % Create query with database:table, get number of records
     Q = db.DbQuery('unittest:master_table');
     Count = Q.selectCount();
-    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Count);
 
 
-### Select all records in table
-
-    % Create query with database:table, get number of records
-    Q = db.DbQuery('unittest:master_table');
-    Result = Q.select();
-    io.msgLog(LogLevel.Test, 'Number of records in result: %d', numel(Result.Data));
-    % Convert to table
-    Table = Result.convert2table();
-    io.msgLog(LogLevel.Test, 'Number of records in table: %d', numel(Result.Data));
-
-### Select
+### Select specified fields with 'where' filter
 
     Fields = 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5';
     Where = 'fdouble1 > fdouble2';
@@ -103,9 +49,35 @@ These classes are used internally by DbQuery:
     disp(Size(1));
 
 
-### Select specified fields with 'where' filter
+### Insert DbRecord with insert() and Callback function 
 
-## Insert
+    function Result = makePK(Q, Rec, First, Last)
+       % Make priamry key
+       for i=First:Last
+           Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());
+       end
+       Result = true;
+    end
+
+    % 
+    Iters = 5;
+    Count = 1;
+    Cols = 20;
+    ColNames = {};
+    for i=1:Cols
+       ColNames{i} = sprintf('fdouble%d', i);
+    end
+
+    for Iter=1:Iters
+       Mat = rand(Count, Cols);
+       R = db.DbRecord(Mat, 'ColNames', ColNames);
+       Result = Q.insert(R, 'PrimaryKeyFunc', @makePK, 'BatchSize', 10000);
+       io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
+       Count = Count * 10;
+    end
+
+
+## Advanced Usage
 
 ### Insert single record with exec()
 
@@ -122,8 +94,8 @@ These classes are used internally by DbQuery:
     CountAfterInsert = Q.selectCount();
     assert(CountBeforeInsert + InsertCount == CountAfterInsert);
 
-### Insert batch with exec()
 
+### Insert batch with exec()
 
     % Insert batch using raw sql: Prepare multiple INSERT lines
     % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
@@ -145,76 +117,9 @@ These classes are used internally by DbQuery:
     end
 
 
-### Insert DbRecord with insert()
+# Notes
 
-
-### Generating Primary Key with Callback function
-
-    function Result = makePrimaryKeyForMat(Q, Rec, First, Last)
-       % Make priamry key
-       for i=First:Last
-           Rec.Data(i).recid = sprintf('Callback_%05d_%s', i, Rec.newKey());
-       end
-       Result = true;
-    end
-
-    % 
-    Iters = 5;
-    Count = 1;
-    Cols = 20;
-    ColNames = {};
-    for i=1:Cols
-       ColNames{i} = sprintf('fdouble%d', i);
-    end
-
-    for Iter=1:Iters
-       Mat = rand(Count, Cols);
-       R = db.DbRecord(Mat, 'ColNames', ColNames);
-       Result = Q.insert(R, 'PrimaryKeyFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
-       io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
-       Count = Count * 10;
-    end
-
-
-
-#### Example
-
-
-
-## Update
-
-
-## Delete
-
-## copyFrom - Batch Import from CSV file
-
-Note: To improve performance we write data to CSV file using mex-writematrix
-(AstroPack.git/matlab/external/mex-writematrix), replacement for (slow) dlmwrite in MATLAB.
-
-
-## Create Database
-
-    createDatabase
-
-
-### Updating structure of existing database
-
-
-
-
-## copyTo - Batch Export to CSV file
-
-
-# Examples
-
-### Example 1: Basic usage
-
-
-    Q = db.DbQuery('unittest:master_table');
-    Q.selectCount()
-
-
-# Database Configuration File
+## Database Configuration File
 
 Database.yml
 
@@ -261,22 +166,9 @@ Database.yml
             Host            : 'localhost'       # Host name or IP address
 
 
+## PostgresSQL - Installation Guide
 
-# See Also
-
-# Notes
-
-## Create Database Scripts
-
-### Add Test Fields
-
-Add 20x double fields
-
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble1 DOUBLE PRECISION;
-    ALTER TABLE public.master_table
-    ADD COLUMN fdouble2 DOUBLE PRECISION;
-   ...
+https://docs.google.com/document/d/117tA4l6Dv_DSMZbMsvRINbDntChJ-FIk-2bPP-6lC_M/edit?usp=sharing
 
 
 ## Database GUI
@@ -299,22 +191,47 @@ Download page:
 https://www.jetbrains.com/datagrip/download/
 
 
-## Installatoin & Creating Database from Google Sheets
+# Creating Database from Google Sheets
 
-#### PostgresSQL - Installation Guide
+Database Definitions Sheets
 
-https://docs.google.com/document/d/117tA4l6Dv_DSMZbMsvRINbDntChJ-FIk-2bPP-6lC_M/edit?usp=sharing
+   https://docs.google.com/document/d/1_puwzIOCL3pqQ8byxmX_uSI054olIAVH3OZrKyVu9ys/edit?usp=sharing
 
-#### Database Definitions Sheets
+UnitTest database definition in Google Sheets:
 
-https://docs.google.com/document/d/1_puwzIOCL3pqQ8byxmX_uSI054olIAVH3OZrKyVu9ys/edit?usp=sharing
-
-#### UnitTest database definition in Google Sheets:
-
-https://docs.google.com/spreadsheets/d/1ZAjdFRKAJ72p6eRuuXivN3Be_1fCsNQd5WqiSIUJxJI/edit?usp=sharing
+   https://docs.google.com/spreadsheets/d/1ZAjdFRKAJ72p6eRuuXivN3Be_1fCsNQd5WqiSIUJxJI/edit?usp=sharing
 
 
-#### xlsx2sql.u Use Manual
+## Using xlsx2sql.py
 
-See AstroPack.git/python/utils/database_utils/xlsx2sql.md
+Generate SQL scripts from CSV files downloaded from Google Sheets tabs
+
+
+### Usage
+
+     python xlsx2sql.py -f unittest.xlsx
+
+If the specified file name does not contain path, 
+it looks for files in AstroPack repository by environment variable 
+ASTROPACK_PATH, in folder database/xlsx/.
+
+Output files are created under the same folder in a subfolder, i.e. 
+database/xls/unittest/.
+
+### Create database from the output SQL file
+
+     psql -U postgres -f unittest.sql
+
+### Requirements (Python v3)
+
+    pip3 install pyyaml openpyxl
+
+Check Postgres version from command line
+
+     psql -V
+
+Postgres Passwords
+
+    Chen Windows: postgres/pass
+    Linux default:
 

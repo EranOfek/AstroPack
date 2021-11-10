@@ -1,6 +1,12 @@
 # Automatic tool to extract functions from matlab source files
 # with their H1 comments.
-
+#
+# Running/debugging from PyChart: Run -> Edit Configurations:
+#
+#     Script path:        D:\Ultrasat\AstroPack.git\python\utils\matlab_utils\get_matlab_functions.py
+#     Parameters:         (none)
+#     Working directory:  D:\Ultrasat\AstroPack.git\python\utils\matlab_utils
+#
 # Todo:
 #    Handle correctly static class functions that are defined in separate file
 #    Handle non-class functions
@@ -174,7 +180,7 @@ class MarkdownReader:
 
 
     # Get all lines of specified section (until next heading or end of file)
-    def get_section(self, heading, default_text='', cut=False):
+    def get_section(self, heading, default_text='', cut=True):
         section_lines = []
         found = False
         heading_level = heading.split(' ')[0].strip()
@@ -199,9 +205,9 @@ class MarkdownReader:
                 section_lines.append(line)
 
 
-        # Remove
-        if cut and start_idx > -1 and end_idx > < len(self.lines):
-            self.lines = self.lines[0:start_idx-1] + self.lines[end_idx:]
+        # Remove the extracted section lines
+        if cut and start_idx > -1 and end_idx < len(self.lines):
+            self.lines = self.lines[0:start_idx] + self.lines[end_idx:]
 
         # Not found, use default text
         if len(section_lines) == 0 and default_text != '':
@@ -428,42 +434,48 @@ class MlxWriter:
         code_lines = []
         prev_line_empty = True
         prev_line = ''
+        is_code = False
+
         for line in markdown_lines:
             # Skip comments (not Markdown standard) and special directives
             if line.startswith(';') or '#autogen' in line.lower():
                 continue
 
             heading_level, text = self.get_markdown_heading_level(line)
-            is_code = False
+            if heading_level > 0:
+                is_code = False
+                prev_line_empty = True
 
             if heading_level == 1:
                 if text.startswith('Title:'):
                     self.title(text.split('Title:')[1].strip())
                 else:
                     self.heading1(text)
-                prev_line_empty = True
             elif heading_level == 2:
                 self.heading2(text)
-                prev_line_empty = True
             elif heading_level == 3:
                 self.heading3(text)
-                prev_line_empty = True
             elif heading_level >= 4:
                 self.start_par()
                 self.bold(text)
                 self.end_par()
-                prev_line_empty = True
+
             else:
                 # @Todo - better solution for tabs?
                 line = line.replace('\t', '    ')
 
                 # Code
-                allow_start_code = prev_line_empty or 'example:' in prev_line.lower()
+                allow_start_code = is_code or prev_line_empty or 'example:' in prev_line.lower()
                 if line.startswith('    ') and allow_start_code:
                     is_code = True
-                    code_lines.append(line.strip())
+                    code_lines.append(line[4:].rstrip())
+                elif is_code and line.strip() == '':
+                    is_code = True
+                    code_lines.append('')
+                else:
+                    is_code = False
 
-            #
+            # Code block finished, write all lines in code_lines
             if not is_code:
                 if len(code_lines) > 0:
 
@@ -834,7 +846,9 @@ class MatlabProcessor:
         self.cur_fname = ''
         self.cur_folder = ''
         self.cur_file = ''
-        self.markdown_fname = ''
+        self.pkg_markdown_fname = ''
+        self.cls_markdown_fname = ''
+        self.func_markdown_fname = ''
         self.cur_package = ''
         self.cur_class = ''
         self.cur_parent = ''
@@ -1382,7 +1396,7 @@ class MatlabProcessor:
         # Split file name
         self.cur_fname = fname
         self.cur_folder, self.cur_file = os.path.split(fname)
-        self.markdown_fname = os.path.join(self.cur_folder, os.path.splitext(self.cur_file)[0] + '.md')
+        self.cls_markdown_fname = os.path.join(self.cur_folder, os.path.splitext(self.cur_file)[0] + '.md')
 
         #fn, ext = os.path.splitext(self.cur_file)
 
@@ -1394,10 +1408,11 @@ class MatlabProcessor:
         pkg = self.get_package(pkg_name, self.cur_folder)
 
         #  Look for package markdown in the package folder
+        # @Todo - fix md folder according to package
         if not pkg.markdown:
-            self.markdown_fname = os.path.join(self.cur_folder, pkg_name + '.md')
-            if os.path.exists(self.markdown_fname):
-                pkg.markdown = MarkdownReader(self.markdown_fname)
+            self.pkg_markdown_fname = os.path.join(self.cur_folder, pkg_name + '.md')
+            if os.path.exists(self.pkg_markdown_fname):
+                pkg.markdown = MarkdownReader(self.pkg_markdown_fname)
 
         # Check if we are inside class folder
         class_name = self.get_class_from_path(self.cur_folder)
@@ -1421,9 +1436,9 @@ class MatlabProcessor:
             self.cur_parent = parent
 
             # Look for Markdown file in the same folder
-            if os.path.exists(self.markdown_fname):
+            if os.path.exists(self.cls_markdown_fname):
                 cls = self.get_class(self.cur_class)
-                cls.markdown = MarkdownReader(self.markdown_fname)
+                cls.markdown = MarkdownReader(self.cls_markdown_fname)
 
             # Process class main file
             self.process_class_file(lines)
@@ -1879,7 +1894,7 @@ class MatlabProcessor:
             comment = self.clean_comment(cls.long_comment)
             mlx.markdown(comment)
             #mlx.text(comment)
-            mlx.text('For additional help see manuals.main')
+            #mlx.text('For additional help see manuals.main')
 
             # Properties list
             mlx.heading1('Properties')
@@ -1891,19 +1906,9 @@ class MatlabProcessor:
                 mlx.end_par()
 
             #
-            mlx.heading2('Additional & Hidden Properties')
-            mlx.text('Properties')
+            #mlx.heading2('Additional & Hidden Properties')
+            #mlx.text('Properties')
 
-            # Constructor
-            mlx.heading1('Constructor')
-            for func_name in func_list:
-                func = cls.func_dict[func_name]
-                if not func.is_constructor:
-                    continue
-                mlx.start_par()
-                mlx.bold(func.name)
-                mlx.normal(' - ' + func.comment)
-                mlx.end_par()
 
             # Overview from MD file
             overview = markdown.get_section('# Overview', default_text='Class/package/function overview here...')
@@ -1913,18 +1918,9 @@ class MatlabProcessor:
             usage = markdown.get_section('# Usage', default_text='Usage description here...')
             mlx.heading1('General Class Usage', markdown=usage)
 
-            mlx.heading3('Example 1', 'Example description')
-            mlx.code('Example code ...')
-
-            mlx.heading3('Example 2', 'Example description')
-            mlx.code('Example code ...')
-
-            mlx.heading3('Example 3', 'Example description')
-            mlx.code('Example code ...')
-
             # Methods list
             mlx.text('')
-            mlx.heading1('Methods')
+            mlx.heading1('Methods List')
 
             # Iterate class functions
             for func_name in func_list:
@@ -1936,9 +1932,25 @@ class MatlabProcessor:
                 mlx.normal(' - ' + func.comment)
                 mlx.end_par()
 
+            # Methods list
+            mlx.text('')
+            mlx.heading1('Methods')
+
+            # Constructor first
+            for func_name in func_list:
+                func = cls.func_dict[func_name]
+                if not func.is_constructor:
+                    continue
+                mlx.start_par()
+                mlx.bold(func.name)
+                mlx.normal(' - ' + func.comment)
+                mlx.end_par()
+
             # Section per function
             for func_name in func_list:
                 func = cls.func_dict[func_name]
+                if func.is_constructor:
+                    continue
                 mlx.text('')
                 mlx.heading3(func.name)
                 mlx.start_par()
@@ -1952,23 +1964,27 @@ class MatlabProcessor:
 
 
             # Get other sections
-            mlx.heading1('Static Methods')
-            mlx.text('Static Methods')
+            #mlx.heading1('Static Methods')
+            #mlx.text('Static Methods')
 
             # Add additional sections
-            known_issus = markdown.get_section('# Known Issues', default_text='Add related issues here')
-            see_also = markdown.get_section('# See Also', default_text='Add related issues here')
-            notes = markdown.get_section('# Notes', default_text='Add notes here')
-
-            # Insert everything left
-            insert_left = False
-            if insert_left:
-                lines = markdown.lines
+            known_issus = markdown.get_section('# Known Issues', default_text='') #Add related issues here')
+            see_also = markdown.get_section('# See Also', default_text='') #Add related issues here')
+            notes = markdown.get_section('# Notes', default_text='') #Add notes here')
 
             #
-            mlx.heading1('Known Issues', markdown=known_issus)
-            mlx.heading1('See Also', markdown=see_also)
-            mlx.heading1('Notes', markdown=notes)
+            if known_issus != '':
+                mlx.heading1('Known Issues', markdown=known_issus)
+            if see_also != '':
+                mlx.heading1('See Also', markdown=see_also)
+            if notes != '':
+                mlx.heading1('Notes', markdown=notes)
+
+            # Insert everything left
+            insert_left = True
+            if insert_left:
+                md = '\n'.join(markdown.lines)
+                mlx.markdown(md)
 
             # Current timestamp
             timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -1981,7 +1997,7 @@ class MatlabProcessor:
 
     # -----------------------------------------------------------------------
     #
-    def generate_packges_mlx(self):
+    def generate_packages_mlx(self):
 
         # Update class list files
         out_path_mlx = os.path.join(AUTOGEN_PATH, 'package_mlx')
@@ -2056,19 +2072,23 @@ class MatlabProcessor:
                 mlx.code('Example code here')
 
             #
-            known_issus = markdown.get_section('# Known Issues', default_text='Add related issues here')
-            see_also = markdown.get_section('# See Also', default_text='Add related issues here')
-            notes = markdown.get_section('# Notes', default_text='Add notes here')
-
-            # Insert everything left
-            insert_left = False
-            if insert_left:
-                lines = markdown.lines
+            known_issus = markdown.get_section('# Known Issues', default_text='') #Add related issues here')
+            see_also = markdown.get_section('# See Also', default_text='') #Add related issues here')
+            notes = markdown.get_section('# Notes', default_text='') #Add notes here')
 
             # Add additional sections
-            mlx.heading1('Known Issues', markdown=known_issus)
-            mlx.heading1('See Also', markdown=see_also)
-            mlx.heading1('Notes', markdown=notes)
+            if known_issus != '':
+                mlx.heading1('Known Issues', markdown=known_issus)
+            if see_also != '':
+                mlx.heading1('See Also', markdown=see_also)
+            if notes != '':
+                mlx.heading1('Notes', markdown=notes)
+
+            # Insert everything left
+            insert_left = True
+            if insert_left:
+                md = '\n'.join(markdown.lines)
+                mlx.markdown(md)
 
             # Timestamp
             timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -2124,7 +2144,7 @@ def main():
     proc = MatlabProcessor()
 
     #
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db/@DbQuery')
 
     # Test for package
     # proc.process('D:/Ultrasat/AstroPack.git/matlab/astro/+celestial')
