@@ -1701,6 +1701,28 @@ classdef AstroTable < Component
             Result = true;
         end
         
+        function Result = toTable(Obj)
+            % Convert a single element AstroTable into a matlab table object
+            % Input  : - A single element AstroTable/AstroCatalog
+            % Output : - A matlab table object.
+            % Author : Eran Ofek
+            % Example: AT = AstroTable({rand(10,2)},'ColNames',{'a','b'});
+            %          T  = AT.toTable
+            
+            arguments
+                Obj(1,1)
+            end
+           
+            if istable(Obj.Catalog)
+                Result = Obj.Catalog;
+            else
+                Result = array2table(Obj.Catalog);
+                Result.Properties.VariableNames = Obj.ColNames;
+                Result.Properties.VariableUnits = Obj.ColUnits;
+            end
+            
+        end
+        
     end
     
     
