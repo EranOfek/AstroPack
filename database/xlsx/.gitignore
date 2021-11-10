@@ -1,11 +1,11 @@
 
-#*.xlsx
+# Generated files
 *.csv
-_*.sql
-
 *.py
 *.m
 *.h
 *.pas
 *.dart
-*.sql
+
+# Do not ignore SQL files, we want to keep them in the repo
+# *.sql

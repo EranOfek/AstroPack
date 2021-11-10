@@ -2,6 +2,22 @@
 # See: https://gist.github.com/antivanov/59e00f6129725e9b4404
 # Use unittest__tables from GDrive to test
 #
+# If the specified file name with -f does not contain path, it looks for files in AstroPack repository
+# by environment variable ASTROPACK_PATH, in folder database/xlsx/
+# Output files are created under the same folder in a subfolder, i.e. database/xls/unittest/
+#
+# Running from command line (Python3 is required):
+#
+#     python xlsx2sql.py -f unittest.xlsx
+#
+#
+# Running/debugging from PyChart: Run -> Edit Configurations:
+#
+#     Script path:        D:\Ultrasat\AstroPack.git\python\utils\matlab_utils\get_matlab_functions.py
+#     Parameters:         -f unittest.xlsx
+#     Working directory:  D:\Ultrasat\AstroPack.git\python\utils\matlab_utils
+#
+#
 # Requirements:
 #
 #   Ubutnu:
@@ -10,10 +26,11 @@
 #
 #   pip3 install pyyaml openpyxl psycopg2
 #
-# psql -V
+# Check Postgres version
+#     psql -V
 #
 # Create databse from SQL file:
-# psql -U postgres -f __unittest.sql
+#     psql -U postgres -f unittest.sql
 #
 # Chen Windows: postgres/pass
 # Linux default:
@@ -22,12 +39,12 @@
 #
 # xlsx2sql.py -f D:\Ultrasat\AstroPack.git\database\xlsx\lastdb__tables.xlsx
 #
-
+# ---------------------------------------------------------------------------
 import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
 from sys import platform
 
-DEBUG = True
+DEBUG = False
 
 # SQL
 GEN_POSTGRES = True         # PostgreSQL v13
@@ -41,14 +58,14 @@ GEN_CPP = False             # C++ 0x03
 GEN_DELPHI = False          # Delphi/Lazarus
 GEN_DART = False            # Flutter
 
-#
+# Generate code for functions
 GEN_DESTRUCTOR = False      # Generate destructor code
-GEN_DB_FUNCS = True         # Generate database function: read, write
+GEN_DB_FUNCS = False        # Generate database function: read, write
 
-
-
+#
 OUTPUT_PATH = ''
 
+#
 if DEBUG:
     GEN_POSTGRES, GEN_FIREBIRD, GEN_SQLITE, GEN_PYTHON, GEN_MATLAB, GEN_CPP, GEN_DELPHI, GEN_DART = True, True, True, True, True, True, True, True
 
@@ -58,7 +75,10 @@ if platform == "win32":
 else:
     LOG_PATH = '/tmp/'
 
+#
+last_sql_fname = ''
 
+# ---------------------------------------------------------------------------
 logfile = open(os.path.join(LOG_PATH, 'convert_csv_to_sql_db.log'), 'a')
 def log(msg, dt = False):
     global logfile
@@ -81,6 +101,7 @@ def write_md(line):
 
 
 XLSX_FILENAME = ''
+# ---------------------------------------------------------------------------
 
 # Field types
 field_lang_dict = { \
@@ -206,7 +227,7 @@ field_lang_dict = { \
         'dart': '//',
     },
     }
-
+# ---------------------------------------------------------------------------
 
 # Get field type (language specific)
 def get_field_type_lang(field_name, text, lang):
@@ -273,7 +294,7 @@ def get_field_type_lang(field_name, text, lang):
 
     return ftype, default_value
 
-#----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Field class
 class Field:
 
@@ -513,7 +534,7 @@ class DatabaseDef:
         log('load_table_csv done: ' + filename + ' - fields loaded: ' + str(field_count))
         log('')
 
-    #---------------------------------------------------------------- Postgres SQL
+    # --------------------------------------------------------------- Postgres SQL
     # Create table from self.field_list
     def create_table_postgres(self):
 
@@ -523,6 +544,11 @@ class DatabaseDef:
             return
 
         self.open_out('.sql')
+
+        # Ugly, to be fixed
+        global last_sql_fname
+        last_sql_fname = self.out_filename
+
         if self.write_file_header('postgres'):
             self.create_db('postgres')
 
@@ -574,7 +600,7 @@ class DatabaseDef:
         log('create_table_postgres done: ' + self.table_name)
         log('')
 
-    #---------------------------------------------------------------- Firebird SQL
+    # --------------------------------------------------------------- Firebird SQL
     # Create table from self.field_list
     def create_table_firebird(self):
 
@@ -631,7 +657,7 @@ class DatabaseDef:
 
 
 
-    #---------------------------------------------------------------- SQLite SQL
+    # --------------------------------------------------------------- SQLite SQL
     # Create table from self.field_list
     def create_table_sqlite(self):
 
@@ -687,7 +713,7 @@ class DatabaseDef:
         log('')
 
 
-    #---------------------------------------------------------------- Python
+    # --------------------------------------------------------------- Python
     # Create python class from self.field_list
     '''
     class MyData:
@@ -753,7 +779,7 @@ class DatabaseDef:
         log('create_class_python done: ' + self.table_name)
         log('')
 
-    #---------------------------------------------------------------- Malab
+    # --------------------------------------------------------------- Malab
     # Create Matlab class from self.field_list
     '''   
     class MyData < handle
@@ -809,7 +835,7 @@ class DatabaseDef:
         log('create_class_matlab done: ' + self.class_name)
         log('')
 
-    #---------------------------------------------------------------- C++
+    # --------------------------------------------------------------- C++
     # Create C++ class from self.field_list
     '''
     class MyData {
@@ -885,7 +911,7 @@ class DatabaseDef:
         log('')
 
 
-    #---------------------------------------------------------------- Delphi / Lazarus
+    # --------------------------------------------------------------- Delphi / Lazarus
     # Create Delphi class from self.field_list
     '''
     interface
@@ -1087,7 +1113,7 @@ class DatabaseDef:
         log('create_class_dart done: ' + self.class_name)
         log('')
 
-    #----------------------------------------------------------------
+    # ----------------------------------------------------------------
 
     # Create class from self.field_list for all selected languages
     def create_classes(self):
@@ -1184,8 +1210,16 @@ class DatabaseDef:
             self.outf.flush()
 
 
-
 #============================================================================
+
+def clear_folder(path, mask):
+    if os.path.exists(path):
+        log('clearing files in folder: ' + path)
+        flist = glob.glob(os.path.join(path, mask), recursive=False)
+        for fname in flist:
+            log('remove: ' + fname)
+            os.remove(fname)
+
 
 # Extract all sheets from xlsx file to output folder
 def extract_xlsx(filename):
@@ -1194,10 +1228,19 @@ def extract_xlsx(filename):
     fn, ext = os.path.splitext(fname)
     db_name = fn.split('__')[0].lower()
     out_path = os.path.join(path, db_name, 'csv')
+
+    #
     global OUTPUT_PATH
     OUTPUT_PATH = os.path.join(path, db_name)
+
+    # Clear files in output folder
+    clear_folder(OUTPUT_PATH, '*.sql')
+
+    # Create/clear
     log('output folder: ' + out_path)
-    if not os.path.exists(out_path):
+    if os.path.exists(out_path):
+        clear_folder(out_path, '*.csv')
+    else:
         log('creating folder: ' + out_path)
         os.makedirs(out_path)
 
@@ -1240,6 +1283,10 @@ def process_xlsx_file(filename):
     # Process all sheets in folder
     process_folder(csv_path, ['.csv'], db_name, False)
     log('process_xlsx_file done: ' + filename)
+
+    global last_sql_fname
+    log('\nCreate database by running from command line:\n')
+    log('psql -U postgres -f ' + last_sql_fname + '.sql')
 
 
 # Process CSV file with database definitions
