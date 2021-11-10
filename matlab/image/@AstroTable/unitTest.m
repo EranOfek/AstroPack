@@ -56,7 +56,7 @@ function Result = unitTest()
     % store result in original AstroTable
     Result = getCol(MAC,{'DEJ2000','RAJ2000'},false,true);
     if ~all(Result == MAC.Catalog,'all')
-        error('Result should be identical');
+        error('Get column error: Result should be identical');
     end
 
     % colnameDict2ind
@@ -95,7 +95,7 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'testing AstroTable queryRange')
     AT = AstroTable({rand(100,2)},'ColNames',{'x','y'});
     [Result, Flag] = queryRange(AT, 'x',[0.2 0.3],'y',[0.0 0.5]);
-    [Result, Flag] = queryRange(AT, {'x_win','x'},[0.2 0.3],'y',[0.0 1])  
+    [Result, Flag] = queryRange(AT, {'x_win','x'},[0.2 0.3],'y',[0.0 1]);
 
     % plot
     io.msgLog(LogLevel.Test, 'testing AstroTable plot')
@@ -121,7 +121,7 @@ function Result = unitTest()
 
     % compareColNames
     io.msgLog(LogLevel.Test, 'testing AstroTable compareColNames')
-    AstroTable.compareColNames({'a','b'},{'a','b'})
+    AstroTable.compareColNames({'a','b'},{'a','b'});
 
     % insertColumn
     io.msgLog(LogLevel.Test, 'testing AstroTable insertColumn')
@@ -139,23 +139,40 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'testing AstroTable sizeCatalog')
     AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
     [Nrow,Ncol] = sizeCatalog(AC);
+    if ~(Nrow(1) == 10 && Ncol(1) == 2)
+        error('Problem with sizeCatalog');
+    end
 
     % isemptyCatalog
     io.msgLog(LogLevel.Test, 'testing AstroTable isemptyCatalog')
     AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
-    isemptyCatalog(AC);
+    if isemptyCatalog(AC)
+        error('Non empty catalog flagged as empty');
+    end
     AC = AstroTable();
-    isemptyCatalog(AC);
+    if ~isemptyCatalog(AC)
+        error('Empty catalog flagged as non empty');
+    end
 
     % deleteCatalog
     io.msgLog(LogLevel.Test, 'testing AstroTable deleteCatalog')
     AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
-    deleteCatalog(AC)
+    AC2 = AC;
+    deleteCatalog(AC);
+    if AC(1).Catalog == AC2(1).Catalog
+        error('Problem deleting catalog');
+    end
+    if ~isempty(AC(1).Catalog)
+        error('Problem deleting catalog');
+    end
 
     % isColumn
     io.msgLog(LogLevel.Test, 'testing AstroTable isColumn')
     AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
     Res = isColumn(AC,'a');
+    if ~Res
+        error('Problem with checking is column');
+    end
 
     % colname2ind
     io.msgLog(LogLevel.Test, 'testing AstroTable colname2ind')
@@ -167,9 +184,13 @@ function Result = unitTest()
     % colind2name
     io.msgLog(LogLevel.Test, 'testing AstroTable colind2name')
     AC = AstroTable({rand(10,2)},'ColNames',{'a','b'});
-    colind2name(AC,[2 1])
+    if ~strcmpi(colind2name(AC,[2 1]), {'b', 'a'})
+       error('Problem with colind2name'); 
+    end
     AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
-    colind2name(AC(1),[2 1])
+    if ~strcmpi(colind2name(AC(1),[2 1]), {'b', 'a'})
+       error('Problem with colind2name'); 
+    end
 
     % col2struct
     io.msgLog(LogLevel.Test, 'testing AstroTable col2struct')
@@ -179,8 +200,13 @@ function Result = unitTest()
     % isColIdentical
     io.msgLog(LogLevel.Test, 'testing AstroTable isColIdentical')
     AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
-    isColIdentical(AC,AC(1).ColNames);
-    isColIdentical(AC,{'b', 'c'});
+    if ~isColIdentical(AC,AC(1).ColNames)
+        error('Identical columns flagged as different');
+    end
+    if isColIdentical(AC,{'b', 'c'})
+        error('Different columns flagged as identical');
+    end
+
 
     % table2array
     io.msgLog(LogLevel.Test, 'testing AstroTable table2array')
@@ -202,7 +228,9 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'testing AstroTable replaceColNames')
     AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'a','b'});
     AC.replaceColNames([1 2],{'RA','Dec'});
-    AC(1).ColNames;
+    if ~all(strcmpi(AC(1).ColNames, {'RA', 'Dec'}))
+       error('Problem with replacing col names'); 
+    end
 
     % replaceCol
     io.msgLog(LogLevel.Test, 'testing AstroTable replaceCol')
@@ -214,9 +242,9 @@ function Result = unitTest()
     % deleteCol
     io.msgLog(LogLevel.Test, 'testing AstroTable deleteCol')
     AC.Catalog=array2table(rand(10,3));
-    AC.ColNames={'RA','Dec','flux'}; AC.deleteCol('Dec')
+    AC.ColNames={'RA','Dec','flux'}; AC.deleteCol('Dec');
     AC.Catalog=(rand(10,3));
-    AC.ColNames={'RA','Dec','flux'}; AC.deleteCol({'RA','Dec'})
+    AC.ColNames={'RA','Dec','flux'}; AC.deleteCol({'RA','Dec'});
 
     % sortrows
     io.msgLog(LogLevel.Test, 'testing AstroTable sortrows')
@@ -228,7 +256,7 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'testing AstroTable flipud')
     AC=AstroTable; 
     AC.Catalog = rand(100,3); 
-    flipud(AC)
+    flipud(AC);
 
     cd(PWD);
     io.msgStyle(LogLevel.Test, '@passed', 'AstroTable test passed');
