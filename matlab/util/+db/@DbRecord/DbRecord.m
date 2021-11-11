@@ -59,7 +59,8 @@ classdef DbRecord < Base
                     Obj.Data = cell2struct(Data, Args.ColNames, 2);
                 elseif isnumeric(Data)
                     
-                    % @Perf
+                    % @Perf - Need to be improved, it works very slow with
+                    % arrays > 10,000
                     Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 2);  %numel(Args.ColNames));
                 end
             end

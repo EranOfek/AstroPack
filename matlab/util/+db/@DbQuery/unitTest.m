@@ -18,18 +18,17 @@ function Result = unitTest()
     Q = db.DbQuery('unittest:master_table');
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
     
-    testSelect(Q);        
+    %testInsert(Q);
+    %testSelect(Q);        
         
-    DoubleFields = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
-    Cols = numel(strsplit(DoubleFields, ','));
-    
-    % @Eran - Why it fails with 2 ???
+    ColNames = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
+    Cols = numel(strsplit(ColNames, ','));
     Mat = rand(10, Cols);
-    R = db.DbRecord(Mat, 'ColNames', DoubleFields);
-    Q.insert(R, 'InsertRecFunc', @make_recid);
-    
+    R = db.DbRecord(Mat, 'ColNames', ColNames);
+    Q.insert(R, 'InsertRecFunc', @make_recid);   
     
     % Select fields
+    Q = db.DbQuery('unittest:master_table');    
     Limit = 10000;    
     Fields = 'recid,fdouble1,fdouble2,fdouble3';
     RecSelect = Q.select(Fields,  'Limit', Limit);
@@ -76,10 +75,11 @@ end
 
 
 % @Perf
+% 
 function Result = make_recid(Q, Rec, First, Last)
    UU = Rec.newKey();
    for i=First:Last
-       Rec.Data(i).recid = sprintf('PK_%s%_%08d', UU, i);
+       Rec.Data(i).recid = sprintf('PK_%s_%08d', UU, i);
    end
    Result = true;
 end
@@ -93,6 +93,13 @@ function Result = testSelect(Q)
     % Test SELECT functionality and DbQuery.select()    
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery.select test started')
     
+    Count = Q.selectCount('TableName', 'master_table');
+    if Count == 0
+        Result = false;
+        io.msgLog(LogLevel.Warning, 'testSelect: Table master_table is empty, cannot test select. Try again after calling testInsert');
+        return;
+    end
+
     %----------------------------------------------------- Simple select & convert
     Limit = 100;
     R = Q.select('*', 'TableName', 'master_table', 'Limit', Limit);
@@ -324,6 +331,7 @@ function Result = testInsert(Q)
         % Merge DbRecord with struct-array, for example to add primary-key or
         % other data to Matrix
         R.merge(S);
+        
         Q.insert(R, 'BatchSize', 100);
         io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
     end
