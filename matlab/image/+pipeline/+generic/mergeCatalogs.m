@@ -1,7 +1,7 @@
 function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %
     % Example: [MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
-    %          I = 1; AA=MergedCat(I).toTable; Flag = AA.PM_DeltaChi2>1.5 & AA.Nobs>5; sum(Flag)
+    %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge...  sum(Flag)
     %          ds9(AllSI(1,I), 1); 
     %          ds9(AllSI(end,I), 2); 
     %          ds9.plot(MergedCat(I).Catalog(Flag,1:2),'o','Coo','fk5')
@@ -101,28 +101,31 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     % fit proper motion
     if Args.FitPM
         FitMotion = lcUtil.fitMotion(MatchedS, Args.fitMotionArgs{:});
-        NumCol    = 8;
+        NumColPM    = 8;
     else
-        NumCol    = 0;
+        NumColPM    = 0;
     end
     if Args.fitPolyHyp
-        NumCol    = NumCol + 2;
+        NumColVar    = 2;
+    else
+        NumColVar    = 0;
     end
     Nstat     = numel(Args.ColNamesStat);
     Nall      = numel(Args.ColNamesAll);
     NstatProp = cellfun(@numel,Args.FunIndStat);
-    NumCol    = NumCol + 1 + sum(NstatProp) + Nall.*Nepochs;
+    NumCol    = NumColPM + NumColVar + 1 + sum(NstatProp) + Nall.*Nepochs;
     
     MergedCat = AstroCatalog([Nfields 1]);
     %FunType   = str2func(class(MatchedS(1).getMatrix(Args.ColNameFlags)));
+    
     
     for Ifields=1:1:Nfields    
         ColNames = cell(1, NumCol);
         ColUnits = cell(1, NumCol);
         Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
         if Args.FitPM
-            ColNames = {'RA','Dec','Nobs', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_DeltaChi2'};
-            ColUnits = {'deg','deg','','deg','deg','deg/day','deg/day',''};
+            ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb'};
+            ColUnits(1:NumColPM) = {'deg','deg','','deg','deg','deg/day','deg/day',''};
             
             Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
             Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
@@ -131,10 +134,15 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
             Cat(:,5)       = FitMotion(Ifields).Dec.StdResid_H0(:);
             Cat(:,6)       = FitMotion(Ifields).RA.ParH1(2,:).';
             Cat(:,7)       = FitMotion(Ifields).Dec.ParH1(2,:).';
-            Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
+            Cat(:,8)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
+            
+            %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
+            Icol = NumColPM;
+        else
+            Icol = 0;
         end
         
-        Icol = numel(ColNames) + 1;
+        Icol = Icol + 1;
         Cols(Ifields).Flags = combineFlags(MatchedS(Ifields),'FlagsNameDic',Args.ColNameFlags, 'FlagsType',@uint32);
         Cat(:,Icol) = Cols(Ifields).Flags.(Args.ColNameFlags)(:);
         ColNames{Icol} = Args.ColNameFlags;

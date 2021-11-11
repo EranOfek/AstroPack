@@ -39,6 +39,9 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     %            .RA.StdResid_H0 - std of H0 residuals.
     %            .RA.StudentT_H1 - student-t statistics (mu/rms) for RA.
     %                   Dof is Nobs-2.
+    %            .RA.StudentT_ProbH1 - Student-t cumulative probability
+    %                   for the abs value of 'StudentT_H1' with (Nobs-2) degrees of freedom.
+    %                   This value is between 0.5 and 1.
     %            .Dec. - the same as .RA, but for the Dec axis.
     % Author : Eran Ofek (May 2021)
     % Example: Time=(1:1:20)'; RA = randn(20,1e5)./(3600.*100); Dec=randn(20,1e5)./(3600.*200);
@@ -76,8 +79,9 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     
     Result.MeanT = MeanT;
     
-    H1 = [ones(N,1), Time(:)-MeanT];
-    H0 = ones(N,1);
+    H1  = [ones(N,1), Time(:)]; %-MeanT];
+    H1t = H1;
+    H0  = ones(N,1);
     
     for I=1:1:2
         if I==1
@@ -96,30 +100,41 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
             % use loop and omit NaNs
             ParH1  = nan(2,Nsrc);
             ParH0  = nan(1,Nsrc);
+            T0     = nan(1,Nsrc);
+            StdT   = nan(1,Nsrc);
             FlagNN = ~isnan(Y);
             Nobs   = sum(FlagNN, 1);
+            
+            AllTimes = Time.*FlagNN;
+            AllTimes(AllTimes==0) = NaN;
+            MeanTindiv = mean(AllTimes,  1, 'omitnan');
             for Isrc=1:1:Nsrc
                 if Nobs(Isrc)>=Args.MinNobs
-                    ParH1(:,Isrc) = H1(FlagNN(:,Isrc),:)\Y(FlagNN(:,Isrc),Isrc);
+                    H1t(:,2) = H1(:,2) - MeanTindiv(Isrc);
+                    ParH1(:,Isrc) = H1t(FlagNN(:,Isrc),:)\Y(FlagNN(:,Isrc),Isrc);
+                    
                     ParH0(:,Isrc) = H0(FlagNN(:,Isrc),:)\Y(FlagNN(:,Isrc),Isrc);
                     
                     % calculate the std of Times and T0
-                    T0   = mean(Time(FlagNN(:,Isrc)));
-                    StdT = std(Time(FlagNN(:,Isrc)));
+                    T0(Isrc)   = mean(Time(FlagNN(:,Isrc)));
+                    StdT(Isrc) = std(Time(FlagNN(:,Isrc)));
                 end
             end
+            % calc ParH1 at MeanT
+            ParH1(1,:) = ParH1(1,:) + (MeanTindiv - MeanT).*ParH1(2,:);
 
         else
             % no NaN - fit simultanously
-            ParH1 = H1 \ Y;
-            ParH0 = H0 \ Y;
+            H1t(:,2) = H1(:,2) - MeanT;
+            ParH1 = H1t \ Y;
+            ParH0 = H0  \ Y;
             Nobs  = size(Y,1);
             
             T0   = mean(Time);
             StdT = std(Time);
         end
 
-        Y_calcH1 = H1 * ParH1;
+        Y_calcH1 = H1t * ParH1;
         Y_calcH0 = H0 * ParH0;
 
         ResidH1  = Y - Y_calcH1;
@@ -136,11 +151,12 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         
         Result.(PropStr).Chi2_H0 = nansum((ResidH0./ErrY).^2, 1);     
         
-        % this is incorrect - need to use student-t distribution
-        % because the std is practically unknown
+        Result.(PropStr).Nobs    = Nobs;
+        % calc t-distribution statistics
         
-        % but must renorm T...
-        Result.(PropStr).StudentT_H1 = ParH1(2,:)./Result.(PropStr).StdResid_H1./StdT;        
+        Result.(PropStr).StudentT_H1     = ParH1(2,:).*StdT./Result.(PropStr).StdResid_H1;   % with Ndof=Nobs-2
+        Result.(PropStr).StudentT_ProbH1 = tcdf(abs(Result.(PropStr).StudentT_H1), Result.(PropStr).Nobs);
+        
         
         if Args.RenormErr
             
