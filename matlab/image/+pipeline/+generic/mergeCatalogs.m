@@ -67,15 +67,25 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
 
     Result = [];
     for Ifields=1:1:Nfields
-        [~, ~, Matched(Ifields,:)] = imProc.match.unifiedSourcesCatalog(Obj(:,Ifields), 'CooType',Args.CooType,...
+        MatchedS(Ifields) = MatchedSources;
+        [Result, Matched] = MatchedS.unifiedCatalogsIntoMatched(Obj(:,Ifields), 'CooType',Args.CooType,...
                                                          'Radius',Args.Radius,...
                                                          'RadiusUnits',Args.RadiusUnits,...
+                                                         'JD',JD,...
                                                          Args.unifiedSourcesCatalogArgs{:});
                                                      
-        MatchedS(Ifields) = MatchedSources;
-        MatchedS(Ifields).addMatrix(Matched(Ifields,:), Args.MatchedColums);
-        % populate JD
-        MatchedS(Ifields).JD = JD;  
+                                                     
+                                                     
+        
+%         [~, ~, Matched(Ifields,:)] = imProc.match.unifiedSourcesCatalog(Obj(:,Ifields), 'CooType',Args.CooType,...
+%                                                          'Radius',Args.Radius,...
+%                                                          'RadiusUnits',Args.RadiusUnits,...
+%                                                          Args.unifiedSourcesCatalogArgs{:});
+%                                                      
+%         MatchedS(Ifields) = MatchedSources;
+%         MatchedS(Ifields).addMatrix(Matched(Ifields,:), Args.MatchedColums);
+%         % populate JD
+%         MatchedS(Ifields).JD = JD;  
         
         % image 2 image X shift (pix)
         Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
