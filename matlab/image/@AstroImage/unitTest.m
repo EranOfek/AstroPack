@@ -271,6 +271,18 @@ function Result = unitTest()
     Res = funBinaryImVar(AI,AI,@plus);
     Res = funBinaryImVar(AI,AI,@minus);
     Res = funBinaryImVar(AI,3,@times);
+    
+    % load and test real images
+    AI1 = AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+    AI2 = AstroImage('FOCx38i0101t_c0f.fits');
+    
+    [Ny1, Nx1] = AI1.sizeImage;
+    [Ny2, Nx2] = AI2.sizeImage;    
+    Nymin = min([Ny1,Ny2]);
+    Nxmin = min([Nx1,Nx2]);
+    Sec_ccdsec = [1 Nxmin 1 Nymin];
+    Res = crop(AI1./max(AI1.Image,[],'all'),Sec_ccdsec)+crop(AI2./max(AI2.Image,[],'all'),Sec_ccdsec);
+    
 
     cd(PWD);
 

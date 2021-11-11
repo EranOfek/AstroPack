@@ -22,6 +22,12 @@ function Result = unitTest()
     if FlagBad
         error('Possible problem with compare2template');
     end
+    
+    [FlagBad, FracbadPixels, Z] = imProc.dark.compare2template(AI, 'Template',Template,'Nsigma',0.001);
+    if ~FlagBad
+        error('Possible problem with compare2template');
+    end
+    
 
     % identifyFlaringPixels
     Cube = randn(100,100,10);
@@ -66,7 +72,7 @@ function Result = unitTest()
     if ~(y==90 && x==200)
         error('Problem with overscan subtraction');
     end
-
+    
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.dark test passed');
     Result = true;
 end
