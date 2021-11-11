@@ -120,7 +120,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     else
         if isa(Args.IsFlat,'function_handle')
             % call the function
-            IsFlat = Args.IsFlat(Obj, ImObj, Args.IsFlatArgs{:});
+            IsFlat = Args.IsFlat(ImObj, Args.IsFlatArgs{:});
         elseif islogical(Args.IsFlat) || isnumeric(Args.IsFlat)
             IsFlat = Args.IsFlat;
         else
