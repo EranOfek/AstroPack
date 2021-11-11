@@ -176,8 +176,8 @@ classdef ds9 < handle
                 if contains(Answer,'not found')
                     % It is possible that xpa is not installed
                     fprintf('\n It seems that xpa and/or ds9 are not installed\n');
-                    fprintf('ds9 instellation: http://ds9.si.edu/site/Download.html\n');
-                    fprintf('xpa instellation: http://hea-www.harvard.edu/RD/xpa/index.html\n');
+                    fprintf('ds9 installation: http://ds9.si.edu/site/Download.html\n');
+                    fprintf('xpa installation: http://hea-www.harvard.edu/RD/xpa/index.html\n');
                 end
                 error('Command: %s failed - Answer: %s',String,Answer);
                 

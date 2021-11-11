@@ -1291,7 +1291,7 @@ def process_xlsx_file(filename):
 
     global last_sql_fname
     log('\nCreate database by running from command line:\n')
-    log('psql -U postgres -f ' + last_sql_fname + '.sql')
+    log('psql -U postgres -f ' + last_sql_fname)
 
 
 # Process CSV file with database definitions

@@ -18,7 +18,8 @@ function Result = unitTest()
     Q = db.DbQuery('unittest:master_table');
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
     
-    
+    testSelect(Q);        
+        
     DoubleFields = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
     Cols = numel(strsplit(DoubleFields, ','));
     
