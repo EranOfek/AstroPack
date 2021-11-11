@@ -36,7 +36,7 @@ classdef DbRecord < Base
     %--------------------------------------------------------
     methods % Constructor
         function Obj = DbRecord(Data, Args)
-            % Constructor - @Todo - discuss corret row,col order!
+            % Constructor
             % Data: struct array, table, cell array, matrix
             arguments
                 Data = [];
@@ -59,8 +59,13 @@ classdef DbRecord < Base
                     Obj.Data = cell2struct(Data, Args.ColNames, 2);
                 elseif isnumeric(Data)
                     
-                    % @Perf
+                    % @Perf - Need to be improved, it works very slow with
+                    % arrays > 10,000
                     Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 2);  %numel(Args.ColNames));
+                elseif isa(Data, 'AstroCatalog')
+                    % Obj.Data = @Todo
+                elseif isa(Data, 'AstroTable')
+                    % Obj.Data = @Todo
                 end
             end
             
@@ -69,7 +74,7 @@ classdef DbRecord < Base
         
         % Destructor
         function delete(Obj)
-            io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
+            %io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
         end
     end
 
@@ -118,62 +123,82 @@ classdef DbRecord < Base
                                   
         function Result = convert2table(Obj)
             % Convert record(s) to table
-            Result = struct2table(Obj.Data);
-            Size = size(Result);
-            assert(numel(Obj.Data) == Size(1));
+            if ~isempty(Obj.Data)
+                Result = struct2table(Obj.Data);
+                Size = size(Result);
+                assert(numel(Obj.Data) == Size(1));
+            else
+                Result = [];
+            end
         end
 
         
         function Result = convert2cell(Obj)
             % Convert record(s) to cell
             % Note that we need to transpose it
-            Result = squeeze(struct2cell(Obj.Data))';
-            Size = size(Result);
-            assert(numel(Obj.Data) == Size(1));
+            if ~isempty(Obj.Data)            
+                Result = squeeze(struct2cell(Obj.Data))';
+                Size = size(Result);
+                assert(numel(Obj.Data) == Size(1));
+            else
+                Result = [];
+            end
         end
 
 
         function Result = convert2mat(Obj)
             % Convert record(s) to matrix, non-numeric fields are
             % Note that we need to transpose it
-            Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
-            Size = size(Result);
-            assert(numel(Obj.Data) == Size(1));
+            if ~isempty(Obj.Data)            
+                Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
+                Size = size(Result);
+                assert(numel(Obj.Data) == Size(1));
+            else
+                Result = [];
+            end                
         end
 
         
         function Result = convert2AstroTable(Obj)
             % Convert record(s) to AstroTable
-            Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
-            Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
-            Size = size(Result.Catalog);
-            assert(numel(Obj.Data) == Size(1));
+            if ~isempty(Obj.Data)            
+                Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
+                Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
+                Size = size(Result.Catalog);
+                assert(numel(Obj.Data) == Size(1));
+            else
+                Result = [];
+            end
         end
 
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
-            Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
-            Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
-            Size = size(Result.Catalog);
-            assert(numel(Obj.Data) == Size(1));
+            if ~isempty(Obj.Data)            
+                Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
+                Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
+                Size = size(Result.Catalog);
+                assert(numel(Obj.Data) == Size(1));
+            else
+                Result = [];
+            end            
         end
            
 
-        function Result = convert2(Obj, Conv)                  
-            Conv = lower(Conv);
-            if strcmp(Conv, 'table')
+        function Result = convert2(Obj, OutType)                  
+            OutType = lower(OutType);
+            if strcmp(OutType, 'table')
                 Result = Obj.convert2table();
-            elseif strcmp(Conv, 'cell')
+            elseif strcmp(OutType, 'cell')
                 Result = Obj.convert2cell();
-            elseif strcmp(Conv, 'mat')
+            elseif strcmp(OutType, 'mat')
                 Result = Obj.convert2mat();
-            elseif strcmp(Conv, 'astrotable')
+            elseif strcmp(OutType, 'astrotable')
                 Result = Obj.convert2AstroTable();
-            elseif strcmp(Conv, 'astrocatalog')
+            elseif strcmp(OutType, 'astrocatalog')
                 Result = Obj.convert2AstroCatalog();
             else
-                error('convert2: unknown output type: %s', Conv);
+                error('convert2: unknown output type: %s', OutType);
             end
         end
                     

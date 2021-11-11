@@ -16,41 +16,55 @@ function Result = unitTest()
 
     %
     Q = db.DbQuery('unittest:master_table');
+    Q = db.DbQuery('unittest', 'TableName', 'master_table');
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
     
-    
-    DoubleFields = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
-    Cols = numel(strsplit(DoubleFields, ','));
-    
-    % @Eran - Why it fails with 2 ???
-    Mat = rand(10, Cols);
-    R = db.DbRecord(Mat, 'ColNames', DoubleFields);
-    Q.insert(R, 'InsertRecFunc', @make_recid);
-    
+    %testInsert(Q);
+    %testSelect(Q);        
+        
+    ColNames = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
+    ColNames = Q.Config.Data.Database.Items.UnitTest.DoubleFields;
+    Cols = numel(strsplit(ColNames, ','));
+    Mat = rand(1000, Cols);
+    R = db.DbRecord(Mat, 'ColNames', ColNames);
+    %Q.insert(R, 'InsertRecFunc', @make_recid);
+    Q.insert(Mat, 'ColNames', ColNames, 'InsertRecFunc', @make_recid, 'InsertRecArgs', {'PK', 'recid'});
     
     % Select fields
+    Q = db.DbQuery('unittest:master_table');    
     Limit = 10000;    
     Fields = 'recid,fdouble1,fdouble2,fdouble3';
-    RecSelect = Q.select(Fields,  'Limit', Limit);
-    RecCopy   = Q.select(Fields,  'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp1.csv');
     
-    Mat1 = Q.select('fdouble1,fdouble2,fdouble3',       'Where', 'fdouble1 > fdouble2', 'Convert', 'mat', 'Limit', Limit);
+    % Compare performance of SELECT vs COPY TO
+    for Iter=1:5
+        TempFile = 'C:/temp/__tmp1.csv';
+        delete(TempFile);
+
+        t = tic();
+        RecSelect = Q.select(Fields,  'Limit', Limit);
+        io.msgStyle(LogLevel.Test, 'magenta', 'SELECT: %0.5f', double(tic()-t)/1e7);
+
+        t = tic();
+        RecCopy   = Q.select(Fields,  'Limit', Limit, 'UseCopy', true, 'TempName', TempFile);
+        io.msgStyle(LogLevel.Test, 'magenta', 'SELECT using COPY: %0.5f', double(tic()-t)/1e7);
+
+        assert(numel(RecSelect.Data) == numel(RecCopy.Data));
+    end
+    
+    %Mat1 = Q.select('fdouble1,fdouble2,fdouble3',       'Where', 'fdouble1 > fdouble2', 'OutType', 'mat', 'Limit', Limit);
     Rec1 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp1.csv');
     Rec2 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp2.csv');
-    
-    
+        
     
     % Insert Mat
     Q = db.DbQuery('unittest:master_table', 'InsertRecFunc', @make_recid);    
     Mat = rand(10, 3);
-    R = db.DbRecord(Mat, 'ColNames', 'fdouble1,fdouble2,fdouble3');
-    Q.insert(R);
+    Q.insert(Mat, 'ColNames', 'fdouble1,fdouble2,fdouble3');
     
     DoubleFields = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
     Cols = numel(strsplit(DoubleFields, ','));
     Mat = rand(1000, Cols);
-    R = db.DbRecord(Mat, 'ColNames', DoubleFields);
-    Q.insert(R);
+    Q.insert(Mat, 'ColNames', DoubleFields);
     
     % Call tests using 'UnitTest' database    
     TestAll = true;
@@ -75,12 +89,20 @@ end
 
 
 % @Perf
-function Result = make_recid(Q, Rec, First, Last)
-   UU = Rec.newKey();
-   for i=First:Last
-       Rec.Data(i).recid = sprintf('PK_%s%_%08d', UU, i);
-   end
-   Result = true;
+% 
+function Result = make_recid(Query, Rec, First, Last, Args)
+    arguments
+        Query   db.DbQuery
+        Rec     db.DbRecord
+        First
+        Last
+        Args.PK = 'recid'
+    end
+    UU = Rec.newKey();
+    for i=First:Last
+        Rec.Data(i).(Args.PK) = sprintf('PK_%s_%08d', UU, i);
+    end
+    Result = true;
 end
 
 
@@ -92,6 +114,13 @@ function Result = testSelect(Q)
     % Test SELECT functionality and DbQuery.select()    
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery.select test started')
     
+    Count = Q.selectCount('TableName', 'master_table');
+    if Count == 0
+        Result = false;
+        io.msgLog(LogLevel.Warning, 'testSelect: Table master_table is empty, cannot test select. Try again after calling testInsert');
+        return;
+    end
+
     %----------------------------------------------------- Simple select & convert
     Limit = 100;
     R = Q.select('*', 'TableName', 'master_table', 'Limit', Limit);
@@ -130,18 +159,18 @@ function Result = testSelect(Q)
     
     % Select and load records, automatically convert to output type
     Fields = '*';
-    Table = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'table', 'Limit', Limit);
+    Table = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'table', 'Limit', Limit);
     assert(isa(Table, 'table'));       
-    Cell = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'cell', 'Limit', Limit);
+    Cell = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'cell', 'Limit', Limit);
     assert(isa(Cell, 'cell'));  
     
     %----------------------------------------------------- Select double fields into Mat/AstroTable
     Fields = 'fdouble1,fdouble2';
-    Mat = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'mat', 'Limit', Limit);    
+    Mat = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'mat', 'Limit', Limit);    
     assert(isa(Mat, 'double'));       
-    AstTable = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'AstroTable', 'Limit', Limit);
+    AstTable = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'AstroTable', 'Limit', Limit);
     assert(isa(AstTable, 'AstroTable'));       
-    AstCatalog = Q.select(Fields, 'TableName', 'master_table', 'Convert', 'AstroCatalog', 'Limit', Limit);    
+    AstCatalog = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'AstroCatalog', 'Limit', Limit);    
     assert(isa(AstCatalog, 'AstroCatalog'));       
     
     % Switch to another table
@@ -164,7 +193,7 @@ function Result = testSelect(Q)
     Where = 'fdouble1 > fdouble2';
     Limit = 100000;
     Output = 'mat';
-    Mat = Q.select(Fields, 'TableName', 'master_table', 'where', Where, 'Convert', Output, 'Limit', Limit);
+    Mat = Q.select(Fields, 'TableName', 'master_table', 'where', Where, 'OutType', Output, 'Limit', Limit);
     Size = size(Mat);
     disp(Size(1));
     
@@ -323,6 +352,7 @@ function Result = testInsert(Q)
         % Merge DbRecord with struct-array, for example to add primary-key or
         % other data to Matrix
         R.merge(S);
+        
         Q.insert(R, 'BatchSize', 100);
         io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
     end
@@ -341,8 +371,7 @@ function Result = testInsert(Q)
         
         for Iter=1:Iters
             Mat = rand(Count, Cols);
-            R = db.DbRecord(Mat, 'ColNames', ColNames);
-            Q.insert(R, 'InsertRecFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
+            Q.insert(Mat, 'ColNames', ColNames, 'InsertRecFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
             io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
             Count = Count * 10;
         end

@@ -79,23 +79,24 @@ end
 plot(VecJD-VecJD(1),SkyArea)
 
 Atmospheric refraction:
-RAD = 180./pi;
-% atmospheric refraction as a function of altitude
-Alt = (20:1:90)./RAD;
-R   = celestial.coo.refraction(Alt);
-plot(Alt.*RAD,R.*RAD.*3600)
-xlabel('Alt [deg]');
-ylabel('Refraction [arcsec]');
-% differntial refraction
-plot(Alt(1:end-1).*RAD,diff(R).*RAD.*3600)
-xlabel('Alt [deg]');
-ylabel('Diff. Refraction [arcsec/deg]');
-% color refraction as a function of altitude
-[R5,N]=celestial.coo.refraction_wave(Alt,5000);
-[R6,N]=celestial.coo.refraction_wave(Alt,6000);
-plot(Alt.*RAD,(R5-R6).*RAD.*3600)
-xlabel('Alt [deg]');
-ylabel('Color ref. [arcsec] (500 to 600 nm)');
+
+    RAD = 180./pi;
+    % atmospheric refraction as a function of altitude
+    Alt = (20:1:90)./RAD;
+    R   = celestial.coo.refraction(Alt);
+    plot(Alt.*RAD,R.*RAD.*3600)
+    xlabel('Alt [deg]');
+    ylabel('Refraction [arcsec]');
+    % differntial refraction
+    plot(Alt(1:end-1).*RAD,diff(R).*RAD.*3600)
+    xlabel('Alt [deg]');
+    ylabel('Diff. Refraction [arcsec/deg]');
+    % color refraction as a function of altitude
+    [R5,N]=celestial.coo.refraction_wave(Alt,5000);
+    [R6,N]=celestial.coo.refraction_wave(Alt,6000);
+    plot(Alt.*RAD,(R5-R6).*RAD.*3600)
+    xlabel('Alt [deg]');
+    ylabel('Color ref. [arcsec] (500 to 600 nm)');
 
 
 ## time package - time manipulation and conversion

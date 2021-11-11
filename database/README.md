@@ -7,3 +7,11 @@ Database definitions in Google Sheets,
 
 
 
+### euler1
+
+User: chent
+
+Put data under
+
+/var/www/html/data/...
+
