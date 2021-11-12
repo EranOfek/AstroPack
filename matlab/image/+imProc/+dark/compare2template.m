@@ -1,15 +1,14 @@
-function [FlagBad, FracBadPixels, Z] = compare2template(Obj, Args)
+function [FlagBad, FracBadPixels, Z] = compare2template(Obj, Template, Args)
     % Compare AstroImage to a template and variance and flag image
     %   which are different than the template.
     % Input  : - An AstroImage object containing images.
     %            The comparison is done 1 to 1, 1 to many, or many
     %            to 1.
+    %          - A template image with the same size
+    %            of the input image. This can be either a
+    %            matrix or an AstroImage object.
+    %            If this is an AstroImage it may include a variance image.
     %          * ...,key,val,...
-    %            'Template' - A template image with the same size
-    %                   of the input image. This can be either a
-    %                   matrix or an AstroImage object.
-    %                   If this is an AstroImage it may include a
-    %                   variance image.
     %            'TemplateVar' - A variance image. If provided, and
     %                   the template is an AstroImage, this will
     %                   override the content of the variance image
@@ -39,11 +38,11 @@ function [FlagBad, FracBadPixels, Z] = compare2template(Obj, Args)
     % Author : Eran Ofek (Apr 2021)
     % Example: AI = AstroImage({2.*randn(10,10)});
     %          Template = AstroImage({0},'Var',{4});
-    %          [FlagBad, FracbadPixels, Z] = imProc.dark.compare2template(AI, 'Template',Template)
+    %          [FlagBad, FracbadPixels, Z] = imProc.dark.compare2template(AI, Template)
 
     arguments
         Obj AstroImage
-        Args.Template
+        Template
         Args.TemplateVar                      = [];
         Args.Nsigma                           = 5;
         Args.MaxFracBadPixels(1,1)            = 0.0001;
@@ -53,17 +52,16 @@ function [FlagBad, FracBadPixels, Z] = compare2template(Obj, Args)
         Args.VarProp                          = 'Var';
     end
 
-    if isa(Args.Template,'AstroImage')
+    if isa(Template,'AstroImage')
         % assume that the Template include the variance image
-        Template = Args.Template;
         % check if TemplateVar is given
         if ~isempty(Args.TemplateVar)
             % override the template variance in the Template
             % AstroImage
             Template.(Args.VarProp) = Args.TemplateVar;
         end
-    elseif isnumeric(Args.Template)
-        Template = AstroImage({Args.Template},'Var',{Args.TemplateVar});
+    elseif isnumeric(Template)
+        Template = AstroImage({Template},'Var',{Args.TemplateVar});
     else
         error('Template must be an AstroImage or matrix');
     end

@@ -1367,7 +1367,7 @@ classdef AstroImage < Component
             %                   on which the operator
             %                   will be operated. Default is 'Data'.
             % Output : - An array in which each element corresponds to the operator applied
-            %            to an element in the ImageComponent object.
+            %            to an DataProp in the AstroImage object.
             %            If operator returns empty, then this function will
             %            return NaN.
             % Author : Eran Ofek (Apr 2021)
