@@ -1,11 +1,22 @@
 function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
-    %
-    % Example : imProc.asteroids.searchAsteroids_pmCat(MergedCat, AllSI(1).MaskData.Dict, 'ExpTime',range(JD), 'PM_Radius',3./3600)
+    % Search asteroids in merged AstroCatalog objects which contains proper motion
+    %   per source.
+    %   Objects with high/significant proper motions are selected and then
+    %   are linked.
+    %   A column is added to the input catalog with the indices of the
+    %   linked asteroids [NaN - not asteroid, negative number - unlinked
+    %   asteroid, pos number - linked sources].
+    %   Also a cutouts of images around each detected asteroid is
+    %   constructed.
+    % Input  : - 
+    % Output : -
+    % Author : Eran Ofek (Nov 2021)
+    % Example: imProc.asteroids.searchAsteroids_pmCat(MergedCat, AllSI(1).MaskData.Dict, 'ExpTime',range(JD), 'PM_Radius',3./3600)
     
     arguments
         CatPM AstroCatalog
         BitDict(1,1) BitDictionary
-        Args.Images AstroImage
+        Args.Images AstroImage                % column per CatPM element
         
         Args.ColNameRA                    = 'RA';  % RA at central epoch
         Args.ColNameDec                   = 'Dec'; % Dec at central epoch
@@ -25,6 +36,9 @@ function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
         Args.AddLinkingCol logical        = true;
         Args.LinkingColName               = 'LinkedAsteroid';
         
+        % cutouts
+        Args.HalfSizeXY                   = [50 50];
+        Args.cropLonLatArgs               = {'DataProp',{'ImageData'}, 'DeleteProp',{'BackData','VarData'}, 'UpdateCat',true, 'UpdateWCS',true, 'cropXYargs', {}, 'UpdateHeader',true};
     end
     
     LinkingRadiusRad = convert.angular(Args.LonkingRadiusUnits, 'rad', Args.LinkingRadius);
@@ -32,6 +46,7 @@ function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
     %[MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
     
     Ncat = numel(CatPM);
+    Icrop = 0;
     for Icat=1:1:Ncat
         % select columns from CatPM
         [Nsrc, Ncol] = sizeCat(CatPM(Icat));
@@ -92,26 +107,35 @@ function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
         if ~isempty(Args.Images) 
             % for eack linked source
             find(LinkedColumn == 0);
-            UniquAst = nique(LinkedColumn);
+            UniquAst = unique(LinkedColumn);
             UniquAst = UniquAst(~isnan(UniquAst));
             Nunique  = numel(UniquAst);
             for Iun=1:1:Nunique
                 % for each unique asteroid
                 % extract a cutout from Args.Images
             
-            
+                Iast = find(LinkedColumn==UniquAst(Iun));
+                
+                Icrop = Icrop + 1;
+                
+                AstCrop(Icrop).FieldIndex     = Icat;
+                AstCrop(Icrop).AstIndex       = UniquAst(Iun);
+                AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
+                AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
+                [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
+                                                                'CooUnits','rad',...
+                                                                'HalfSizeXY',Args.HalfSizeXY,...
+                                                                Args.cropLonLatArgs{:});
+                AstCrop(Icrop).X              = Info.X;
+                AstCrop(Icrop).Y              = Info.Y;
+                AstCrop(Icrop).CCDSEC         = Info.CCDSEC;
+                % asteroid selected lines from CatPM
+                CatPM(Icat).IndexOfAstInCatPM = Iast;
+                AstCrop(Icrop).SelectedCatPM  = CatPM(Icat).selectRows(Iast);
             
             end
         end
     end
         
-    
-    %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., 
-    % check that motion is consistent with Nobs sum(Flag)
-    %          ds9(AllSI(1,I), 1); 
-    %          ds9(AllSI(end,I), 2); 
-    %          ds9.plot(MergedCat(I).Catalog(Flag,1:2),'o','Coo','fk5')
-    
-    
 end
 

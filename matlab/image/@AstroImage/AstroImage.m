@@ -1876,6 +1876,8 @@ classdef AstroImage < Component
             %                   to crop. Default is {'ImageData','BackData','VarData','MaskData'}
             %            'DataPropIn' - Data property on which to operate.
             %                   Default is 'Image'.
+            %            'DeleteProp' - A cell array of properties to
+            %                   delete. Default is {}.
             %            'UpdateCat' - A logical indicating if to crop
             %                   catalog by XY (using cropXY). Default is true.
             %            'cropXYargs' - A cell array of arguments to pass
@@ -1888,12 +1890,7 @@ classdef AstroImage < Component
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
-            %                   If empty (default), then this argument will
-            %                   be set by the number of output args.
-            %                   If 0, then false, otherwise true.
-            %                   This means that IC.fun, will modify IC,
-            %                   while IB=IC.fun will generate a new copy in
-            %                   IB.
+            %                   Default is true.
             % Output : - A cropped AstroImage object.
             % Author : Eran Ofek (Jul 2021)
             % Example: AI = AstroImage({rand(100,100),rand(100,200)},'Back',{rand(100,100),rand(100,200)});
@@ -1905,25 +1902,20 @@ classdef AstroImage < Component
                 Args.Type                      = 'ccdsec'; % 'center' mat results in errors!
                 Args.DataProp cell             = {'ImageData','BackData','VarData','MaskData'};
                 Args.DataPropIn                = 'Image';
+                Args.DeleteProp cell           = {};
                 Args.UpdateCat(1,1) logical    = true;
                 Args.cropXYargs cell           = {};
                 Args.UpdateHeader(1,1) logical = true;
                 Args.UpdateWCS(1,1) logical    = true;
-                Args.CreateNewObj              = [];
+                Args.CreateNewObj logical      = true;
             end
 
-            if isempty(Args.CreateNewObj)
-                if nargout==0
-                    Args.CreateNewObj = false;
-                else
-                    Args.CreateNewObj = true;
-                end
-            end
             if Args.CreateNewObj
                 Result = Obj.copy();
             else
                 Result = Obj;
             end
+            Result.deleteProp(Args.DeleteProp);
 
             if isempty(CCDSEC)
                 % do nothing - no crop
@@ -1967,7 +1959,92 @@ classdef AstroImage < Component
             end
         end
 
+        function [Result, Info] = cropLonLat(Obj, RA, Dec, Args)
+            % crop an AstroImage images and catalogs by RA/Dec and update WCS
+            %   The crop return a stamp which axes are along the X, Y axes.
+            % Input  : - An AstroImage object.
+            %          - J2000.0 RA for crop cnter. A single coordinate for
+            %            all images.
+            %          - J2000.0 Dec for crop center.
+            %          * ...,key,val,...
+            %            'HalfSizeXY' - Half size of stamp in pix, in the X
+            %                   and Y axes.
+            %                   Default is [50 50].
+            %            'CooUnits' - RA/Dec units. Default is 'deg'.
+            %            'DataProp' - A cell array of image data properties
+            %                   to crop. Default is {'ImageData','BackData','VarData','MaskData'}
+            %            'DataPropIn' - Data property on which to operate.
+            %                   Default is 'Image'.
+            %            'DeleteProp' - A cell array of properties to
+            %                   delete. Default is {}.
+            %            'UpdateCat' - A logical indicating if to crop
+            %                   catalog by XY (using cropXY). Default is true.
+            %            'cropXYargs' - A cell array of arguments to pass
+            %                   to AstroCatalog/cropXY. Default is {}.
+            %            'UpdateHeader' - A logical indicating if to update
+            %                   the {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}
+            %                   header keywords. Default is true.
+            %            'UpdateWCS' - A logical indicating if to update
+            %                   the WCS. Default is true.
+            %            'CreateNewObj' - Indicating if the output
+            %                   is a new copy of the input (true), or an
+            %                   handle of the input (false).
+            %                   Default is true.
+            % Output : - A cropped AstroImage object.
+            %          - A structure containing the
+            %            .X - X coordinate corresponding to the [RA, Dec].
+            %            .Y - Y coordinate corresponding to the [RA, Dec].
+            %            .CCDSEC - Selected CCDSEC.
+            % Author : Eran Ofek (Jul 2021)
+            % Example: 
+            %          
 
+            
+            arguments
+                Obj
+                RA                                 % scalar
+                Dec                                % scalar
+                Args.HalfSizeXY                = [50 50];  % [x y] pix
+                Args.CooUnits                  = 'deg';
+                Args.DataProp cell             = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataPropIn                = 'Image';
+                Args.DeleteProp                = {};
+                Args.UpdateCat(1,1) logical    = true;
+                Args.cropXYargs cell           = {};
+                Args.UpdateHeader(1,1) logical = true;
+                Args.UpdateWCS(1,1) logical    = true;
+                
+                Args.CreateNewObj logical      = true;
+            end
+                        
+            Nobj   = numel(Obj);
+            Result = AstroImage(size(Obj));
+            Info.X      = zeros(Nobj,1);
+            Info.Y      = zeros(Nobj,1);
+            Info.CCDSEC = zeros(Nobj,4);
+            for Iobj=1:1:Nobj
+                [X, Y] = sky2xy(Obj, RA, Dec, 'InUnits', Args.CooUnits);
+                
+                CCDSEC = [X - Args.HalfSizeXY(1), X + Args.HalfSizeXY(1), Y - Args.HalfSizeXY(2), Y + Args.HalfSizeXY(2)];
+                CCDSEC = ceil(CCDSEC);
+                Info.X(Iobj)        = X;
+                Info.Y(Iobj)        = Y;
+                Info.CCDSEC(Iobj,:) = CCDSEC;
+                
+                % crop position from AstroImage
+                Result(Iobj) = crop(Obj(Iobj), CCDSEC, 'Type','ccdsec',...
+                                                       'DataProp',Args.DataProp,...
+                                                       'DataPropIn',Args.DataPropIn,...
+                                                       'DeleteProp',Args.DeleteProp,...
+                                                       'UpdateCat',Args.UpdateCat,...
+                                                       'cropXYargs',Args.cropXYargs,...
+                                                       'UpdateHeader',Args.UpdateHeader,...
+                                                       'UpdateWCS',Args.UpdateWCS,...
+                                                       'CreateNewObj',Args.CreateNewObj);
+            end
+        
+        end
+        
         
         function varargout = object2array(Obj,DataProp)
             % Convert an AstroImage object that contains scalars into an array
@@ -2008,6 +2085,33 @@ classdef AstroImage < Component
             
         end
                 
+        function Obj = deleteProp(Obj, PropList)
+            % Clean the content of specific properties of AstroImage
+            % Input  : - An AstroImage object.
+            %          - A cell array of properties to delete.
+            %            Default is {}.
+            % Output : - The original AstroImage with the deleted
+            %            properties.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: AI = AstroImage; AI.VarData.Image=1;
+            %          AI.deleteProp('VarData');
+           
+            arguments
+                Obj
+                PropList     = {};
+            end
+            
+            if ischar(PropList)
+                PropList = {PropList};
+            end
+            Nobj  = numel(Obj);
+            Nprop = numel(PropList);
+            for Iobj=1:1:Nobj
+                for Iprop=1:1:Nprop
+                   Obj(Iobj).(PropList{Iprop}) = [];
+                end
+            end
+        end
     end
     
 
