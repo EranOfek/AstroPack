@@ -1,5 +1,36 @@
-function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
-    %
+function [MergedCat, MatchedS, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
+    % Merge catalogs of the same field into a merged catalog of all unique sources
+    %   This include:
+    %       Generate a list of unified sources in all images using
+    %       MatchedSources/unifiedCatalogsIntoMatched
+    %       Peform relative photometry
+    %       Fit proper motions
+    %       calculate variability indicators
+    % Input  : - An array of AstroImage objects with populated catalogs.
+    %            The array has dimensions of (Nepochs X Nfields).
+    %          * ...,key,val,...
+    %            'CooType' - Coo type by which to match: 'pix' | ['sphere']
+    %            'Radius' - Search radius for source matching.
+    %                   Default is 3.
+    %            'RadiusUnits' - Search radius units. Default is 'arcsec'.
+    %            'RelPhot' - Logical indicating if to apply relative phot.
+    %                   calibration to the magnitudes. Default is true.
+    %            'fitPolyHyp' - 
+    %            'PolyDeg'
+    %            'FitPM'
+    %            'fitMotionArgs'
+    %            'MatchedColums'
+    %            'ColNameFlags'
+    %            'ColNamesStat'
+    %            'FunIndStat'
+    %            'ColNamesAll'
+    %            'MagCalibColName'
+    %            'MagCalibErrColName'
+    %            'unifiedSourcesCatalogArgs' - A cell array of additional
+    %                   arguments to pass to MatchedSources/unifiedCatalogsIntoMatched
+    %                   Default is {}.
+    % Output : -
+    % Author : Eran Ofek (Nov 2021)
     % Example: [MergedCat, MatchedS, Result] = imProc.match.mergeCatalogs(AllSI)
     %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., check that motion is consistent with Nobs sum(Flag)
     %          ds9(AllSI(1,I), 1); 
@@ -26,39 +57,10 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
         Args.MagCalibColName         = 'MAG_CONV_2';
         Args.MagCalibErrColName      = 'MAGERR_CONV_2';
-        
 
         Args.unifiedSourcesCatalogArgs cell     = {};
        
-%         
-%         
-%         
-%         Args.ColPrefix cell          = {'Mean_', 'Med_', 'Std_', 'Err_'};
-%         Args.ColGeneratingFun        = {@mean, @median, @std, @tools.math.stat.mean_error};
-%         Args.GeneratingFunArgs       = { {1,'omitnan'}, {1,'omitnan'}, {[],1,'omitnan'}, {1} };
-%         Args.ColsToApplyFun          = {'RA','Dec','MAG_PSF'};   
-%         
-%         Args.ColName_PM_DeltaChi2    = 'PM_DeltaChi2';
-%         Args.ColName_PM_RA           = 'PM_RA';
-%         Args.ColName_PM_Dec          = 'PM_Dec';
-%         Args.ColName_Ep_RA           = 'EpochRA';
-%         Args.ColName_Ep_Dec          = 'EpochDec';
-%         Args.ColName_PM_ErrRA        = 'PM_ErrRA';
-%         Args.ColName_PM_ErrDec       = 'PM_ErrDec';
-%         Args.ColName_Ep_ErrRA        = 'EpochErrRA';
-%         Args.ColName_Ep_ErrDec       = 'EpochErrDec';
-%         
-%         Args.ColName_Nobs            = 'Nobs';   % if empty do not add
-%         Args.ColName_Epoch           = 'Epoch';
-%         Args.EpochUnits              = 'JD';
-%         
-%         Args.FitPoly(1,1) logical    = true;
-%         
-%         
-%         
 
-%         Args.matchArgs cell          = {};
-        
     end
     
     % find all unique sources
@@ -206,18 +208,10 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         MergedCat(Ifields).ColUnits = ColUnits;
         MergedCat(Ifields).sortrows('Dec');
                 
-        % treat unmatched sources
-        %   select all sources with Nobs<3 || PM
-        %   For each source:
-        %       search all nearby selected sources w/o time overlap
-        %       Fit PM with RANSAC
-        %           If good solution - save connected source
+        % FFU: search for asteroids
+        % imProc.asteroids.searchAsteroids_pmCat
         
-        
-        % match to external catalogs
-        %   
-        
-    
+        % FFU: match to external catalogs
         
     end
     
@@ -228,7 +222,5 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %hold on;
     %semilogy(nanmedian(CorrMS(I).Data.MAG_CONV_2,1),  nanstd(CorrMS(I).Data.MAG_CONV_2,[],1),'.')
     %semilogy(nanmedian(MatchedS(I).Data.MAG_CONV_2,1),  nanstd(MatchedS(I).Data.Dec,[],1).*3600,'.')
-        
-     
     
 end
