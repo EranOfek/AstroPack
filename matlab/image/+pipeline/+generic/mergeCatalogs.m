@@ -1,15 +1,15 @@
 function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %
     % Example: [MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
-    %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge...  sum(Flag)
+    %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., check that motion is consistent with Nobs sum(Flag)
     %          ds9(AllSI(1,I), 1); 
     %          ds9(AllSI(end,I), 2); 
     %          ds9.plot(MergedCat(I).Catalog(Flag,1:2),'o','Coo','fk5')
     
     arguments
-        Obj
+        Obj AstroImage
         Args.CooType                 = 'sphere';
-        Args.Radius                  = 2;
+        Args.Radius                  = 3;
         Args.RadiusUnits             = 'arcsec';
         
         Args.RelPhot logical         = true;
@@ -68,9 +68,11 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     Result = [];
     for Ifields=1:1:Nfields
         MatchedS(Ifields) = MatchedSources;
-        [Result, Matched] = MatchedS.unifiedCatalogsIntoMatched(Obj(:,Ifields), 'CooType',Args.CooType,...
+        [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(Obj(:,Ifields),...
+                                                         'CooType',Args.CooType,...
                                                          'Radius',Args.Radius,...
                                                          'RadiusUnits',Args.RadiusUnits,...
+                                                         'MatchedColums',Args.MatchedColums,...
                                                          'JD',JD,...
                                                          Args.unifiedSourcesCatalogArgs{:});
                                                      
@@ -203,7 +205,7 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         MergedCat(Ifields).ColNames = ColNames;
         MergedCat(Ifields).ColUnits = ColUnits;
         MergedCat(Ifields).sortrows('Dec');
-        
+                
         % treat unmatched sources
         %   select all sources with Nobs<3 || PM
         %   For each source:

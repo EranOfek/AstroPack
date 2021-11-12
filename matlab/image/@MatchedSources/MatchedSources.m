@@ -478,7 +478,7 @@ classdef MatchedSources < Component
             %   Next, this matched AstroCatalog version is converted into a
             %   MatchedSources object.
             % Input  : - An (empty) MatchedSources object.
-            %          - A vector of AstroCatalog objects of sources
+            %          - A vector of AstroCatalog or AstroImage objects of sources
             %            observed in a single field over multiple epochs.
             %          * ...,key,val,...
             %            'JD' - A vector of JD (one per AstroCatalog
@@ -503,11 +503,11 @@ classdef MatchedSources < Component
             
             arguments
                 Obj
-                AT AstroCatalog
+                AT
                 Args.JD                              = []; % of empty put 1:N
                 Args.CooType                         = 'sphere';
                 Args.Radius                          = 3;
-                Args.RadiusUniys                     = 'arcsec';
+                Args.RadiusUnits                     = 'arcsec';
                 Args.unifiedSourcesCatalogArgs cell  = {};
                 Args.MatchedColums cell              = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
                 

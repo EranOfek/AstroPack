@@ -280,6 +280,65 @@ classdef BitDictionary < Component
         
     end
     
+    methods % search
+        function [Flag] = findBit(Obj, DecFlags, BitNames, Args)
+            % Search decimal flags array for entries in which some bits are open 
+            % Input  : - A single element BitDictionary object.
+            %          - An array of decimal flags in which to search for
+            %            the open bits.
+            %          - A cell array of bit names, or a decimal number
+            %            representing several bits to search in the array
+            %            of decimal flags.
+            %          * ...,key,val,...
+            %            'Method' - Indicating if to look for entries in
+            %                   which all the requested bits are on
+            %                   ('all'), or one or more of the requested
+            %                   bits are on ('any').
+            %                   Default is 'any'.
+            % Output : - An array of logicals indicating if each entry in
+            %            the array of decimal flags contains one/all the requested
+            %            bits.
+            % Author : Eran Ofek (Nov 2021)
+            % Example:
+            
+            
+            arguments
+                Obj(1,1)
+                DecFlags
+                BitNames
+                Args.Method           = 'any';     % 'all' | 'any'
+            end
+            
+            if ischar(BitNames)
+                BitNames = {BitNames};
+            end
+            
+            if isempty(BitNames)
+                Flag = false(size(DecFlags));
+            else
+                if iscell(BitNames) || isstring(BitNames)
+                    [~,~,SumBitDec,~] = name2bit(Obj, BitNames);
+                else
+                    SumBitDec = BitNames;
+                end
+
+                switch lower(Args.Method)
+                    case 'all'
+                        Flag = bitand(DecFlags, SumBitDec) == SumBitDec;
+
+                    case 'any'
+                        Flag = bitand(DecFlags, SumBitDec) > 0;
+
+                    otherwise
+                        error('Unknown Method option');
+                end
+            end
+            
+        end
+        
+        
+    
+    end
     
     
     methods (Static) % unit Test
