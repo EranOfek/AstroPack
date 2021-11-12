@@ -131,6 +131,20 @@ classdef BitDictionary < Component
         
     end
     
+    methods % utilities
+        function Result = isemptyBitDict(Obj)
+            % Return true if a BitDictionary contains no info
+            % Example: Result = isemptyBitDict(BitDictionary)
+            
+            Nobj = numel(Obj);
+            Result = true(size(Obj));
+            for Iobj = 1:1:Nobj
+                Result(Iobj) = isempty(Obj.Dic.BitName);
+            end
+            
+        end
+    end
+    
     methods % load/save
         function read
             % read a dictionary from file/memnory

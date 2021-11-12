@@ -1,4 +1,4 @@
-function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
+function CatPM = searchAsteroids_pmCat(CatPM, Args)
     % Search asteroids in merged AstroCatalog objects which contains proper motion
     %   per source.
     %   Objects with high/significant proper motions are selected and then
@@ -8,14 +8,23 @@ function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
     %   asteroid, pos number - linked sources].
     %   Also a cutouts of images around each detected asteroid is
     %   constructed.
-    % Input  : - 
+    % Input  : - An AstroCatalog object.
+    %            Ecah element corresponds to one field.
+    %            Each catalog must contains proper motion fit per source.
+    %            The proper motion information was obtained from multipl
+    %            images/catalogs.
+    %          * ...,key,val,...
+    %            'BitDict'
+    %            'Images'
+    %            '
     % Output : -
     % Author : Eran Ofek (Nov 2021)
     % Example: imProc.asteroids.searchAsteroids_pmCat(MergedCat, AllSI(1).MaskData.Dict, 'ExpTime',range(JD), 'PM_Radius',3./3600)
     
     arguments
         CatPM AstroCatalog
-        BitDict(1,1) BitDictionary
+        
+        Args.BitDict(1,1) BitDictionary
         Args.Images AstroImage                % column per CatPM element
         
         Args.ColNameRA                    = 'RA';  % RA at central epoch
@@ -60,7 +69,11 @@ function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
         ExpectedNobs = TotPM.*Args.ExpTime./(0.5.*Args.PM_Radius);
         
         % remove sources with some selected flags
-        Flags(Icat).FLAGS  = ~findBit(BitDict, DecFlags, Args.RemoveBitNames, 'Method','any');
+        if isemptyBitDic(Args.BitDict)
+            Flags(Icat).FLAGS = true(Nsrc,1);
+        else
+            Flags(Icat).FLAGS  = ~findBit(BitDict, DecFlags, Args.RemoveBitNames, 'Method','any');
+        end
         Flags(Icat).Tdist  = ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));
         Flags(Icat).Nobs   = Nobs>(0.9.*ExpectedNobs);
         Flags(Icat).All    = Flags.FLAGS & Flags.Tdist & Flags.Nobs;
@@ -85,7 +98,7 @@ function CatPM = searchAsteroids_pmCat(CatPM, BitDict, Args)
                 Dist = celestial.coo.sphere_dist_fast(RA(Icand), Dec(Icand), RA, Dec);
                 Dist(Icand) = NaN;
 
-                FlagLink = Dist < SearchRadiusRad;
+                FlagLink = Dist < LinkingRadiusRad;
                 if sum(FlagLink)>0
                     % found a match for asteroid 
                     LinkedAstIndex = LinkedAstIndex + 1;
