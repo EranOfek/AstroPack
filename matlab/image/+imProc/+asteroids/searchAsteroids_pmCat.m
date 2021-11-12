@@ -14,8 +14,42 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
     %            The proper motion information was obtained from multipl
     %            images/catalogs.
     %          * ...,key,val,...
-    %            'BitDict'
-    %            'Images'
+    %            'BitDict' - A bit dictionary by which to screen the FLAGS
+    %                   information in the input catalog. If empty, then
+    %                   the FLAGS information will not be used.
+    %                   Default is [].
+    %            'Images' - An AstroImage array of images. The rows
+    %                   corresponds to the epochs, while columns
+    %                   corresponds to fields (i.e., the input AstroCatalog
+    %                   elements). I.e., AstroCatalog(I) corresponds to
+    %                   AstroImage(:,I). These are the images from which
+    %                   the matched catalog (per field) with proper motion
+    %                   measurments were constructed (e.g., using 
+    %                   imProc.match.mergeCatalogs).
+    %                   If empty, then cutouts for the asteroids are not
+    %                   generated. Default is [].
+    %            'ColNameRA' - Column name in the input Astrocatalog
+    %                   containing the RA of sources at a fixed epochs
+    %                   (given in 'JD'). Default is 'RA'.
+    %            'ColNameDec' - Like 'ColNameRA', but for Declination.
+    %                   Default is 'Dec'.
+    %            'ColNamePM_RA' - Like 'ColNameRA', but for proper motion
+    %                   in RA.
+    %                   The units of the columns should be consistent.
+    %            'ColNamePM_Dec' - Like 'ColNameRA', but for proper motion
+    %                   in Dec.
+    %            'ColNamePM_TdistProb' - Like 'ColNameRA', but a column
+    %                   that provide the probability that the alternative
+    %                   hypothesis (star is moving) is correct.
+    %                   Default is 'PM_TdistProb'.
+    %            'ColNameNobs'
+    %            'ColNameFlags'
+    %            'JD'
+    %
+    %            'RemoveBitNames'
+    %            'ExpTime'
+    %            'PM_Radius'
+    %
     %            '
     % Output : -
     % Author : Eran Ofek (Nov 2021)
@@ -34,6 +68,7 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
         Args.ColNamePM_TdistProb          = 'PM_TdistProb';
         Args.ColNameNobs                  = 'Nobs';
         Args.ColNameFlags                 = 'FLAGS';
+        Args.JD                           = [];
         
         Args.RemoveBitNames               = {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
         Args.ExpTime                      = [];  % same units as PM time
@@ -55,6 +90,10 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
     %[MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
     
     Ncat = numel(CatPM);
+    if isempty(Args.JD)
+        Args.JD = (1:1:Ncat).';
+    end
+    
     Icrop = 0;
     for Icat=1:1:Ncat
         % select columns from CatPM
@@ -145,7 +184,8 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
                 % asteroid selected lines from CatPM
                 CatPM(Icat).IndexOfAstInCatPM = Iast;
                 AstCrop(Icrop).SelectedCatPM  = CatPM(Icat).selectRows(Iast);
-            
+                AstCrop(Icrop).JD             = Args.JD;
+                
             end
         end
     end
