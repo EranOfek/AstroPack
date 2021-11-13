@@ -3,7 +3,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %   This include:
     %       Generate a list of unified sources in all images using
     %       MatchedSources/unifiedCatalogsIntoMatched
-    %       Peform relative photometry
+    %       Perform relative photometry
     %       Fit proper motions
     %       calculate variability indicators
     % Input  : - An array of AstroImage objects with populated catalogs.
