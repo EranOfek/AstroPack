@@ -15,11 +15,26 @@ function [MergedCat, MatchedS, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
     %            'RadiusUnits' - Search radius units. Default is 'arcsec'.
     %            'RelPhot' - Logical indicating if to apply relative phot.
     %                   calibration to the magnitudes. Default is true.
-    %            'fitPolyHyp' - 
-    %            'PolyDeg'
-    %            'FitPM'
-    %            'fitMotionArgs'
-    %            'MatchedColums'
+    %            'fitPolyHyp' - A logical indicating if to fit all light
+    %                   curves with polynomials and calculate the delta\chi^2
+    %                   between models. Default is true.
+    %            'PolyDeg' - A cell array in wich each element contains all
+    %                   the degrees of the polynomial to fit.
+    %                   E.g., [0:1:2], is a full 2nd deg polynomial.
+    %                   The first cell corresponds to the null hypothesis.
+    %                   The Delta\chi2^2 is calculated relative to the null
+    %                   hypothesis. In addition, the error normalization is
+    %                   calculated such that the chi^2/dof of the null
+    %                   hypothesis will be 1 (with uniform errors).
+    %                   Default is {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]}.
+    %            'FitPM' - A logical indicating if to fit a proper motion
+    %                   for each source. Default is true.
+    %            'fitMotionArgs' - A cell array of additional arguments to
+    %                   pass to lcUtil.fitMotion. Default is {}.
+    %            'MatchedColums' - A cell array of column names in the
+    %            input AstroCatalog which to propagate into the
+    %                   MatchedSources object. Default is
+    %                   {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
     %            'ColNameFlags'
     %            'ColNamesStat'
     %            'FunIndStat'
