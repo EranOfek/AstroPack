@@ -13,6 +13,7 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
     %            Each catalog must contains proper motion fit per source.
     %            The proper motion information was obtained from multipl
     %            images/catalogs.
+    %            RA/Dec must be in degrees!
     %          * ...,key,val,...
     %            'BitDict' - A bit dictionary by which to screen the FLAGS
     %                   information in the input catalog. If empty, then
@@ -42,15 +43,41 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
     %                   that provide the probability that the alternative
     %                   hypothesis (star is moving) is correct.
     %                   Default is 'PM_TdistProb'.
-    %            'ColNameNobs'
-    %            'ColNameFlags'
-    %            'JD'
+    %            'ColNameNobs' - Like 'ColNameRA', but for a columns with
+    %                   the number of epochs in which the source was detected.
+    %                   Default is 'Nobs'.
+    %            'ColNameFlags' - Like 'ColNameRA', but for a columns with
+    %                   the combined FLAGS (propagated from the bit maks)
+    %                   over all epochs.
+    %                   Default is 'FLAGS'.
+    %            'JD' - Vector of JD of the epochs.
+    %                   If empty, then will be set to (1:Nepochs).
+    %                   Note that without providing this parameter the
+    %                   proper motions will be in arbitrary units.
+    %                   Default is [].
     %
-    %            'RemoveBitNames'
-    %            'ExpTime'
-    %            'PM_Radius'
+    %            'RemoveBitNames' - A cell array of bit names in the
+    %                   'FLAGS' column. A source for which one of these
+    %                   bits are on, will be removed from the list of
+    %                   candidates asteroids.
+    %                   Default is
+    %                   {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
+    %            'TimeSpan' - The range between the mid of the first and last
+    %                   observations. If empty then calc from max(JD) - min(JD).
+    %                   Default is [].
+    %            'PM_Radius' - This is the matching radius that was used to
+    %                   generate the merged catalogs.
+    %                   Default is 3.
+    %            'PM_RadiusUnits' - Units for 'PM_Radius'.
+    %                   Default is 'arcsec'.
     %
-    %            '
+    %            'LinkingRadius'
+    %            'LinkingRadiusUnits'
+    %            'AddLinkingCol'
+    %            'LinkingColName'
+    %
+    %            'HalfSizeXY'
+    %            'cropLonLatArgs'
     % Output : -
     % Author : Eran Ofek (Nov 2021)
     % Example: imProc.asteroids.searchAsteroids_pmCat(MergedCat, AllSI(1).MaskData.Dict, 'ExpTime',range(JD), 'PM_Radius',3./3600)
@@ -71,12 +98,13 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
         Args.JD                           = [];
         
         Args.RemoveBitNames               = {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
-        Args.ExpTime                      = [];  % same units as PM time
-        Args.PM_Radius                    = [];  % same units as the PM
+        Args.TimeSpan                     = [];  % same units as PM time
+        Args.PM_Radius                    = 3;   % same units as the PM
+        Args.PM_RadiusUnits               = 'arcsec';
         
         % linking
         Args.LinkingRadius                = 2;
-        Args.LonkingRadiusUnits           = 'arcsec';
+        Args.LinkingRadiusUnits           = 'arcsec';
         Args.AddLinkingCol logical        = true;
         Args.LinkingColName               = 'LinkedAsteroid';
         
@@ -85,13 +113,23 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
         Args.cropLonLatArgs               = {'DataProp',{'ImageData'}, 'DeleteProp',{'BackData','VarData'}, 'UpdateCat',true, 'UpdateWCS',true, 'cropXYargs', {}, 'UpdateHeader',true};
     end
     
-    LinkingRadiusRad = convert.angular(Args.LonkingRadiusUnits, 'rad', Args.LinkingRadius);
+    Args.PM_Radius   = convert.angular(Args.PM_RadiusUnits, 'deg', Args.PM_Radius); % deg
+    LinkingRadiusRad = convert.angular(Args.LinkingRadiusUnits, 'rad', Args.LinkingRadius);  % rad
+    
+    
     
     %[MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
     
     Ncat = numel(CatPM);
     if isempty(Args.JD)
         Args.JD = (1:1:Ncat).';
+    end
+    
+    if isempty(Args.TimeSpan)
+        % calc the TimeSpan from the vector of JD
+        % TimeSpoan is the range between the mid of the first and last
+        % observations
+        Args.TimeSpan = max(Args.JD) - min(Args.JD);
     end
     
     Icrop = 0;
@@ -105,7 +143,7 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
         DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
         
         TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
-        ExpectedNobs = TotPM.*Args.ExpTime./(0.5.*Args.PM_Radius);
+        ExpectedNobs = TotPM.*Args.TimeSpan./(0.5.*Args.PM_Radius);
         
         % remove sources with some selected flags
         if isemptyBitDic(Args.BitDict)
