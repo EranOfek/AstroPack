@@ -77,6 +77,8 @@ function Result = imwarp(Obj, Args)
         IsDisplacment = true;
     end
    
+    % set OutView
+    % Not clear what to do about this
     %OutView = affineOutputView(sizeA, ImWarpTransformation)
     
     Nobj = numel(Obj);
