@@ -1,4 +1,4 @@
-function [MergedCat, MatchedS, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
+function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
     % Merge catalogs of the same field into a merged catalog of all unique sources
     %   This include:
     %       Generate a list of unified sources in all images using
@@ -32,19 +32,60 @@ function [MergedCat, MatchedS, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
     %            'fitMotionArgs' - A cell array of additional arguments to
     %                   pass to lcUtil.fitMotion. Default is {}.
     %            'MatchedColums' - A cell array of column names in the
-    %            input AstroCatalog which to propagate into the
+    %                   input AstroCatalog which to propagate into the
     %                   MatchedSources object. Default is
     %                   {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
-    %            'ColNameFlags'
-    %            'ColNamesStat'
-    %            'FunIndStat'
-    %            'ColNamesAll'
-    %            'MagCalibColName'
-    %            'MagCalibErrColName'
+    %            'ColNameFlags' - A char array of the column name
+    %                   containing a flags (propagated from the bit mask)
+    %                   information. Default is 'FLAGS'.
+    %            'ColNamesStat' - A cell array of column names for which to
+    %                   calculate statistics over all epochs using
+    %                   MatchedSources/statSummary. For each requested
+    %                   statistics and column name, a new column name will
+    %                   be added to the output. For example, if you request
+    %                   the median and mean statistics, column names like:
+    %                   'Mean_MAG_CONV_2' and 'Median_MAG_CONV_2' will be
+    %                   added.
+    %                   Default is 
+    %                   {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4'};
+    %            'FunIndStat' - A cell array of indices of statistics which
+    %                   to calculate for each 'ColNamesStat'.
+    %                   The indices are those of the functions in
+    %                   MatchedSources/statSummary:
+    %                   1 - Mean; 2 - Median; 3 - Std; 4 - RStd; 5 - Range;
+    %                   6- Min; 7 - Max; 8 - Nobs.
+    %                   Default is 
+    %                   {[1:8], [1:8], [1 3], [1 3], [1 3], [1 3]};
+    %                   For example, for 'MAG_CONV_3' the Mean and Std will
+    %                   be added.
+    %            'ColNamesAll' - A cell array of column names for which to
+    %                   copy to the output AstroCatalog the data values
+    %                   from all epochs (i.e., for each column name, Nepoch
+    %                   columns will be added).
+    %                   Default is {'MAG_CONV_2','MAGERR_CONV_2'};
+    %            'MagCalibColName' - A char array of column name by which to
+    %                   calculate the relative photometric calibration.
+    %                   Default is 'MAG_CONV_2'.
+    %            'MagCalibErrColName' - Error column name corresponding to
+    %                   'MagCalibColName'. Default is 'MAGERR_CONV_2'.
+    %           
     %            'unifiedSourcesCatalogArgs' - A cell array of additional
     %                   arguments to pass to MatchedSources/unifiedCatalogsIntoMatched
     %                   Default is {}.
-    % Output : -
+    % Output : - MergedCat is an array of AstroCatalog (one per
+    %            field/column in the input Astrocatalog). Each AstroCatalog
+    %            contains the merged catalog with all the sources and their
+    %            properties.
+    %          - MatchedS is the MatchedSources object array
+    %            with element for each field.
+    %            The MatchedSources object contains the matrices of the data
+    %            retrieved from 'MatchedColums' columns. 
+    %          - ResZP is a structure array with the ZP info, returned by
+    %            lcUtil.zp_lsq
+    %          - ResVar is a structure array with the variability info,
+    %            returned by lcUtil.fitPolyHyp
+    %          - FitMotion is a structure array with proper motion info,
+    %            returned by lcUtil.fitMotion.
     % Author : Eran Ofek (Nov 2021)
     % Example: [MergedCat, MatchedS, Result] = imProc.match.mergeCatalogs(AllSI)
     %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., check that motion is consistent with Nobs sum(Flag)
@@ -117,7 +158,8 @@ function [MergedCat, MatchedS, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
             % apply ZP to all Magnitudes...
             %FFU
             'a'
-            
+        else
+            ResZP = [];
         end
         
         % lcUtil.fitPolyHyp
