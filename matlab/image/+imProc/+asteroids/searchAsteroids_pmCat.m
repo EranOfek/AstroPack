@@ -1,4 +1,4 @@
-function CatPM = searchAsteroids_pmCat(CatPM, Args)
+function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     % Search asteroids in merged AstroCatalog objects which contains proper motion
     %   per source.
     %   Objects with high/significant proper motions are selected and then
@@ -71,14 +71,54 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
     %            'PM_RadiusUnits' - Units for 'PM_Radius'.
     %                   Default is 'arcsec'.
     %
-    %            'LinkingRadius'
-    %            'LinkingRadiusUnits'
-    %            'AddLinkingCol'
-    %            'LinkingColName'
+    %            'LinkingRadius' - Search radius for linking. Asteroid
+    %                   candidates are linked if their RA/Dec in common epoch
+    %                   (this is the epoch of proper motion) is within this
+    %                   search radius. Default is 2.
+    %            'LinkingRadiusUnits' - Units for 'LinkingRadius'.
+    %                   Default is 'arcsec'.
+    %            'AddLinkingCol' - A logical indicating if to add a column
+    %                   to the merged AstroCatalog with the index of linked
+    %                   objects. Indices for linked objects are allocated
+    %                   as following:
+    %                   NaN - not an asteroid candidate.
+    %                   1,2,3,... - Linked object with more than one
+    %                       PM detection (such objects has multiple entries
+    %                       in the input merged catalog.
+    %                   -1,-2,... - Asteroid candidates that has a single
+    %                       entry in the input merged catalog.
+    %                   Default is true.
+    %            'LinkingColName' - A column name in which to insert the
+    %                   linking information.
+    %                   Default is 'LinkedAsteroid'
     %
-    %            'HalfSizeXY'
-    %            'cropLonLatArgs'
-    % Output : -
+    %            'HalfSizeXY' - The half size in [X, Y] of the cropped stamp
+    %                   to be cut around each asteroid candidate.
+    %            'cropLonLatArgs' - A cell array of additional arguments to
+    %                   pass to AstroImage/cropLonLat. Default is {}.
+    % Output : - The original input merged catalog, with possibly additional
+    %            column 'LinkingColName' for asteroid candidates.
+    %          - A structure array with the cropped images. The following
+    %            fields are available:
+    %            .FieldIndex - Index of field in which asteroid was
+    %                   detected. A field index is the index of input
+    %                   AstroCatalog element.
+    %            .AstIndex - Unique asteroid index. See 'AddLinkingCol'
+    %                   argument for more info.
+    %            .RA - RA of requested image stamp.
+    %            .Dec - Dec of requested image stamp.
+    %            .Stamps - An AstroImage containing the stamps at the
+    %                   asteroid position (image per epoch).
+    %            .X - Requested X position of stamp center.
+    %            .Y - Requested Y position of stamp center.
+    %            .CCDSEC - Actual CCDSEC from original image of each stamp
+    %                   (one epoch per line).
+    %            .IndexOfAstInCatPM - A vector of indices (line numbers)
+    %                   of the asteroid
+    %                   detection in the input merged catalog.
+    %            .SelectedCatPM - An AstroCatalog object with the rows
+    %                   corresponding to the asteroid candidate.
+    %            .JD - The JD of the stamps and original images epochs.
     % Author : Eran Ofek (Nov 2021)
     % Example: imProc.asteroids.searchAsteroids_pmCat(MergedCat, AllSI(1).MaskData.Dict, 'ExpTime',range(JD), 'PM_Radius',3./3600)
     
@@ -220,7 +260,7 @@ function CatPM = searchAsteroids_pmCat(CatPM, Args)
                 AstCrop(Icrop).Y              = Info.Y;
                 AstCrop(Icrop).CCDSEC         = Info.CCDSEC;
                 % asteroid selected lines from CatPM
-                CatPM(Icat).IndexOfAstInCatPM = Iast;
+                AstCrop(Icrop).IndexOfAstInCatPM = Iast;
                 AstCrop(Icrop).SelectedCatPM  = CatPM(Icat).selectRows(Iast);
                 AstCrop(Icrop).JD             = Args.JD;
                 
