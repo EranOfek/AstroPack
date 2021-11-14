@@ -1146,7 +1146,7 @@ classdef AstroImage < Component
             %                   {'Image','Back','Var','Mask'}
             % Output : * Vector of values at requested image positions.
             %            Output argument per each 'DataProp' element.
-            % Author : Eran Ofek (Nov 2021)
+            
             % Example: AI = AstroImage({rand(100,80)});
             %          [V1] = getImageVal(AI,2,2)
            
@@ -1170,9 +1170,9 @@ classdef AstroImage < Component
             [SizeY, SizeX] = Obj.sizeImage;
             
             if isempty(Y)
-               Ind = X;
+                Ind = X;
             else
-                Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], X, Y);
+                Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(X), round(Y));
             end
             varargout = cell(1, nargout);
             for Iarg=1:1:nargout    
