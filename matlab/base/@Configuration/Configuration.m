@@ -269,6 +269,23 @@ classdef Configuration < handle
             end
         end
         
+        
+        function Result = scan(Obj)
+            Result = Obj.scanStruct(Obj.Data);
+        end
+        
+        
+        function Result = scanStruct(Obj, Struct)
+            fields = fieldnames(Struct);            
+            for i=1:numel(fields)
+                FieldName = fields(i);
+                if isstruct(Obj.(FieldName))
+                    Result = Obj.scanStruct(Obj.(FieldName));
+                end
+            end
+            Result = true;
+        end
+        
     end
     
     %----------------------------------------------------------------------

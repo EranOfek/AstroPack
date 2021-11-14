@@ -195,10 +195,12 @@ classdef MsgLogger < handle
 					s = 'VRB';
 				case LogLevel.Debug
 					s = 'DBG';
-				case LogLevel.Test
-					s = 'TST';
 				case LogLevel.DebugEx
 					s = 'DBX';
+                case LogLevel.Perf
+                    s = 'PRF';
+				case LogLevel.Test
+					s = 'TST';                    
 				otherwise
 					error('Unknown LogLevel');
             end
