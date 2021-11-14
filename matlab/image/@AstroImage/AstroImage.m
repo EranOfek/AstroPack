@@ -2023,7 +2023,7 @@ classdef AstroImage < Component
             Info.Y      = zeros(Nobj,1);
             Info.CCDSEC = zeros(Nobj,4);
             for Iobj=1:1:Nobj
-                [X, Y] = sky2xy(Obj, RA, Dec, 'InUnits', Args.CooUnits);
+                [X, Y] = sky2xy(Obj(Iobj).WCS, RA, Dec, 'InUnits', Args.CooUnits);
                 
                 CCDSEC = [X - Args.HalfSizeXY(1), X + Args.HalfSizeXY(1), Y - Args.HalfSizeXY(2), Y + Args.HalfSizeXY(2)];
                 CCDSEC = ceil(CCDSEC);

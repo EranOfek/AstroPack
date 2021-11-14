@@ -74,7 +74,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %            'LinkingRadius' - Search radius for linking. Asteroid
     %                   candidates are linked if their RA/Dec in common epoch
     %                   (this is the epoch of proper motion) is within this
-    %                   search radius. Default is 2.
+    %                   search radius. Default is 7.
     %            'LinkingRadiusUnits' - Units for 'LinkingRadius'.
     %                   Default is 'arcsec'.
     %            'AddLinkingCol' - A logical indicating if to add a column
@@ -120,13 +120,13 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %                   corresponding to the asteroid candidate.
     %            .JD - The JD of the stamps and original images epochs.
     % Author : Eran Ofek (Nov 2021)
-    % Example: imProc.asteroids.searchAsteroids_pmCat(MergedCat, AllSI(1).MaskData.Dict, 'ExpTime',range(JD), 'PM_Radius',3./3600)
+    % Example: [MergedCat, AstCrop] = imProc.asteroids.searchAsteroids_pmCat(MergedCat, 'BitDict',AllSI(1).MaskData.Dict, 'JD',JD, 'PM_Radius',3, 'Images',AllSI)
     
     arguments
         CatPM AstroCatalog
         
         Args.BitDict(1,1) BitDictionary
-        Args.Images AstroImage                % column per CatPM element
+        Args.Images                       = [];   % column per CatPM element
         
         Args.ColNameRA                    = 'RA';  % RA at central epoch
         Args.ColNameDec                   = 'Dec'; % Dec at central epoch
@@ -138,12 +138,14 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.JD                           = [];
         
         Args.RemoveBitNames               = {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
+        Args.HighSNBitNames               = {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'};   % NEW
+        Args.SN_HighSN                    = 7;                                                     % NEW
         Args.TimeSpan                     = [];  % same units as PM time
         Args.PM_Radius                    = 3;   % same units as the PM
         Args.PM_RadiusUnits               = 'arcsec';
         
         % linking
-        Args.LinkingRadius                = 2;
+        Args.LinkingRadius                = 7;
         Args.LinkingRadiusUnits           = 'arcsec';
         Args.AddLinkingCol logical        = true;
         Args.LinkingColName               = 'LinkedAsteroid';
@@ -175,25 +177,35 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     Icrop = 0;
     for Icat=1:1:Ncat
         % select columns from CatPM
-        [Nsrc, Ncol] = sizeCat(CatPM(Icat));
+        [Nsrc, Ncol] = sizeCatalog(CatPM(Icat));
     
         PM           = CatPM(Icat).getCol({Args.ColNamePM_RA, Args.ColNamePM_Dec});
         PM_TdistProb = CatPM(Icat).getCol(Args.ColNamePM_TdistProb);
         Nobs         = CatPM(Icat).getCol(Args.ColNameNobs);
         DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
+        MeanSN       = CatPM(Icat).getCol('Mean_SN_3');
+        StdSN        = CatPM(Icat).getCol('Std_SN_3');
+        
         
         TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
         ExpectedNobs = TotPM.*Args.TimeSpan./(0.5.*Args.PM_Radius);
         
         % remove sources with some selected flags
-        if isemptyBitDic(Args.BitDict)
-            Flags(Icat).FLAGS = true(Nsrc,1);
+        if isemptyBitDict(Args.BitDict)
+            Flags(Icat).Flags        = true(Nsrc,1);
+            Flags(Icat).Flags_HighSN = true(Nsrc,1);
         else
-            Flags(Icat).FLAGS  = ~findBit(BitDict, DecFlags, Args.RemoveBitNames, 'Method','any');
+            % true if good candidate
+            Flags(Icat).Flags         = ~findBit(Args.BitDict, DecFlags, Args.RemoveBitNames, 'Method','any');
+            Flags(Icat).Flags_HighSN  = ~findBit(Args.BitDict, DecFlags, Args.HighSNBitNames, 'Method','any');
+            Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | MeanSN>Args.SN_HighSN;
         end
+        Icat
+        % FLAGS for good asteroid candidates
         Flags(Icat).Tdist  = ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));
+        Flags(Icat).LowStdSN = StdSN>0.5;
         Flags(Icat).Nobs   = Nobs>(0.9.*ExpectedNobs);
-        Flags(Icat).All    = Flags.FLAGS & Flags.Tdist & Flags.Nobs;
+        Flags(Icat).All    = Flags(Icat).Flags & Flags(Icat).Flags_HighSN & Flags(Icat).Tdist & Flags(Icat).Nobs & Flags(Icat).LowStdSN;
         
         % Number of asteroid candidates
         AstInd   = find(Flags(Icat).All);
@@ -204,15 +216,15 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         % this involves only comparing the position of sources
         [RA, Dec] = CatPM(Icat).getLonLat('rad', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec); % [rad]
         % select only the asteroid candidates
-        RA  = RA(Flags(Icat).All);
-        Dec = Dec(Flags(Icat).All);
+        CandRA  = RA(Flags(Icat).All);
+        CandDec = Dec(Flags(Icat).All);
         
         LinkedAstIndex       = 0;
         LinkedColumn         = nan(Nsrc, 1);  % nan - no PM | negative/unique(not necessely continous) - asteroid w/o links | >0 - asteroid with links
         LinkedColumn(AstInd) = -(1:1:numel(AstInd));
         if NastCand>1
             for Icand=1:1:NastCand
-                Dist = celestial.coo.sphere_dist_fast(RA(Icand), Dec(Icand), RA, Dec);
+                Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
                 Dist(Icand) = NaN;
 
                 FlagLink = Dist < LinkingRadiusRad;
@@ -222,14 +234,14 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
 
                     % mark the linked sources as the same asteroid (same
                     % index)
-                    LinkedColumn(AstInd(Icand)    = LinkedAstIndex;
-                    LinkedColumn(AstInd(FlagLink) = LinkedAstIndex;
+                    LinkedColumn(AstInd(Icand))    = LinkedAstIndex;
+                    LinkedColumn(AstInd(FlagLink)) = LinkedAstIndex;
                 end
             end
         end
         
         if Args.AddLinkingCol
-            CatPM(Icat).insertCol(LinkedColumn, Args.LinkingColName, '');
+            CatPM(Icat).insertCol(LinkedColumn, Inf, Args.LinkingColName, '');
         end
         
         
@@ -250,6 +262,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                 
                 AstCrop(Icrop).FieldIndex     = Icat;
                 AstCrop(Icrop).AstIndex       = UniquAst(Iun);
+                
                 AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
                 AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
                 [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
