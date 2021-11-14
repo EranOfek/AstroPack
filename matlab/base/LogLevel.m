@@ -18,11 +18,12 @@ classdef LogLevel < uint32
         Assert(3)       % Assert
         Warning(4)      % Warning
         Info(5)         % General info
-        Verbose(6)      % Verbose
+        Verbose(6)      % Verbose info
         Debug(7)        % Detailed debug
-        Test(8)         % Unit-Test
-        DebugEx(9)      % Very detailed debug, above Test level
-        All(10)          % All
+        DebugEx(8)      % Very detailed debug, above Test level
+        Perf(9)         % Performance timing
+        Test(10)        % Unit-Test        
+        All(11)         % All
     end
     
     
