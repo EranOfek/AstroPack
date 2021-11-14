@@ -1133,6 +1133,55 @@ classdef AstroImage < Component
     
     methods % basic functionality: funUnary, funUnaryScalar, funBinary, funStack, funTransform
         
+        function varargout = getImageVal(Obj, X, Y, Args)
+            % Get AstroImage image value at specific positions.
+            % Input  : - A single element AstroImage object.
+            %          - X coordinates, or indices/flags of image positions
+            %            to return.
+            %          - Y coordinates. If empty, then assume 'X' is
+            %            indices oe flags. Default is [].
+            %          * ...,key,val,...
+            %            'DataProp' - Cell of image data properties for which to
+            %                   return values. Default is 
+            %                   {'Image','Back','Var','Mask'}
+            % Output : * Vector of values at requested image positions.
+            %            Output argument per each 'DataProp' element.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: AI = AstroImage({rand(100,80)});
+            %          [V1] = getImageVal(AI,2,2)
+           
+            arguments
+                Obj(1,1)
+                X
+                Y                = [];
+                Args.DataProp    = {'Image','Back','Var','Mask'};
+            end
+            
+            if ischar(Args.DataProp)
+                Args.DataProp = {Args.DataProp};
+            end
+            
+            
+            Nprop   = numel(Args.DataProp);
+            if nargout>Nprop
+                error('Nuber of requested output arguments is larger than number of DataProp');
+            end
+                
+            [SizeY, SizeX] = Obj.sizeImage;
+            
+            if isempty(Y)
+               Ind = X;
+            else
+                Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], X, Y);
+            end
+            varargout = cell(1, nargout);
+            for Iarg=1:1:nargout    
+                varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
+            end
+            
+            
+        end
+        
         function Result = funUnary(Obj, Operator, Args)
             % Apply an unary function on AstroImage object.
             %       This include applying the function  on specific data
