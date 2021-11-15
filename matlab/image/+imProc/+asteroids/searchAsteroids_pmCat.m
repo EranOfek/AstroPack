@@ -70,11 +70,17 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %                   candidates asteroids.
     %                   Default is
     %                   {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
-    
-    %Args.HighSNBitNames               = {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'};   % NEW
-    %    Args.SN_HighSN                    = 7;                                                      % NEW
-    
-    
+    %            'HighSNBitNames' - A cell array of bit names in the
+    %                   'FLAGS' column.. A source for which one of these
+    %                   bits are on and Mean S/N (as defined by the 
+    %                   'ColNameMeanSN' argument) is smaller than
+    %                   the value provided in the 'SN_HighSN' argument,
+    %                   will be removed from the list of candidates asteroids.
+    %                   Default is
+    %                   {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'}; 
+    %            'SN_HighSN' - Threshold S/N for the 'HighSNBitNames' argument.
+    %                   Default is 7.
+    %
     %            'TimeSpan' - The range between the mid of the first and last
     %                   observations. If empty then calc from max(JD) - min(JD).
     %                   Default is [].
@@ -83,6 +89,14 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %                   Default is 3.
     %            'PM_RadiusUnits' - Units for 'PM_Radius'.
     %                   Default is 'arcsec'.
+    %            'Nobs_TdistProb' - a 2x2 matrix with:
+    %                   [Nobs TdistProb] columns for selecting moving siurces.
+    %                   Default is [5 0.995; 3 0.9999].
+    %            'MinStdSN' - Sources with Std S/N (as provided by the 
+    %                   'ColNameStdSN' argument) below this value will be
+    %                   removed from the asteroid candidates list
+    %                   (possibly persistent artifacts).
+    %                   Default is 0.4.
     %
     %            'LinkingRadius' - Search radius for linking. Asteroid
     %                   candidates are linked if their RA/Dec in common epoch
@@ -154,13 +168,13 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.JD                           = [];
         
         Args.RemoveBitNames               = {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
-        Args.HighSNBitNames               = {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'};   % NEW
-        Args.SN_HighSN                    = 7;                                                      % NEW
+        Args.HighSNBitNames               = {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'};   
+        Args.SN_HighSN                    = 7;                                                      
         Args.TimeSpan                     = [];  % same units as PM time
         Args.PM_Radius                    = 3;   % same units as the PM
         Args.PM_RadiusUnits               = 'arcsec';
-        Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   % NEW
-        Args.MinStdSN                     = 0.4;   % NEW
+        Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   
+        Args.MinStdSN                     = 0.4;   
         
         % linking
         Args.LinkingRadius                = 7;
