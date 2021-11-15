@@ -1,6 +1,9 @@
 % FITS
 %
-
+% list of needed functionality
+% write
+% writeTable
+%--------------------------------------------------------------------------
 % #functions (autogen)
 % FITS - FITS object constructor
 % delete_keys - Delete a lits of keywords from a list of FITS headers Package: @FITS (Static) Description: Delete a list of header keywords from a list of FITS images.
@@ -77,9 +80,7 @@ classdef FITS < handle
         end
     end
     
-    % list of needed functionality
-    % write
-    % writeTable
+
     
     methods (Static)
         function Nhdu = numHDU1(FileName)
@@ -94,6 +95,7 @@ classdef FITS < handle
             Nhdu = matlab.io.fits.getNumHDUs(Fptr);
             matlab.io.fits.closeFile(Fptr);
         end
+        
         
         function [HeadCell,Nhdu] = readHeader1(FileName,HDUnum)
             % Read a single header from a FITS file (Static)
@@ -189,6 +191,7 @@ classdef FITS < handle
             
         end
         
+        
         function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)
             % Read a single image from a FITS file
             % A static function of FITS class
@@ -233,7 +236,8 @@ classdef FITS < handle
 
         end
         
-        function [Cube]=read2cube(List,HDUnum,Args)
+        
+        function [Cube] = read2cube(List,HDUnum,Args)
             % Read a list of FITS images into a cube (multiple file names or multiple HDUs)
             % Static function
             % Input  : - An image name with wild cards or a cell array of
@@ -272,7 +276,8 @@ classdef FITS < handle
             
         end
         
-        function [Out,HeadCell,Col]=readTable1(TableName,Args)
+        
+        function [Out,HeadCell,Col] = readTable1(TableName,Args)
             % Read binary or ascii single FITS table
             % Package: @FITS (Static)
             % Description: Read binary or ascii FITS tables into a table.
@@ -320,7 +325,6 @@ classdef FITS < handle
             % Example: [Out,Head,Col]=FITS.readTable1('asu.fit');
             % Reliable: 2
             %--------------------------------------------------------------------------
-
             
             arguments
                 TableName
@@ -488,7 +492,8 @@ classdef FITS < handle
         
         end
         
-        function [KeysVal,KeysComment,Struct]=get_keys(Image,Keys,HDUnum,Str)
+        
+        function [KeysVal,KeysComment,Struct] = get_keys(Image,Keys,HDUnum,Str)
             % Get keywords value from a single FITS header
             % Package: @FITS (Static function)
             % Description: Get the values of specific keywords from a single
@@ -558,7 +563,8 @@ classdef FITS < handle
             end
         end
         
-        function [KeysVal,KeysComment,Struct,List]=mget_keys(Images,Keys,HDUnum,Str)
+        
+        function [KeysVal,KeysComment,Struct,List] = mget_keys(Images,Keys,HDUnum,Str)
             % Get header keywords value from multiple FITS
             % Package: @FITS (Static)
             % Description: Get the values of specific keywords from a list of
@@ -602,6 +608,7 @@ classdef FITS < handle
 
         end
         
+        
         function delete_keys(ImageName,Keywords)
             % Delete a lits of keywords from a list of FITS headers
             % Package: @FITS (Static)
@@ -634,6 +641,7 @@ classdef FITS < handle
                 matlab.io.fits.closeFile(Fptr);
             end
         end
+        
         
         function write_keys(ImageName,KeyCell)
             % Insert or update FITS header keywords
@@ -677,10 +685,10 @@ classdef FITS < handle
                 end
                 matlab.io.fits.closeFile(Fptr);
             end
-
         end
         
-        function Flag=write(Image,FileName,Args)
+        
+        function Flag = write(Image,FileName,Args)
             % Write or append an image into FITS file.
             % Static function
             %     The image may have N-dimensions.
@@ -844,8 +852,9 @@ classdef FITS < handle
 
         end % end write
         
+        
         % read to SIM
-        function Sim=read2sim(Images,Args)
+        function Sim = read2sim(Images,Args)
             % Description: Read FITS images into SIM object.
             %              Can read N-dimensional images.
             %              Can also read multi extension files.
@@ -943,8 +952,9 @@ classdef FITS < handle
         
     end
     
+    
     methods
-        function Nhdu=numHDU(Obj,FileName)
+        function Nhdu = numHDU(Obj,FileName)
             % return the number of HDUs in a FITS file
             % Input  : - A FITS object with the file name populated (or the
             %            file name can be provided in the 2nd argument)
@@ -980,7 +990,8 @@ classdef FITS < handle
 
         end
         
-        function [Obj,HeadCell,Nhdu]=readHeader(Obj,FileName,HDUnum)
+        
+        function [Obj,HeadCell,Nhdu] = readHeader(Obj,FileName,HDUnum)
             % Read an header into a three column cell array
             % Input  : - A FITS object.
             %          - An optional single FITS file name.
@@ -1024,7 +1035,8 @@ classdef FITS < handle
         
         end
         
-        function Obj=read(Obj,FileName,HDUnum,Args)
+        
+        function Obj = read(Obj,FileName,HDUnum,Args)
             % Read all FITS file to a FITS object
             % Input  : - A FITS object
             %          - An optional file name (to read a single file)
@@ -1075,7 +1087,8 @@ classdef FITS < handle
             end
         end
         
-        function Obj=readTable(Obj,FileName,HDUnum,Args)
+        
+        function Obj = readTable(Obj,FileName,HDUnum,Args)
             % Read binary or ascii multiple FITS table into a FITS object.
             % Package: @FITS (Static)
             % Description: Read binary or ascii FITS tables into a a FITS object.
@@ -1158,17 +1171,13 @@ classdef FITS < handle
                 % read each FITS file
                 if ~isempty(Obj(Iobj).File)
                     KeyVal = tools.struct.struct2keyval(Args);
-                    [Obj(Iobj).Data,Obj(Iobj).Header] = FITS.readTable1(Obj(Iobj).File,...
-                                                                        'HDUnum',Obj.HDU,...
-                                                                        KeyVal{:});
+                    [Obj(Iobj).Data,Obj(Iobj).Header] = ...
+                        FITS.readTable1(Obj(Iobj).File, 'HDUnum',Obj.HDU, KeyVal{:});
                 end
             end
-            
-            
-            
-        end
-        
+        end        
     end
+    
     
     methods (Static) % tests
         Result = unitTest(Obj)

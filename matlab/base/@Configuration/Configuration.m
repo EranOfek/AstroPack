@@ -269,23 +269,6 @@ classdef Configuration < handle
             end
         end
         
-        
-        function Result = scan(Obj)
-            Result = Obj.scanStruct(Obj.Data);
-        end
-        
-        
-        function Result = scanStruct(Obj, Struct)
-            fields = fieldnames(Struct);            
-            for i=1:numel(fields)
-                FieldName = fields(i);
-                if isstruct(Obj.(FieldName))
-                    Result = Obj.scanStruct(Obj.(FieldName));
-                end
-            end
-            Result = true;
-        end
-        
     end
     
     %----------------------------------------------------------------------
@@ -405,6 +388,9 @@ classdef Configuration < handle
                 
                 % Store the file name in FileName property
                 YamlStruct.FileName = FileName;
+                
+                % Convert, recursive function!
+                YamlStruct = Configuration.internal_convertStruct(YamlStruct);
             catch
                 io.msgStyle(LogLevel.Error, '@error', 'loadYaml: Exception loading file: %s', FileName);
             end
@@ -421,6 +407,43 @@ classdef Configuration < handle
                 NewYamlStruct = YamlStruct;
             end
         end
+        
+        
+        function Result = internal_convertStruct(Struct)
+            % Recursive scan and replace data in struct:
+            % '@FuncName' -> Function handle
+            % 'eval(...)' -> Call to eval, can be used to create object,
+            % run any function, etc.
+            %
+            % See also:
+            %     https://stackoverflow.com/questions/56338151/matlab-recursive-function-to-browse-and-modify-a-structure
+            fields = fieldnames(Struct);
+            for i=1:numel(fields)
+                FieldName = fields{i};
+                Value = Struct.(FieldName);
+                if isstruct(Value)
+                    Struct.(FieldName) = Configuration.internal_convertStruct(Value);
+                else
+                    if ischar(Value)
+                                                
+                        % Function handle
+                        if startsWith(Value, '@')
+                            FuncName = Value(2:end);
+                            FuncHandle = str2func(FuncName);
+                            Struct.(FieldName) = FuncHandle; 
+                            io.msgLog(LogLevel.DebugEx, 'Configuration.convert: %s', Value);                            
+                            
+                        % Eval (any expression)
+                        elseif startsWith(Value, 'eval(')
+                            Struct.(FieldName) = eval(Value);
+                            io.msgLog(LogLevel.DebugEx, 'Configuration.convert: %s', Value);                            
+                        end
+                    end
+                end
+            end
+            Result = Struct;
+        end
+        
     end
 
     %----------------------------------------------------------------------
