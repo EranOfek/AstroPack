@@ -1,0 +1,4 @@
+Index   Extension                        Type         Dimension           
+=====   ==============================   ==========   ====================
+1       Primary                          Image        0                   
+2       B_wds_wds                        Binary       7 cols X 153989 rows

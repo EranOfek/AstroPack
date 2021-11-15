@@ -1,8 +1,12 @@
 % FITS
 %
+% Use FV to view FITS files:
+% https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/
+%
 % list of needed functionality
 % write
 % writeTable
+
 %--------------------------------------------------------------------------
 % #functions (autogen)
 % FITS - FITS object constructor
@@ -112,14 +116,13 @@ classdef FITS < handle
                 FileName char
                 HDUnum               = 1;
             end
-            
-            
+                        
             KeyPos = 9;
             ComPos = 32;
             
             Fptr = matlab.io.fits.openFile(FileName);
             Nhdu = matlab.io.fits.getNumHDUs(Fptr);
-            if HDUnum>Nhdu
+            if HDUnum > Nhdu
                 error('Request for HDU %d failed because there are %d HDUs in file',HDUnum,Nhdu)
             else
                 Htype = matlab.io.fits.movAbsHDU(Fptr,HDUnum);
@@ -171,7 +174,7 @@ classdef FITS < handle
                    end
 
                    % look for history and comment keywords
-                   if numel(Card)>6
+                   if numel(Card) > 6
                        if (strcmpi(Card(1:7),'HISTORY'))
                            HeadCell{Ikey,1} = 'HISTORY';
                            HeadCell{Ikey,2} = Card(KeyPos:end);
@@ -211,8 +214,7 @@ classdef FITS < handle
                 HDUnum             = 1;
                 Args.CCDSEC        = [];
             end
-            
-             
+                         
             Fptr = matlab.io.fits.openFile(FileName);
             matlab.io.fits.movAbsHDU(Fptr, HDUnum);
 
@@ -688,7 +690,7 @@ classdef FITS < handle
         end
         
         
-        function Flag = write(Image,FileName,Args)
+        function Flag = write(Image, FileName, Args)
             % Write or append an image into FITS file.
             % Static function
             %     The image may have N-dimensions.
@@ -724,13 +726,6 @@ classdef FITS < handle
             
             HeaderField = HEAD.HeaderField;
             
-%             DefV.Header             = [];
-%             DefV.DataType           = -32;
-%             DefV.Append             = false;  % true for multi extension
-%             DefV.OverWrite          = false;
-%             DefV.WriteTime          = false;
-%             Args = InArg.populate_keyval(DefV,varargin,mfilename);
-
             % Set FITS DataType
             switch Args.DataType
                  case {'int8',8}
@@ -769,6 +764,7 @@ classdef FITS < handle
                 Header = HEAD;
                 Header.(HeaderField) = Args.Header;
             end
+            
             %--- Set the FITS "mandatory" keywords ---
             %--- add BSCALE and BZERO ---
             % check if BZERO and BSCALE are already in HeaderInfo
@@ -797,6 +793,7 @@ classdef FITS < handle
             
             % create Image
             fits.createImg(Fptr,DataType,size(Image));
+            
             % write Image
             fits.writeImg(Fptr,Image); %,Fpixels);
             
@@ -846,11 +843,12 @@ classdef FITS < handle
                     end
                 end
             end
+            
             % Close FITS file
             fits.closeFile(Fptr);
             Flag = sign(Fptr);
 
-        end % end write
+        end % write()
         
         
         % read to SIM

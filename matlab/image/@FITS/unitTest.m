@@ -1,3 +1,6 @@
+% Use FV to view FITS files:
+% https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/
+
 function Result = unitTest(Obj)
 	% unitTest for the FITS class
 	io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
@@ -17,6 +20,7 @@ function Result = unitTest(Obj)
 	io.msgLog(LogLevel.Test, 'testing FITS readHeader1');
 	Nh1=FITS.numHDU1(F(1).File);
 	FITS.readHeader1(F(1).File);
+    
 	io.msgLog(LogLevel.Test, 'testing FITS read1');
 	[Im,H,Nh2]=FITS.read1(F(1).File);
 	if Nh1~=Nh2
