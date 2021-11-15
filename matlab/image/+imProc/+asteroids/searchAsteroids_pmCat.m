@@ -50,6 +50,14 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %                   the combined FLAGS (propagated from the bit maks)
     %                   over all epochs.
     %                   Default is 'FLAGS'.
+    %            'ColNameMeanSN' - Like 'ColNameRA', but for a columns with
+    %                   the Mean S/N. The Mean S/N is used with the 
+    %                   'HighSNBitNames' and 'SN_HighSN' arguments.
+    %                   Default is 'Mean_SN_3'
+    %            'ColNameStdSN' - Like 'ColNameRA', but for a columns with
+    %                   the Std S/N. This isused with the 'MinStdSN'
+    %                   argument. Default is 'Std_SN_3'.
+    %
     %            'JD' - Vector of JD of the epochs.
     %                   If empty, then will be set to (1:Nepochs).
     %                   Note that without providing this parameter the
@@ -62,6 +70,11 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %                   candidates asteroids.
     %                   Default is
     %                   {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
+    
+    %Args.HighSNBitNames               = {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'};   % NEW
+    %    Args.SN_HighSN                    = 7;                                                      % NEW
+    
+    
     %            'TimeSpan' - The range between the mid of the first and last
     %                   observations. If empty then calc from max(JD) - min(JD).
     %                   Default is [].
@@ -135,14 +148,19 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.ColNamePM_TdistProb          = 'PM_TdistProb';
         Args.ColNameNobs                  = 'Nobs';
         Args.ColNameFlags                 = 'FLAGS';
+        Args.ColNameMeanSN                = 'Mean_SN_3';  
+        Args.ColNameStdSN                 = 'Std_SN_3';   
+        
         Args.JD                           = [];
         
         Args.RemoveBitNames               = {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
         Args.HighSNBitNames               = {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'};   % NEW
-        Args.SN_HighSN                    = 7;                                                     % NEW
+        Args.SN_HighSN                    = 7;                                                      % NEW
         Args.TimeSpan                     = [];  % same units as PM time
         Args.PM_Radius                    = 3;   % same units as the PM
         Args.PM_RadiusUnits               = 'arcsec';
+        Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   % NEW
+        Args.MinStdSN                     = 0.4;   % NEW
         
         % linking
         Args.LinkingRadius                = 7;
@@ -166,6 +184,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     if isempty(Args.JD)
         Args.JD = (1:1:Ncat).';
     end
+    Nepochs = numel(Args.JD);  % number of epochs
     
     if isempty(Args.TimeSpan)
         % calc the TimeSpan from the vector of JD
@@ -183,12 +202,11 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         PM_TdistProb = CatPM(Icat).getCol(Args.ColNamePM_TdistProb);
         Nobs         = CatPM(Icat).getCol(Args.ColNameNobs);
         DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
-        MeanSN       = CatPM(Icat).getCol('Mean_SN_3');
-        StdSN        = CatPM(Icat).getCol('Std_SN_3');
+        InfoSN       = CatPM(Icat).getCol({Args.ColNameMeanSN, Args.ColNameStdSN});  % [Mean, Std]
         
         
         TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
-        ExpectedNobs = TotPM.*Args.TimeSpan./(0.5.*Args.PM_Radius);
+        ExpectedNobs = Nepochs .* TotPM.*Args.TimeSpan./(2.*Args.PM_Radius);
         
         % remove sources with some selected flags
         if isemptyBitDict(Args.BitDict)
@@ -198,13 +216,17 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             % true if good candidate
             Flags(Icat).Flags         = ~findBit(Args.BitDict, DecFlags, Args.RemoveBitNames, 'Method','any');
             Flags(Icat).Flags_HighSN  = ~findBit(Args.BitDict, DecFlags, Args.HighSNBitNames, 'Method','any');
-            Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | MeanSN>Args.SN_HighSN;
+            Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | InfoSN(:,1)>Args.SN_HighSN;
         end
-        Icat
+        
         % FLAGS for good asteroid candidates
-        Flags(Icat).Tdist  = ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));
-        Flags(Icat).LowStdSN = StdSN>0.5;
-        Flags(Icat).Nobs   = Nobs>(0.9.*ExpectedNobs);
+        Flags(Icat).Tdist  = ((PM_TdistProb >  Args.Nobs_TdistProb(1,2) & Nobs>Args.Nobs_TdistProb(1,1)) | (PM_TdistProb>Args.Nobs_TdistProb(2,2) & Nobs>Args.Nobs_TdistProb(2,1)));
+        %    Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   % NEW
+        
+        Flags(Icat).LowStdSN = InfoSN(:,2)>Args.MinStdSN;
+        % Args.MinStdSN                     = 0.4;   % NEW
+        
+        Flags(Icat).Nobs   = Nobs<(ExpectedNobs);
         Flags(Icat).All    = Flags(Icat).Flags & Flags(Icat).Flags_HighSN & Flags(Icat).Tdist & Flags(Icat).Nobs & Flags(Icat).LowStdSN;
         
         % Number of asteroid candidates

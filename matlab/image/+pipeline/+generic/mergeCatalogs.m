@@ -21,8 +21,8 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         Args.MatchedColums           = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
         
         Args.ColNameFlags            = 'FLAGS';
-        Args.ColNamesStat            = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
-        Args.FunIndStat              = {[1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
+        Args.ColNamesStat            = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','X','Y'};  % must be a subset of MatchedColums
+        Args.FunIndStat              = {[1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
         Args.MagCalibColName         = 'MAG_CONV_2';
         Args.MagCalibErrColName      = 'MAGERR_CONV_2';
