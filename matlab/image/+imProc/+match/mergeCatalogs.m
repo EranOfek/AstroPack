@@ -1,11 +1,17 @@
 function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
-    % Merge catalogs of the same field into a merged catalog of all unique sources
-    %   This include:
-    %       Generate a list of unified sources in all images using
-    %       MatchedSources/unifiedCatalogsIntoMatched
-    %       Perform relative photometry
-    %       Fit proper motions
-    %       calculate variability indicators
+     % Merge catalogs of the same field into a single unified merged catalog
+    %   The program may works AstroImage array in which different columns
+    %   corresponds to different fields, and rows corresponds to epochs.
+    %   The catalogs of each fields are merged into an AstroTable using 
+    %   MatchedSources/unifiedCatalogsIntoMatched.
+    %   Next, for each relative photometry is calaculated, and for each
+    %   source, proper motion is fitted and variability information is
+    %   calculated. The output catalog may contains columns that provide
+    %   measurments for all epochs (see 'ColNamesAll' argument), and
+    %   columns for which some statstics over all epochs is calculated (see
+    %   'ColNamesStat', 'FunIndStat' arguments).
+    %   Also generate a MatchedSources object for each field.
+    %
     % Input  : - An array of AstroImage objects with populated catalogs.
     %            The array has dimensions of (Nepochs X Nfields).
     %          * ...,key,val,...
@@ -87,7 +93,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %          - FitMotion is a structure array with proper motion info,
     %            returned by lcUtil.fitMotion.
     % Author : Eran Ofek (Nov 2021)
-    % Example: [MergedCat, MatchedS, Result] = imProc.match.mergeCatalogs(AllSI)
+    % Example: [MergedCat, MatchedS] = imProc.match.mergeCatalogs(AllSI)
     %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., check that motion is consistent with Nobs sum(Flag)
     %          ds9(AllSI(1,I), 1); 
     %          ds9(AllSI(end,I), 2); 
@@ -105,11 +111,12 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.FitPM logical           = true;
         Args.fitMotionArgs cell      = {'Prob',1e-5};
         
-        Args.MatchedColums           = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+        Args.MatchedColums           = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
         
         Args.ColNameFlags            = 'FLAGS';
-        Args.ColNamesStat            = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4'};
-        Args.FunIndStat              = {[1:8], [1:8], [1 3], [1 3], [1 3], [1 3]};
+        Args.ColNamesStat            = {'RA','Dec','X','Y','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
+        Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
+        
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
         Args.MagCalibColName         = 'MAG_CONV_2';
         Args.MagCalibErrColName      = 'MAGERR_CONV_2';
@@ -123,7 +130,6 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     [Nepochs, Nfields] = size(Obj);
     JD  = julday(Obj(:,1));     
 
-    Result = [];
     for Ifields=1:1:Nfields
         MatchedS(Ifields) = MatchedSources;
         [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(Obj(:,Ifields),...
@@ -148,8 +154,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
 %         MatchedS(Ifields).JD = JD;  
         
         % image 2 image X shift (pix)
-        Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
-        Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
+        %Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
+        %Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
     
         % relative photometry
         if Args.RelPhot
@@ -157,7 +163,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             
             % apply ZP to all Magnitudes...
             %FFU
-            'a'
+            warning('Relative photometry implementation is not complete');
         else
             ResZP = [];
         end

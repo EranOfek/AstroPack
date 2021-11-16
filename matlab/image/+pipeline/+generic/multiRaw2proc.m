@@ -33,14 +33,14 @@ function [AllSI, Result] = multiRaw2proc(FilesList, Args)
         if Iim==1 || ~Args.SameField
             % need to generate AstrometricCat for field
             tic;
-            [SI, AstrometricCat, Result(Iim)]=pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [SI, AstrometricCat, Result(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
                                                                                       Args.singleRaw2procArgs{:});
             toc
             
         else
             tic;
-            [SI, ~, Result(Iim)]=pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [SI, ~, Result(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
                                                                          Args.singleRaw2procArgs{:});
@@ -58,17 +58,29 @@ function [AllSI, Result] = multiRaw2proc(FilesList, Args)
     end
     
     % merge catalogs
+    [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = imProc.match.mergeCatalogs(AllSI);
     
     % search for asteroids - proper motion channel
+    [MergedCat, AstCrop] = imProc.asteroids.searchAsteroids_pmCat(MergedCat, 'BitDict',AllSI(1).MaskData.Dict, 'JD',JD, 'PM_Radius',3, 'Images',AllSI);
     
     % search for asteroids - orphan channel
+    % imProc.asteroids.searchAsteroids_orphans
     
     % cross match with external catalogs
     
     % flag orphans
     
     
+    % coadd images
+    Nfields = numel(MatchedS);
+    for Ifields=1:1:Nfields
+        Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
+        Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
     
-    
+        ShiftXY = cumsum([0 0; -[Summary(Ifields).ShiftX, Summary(Ifields).ShiftY]]);
+        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields), 'ShiftXY',ShiftXY, 'CreateNewObj',true);
+        [Coadd, CoaddN] = imProc.stack.coadd(RegisteredImages);
+        
+    end
 end
 

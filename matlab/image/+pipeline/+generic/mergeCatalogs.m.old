@@ -85,7 +85,7 @@ function [MergedCat, MatchedS] = mergeCatalogs(Obj, Args)
     %            requested columns.
     %          - A MatchedSources object. Element per field.
     % Author : Eran Ofek (Nov 2021)
-    % Example: [MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
+    % Example: [MergedCat, MatchedS] = imProc.match.mergeCatalogs(AllSI)
     %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., check that motion is consistent with Nobs sum(Flag)
     %          ds9(AllSI(1,I), 1); 
     %          ds9(AllSI(end,I), 2); 
@@ -151,8 +151,9 @@ function [MergedCat, MatchedS] = mergeCatalogs(Obj, Args)
 %         MatchedS(Ifields).JD = JD;  
         
         % image 2 image X shift (pix)
-        Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
-        Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
+        
+        %Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
+        %Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
     
         % relative photometry
         if Args.RelPhot

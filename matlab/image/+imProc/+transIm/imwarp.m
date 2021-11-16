@@ -4,7 +4,7 @@ function Result = imwarp(Obj, Args)
     % Input  : - 
     % Output : - 
     % Author : Eran Ofek (Nov 2021)
-    % Example: 
+    % Example: imProc.transIm.imwarp(
     
     arguments
         Obj AstroImage
@@ -59,7 +59,7 @@ function Result = imwarp(Obj, Args)
             end
             
             for Itran=1:1:NrowSh
-                ImWarpTransformation(Itran) = affine2d([1 0 0; 0 1 0; ShiftX ShiftY 1]);
+                ImWarpTransformation(Itran) = affine2d([1 0 0; 0 1 0; Args.ShiftXY(Itran,1) Args.ShiftXY(Itran,2) 1]);
             end
             
         else
@@ -91,17 +91,22 @@ function Result = imwarp(Obj, Args)
             FillVal = Args.FillValues;
         end
         
+        SizeInput = size(Obj(Iobj).(Args.DataProp{1}));
+        
+        OutView = affineOutputView(SizeInput, ImWarpTransformation(Iobj));
+        
         for Iprop=1:1:Nprop
-            Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), ImWarpTransformation, Args.InterpMethod,...
+            Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), ImWarpTransformation(Iobj), Args.InterpMethod,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
-            
+             
+
         end
         
         % mask transformation
         if ~isempty(Args.DataPropMask)
-            Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), ImWarpTransformation, Args.InterpMethodMask,...
+            Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), ImWarpTransformation(Iobj), Args.InterpMethodMask,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
