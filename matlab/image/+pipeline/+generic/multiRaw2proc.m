@@ -57,6 +57,18 @@ function [AllSI, Result] = multiRaw2proc(FilesList, Args)
             
     end
     
+    % merge catalogs
+    
+    % search for asteroids - proper motion channel
+    
+    % search for asteroids - orphan channel
+    
+    % cross match with external catalogs
+    
+    % flag orphans
+    
+    
+    
     
 end
 

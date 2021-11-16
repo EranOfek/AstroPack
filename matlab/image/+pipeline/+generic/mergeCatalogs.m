@@ -1,5 +1,82 @@
 function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
+    % Merge catalogs of the same field into a single unified merged catalog
+    %   The program may works AstroImage array in which different columns
+    %   corresponds to different fields, and rows corresponds to epochs.
+    %   The catalogs of each fields are merged into an AstroTable using 
+    %   MatchedSources/unifiedCatalogsIntoMatched.
+    %   Next, for each relative photometry is calaculated, and for each
+    %   source, proper motion is fitted and variability information is
+    %   calculated. The output catalog may contains columns that provide
+    %   measurments for all epochs (see 'ColNamesAll' argument), and
+    %   columns for which some statstics over all epochs is calculated (see
+    %   'ColNamesStat', 'FunIndStat' arguments).
+    %   Also generate a MatchedSources object for each field.
     %
+    % Input  : - An AstroImage object array in which different columns
+    %            corresponds to different fields, and rows corresponds to epochs.
+    %            If a single field is provided, then this must be a column
+    %            vector.
+    %          * ...,key,val,...
+    %            'CooType' - Coordinate system vy which to perform the source
+    %                   matching. ['sphere'] | 'pix'.
+    %            'Radius' - Radius for source matching. Default is 3.
+    %            'RadiusUnits' - Radius units for source matching.
+    %                   Default is 'arcsec'.
+    %            'RelPhot' - A logical indicating if to apply relative
+    %                   photometric calibration to photometry.
+    %                   Default is true.
+    %            'fitPolyHyp' - A logical indicating if to calculate
+    %                   variability indicators based on polynomial fitting.
+    %                   Default is true.
+    %            'PolyDeg' - A cell array in wich each element contains all
+    %                   the degrees of the polynomial to fit.
+    %                   E.g., [0:1:2], is a full 2nd deg polynomial.
+    %                   The first cell corresponds to the null hypothesis.
+    %                   The Delta\chi2^2 is calculated relative to the null
+    %                   hypothesis. In addition, the error normalization is
+    %                   calculated such that the chi^2/dof of the null
+    %                   hypothesis will be 1 (with uniform errors).
+    %                   Default is {[0], [0:1:1], [0:1:2], [0:1:3],
+    %                   [0:1:4], [0:1:5]}.
+    %            'FitPM' - A logical indicating if to fit proper motion for
+    %                   merged sources. Proper motion will be fitted only
+    %                   for sources with 3 or more detections.
+    %                   Default is true.
+    %            'fitMotionArgs' - A cell array of additional arguments to
+    %                   pass to lcUtil.fitMotion. Default is {}.
+    %            'MatchedColums' - A cell arraey columns which will be
+    %                   copied into the MatchedSource object. The
+    %                   MatchedSources object is generated in order to
+    %                   create the merged table.
+    %                   Default is {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
+    %            'ColNameFlags' - A char containing the flags column name.
+    %                   These are the flags propagated from the image bit
+    %                   mask. Default is 'FLAGS'.
+    %            'ColNamesStat' - A cell array of columns for which to
+    %                   return, in the merged catalog, statsitics (e.g.,
+    %                   mean, std) of the columns.
+    %                   The column names will named: 'Mean_<COLNAME>' etc.
+    %                   This must be a subset of 'MatchedColums'.
+    %                   Default is {'RA','Dec','X','Y','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
+    %            'FunIndStat' - A cell array of vector. This cell array
+    %                   corresponds to the elements of 'ColNamesStat'.
+    %                   For each column it indicates the indices of the
+    %                   statistical properties to calculate. The stat
+    %                   properties are calculated using
+    %                   MatchedSource/statSummary and their indices are: 
+    %                   mean, median, std, rstd, range, min, max, nobs.
+    %                   Default is 
+    %            'ColNamesAll' - {[1 3], [1 3], [1 3], [1 3], [1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
+    %            'MagCalibColName' - A cell array of column names for which
+    %                   to return the values in all the epochs.
+    %                   The output column names will be
+    %                   'Epoch%03d_<COLNAMEE>'.
+    %                   This will return Nepochs column per property.
+    %                   Default is {'MAG_CONV_2','MAGERR_CONV_2'}.
+    %            'MagCalibErrColName'
+    %            'unifiedSourcesCatalogArgs'
+    % Output : - 
+    % Author : Eran Ofek (Nov 2021)
     % Example: [MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
     %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., check that motion is consistent with Nobs sum(Flag)
     %          ds9(AllSI(1,I), 1); 
@@ -21,43 +98,14 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         Args.MatchedColums           = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
         
         Args.ColNameFlags            = 'FLAGS';
-        Args.ColNamesStat            = {'MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','X','Y'};  % must be a subset of MatchedColums
-        Args.FunIndStat              = {[1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
+        Args.ColNamesStat            = {'RA','Dec','X','Y','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
+        Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
         Args.MagCalibColName         = 'MAG_CONV_2';
         Args.MagCalibErrColName      = 'MAGERR_CONV_2';
         
 
         Args.unifiedSourcesCatalogArgs cell     = {};
-       
-%         
-%         
-%         
-%         Args.ColPrefix cell          = {'Mean_', 'Med_', 'Std_', 'Err_'};
-%         Args.ColGeneratingFun        = {@mean, @median, @std, @tools.math.stat.mean_error};
-%         Args.GeneratingFunArgs       = { {1,'omitnan'}, {1,'omitnan'}, {[],1,'omitnan'}, {1} };
-%         Args.ColsToApplyFun          = {'RA','Dec','MAG_PSF'};   
-%         
-%         Args.ColName_PM_DeltaChi2    = 'PM_DeltaChi2';
-%         Args.ColName_PM_RA           = 'PM_RA';
-%         Args.ColName_PM_Dec          = 'PM_Dec';
-%         Args.ColName_Ep_RA           = 'EpochRA';
-%         Args.ColName_Ep_Dec          = 'EpochDec';
-%         Args.ColName_PM_ErrRA        = 'PM_ErrRA';
-%         Args.ColName_PM_ErrDec       = 'PM_ErrDec';
-%         Args.ColName_Ep_ErrRA        = 'EpochErrRA';
-%         Args.ColName_Ep_ErrDec       = 'EpochErrDec';
-%         
-%         Args.ColName_Nobs            = 'Nobs';   % if empty do not add
-%         Args.ColName_Epoch           = 'Epoch';
-%         Args.EpochUnits              = 'JD';
-%         
-%         Args.FitPoly(1,1) logical    = true;
-%         
-%         
-%         
-
-%         Args.matchArgs cell          = {};
         
     end
     
@@ -103,7 +151,8 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
             
             % apply ZP to all Magnitudes...
             %FFU
-            'a'
+            warning('Relative photometry implementation is not complete');
+            
             
         end
         
@@ -210,19 +259,6 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         MergedCat(Ifields).ColUnits = ColUnits;
         MergedCat(Ifields).sortrows('Dec');
                 
-        % treat unmatched sources
-        %   select all sources with Nobs<3 || PM
-        %   For each source:
-        %       search all nearby selected sources w/o time overlap
-        %       Fit PM with RANSAC
-        %           If good solution - save connected source
-        
-        
-        % match to external catalogs
-        %   
-        
-    
-        
     end
     
     
