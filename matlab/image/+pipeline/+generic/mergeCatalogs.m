@@ -1,4 +1,4 @@
-function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
+function [MergedCat, MatchedS] = mergeCatalogs(Obj, Args)
     % Merge catalogs of the same field into a single unified merged catalog
     %   The program may works AstroImage array in which different columns
     %   corresponds to different fields, and rows corresponds to epochs.
@@ -25,6 +25,11 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %            'RelPhot' - A logical indicating if to apply relative
     %                   photometric calibration to photometry.
     %                   Default is true.
+    %            'MagCalibColName' - Magnitude column name by which to
+    %                   perform the magnitude calibration.
+    %                   Default is 'MAG_CONV_2'.
+    %            'MagCalibErrColName' - Magnitude error column for
+    %                   calibration. Default is 'MAGERR_CONV_2'.
     %            'fitPolyHyp' - A logical indicating if to calculate
     %                   variability indicators based on polynomial fitting.
     %                   Default is true.
@@ -65,17 +70,20 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
     %                   properties are calculated using
     %                   MatchedSource/statSummary and their indices are: 
     %                   mean, median, std, rstd, range, min, max, nobs.
-    %                   Default is 
-    %            'ColNamesAll' - {[1 3], [1 3], [1 3], [1 3], [1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
-    %            'MagCalibColName' - A cell array of column names for which
+    %                   Default is  {[1 3], [1 3], [1 3], [1 3], [1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
+    %            'ColNamesAll' - A cell array of column names for which
     %                   to return the values in all the epochs.
     %                   The output column names will be
     %                   'Epoch%03d_<COLNAMEE>'.
     %                   This will return Nepochs column per property.
     %                   Default is {'MAG_CONV_2','MAGERR_CONV_2'}.
-    %            'MagCalibErrColName'
-    %            'unifiedSourcesCatalogArgs'
-    % Output : - 
+    %            'unifiedSourcesCatalogArgs' - A cell array of additional arguments
+    %                   to pass to imProc.match.unifiedSourcesCatalog.
+    %                   Default is {}.
+    % Output : - An AstroCatalog object with the merged catalogs.
+    %            Element per field. The merged catalogs contains the
+    %            requested columns.
+    %          - A MatchedSources object. Element per field.
     % Author : Eran Ofek (Nov 2021)
     % Example: [MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
     %          I = 1; AA=MergedCat(I).toTable; Flag = (AA.PM_TdistProb>0.999 & AA.Nobs>5) | (AA.PM_TdistProb>0.9999 & AA.Nobs>3); remove near edge..., check that motion is consistent with Nobs sum(Flag)
@@ -90,6 +98,8 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         Args.RadiusUnits             = 'arcsec';
         
         Args.RelPhot logical         = true;
+        Args.MagCalibColName         = 'MAG_CONV_2';
+        Args.MagCalibErrColName      = 'MAGERR_CONV_2';
         Args.fitPolyHyp logical      = true;
         Args.PolyDeg cell            = {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]};
         Args.FitPM logical           = true;
@@ -101,8 +111,7 @@ function [MergedCat, MatchedS, Result] = mergeCatalogs(Obj, Args)
         Args.ColNamesStat            = {'RA','Dec','X','Y','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
         Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
-        Args.MagCalibColName         = 'MAG_CONV_2';
-        Args.MagCalibErrColName      = 'MAGERR_CONV_2';
+        
         
 
         Args.unifiedSourcesCatalogArgs cell     = {};
