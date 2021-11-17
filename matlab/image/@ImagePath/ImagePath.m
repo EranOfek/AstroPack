@@ -34,8 +34,8 @@ classdef ImagePath < Component
         
         % Fields formatting
         FormatFieldID   = '%06d';       % Used with FieldID
-        FormatCCDID     = '03d';        % Used with CCDID
-        FormatCropID    = '03d';        % Used with CropID
+        FormatCCDID     = '%03d';       % Used with CCDID
+        FormatCropID    = '%03d';       % Used with CropID
         FormatVersion   = '%03d';       % Used with Version
         
         % @Todo: Defaults should be loaded from configuration
