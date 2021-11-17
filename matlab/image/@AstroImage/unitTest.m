@@ -283,7 +283,11 @@ function Result = unitTest()
     Sec_ccdsec = [1 Nxmin 1 Nymin];
     Res = crop(AI1./max(AI1.Image,[],'all'),Sec_ccdsec)+crop(AI2./max(AI2.Image,[],'all'),Sec_ccdsec);
     
-
+    % cropLonLat
+%     RA = 0;
+%     Dec = 0;
+%     [Result, Info] = cropLonLat(AI1, RA, Dec);
+    
     cd(PWD);
 
     io.msgStyle(LogLevel.Test, '@passed', 'AstroImage test passed')

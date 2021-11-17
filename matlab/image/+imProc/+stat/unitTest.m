@@ -17,76 +17,85 @@ function Result = unitTest()
     close all;
 
     AI = AstroImage({rand(10,10), rand(10,10)});
-    [a,b] = imProc.stat.max(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c,d] = imProc.stat.max(AI); 
-%     if a(1)~=AI(1).Image
-%         error('Problem with imProc.stat.');
-%     end
+    a = imProc.stat.max(AI);
+    AI = AstroImage({ones(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
+    AI(1).Image(1,1)=4;
+    [a,b] = imProc.stat.max(AI); 
+    if a(1)~=4
+        error('Problem with imProc.stat.max');
+    end
 
     AI = AstroImage({rand(10,10), rand(10,10)});
     imProc.stat.mean(AI);
+    a = imProc.stat.mean(AI);
+    AI = AstroImage({ones(10,10), 2*ones(10,10)},'Back',{3*ones(10,10), 4*ones(10,10)});
     [a,b] = imProc.stat.mean(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.mean(AI);
+    if a(1)~=1 || a(2)~=2 || b(1)~=3 || b(2)~=4 
+        error('Problem with imProc.stat.mean');
+    end    
 
     AI = AstroImage({rand(10,10), rand(10,10)});
     imProc.stat.median(AI);
-    [a,b] = imProc.stat.median(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.median(AI);
+    a = imProc.stat.median(AI);
+    AI = AstroImage({ones(10,10), 2*ones(10,10)},'Back',{3*ones(10,10), 4*ones(10,10)});
+    AI(1).Image(1,1)=4;AI(2).Image(1,1)=4;AI(1).Back(1,1)=6;AI(2).Back(1,1)=6;
+    [a,b] = imProc.stat.median(AI);   
+    if a(1)~=1 || a(2)~=2 || b(1)~=3 || b(2)~=4 
+        error('Problem with imProc.stat.median');
+    end
 
-    AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.min(AI);
     [a,b] = imProc.stat.min(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.min(AI);
+    if a(1)~=1 || a(2)~=2 || b(1)~=3 || b(2)~=4 
+        error('Problem with imProc.stat.min');
+    end
 
-    AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.mode(AI);
+    
+    AI = AstroImage({ones(10,10), 2*ones(10,10)},'Back',{rand(10,10), rand(10,10)});
     [a,b] = imProc.stat.mode(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.mode(AI);
+    if a(1)~=1 || a(2)~=2
+        error('Problem with imProc.stat.mode');
+    end
 
-    AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.moment(AI, 3);
-    [a,b] = imProc.stat.moment(AI, 4);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.moment(AI, 5);
+    AI = AstroImage({ones(10,10), 2*ones(10,10)},'Back',{rand(10,10), rand(10,10)});
+    [a,b] = imProc.stat.moment(AI, 5);
+    AI(1).Image(:,6:10)=3;AI(2).Image(:,6:10)=6;
+    [c,d] = imProc.stat.moment(AI, 2);
+    if a(1)~=0 || a(2)~=0 || c(1)~=1 || c(2)~=4 
+        error('Problem with imProc.stat.moment');
+    end
 
-    AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.quantile(AI, 0.2);
-    [a,b] = imProc.stat.quantile(AI, 0.3);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.quantile(AI, 0.95);
 
-    AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.range(AI);
+    [a,b] = imProc.stat.quantile(AI, 0.25);
+    if a(1)~=1 || a(2)~=2 
+        error('Problem with imProc.stat.quantile');
+    end
+
     [a,b] = imProc.stat.range(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.range(AI);
+    if a(1)~=2 || a(2)~=4 
+        error('Problem with imProc.stat.range');
+    end    
 
-    AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.rstd(AI);
+    AI = AstroImage({ones(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
     [a,b] = imProc.stat.rstd(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.rstd(AI);
+    if a(1)~=0 
+        error('Problem with imProc.stat.rstd');
+    end 
 
-    AI = AstroImage({randn(1000,1000), randn(1000,1000)});
+    AI = AstroImage({randn(1000,1000),ones(10,10)},'Back',{rand(1000,1000), rand(10,10)});
     imProc.stat.std(AI);
-    [a,b] = imProc.stat.std(AI);
-    if abs(a(1)-1)>1e-2
+    [a] = imProc.stat.std(AI);
+    if abs(a(1)-1)>1e-2 || a(2)~=0
         error('Problem with imProc.stat.std');
     end
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.std(AI);
-
-    AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.var(AI);
-    [a,b] = imProc.stat.var(AI);
-    AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c] = imProc.stat.var(AI);
     
+
+    AI = AstroImage({2*randn(1000,1000),ones(10,10)},'Back',{rand(1000,1000), rand(10,10)});
+    [a,b] = imProc.stat.var(AI);   
+    if abs(a(1)-4)>1e-2 || a(2)~=0
+        error('Problem with imProc.stat.var');
+    end
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'imProc.stat test passed')
     Result = true;
     
 end
