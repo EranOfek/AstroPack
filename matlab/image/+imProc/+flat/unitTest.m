@@ -1,7 +1,7 @@
 function Result = unitTest()
     % unitTest for imProc.image.Flat
     % Example : Result = imProc.image.Flat.unitTest;
-
+    io.msgLog(LogLevel.Test, 'imProc.flat test started');
 
     AI = AstroImage({rand(100,100)});
 
@@ -16,8 +16,22 @@ function Result = unitTest()
     if ~Result
         error('Problem with isFlat');
     end
+    
+    % flat
+    AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
+    Res = imProc.flat.flat(AI,'FilterKey',[]); %should't this function add to header data {'IMTYPE','Flat',''})?
 
-
+    AI.setKeyVal('FILTER','filter');
+    Res2 = imProc.flat.flat(AI);  
+    
+    if ~all(Res.Image==Res2.Image,'all')
+        error('Problem with flat');
+    end
+    
+    % deflat
+    AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
+    Res = imProc.flat.deflat(AI,'FlatArgs',{'FilterKey',[]},'IsFlat',@imProc.flat.isFlat); 
+   
+    io.msgStyle(LogLevel.Test, '@passed', 'imProc.flat test passed');    
     Result = true;
-
 end

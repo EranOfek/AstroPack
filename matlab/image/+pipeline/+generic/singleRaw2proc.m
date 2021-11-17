@@ -1,4 +1,4 @@
-function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
+function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     % Basic processing of a single raw image into a processed image
     %   Including:
     %       Reading the image
@@ -34,20 +34,28 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.BlockSize                        = [1600 1600];  % empty - full image
         Args.Scale                            = 1.25;
         
-        Args.AddHeadKeys                      = {'FILTER','clear';
-                                                 'SATURVAL',55000;
-                                                 'OBSLON',35.0;
-                                                 'OBSLAT',31.0;
-                                                 'OBSALT',400;
+        Args.AddHeadKeys                      = {'FILTER','clear';...
+                                                 'SATURVAL',55000;...
+                                                 'OBSLON',35.0;...
+                                                 'OBSLAT',31.0;...
+                                                 'OBSALT',400;...
                                                  'OVERSCAN','[6355 6388 1 9600]'};   % '[1 6354 1 9600]'};
         
         Args.MultiplyByGain logical           = true; % after fringe correction
         Args.MaskSaturated(1,1) logical       = true;
-        Args.InterpOverSaturated(1,1) logical = true;
         Args.DoAstrometry(1,1) logical        = true;
         Args.DoPhotometry(1,1) logical        = true;
         Args.MatchExternal(1,1) logical       = false;
         Args.SaveProducts(1,1) logical        = true;
+        
+        
+        Args.BitNameBadPix                  = {'Saturated','NaN'};
+        Args.BitNameInterpolated            = 'Interpolated';
+                
+        
+        Args.InterpolateOverProblems logical  = true;
+        Args.BitNamesToInterp                 = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
+        Args.interpOverNanArgs cell           = {};
         
         Args.maskSaturatedArgs cell           = {};
         Args.debiasArgs cell                  = {};
@@ -60,7 +68,6 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.OverlapXY                        = [64 64];
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
-        Args.interpOverNanArgs cell           = {};
         Args.findMeasureSourcesArgs cell      = {};
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
@@ -70,6 +77,7 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
         Args.Tran                             = Tran2D('poly3');
         Args.WCS                              = [];   % WCS/AstroImage with WCS - will use astrometryRefine...
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
+        
         
         Args.OrbEl                            = []; %celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
         Args.match2solarSystemArgs            = {};
@@ -121,9 +129,14 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     StrJD = sprintf('%16.8f',JD);
     AI.setKeyVal('JD',StrJD);
     
-    AI = CI.processImages(AI, 'SubtractOverscan',false, 'InterpolateOverSaturated',true,...
+    % Note that InterpolateOverSaturated is false, because this is done
+    % later on in this function
+    AI = CI.processImages(AI, 'SubtractOverscan',false,...
+                              'InterpolateOverBadPix',true,...
+                              'BitNameBadPix',Args.BitNameBadPix,...
+                              'BitNameInterpolated',Args.BitNameInterpolated,...
                               'MaskSaturated',Args.MaskSaturated,...
-                              'maskSaturatedArgs',Args.maskSaturatedArgs,...
+                              'maskSaturatedArgs',{},...
                               'debiasArgs',Args.debiasArgs,...
                               'SubtractOverscan',Args.SubtractOverscan,...
                               'MethodOverScan',Args.MethodOverScan,...
@@ -158,6 +171,9 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
                                                'CreateNewObj',false);
     %SI.cast('single');
     
+    % FFU: flags Holes
+    % imProc.mask.maskHoles
+    
     % Astrometry, including update coordinates in catalog
     if Args.DoAstrometry
         if isempty(Args.WCS)
@@ -190,6 +206,17 @@ function [SI, AstrometricCat, Result]=singleRaw2proc(File, Args)
     
         % Update Cat photometry
     end
+    
+    
+    % interpolate over problematic pixels
+    if Args.InterpolateOverProblems
+        % interpolate over staurated pixels
+        SI = imProc.mask.interpOverMaskedPix(SI, 'BitNamesToInterp',Args.BitNamesToInterp,...
+                                                     'interpOverNanArgs', Args.interpOverNanArgs,...
+                                                     'BitNameInterpolated',Args.BitNameInterpolated,...
+                                                     'CreateNewObj',false);
+    end
+    
     
     % match known solar system objects
     if ~isempty(Args.OrbEl)

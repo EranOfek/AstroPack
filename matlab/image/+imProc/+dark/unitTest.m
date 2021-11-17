@@ -18,10 +18,16 @@ function Result = unitTest()
     % compare2template
     AI = AstroImage({2.*randn(10,10)});
     Template = AstroImage({0},'Var',{4});
-    [FlagBad, FracbadPixels, Z] = imProc.dark.compare2template(AI, 'Template',Template);
+    [FlagBad, FracbadPixels, Z] = imProc.dark.compare2template(AI, Template);
     if FlagBad
         error('Possible problem with compare2template');
     end
+    
+    [FlagBad, FracbadPixels, Z] = imProc.dark.compare2template(AI, Template,'Nsigma',0.001);
+    if ~FlagBad
+        error('Possible problem with compare2template');
+    end
+    
 
     % identifyFlaringPixels
     Cube = randn(100,100,10);
@@ -66,7 +72,7 @@ function Result = unitTest()
     if ~(y==90 && x==200)
         error('Problem with overscan subtraction');
     end
-
+    
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.dark test passed');
     Result = true;
 end

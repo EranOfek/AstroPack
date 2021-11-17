@@ -10,12 +10,6 @@ https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-g
 https://signin.aws.amazon.com/signin?redirect_uri=https%3A%2F%2Fconsole.aws.amazon.com%2Fsqs%2Fv2%2Fhome%3Fstate%3DhashArgs%2523%26isauthcode%3Dtrue&client_id=arn%3Aaws%3Aiam%3A%3A015428540659%3Auser%2Fsqs&forceMobileApp=0&code_challenge=rjGmfAFs7GXTaLh0v7SbbbqlIk0JRwJ_mv4KsBwyv-M&code_challenge_method=SHA-256
 
 
-Root user: ultrasatdev@gmail.com
-
-Email: ultrasatdev@gmail.com
-Password:
-
-
 
 ### Get started -> Create queue
 

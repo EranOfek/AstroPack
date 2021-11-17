@@ -7,6 +7,16 @@ function Result = unitTest()
     clear java;
     FileName = 'UnitTest';
     
+    % Low level test
+    TestLowLevel = false;
+    if TestLowLevel 
+        TestPath = 'D:\Ultrasat\AstroPack.git\config';
+        TestFileName = fullfile(TestPath, 'UnitTest.yml');
+        YamlStruct = yaml.ReadYaml(string(TestFileName).char);
+        YamlStruct = Configuration.internal_convertStruct(YamlStruct);    
+        yml = Configuration.internal_loadYaml(TestFileName);
+    end
+    
     ConfigPath = Configuration.getSysConfigPath();
     assert(~isempty(ConfigPath));
     ConfigFileName = fullfile(ConfigPath, strcat(FileName, '.yml'));

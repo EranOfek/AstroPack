@@ -342,11 +342,15 @@ classdef Installer < Component
             % CD to data directory
             PWD = pwd;
             I = Installer;
-            Ind = find(strcmp({I.DataName}, 'MinorPlanets'));
-            cd(I(Ind).InstallationLocation);
-            cd(I(Ind).SubDir);
+            PathI = I.getDataDir('MinorPlanets');
+            FullFileName = sprintf('%s%s%s', PathI, filesep, FileName);
+            
+%             Ind = find(strcmp({I.DataName}, 'MinorPlanets'));
+%             Ind = find(strcmp({I.DataName}, 'MinorPlanets'));
+%             cd(I(Ind).InstallationLocation);
+%             cd(I(Ind).SubDir);
                         
-            FID = fopen(FileName,'r');
+            FID = fopen(FullFileName,'r');
             Line = fgetl(FID);
             fclose(FID);
             ColNames = regexp(Line, '\s*', 'split');

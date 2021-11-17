@@ -1691,7 +1691,79 @@ classdef AstroTable < Component
             end
             
         end
-    
+        
+        function [Result, Flag, FlagAll] = queryFun(Obj, ColsFun, Args)
+            % Query an AstroTable by applying functions on columns.
+            % Input  : - An AstroTable object.
+            %          - A cell array of Column_Name, Function,...
+            %            Function must get a single vector, and return a
+            %            vector of logicals.
+            %          * ...,key,val,...
+            %            'SameCols' - A logical indicating if all the
+            %                   AstroTable elements has the same column
+            %                   names/indices. This can be used to expedite
+            %                   the run time. Default is false.
+            %            'FunFlags' - Function to apply on all the flags
+            %                   returns from all the columns.
+            %                   (e.g., @all, @any). This is always applied
+            %                   on the 2nd dimension. Default is @all.
+            %            'IgnoreNaN' - A logical indicating if to ignore
+            %                   the NaNs in the vector of indices.
+            %                   Default is false.
+            %            'ReturnResult' - A logical indicating if to return
+            %                   the result. If false, then the Result
+            %                   output will be identical to the input.
+            %                   Default is true.
+            %            'CreateNewObj' - true|false. Create new object.
+            %                   Default is false.
+            % Output : - An AstroTable with the selected rows.
+            %          - A vector of logicals per each line in the last
+            %            AstroTable element indicating the selected lines.
+            %          - A mtrix of logicals per each line and column in
+            %            the last AstroTable element.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: AT = AstroTable({rand(10,2)},'ColNames',{'X','Y'});
+            %          T = queryFun(AT, {'X', @(x) x>0.1, 'Y', @(x) x>0.1}, 'CreateNewObj',true);
+           
+            arguments
+                Obj
+                ColsFun cell
+                Args.SameCols logical          = false;
+                Args.FunFlags function_handle  = @all;
+                Args.IgnoreNaN logical         = false;
+                Args.ReturnResult logical      = true;
+                Args.CreateNewObj logical      = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nfuns = numel(ColsFun);
+            Nobj  = numel(Obj);
+            
+            for Iobj=1:1:Nobj
+                Nlines    = size(Obj(Iobj).Catalog,1);
+                Iflag     = 0;
+                FlagAll   = false(Nlines, Nfuns.*0.5);
+                
+                for Ifuns=1:2:Nfuns
+                    Iflag = Iflag + 1;
+                    Ind = colname2ind(Obj(Iobj), ColsFun{Ifuns});
+                    if Ifuns==1 && Args.SameCols
+                        % assume all catalogs have the same coloums
+                        ColsFun{Ifuns} = Ind;
+                    end
+                    FlagAll(:,Iflag) = ColsFun{Ifuns+1}(Obj(Iobj).Catalog(:,Ind));
+                end
+                Flag = all(FlagAll, 2);
+                if Args.ReturnResult
+                    Result(Iobj) = selectRows(Obj(Iobj), Flag, 'IgnoreNaN',Args.IgnoreNaN, 'CreateNewObj',false);
+                end
+            end
+        end
     end
 
     methods % read/write

@@ -36,7 +36,7 @@ classdef DbRecord < Base
     %--------------------------------------------------------
     methods % Constructor
         function Obj = DbRecord(Data, Args)
-            % Constructor - @Todo - discuss corret row,col order!
+            % Constructor
             % Data: struct array, table, cell array, matrix
             arguments
                 Data = [];
@@ -59,8 +59,13 @@ classdef DbRecord < Base
                     Obj.Data = cell2struct(Data, Args.ColNames, 2);
                 elseif isnumeric(Data)
                     
-                    % @Perf
+                    % @Perf - Need to be improved, it works very slow with
+                    % arrays > 10,000
                     Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 2);  %numel(Args.ColNames));
+                elseif isa(Data, 'AstroCatalog')
+                    % Obj.Data = @Todo
+                elseif isa(Data, 'AstroTable')
+                    % Obj.Data = @Todo
                 end
             end
             
@@ -69,7 +74,7 @@ classdef DbRecord < Base
         
         % Destructor
         function delete(Obj)
-            io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
+            %io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
         end
     end
 
@@ -180,20 +185,20 @@ classdef DbRecord < Base
         end
            
 
-        function Result = convert2(Obj, Conv)                  
-            Conv = lower(Conv);
-            if strcmp(Conv, 'table')
+        function Result = convert2(Obj, OutType)                  
+            OutType = lower(OutType);
+            if strcmp(OutType, 'table')
                 Result = Obj.convert2table();
-            elseif strcmp(Conv, 'cell')
+            elseif strcmp(OutType, 'cell')
                 Result = Obj.convert2cell();
-            elseif strcmp(Conv, 'mat')
+            elseif strcmp(OutType, 'mat')
                 Result = Obj.convert2mat();
-            elseif strcmp(Conv, 'astrotable')
+            elseif strcmp(OutType, 'astrotable')
                 Result = Obj.convert2AstroTable();
-            elseif strcmp(Conv, 'astrocatalog')
+            elseif strcmp(OutType, 'astrocatalog')
                 Result = Obj.convert2AstroCatalog();
             else
-                error('convert2: unknown output type: %s', Conv);
+                error('convert2: unknown output type: %s', OutType);
             end
         end
                     

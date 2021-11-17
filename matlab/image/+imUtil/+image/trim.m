@@ -1,4 +1,4 @@
-function [TrimedData,CCDSEC]=trim(Data,CCDSEC,Type)
+function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal)
 % Trim an image or a cube using CCDSEC coordinates.
 % Pacakge: imUtilimage
 % Description: Trim an image or a cube using CCDSEC coordinates.
@@ -11,6 +11,10 @@ function [TrimedData,CCDSEC]=trim(Data,CCDSEC,Type)
 %                 or [Xhalfsize, Yhalfsize] around central pixel if type =
 %                 'center'.
 %          - Type. Either 'ccdsec', or 'center'.
+%          - Fill value. In case that the trim section is near the edge,
+%            this is the fill value to insert into the edge, such that the
+%            trim section will have the requires size. If empty, then
+%            return only the overlap region. Default is [].
 % Output : - A trimmed image or cube.
 %          - A CCDSEC vector.
 % License: GNU general public license version 3
@@ -22,8 +26,11 @@ function [TrimedData,CCDSEC]=trim(Data,CCDSEC,Type)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<3
-    Type = 'ccdsec';  
+arguments
+    Data
+    CCDSEC
+    Type      = 'ccdsec';
+    FillVal   = [];
 end
 
 Size = size(Data);
@@ -61,6 +68,24 @@ end
 if isempty(Data)
     TrimedData = [];
 else
+    if isempty(FillVal)
+        % remove boundries from trimed image
+        if Y1<1
+            Y1 = 1;
+        end
+        if X1<1
+            X1 = 1;
+        end
+        if Y2>Size(1)
+            Y2 = Size(1);
+        end
+        if X2>Size(2)
+            X2 = Size(2);
+        end
+    else
+        error('FillVal different than [] is not yet supported');
+    end
+        
     TrimedData = Data(Y1:Y2,X1:X2,:);
 end
 

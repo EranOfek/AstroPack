@@ -197,5 +197,42 @@ Params:                             # 1×3 cell array
       value: 'css'
       comment: Comment3
 
+
+
+Ex:
+
+    Logical:
+        # Logical values can be true/false/yes/no, converted to 0 or 1
+        # true/false and yes/no are already supported, they are converted to 1 or 0, no need to convert
+        true1       : true
+        true2       : True
+        true3       : yes
+        false1      : false
+        false2      : False
+        false3      : no
+
+
+    Func:
+        # Function handles MUST BE STRINGS, they will be converted by Configuration.convert...
+        func1       : '@num2str'
+        func2       : '@str2num'
+        un_func     : '@no_such_function'
+
+
+    Eval:
+        # Eval can be with quotes or without
+        eval1       : 'eval("mod(10, 3)")'
+        eval2       : eval("mod(11, 3)")
+        eval3       : eval("Tran2D('poly3')")
+        eval4       : eval("sin(1)")
+
+
+    Cell:
+        # These values are loaded as cell-array
+        items       : [ 1, 2, 3, 4, 5 ]
+        items2      : [ true, false, false, true ]
+        names       : [ "one", "two", "three", "four" ]
+        names2      : [ 'one', 'two' ]
+
 #----------------------------------------------------------------------------
 
