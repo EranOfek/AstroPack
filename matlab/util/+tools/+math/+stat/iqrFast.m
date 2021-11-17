@@ -1,7 +1,6 @@
 function Result = iqrFast(X, Dim)
     % A fast iqr (inter quantile range) function (without interpolation) 
     % Input  : - An array.
-    %          - Fraction, or a vector of fractions.
     %          - Dimension along to calculate the quantile (1 | 2 | [1 2]).
     %            Default is 1.
     % Output : - IQR.
