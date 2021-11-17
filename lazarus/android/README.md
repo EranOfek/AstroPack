@@ -1,2 +1,0 @@
-# Lazarus Mobile Projects (Android)
-
