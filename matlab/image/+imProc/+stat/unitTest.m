@@ -3,18 +3,26 @@ function Result = unitTest()
     % Example: Result = imProc.stat.unitTest
 
     AI = AstroImage({rand(10,10)},'Back',{rand(10,10)});
-    [a,b,c] = imProc.stat.histcounts(AI);
+    [N,edges,bin] = imProc.stat.histcounts(AI);
+    [Nmax,Imax] = max(N);
+    if sum(bin==Imax,'all')~=Nmax
+        error('Problem with imProc.stat.histcounts');
+    end
+    
 
     AI = AstroImage({rand(10,10)},'Back',{rand(10,10)});
     imProc.stat.hist(AI);
     imProc.stat.hist(AI,[],100);
-    imProc.stat.hist(AI,[],{100,'Normalization','cdf'});
+    imProc.stat.hist(AI,'Back',{100,'Normalization','cdf'});
+    close all;
 
     AI = AstroImage({rand(10,10), rand(10,10)});
-    imProc.stat.max(AI);
     [a,b] = imProc.stat.max(AI);
     AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
-    [a,b,c,d] = imProc.stat.max(AI);
+    [a,b,c,d] = imProc.stat.max(AI); 
+%     if a(1)~=AI(1).Image
+%         error('Problem with imProc.stat.');
+%     end
 
     AI = AstroImage({rand(10,10), rand(10,10)});
     imProc.stat.mean(AI);

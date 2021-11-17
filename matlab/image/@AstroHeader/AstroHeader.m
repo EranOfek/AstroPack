@@ -391,7 +391,7 @@ classdef AstroHeader < Component
         function Result = funUnary(Obj, Operator, Args)
             % funUnary for AstroHeader - modify header and add history
             % This is a self explenatory function usually for internal use
-            % Example: H = AstroHeader('*.fit');
+            % Example: H = AstroHeader('*.fit'); 
             
             arguments
                 Obj
