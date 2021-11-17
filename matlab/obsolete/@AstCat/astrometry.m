@@ -271,7 +271,13 @@ for Isim=1:1:Nsim
                     ExcessNoise = col_get(RefCat,{'ExcessNoise'});
                     F = ExcessNoise<InPar.MaxExcessNoise & MagG> InPar.RefCatMagRange(1) & MagG< InPar.RefCatMagRange(2);
                     RefCat.(CatField) = RefCat.(CatField)(F,:);
-
+    
+                    
+                case 'gaiaedr3'
+                    MagG = col_get(RefCat,{InPar.RC_ColMag});
+                    ExcessNoise = col_get(RefCat,{'ExcessNoise'});
+                    F = ExcessNoise<InPar.MaxExcessNoise & MagG> InPar.RefCatMagRange(1) & MagG< InPar.RefCatMagRange(2);
+                    RefCat.(CatField) = RefCat.(CatField)(F,:);
 
             end
         end

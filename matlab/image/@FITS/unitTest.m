@@ -1,3 +1,6 @@
+% Use FV to view FITS files:
+% https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/
+
 function Result = unitTest(Obj)
 	% unitTest for the FITS class
 	io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
@@ -6,6 +9,10 @@ function Result = unitTest(Obj)
 	PWD = pwd;
 	cd(DataSampleDir);
 	
+    
+    %test_writeTable();
+    
+    % test constructor
 	io.msgLog(LogLevel.Test, 'testing FITS constructor');
 	F = FITS('*.fits');
 	
@@ -13,6 +20,7 @@ function Result = unitTest(Obj)
 	io.msgLog(LogLevel.Test, 'testing FITS readHeader1');
 	Nh1=FITS.numHDU1(F(1).File);
 	FITS.readHeader1(F(1).File);
+    
 	io.msgLog(LogLevel.Test, 'testing FITS read1');
 	[Im,H,Nh2]=FITS.read1(F(1).File);
 	if Nh1~=Nh2
@@ -70,10 +78,17 @@ function Result = unitTest(Obj)
 	FITS.write_keys(File,{'try','A','comm';'try2',6,'what'});
 	delete(File);
 	
-	cd(PWD);
-	
+	cd(PWD);	
 	io.msgStyle(LogLevel.Test, '@passed', 'FITS test passed')
 	Result = true;
-
-	io.msgLog(LogLevel.Test, 'FITS.unitTest done');
 end
+
+
+
+function Result = test_writeTable()
+    % unitTest for the FITS.writeTable()
+    WorkDir = tools.os.getTestWorkDir;
+    
+    Result = true;
+end
+

@@ -39,8 +39,8 @@ classdef AstroCatalog < AstroTable
     properties (Hidden, Constant)
         DefNamesX cell                   = {'X','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK'};
         DefNamesY cell                   = {'Y','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK'};
-        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
-        DefNamesDec cell                 = {'Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
+        DefNamesRA cell                  = {'RA','Mean_RA','Median_RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
+        DefNamesDec cell                 = {'Dec','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
         DefNamesPMRA cell                = {'PMRA'};
         DefNamesPMDec cell               = {'PMDec'};
         DefNamesRV cell                  = {'RV'};

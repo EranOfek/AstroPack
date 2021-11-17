@@ -15,8 +15,11 @@ function Result = unitTest()
 
     % construct an empty AstroHeader
     io.msgLog(LogLevel.Test, 'testing AstroHeader constructor 1/2')
-    A = AstroHeader([2 2]);
-
+    size_of_empty=[2,2];
+    A = AstroHeader(size_of_empty);
+    assert(numel(A)==4)
+    assert(all(size(A)==size_of_empty));
+    
     % read headers to AstroHeader, on construction
     io.msgLog(LogLevel.Test, 'testing AstroHeader constructor 2/2')
     H = AstroHeader('*.fits', 1);
@@ -187,7 +190,12 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'testing AstroHeader funUnary')
     H=AstroHeader('WFPC2ASSNu5780205bx.fits');
     funUnary(H,@sin);
-
+    assert(H.isKeyExist('HISTORY'))
+    funUnary(H,@atan2);
+    
+    
+    
+    
     % isImType
     io.msgLog(LogLevel.Test, 'testing AstroHeader isImType')
     H=AstroHeader('*.fits');

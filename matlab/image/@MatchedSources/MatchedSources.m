@@ -470,6 +470,77 @@ classdef MatchedSources < Component
             
         end
         
+        function [Result, Matched] = unifiedCatalogsIntoMatched(Obj, AT, Args)
+            % Unify and match AstroCatalog objects into a MatchedSources object.
+            %   Given a vector of AstroCatalog objects use imProc.match.unifiedSourcesCatalog
+            %   to generate a matched and unified catalogs that contains
+            %   all the "individual" sources in all the images.
+            %   Next, this matched AstroCatalog version is converted into a
+            %   MatchedSources object.
+            % Input  : - An (empty) MatchedSources object.
+            %          - A vector of AstroCatalog or AstroImage objects of sources
+            %            observed in a single field over multiple epochs.
+            %          * ...,key,val,...
+            %            'JD' - A vector of JD (one per AstroCatalog
+            %                   element). If empty, then will set this to
+            %                   1:Nepochs. Default is Nepochs.
+            %            'CooType' - Matching CooType: 'pix' | ['sphere'].
+            %            'Radius' - Matching radius. Default is 3.
+            %            'RadiusUnits' - Matching radius units.
+            %                   Default is 'arcsec'.
+            %            'unifiedSourcesCatalogArgs' - A cell array of
+            %                   additional arguments to pass to imProc.match.unifiedSourcesCatalog
+            %            'MatchedColums' - A cell arry of columns to insert
+            %                   into the the MatchedSources object.
+            %                   Default is {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+            %            'CreateNewObj' - A logical indicating if to
+            %                   generate a new copy of the MatchedSources object.
+            %                   Default is false.
+            % Output : - A MatchedSources object.
+            %          - The matched AstroCatalog.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: see usage in pipeline.generic.mergeCatalogs
+            
+            arguments
+                Obj
+                AT
+                Args.JD                              = []; % of empty put 1:N
+                Args.CooType                         = 'sphere';
+                Args.Radius                          = 3;
+                Args.RadiusUnits                     = 'arcsec';
+                Args.unifiedSourcesCatalogArgs cell  = {};
+                Args.MatchedColums cell              = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+                
+                Args.CreateNewObj logical            = false;
+            end
+           
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            %[Nepochs, Nfields] = size(AT);
+            Nepochs = numel(AT);
+            
+            if isempty(Args.JD)
+                Args.JD = (1:1:Nepochs).';
+            else
+                Args.JD = Args.JD(:);
+            end
+            
+            Ifields = 1;
+            [~, ~, Matched(Ifields,:)] = imProc.match.unifiedSourcesCatalog(AT, 'CooType',Args.CooType,...
+                                                             'Radius',Args.Radius,...
+                                                             'RadiusUnits',Args.RadiusUnits,...
+                                                             Args.unifiedSourcesCatalogArgs{:});
+
+            Result(Ifields).addMatrix(Matched(Ifields,:), Args.MatchedColums);
+            % populate JD
+            Result(Ifields).JD = Args.JD;  
+            
+        end
+        
         function varargout = getMatrix(Obj, FieldNames)
             % Get matrix using field name
             % Input  : - A single element MatchedSources object.
@@ -542,6 +613,7 @@ classdef MatchedSources < Component
             
             for Ifn=1:1:numel(FieldName)
                 Obj = rmfield(Obj.Data, FieldName{Ifn});
+                Obj = rmfield(Obj.Units, FieldName{Ifn});
             end
             
         end

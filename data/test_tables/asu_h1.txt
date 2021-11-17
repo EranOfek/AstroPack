@@ -1,0 +1,53 @@
+XTENSION= 'BINTABLE'           / Binary Table Extension
+BITPIX  =                    8 / binary data
+NAXIS   =                    2 / Simple 2-D matrix
+NAXIS1  =                   32 / Number of bytes per record
+NAXIS2  =               153989 / Number of records
+PCOUNT  =                    0 / Get rid of random parameters
+GCOUNT  =                    1 / Only one group (isn't it obvious?)
+TFIELDS =                    7 / Number of data fields (columns)
+CDS-CAT = 'B/wds   '           / Catalogue designation in CDS nomenclature
+         The Washington Visual Double Star Catalog (Mason+ 2001-2020)
+EXTNAME = 'B_wds_wds'          / Identification of the table
+CDS-NAME= 'B/wds/wds'          / Table name in METAtab
+         The Washington Double Star Catalog (main part)
+UCD__1  = 'time.epoch'         / ................................byte#0
+TDISP1  = 'I4      '           / Display Fortran Format
+TFORM1  = 'I       '           / 16-bit (short) integer
+TTYPE1  = 'Obs1    '           / ? Date of first satisfactory observation [NULL
+                                 integer written as an empty string]
+TUNIT1  = 'yr      '           / year
+TNULL1  =               -32768 / NULL definition
+UCD__2  = 'pos.posAng'         / ................................byte#2
+TDISP2  = 'I3      '           / Display Fortran Format
+TFORM2  = 'I       '           / 16-bit (short) integer
+TTYPE2  = 'pa1     '           / ? Position Angle at date Obs1 (2) [NULL integer
+                                 written as an empty string]
+TUNIT2  = 'deg     '           / degree
+TNULL2  =               -32768 / NULL definition
+UCD__3  = 'pos.angDistance;src.orbital' / .......................byte#4
+TDISP3  = 'F5.1    '           / Display Fortran Format
+TFORM3  = 'E       '           / 32-bit floating-point (simple precision)
+TTYPE3  = 'sep1    '           / ? Separation at date Obs1
+TUNIT3  = 'arcsec  '           / second of arc
+UCD__4  = 'phot.mag;em.opt'    / ................................byte#8
+TDISP4  = 'F6.3    '           / Display Fortran Format
+TFORM4  = 'E       '           / 32-bit floating-point (simple precision)
+TTYPE4  = 'mag1    '           / ? Magnitude of First Component
+TUNIT4  = 'mag     '           / magnitude
+UCD__5  = 'phot.mag;em.opt'    / ................................byte#12
+TDISP5  = 'F5.2    '           / Display Fortran Format
+TFORM5  = 'E       '           / 32-bit floating-point (simple precision)
+TTYPE5  = 'mag2    '           / ? Magnitude of Second Component
+TUNIT5  = 'mag     '           / magnitude
+UCD__6  = 'pos.eq.ra;meta.main' / ...............................byte#16
+TDISP6  = 'F11.5   '           / Display Fortran Format
+TFORM6  = 'D       '           / 64-bit floating-point (double precision)
+TTYPE6  = 'RAJ2000 '           / ? Right Ascension J2000 (Ep=J2000, hours)
+TUNIT6  = 'deg     '           / degree
+UCD__7  = 'pos.eq.dec;meta.main' / ..............................byte#24
+TDISP7  = 'F11.5   '           / Display Fortran Format
+TFORM7  = 'D       '           / 64-bit floating-point (double precision)
+TTYPE7  = 'DEJ2000 '           / ? Declination J2000 (Ep=J2000, degrees)
+TUNIT7  = 'deg     '           / degree
+END

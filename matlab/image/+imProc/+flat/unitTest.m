@@ -42,6 +42,7 @@ function Result = unitTest()
     Res = imProc.flat.deflat(AI,'FlatArgs',{'FilterKey',[]},'IsFlat',@imProc.flat.isFlat); 
     
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.flat test passed'); 
+   
+    io.msgStyle(LogLevel.Test, '@passed', 'imProc.flat test passed');    
     Result = true;
-
 end

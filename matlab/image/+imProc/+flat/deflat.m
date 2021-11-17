@@ -58,7 +58,7 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
         ImObj AstroImage
         Flat                            = [];  % A flat (AstroImage) image 
         Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
-        Args.IsFlat                     = @isFlat;  % @isBias, @isDark, vector of logical or [] - use all.                
+        Args.IsFlat                     = @imProc.flat.isFlat;  % @isBias, @isDark, vector of logical or [] - use all.                
         Args.FlatArgs cell              = {};
         Args.CCDSEC                     = [];
         Args.CreateNewObj               = [];

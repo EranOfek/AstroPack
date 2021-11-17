@@ -5,7 +5,7 @@
 %   Select and load records, automatically convert to output type:
 %
 %     Q = db.DbQuery('unittest:master_table');
-%     Mat = Q.select('fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Convert', 'mat', 'Limit', 100000);
+%     Mat = Q.select('fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'OutType', 'mat', 'Limit', 100000);
 %
 %
 %   Insert single record
@@ -94,6 +94,7 @@ classdef DbQuery < Component
         ExecOk          = false;    % Last result of exec()
         Eof             = true;     % True when cursor reached last record of current ResultSet
         Toc             = 0;        % Time of last operation
+        PerfLog         = false;    % True to log performance times
         
         % Internals
         JavaStatement   = []        % Java object - Prepared statement object
@@ -135,7 +136,7 @@ classdef DbQuery < Component
             Obj.setName('DbQuery');
             Obj.needUuid();
             Obj.DebugMode = true;
-            Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
+            %Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
                         
             % Set connection
             Obj.setConnection(DbTableOrConn);
@@ -167,7 +168,7 @@ classdef DbQuery < Component
                 Args.Order = ''         % Order by clause  (excluding ORDER BY keyword)
                 Args.Limit = -1         % Maximum number of records (LIMIT)
                 Args.Load = true        % True to load entire result set
-                Args.Convert = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
+                Args.OutType = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
                 Args.UseCopy = false    % @Todo (not implemented yet): True to use copyTo() instead of SELECT
                 Args.TempName           %
             end
@@ -199,6 +200,7 @@ classdef DbQuery < Component
                 Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
             end
 
+            % Use COPY TO statement to temporary csv file, and read file
             if Args.UseCopy
                 if isempty(Args.TempName)
                     Args.TempName = sprintf('%s.csv', tempname);
@@ -212,22 +214,23 @@ classdef DbQuery < Component
                         tic();
                         Result = db.DbRecord(Args.TempName);                        
                         Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
-                        if ~isempty(Args.Convert)
-                            Result = Result.convert2(Args.Convert);
+                        if ~isempty(Args.OutType)
+                            Result = Result.convert2(Args.OutType);
                         end                        
                     else
                         Result = true;
                     end                
                 end                   
                 
+            % SELECT and load result set
             else            
                 % Run query
                 Res = Obj.query();
                 if Res
                     if Args.Load
                         Result = Obj.loadResultSet();                
-                        if ~isempty(Args.Convert)
-                            Result = Result.convert2(Args.Convert);
+                        if ~isempty(Args.OutType)
+                            Result = Result.convert2(Args.OutType);
                         end
                     else
                         Result = true;
@@ -255,7 +258,7 @@ classdef DbQuery < Component
             tic();
             
             % Initialize
-            Obj.msgLog(LogLevel.Debug, 'DbQuery.loadResultSet, ColumnCount = %d', Obj.ColCount);
+            %Obj.msgLog(LogLevel.Debug, 'DbQuery.loadResultSet, ColumnCount = %d', Obj.ColCount);
             Result = db.DbRecord;
             Result.ColCount = Obj.ColCount;
             Result.ColNames = Obj.ColNames;
@@ -286,7 +289,9 @@ classdef DbQuery < Component
             end
             
             Obj.Toc = toc();
-            Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
+            if Obj.PerfLog            
+                Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
+            end
         end
                                             
     end % Select
@@ -303,16 +308,17 @@ classdef DbQuery < Component
                 Obj
                 Rec                         %
                 Args.TableName = ''         % Table name, if not specified, Obj.TableName is used
-                Args.FieldNames = []        % Comma-separated field names (i.e. 'recid,fint')
+                Args.ColNames = []          % Comma-separated field names (i.e. 'recid,fint')
                 Args.FieldMap = []          % Optional field map
                 Args.ExFields struct = []   % Additional fields as struct
                 Args.BatchSize = []         % Number of records per operation
                 Args.InsertRecFunc = []     % Called to generate primary key if required
+                Args.InsertRecArgs = {}     %
                 Args.UseCopy = 0            % When number of records is above this value, copyFrom() is used
             end
             
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: insert');
+            %Obj.msgLog(LogLevel.Debug, 'DbQuery: insert');
             Result = false;
             
             % Use speified TableName or Obj.TableName
@@ -327,7 +333,11 @@ classdef DbQuery < Component
                 
             % Convert from input type
             if ~isa(Rec, 'db.DbRecord')
-                Rec = db.DbRecord(Rec);
+                if isnumeric(Rec) || iscell(Rec)
+                    Rec = db.DbRecord(Rec, 'ColNames', Args.ColNames);
+                else
+                    Rec = db.DbRecord(Rec);
+                end
             end
 
             % Generate primary keys using user function
@@ -335,7 +345,7 @@ classdef DbQuery < Component
                 Args.InsertRecFunc = Obj.InsertRecFunc;
             end
             if ~isempty(Args.InsertRecFunc)
-                Args.InsertRecFunc(Obj, Rec, 1, numel(Rec.Data));
+                Args.InsertRecFunc(Obj, Rec, 1, numel(Rec.Data), Args.InsertRecArgs{:});
             end
             
             if isempty(Args.UseCopy)
@@ -415,8 +425,10 @@ classdef DbQuery < Component
                 RecIndex = RecIndex + BatchSize;
                 Toc2 = toc(T2);
                 
-                Obj.msgLog(LogLevel.Debug, 'insert (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
-
+                if Obj.PerfLog
+                    Obj.msgLog(LogLevel.Debug, 'insert (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
+                end
+                
                 % Execute
                 % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
                 T3 = tic();
@@ -429,11 +441,17 @@ classdef DbQuery < Component
                     break;
                 end
                 Toc3 = toc(T3);
-                Obj.msgLog(LogLevel.Debug, 'insert (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchSize);
+                if Obj.PerfLog
+                    Obj.msgLog(LogLevel.Debug, 'insert (%d) executeUpdate time: %f, BatchCount: %d', BatchNum, Toc3, BatchSize);
+                end
             end
             
             Obj.Toc = toc(T1);
-            Obj.msgLog(LogLevel.Debug, 'insert time: %f', Obj.Toc);
+            
+            if Obj.PerfLog            
+                Obj.msgLog(LogLevel.Debug, 'insert time: %f', Obj.Toc);
+            end
+            
             Result = Obj.ExecOk;
         end
                             
@@ -1050,7 +1068,7 @@ classdef DbQuery < Component
             try
                 % http://docs.oracle.com/javase/7/docs/api/java/sql/Types.html
                 Obj.ColCount = Obj.JavaMetadata.getColumnCount();
-                Obj.msgLog(LogLevel.Debug, 'DbQuery.getMetadata: ColumnCount = %d', Obj.ColCount);
+                %Obj.msgLog(LogLevel.Debug, 'DbQuery.getMetadata: ColumnCount = %d', Obj.ColCount);
                 %data = cell(0, Obj.ColCount);
                 for ColIndex = Obj.ColCount : -1 : 1
                     Obj.ColNames{ColIndex} = char(Obj.JavaMetadata.getColumnLabel(ColIndex));
@@ -1103,7 +1121,7 @@ classdef DbQuery < Component
                 end
             end
             
-            Obj.msgLog(LogLevel.Debug, 'makeInsertFieldsText: %s', SqlFields);
+            %Obj.msgLog(LogLevel.Debug, 'makeInsertFieldsText: %s', SqlFields);
         end
                     
         

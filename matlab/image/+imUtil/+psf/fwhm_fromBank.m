@@ -8,6 +8,9 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,varargin)
 %          * list of ...,key,val,...
 %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] of region in which to
 %                   measure FWHM. If empty use entire image. Default is [].
+%            'HalfSize' - Image half size. If 'CCDSEC' is empty, and this
+%                   argument is provided, then run this program on centeral
+%                   image with this half size. Default is [].
 %            'MinSN' - Minimum S/N to use. Default is 50.
 %            'Background' - A background image. Default is [].
 %            'Variance'   - A variance image. Default is [].
@@ -35,6 +38,7 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,varargin)
 
 InPar = inputParser;
 addOptional(InPar,'CCDSEC',[]); 
+addOptional(InPar,'HalfSize',[]); 
 addOptional(InPar,'MinSN',50); 
 addOptional(InPar,'Background',[]); 
 addOptional(InPar,'Variance',[]); 
@@ -47,7 +51,15 @@ parse(InPar,varargin{:});
 InPar = InPar.Results;
 
 if ~isempty(InPar.CCDSEC)
-    Image = Image(CCDSEC(1,3):CCDSEC(1,4), CCDSEC(1,1):CCDSEC(1,2));
+    Image = Image(InPar.CCDSEC(1,3):InPar.CCDSEC(1,4), InPar.CCDSEC(1,1):InPar.CCDSEC(1,2));
+    
+else
+    if ~ismepty(InPar.HalfSize)
+        SizeIm   = size(Image);
+        CenterIm = floor(SizeIm.*0.5);
+        InPar.CCDSEC = [CenterIm(2)-InPar.HalfSize, CenterIm(2)+InPar.HalfSize, CenterIm(1)-InPar.HalfSize, CenterIm(1)+InPar.HalfSize];    
+        Image = Image(InPar.CCDSEC(1,3):InPar.CCDSEC(1,4), InPar.CCDSEC(1,1):InPar.CCDSEC(1,2));
+    end
 end
 
 

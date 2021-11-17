@@ -693,11 +693,17 @@ classdef CalibImages < Component
             %           'MultiplyByGain' - A logical indicating if to
             %                   multiply image values by gain.
             %                   Default is true.
-            %           'InterpolateOberSaturated' - A logical indicating
-            %                   if to interpolate over saturated pixels and NaNs.
+            %           'BitNameNaN' - The bit name for NaN pixels.
+            %                   If empty, then will not set the bit mask.
+            %                   Default is 'NaN'.
+            %           'InterpolateOberBadPix' - A logical indicating
+            %                   if to interpolate over bad pixels.
             %                   Default is true.
-            %           'Bitname_Saturated' - Satuarted pixels bitmask
-            %                   name. Default is 'Saturated'.
+            %           'BitNameBadPix' - A cell array of bad pixels over
+            %                   which to interpolate.
+            %                   Default is {'Saturated','NaN'}.
+            %           'BitName_Interpolated' - Bit name for interpolated
+            %                   pixels. Default is 'Interpolated'.
             %           'interpOverNanArgs' - A cell array of additional
             %                   arguments to pass to imProc.image.interpOverNan.
             %                   Default is {}.
@@ -722,8 +728,10 @@ classdef CalibImages < Component
                 Args.deflatArgs cell                = {};
                 Args.CorrectFringing logical        = false;
                 Args.MultiplyByGain logical         = true;
-                Args.InterpolateOverSaturated logical = true;
-                Args.Bitname_Saturated              = 'Saturated';
+                Args.BitNameNaN                     = 'NaN';
+                Args.InterpolateOverBadPix logical  = true;
+                Args.BitNameBadPix                  = {'Saturated','NaN'};
+                Args.BitNameInterpolated            = 'Interpolated';
                 Args.interpOverNanArgs cell         = {};
                 
             end
@@ -778,22 +786,23 @@ classdef CalibImages < Component
             if Args.MultiplyByGain
                 imProc.calib.gainCorrect(Result, 'CreateNewObj',false);
             end
-                
+            
+            
+            % Set the MaskImage for NaN pixels
+            for Iim=1:1:Nim
+                FlagNaN              = isnan(Result(Iim).Image);
+                Result(Iim).MaskData = maskSet(Result(Iim).MaskData, FlagNaN, Args.BitNameNaN, 1);
+            end
+
             
             % interpolate over saturated pixels
-            if Args.InterpolateOverSaturated
-                % find saturated pixels
-                Nim = numel(Result);
-                for Iim=1:1:Nim
-                    [~, ~, Ind] = findBit(Result(Iim).MaskData, Args.Bitname_Saturated);
-                    % set saturated pixels to NaN
-                    Result(Iim).Image(Ind) = NaN;
-                    % interpolate over staurated pixels
-                    %Result(Iim).cast('double');  % <<< FFU: REMOVE THIS AFTER BUG FIXED
-                    
-                    Result(Iim) = imProc.image.interpOverNan(Result(Iim), Args.interpOverNanArgs{:},...
-                                        'CreateNewObj',false);
-                end
+            if Args.InterpolateOverBadPix
+                % find saturated pixels and interpolate over
+                
+                Result = imProc.mask.interpOverMaskedPix(Result, 'BitNamesToInterp',Args.BitNameBadPix,...
+                                                                 'interpOverNanArgs', Args.interpOverNanArgs,...
+                                                                 'BitNameInterpolated',Args.BitNameInterpolated,...
+                                                                 'CreateNewObj',false);
             end
         end
     end
