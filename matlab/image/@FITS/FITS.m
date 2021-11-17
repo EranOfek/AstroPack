@@ -79,12 +79,10 @@ classdef FITS < handle
                 Ihdu  =min(Ilist,Nhdu);
                 Obj(Ilist).File = List{Ilist};
                 Obj(Ilist).HDU  = ListHDU(Ihdu);
-            end
-            
+            end            
         end
     end
-    
-
+        
     
     methods (Static)
         function Nhdu = numHDU1(FileName)
@@ -98,7 +96,7 @@ classdef FITS < handle
             Fptr = matlab.io.fits.openFile(FileName);
             Nhdu = matlab.io.fits.getNumHDUs(Fptr);
             matlab.io.fits.closeFile(Fptr);
-        end
+        end        
         
         
         function [HeadCell,Nhdu] = readHeader1(FileName,HDUnum)
@@ -385,7 +383,6 @@ classdef FITS < handle
             else
                 CellRowPar = {Args.StartRow,Args.NRows};
             end
-
 
             % for each fits table
             Fptr = matlab.io.fits.openFile(ListTableName{Ifile});
