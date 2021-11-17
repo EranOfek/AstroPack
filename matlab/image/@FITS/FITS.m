@@ -402,9 +402,19 @@ classdef FITS < handle
             Col(Ifile).Tdisp    = cell(1,Ncol);
             Col(Ifile).Data     = cell(1,Ncol);
             for Icol=1:1:Ncol
-                [Col(Ifile).Cell{Icol},Col(Ifile).Units{Icol},Col(Ifile).TypeChar{Icol},...
+                
+                switch lower(Args.TableType)
+                    case 'bintable'
+                        [Col(Ifile).Cell{Icol},Col(Ifile).Units{Icol},Col(Ifile).TypeChar{Icol},...
                                        Col(Ifile).Repeat{Icol},Col(Ifile).Scale{Icol},Col(Ifile).Zero{Icol},...
                                        Col(Ifile).Nulval{Icol},Col(Ifile).Tdisp{Icol}]= Fun_getColParms(Fptr,Icol);
+                    case 'table'
+                        [Col(Ifile).Cell{Icol},Col(Ifile).TypeChar{Icol},Col(Ifile).Units{Icol},...
+                                       Col(Ifile).Repeat{Icol},Col(Ifile).Scale{Icol},Col(Ifile).Zero{Icol},...
+                                       Col(Ifile).Nulval{Icol},Col(Ifile).Tdisp{Icol}]= Fun_getColParms(Fptr,Icol);
+                    otherwise
+                        error('Unknown TableType option');
+                end
 
 
                 [Col(Ifile).Data{Icol}] = matlab.io.fits.readCol(Fptr,Icol,CellRowPar{:});

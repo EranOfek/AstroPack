@@ -273,6 +273,25 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
 
     end
-
+    
+    % Update Mask
+    % Mark NaN pixels in the mask image and interpolate over these pixels
+    Args.BitNameNaN = 'NaN';
+    Args.BitMaskNaN = true;
+    Args.InterpOverNaN = true;
+    Args.interpOverNanArgs = {};
+    Args.BitNameInterpolated     = 'Interpolated';
+    
+    if Args.BitMaskNaN
+        FlagNaN         = isnan(Result.Image);
+        Result.MaskData = maskSet(Result.MaskData, FlagNaN, Args.BitNameNaN, 1, 'CreateNewObj',false);
+        
+        if Args.InterpOverNaN
+            Result = imProc.mask.interpOverMaskedPix(Result, 'BitNamesToInterp',{Args.BitNameNaN},...
+                                                             'interpOverNanArgs',Args.interpOverNanArgs,...
+                                                             'BitNameInterpolated',Args.BitNameInterpolated,...
+                                                             'CreateNewObj',false);
+        end
+    end            
 end
         

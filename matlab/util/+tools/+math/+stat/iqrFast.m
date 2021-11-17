@@ -1,7 +1,6 @@
 function Result = iqrFast(X, Dim)
     % A fast iqr (inter quantile range) function (without interpolation) 
     % Input  : - An array.
-    %          - Fraction, or a vector of fractions.
     %          - Dimension along to calculate the quantile (1 | 2 | [1 2]).
     %            Default is 1.
     % Output : - IQR.
@@ -11,6 +10,11 @@ function Result = iqrFast(X, Dim)
     %          Quant = tools.math.stat.iqrFast(R)
     %          tic; for I=1:1:1e3, Quant = tools.math.stat.iqrFast(R); end, toc
     %          tic; for I=1:1:1e3, Quant = iqr(R); end, toc
+    %          R = rand(1000,3);
+    %          Quant = tools.math.stat.iqrFast(R)
+    %          Quant = tools.math.stat.iqrFast(R,[1 2])
+    %          R = rand(10,3,4);
+    %          Quant = tools.math.stat.iqrFast(R,3)
     
     arguments
         X
@@ -32,8 +36,10 @@ function Result = iqrFast(X, Dim)
             Result = range(X(Ind,:));
         case 2
             Result = range(X(:,Ind),2);
+        case 3
+            Result = range(X(:,:,Ind),3);
         otherwise
-            error('Dim must be 1 or 2');
+            error('Dim must be 1, 2, or 3');
     end
     
 end

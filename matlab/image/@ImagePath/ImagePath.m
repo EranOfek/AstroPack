@@ -34,8 +34,8 @@ classdef ImagePath < Component
         
         % Fields formatting
         FormatFieldID   = '%06d';       % Used with FieldID
-        FormatCCDID     = '03d';        % Used with CCDID
-        FormatCropID    = '03d';        % Used with CropID
+        FormatCCDID     = '%03d';       % Used with CCDID
+        FormatCropID    = '%03d';       % Used with CropID
         FormatVersion   = '%03d';       % Used with Version
         
         % @Todo: Defaults should be loaded from configuration
@@ -187,7 +187,7 @@ classdef ImagePath < Component
             FPath = strrep(FPath, '\', '/');            
             FPath = regexprep(FPath, sprintf('%s{2,5}', '/'), '/');
             
-            Obj.msgLog(LogLevel.Debug, 'Path: %s', FPath);
+            %Obj.msgLog(LogLevel.Debug, 'Path: %s', FPath);
             Result = FPath;            
         end
         
@@ -309,7 +309,7 @@ classdef ImagePath < Component
             Obj.FileName = regexprep(Obj.FileName, sprintf('%s{2,5}', '/'), '/');
             
             % Done
-            Obj.msgLog(LogLevel.Debug, 'FileName: %s', Obj.FileName);
+            %Obj.msgLog(LogLevel.Debug, 'FileName: %s', Obj.FileName);
             Result = Obj.FileName;
 
         end
@@ -335,7 +335,7 @@ classdef ImagePath < Component
                 Header AstroHeader
             end
             
-            Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
+            %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
                                 
             Obj.ProjName        = Header.getVal(Obj.DictKeyNames.ProjName);
             Obj.JD              = Header.getVal(Obj.DictKeyNames.JD);
@@ -365,7 +365,7 @@ classdef ImagePath < Component
                 Header AstroHeader
             end
             
-            Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
+            %Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
                  
             Header.setVal(Obj.DictKeyNames.JD,          Obj.JD);
             Header.setVal(Obj.DictKeyNames.TimeZone,    Obj.TimeZone);
@@ -394,7 +394,7 @@ classdef ImagePath < Component
                 Query io.db.DbQuery
             end            
             
-            Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
+            %Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
             st = Query.getRecord();
             Result = Obj.readFromStruct(st);
         end
@@ -490,7 +490,7 @@ classdef ImagePath < Component
             Result = true;
             
             % Verify Type
-            Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
+            %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
             switch Obj.Type
                 case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'wave'}
                     % Ok
@@ -499,7 +499,7 @@ classdef ImagePath < Component
             end
 
             % Verify Level
-            Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
+            %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
             switch Obj.Level
                 case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'calib'}
                     % Ok
@@ -508,7 +508,7 @@ classdef ImagePath < Component
             end
 
             % Verify Product
-            Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
+            %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
                 case { 'im', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
                     % Ok

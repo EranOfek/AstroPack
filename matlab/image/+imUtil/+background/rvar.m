@@ -16,7 +16,8 @@ if isempty(varargin)
 end
 
 % iqr is ~3 times slower compared to tools.math.stat.iqrFast
-FunIQR = @tools.math.stat.iqrFast; % @iqr;
+FunIQR = @tools.math.stat.iqrFast; % @iqr; 
+%FunIQR = @iqr;  
 
 Factor = 0.7413;  %  = 1./norminv(0.75,0,1)
 
