@@ -1,8 +1,0 @@
-InstallationLocation : '~/matlab/data'
-# The following are cell arrays of entry per dataset
-DataName             : 'TestImagesLAST'
-SubDir               : 'LAST/TestImages'
-URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/LAST/TestImages/index.html']
-Size                 : 151831
-SearchFile           : ''
-Description          : 'FITS test images taken with LAST prototype'

@@ -1,8 +1,0 @@
-InstallationLocation : '~/matlab/data'
-# The following are cell arrays of entry per dataset
-DataName             : 'CALSPEC'
-SubDir               : 'spec/CALSPEC'
-URL                  : ['https://archive.stsci.edu/hlsps/reference-atlases/cdbs/current_calspec/index.html']
-Size                 : 1612
-SearchFile           : ''
-Description          : 'STSCI CALSPEC standard spectra library (FITS format)'
