@@ -1,7 +1,7 @@
 function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = multiRaw2proc(FilesList, Args)
     %
     % Example: L=io.files.filelist('LAST*science.fits');
-    % [AllSI, MergedCat, MatchedS, Coadd]=pipeline.generic.multiRaw2proc(L(289:308),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(289:308),'CalibImages',CI);
     
     
     arguments
@@ -46,19 +46,19 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Iim
         if Iim==1 || ~Args.SameField
             % need to generate AstrometricCat for field
-            tic;
+            %tic;
             [SI, AstrometricCat, ResultSingle(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
                                                                                       Args.singleRaw2procArgs{:});
-            toc
+            %toc
             
         else
-            tic;
+            %tic;
             [SI, ~, ResultSingle(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
                                                                          Args.singleRaw2procArgs{:});
-            toc
+            %toc
             
         end
        
@@ -125,7 +125,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 
         
         % photometric calibration
-        [Coadd, ResultCoadd.ZP, ResultCoadd.PhotCat] = imProc.calib.photometricZP(Coadd, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
+        [Coadd, ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
         
         
     end
