@@ -3,12 +3,12 @@ function Result = unitTest()
     io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
 
     % genFile
-     ip = ImagePath();
-     fprintf('%s\n', ip.needUuid());
-     [ExpectedPath, ExpectedFileName] = ip.setTestData();
-     FileName = ip.genFile('Time', ip.Time, 'FullPath', false);
-     assert(strcmp(FileName, ExpectedFileName),'parsed FileName and expected FileName are different');
-     disp(FileName);
+    ip = ImagePath();
+    fprintf('%s\n', ip.needUuid());
+    [ExpectedPath, ExpectedFileName] = ip.setTestData();
+    FileName = ip.genFile('Time', ip.Time, 'FullPath', false);
+    assert(strcmp(FileName, ExpectedFileName),'parsed FileName and expected FileName are different');
+    disp(FileName);
     
     % Test copying Handle class
     fprintf('ip.Uuid = %s\n', ip.needUuid());        
