@@ -2,7 +2,8 @@ program YamlMsgProject;
 
 uses
   Vcl.Forms,
-  YamlMsgTest in 'YamlMsgTest.pas' {Form1};
+  YamlMsgTest in 'YamlMsgTest.pas' {Form1},
+  MsgYaml in 'MsgYaml.pas';
 
 {$R *.res}
 
