@@ -9,7 +9,7 @@ function Result = unitTest(Obj)
 	PWD = pwd;
 	cd(DataSampleDir);
 	
-    
+    test_readTable();
     %test_writeTable();
     
     % test constructor
@@ -83,6 +83,20 @@ function Result = unitTest(Obj)
 	Result = true;
 end
 
+    
+function Result = test_readTable()
+    % unitTest for the FITS.writeTable()
+    WorkDir = tools.os.getTestWorkDir();
+    
+	% @FIX - @Eran
+	[Out, Head, Col] = FITS.readTable1('asu.fit');
+    	
+	F = FITS('asu.fit',2);
+	io.msgLog(LogLevel.Test, 'testing FITS readTable');
+	F.readTable;
+    
+    Result = true;
+end
 
 
 function Result = test_writeTable()
