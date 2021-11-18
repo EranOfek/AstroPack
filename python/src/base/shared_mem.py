@@ -122,24 +122,37 @@ class SharedMemory:
 
         # Open/create file and set size
         if _create:
-            if not os.path.exists(self.filename):
-                self.f = open(self.filename, 'wb')
-                self.f.seek(self.memsize-1)
-                self.f.write(b'\0')
-                self.f.close()
+            try:
+                if not os.path.exists(self.filename):
+                    self.f = open(self.filename, 'wb')
+                    self.f.seek(self.memsize-1)
+                    self.f.write(b'\0')
+                    self.f.close()
+            except:
+                self.f = None
+                print('SharedMemory.open open(wb) FAILED: ' + self.filename)
 
         # Open file
-        self.f = open(self.filename, 'rb+')
-        self.fid = self.f.fileno()
-        self.filesize = os.path.getsize(self.filename)
-        if self.filesize > 0:
-            self.memsize = self.filesize
+        try:
+            self.f = open(self.filename, 'rb+')
+            self.fid = self.f.fileno()
+            self.filesize = os.path.getsize(self.filename)
+            if self.filesize > 0:
+                self.memsize = self.filesize
 
-        print('file size: ', os.path.getsize(self.filename), 'mmap size: ', self.memsize)
+            print('file size: ', os.path.getsize(self.filename), 'mmap size: ', self.memsize)
 
-        # Open mmap
-        self.mmap = mmap.mmap(self.fid, 0, access=mmap.ACCESS_WRITE)
-        self.mmap.seek(0)
+            # Open mmap
+            try:
+                self.mmap = mmap.mmap(self.fid, 0, access=mmap.ACCESS_WRITE)
+                self.mmap.seek(0)
+            except:
+                print('SharedMemory.open mmap FAILED: ' + self.filename)
+                self.mmmap = None
+        except:
+            print('SharedMemory.open open(rb+) FAILED: ' + self.filename)
+            self.f = None
+            self.mmap = None
 
 
     # Close file
@@ -161,27 +174,40 @@ class SharedMemory:
 
     # Write buffer to shared-memory
     def write(self, pos, buf):
-        self.mmap.seek(pos)
-        self.mmap.write(buf)
+        if self.mmap:
+            self.mmap.seek(pos)
+            self.mmap.write(buf)
+            return True
+        else:
+            return False
 
 
     # Read buffer from shared-memory
     def read(self, pos, nbytes):
-        self.mmap.seek(pos)
-        buf = self.mmap.read(nbytes)
-        return buf
+        if self.mmap:
+            self.mmap.seek(pos)
+            buf = self.mmap.read(nbytes)
+            return buf
+        else:
+            return None
 
 
     # Return buf, put_counter, w, h
     def get_buf(self):
         #with m = Locker(...)
-        buf, put_counter, width, height, flags = self.do_get_buf()
-        return buf, put_counter, width, height, flags
+        if self.mmap:
+            buf, put_counter, width, height, flags = self.do_get_buf()
+            return buf, put_counter, width, height, flags
+        else:
+            return None, 0, 0, 0, 0
 
 
     # Get next buffer from shared-memory, return bytes object or None if queue is empty
     # Return buf, put_counter, width, height, flags
     def do_get_buf(self):
+
+        if not self.mmap:
+            return None, 0, 0, 0, 0
 
         # Read header to array of unsigned integers
         header = array.array('I')
