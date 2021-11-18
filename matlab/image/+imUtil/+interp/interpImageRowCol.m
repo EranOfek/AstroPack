@@ -14,11 +14,6 @@ function Result = interpImageRowCol(Image)
     
     
     
-    arguments
-        Image
-        
-    end
-    
     Args.InterpMethod    = 'linear';
     
     SizeIm = size(Image);
