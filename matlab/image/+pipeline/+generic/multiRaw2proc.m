@@ -67,6 +67,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             Nsub  = numel(SI);
             AllSI = AstroImage([Nim, Nsub]);
         end
+        
+        % clean data that will not be used later on
+        
+        
         AllSI(Iim,:) = SI;
             
     end
