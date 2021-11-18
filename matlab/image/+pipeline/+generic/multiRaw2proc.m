@@ -33,6 +33,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.Tran                             = Tran2D('poly3');
         Args.astrometryRefineArgs             = {};
         
+        Args.ReturnRegisteredAllSI logical    = false;
+        
     end
     
     if isa(FilesList, 'AstroImage')
@@ -102,7 +104,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
     
         ShiftXY = cumsum([0 0; -[Summary(Ifields).ShiftX, Summary(Ifields).ShiftY]]);
-        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields), 'ShiftXY',ShiftXY, 'CreateNewObj',true);
+        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields), 'ShiftXY',ShiftXY, 'CreateNewObj',~Args.ReturnRegisteredAllSI);
         
         % use sigma clipping...
         % 1. NOTE that the mean image is returned so that the effective gain
@@ -136,7 +138,6 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         
     end
-    clear ResultAsteroids
     
     % for testing:
 %     clear Coadd

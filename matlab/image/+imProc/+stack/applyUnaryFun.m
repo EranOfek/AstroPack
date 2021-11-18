@@ -84,7 +84,7 @@ function Result = applyUnaryFun(ImObj, Offset, Operator, Args)
         else
             Tmp = Offset(Ioff).(Args.DataProp).(Args.DataPropIn);
         end
-        if ~isempty(Args.PreDivide)
+        if Args.PreDivide
             Tmp = 1./Tmp;
         end
 
