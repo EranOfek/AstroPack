@@ -6,6 +6,7 @@ function Result = unitTest()
     if HaveLASTimages
         cd /data/euler/archive/AstroPack/data/LAST/TestImages
 
+        tic;
         CI = CalibImages;
         CI.createBias('*_dark.fits');
 
@@ -13,6 +14,8 @@ function Result = unitTest()
         FlatImages.setKeyVal('FILTER','clear');
 
         CI.createFlat(FlatImages(1:5));
+        toc
+        
 
         Image = AstroImage('LAST.2.1.2_20200821.015622.166_clear_0_science.fits');
         Image.setKeyVal('FILTER','clear');

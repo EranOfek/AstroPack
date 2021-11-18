@@ -18,6 +18,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.CatName                          = 'GAIAEDR3';
         
         Args.singleRaw2procArgs cell          = {};
+        Args.DeletePropAfterSrcFinding        = {'Back','Var'};
         Args.coaddArgs cell                   = {};
         
         % Background and source finding
@@ -44,6 +45,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     for Iim=1:1:Nim
         Iim
+        
         if Iim==1 || ~Args.SameField
             % need to generate AstrometricCat for field
             %tic;
@@ -67,13 +69,14 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             Nsub  = numel(SI);
             AllSI = AstroImage([Nim, Nsub]);
         end
+                
+        AllSI(Iim,:) = SI;
         
         % clean data that will not be used later on
-        
-        
-        AllSI(Iim,:) = SI;
-            
+        AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
+
     end
+    clear SI;
     
     % get JD
     JD = julday(AllSI(:,1));
@@ -133,5 +136,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         
     end
+    clear ResultAsteroids
+    
+    % for testing:
+%     clear Coadd
+%     clear ResultCoadd
+%     clear RegisteredImages
+%     clear MergedCat
+%     clear MatchedS
+%     clear ResultSubIm
+%     clear AllSI
+    
 end
 
