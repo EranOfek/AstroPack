@@ -2,7 +2,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 % Calculate 1st, 2nd moments and (weighted) aperture photometry 
 % Package: @imUtil.image
 % Description: Given a 2D image, or a 3D cube of image stamps, and X, Y
- %             coordinates of sources (or the center of the stamps),
+%              coordinates of sources (or the center of the stamps),
 %              calculate for each stamp the 1st and 2nd moments, and
 %              aperture photometry.
 %              By default, first moment is calculated iteratively around
@@ -259,8 +259,9 @@ else
         MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
         MatYcen = MatY - reshape(CumRelY1,1,1,Nsrc);
 
-        MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
-
+        MatR       = sqrt(MatXcen.^2 + MatYcen.^2);
+        %MatR        = sqrt(MatR2);
+        
         % apply Gaussian weight to the new centeral matrix
         if ~Args.WindowOnlyOnLastIter
             if isa(Args.WeightFun,'function_handle')
@@ -277,6 +278,8 @@ else
                     Factor = 1;
                 end
                 W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
+                %W   = exp(-0.5.*MatR2./((Args.WeightFun.*Factor).^2))./(2.*pi.*(Args.WeightFun.*Factor).^2);
+                
                 %W         = GaussFun(MatR,WeightFun.*Factor);
                 %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
             else
