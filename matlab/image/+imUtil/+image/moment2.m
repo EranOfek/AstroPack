@@ -168,7 +168,10 @@ if (SizeCube(1)~=SizeCube(2))
 end
 Vec = (1:1:SizeCube(1)) - SizeCube(1).*0.5 - 0.5;
 [MatX,MatY] = meshgrid(Vec,Vec);
-MatR        = sqrt(MatX.^2 + MatY.^2);
+
+%MatR        = sqrt(MatX.^2 + MatY.^2);
+MatR2       = MatX.^2 + MatY.^2;
+%MatR        = sqrt(MatR2);
 
 Nsrc = numel(X);
 
@@ -176,8 +179,8 @@ Nsrc = numel(X);
 % estimation
 if Args.SubBack || nargout>2
     % Annulus background
-    BackFilter = nan(size(MatR));
-    BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
+    BackFilter = nan(size(MatR2));
+    BackFilter(MatR2>Args.Annulus(1).^2 & MatR2<(Args.Annulus(2).^2)) = 1;
     BackCube = BackFilter.*Cube;
     % note - use NaN ignoring functions!
     Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
@@ -194,17 +197,19 @@ end
 % apply Gaussian weight
 if isa(Args.WeightFun,'function_handle')
     % WeightFun is a function handle
-    W = Args.WeightFun(MatR.^2);
+    W = Args.WeightFun(MatR2);
 elseif isnumeric(Args.WeightFun)
     % WeightFun is assumed to be the sigma of a Gaussian
-    W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
+    %W   = exp(-0.5.*(MatR./Args.WeightFun).^2) ./ (2.*pi.*Args.WeightFun.^2);
+    W   = exp(-0.5.*MatR2./((Args.WeightFun).^2)) ./ (2.*pi.*Args.WeightFun.^2);
+    
     %W         = GaussFun(MatR,WeightFun);   % exp(-MatR.^2./(2.*WeightFun));
 else
     error('WeightFun must be a function handle or a numeric scalar');
 end
 % construct a window with maximal radiu
-W_Max = ones(size(MatR));
-W_Max(MatR>Args.MomRadius) = 0;
+W_Max = ones(size(MatR2));
+W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
 
@@ -259,14 +264,15 @@ else
         MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
         MatYcen = MatY - reshape(CumRelY1,1,1,Nsrc);
 
-        MatR       = sqrt(MatXcen.^2 + MatYcen.^2);
-        %MatR        = sqrt(MatR2);
+        %MatR       = sqrt(MatXcen.^2 + MatYcen.^2);
+        MatR2      = MatXcen.^2 + MatYcen.^2;
+        %MatR       = sqrt(MatR2);
         
         % apply Gaussian weight to the new centeral matrix
         if ~Args.WindowOnlyOnLastIter
             if isa(Args.WeightFun,'function_handle')
                 % WeightFun is a function handle
-                W = Args.WeightFun(MatR.^2);
+                W = Args.WeightFun(MatR2);
             elseif isnumeric(Args.WeightFun)
                 % WeightFun is assumed to be the sigma of a Gaussian
                 if Args.DynamicWindow
@@ -277,8 +283,11 @@ else
                 else
                     Factor = 1;
                 end
-                W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
-                %W   = exp(-0.5.*MatR2./((Args.WeightFun.*Factor).^2))./(2.*pi.*(Args.WeightFun.*Factor).^2);
+                %W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
+                WeightFactor = (Args.WeightFun.*Factor).^2;
+                W   = exp(-0.5.*(MatR2./WeightFactor)) ./ (2.*pi.*WeightFactor);
+                
+                
                 
                 %W         = GaussFun(MatR,WeightFun.*Factor);
                 %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
@@ -288,8 +297,8 @@ else
         end
 
         % construct a window with maximal radius
-        W_Max = ones(size(MatR));
-        W_Max(MatR>Args.MomRadius) = 0;
+        W_Max = ones(size(MatR2));
+        W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
@@ -311,23 +320,26 @@ else
         MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
         MatYcen = MatY - reshape(CumRelY1,1,1,Nsrc);
 
-        MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
+        %MatR        = sqrt(MatXcen.^2 + MatYcen.^2);
+        MatR2       = MatXcen.^2 + MatYcen.^2;
+        %MatR        = sqrt(MatR2);
 
         % apply Gaussian weight to the new centeral matrix
         if isa(Args.WeightFun,'function_handle')
             % WeightFun is a function handle
-            W = Args.WeightFun(MatR.^2);
+            W = Args.WeightFun(MatR2);
         elseif isnumeric(Args.WeightFun)
             %Factor = 1;
-            W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
+            %W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
+            W   = exp(-0.5.*MatR2./((Args.WeightFun).^2)) ./ (2.*pi.*Args.WeightFun.^2);
             %W         = GaussFun(MatR,WeightFun);
             %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
         else
             error('WeightFun must be a function handle or a numeric scalar');
         end
         % construct a window with maximal radiu
-        W_Max = ones(size(MatR));
-        W_Max(MatR>Args.MomRadius) = 0;
+        W_Max = ones(size(MatR2));
+        W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
@@ -385,8 +397,8 @@ if nargout>1
         Aper.AperPhot = zeros(Nsrc,Naper);
         Aper.AperArea = zeros(Nsrc,Naper);
         for Iaper=1:1:Naper
-            AperFilter = ones(size(MatR));
-            AperFilter(MatR>Args.AperRadius(Iaper)) = 0;
+            AperFilter = ones(size(MatR2));
+            AperFilter(MatR2>(Args.AperRadius(Iaper).^2)) = 0;
             Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
             % back is already subtracted
             Aper.AperPhot(:,Iaper)   = sum(Cube.*AperFilter,[1 2]);
