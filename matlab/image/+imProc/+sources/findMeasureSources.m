@@ -81,7 +81,9 @@ function Result = findMeasureSources(Obj, Args)
     %            'FlasgPos' - The column index in which to add the Flags
     %                   column. Default is Inf.
     %            'ColNameFlags' - The column name of Flags to add to the
-    %                   catalog. Default is 'FLAGS'.
+    %                   catalog. 
+    %                   This will be added only of the MaskData is
+    %                   populated. Default is 'FLAGS'.
     %            'ColNamesX' - X column names dictionary from which to get
     %                   the X position for the flags retrival.
     %                   Default is AstroCatalog.DefNamesX.
@@ -97,13 +99,7 @@ function Result = findMeasureSources(Obj, Args)
     %                   convert the Flags into. Default is @double.
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
-    %                   handle of the input (false).
-    %                   If empty (default), then this argument will
-    %                   be set by the number of output args.
-    %                   If 0, then false, otherwise true.
-    %                   This means that IC.fun, will modify IC,
-    %                   while IB=IC.fun will generate a new copy in
-    %                   IB.
+    %                   handle of the input (false). Default is false.
     % Output : - An AstroImage object in which the CatData is populated
     %            with sources found in the image.
     % Example: Im=imUtil.kernel2.gauss(2,[128 128]);
@@ -151,9 +147,7 @@ function Result = findMeasureSources(Obj, Args)
         Args.ColNamesYsec                  = 'YPEAK';
         Args.FlagsType                     = @double;
             
-        Args.CreateNewObj                  = [];
-        
-        
+        Args.CreateNewObj logical          = false;
         
         % hidden
         Args.ImageProp char            = 'ImageData';
@@ -165,13 +159,6 @@ function Result = findMeasureSources(Obj, Args)
         Args.CatProp char              = 'CatData';
     end
     
-    if isempty(Args.CreateNewObj)
-        if nargout==0
-            Args.CreateNewObj = false;
-        else
-            Args.CreateNewObj = true;
-        end
-    end
     if Args.CreateNewObj
         Result = Obj.copy();
     else
@@ -204,7 +191,25 @@ function Result = findMeasureSources(Obj, Args)
                                                         'ColCell',Args.ColCell);
                                                     
                                                     
-                                                   
+%             [Result(Iobj).(Args.CatProp).Catalog, Result(Iobj).(Args.CatProp).ColNames] = imUtil.sources.find_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...
+%                                                         'OutType','mat',...
+%                                                         'BackIm',Result(Iobj).(Args.BackProp).(Args.BackPropIn),...
+%                                                         'VarIm',Result(Iobj).(Args.VarProp).(Args.VarPropIn),...
+%                                                         'Threshold',Args.Threshold,...
+%                                                         'Psf',Args.Psf,...
+%                                                         'PsfFun',Args.PsfFun,...
+%                                                         'PsfFunPar',Args.PsfFunPar,...
+%                                                         'RemoveEdgeDist',Args.RemoveEdgeDist,...
+%                                                         'ForcedList',Args.ForcedList,...
+%                                                         'OnlyForced',Args.OnlyForced,...
+%                                                         'MomPar',Args.MomPar,...
+%                                                         'Conn',Args.Conn,...
+%                                                         'Gain',Args.Gain,...
+%                                                         'LupSoftPar',Args.LupSoftPar,...
+%                                                         'ZP',Args.ZP,...
+%                                                         'ColCell',Args.ColCell);
+                                                    
+                   
             % remove bad sources
             % works only for Gaussian PSF
             if Args.RemoveBadSources
@@ -224,9 +229,11 @@ function Result = findMeasureSources(Obj, Args)
                 XY(Fnan,:)           = XYpeak(Fnan,:);
                 
                 % need to decide what to do about NaN positions
-                Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
-                Flags                = Args.FlagsType(Flags);
-                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+                if ~isemptyImage(Result(Iobj).MaskData)
+                    Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                    Flags                = Args.FlagsType(Flags);
+                    Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+                end
             end                
         end
                                                     

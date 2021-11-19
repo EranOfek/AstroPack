@@ -80,7 +80,12 @@ end
 %     end
 % end
 
-SN = Image./sqrt(Variance);
+if Variance==1
+    SN = Image;
+else
+    % in some cases user supplies Var=1 - faster...
+    SN = Image./sqrt(Variance);
+end
 
 % check if SN is a cube
 % If this is the case, then take max over third dimension
