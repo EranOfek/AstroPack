@@ -342,7 +342,10 @@ else
         W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
-        WInt = W.*W_Max.*Cube; % Weighted intensity
+        WW_Max = W.*W_Max;
+        WInt = WW_Max.*Cube; % Weighted intensity
+        %WInt = W.*W_Max.*Cube; % Weighted intensity
+        
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
         CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
