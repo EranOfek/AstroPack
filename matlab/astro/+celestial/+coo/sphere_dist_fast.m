@@ -27,6 +27,13 @@ function [Dist,Ang,PA]=sphere_dist_fast(RA_1,Dec_1,RA_2,Dec_2)
 Dist = acos(sin(Dec_1).*sin(Dec_2) + cos(Dec_1).*cos(Dec_2).*cos(RA_1-RA_2));
 %Dist = acos(sin(Dec_1).*sin(Dec_2) + sqrt(1-sin(Dec_1).^2).*sqrt(1-sin(Dec_2).^2).*cos(RA_1-RA_2));  % this is more accurate
 
+% haversine formulae
+%Dist = acos(1 - ( (1-cos(Dec_2 - Dec_1)) + cos(Dec_1).*cos(Dec_2) .* (1-cos(RA_2 - RA_1)) ));
+
+
+
+
+
 
 if (nargout>1)
    dRA = RA_1-RA_2;
