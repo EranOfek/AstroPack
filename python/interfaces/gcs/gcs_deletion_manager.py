@@ -1,7 +1,7 @@
 # GCS Data Types
 
 
-class GcsInterface(InterfaceBase):
+class DeletionManager(InterfaceBase):
 
     # Constructor
     def __init__(self):

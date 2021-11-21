@@ -3,6 +3,21 @@
 
 from gcs_msg import GcsMsg
 
+# Common Messages Types
+MSG_ACK = ''
+MSG_KEEP_ALIVE = ''
+
+# SOC -> GCS Message Types
+
+MSG_IMAGING_TASK = ''
+MSG_OBRD_TASK = ''
+
+# GCS -> SOC Message Types
+
+MSG_
+
+
+
 #------------------------------------------------------------------
 #
 class GcsMsgTask(GcsMsg):
