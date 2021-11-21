@@ -96,20 +96,23 @@ function Result = imwarp(Obj, Args)
         OutView = affineOutputView(SizeInput, ImWarpTransformation(Iobj));
         
         for Iprop=1:1:Nprop
-            Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), ImWarpTransformation(Iobj), Args.InterpMethod,...
+            if ~isemptyImage(Obj(Iobj), Args.DataProp{Iprop})
+                Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), ImWarpTransformation(Iobj), Args.InterpMethod,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
-             
+            end
 
         end
         
         % mask transformation
         if ~isempty(Args.DataPropMask)
-            Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), ImWarpTransformation(Iobj), Args.InterpMethodMask,...
+            if ~isemptyImage(Obj(Iobj), Args.DataPropMask)
+                Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), ImWarpTransformation(Iobj), Args.InterpMethodMask,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
+            end
         end
         
         Result(Iobj) = deleteProp(Result(Iobj), Args.DeleteProp);

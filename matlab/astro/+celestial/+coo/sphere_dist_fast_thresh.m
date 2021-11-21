@@ -22,7 +22,7 @@ function [Dist,PA]=sphere_dist_fast_thresh(RA_1,Dec_1,RA_2,Dec_2,Thresh)
 
 Dist = acos(sin(Dec_1).*sin(Dec_2) + cos(Dec_1).*cos(Dec_2).*cos(RA_1-RA_2));
 
-if (nargout>1),
+if (nargout>1)
    I = find(Dist<Thresh);
    I1 = min(I,numel(RA_1));
    I2 = min(I,numel(RA_2));

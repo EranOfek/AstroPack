@@ -2,8 +2,8 @@ function Result = interpOverNan(Obj, Args)
     % interpolate AstroImage over NaN values
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
-    %            'Method' - Interpolation method.
-    %                   Default is 'inpaint_nans'.
+    %            'Method' - Interpolation method: 'inpaint_nans' | 'rowcol'
+    %                   Default is 'rowcol'.
     %            'MethodInpaint' - inpaint_nans method. Default is 0.
     %                   See inpaint_nans for options.
     %            'DataProp' - A cell array of data properties on which to operate the
@@ -29,7 +29,7 @@ function Result = interpOverNan(Obj, Args)
     
     arguments
         Obj
-        Args.Method               = 'inpaint_nans';
+        Args.Method               = 'rowcol';
         Args.MethodInpaint        = 0;
         Args.DataProp cell        = {'Image'};
         Args.MaskInterpolated logical = true;
@@ -57,6 +57,24 @@ function Result = interpOverNan(Obj, Args)
             end
             
             switch lower(Args.Method)
+                case 'rowcol'
+                    % use the row/col linear method
+                    Ndim    = ndims(Obj(Iobj).(Args.DataProp{Iprop}));
+                    if Ndim>2
+                        % N-D image
+                        SizeIm = size(Obj(Iobj).(Args.DataProp{Iprop}));
+                        
+                        Nimages = prod(SizeIm(3:end)); % number of images in the dim>2 indices
+                        for Iimages=1:1:Nimages
+                            Result(Iobj).(Args.DataProp{Iprop})(:,:,Iimages) = imUtil.interp.interpImageRowCol(Obj(Iobj).(Args.DataProp{Iprop})(:,:,Iimages));
+                        end
+                    else
+                        % 2D image
+                        Result(Iobj).(Args.DataProp{Iprop}) = imUtil.interp.interpImageRowCol(Obj(Iobj).(Args.DataProp{Iprop}));
+                        
+                    end
+                    
+                    
                 case 'inpaint_nans'
                     % perform for each dimension beyond 2 (i.e., images in
                     % a cube)

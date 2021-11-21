@@ -18,6 +18,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.CatName                          = 'GAIAEDR3';
         
         Args.singleRaw2procArgs cell          = {};
+        Args.DeletePropAfterSrcFinding        = {'Back','Var'};
         Args.coaddArgs cell                   = {};
         
         % Background and source finding
@@ -32,6 +33,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.Tran                             = Tran2D('poly3');
         Args.astrometryRefineArgs             = {};
         
+        Args.ReturnRegisteredAllSI logical    = false;
+        
     end
     
     if isa(FilesList, 'AstroImage')
@@ -44,6 +47,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     for Iim=1:1:Nim
         Iim
+        
         if Iim==1 || ~Args.SameField
             % need to generate AstrometricCat for field
             %tic;
@@ -67,13 +71,14 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             Nsub  = numel(SI);
             AllSI = AstroImage([Nim, Nsub]);
         end
+                
+        AllSI(Iim,:) = SI;
         
         % clean data that will not be used later on
-        
-        
-        AllSI(Iim,:) = SI;
-            
+        AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
+
     end
+    clear SI;
     
     % get JD
     JD = julday(AllSI(:,1));
@@ -99,7 +104,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
     
         ShiftXY = cumsum([0 0; -[Summary(Ifields).ShiftX, Summary(Ifields).ShiftY]]);
-        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields), 'ShiftXY',ShiftXY, 'CreateNewObj',true);
+        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields), 'ShiftXY',ShiftXY, 'CreateNewObj',~Args.ReturnRegisteredAllSI);
         
         % use sigma clipping...
         % 1. NOTE that the mean image is returned so that the effective gain
@@ -133,5 +138,15 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         
     end
+    
+    % for testing:
+%     clear Coadd
+%     clear ResultCoadd
+%     clear RegisteredImages
+%     clear MergedCat
+%     clear MatchedS
+%     clear ResultSubIm
+%     clear AllSI
+    
 end
 
