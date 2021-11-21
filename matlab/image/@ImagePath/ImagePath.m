@@ -34,6 +34,7 @@ classdef ImagePath < Component
         
         % Fields formatting
         FormatFieldID   = '%06d';       % Used with FieldID
+        FormatCounter   = '%03d';       % Used with Counter        
         FormatCCDID     = '%03d';       % Used with CCDID
         FormatCropID    = '%03d';       % Used with CropID
         FormatVersion   = '%03d';       % Used with Version
@@ -247,7 +248,7 @@ classdef ImagePath < Component
                 Args.Time               % %{TimeZone} or {YYYY, MM, DD} or [] (required for path) [Save in 2 properties: JD & TimeStr]
                 Args.Filter             % filter name, e.g., “clear”.
                 Args.FieldID            % (char or number) [Saved as char]
-                Args.Counter            % (number) - if the user didn’t supply then apply auto increase (if AutoIncrease = true)
+                Args.Counter            % (number or char) - if the user didn’t supply then apply auto increase (if AutoIncrease = true)
                 Args.CCDID              %
                 Args.CropID             %
                 Args.Type               %
@@ -260,6 +261,7 @@ classdef ImagePath < Component
                 Args.Area               % Used when FullPath is true
                 Args.FullPath = false;  %               
                 Args.FormatFieldID      %
+                Args.FormatCounter      %                
                 Args.FormatCCDID        %
                 Args.FormatCropID       %
                 Args.FormatVersion      %
@@ -276,6 +278,7 @@ classdef ImagePath < Component
             
             % Format numeric fields
             Obj.FieldID  = Obj.formatNumeric(Obj.FieldID, Obj.FormatFieldID);                   
+            Obj.Counter  = Obj.formatNumeric(Obj.Counter, Obj.FormatCounter);            
             Obj.CCDID    = Obj.formatNumeric(Obj.CCDID, Obj.FormatCCDID);
             Obj.CropID   = Obj.formatNumeric(Obj.CropID, Obj.FormatCropID);
             Obj.Version  = Obj.formatNumeric(Obj.Version, Obj.FormatVersion);
