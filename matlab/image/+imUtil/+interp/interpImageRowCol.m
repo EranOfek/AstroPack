@@ -28,13 +28,29 @@ function Result = interpImageRowCol(Image)
     for Icol=1:1:SizeIm(2)
         IsN = isnan(Image(:,Icol));
         if any(IsN)
-            ResultX(IsN,Icol) = interp1(VecY(~IsN), Image(~IsN,Icol), VecY(IsN), Args.InterpMethod,'extrap'); 
+            if all(IsN)
+                if Icol>1
+                    ResultX(IsN,Icol) = mean(Image(:,Icol-1));
+                else
+                    ResultX(IsN,Icol) = mean(Image(:,Icol+1),1,'omitnan');
+                end
+            else
+                ResultX(IsN,Icol) = interp1(VecY(~IsN), Image(~IsN,Icol), VecY(IsN), Args.InterpMethod,'extrap'); 
+            end
         end
     end
     for Irow=1:1:SizeIm(1)
         IsN = isnan(Image(Irow,:));
         if any(IsN)
-            ResultY(Irow,IsN) = interp1(VecX(~IsN), Image(Irow,~IsN),VecY(IsN), Args.InterpMethod,'extrap'); 
+            if all(IsN)
+                if Irow>1
+                    ResultX(Irow,IsN) = mean(Image(Irow-1,:));
+                else
+                    ResultX(Irow,IsN) = mean(Image(Irow+1,:),1,'omitnan');
+                end
+            else
+                ResultY(Irow,IsN) = interp1(VecX(~IsN), Image(Irow,~IsN),VecY(IsN), Args.InterpMethod,'extrap');
+            end
         end
     end
     Result = 0.5.*(ResultX + ResultY);

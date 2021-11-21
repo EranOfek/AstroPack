@@ -29,16 +29,14 @@ function Result = interpOverNan(Obj, Args)
     
     arguments
         Obj
-        Args.Method               = 'rowcol';
+        Args.Method               = 'inpaint_nans';  % 'inpaint_nans' | 'rowcol'
         Args.MethodInpaint        = 0;
         Args.DataProp cell        = {'Image'};
         Args.MaskInterpolated logical = true;
-        Args.BitNameInterpolated  = 'Hole'; %'Interpolated';
+        Args.BitNameInterpolated  = 'Interpolated';
         Args.CreateNewObj logical = false;
     end
-    
-    warning('Replace Hole with Interpolated')
-    
+        
     if Args.CreateNewObj
         Result = Obj.copy();
     else

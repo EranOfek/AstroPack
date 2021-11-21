@@ -1939,7 +1939,7 @@ classdef AstroImage < Component
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
-            %                   Default is true.
+            %                   Default is false.
             % Output : - A cropped AstroImage object.
             % Author : Eran Ofek (Jul 2021)
             % Example: AI = AstroImage({rand(100,100),rand(100,200)},'Back',{rand(100,100),rand(100,200)});
@@ -1956,7 +1956,7 @@ classdef AstroImage < Component
                 Args.cropXYargs cell           = {};
                 Args.UpdateHeader(1,1) logical = true;
                 Args.UpdateWCS(1,1) logical    = true;
-                Args.CreateNewObj logical      = true;
+                Args.CreateNewObj logical      = false;
             end
 
             if Args.CreateNewObj
