@@ -146,7 +146,7 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
                               
     % crop overscan
     if ~isempty(Args.FinalCrop)
-        AI.crop(Args.FinalCrop);
+        AI.crop(Args.FinalCrop, 'CreateNewObj',false);
     end
     
     
@@ -202,7 +202,8 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     % Photometric ZP
     if Args.DoPhotometry
-        [SI, Result.ZP, PhotCat] = imProc.calib.photometricZP(SI, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
+        % FFU: add CatName with the previously aquired AstrometricCat
+        [SI, Result.ZP, ~] = imProc.calib.photometricZP(SI, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
     
         % Update Cat photometry
     end

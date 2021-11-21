@@ -99,12 +99,18 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     % coadd images
     Nfields = numel(MatchedS);
+    ResultCoadd = struct('ShiftX',cell(Nfields,1), 'ShiftY',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
+    Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
-        Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
-        Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
+        ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
+        ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
     
-        ShiftXY = cumsum([0 0; -[Summary(Ifields).ShiftX, Summary(Ifields).ShiftY]]);
-        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields), 'ShiftXY',ShiftXY, 'CreateNewObj',~Args.ReturnRegisteredAllSI);
+        ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
+        % no need to transform WCS - as this will be dealt later on
+        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields),...
+                                                 'ShiftXY',ShiftXY,...
+                                                 'TransWCS',false,...
+                                                 'CreateNewObj',~Args.ReturnRegisteredAllSI);
         
         % use sigma clipping...
         % 1. NOTE that the mean image is returned so that the effective gain
@@ -134,7 +140,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 
         
         % photometric calibration
-        [Coadd, ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
+        [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
+                                                                                                    'CreateNewObj',false,...
+                                                                                                    'MagZP',Args.ZP,...
+                                                                                                    'CatName',AstrometricCat,...
+                                                                                                    Args.photometricZPArgs{:});
         
         
     end
