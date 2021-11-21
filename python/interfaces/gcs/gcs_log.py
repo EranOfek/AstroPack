@@ -2,7 +2,7 @@
 
 # Run IAI validator?
 
-class ObservaionValidator(Component):
+class Logger(Component):
 
     # Constructor
     def __init__(self):
