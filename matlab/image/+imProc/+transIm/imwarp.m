@@ -93,7 +93,7 @@ function Result = imwarp(Obj, Args)
         
         SizeInput = size(Obj(Iobj).(Args.DataProp{1}));
         
-        OutView = affineOutputView(SizeInput, ImWarpTransformation(Iobj));
+        OutView = affineOutputView(SizeInput, ImWarpTransformation(Iobj),'BoundsStyle','CenterOutput');
         
         for Iprop=1:1:Nprop
             if ~isemptyImage(Obj(Iobj), Args.DataProp{Iprop})
