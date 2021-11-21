@@ -1,6 +1,6 @@
 
 function Obj = writeTable(Obj,FileName,HDUnum,Args)
-    % Read binary or ascii multiple FITS table into a FITS object.
+    % Write binary or ascii multiple FITS table into a FITS object.
     % Package: @FITS (Static)
     % Description: Read binary or ascii FITS tables into a a FITS object.
     % Input  : - A FITS object.
@@ -43,12 +43,7 @@ function Obj = writeTable(Obj,FileName,HDUnum,Args)
     %                         are repeating then will change column information
     %                         according to the matrix column count.
     %                         Default is true.
-    % Output : - A FITS object populated with tables and headers.
-    % Tested : Matlab R2014a
-    %     By : Eran O. Ofek                    Jan 2015
-    %    URL : http://weizmann.ac.il/home/eofek/matlab/
-    % Example: Obj.readTable('asu.fit');
-    % Reliable: 2
+    % Output : - The updated FITS file(s).
     %--------------------------------------------------------------------------
 
     arguments
@@ -79,11 +74,11 @@ function Obj = writeTable(Obj,FileName,HDUnum,Args)
 
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
-        % read each FITS file
+        % write each FITS file
         if ~isempty(Obj(Iobj).File)
             KeyVal = tools.struct.struct2keyval(Args);
             [Obj(Iobj).Data,Obj(Iobj).Header] = ...
-                FITS.readTable1(Obj(Iobj).File, 'HDUnum',Obj.HDU, KeyVal{:});
+                FITS.writeTable1(Obj(Iobj).File, 'HDUnum',Obj.HDU, KeyVal{:});
         end
     end
 end        

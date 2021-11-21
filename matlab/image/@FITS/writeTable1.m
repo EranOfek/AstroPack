@@ -1,9 +1,9 @@
 
 function [Out,HeadCell,Col] = writeTable1(TableName,Args)
-    % Read binary or ascii single FITS table
+    % Write binary or ascii single FITS table
     % Package: @FITS (Static)
-    % Description: Read binary or ascii FITS tables into a table.
-    % Input  : - A FITS tables to read.
+    % Description: Write binary or ascii FITS tables into a table.
+    % Input  : - A FITS tables to write.
     %          * Arbitrary number of pairs of arguments: ...,keyword,value,...
     %            where keyword are one of the followings:
     %            'TableType'- FITS table type {'auto'|'bintable'|'table'}.
@@ -37,15 +37,7 @@ function [Out,HeadCell,Col] = writeTable1(TableName,Args)
     %                         are repeating then will change column information
     %                         according to the matrix column count.
     %                         Default is true.
-    % Output : - A table containing the FITS table content.
-    %          - The FITS file header.
-    %          - A structure array of additional columns
-    %            information, like format.
-    % Tested : Matlab R2014a
-    %     By : Eran O. Ofek                    Jan 2015
-    %    URL : http://weizmann.ac.il/home/eofek/matlab/
-    % Example: [Out,Head,Col]=FITS.readTable1('asu.fit');
-    % Reliable: 2
+    % Output : - The updated FITS file.
     %--------------------------------------------------------------------------
 
     arguments
