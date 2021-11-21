@@ -3,6 +3,7 @@ function Result = interpImageRowCol(Image)
     %   In the col/row method we use linear interpolation over rows and
     %   columns seperatly, and average the result.
     %   This function is about x3 times faster than inpaint_nans.
+    %   FEATURES: In some cases some remaining NaNs. Not recomended.
     % Input  : - A 2D matrix.
     % Output : - The 2D matrix interpolated over NaNs.
     % Author : Eran Ofek (Nov 2021)
