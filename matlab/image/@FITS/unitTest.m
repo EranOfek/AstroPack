@@ -9,6 +9,12 @@ function Result = unitTest(Obj)
 	PWD = pwd;
 	cd(DataSampleDir);
 	
+	% write
+	A=rand(10,11);
+	File = 'tmpfile.fits';
+	io.msgLog(LogLevel.Test, 'testing FITS write');
+	FITS.write(A,File,'Header',{'a',1,'';'b',2',''});
+    
     test_readTable();
     %test_writeTable();
     
