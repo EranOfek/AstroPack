@@ -1530,6 +1530,45 @@ classdef AstroHeader < Component
             
         end
         
+        % remove comments
+        function Obj = deleteComments(Obj)
+            % Delete comments from header
+            % Input  : - An AstroHeader object.
+            %          - An AstroHeader object without commnets
+            % Author : Eran Ofek (Nov 2021)
+            % Example: 
+            % H = AstroHeader('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+            % H.deleteComments;
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Nlines = size(Obj(Iobj).Data, 1);
+                Obj(Iobj).Data = [Obj(Iobj).Data(:,1:2), cell(Nlines,1)];
+            end
+                
+        end
+        
+        % select specific keywords
+        function Obj = selectKeys(Obj, Keys)
+            % Select a sub header from header, by keys.
+            % Input  : - An AstroHeader object.
+            %          - A cell array of keywords to select from the
+            %            header (exact match).
+            % Output : - AN AstroHeader object with the selected keys.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: H = AstroHeader('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+            %          H.selectKeys(H.Data(1:10,1));
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                FlagNE = ~cellfun(@isempty, Obj(Iobj).Data(:,1));
+                Obj(Iobj).Data = Obj(Iobj).Data(FlagNE,:);
+                Flag = ismember(Obj(Iobj).Data(:,1), Keys);
+                Obj(Iobj).Data = Obj(Iobj).Data(Flag,:);
+            end
+            
+            
+        end
         
     end
     
