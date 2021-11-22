@@ -9,9 +9,9 @@ function Result = unitTest(Obj)
 	PWD = pwd;
 	cd(DataSampleDir);
 	
-    
-    %test_writeTable();
-    
+    %test_writeTable();    
+	%[Out, Head, Col] = FITS.readTable1('asu.fit');
+          
     % test constructor
 	io.msgLog(LogLevel.Test, 'testing FITS constructor');
 	F = FITS('*.fits');
@@ -38,7 +38,7 @@ function Result = unitTest(Obj)
 	% readTable1
 	io.msgLog(LogLevel.Test, 'testing FITS readTable1');
 	
-	% @FIX - @Eran
+	%
 	[Out, Head, Col] = FITS.readTable1('asu.fit');
 	
 	% get_keys
@@ -62,9 +62,9 @@ function Result = unitTest(Obj)
 	
 	% read/write
 	A=rand(10,11);
-	File = 'tmpfile.fits';
+	File = 'tmp/tmpfile.fits';
 	io.msgLog(LogLevel.Test, 'testing FITS write');
-	FITS.write(A,File,'Header',{'a',1,'';'b',2',''});
+	FITS.write(A,File,'Header',{'a',1,'';'b',2,''});
 	[B,H]=FITS.read1(File);  
 	delete(File);
 	if max(abs(A(:)-B(:)))>1e-7
@@ -73,7 +73,7 @@ function Result = unitTest(Obj)
 	
 	% write_keys
 	io.msgLog(LogLevel.Test, 'testing FITS write_keys');
-	File = 'tmpfile.fits';
+	File = 'tmp/tmpfile.fits';
 	FITS.write(A,File,'Header',{'a',1,'';'b',2',''});
 	FITS.write_keys(File,{'try','A','comm';'try2',6,'what'});
 	delete(File);
@@ -86,8 +86,53 @@ end
 
 
 function Result = test_writeTable()
+
     % unitTest for the FITS.writeTable()
-    WorkDir = tools.os.getTestWorkDir;
+    %WorkDir = tools.os.getTestWorkDir;
+   
+    FileName = 'tmp/wrtable10c.fits';
+    if isfile(FileName)
+        delete(FileName);
+    end
+
+    AC = AstroTable({rand(10, 2)}, 'ColNames', {'RA','Dec'});    
+    AC2 = AstroTable({rand(7, 3)}, 'ColNames', {'RA','Dec','Dog'});    
+    
+    FITS.writeTable1(AC, FileName, 'ExtName', 'MyExtName');
+    FITS.writeTable1(AC2, FileName, 'Append', true, 'HDUnum', 2, 'ExtName', 'MyExtDog');    
+    
+    % Bug: readTable1 returns Col not the same order as AC.ColNames
+    %     Out.ColNames
+    % 
+    % ans =
+    % 
+    %   2×1 cell array
+    % 
+    %     {'RA' }
+    %     {'Dec'}
+    %
+    % AC.ColNames
+    % 
+    % ans =
+    % 
+    %   1×2 cell array
+    % 
+    %     {'RA'}    {'Dec'}
+    %
+    
+    % Read it    
+	[Out, Head, Col] = FITS.readTable1(FileName, 'OutTable', 'AstroTable');
+    
+    assert(isequal(Out.Catalog,AC.Catalog));
+    
+	%A=rand(10,11);
+	%File = 'tmp/tmptable.fits';
+	%io.msgLog(LogLevel.Test, 'testing FITS write');
+	%FITS.writeTable(A, File, 'Header' ,{'ColA', 1, '';'ColB', 2,''});
+    
+    % Todo: Test ASCII table
+    %
+    %
     
     Result = true;
 end

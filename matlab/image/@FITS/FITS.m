@@ -296,7 +296,7 @@ classdef FITS < handle
             %                         have name starting with numbers or invalid signs
             %                         set this to true (default is false).
             %                         This will modify the column names.
-            %            'OutTable' - Type of table output:
+            %            'OutTable' - Type of table output: {'table'|'astrocatalog'|'astrotable'}
             %                         'table' - Default
             %            'XTENkey'  - Header keyword from which to read the table type.
             %                         Default is 'XTENSION'.
@@ -453,11 +453,11 @@ classdef FITS < handle
             end
             
             % Prepare colunms definition
-            Col = tools.struct.struct_def({'Col','Cell','Units','TypeChar','Repeat','Scale','Zero','Nulval','Tdisp','Data'});            
-            
-            % Get the number of columns in the current FITS table            
+            Col = tools.struct.struct_def({'Col','Cell','Units','TypeChar','Repeat','Scale','Zero','Nulval','Tdisp','Data'});
+
+            % Get the number of columns in the current FITS table
             Ncol = matlab.io.fits.getNumCols(Fptr);
-            
+
             % Allocate cells for all columns
             Col.Cell     = cell(1, Ncol);   % Column name
             Col.Units    = cell(1, Ncol);
@@ -533,6 +533,11 @@ classdef FITS < handle
             Col.Tdisp    = NewCol.Tdisp;           
         end
         
+        %------------------------------------------------------------------        
+        
+        Result = writeTable1(Table, FileName, Args)
+            % Currently implemented in writeTable1.m
+            
         %------------------------------------------------------------------
         function [KeysVal,KeysComment,Struct] = get_keys(Image,Keys,HDUnum,Str)
             % Get keywords value from a single FITS header
@@ -728,7 +733,7 @@ classdef FITS < handle
         end
         
         
-        function Flag = write(Image, FileName, Args)
+        function Result = write(Image, FileName, Args)
             % Write or append an image into FITS file.
             % Static function
             %     The image may have N-dimensions.
@@ -748,8 +753,8 @@ classdef FITS < handle
             %                       is false.
             %            'WriteTime'- Add creation time to image header.
             %                       Default is false.
-            % Example: Flag=FITS.write(rand(100,100),'Try.fits');
-            %          Flag=FITS.write(rand(10,10,3),'Try.fits');
+            % Example: Result = FITS.write(rand(100,100),'Try.fits');
+            %          Result = FITS.write(rand(10,10,3),'Try.fits');
             %
             
             arguments
@@ -780,24 +785,24 @@ classdef FITS < handle
 
             if (Args.Append)
                 % append to existing FITS file
-                Fptr = matlab.io.fits.openFile(FileName,'READWRITE');
+                Fptr = matlab.io.fits.openFile(FileName, 'READWRITE');
             else
                 % Create new FITS file
                 Fptr = matlab.io.fits.createFile(FileName);
             end
             
             % create Image
-            matlab.io.fits.createImg(Fptr,DataType,size(Image));
+            matlab.io.fits.createImg(Fptr, DataType, size(Image));
             
             % write Image
-            matlab.io.fits.writeImg(Fptr,Image); %,Fpixels);
+            matlab.io.fits.writeImg(Fptr, Image); %,Fpixels);
                         
             % write Header
             FITS.writeHeader(Fptr, Header, HeaderField);           
             
             % Close FITS file
             matlab.io.fits.closeFile(Fptr);
-            Flag = sign(Fptr);
+            Result = (sign(Fptr) == 1);
 
         end % write()
         
@@ -1237,9 +1242,6 @@ classdef FITS < handle
             end
         end        
 
-        
-        Obj = writeTable(Obj, FileName, HDUnum, Args)
-            % Currently implemented in writeTable.m
     end
     
     
