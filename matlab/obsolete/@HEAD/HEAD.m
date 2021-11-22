@@ -1,5 +1,5 @@
 %--------------------------------------------------------------------------
-% HEAD class                                                         class
+% HEAD class
 % Description: A class of for an image header (Header).
 %              This class can be use to store header meta data information
 %              associated with images or spectra, and to access and search
@@ -24,31 +24,22 @@ classdef HEAD < WorldCooSys
     % consider add hidden properties:
     % isaligned
     
-%     properties (Hidden = true)
-%         %mean1
-%         header
-%     end
     methods
-
-        %-------------------------
-        %--- Class constructor ---
-        %-------------------------
-        
-        function obj=HEAD(varargin)
-            obj(1).Header = cell(0,3);
-            obj(1).UserData = [];
+       
+        function Obj = HEAD(varargin)
+            % constructor
+            Obj(1).Header = cell(0,3);
+            Obj(1).UserData = [];
             %obj = struct_def({'Header','UserData'},varargin{:});
             
         end
         
     end
     
-    %----------------------
-    %--- Static methods ---
-    %----------------------
+
     methods (Static)
         
-        function Ans=ishead(Obj)
+        function Result = ishead(Obj)
             % Return true if object is HEAD
             % Description: Check if object is of HEAD class.
             % Input  : - Object
@@ -57,50 +48,39 @@ classdef HEAD < WorldCooSys
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
             % Example: S=1; HEAD.ishead(S);
             % Reliable: 2
-            Ans = isa(Obj,'HEAD');
+            Result = isa(Obj,'HEAD');
         end
         
-        function Name=HeaderField
+        
+        function Result = HeaderField
             % Description: Return the header field name in HEAD
             % Input  : null
             % Output : Header field name
-            Name = 'Header';
-        end
-        
+            Result = 'Header';
+        end        
     end
+    
     
     methods 
         
-%         function obj=disp(Head)
-%             obj = Head.Header
-%         end
-        
-        function obj=isheader(Head)
+        function Result = isheader(Head)
             % Description: check if object is an Header class
             % Input  : - An object.
             % Output : - True if Header class, othewise false.
-            obj = true;
+            Result = true;
         end
         
         
-        %--------------------------
-        %--- Structre functions ---
-        %--------------------------
-        function obj=isfield(Head,Field)
+        %Structre functions ---
+        function Result = isfield(Head,Field)
             % isfield 
-            obj = any(strcmp(fieldnames(Head),Field));
+            Result = any(strcmp(fieldnames(Head),Field));
         end
 
-        function obj=isstruct(Head)
+        function Result = isstruct(Head)
             % isstruct
-            obj = true;  %isstruct(Sim) || isa(Sim,'SIM');
+            Result = true;  %isstruct(Sim) || isa(Sim,'SIM');
         end
-
-
-        
-        
-        
-        
         
         
 %         function [Gain,Sim]=gain(Sim,varargin)

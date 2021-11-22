@@ -6,7 +6,8 @@
 % list of needed functionality
 % write
 % writeTable
-
+%
+% NOTE: This file uses this file: obsolete/HEAD.m 
 %--------------------------------------------------------------------------
 % #functions (autogen)
 % FITS - FITS object constructor
@@ -190,7 +191,6 @@ classdef FITS < handle
 
             end
             matlab.io.fits.closeFile(Fptr);
-
             
         end
         
@@ -278,8 +278,8 @@ classdef FITS < handle
             
         end
         
-        
-        function [Out,HeadCell,Col] = readTable1(TableName,Args)
+        %------------------------------------------------------------------        
+        function [Out,HeadCell,Col] = readTable1(TableName, Args)
             % Read binary or ascii single FITS table
             % Package: @FITS (Static)
             % Description: Read binary or ascii FITS tables into a table.
@@ -333,7 +333,7 @@ classdef FITS < handle
                 Args.TableType char           = 'auto';    % {'auto'|'bintable'|'table'}
                 Args.HDUnum                   = 2;
                 Args.ModColName(1,1) logical  = false;
-                Args.OutTable char            = 'table';  % {'astcat'|'astcat_t'|...}
+                Args.OutTable char            = 'table';
                 Args.XTENkey char             = 'XTENSION';
                 Args.StartRow                 = [];
                 Args.NRows                    = [];
@@ -341,37 +341,109 @@ classdef FITS < handle
                 Args.NullVal                  = NaN;       % [] do nothing
                 Args.BreakRepCol(1,1) logical = true;
             end
-
-            CatField        = AstCat.CatField;
-            ColField        = AstCat.ColField;
-            ColCellField    = AstCat.ColCellField;
-            ColUnitsField   = AstCat.ColUnitsField';
-            
-            % prep list of fits table names
-            [ListTableName] = io.files.filelist(TableName);
-            Nfile = numel(ListTableName);
-            
-            %Out = AstCat(Nfile,1);
-            Col = tools.struct.struct_def({'Col','Cell','Units','TypeChar','Repeat','Scale','Zero','Nulval','Tdisp','Data'},Nfile,1);
-                     
-            Ifile = 1;
-            % get header
-            HeadCell    = FITS.readHeader1(ListTableName{1},Args.HDUnum);
+                      
+            % get header as cell array
+            HeadCell = FITS.readHeader1(TableName, Args.HDUnum);
 
             % identify table type
             switch lower(Args.TableType)
                 case 'auto'
-                    Ixten    = find(strcmp(HeadCell(:,1),Args.XTENkey));
+                    % Find extension type field in the header
+                    Ixten = find(strcmp(HeadCell(:,1), Args.XTENkey));
                     if (isempty(Ixten))
                         error('Automatic table identification mode was unable to access FITS table type');
                     end
+                    
+                    % Get extension type (the value of key XTENkey)
                     Args.TableType = HeadCell{Ixten,2};
+                    
+                case 'table'
+                case 'bintable'
+                    % Do nothing
+                    
                 otherwise
-                    % do nothing
+                    error('Unknown TableType option');
+            end
+            
+            %
+            if (isempty(Args.StartRow) || isempty(Args.NRows))
+                CellRowPar = {};
+            else
+                CellRowPar = {Args.StartRow, Args.NRows};
             end
 
+            % Open file and move to absolute HDU number
+            Fptr = matlab.io.fits.openFile(TableName);
+            matlab.io.fits.movAbsHDU(Fptr, Args.HDUnum);
+            
+            % Get colunms definition
+            Col = FITS.getTableCol(Fptr, Args.TableType);
+            
+            % Process each column
+            Ncol = numel(Col.Cell);
+            for Icol=1:1:Ncol
+                
+                % Read rows of ASCII or binary table column
+                [Col.Data{Icol}] = matlab.io.fits.readCol(Fptr, Icol, CellRowPar{:});
+                
+                % Optionally convert value to specified type
+                if (~isempty(Args.OutClass))
+                    Col.Data{Icol} = Args.OutClass(Col.Data{Icol});
+                end
+                
+                % Optionally replace null values with specified value
+                if (~isempty(Args.NullVal) && ~isempty(Col.Nulval{Icol}) && isnumeric(Col.Data{Icol}))
+                    Col.Data{Icol}(Col.Data{Icol} == Col.Nulval{Icol}) = Args.NullVal;
+                end
+                
+                % Override ColRepeat using the actual data
+                Col.Repeat{Icol} = size(Col.Data{Icol}, 2);
+            end
+            
+            % Close file
+            matlab.io.fits.closeFile(Fptr);
+
+            % break repeating columns
+            if (Args.BreakRepCol)
+                Col = FITS.breakRepCol(Col);
+            end
+            
+            if (Args.ModColName)
+                % modify column names to legal variable names
+                Col.Cell = regexprep(Col.Cell, {'-','/','(',')','&','@','#','^','%','*','~'},'');
+                Col.Cell = strcat('T', Col.Cell);
+            end
+            
+            %
+            Col.Col = cell2struct(num2cell(1:1:length(Col.Cell)), Col.Cell, 2);
+
+            % Set output
+            switch lower(Args.OutTable)
+                case 'table'
+                   Out = table(Col.Data{:});
+                   Out.Properties.VariableNames = Col.Cell;
+                   Out.Properties.VariableUnits = Col.Units;
+
+                case {'astrocatalog', 'astrotable'}
+                    Out = AstroCatalog;
+                    Out.Catalog     = [Col.Data{:}];
+                    Out.ColNames    = Col.Cell;
+                    Out.ColUnits    = Col.Units;                                      
+
+                otherwise
+                    error('Unknown OutTable option');
+            end
+        
+        end
+
+        
+        function Col = getTableCol(Fptr, TableType)
+            
             % Table type
-            switch lower(Args.TableType)
+            % Note that these function have different return values and order
+            % [ttype,tbcol,tunit,tform,scale,zero,nulstr,tdisp] = getAColParms(fptr,colnum)
+            % [ttype,tunit,typechar,repeat,scale,zero,nulval,tdisp] = getBColParms(fptr,colnum)
+            switch lower(TableType)
                 case 'bintable'
                     Fun_getColParms = @matlab.io.fits.getBColParms;
                 case 'table'
@@ -379,132 +451,89 @@ classdef FITS < handle
                 otherwise
                     error('Unknown TableType option');
             end
-
-            if (isempty(Args.StartRow) || isempty(Args.NRows))
-                CellRowPar = {};
-            else
-                CellRowPar = {Args.StartRow,Args.NRows};
-            end
-
-
-            % for each fits table
-            Fptr = matlab.io.fits.openFile(ListTableName{Ifile});
-            matlab.io.fits.movAbsHDU(Fptr,Args.HDUnum);
+            
+            % Prepare colunms definition
+            Col = tools.struct.struct_def({'Col','Cell','Units','TypeChar','Repeat','Scale','Zero','Nulval','Tdisp','Data'});            
+            
+            % Get the number of columns in the current FITS table            
             Ncol = matlab.io.fits.getNumCols(Fptr);
-            %[ttype,tunit,typechar,repeat,scale,zero,nulval,tdisp]= fits.getBColParms(Fptr,2);
-            Col(Ifile).Cell     = cell(1,Ncol);
-            Col(Ifile).Units    = cell(1,Ncol);
-            Col(Ifile).TypeChar = cell(1,Ncol);
-            Col(Ifile).Repeat   = cell(1,Ncol);
-            Col(Ifile).Scale    = cell(1,Ncol);
-            Col(Ifile).Zero     = cell(1,Ncol);
-            Col(Ifile).Nulval   = cell(1,Ncol);
-            Col(Ifile).Tdisp    = cell(1,Ncol);
-            Col(Ifile).Data     = cell(1,Ncol);
+            
+            % Allocate cells for all columns
+            Col.Cell     = cell(1, Ncol);   % Column name
+            Col.Units    = cell(1, Ncol);
+            Col.TypeChar = cell(1, Ncol);
+            Col.Repeat   = cell(1, Ncol);
+            Col.Scale    = cell(1, Ncol);
+            Col.Zero     = cell(1, Ncol);
+            Col.Nulval   = cell(1, Ncol);
+            Col.Tdisp    = cell(1, Ncol);
+            Col.Data     = cell(1, Ncol);   %
+            
+            % Process each column
             for Icol=1:1:Ncol
                 
-                switch lower(Args.TableType)
+                % Get column definition
+                % (@NoamSegev), fixed bug with order of values returned
+                % from the two functions for ascii/binary tables (18/11/2021)
+                switch lower(TableType)
                     case 'bintable'
-                        [Col(Ifile).Cell{Icol},Col(Ifile).Units{Icol},Col(Ifile).TypeChar{Icol},...
-                                       Col(Ifile).Repeat{Icol},Col(Ifile).Scale{Icol},Col(Ifile).Zero{Icol},...
-                                       Col(Ifile).Nulval{Icol},Col(Ifile).Tdisp{Icol}]= Fun_getColParms(Fptr,Icol);
+                        % [ttype,tunit,typechar,repeat,scale,zero,nulval,tdisp] = getBColParms(fptr,colnum)                        
+                        [Col.Cell{Icol}, Col.Units{Icol}, Col.TypeChar{Icol},...
+                            Col.Repeat{Icol}, Col.Scale{Icol}, Col.Zero{Icol},...
+                            Col.Nulval{Icol}, Col.Tdisp{Icol}] = Fun_getColParms(Fptr, Icol);
+                        
                     case 'table'
-                        [Col(Ifile).Cell{Icol},Col(Ifile).TypeChar{Icol},Col(Ifile).Units{Icol},...
-                                       Col(Ifile).Repeat{Icol},Col(Ifile).Scale{Icol},Col(Ifile).Zero{Icol},...
-                                       Col(Ifile).Nulval{Icol},Col(Ifile).Tdisp{Icol}]= Fun_getColParms(Fptr,Icol);
+                        % [ttype,tbcol,tunit,tform,scale,zero,nulstr,tdisp] = getAColParms(fptr,colnum)
+                        [Col.Cell{Icol}, Col.TypeChar{Icol}, Col.Units{Icol},...
+                            Col.Repeat{Icol}, Col.Scale{Icol}, Col.Zero{Icol},...
+                            Col.Nulval{Icol}, Col.Tdisp{Icol}] = Fun_getColParms(Fptr,Icol);
+                        
                     otherwise
                         error('Unknown TableType option');
                 end
-
-
-                [Col(Ifile).Data{Icol}] = matlab.io.fits.readCol(Fptr,Icol,CellRowPar{:});
-                if (~isempty(Args.OutClass))
-                    Col(Ifile).Data{Icol} = Args.OutClass(Col(Ifile).Data{Icol});
-                end
-                if (~isempty(Args.NullVal) && ~isempty(Col(Ifile).Nulval{Icol}) && isnumeric(Col(Ifile).Data{Icol}))
-                    Col(Ifile).Data{Icol}(Col(Ifile).Data{Icol}==Col(Ifile).Nulval{Icol}) = Args.NullVal;
-
-                end
-                % override ColRepeat using the actual data
-                Col(Ifile).Repeat{Icol} = size(Col(Ifile).Data{Icol},2);
-            end
-            matlab.io.fits.closeFile(Fptr);
-
-            % deal with repeating columns
-            if (Args.BreakRepCol)
-                Nnc  = sum(cell2mat(Col(Ifile).Repeat));
-                NewCol.Cell = cell(Nnc,1);
-
-                Icol1 = 1;
-                for Icol=1:1:Ncol
-                    IcolN = Icol1 + Col(Ifile).Repeat{Icol} - 1;
-                    %Icol1 = Icol1 + Col.Repeat{Icol}; % at the end of the loop
-                    for Irep=1:1:Col(Ifile).Repeat{Icol}
-                        if (Col(Ifile).Repeat{Icol}>1)
-                            NewCol.Cell{Icol1+Irep-1} = sprintf('%s_%d_',Col(Ifile).Cell{Icol},Irep);
-                        else
-                            NewCol.Cell{Icol1+Irep-1} = Col(Ifile).Cell{Icol};
-                        end
-                    end
-                    [NewCol.Units{Icol1:IcolN}] = deal(Col(Ifile).Units{Icol});
-                    [NewCol.TypcChar{Icol1:IcolN}] = deal(Col(Ifile).TypeChar{Icol});
-                    [NewCol.Repeat{Icol1:IcolN}] = deal(1);
-                    [NewCol.Scale{Icol1:IcolN}] = deal(Col(Ifile).Scale{Icol});
-                    [NewCol.Zero{Icol1:IcolN}] = deal(Col(Ifile).Zero{Icol});
-                    [NewCol.Tdisp{Icol1:IcolN}] = deal(Col(Ifile).Tdisp{Icol});
-                    Icol1 = Icol1 + Col(Ifile).Repeat{Icol}; % at the end of the loop
-
-                end
-                Col(Ifile).Cell     = NewCol.Cell;
-                Col(Ifile).Units    = NewCol.Units;
-                Col(Ifile).TypeChar = NewCol.TypcChar;
-                Col(Ifile).Repeat   = NewCol.Repeat;
-                Col(Ifile).Scale    = NewCol.Scale;
-                Col(Ifile).Zero     = NewCol.Zero;
-                Col(Ifile).Tdisp    = NewCol.Tdisp;
-            end
-            if (Args.ModColName)
-                % modify column names to legal variable names
-                Col(Ifile).Cell = regexprep(Col(Ifile).Cell,{'-','/','(',')','&','@','#','^','%','*','~'},'');
-                Col(Ifile).Cell = strcat('T',Col(Ifile).Cell);
-            end
-            Col(Ifile).Col      = cell2struct(num2cell(1:1:length(Col(Ifile).Cell)),Col(Ifile).Cell,2);
-
-            % output
-            switch lower(Args.OutTable)
-                case 'table'
-                   Out = table(Col(Ifile).Data{:});
-                   Out.Properties.VariableNames = Col(Ifile).Cell;
-                   Out.Properties.VariableUnits = Col(Ifile).Units;
-
-                case {'astrocatalog','astrotable'}
-                    Out(Ifile) = AstroCatalog;
-                    Out(Ifile).Catalog     = [Col(Ifile).Data{:}];
-                    Out(Ifile).ColNames    = Col(Ifile).Cell;
-                    Out(Ifile).ColUnits    = Col(Ifile).Units;
-                    
-                   
-
-                case 'astcat'
-                    Out(Ifile).(CatField)     = [Col(Ifile).Data{:}];
-                    Out(Ifile).(ColField)     = Col(Ifile).Col;
-                    Out(Ifile).(ColCellField) = Col(Ifile).Cell;
-                    Out(Ifile).(ColUnitsField)= Col(Ifile).Units;
-
-                case 'astcat_t'
-                    Out(Ifile).(CatField)     = table(Col(Ifile).Data{:});
-                    Out(Ifile).(ColField)     = Col(Ifile).Col;
-                    Out(Ifile).(ColCellField) = Col(Ifile).Cell;
-                    Out(Ifile).(ColUnitsField)= Col(Ifile).Units;
-
-                otherwise
-                    error('Unknown OuTable option');
-            end
-
-        
+            end           
+            
         end
         
         
+        function Col = breakRepCol(Col)
+            % Deal with repeating table columns            
+            % Input:  Col - struct array of columns
+            % Output: Col - struct array 
+            Ncol = numel(Col.Cell);
+            Nnc = sum(cell2mat(Col.Repeat));
+            NewCol.Cell = cell(Nnc, 1);
+            Icol1 = 1;
+            for Icol=1:1:Ncol
+                IcolN = Icol1 + Col.Repeat{Icol} - 1;
+                %Icol1 = Icol1 + Col.Repeat{Icol}; % at the end of the loop
+                for Irep=1:1:Col.Repeat{Icol}
+                    if (Col.Repeat{Icol}>1)
+                        NewCol.Cell{Icol1+Irep-1} = sprintf('%s_%d_',Col.Cell{Icol},Irep);
+                    else
+                        NewCol.Cell{Icol1+Irep-1} = Col.Cell{Icol};
+                    end
+                end
+                [NewCol.Units{Icol1:IcolN}]     = deal(Col.Units{Icol});
+                [NewCol.TypcChar{Icol1:IcolN}]  = deal(Col.TypeChar{Icol});
+                [NewCol.Repeat{Icol1:IcolN}]    = deal(1);
+                [NewCol.Scale{Icol1:IcolN}]     = deal(Col.Scale{Icol});
+                [NewCol.Zero{Icol1:IcolN}]      = deal(Col.Zero{Icol});
+                [NewCol.Tdisp{Icol1:IcolN}]     = deal(Col.Tdisp{Icol});
+                Icol1 = Icol1 + Col.Repeat{Icol}; % at the end of the loop
+            end
+            
+            % Replace with new values
+            Col.Cell     = NewCol.Cell;
+            Col.Units    = NewCol.Units;
+            Col.TypeChar = NewCol.TypcChar;
+            Col.Repeat   = NewCol.Repeat;
+            Col.Scale    = NewCol.Scale;
+            Col.Zero     = NewCol.Zero;
+            Col.Tdisp    = NewCol.Tdisp;           
+        end
+        
+        %------------------------------------------------------------------
         function [KeysVal,KeysComment,Struct] = get_keys(Image,Keys,HDUnum,Str)
             % Get keywords value from a single FITS header
             % Package: @FITS (Static function)
@@ -538,10 +567,9 @@ classdef FITS < handle
                 HDUnum = 1;
             end
 
-            import matlab.io.*
             Fptr = matlab.io.fits.openFile(Image);
             N = matlab.io.fits.getNumHDUs(Fptr);
-            if (HDUnum>N)
+            if HDUnum > N
                 matlab.io.fits.closeFile(Fptr);
                 error('requested HDUnum does not exist');
             end
@@ -570,7 +598,7 @@ classdef FITS < handle
             end
             matlab.io.fits.closeFile(Fptr);
 
-            if (nargout>2)
+            if nargout > 2
                Struct = cell2struct(KeysVal,Keys,2);
             end
         end
@@ -737,7 +765,47 @@ classdef FITS < handle
             HeaderField = HEAD.HeaderField;
             
             % Set FITS DataType
-            switch Args.DataType
+            DataType = FITS.getDataType(Args.DataType);
+            
+            % Overwrite existing FITS file
+            if (Args.OverWrite)
+                % delete existing FileName if exist
+                if isfile(FileName)
+                    delete(FileName);
+                end
+            end
+            
+            % Prepare header
+            Header = FITS.prepareHeader(Args.Header, HeaderField, 'WriteTime', Args.WriteTime);
+
+            if (Args.Append)
+                % append to existing FITS file
+                Fptr = matlab.io.fits.openFile(FileName,'READWRITE');
+            else
+                % Create new FITS file
+                Fptr = matlab.io.fits.createFile(FileName);
+            end
+            
+            % create Image
+            matlab.io.fits.createImg(Fptr,DataType,size(Image));
+            
+            % write Image
+            matlab.io.fits.writeImg(Fptr,Image); %,Fpixels);
+                        
+            % write Header
+            FITS.writeHeader(Fptr, Header, HeaderField);           
+            
+            % Close FITS file
+            matlab.io.fits.closeFile(Fptr);
+            Flag = sign(Fptr);
+
+        end % write()
+        
+        
+        function DataType = getDataType(ArgDataType)
+            % Get FITS DataType
+            
+            switch ArgDataType
                  case {'int8',8}
                     DataType = 'uint8';
                  case {'uint16','int16',16}
@@ -755,59 +823,44 @@ classdef FITS < handle
                  otherwise
                     error('Unknown DataType option');
             end
-            
-            % Overwrite existing FITS file
-            if (Args.OverWrite)
-                % delete existing FileName if exist
-                %if (exist(FileName,'file')~=0)
-                if isfile(FileName)
-                    delete(FileName);
-                end
+        end
+        
+    
+        function Header = prepareHeader(ArgsHeader, HeaderField, Args)
+            % Prepare header before write
+            arguments
+                ArgsHeader
+                HeaderField
+                Args.WriteTime = false;
             end
             
             % Prepare header
-            if (HEAD.ishead(Args.Header))
+            if (HEAD.ishead(ArgsHeader))
                 % already HEAD object
-                Header = Args.Header;
+                Header = ArgsHeader;
             else
                 % convert to HEAD object
                 Header = HEAD;
-                Header.(HeaderField) = Args.Header;
+                Header.(HeaderField) = ArgsHeader;
             end
-            
-            %--- Set the FITS "mandatory" keywords ---
-            %--- add BSCALE and BZERO ---
-            % check if BZERO and BSCALE are already in HeaderInfo
+           
+            % Set the FITS "mandatory" keywords, add BSCALE and BZERO
+            % Check if BZERO and BSCALE are already in HeaderInfo
             Header = replace_key(Header,'BZERO',   single(0),  'offset data range to that of unsigned short',...
                                         'BSCALE',  single(1),  'default scaling factor');
                                
-            %--- Write creation date to header ---
+            % Write creation date to header
             if (Args.WriteTime)
                 Time = celestial.time.get_atime([],0,0); % Na'ama, 20180516
-                %Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file',...
-                %                            'COMMENT', '',      'File Created by MATLAB FITS.write.m written by E. Ofek');
                 Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file',...
-                                            'COMMENT', 'File Created by MATLAB FITS.write.m written by E. Ofek', ''); % Na'ama, 20180518
-                                        
+                                            'COMMENT', 'File created by MATLAB FITS.write.m written by E. Ofek', '');                                        
             end
-            Nline = size(Header.(HeaderField),1);
-
-            import matlab.io.*
-            if (Args.Append)
-                % append to existing FITS file
-                Fptr = fits.openFile(FileName,'READWRITE');
-            else
-                % Create new FITS file
-                Fptr = fits.createFile(FileName);
-            end
-            
-            % create Image
-            fits.createImg(Fptr,DataType,size(Image));
-            
-            % write Image
-            fits.writeImg(Fptr,Image); %,Fpixels);
-            
-            % write Header
+        end
+        
+        
+        function Result = writeHeader(Fptr, Header, HeaderField)            
+            % write Header            
+            Nline = size(Header.(HeaderField),1);            
             for Inl=1:1:Nline
                 if (~isempty(Header.(HeaderField){Inl,1}))
                     switch lower(Header.(HeaderField){Inl,1})
@@ -828,7 +881,7 @@ classdef FITS < handle
                             if (isempty(Header.(HeaderField){Inl,3}))
                                 Header.(HeaderField){Inl,3} = ' ';
                             end
-                            fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
+                            matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
                                                Header.(HeaderField){Inl,3});
                         case 'end'
@@ -847,18 +900,14 @@ classdef FITS < handle
                             if isempty(Header.(HeaderField){Inl,2})
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
-                            fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
+                            matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
                                                Header.(HeaderField){Inl,3});
                     end
                 end
-            end
-            
-            % Close FITS file
-            fits.closeFile(Fptr);
-            Flag = sign(Fptr);
-
-        end % write()
+            end            
+            Result = true;                        
+        end
         
         
         % read to SIM
@@ -1118,8 +1167,8 @@ classdef FITS < handle
             %                         This will modify the column names.
             %            'OutTable' - Type of table output:
             %                         'table' - Default.
-            %                         'astcat' - AstCat object.
-            %                         'astcat_t' - AstCat object in which
+            %                         'astrocatalog' - AstroCatalog object.
+            %                         'astrotable' - AstroTable object in which
             %                                      the data is stored as a table.
             %            'XTENkey'  - Header keyword from which to read the table type.
             %                         Default is 'XTENSION'.
@@ -1165,25 +1214,32 @@ classdef FITS < handle
             end
             
             if ~isempty(FileName)
-                if numel(Obj)>1
+                if numel(Obj) > 1
                     error('if file name is given than Obj must contain single element');
                 else
                     Obj.File   = FileName;
                     Obj.HDU    = HDUnum;
-                end
-            
+                end            
             end
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 % read each FITS file
                 if ~isempty(Obj(Iobj).File)
+                    
+                    % Prepare Args to be sent to readTable1() below
                     KeyVal = tools.struct.struct2keyval(Args);
-                    [Obj(Iobj).Data,Obj(Iobj).Header] = ...
-                        FITS.readTable1(Obj(Iobj).File, 'HDUnum',Obj.HDU, KeyVal{:});
+                    
+                    % Read pair of image and header
+                    [Obj(Iobj).Data, Obj(Iobj).Header] = ...
+                        FITS.readTable1(Obj(Iobj).File, 'HDUnum', Obj.HDU, KeyVal{:});
                 end
             end
         end        
+
+        
+        Obj = writeTable(Obj, FileName, HDUnum, Args)
+            % Currently implemented in writeTable.m
     end
     
     
