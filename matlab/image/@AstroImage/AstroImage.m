@@ -736,6 +736,80 @@ classdef AstroImage < Component
         
     end
     
+    methods % read / write
+        function writeFITS(Obj, Name, Args)
+            %
+            % Example: AI.write(
+            
+            arguments
+                Obj
+                Name                                        % char, cell ImagePath
+                Args.DataProp                 = 'Image';
+                Args.WriteHeader logical      = true;
+                Args.Append logical           = false;
+                Args.OverWrite logical        = false;
+                Args.WriteTime logical        = false;
+            end
+            
+            if ischar(Args.DataProp)
+                Args.DataProp = {Args.DataProp};
+            end
+            
+            if ischar(Name)
+                Name = {Name};
+            end
+            
+            Nobj  = numel(Obj);
+            if iscell(Name)
+                if isvector(Name)
+                    Name = Name(:);
+                end
+            elseif isa(Name, 'ImagePath')
+                % generate file names from ImagePath object
+                for Iobj=1:1:Nobj
+                    % try to get ImagePath data from Header
+                    
+                    % This should be in a sperate function
+                    
+                end
+            else
+                error('Unknown Name option');
+            end
+            
+            
+            Nprop = numel(Args.DataProp);
+            [Nname,Nnp] = size(Name);
+            if Nobj~=Nname
+                error('Number of file names must be equal to number of AstroImage elements');
+            end
+            if Nnp~=Nprop
+                error('Number of properties to write must be equal to the number of columns in the input Name cell');
+            end
+            
+            for Iobj=1:1:Nobj
+                for Iprop=1:1:Nprop
+                    switch lower(Args.DataProp{Iprop})
+                        case {'image','back','var','mask'}
+                            if Args.WriteHeader
+                                Header = Obj(Iobj).HeaderData.Data;
+                            else
+                                Header = [];
+                            end
+                            FITS.write(Obj(Iobj).(Args.DataProp{Iprop}), Name{Iobj, Iprop}, 'Header',Header,...
+                                                                                            'DataType',class(Obj(Iobj).(Args.DataProp{Iprop})),...
+                                                                                            'Append',Args.Append,...
+                                                                                            'OverWrite',Args.OverWrite,...
+                                                                                            'WriteTime',Args.WriteTime);
+                        otherwise
+                            error('DataProp %s not supported yet',Args.DataProp{Iprop});
+                    end
+                end
+            end
+            
+        end
+        
+    end
+    
     methods % functions on specific data properties
         
         function Result = cast(Obj, NewClass, CreateNewObj, DataProp)
