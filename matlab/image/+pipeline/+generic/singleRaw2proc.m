@@ -235,8 +235,7 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     if Args.UpdateHeader
         Nim = numel(SI);
         for Iim=1:1:Nim
-            SI(Iim).HeaderData.insertKey({'CROPID', Iim, '';...
-                                          'LEVEL', 'proc', ''});
+            SI(Iim).HeaderData.replaceVal({'CROPID','LEVEL'}, {Iim, 'proc'});
         end
                                           
     end

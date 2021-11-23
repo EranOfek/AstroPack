@@ -318,6 +318,20 @@ classdef ImagePath < Component
 
         end
         
+        function Result = genFull(Obj)
+            % Generate a full file name + path from a populated ImagePath
+            % Input  : - A populated ImagePath object.
+            % Output : - A full path + file name.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: IP.genFull
+        
+            File = Obj.genFile;
+            Path = Obj.genPath;
+            
+            Result = sprintf('%s%s',Path,File);
+            
+        end
+        
         
         function Result = genFromDbQuery(Obj, Query)
             % Generate ImagePath current record of Query.ResultSet
@@ -330,29 +344,50 @@ classdef ImagePath < Component
    
     methods % Read/Write from Header and Struct
         
-        function Obj = readFromHeader(Obj, Header)
-            % Read data from AstroHeader, DictKeyNames is used to get the
-            % correct key names            
-            % @TODO: @Eran - Validate field names in FITS header
+        function Obj = readFromHeader(Obj, Input, DataProp)
+            % Read ImagePath parameters from header.
+            % Input  : - An ImagePath object.
+            %          - A single element AstroImage or AstroHeader.
+            %          - Either data property name or product name.
+            % Output : - A populated ImagePath object.
+            
             arguments
-                Obj
-                Header AstroHeader
+                Obj(1,1)
+                Input(1,1)       % AstroHeader | AstroImage
+                DataProp    = 'image';    % DataProp in AstroImage or Product name
             end
             
             %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
                                 
-            Obj.ProjName        = Header.getVal(Obj.DictKeyNames.PROJNAME);
+            if isa(Input, 'AstroHeader')
+                Header = Input;
+                if isempty(DataProp)
+                    Obj.Product         = Header.getVal('PRODUCT');
+                else
+                    Obj.Product         = DataProp;
+                end
+            elseif isa(Input, 'AstroImage')
+                Header = Input.HeaderData;
+            else
+                error('INput must be an AstroHeader or AstroImage');
+            end
+              
+            
+            Obj.ProjName        = Header.getVal('INSTRUME'); %Obj.DictKeyNames.PROJNAME);
             Obj.JD              = Header.getVal('JD');
-            Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TIMEZONE);
-            Obj.Filter          = Header.getVal(Obj.DictKeyNames.FILTER);
+            Obj.TimeZone        = Header.getVal('TIMEZONE');
+            Obj.Filter          = Header.getVal('FILTER');
             Obj.FieldID         = Header.getVal('FIELDID');
             Obj.Counter         = Header.getVal('COUNTER');
             Obj.CCDID           = Header.getVal('CCDID');
             Obj.CropID          = Header.getVal('CROPID');
-            Obj.Type            = Header.getVal(Obj.DictKeyNames.IMTYPE);
+            Obj.Type            = Header.getVal('IMTYPE');
             Obj.Level           = Header.getVal('LEVEL');
             Obj.SubLevel        = Header.getVal('SUBLEVEL');
-            Obj.Product         = Header.getVal('PRODUCT');
+            if isnan(Obj.SubLevel)
+                Obj.SubLevel = '';
+            end
+            Obj.Product         = DataProp;
             Obj.Version         = Header.getVal('VERSION');
             Obj.FileType        = 'fits';
             Obj.SubDir          = Header.getVal('SUBDIR');
@@ -416,7 +451,6 @@ classdef ImagePath < Component
             Obj.Node            = st.node;
             Obj.Mount           = st.mount;
             Obj.Camera          = st.camera;
-            
             
             Obj.JD              = st.jd;
             Obj.TimeZone        = st.timezone;
@@ -498,7 +532,7 @@ classdef ImagePath < Component
             % Verify Type
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
             switch Obj.Type
-                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'wave'}
+                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'science', 'wave'}
                     % Ok
                 otherwise
                     error('Unknown Type option: %s', Obj.Type);
@@ -516,7 +550,7 @@ classdef ImagePath < Component
             % Verify Product
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
-                case { 'im', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
+                case { 'im', 'image', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
                     % Ok
                 otherwise
                     error('Unknown Product option: %s', Obj.Product);
