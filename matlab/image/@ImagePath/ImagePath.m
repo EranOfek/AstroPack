@@ -498,7 +498,7 @@ classdef ImagePath < Component
             % Verify Type
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
             switch Obj.Type
-                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'wave'}
+                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'science', 'wave'}
                     % Ok
                 otherwise
                     error('Unknown Type option: %s', Obj.Type);
@@ -516,7 +516,7 @@ classdef ImagePath < Component
             % Verify Product
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
-                case { 'im', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
+                case { 'im', 'image', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
                     % Ok
                 otherwise
                     error('Unknown Product option: %s', Obj.Product);
