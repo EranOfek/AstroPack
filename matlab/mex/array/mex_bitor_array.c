@@ -15,6 +15,7 @@
 //
 
 #include "mex.h"
+#include "matrix.h"
 #define _WIN32
 
 // For Ctrl-C detection http://www.caam.rice.edu/~wy1/links/mex_ctrl_c_trick/
@@ -31,15 +32,17 @@
 #endif
 
 
-#define FUNCNAME "MATLAB:mex_WriteMatrix2:error"
+#define FUNCNAME "MATLAB:mex_bitor_array:error"
 
+#ifdef never
 //-------------------------------------------------------------------------
+// #define uint32_t unsigned int
+    
 // Write to file routine
-void writemat2(double* z, size_t cols, size_t rows, char* fname, char* fmt, char* dlm, char* wmode,
+void bitor_array32(uint32_t* mat, size_t cols, size_t rows, char* fname, char* fmt, char* dlm, char* wmode,
         char* header, const mxArray* struct_array)
-{
-
-	int i, j, ifield;
+{    
+	int row, col, result;
 	mxArray* field;
 	int nfields;
 	size_t NStructElems;
@@ -58,22 +61,13 @@ void writemat2(double* z, size_t cols, size_t rows, char* fname, char* fmt, char
 	   mexErrMsgIdAndTxt(FUNCNAME, "Struct array items must be same as matrix rows");
 	}
 
-	// Open file
-	FILE* fd = fopen(fname, wmode);
-	if (fd == NULL) {
-         mexErrMsgIdAndTxt(FUNCNAME, "fopen() Error!");
-         exit;
-	}
-
-	// Write header
-	if (header[0]) {
-		fprintf(fd, "%s\n", header);
-	}
-
-	fldval = (char*)mxCalloc(1024, sizeof(char));
-
 	//
-	for (i=0;  i < rows;  i++) {
+    for (col=0;  col < cols;  col++) {    
+        result = 0;
+        for (row=0;  row < rows;  row++) {
+            result |= 
+        
+
 
 		for (ifield=0;  ifield < nfields;  ifield++) {
 
@@ -117,107 +111,72 @@ void writemat2(double* z, size_t cols, size_t rows, char* fname, char* fmt, char
    mxFree(fldval);
 
 }
-
+#endif
+    
+    
 //-------------------------------------------------------------------------
 // The gateway function
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[])
+//
+// mexFunction is not a routine you call. Rather, mexFunction is the name 
+// of the gateway function in C which every MEX function requires. 
+// When you invoke a MEX function, MATLAB finds and loads the corresponding 
+// MEX function of the same name. MATLAB then searches for a symbol named 
+// mexFunction within the MEX function. If it finds one, it calls the MEX 
+// function using the address of the mexFunction symbol. MATLAB displays 
+// an error message if it cannot find a routine named mexFunction inside 
+// the MEX function.
+//
+// Input Arguments    
+//
+//    int nlhs              - Number of output arguments
+//    mxArray* plhs[]       - Output arguments
+//    int nrhs              - Number of input arguments
+//    const mxArray* prhs[] - Input arguments
+// 
+        
+        
+// 
+// mxIsClass(pm, "double");
+// 
+// is equivalent to calling either of these forms:
+// 
+// mxIsDouble(pm);
+// strcmp(mxGetClassName(pm), "double")==0;
+//
+    
+void mexFunction( 
+        int nlhs, mxArray *plhs[],          // Output arguments
+        int nrhs, const mxArray *prhs[])    // Input arguments
 {
-    double *inMatrix;           // MxN input matrix
-
-    size_t rows;                // M = number of rows of matrix
-    size_t cols;                // N = number of cols of matrix
-
-    size_t fnamelen;            // filename string buffer length
-    char  *fname;               // filename string
-
-    size_t fmtlen;   			// value format string buffer length
-    char  *fmt;                 // value format string
-
-    size_t dlmlen;   			// delimiter string buffer length
-    char  *dlm;                 // value format string
-
-    size_t wmodelen;   			// write mode string buffer length
-    char  *wmode;               // value format string
-
-    size_t headerlen;   		// header string buffer length
-    char  *header;              // header
-
-    int    status;
-
-
-    // Check for proper number of arguments
-    if (nrhs != 7) {
-        mexErrMsgIdAndTxt(FUNCNAME, "Seven input parameters required (filename, matrix, value format, separator, write mode)");
+    // Input
+    int* inputMatrix;
+    mwSize inputDimsNum;  
+    const mwSize* inputDims;    
+    const char *inputType;
+    
+    // Output
+    mwSize outputDimsNum;        
+    const mwSize* outputDims;
+        
+    inputDimsNum = mxGetNumberOfDimensions(prhs[0]);
+    inputDims = mxGetDimensions(prhs[0]);    
+    outputDimsNum = inputDimsNum - 1;
+    if (outputDimsNum < 1) {
+        outputDimsNum = 1;
+        outputDims = inputDims;
     }
-
-    if (!mxIsChar(prhs[0])) {
-        mexErrMsgIdAndTxt(FUNCNAME, "Filename must be a string");
+    else {
+        outputDims = inputDims + 1;
     }
+    
+    inputType = mxGetClassName(prhs[0]);
+    
+    mexPrintf("inMatrixDimsNum: %d\n", inputDimsNum);  
+    mexPrintf("inMatrixType: %s\n", inputType);
+        
+    // Create output matrix
+    plhs[0] = mxCreateNumericArray(outputDimsNum, outputDims, mxUINT32_CLASS, mxREAL);
 
-    if (!mxIsDouble(prhs[1]) || mxIsComplex(prhs[1])) {
-        mexErrMsgIdAndTxt(FUNCNAME, "Input matrix Z must be type double");
-    }
-
-    if (!mxIsChar(prhs[2])) {
-        mexErrMsgIdAndTxt(FUNCNAME,"Value format must be a string (e.g. %%10.6f)");
-    }
-
-    if (!mxIsChar(prhs[3])) {
-        mexErrMsgIdAndTxt(FUNCNAME, "Separator must be a char type");
-    }
-
-    if (!mxIsChar(prhs[4])) {
-        mexErrMsgIdAndTxt(FUNCNAME, "Write mode must be a char (e.g. w+ or a+)");
-    }
-
-    if (!mxIsChar(prhs[5])) {
-        mexErrMsgIdAndTxt(FUNCNAME, "Header mode must be a char");
-    }
-
-    if (!mxIsStruct(prhs[6])) {
-		mexErrMsgIdAndTxt(FUNCNAME, "Struct array expected");
-	}
-
-    // Process first input = filename
-    fnamelen = mxGetN(prhs[0]) + 1;
-    fname = (char*)mxCalloc(fnamelen, sizeof(char));
-    status = mxGetString(prhs[0], fname, (mwSize)fnamelen);
-
-    // Process second input = matrix
-    inMatrix = mxGetPr(prhs[1]);
-    rows = mxGetN(prhs[1]);
-    cols = mxGetM(prhs[1]);
-
-    // Process 3rd input = value format
-    fmtlen = mxGetN(prhs[2]) + 1;
-    fmt = (char*)mxCalloc(fmtlen, sizeof(char));
-    status = mxGetString(prhs[2], fmt, (mwSize)fmtlen);
-
-    // Process 4th input = delimiter
-    dlmlen = mxGetN(prhs[3]) + 1;
-    dlm = (char*)mxCalloc(dlmlen, sizeof(char));
-    status = mxGetString(prhs[3], dlm, (mwSize)dlmlen);
-
-    // Process 5th input = write mode
-    wmodelen = mxGetN(prhs[4]) + 1;
-    wmode = (char*)mxCalloc(wmodelen, sizeof(char));
-    status = mxGetString(prhs[4], wmode, (mwSize)wmodelen);
-
-    // Process 6th input = header
-    headerlen = mxGetN(prhs[5]) + 1;
-    header = (char*)mxCalloc(headerlen, sizeof(char));
-    status = mxGetString(prhs[5], header, (mwSize)headerlen);
-
-    // Call the actual function
-    writemat2(inMatrix, rows, cols, fname, fmt, dlm, wmode, header, prhs[6]);
-
-    // Free strings
-    mxFree(fname);
-    mxFree(fmt);
-    mxFree(dlm);
-    mxFree(wmode);
-	mxFree(header);
 }
 //-------------------------------------------------------------------------
 

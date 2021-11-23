@@ -31,7 +31,7 @@
 #endif
 
 
-#define FUNCNAME "MATLAB:mex_WriteMatrix2:error"
+#define FUNCNAME "MATLAB:mex_bitand_array:error"
 
 //-------------------------------------------------------------------------
 // Write to file routine

@@ -41,9 +41,6 @@ Val = 0;
 for Ibit=1:1:Nbit
     Val = Val + (2.^(Ibit-1)).*any(bitget(Array,Ibit),Dim);
 end
+
 % transform back to uint
 Val = Fun(Val);
-    
-    
-    
-    
