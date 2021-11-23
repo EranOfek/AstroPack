@@ -115,9 +115,9 @@ function Result = unitTest()
 
     % insertKey
     io.msgLog(LogLevel.Test, 'testing AstroHeader insertKey')
-    H=AstroHeader();
-    H.insertKey('stam');
-    H.insertKey({'A','','';'B','',''},'end-1');
+    H = AstroHeader();
+    H.insertKey('Key1');
+    H.insertKey({'KeyA','ValueA','CommentA';'KeyB','ValueB','CommentB'},'end-1');
     assert(H.Data{1,1} == 'A');
     assert(H.Data{2,1} == 'B');
     assert(prod(H.Data{3,1} == 'stam'))

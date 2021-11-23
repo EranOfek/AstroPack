@@ -8,9 +8,6 @@ function Result = unitTest(Obj)
 	DataSampleDir = tools.os.getTestDataDir;
 	PWD = pwd;
 	cd(DataSampleDir);
-	
-    %test_writeTable();    
-	%[Out, Head, Col] = FITS.readTable1('asu.fit');
           
     % test constructor
 	io.msgLog(LogLevel.Test, 'testing FITS constructor');
@@ -78,6 +75,9 @@ function Result = unitTest(Obj)
 	FITS.write_keys(File,{'try','A','comm';'try2',6,'what'});
 	delete(File);
 	
+    % Test writeTable1()
+    test_writeTable();    
+    
 	cd(PWD);	
 	io.msgStyle(LogLevel.Test, '@passed', 'FITS test passed')
 	Result = true;
@@ -90,16 +90,42 @@ function Result = test_writeTable()
     % unitTest for the FITS.writeTable()
     %WorkDir = tools.os.getTestWorkDir;
    
-    FileName = 'tmp/wrtable10c.fits';
+    FileName = 'tmp/wrtable1a.fits';
     if isfile(FileName)
         delete(FileName);
     end
 
     AC = AstroTable({rand(10, 2)}, 'ColNames', {'RA','Dec'});    
     AC2 = AstroTable({rand(7, 3)}, 'ColNames', {'RA','Dec','Dog'});    
+    AC3 = AstroTable({rand(4, 2)}, 'ColNames', {'ColA','ColB'});    
     
     FITS.writeTable1(AC, FileName, 'ExtName', 'MyExtName');
     FITS.writeTable1(AC2, FileName, 'Append', true, 'HDUnum', 2, 'ExtName', 'MyExtDog');    
+    
+    % Write also extra header
+    H = AstroHeader();
+    for i=1:20
+        H.insertKey({sprintf('Key%02d', i), sprintf('Value%02d', i), sprintf('Comment%02d', i)});
+    end
+    
+    % Write table with additional Header
+    FITS.writeTable1(AC3, FileName, 'Append', true, 'HDUnum', 3, 'ExtName', ...
+        'MyHeader1', 'Header', H, 'HeaderHDUnum', 4);
+    
+    % When 'HeaderHDUnum' is not specified, the additional Header follows
+    % the table.
+    FITS.writeTable1(AC3, FileName, 'Append', true, 'HDUnum', 5, 'ExtName', ...
+        'MyHeader2', 'Header', H);
+    
+    % Read all headers
+    Count = FITS.numHDU1(FileName);
+    io.msgLog(LogLevel.Test, 'HDUs: %d', Count);
+    for i=1:Count
+        io.msgLog(LogLevel.Test, 'Header of HDU # %d', i);
+        Header = FITS.readHeader1(FileName, i);
+        disp(Header);
+    end
+        
     
     % Bug: readTable1 returns Col not the same order as AC.ColNames
     %     Out.ColNames
@@ -134,6 +160,8 @@ function Result = test_writeTable()
     %
     %
     
+    % @Todo: Test also with 'ascii' table
+
+	delete(FileName);    
     Result = true;
 end
-
