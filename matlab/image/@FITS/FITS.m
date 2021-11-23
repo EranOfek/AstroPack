@@ -870,7 +870,7 @@ classdef FITS < handle
                 if (~isempty(Header.(HeaderField){Inl,1}))
                     switch lower(Header.(HeaderField){Inl,1})
                         case 'comment'
-                            fits.writeComment(Fptr,Header.(HeaderField){Inl,2});
+                            matlab.io.fits.writeComment(Fptr,Header.(HeaderField){Inl,2});
                         case 'history'
                             matlab.io.fits.writeHistory(Fptr,Header.(HeaderField){Inl,2});
                         case {'extname', 'xtension'} % Na'ama, 20180905
