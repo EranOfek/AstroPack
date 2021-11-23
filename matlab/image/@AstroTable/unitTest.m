@@ -12,7 +12,7 @@ function Result = unitTest()
     AC = AstroTable;
 
     % Create four empty tables
-    AC = AstroTable([2 2]);
+    AC = AstroTable([2, 2]);
 
     % Create two tables with random data
     AC = AstroTable({rand(10,2),rand(10,2)});
@@ -23,13 +23,12 @@ function Result = unitTest()
 
     % @FAILED - @Eran
     A = AstCat; A(1).Cat=rand(10,2);
-    A(2).Cat=rand(10,2); A(1).ColCell={'RA','Dec'};
+    A(2).Cat=rand(10,2); 
+    A(1).ColCell={'RA','Dec'};
     A(1).ColUnits={'rad','rad'};
     AC = AstroTable(A);
     AC = AstroTable(A,'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});
     AC=AstroTable('asu.fit','HDU',2); % read from FITS table
-
-
 
     % merge selected columns of AstroTable
     io.msgLog(LogLevel.Test, 'testing AstroTable merge 1/2')
@@ -51,8 +50,10 @@ function Result = unitTest()
     getCol(MAC,1);
     getCol(MAC,'DEJ2000');
     getCol(MAC,{'DEJ2000','RAJ2000'});
+    
     % output as table
     getCol(MAC,{'mag1','sep1'},true);     %%% <---- BUG
+    
     % store result in original AstroTable
     Result = getCol(MAC,{'DEJ2000','RAJ2000'},false,true);
     if ~all(Result == MAC.Catalog,'all')
@@ -67,7 +68,6 @@ function Result = unitTest()
         error('Problem with colnameDict2ind');
     end
 
-
     % funUnary
     io.msgLog(LogLevel.Test, 'testing AstroTable funUnary')
     funUnary(AC(1),@sin);
@@ -78,7 +78,7 @@ function Result = unitTest()
     AC=AstroTable('asu.fit','HDU',2);
     min([AC;AC],{'mag1','mag2'});
     max([AC;AC],{'mag1','mag2'});
-    max([AC;AC],[1 2]);
+    max([AC;AC],[1, 2]);
     max([AC;AC]);            
 
     % query
@@ -103,10 +103,10 @@ function Result = unitTest()
     AT.Catalog=rand(10,4);
     AT.ColNames={'a','b','c','d'};
     AT.plotFun(@plot,{'a','c'},'o');
-    AT.plotFun(@plot,[1 2],'o','Color','b');
+    AT.plotFun(@plot,[1, 2],'o','Color','b');
     AT.plotFun(@hist,{'c'});
     AT.plotFun(@hist,'d');
-    AT.plotFun(@plot3,[1 2 4],'o','Color','b');
+    AT.plotFun(@plot3,[1, 2, 4],'o','Color','b');
 
     AT = AstroTable;
     AT.Catalog = [(1:1:10).',(1:1:10).', rand(10,1)];

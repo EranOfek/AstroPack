@@ -102,7 +102,7 @@ classdef FITS < handle
         end
         
         
-        function [HeadCell,Nhdu] = readHeader1(FileName,HDUnum)
+        function [HeadCell,Nhdu] = readHeader1(FileName, HDUnum)
             % Read a single header from a FITS file (Static)
             % A static function of FITS class
             % Input  : - FITS file name
@@ -763,7 +763,7 @@ classdef FITS < handle
                 Args.Header cell              = {};
                 Args.DataType                 = 'single';
                 Args.Append(1,1) logical      = false;
-                Args.OverWrite(1,1) logical   = false;
+                 Args.OverWrite(1,1) logical  = false;
                 Args.WriteTime(1,1) logical   = false;
             end
             
@@ -846,7 +846,13 @@ classdef FITS < handle
             else
                 % convert to HEAD object
                 Header = HEAD;
-                Header.(HeaderField) = ArgsHeader;
+                
+                % Convert from AstroHeader
+                if isa(ArgsHeader, 'AstroHeader')
+                    Header.(HeaderField) = ArgsHeader.Data;
+                else
+                    Header.(HeaderField) = ArgsHeader;
+                end
             end
            
             % Set the FITS "mandatory" keywords, add BSCALE and BZERO
