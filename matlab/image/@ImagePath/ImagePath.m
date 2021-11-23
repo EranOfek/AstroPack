@@ -356,6 +356,9 @@ classdef ImagePath < Component
             Obj.Version         = Header.getVal('VERSION');
             Obj.FileType        = 'fits';
             Obj.SubDir          = Header.getVal('SUBDIR');
+            if isnan(Obj.SubDir)
+                Obj.SubDir = '';
+            end
 
         end
         
