@@ -14,11 +14,14 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         Args.AstroImageReadArgs cell          = {};
         
+        
         Args.SameField logical                = true;
         Args.CatName                          = 'GAIAEDR3';
         
         Args.singleRaw2procArgs cell          = {};
         Args.DeletePropAfterSrcFinding        = {'Back','Var'};
+        Args.UpdateCounter logical            = true;
+        
         Args.coaddArgs cell                   = {};
         
         % Background and source finding
@@ -78,12 +81,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
 
         % add keywords to Header
-        if Args.UpdateHeader
-            AllSI(Iim,:).HeaderData.insertKey({'COUNTER', Iim, ''});
+        if Args.UpdateCounter
+            for Isub=1:1:Nsub
+                AllSI(Iim,Isub).HeaderData.replaceVal({'COUNTER'}, Iim);
+            end
         end
         
     end
     clear SI;
+    
+    
     
     % get JD
     JD = julday(AllSI(:,1));
@@ -158,7 +165,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     % save products
-    Args.SaveProcIm     = true;
+    Args.SaveProcIm     = false;
     Args.SaveProcCat    = true;
     Args.SaveProcMask   = true;
     Args.SaveMatchCat   = true;
@@ -171,9 +178,15 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         IP  = ImagePath;
         Nim = numel(AllSI);
         for Iim=1:1:Nim
-            IP.readFromHeader(AllSI
-            
-        
+            IP.readFromHeader(AllSI(Iim));  
+            % FFU: whos is responsible for creating the dir? ImagePath?
+            % FFU: the date is today - BUG!!
+            AllSI(Iim).write1(IP.genFull, 'Image', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',false,...
+                                                   'WriteTime',false);
+        end
     end
     
     

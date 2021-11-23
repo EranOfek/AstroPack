@@ -318,6 +318,20 @@ classdef ImagePath < Component
 
         end
         
+        function Result = genFull(Obj)
+            % Generate a full file name + path from a populated ImagePath
+            % Input  : - A populated ImagePath object.
+            % Output : - A full path + file name.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: IP.genFull
+        
+            File = Obj.genFile;
+            Path = Obj.genPath;
+            
+            Result = sprintf('%s%s',Path,File);
+            
+        end
+        
         
         function Result = genFromDbQuery(Obj, Query)
             % Generate ImagePath current record of Query.ResultSet
@@ -331,12 +345,15 @@ classdef ImagePath < Component
     methods % Read/Write from Header and Struct
         
         function Obj = readFromHeader(Obj, Input, DataProp)
-            % Read data from AstroHeader, DictKeyNames is used to get the
-            % correct key names            
-            % @TODO: @Eran - Validate field names in FITS header
+            % Read ImagePath parameters from header.
+            % Input  : - An ImagePath object.
+            %          - A single element AstroImage or AstroHeader.
+            %          - Either data property name or product name.
+            % Output : - A populated ImagePath object.
+            
             arguments
-                Obj
-                Input           % AstroHeader | AstroImage
+                Obj(1,1)
+                Input(1,1)       % AstroHeader | AstroImage
                 DataProp    = 'image';    % DataProp in AstroImage or Product name
             end
             
