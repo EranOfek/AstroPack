@@ -77,6 +77,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         % clean data that will not be used later on
         AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
 
+        % add keywords to Header
+        if Args.UpdateHeader
+            AllSI(Iim,:).HeaderData.insertKey({'COUNTER', Iim, ''});
+        end
+        
     end
     clear SI;
     

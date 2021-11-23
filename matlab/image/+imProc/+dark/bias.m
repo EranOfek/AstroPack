@@ -23,7 +23,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
     %                   Default is 'sigmaclip'.
     %            'StackArgs' - A cell array of arguments to pass to the
     %                   method function. Default is
-    %                   {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.
+    %                   {'MeanFun',@tools.math.stat.nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.
     %            'EmpiricalVarFun' - Default is @var.
     %            'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
     %            'DivideEmpiricalByN' - A logical indicating if to divide
@@ -101,7 +101,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
         Args.IsBiasArgs cell            = {};
 
         Args.StackMethod                = 'sigmaclip';   
-        Args.StackArgs                  = {'MeanFun',@nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1};
+        Args.StackArgs                  = {'MeanFun',@tools.math.stat.nanmean, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1};
         Args.EmpiricalVarFun            = @var;
         Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
         Args.DivideEmpiricalByN         = false;

@@ -341,15 +341,15 @@ classdef ImagePath < Component
             
             %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
                                 
-            Obj.ProjName        = Header.getVal(Obj.DictKeyNames.PROJNAME);
+            Obj.ProjName        = Header.getVal('INSTRUME'); %Obj.DictKeyNames.PROJNAME);
             Obj.JD              = Header.getVal('JD');
-            Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TIMEZONE);
-            Obj.Filter          = Header.getVal(Obj.DictKeyNames.FILTER);
+            Obj.TimeZone        = Header.getVal('TIMEZONE');
+            Obj.Filter          = Header.getVal('FILTER');
             Obj.FieldID         = Header.getVal('FIELDID');
             Obj.Counter         = Header.getVal('COUNTER');
             Obj.CCDID           = Header.getVal('CCDID');
             Obj.CropID          = Header.getVal('CROPID');
-            Obj.Type            = Header.getVal(Obj.DictKeyNames.IMTYPE);
+            Obj.Type            = Header.getVal('IMTYPE');
             Obj.Level           = Header.getVal('LEVEL');
             Obj.SubLevel        = Header.getVal('SUBLEVEL');
             Obj.Product         = Header.getVal('PRODUCT');

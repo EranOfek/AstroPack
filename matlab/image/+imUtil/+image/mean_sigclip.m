@@ -82,7 +82,7 @@ while Iter<=Args.MaxIter && NrejectNew~=0
     
     Iter = Iter + 1;
     
-    Mean = Args.MeanFun(DataF,Dim,'omitnan');
+    Mean = Args.MeanFun(DataF,Dim);
     switch lower(Args.StdFun)
         case 'std'
             Std  = nanstd(DataF,[],Dim);
