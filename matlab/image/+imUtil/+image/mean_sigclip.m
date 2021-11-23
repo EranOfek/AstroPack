@@ -48,7 +48,7 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 arguments
     Data
     Dim                              = [];
-    Args.MeanFun                     = @nanmean;
+    Args.MeanFun                     = @mean;
     Args.StdFun                      = 'rstd';
     Args.Nsigma(1,2)                 = [5 5];
     Args.MaxIter(1,1)                = 3;
@@ -82,7 +82,7 @@ while Iter<=Args.MaxIter && NrejectNew~=0
     
     Iter = Iter + 1;
     
-    Mean = Args.MeanFun(DataF,Dim);
+    Mean = Args.MeanFun(DataF,Dim,'omitnan');
     switch lower(Args.StdFun)
         case 'std'
             Std  = nanstd(DataF,[],Dim);

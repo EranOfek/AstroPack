@@ -209,7 +209,7 @@ classdef ImagePath < Component
             %            'TimeZone' - Time zone [hours]. Default is 2.
             %            'Filter' - Default is 'clear'.
             %            'FieldID' - Default is ''.
-            
+            %
             %            'Type' - either bias, dark, domeflat, twflat, skyflat, fringe,
             %                   sci, wave.
             %                   Default is 'sci'.
@@ -227,14 +227,14 @@ classdef ImagePath < Component
             %            'Product' - either: im, back, var, imflag, exp, nim, psf, cat, spec.
             %                   Default is 'im'.
             %            'Version' - Default is 1.
-            
+            %
             %                   Default is '%03d'.
             %            'FileType' - Default is 'fits'.
             %            'SubDir' - This is the area/location directory below the
             %                   coadd/ref directory. Default is ''.
             %            'DataDir' - Default is 'data'.
             %            'Base' - Default is '/home/last'.
-            
+            %
             %            'FormatFieldID' - Formatting of FieldID if is given as number. Default is '%06d'.            
             %            'FormatVersion' - Formatting of Version if is given as number.            
             % Output : File name or path and file name (if Args.FullPath is true)
@@ -242,6 +242,7 @@ classdef ImagePath < Component
             %          [FileName,Path]=imUtil.util.file.construct_filename('FieldID',100)            
             % Returns: string containing image name 
             % Returns: string containing image path (if nargout>1, call constructPath)
+            
             arguments
                 Obj
                 Args.ProjName           % project name and telescope ID. Examples: 'ULTRASAT', 'LAST.1.12.4'
@@ -329,7 +330,7 @@ classdef ImagePath < Component
    
     methods % Read/Write from Header and Struct
         
-        function Result = readFromHeader(Obj, Header)
+        function Obj = readFromHeader(Obj, Header)
             % Read data from AstroHeader, DictKeyNames is used to get the
             % correct key names            
             % @TODO: @Eran - Validate field names in FITS header
@@ -340,23 +341,25 @@ classdef ImagePath < Component
             
             %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
                                 
-            Obj.ProjName        = Header.getVal(Obj.DictKeyNames.ProjName);
-            Obj.JD              = Header.getVal(Obj.DictKeyNames.JD);
-            Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TimeZone);
-            Obj.Filter          = Header.getVal(Obj.DictKeyNames.Filter);
-            Obj.FieldID         = Header.getVal(Obj.DictKeyNames.FieldID);
-            Obj.Counter         = Header.getVal(Obj.DictKeyNames.Counter);
-            Obj.CCDID           = Header.getVal(Obj.DictKeyNames.CCDID);
-            Obj.CropID          = Header.getVal(Obj.DictKeyNames.CropID);
-            Obj.Type            = Header.getVal(Obj.DictKeyNames.Type);
-            Obj.Level           = Header.getVal(Obj.DictKeyNames.Level);
-            Obj.SubLevel        = Header.getVal(Obj.DictKeyNames.SubLevel);
-            Obj.Product         = Header.getVal(Obj.DictKeyNames.Product);
-            Obj.Version         = Header.getVal(Obj.DictKeyNames.Version);
-            Obj.FileType        = Header.getVal(Obj.DictKeyNames.FileType);
-            Obj.SubDir          = Header.getVal(Obj.DictKeyNames.SubDir);
+            Obj.ProjName        = Header.getVal(Obj.DictKeyNames.PROJNAME);
+            Obj.JD              = Header.getVal('JD');
+            Obj.TimeZone        = Header.getVal(Obj.DictKeyNames.TIMEZONE);
+            Obj.Filter          = Header.getVal(Obj.DictKeyNames.FILTER);
+            Obj.FieldID         = Header.getVal('FIELDID');
+            Obj.Counter         = Header.getVal('COUNTER');
+            Obj.CCDID           = Header.getVal('CCDID');
+            Obj.CropID          = Header.getVal('CROPID');
+            Obj.Type            = Header.getVal(Obj.DictKeyNames.IMTYPE);
+            Obj.Level           = Header.getVal('LEVEL');
+            Obj.SubLevel        = Header.getVal('SUBLEVEL');
+            Obj.Product         = Header.getVal('PRODUCT');
+            Obj.Version         = Header.getVal('VERSION');
+            Obj.FileType        = 'fits';
+            Obj.SubDir          = Header.getVal('SUBDIR');
+            if isnan(Obj.SubDir)
+                Obj.SubDir = '';
+            end
 
-            Result = true;
         end
         
         

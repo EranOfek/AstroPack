@@ -86,6 +86,7 @@ function Result = background(Obj, Args)
         
         % header
         Args.AddHeaderInfo(1,1) logical  = true;
+        Args.UseFastMedian logical       = true;
         
         % hidden parameters
         Args.ImageProp char              = 'ImageData';
@@ -160,10 +161,17 @@ function Result = background(Obj, Args)
             if Args.AddHeaderInfo
                 %
                 MeanBack = mean( Result(Iobj).(Args.BackProp).(Args.BackPropIn), 'all');
-                MedBack  = median( Result(Iobj).(Args.BackProp).(Args.BackPropIn), 'all');
+                
                 StdBack  = std( Result(Iobj).(Args.BackProp).(Args.BackPropIn), [],'all');
                 MeanVar = mean( Result(Iobj).(Args.VarProp).(Args.VarPropIn), 'all');
-                MedVar  = median( Result(Iobj).(Args.VarProp).(Args.VarPropIn), 'all');
+                
+                if Args.UseFastMedian
+                    MedBack  = fast_median( Result(Iobj).(Args.BackProp).(Args.BackPropIn)(:));
+                    MedVar  = fast_median( Result(Iobj).(Args.VarProp).(Args.VarPropIn)(:));
+                else
+                    MedBack  = median( Result(Iobj).(Args.BackProp).(Args.BackPropIn), 'all');
+                    MedVar  = median( Result(Iobj).(Args.VarProp).(Args.VarPropIn), 'all');
+                end
                 
                 %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR'};
                 Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar};
