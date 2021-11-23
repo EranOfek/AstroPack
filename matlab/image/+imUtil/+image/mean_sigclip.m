@@ -87,7 +87,7 @@ while Iter<=Args.MaxIter && NrejectNew~=0
         case 'std'
             Std  = nanstd(DataF,[],Dim);
         case 'rstd'
-            Std  = sqrt(imUtil.background.rvar(DataF,Dim));
+            Std  = imUtil.background.rstd(DataF,Dim);
         otherwise
             error('Unknown StdFun option');
     end

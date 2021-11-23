@@ -3,7 +3,8 @@ function Result = interpOverNan(Obj, Args)
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %            'Method' - Interpolation method: 'inpaint_nans' | 'rowcol'
-    %                   Default is 'rowcol'.
+    %                   | 'convpix'
+    %                   Default is 'convpix'.
     %            'MethodInpaint' - inpaint_nans method. Default is 0.
     %                   See inpaint_nans for options.
     %            'DataProp' - A cell array of data properties on which to operate the
@@ -11,6 +12,11 @@ function Result = interpOverNan(Obj, Args)
     %            'MaskInterpolated' - A logical indicating if to mark
     %                   interpolated data in the Mask image.
     %                   Default is true.
+    %            'Kernel' - Kernel for 'convpix' method.
+    %                   Either a matrix or function handle that generates
+    %                   the kernel. Default is @imUtil.kernel2.gauss.
+    %            'KernelArgs' - A cell array of arguments to pass to the
+    %                   Kernel function. Default is {}.
     %            'BitNameInterpolated' - BitName to mark interpolated data.
     %                   Default is 'Interpolated'.
     %            'CreateNewObj' - A logical indicating if to copy the input
@@ -29,10 +35,12 @@ function Result = interpOverNan(Obj, Args)
     
     arguments
         Obj
-        Args.Method               = 'rowcol'; %'inpaint_nans';  % 'inpaint_nans' | 'rowcol'
+        Args.Method               = 'convpix'; %'inpaint_nans';  % 'inpaint_nans' | 'rowcol' | 'convpix'
         Args.MethodInpaint        = 0;
         Args.DataProp cell        = {'Image'};
         Args.MaskInterpolated logical = true;
+        Args.Kernel               = @imUtil.kernel2.gauss;
+        Args.KernelArgs cell      = {};
         Args.BitNameInterpolated  = 'Interpolated';
         Args.CreateNewObj logical = false;
     end
@@ -41,6 +49,12 @@ function Result = interpOverNan(Obj, Args)
         Result = Obj.copy();
     else
         Result = Obj;
+    end
+    
+    if isnumeric(Args.Kernel)
+        KernelConv = Args.Kernel;
+    else
+        KernelConv = Args.Kernel(Args.KernelArgs{:});
     end
     
     Nprop = numel(Args.DataProp); 
@@ -55,6 +69,23 @@ function Result = interpOverNan(Obj, Args)
             end
             
             switch lower(Args.Method)
+                case 'convpix'
+                    % use interpImageConvPix
+                    Ndim    = ndims(Obj(Iobj).(Args.DataProp{Iprop}));
+                    if Ndim>2
+                        % N-D image
+                        SizeIm = size(Obj(Iobj).(Args.DataProp{Iprop}));
+                        
+                        Nimages = prod(SizeIm(3:end)); % number of images in the dim>2 indices
+                        for Iimages=1:1:Nimages
+                            Result(Iobj).(Args.DataProp{Iprop})(:,:,Iimages) = imUtil.interp.interpImageConvPix(Obj(Iobj).(Args.DataProp{Iprop})(:,:,Iimages), KernelConv);
+                        end
+                    else
+                        % 2D image
+                        Result(Iobj).(Args.DataProp{Iprop}) = imUtil.interp.interpImageConvPix(Obj(Iobj).(Args.DataProp{Iprop}), KernelConv);
+                        
+                    end
+                                        
                 case 'rowcol'
                     % use the row/col linear method
                     Ndim    = ndims(Obj(Iobj).(Args.DataProp{Iprop}));

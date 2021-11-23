@@ -737,6 +737,45 @@ classdef AstroImage < Component
     end
     
     methods % read / write
+        function write1(Obj, Name, DataProp, Args)
+            % Write a single data property in a single element AstroImage to file
+            
+            arguments
+                Obj(1,1)
+                Name
+                DataProp                      = 'Image';
+                Args.FileType                 = 'fits';
+                Args.WriteHeader logical      = true;
+                Args.Append logical           = false;
+                Args.OverWrite logical        = false;
+                Args.WriteTime logical        = false;
+            end
+            
+            if Args.WriteHeader
+                HeaderData = Obj.HeaderData.Data;
+            else
+                HeaderData = [];
+            end
+            
+            switch lower(Args.FileType)
+                case 'fits'
+                    switch lower(DataProp)
+                        case {'image','back','var','mask'}
+                            FITS.write(Obj.(DataProp), Name, 'Header',HeaderData,...
+                                                               'DataType',class(Obj.(DataProp)),...
+                                                               'Append',Args.Append,...
+                                                               'OverWrite',Args.OverWrite,...
+                                                               'WriteTime',Args.WriteTime);
+                        otherwise
+                            % FFU
+                            error('DataProp %s is not yet supported',DataProp);
+                    end
+                otherwise
+                    error('FileType %s is not yet supported',Args.FileType);
+            end
+            
+        end
+        
         function writeFITS(Obj, Name, Args)
             %
             % Example: AI.write(

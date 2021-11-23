@@ -872,7 +872,7 @@ classdef FITS < handle
                         case 'comment'
                             fits.writeComment(Fptr,Header.(HeaderField){Inl,2});
                         case 'history'
-                            fits.writeHistory(Fptr,Header.(HeaderField){Inl,2});
+                            matlab.io.fits.writeHistory(Fptr,Header.(HeaderField){Inl,2});
                         case {'extname', 'xtension'} % Na'ama, 20180905
                             % do nothing
                         case {'simple','bitpix','naxis','naxis1','naxis2','naxis3','naxis4'}

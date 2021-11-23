@@ -60,6 +60,22 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     %                   StackMethod). Default is true.
     %              'CombineMask' - A logical indicating if to
     %                   combine the mask image. Default is true.
+    %
+    %              'ReplaceNaN' - Replace NaN optiion:
+    %                   'none'
+    %                   'interp' - use imProc.mask.interpOverMaskedPix
+    %                   'replace' - default.    
+    %              'FillValues' - A value to replace NaNs with.
+    %                   If 'back', then used median of image.
+    %                   Default is 'back'.
+    %              'BitNameNaN' - Bit name for the NaN bit mask.
+    %                   Default is 'NaN'.
+    %              'BitNameInterpolated' - Bit name for the interpolated
+    %                   bit mask. Default is 'Interpolated'.
+    %              'interpOverNanArgs' - Cell array of additional arguments
+    %                   to pass to imProc.mask.interpOverMaskedPix.
+    %                   Default is {}.
+    %
     %              'EmpiricalVarFun' - Default is @var.
     %              'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
     %              'MedianVarCorrForEmpirical' - A logical indicating if to
@@ -123,6 +139,13 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         Args.CombineBack(1,1) logical               = true;
         Args.CombineMask(1,1) logical               = true;
 
+        Args.ReplaceNaN                             = 'replace';   % 'replace' | 'interp'
+        Args.FillValues                             = 'back';
+        Args.BitNameNaN                             = 'NaN';
+        Args.BitNameInterpolated                    = 'Interpolated';
+        Args.interpOverNanArgs cell                 = {};
+    
+        
         Args.EmpiricalVarFun function_handle        = @var;
         Args.EmpiricalVarFunArgs                    = {[],3,'omitnan'};
         Args.MedianVarCorrForEmpirical(1,1) logical = false;
@@ -200,6 +223,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
 
 
 
+    
     if Args.CombineBack && ~isempty(BackCube)
         [BackCoadd] = imUtil.image.stackCube(BackCube, 'StackMethod',Args.StackMethod,...
                                                                              'StackArgs',Args.StackArgs,...
@@ -216,7 +240,8 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
                                                                              'CalcCoaddVarEmpirical',false,...
                                                                              'CalcCoaddVar',false,...
                                                                              'CalcCoaddN',false);
-        Result.MaskData.(Args.DataPropIn)  = MaskCoadd;                                                                
+        Result.MaskData.(Args.DataPropIn)  = MaskCoadd;   
+        
     end
 
     % post normalization (image and variance)
@@ -276,22 +301,36 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     
     % Update Mask
     % Mark NaN pixels in the mask image and interpolate over these pixels
-    Args.BitNameNaN = 'NaN';
-    Args.BitMaskNaN = true;
-    Args.InterpOverNaN = true;
-    Args.interpOverNanArgs = {};
-    Args.BitNameInterpolated     = 'Interpolated';
     
-    if Args.BitMaskNaN
-        FlagNaN         = isnan(Result.Image);
-        Result.MaskData = maskSet(Result.MaskData, FlagNaN, Args.BitNameNaN, 1, 'CreateNewObj',false);
+    switch lower(Args.ReplaceNaN)
+        case 'none'
+            % do nothing
+        otherwise
+            FlagNaN         = isnan(Result.Image);
+            Result.MaskData = maskSet(Result.MaskData, FlagNaN, Args.BitNameNaN, 1, 'CreateNewObj',false);
         
-        if Args.InterpOverNaN
-            Result = imProc.mask.interpOverMaskedPix(Result, 'BitNamesToInterp',{Args.BitNameNaN},...
-                                                             'interpOverNanArgs',Args.interpOverNanArgs,...
-                                                             'BitNameInterpolated',Args.BitNameInterpolated,...
-                                                             'CreateNewObj',false);
-        end
-    end            
+            switch lower(Args.ReplaceNaN)
+              
+                case 'interp'
+
+                    Result = imProc.mask.interpOverMaskedPix(Result, 'BitNamesToInterp',{Args.BitNameNaN},...
+                                                                 'interpOverNanArgs',Args.interpOverNanArgs,...
+                                                                 'BitNameInterpolated',Args.BitNameInterpolated,...
+                                                                 'CreateNewObj',false);
+                case 'replace'
+                    % NaNs can be generated when CoaddN=0
+                    if ischar(Args.FillValues)
+                        % estimate from median
+                        FillVal = median(Result.Image, 'all', 'omitnan');
+                    else
+                        FillVal = Args.FillValues;
+                    end
+                    Result.Image(FlagNaN) = FillVal;
+
+                    Result.MaskData = maskSet(Result.MaskData, FlagNaN, Args.BitNameInterpolated, 1);
+                otherwise
+                    error('Unknown ReplaceMaN option');
+            end  % end inner switch
+    end % end outer switch
 end
         

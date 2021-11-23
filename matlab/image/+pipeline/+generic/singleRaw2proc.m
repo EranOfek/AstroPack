@@ -203,7 +203,10 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     % Photometric ZP
     if Args.DoPhotometry
         % FFU: add CatName with the previously aquired AstrometricCat
-        [SI, Result.ZP, ~] = imProc.calib.photometricZP(SI, 'CreateNewObj',false, 'MagZP',Args.ZP, Args.photometricZPArgs{:});
+        [SI, Result.ZP, ~] = imProc.calib.photometricZP(SI, 'CreateNewObj',false,...
+                                                            'MagZP',Args.ZP,...
+                                                            'CatName',AstrometricCat,...
+                                                            Args.photometricZPArgs{:});
     
         % Update Cat photometry
     end

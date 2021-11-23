@@ -22,6 +22,8 @@ function Result = imwarp(Obj, Args)
         Args.FillValues                = 'back';
         Args.SmoothEdges logical       = true;
         
+        Args.ReplaceNaN logical        = true;  % replace NaN with FillVal
+        
         Args.TransWCS logical          = true;
         
         Args.CreateNewObj logical      = false;
@@ -101,6 +103,10 @@ function Result = imwarp(Obj, Args)
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
+                if Args.ReplaceNaN
+                    Result(Iobj).(Args.DataProp{Iprop})(isnan(Result(Iobj).(Args.DataProp{Iprop}))) = FillVal;
+                    % FFU: update Mask
+                end
             end
 
         end
