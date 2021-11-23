@@ -330,17 +330,32 @@ classdef ImagePath < Component
    
     methods % Read/Write from Header and Struct
         
-        function Obj = readFromHeader(Obj, Header)
+        function Obj = readFromHeader(Obj, Input, DataProp)
             % Read data from AstroHeader, DictKeyNames is used to get the
             % correct key names            
             % @TODO: @Eran - Validate field names in FITS header
             arguments
                 Obj
-                Header AstroHeader
+                Input           % AstroHeader | AstroImage
+                DataProp    = 'image';    % DataProp in AstroImage or Product name
             end
             
             %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
                                 
+            if isa(Input, 'AstroHeader')
+                Header = Input;
+                if isempty(DataProp)
+                    Obj.Product         = Header.getVal('PRODUCT');
+                else
+                    Obj.Product         = DataProp;
+                end
+            elseif isa(Input, 'AstroImage')
+                Header = Input.HeaderData;
+            else
+                error('INput must be an AstroHeader or AstroImage');
+            end
+              
+            
             Obj.ProjName        = Header.getVal('INSTRUME'); %Obj.DictKeyNames.PROJNAME);
             Obj.JD              = Header.getVal('JD');
             Obj.TimeZone        = Header.getVal('TIMEZONE');
@@ -352,7 +367,10 @@ classdef ImagePath < Component
             Obj.Type            = Header.getVal('IMTYPE');
             Obj.Level           = Header.getVal('LEVEL');
             Obj.SubLevel        = Header.getVal('SUBLEVEL');
-            Obj.Product         = Header.getVal('PRODUCT');
+            if isnan(Obj.SubLevel)
+                Obj.SubLevel = '';
+            end
+            Obj.Product         = DataProp;
             Obj.Version         = Header.getVal('VERSION');
             Obj.FileType        = 'fits';
             Obj.SubDir          = Header.getVal('SUBDIR');
@@ -416,7 +434,6 @@ classdef ImagePath < Component
             Obj.Node            = st.node;
             Obj.Mount           = st.mount;
             Obj.Camera          = st.camera;
-            
             
             Obj.JD              = st.jd;
             Obj.TimeZone        = st.timezone;

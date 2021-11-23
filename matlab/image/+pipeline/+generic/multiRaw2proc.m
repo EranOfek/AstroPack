@@ -156,6 +156,28 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     end
     
+    
+    % save products
+    Args.SaveProcIm     = true;
+    Args.SaveProcCat    = true;
+    Args.SaveProcMask   = true;
+    Args.SaveMatchCat   = true;
+    Args.SaveMatchSrc   = true;
+    Args.SaveCoaddIm    = true;
+    Args.SaveCoaddCat   = true;
+    Args.SaveCoaddMask  = true;
+    
+    if Args.SaveProcIm
+        IP  = ImagePath;
+        Nim = numel(AllSI);
+        for Iim=1:1:Nim
+            IP.readFromHeader(AllSI
+            
+        
+    end
+    
+    
+    
     % for testing:
 %     clear Coadd
 %     clear ResultCoadd
