@@ -30,7 +30,7 @@ function [Param, Res, Tran] = fitTransformation(ObjCat, ObjRef, Args)
     %            'PolyDeg' - Poly order. Default is 3.
     %            'BinSize' - Bin size [mag]. Default is 1.
     %            'FunMean' - Function handle for mean in in bin.
-    %                   Defaut is @nanmedian
+    %                   Defaut is @tools.math.stat.nanmedian
     %            'FunStd' - Function handle for std in bin.
     %                   Default is @imUtil.background.rstd
     %            'InterpMethod' - Interpolation method. Default is 'linear'
@@ -74,7 +74,7 @@ function [Param, Res, Tran] = fitTransformation(ObjCat, ObjRef, Args)
         Args.BinMethod    = 'bin'; % 'bin' | 'poly'
         Args.PolyDeg      = 3;
         Args.BinSize      = 1;
-        Args.FunMean      = @nanmedian;
+        Args.FunMean      = @tools.math.stat.nanmedian;
         Args.FunStd       = @imUtil.background.rstd;
         Args.InterpMethod = 'linear';
         Args.ThresholdSigma = 3;

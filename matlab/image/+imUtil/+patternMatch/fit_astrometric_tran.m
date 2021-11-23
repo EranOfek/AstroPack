@@ -42,7 +42,7 @@ function [Param,Res,ResLoop,Tran]=fit_astrometric_tran(Cat,Ref,varargin)
 %            'BinSize' - Bin size for binning. Default is 1 (mag).
 %            'FunMean' - A function handle to use when calculating the mean
 %                   of the data in each bin.
-%                   Default is @nanmedian.
+%                   Default is @tools.math.stat.nanmedian.
 %            'FunStd' - A function handle to use when calculating the std
 %                   of the data in each bin, or when calculating the global
 %                   std after the polynomial fit.
@@ -134,7 +134,7 @@ addOptional(InPar,'MaxResid',1);  % pixels
 addOptional(InPar,'BinMethod','bin'); % 'bin' | 'poly'
 addOptional(InPar,'PolyDeg',3);
 addOptional(InPar,'BinSize',1);
-addOptional(InPar,'FunMean',@nanmedian);
+addOptional(InPar,'FunMean',@tools.math.stat.nanmedian);
 addOptional(InPar,'FunStd',@imUtil.background.rstd);
 addOptional(InPar,'InterpMethod','linear');
 addOptional(InPar,'ThresholdSigma',3);

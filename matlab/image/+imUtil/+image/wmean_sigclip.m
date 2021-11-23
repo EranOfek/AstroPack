@@ -56,7 +56,7 @@ end
 
 InPar = inputParser;
 
-addOptional(InPar,'MeanFun',@nanmean);  
+addOptional(InPar,'MeanFun',@tools.math.stat.nanmean);  
 addOptional(InPar,'StdFun','rstd');   % std | rstd  
 addOptional(InPar,'Nsigma',[5 5]);
 addOptional(InPar,'MaxIter',3);

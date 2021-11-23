@@ -47,11 +47,11 @@ Cat = Cat(:,[Args.CatColX, Args.CatColY]);
 % NatchedInd contains: [Index in Cat, Dist between nearest match, DeltaX, DeltaY].
 
 % matched statistics
-ResM.MeanDX = nanmean(ResM.MatchedInd(:,3));
-ResM.MeanDY = nanmean(ResM.MatchedInd(:,4));
-ResM.StdDX  = nanstd(ResM.MatchedInd(:,3));
-ResM.StdDY  = nanstd(ResM.MatchedInd(:,4));
-ResM.StdD   = sqrt(nanstd(ResM.MatchedInd(:,3).^2 + ResM.MatchedInd(:,4).^2));
+ResM.MeanDX = tools.math.stat.nanmean(ResM.MatchedInd(:,3));
+ResM.MeanDY = tools.math.stat.nanmean(ResM.MatchedInd(:,4));
+ResM.StdDX  = tools.math.stat.nanstd(ResM.MatchedInd(:,3));
+ResM.StdDY  = tools.math.stat.nanstd(ResM.MatchedInd(:,4));
+ResM.StdD   = sqrt(tools.math.stat.nanstd(ResM.MatchedInd(:,3).^2 + ResM.MatchedInd(:,4).^2));
 ResM.Nmatch = sum(~isnan(ResM.MatchedInd(:,1)));
 
 if nargout>1

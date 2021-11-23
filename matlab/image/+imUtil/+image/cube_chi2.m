@@ -45,7 +45,7 @@ function [Chi2,Z,Mean,Std,NaboveThreshold]=cube_chi2(Data,Dim,Args)
 arguments
     Data
     Dim                          = [];
-    Args.MeanFun                 = @nanmean;
+    Args.MeanFun                 = @tools.math.stat.nanmean;
     Args.StdFun                  = 'rstd';
     Args.ThresholdSigma          = 5;
     Args.Abs(1,1) logical        = true;
