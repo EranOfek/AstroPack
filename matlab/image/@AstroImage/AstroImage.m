@@ -739,6 +739,20 @@ classdef AstroImage < Component
     methods % read / write
         function write1(Obj, Name, DataProp, Args)
             % Write a single data property in a single element AstroImage to file
+            % Input  : - A single element AstroImage object.
+            %          - File name to write.
+            %          - Data property to write. Default is 'Image'.
+            %          * ...,key,val,...
+            %            'FileType' - Default is 'fits'.
+            %            'WriteHeader' - Default is true.
+            %            'Append' - Append in a new HDU.
+            %                   Default is false.
+            %            'OverWrite' - Default is false.
+            %            'WriteTime' - Add the write time to header.
+            %                   Default is false.
+            % Output : null
+            % Author : Eran Ofek (Nov 2021)
+            % Example: AllSI(1).write1('try1.fits')
             
             arguments
                 Obj(1,1)
