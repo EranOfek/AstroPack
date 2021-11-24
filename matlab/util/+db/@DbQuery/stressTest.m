@@ -1,3 +1,6 @@
+% NOTE: Needs rework due to modifications in DbQuery, see unitTest.m as
+% reference
+
 function Result = stressTest()
     % DbQuery.stressTest
 
@@ -10,7 +13,8 @@ function Result = stressTest()
     % ---------------------------------------------- Connect
     % NOTE: Database 'unittest' should exist
 
-    Conn = db.Db.getUnitTest();
+    Conn = db.Db.ge
+    tUnitTest();
     Q = db.DbQuery(Conn);
 
     % NOTE: At this point, we assume that tables master_table and

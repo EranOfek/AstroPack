@@ -278,20 +278,12 @@ classdef AstroImage < Component
                                                                             'DataProp',ListData{Ilist});
                             end
                         end
-                        
-                        
-                                   
                             
                     end
                     
                 end
             end
-                    
-                
-            
-            
-            
-            
+                            
 %             % this is here for testing only
 %             Obj.ImageData  = SciImage({300 + 10.*randn(100,100)});
 %             Obj.VarData    = VarImage({10.*ones(100,100)});
@@ -302,8 +294,6 @@ classdef AstroImage < Component
 %                 AnotherObj            = [1 1];
 %                 Args.
 %             end
-            
-            
             
         end
 

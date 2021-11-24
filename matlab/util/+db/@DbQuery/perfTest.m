@@ -1,3 +1,6 @@
+% NOTE: Needs rework due to modifications in DbQuery, see unitTest.m as
+% reference
+
 function Result = perfTest()
     % DbQuery.perfTest
     
