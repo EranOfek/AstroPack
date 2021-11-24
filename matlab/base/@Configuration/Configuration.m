@@ -48,11 +48,11 @@
 %       disp(Configuration.getSingleton().Data.unittest.Key1)
 %
 %
-% Create/load configuration
+% Create/load configuration into singelton:
 %
 %       Configuration.loadSysConfig()
 %
-% Reload entire system configuration:
+% Reload entire system configuration into singelton:
 %
 %       Configuration.reloadSysConfig()
 
