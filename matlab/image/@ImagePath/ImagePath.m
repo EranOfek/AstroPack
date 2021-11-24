@@ -21,12 +21,12 @@ classdef ImagePath < Component
         Counter         = '';           % Counter
         CCDID           = '';           % CCD ID
         CropID          = '';           % Used with sub-images
-        Type            = 'sci';        % sci, bias, dark, domeflat, twflat, skyflat, fringe
-        Level           = 'raw';        % log, raw, proc, stack, coadd, ref.
-        SubLevel        = '';           % Subleve, see below:
+        Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe, mask
+        Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, ref.
+        SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
-        Product         = 'im';         % Product: im, back, var, imflag, exp, nim, psf, cat, spec.
+        Product         = 'im';         % [lower] Product: im, back, var, imflag, exp, nim, psf, cat, spec.
         Version         = '1';          % Version (for multiple processing)
         FileType        = 'fits';       % fits / hdf5 / fits.gz          
         Area            = '';           % Used by genPath()
@@ -43,10 +43,10 @@ classdef ImagePath < Component
         BasePath        = '/euler/archive'; % Loaded from Config
         DataDir         = 'LAST';           % Loaded from Config
     end
-        
-    properties(Hidden)
+
+    properties(Hidden, SetAccess=protected, GetAccess=public)
         % Generated from Obj.Time
-        JD              = [];           % UTC start of exposure @Eran - UTC or JD???
+        JD              = [];           % UTC start of exposure
         TimeStr         = '';           % Time as appears in file name (YYYYMMDD.HHMMSS.FFF)       
         
         % Generated
@@ -145,6 +145,9 @@ classdef ImagePath < Component
                         
             % Convert Time to JD and TimeStr
             Obj.setTime();
+            
+            % Fix field values
+            Obj.fixFields();
             
             % Generate YMD based on JD and TimeZone
             [Year, Month, Day] = imUtil.util.file.date_directory(Obj.JD, Obj.TimeZone);
@@ -284,7 +287,8 @@ classdef ImagePath < Component
             Obj.CropID   = Obj.formatNumeric(Obj.CropID, Obj.FormatCropID);
             Obj.Version  = Obj.formatNumeric(Obj.Version, Obj.FormatVersion);
             
-            % Validate field values
+            % Fix and validate field values
+            Obj.fixFields();
             Obj.valiadateFields();
                        
             % Level / Level.SubLevel
@@ -523,7 +527,14 @@ classdef ImagePath < Component
             Result = true;
         end
             
-            
+        function Result = fixFields(Obj)
+            % Fix field values: type, level, sublevel, product
+            Obj.Type = lower(Obj.Type);
+            Obj.Level = lower(Obj.Level);
+            Obj.Product = lower(Obj.Product);
+            Result = true;
+        end
+        
         function Result = valiadateFields(Obj)
             % Validate fields: Type, Level, Product
 
@@ -532,7 +543,7 @@ classdef ImagePath < Component
             % Verify Type
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
             switch Obj.Type
-                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'science', 'wave'}
+                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'science', 'wave', 'mask' }
                     % Ok
                 otherwise
                     error('Unknown Type option: %s', Obj.Type);

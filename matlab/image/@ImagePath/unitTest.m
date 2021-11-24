@@ -197,13 +197,13 @@ function Result = unitTest()
         ExpectedFull       = strcat(ExpectedPath, ExpectedFileName);
         
         FileName = ip.genFile('FullPath', false);
-        assert(strcmp(FileName, ExpectedFileName), 'parsed FileName and expected FileName are different');
+        assert(strcmp(FileName, ExpectedFileName), 'parsed FileName and expected FileName are different: %s -- %s', FileName, ExpectedFileName);
         
         Path = ip.genPath();
-        assert(strcmp(Path, ExpectedPath), 'parsed Path and expected Path are different');
+        assert(strcmp(Path, ExpectedPath), 'parsed Path and expected Path are different: %s -- %s', FileName, ExpectedFileName);
         
         Full = ip.genFile('FullPath', true);
-        assert(strcmp(Full, ExpectedFull), 'parsed FullPath and expected FullPath are different');
+        assert(strcmp(Full, ExpectedFull), 'parsed FullPath and expected FullPath are different: %s -- %s', FileName, ExpectedFileName);
     end
     
     % Done
