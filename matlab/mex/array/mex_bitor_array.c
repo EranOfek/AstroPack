@@ -1,19 +1,7 @@
-// Improved version of mex_WriteMatrix.c
-// Write contents of matrix Z to csv delimited file
-//
-//  Usage:
-//     mex_WriteMatrix(filename, matrix, format, delimiter, writemode, header, struct_array);
-//
-//  Parameters:
-//     filename  - full path for CSV file to export
-//     matrix    - matrix of type 'double' values to be exported
-//     format    - format of export (sprintf) , e.g. '%10.6f'
-//     delimiter - delimiter, for example can be ',' or ';'
-//     writemode - write mode 'w+' for rewriting file 'a+' for appending
-//     header    -
-//     struct_array -
-//
+// See: edit([matlabroot '/extern/examples/mex/explore.c']);
+// See: edit([matlabroot '/extern/examples/refbook/matrixDivide.c']);
 
+#include <stdio.h>
 #include "mex.h"
 #include "matrix.h"
 #define _WIN32
@@ -33,86 +21,6 @@
 
 
 #define FUNCNAME "MATLAB:mex_bitor_array:error"
-
-#ifdef never
-//-------------------------------------------------------------------------
-// #define uint32_t unsigned int
-    
-// Write to file routine
-void bitor_array32(uint32_t* mat, size_t cols, size_t rows, char* fname, char* fmt, char* dlm, char* wmode,
-        char* header, const mxArray* struct_array)
-{    
-	int row, col, result;
-	mxArray* field;
-	int nfields;
-	size_t NStructElems;
-	int status;
-	size_t fldlen;
-	char* fldval;
-
-	nfields = mxGetNumberOfFields(struct_array);
-	NStructElems = mxGetNumberOfElements(struct_array);
-
-	mexPrintf("nfields: %d, NStructElems: %d\n", nfields, NStructElems);
-	mexPrintf("rows: %d, cols: %d\n", rows, cols);
-	
-	//
-	if (NStructElems != rows) {
-	   mexErrMsgIdAndTxt(FUNCNAME, "Struct array items must be same as matrix rows");
-	}
-
-	//
-    for (col=0;  col < cols;  col++) {    
-        result = 0;
-        for (row=0;  row < rows;  row++) {
-            result |= 
-        
-
-
-		for (ifield=0;  ifield < nfields;  ifield++) {
-
-            field = mxGetFieldByNumber(struct_array, i, ifield);
-
-			if (!mxIsChar(field)) { // && !mxIsNumeric(field)) || mxIsSparse(field)) {
-				//mexPrintf("%s%d\t%s%d\n", "FIELD: ", ifield+1, "STRUCT INDEX :", jstruct+1);
-				mexErrMsgIdAndTxt(FUNCNAME, "Above field must have either string or numeric non-sparse data");
-			}
-
-			//const char *field_name = mxGetFieldNameByNumber(const mxArray *pm, int fieldnumber);
-
-			fldlen = mxGetN(field) + 1;
-			fldval = (char*)mxCalloc(fldlen, sizeof(char));
-			status = mxGetString(field, fldval, (mwSize)fldlen);
-
-			fprintf(fd, "%s", fldval);
-			fprintf(fd, dlm);				
-		}
-
-	    // Matrix
-		for (j=0;  j < cols;  j++) {
-			fprintf(fd, fmt, z[i + j*rows]);
-			if (j < cols-1) {
-				fprintf(fd, dlm);
-			}
-		}
-		fprintf(fd, "\n");
-
-		// Check for Ctrl-C event
-		if (utIsInterruptPending()) {
-			mexPrintf("Ctrl-C Detected.\n\n");
-			fclose(fd);
-			mxFree(fldval);
-			return;
-		}
-	}
-
-   // Close file
-   fclose(fd);
-   mxFree(fldval);
-
-}
-#endif
-    
     
 //-------------------------------------------------------------------------
 // The gateway function
@@ -149,15 +57,20 @@ void mexFunction(
         int nrhs, const mxArray *prhs[])    // Input arguments
 {
     // Input
-    int* inputMatrix;
+    unsigned int* input, *inp, val;
+    mxClassID  category;
     mwSize inputDimsNum;  
     const mwSize* inputDims;    
     const char *inputType;
     int argDim = 1;
+    unsigned int* out;
+    int i, j, k;
+    int rows, cols;
+    int row, col, z;
     
     // Output
     mwSize outputDimsNum;        
-    mwSize outputDims[8];
+    mwSize outputDims[4] = {0,0,0,0};
     
     // Need at least one argument
     if (nrhs < 1) {
@@ -165,30 +78,112 @@ void mexFunction(
     }
 
     // Get dim
-    if ((nrhs > 1) && !mxIsScalar(prhs[1])
-        argDim = (int)mxGetScalar(prhs[0]);
+    if ((nrhs > 1) && mxIsScalar(prhs[1])) {
+        argDim = (int)mxGetScalar(prhs[1]);
     }
     
+    category = mxGetClassID(prhs[0]);        
+    input = (int*)mxGetData(prhs[0]);
     inputDimsNum = mxGetNumberOfDimensions(prhs[0]);
-    inputDims = mxGetDimensions(prhs[0]);    
-   
+    inputDims = mxGetDimensions(prhs[0]);      
     inputType = mxGetClassName(prhs[0]);
     
-    mexPrintf("inMatrixDimsNum: %d\n", inputDimsNum);  
-    mexPrintf("inMatrixType: %s\n", inputType);
-    mexPrintf("Dim: %d\n", argDim);  
-        
-    outputDimsNum = inputDimsNum - 1;
-    if (outputDimsNum < 1) {
-        outputDimsNum = 1;
-        outputDims = inputDims;
+    if (mxIsSparse(prhs[0])) {
+        mexPrintf("Sparse array is not supported yet\n", inputDimsNum);  
+        return;        
     }
-    else {
-        outputDims = inputDims + 1;
+    
+    //mexPrintf("inMatrixDimsNum: %d\n", inputDimsNum);  
+    //mexPrintf("inMatrixDims: %d, %d, %d\n", inputDims[0], inputDims[1], inputDims[2]);
+    //mexPrintf("inMatrixType: %s\n", inputType);
+    //mexPrintf("Dim: %d\n", argDim);  
+        
+    // Validate input params
+    bool Valid = false;
+    if ((inputDimsNum == 1) || (inputDimsNum == 2) || (inputDimsNum == 3)) {
+        Valid = true;
+    }
+    
+    if (!Valid) {
+        mexPrintf("Invalid dim of input matrix: %d\n", inputDimsNum);  
+        return;
     }
 
+    // Set output dims
+    if (inputDimsNum == 1) {
+        outputDimsNum = 1;
+        outputDims[0] = 1;
+        outputDims[1] = 1;
+    }
+    else if (inputDimsNum == 2) {
+        outputDimsNum = 2;
+        outputDims[0] = 1;
+        outputDims[1] = inputDims[1];        
+    }
+    else if (inputDimsNum == 3) {
+        if (argDim == 1) {
+            outputDimsNum = 3;
+            outputDims[0] = 1;
+            outputDims[1] = inputDims[1];
+            outputDims[2] = inputDims[2];
+        }
+        
+        else if (argDim == 2) {
+            outputDimsNum = 3;            
+            outputDims[0] = inputDims[0];
+            outputDims[1] = 1;
+            outputDims[2] = inputDims[2];        
+        }
+        else {
+            outputDimsNum = 2;                        
+            outputDims[0] = inputDims[0];
+            outputDims[1] = inputDims[1];            
+        }
+    }
+    //mexPrintf("outputDimsNum: %d\n", outputDimsNum);  
+    //mexPrintf("outputDims: %d, %d, %d\n", outputDims[0], outputDims[1], outputDims[2]);
     
     // Create output matrix
     plhs[0] = mxCreateNumericArray(outputDimsNum, outputDims, mxUINT32_CLASS, mxREAL);
+    out = (int*)mxGetData(plhs[0]);
+    
+    // Set output dims
+    if (inputDimsNum == 1) {
+        out[0] = 0;
+        for (row = 0;  row < inputDims[0];  row++) {
+            //mexPrintf("input[%02d] = %04X\n", row, input[row]);  
+            //out[0] |= input[row];
+        }
+    }
+    else if (inputDimsNum == 2) {
+        rows = inputDims[0];
+        cols = inputDims[1];
 
+        for (col = 0;  col < cols;  col++) {        
+            out[col] = 0;
+        }
+            
+        for (col = 0;  col < cols;  col++) {
+            inp = input + col*rows;  //val = input[ col*rows + row ];
+            for (row = 0;  row < rows;  row++) {
+                val = *inp++;
+                //val = input[ col*rows + row ];
+                //mexPrintf("input[%02d, %02d] = %d\n", row+1, col+1, val);
+                out[col] |= val;
+            }            
+        }
+               
+    }
+    else if (inputDimsNum == 3) {
+        if (argDim == 1) {
+   
+        }
+        
+        else if (argDim == 2) {
+    
+        }
+        else {
+              
+        }
+    }    
 }

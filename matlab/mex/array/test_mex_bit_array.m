@@ -38,78 +38,100 @@
                      
 
     
-    % Or - Input: 1d -> Output: scalar
+    % Or - Input: 1d -> Output: scalar, ndims=2
     Or = tools.array.bitor_array(Array1);
+    disp(size(Or));
     disp(Or);
     assert(strcmp(class(Or), 'uint32'));
     assert(ndims(Or) == 2);
     assert(isequal(Or, ExpectedOr1));
     
-    % Or - Input: 2d -> Output: 2d
+    % Or - Input: 2d -> Output: 2d, ndims=2
     Or = tools.array.bitor_array(Array2a);
+    disp(size(Or));
     disp(Or);
     assert(strcmp(class(Or), 'uint32'));
     assert(ndims(Or) == 2);
     assert(isequal(Or, ExpectedOr2a));
     
-    % Or - Input: 3d, dim=1 -> Output: 3d
+    % Or - Input: 3d, dim=1 -> Output: 3d, ndims=3
     Or3d = tools.array.bitor_array(Array3d, 1);
+    disp(size(Or3d));
     disp(Or3d);
     assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 3);
     assert(isequal(Or3d(:,:,1), ExpectedOr2a));
     assert(isequal(Or3d(:,:,2), ExpectedOr2b));
     
-    % Or - Input: 3d,dim=2 -> Output: 3d
-    Or3d = tools.array.bitor_array(Array3d,2);
+    % Or - Input: 3d,dim=2 -> Output: 3d, ndims=3
+    Or3d = tools.array.bitor_array(Array3d, 2);
+    disp(size(Or3d));
     disp(Or3d);
     assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 3);
     assert(isequal(Or3d(:,:,1), ExpectedOr3dDim2a));
     assert(isequal(Or3d(:,:,2), ExpectedOr3dDim2b));
         
-    % Or - Input: 3d, dim=3 -> Output: 2d
+    % Or - Input: 3d, dim=3 -> Output: 2d, ndims=2
     Or3d = tools.array.bitor_array(Array3d, 3);
+    disp(size(Or3d));
     disp(Or3d);
     assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 2);
     assert(isequal(Or3d, ExpectedOr3dDim3));   
     
     %---------------------------------------------------------- MEX
-    % MEX - 2d
-    Or = mex_bitor_array(Array, 1);
-    disp(size(Out));    
+    
+    % Or - Input: 1d -> Output: scalar, ndims=2
+    %Or = mex_bitor_array(Array1);
+    %disp(Or);
+    %assert(strcmp(class(Or), 'uint32'));
+    %assert(ndims(Or) == 2);
+    %assert(isequal(Or, ExpectedOr1));
+    
+    % Or - Input: 2d -> Output: 2d, ndims=2
+    Or = mex_bitor_array(Array2a);
+    disp(Or);
+    assert(strcmp(class(Or), 'uint32'));
     assert(ndims(Or) == 2);
-    %assert(isequal(Or, ExpectedOr));
-
-    %3d MEX - 3d, dim=1
-    Or = mex_bitor_array(Array, 1);
+    %assert(isequal(Or, ExpectedOr2a));
+    
+    % Or - Input: 3d, dim=1 -> Output: 3d, ndims=3
+    Or3d = mex_bitor_array(Array3d, 1);
     disp(Or3d);
     assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 3);
-    %assert(isequal(Or3d(:,:,1), ExpectedOr));
-    %assert(isequal(Or3d(:,:,2), ExpectedOr2));
+    %assert(isequal(Or3d(:,:,1), ExpectedOr2a));
+    %assert(isequal(Or3d(:,:,2), ExpectedOr2b));
     
-    
-    % MEX - 3d, dim=3
-    Or3d = mex_bitor_array(Array, 3);
+    % Or - Input: 3d,dim=2 -> Output: 3d, ndims=3
+    Or3d = mex_bitor_array(Array3d, 2);
+    disp(Or3d);
+    assert(strcmp(class(Or3d), 'uint32'));
+    assert(ndims(Or3d) == 3);
+    %assert(isequal(Or3d(:,:,1), ExpectedOr3dDim2a));
+    %assert(isequal(Or3d(:,:,2), ExpectedOr3dDim2b));
+        
+    % Or - Input: 3d, dim=3 -> Output: 2d, ndims=2
+    Or3d = mex_bitor_array(Array3d, 3);
     disp(Or3d);
     assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 2);
     %assert(isequal(Or3d, ExpectedOr3dDim3));   
     
+    
     %-------------------------------------------------------- Performance
     
     % Or - 3d - dim=3, returns 2d
-    BigArray = uint32(rand(100, 100, 100));
-    for Iter=1:5
+    BigArray = uint32(rand(8000, 8000));  %, 100));
+    for Iter=1:3
         t = tic;
-        Or3d = tools.array.bitor_array(BigArray, 3);
-        MatlabTime = toc - t;
+        Or3d = tools.array.bitor_array(BigArray, 1);
+        MatlabTime = toc(t);
 
         t = tic;
-        MexOr3d = mex_bitor_array(BigArray, 3);
-        MexTime = toc - t;
+        MexOr3d = mex_bitor_array(BigArray, 1);
+        MexTime = toc(t);
 
         fprintf('Matlab: %.6f, Mex: %.6f\n', MatlabTime, MexTime);                    
         assert(isequal(Or3d, MexOr3d));       
