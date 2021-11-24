@@ -378,7 +378,7 @@ classdef ImagePath < Component
               
             
             Obj.ProjName        = Header.getVal('INSTRUME'); %Obj.DictKeyNames.PROJNAME);
-            Obj.JD              = Header.getVal('JD');
+            Obj.Time            = Header.getVal('JD');
             Obj.TimeZone        = Header.getVal('TIMEZONE');
             Obj.Filter          = Header.getVal('FILTER');
             Obj.FieldID         = Header.getVal('FIELDID');

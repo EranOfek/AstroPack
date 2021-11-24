@@ -165,7 +165,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     % save products
-    Args.SaveProcIm     = false;
+    Args.SaveProcIm     = true;
     Args.SaveProcCat    = true;
     Args.SaveProcMask   = true;
     Args.SaveMatchCat   = true;
@@ -184,11 +184,26 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             AllSI(Iim).write1(IP.genFull, 'Image', 'FileType','fits',...
                                                    'WriteHeader',true,...
                                                    'Append',false,...
-                                                   'OverWrite',false,...
+                                                   'OverWrite',true,...
                                                    'WriteTime',false);
         end
     end
     
+    if Args.SaveProcMask
+        IP  = ImagePath;
+        Nim = numel(AllSI);
+        for Iim=1:1:Nim
+            IP.readFromHeader(AllSI(Iim));  
+            IP.Product = 'Mask';
+            % FFU: whos is responsible for creating the dir? ImagePath?
+            % FFU: the date is today - BUG!!
+            AllSI(Iim).write1(IP.genFull, 'mask', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
+    end
     
     
     % for testing:
