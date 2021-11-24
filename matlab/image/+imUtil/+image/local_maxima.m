@@ -110,7 +110,9 @@ if all(ThresholdedSN==0,'all') || all(isnan(ThresholdedSN),'all')
     % overide this problem
     BW = false(size(ThresholdedSN));
 else
+    
     BW = imregionalmax(ThresholdedSN,Conn);
+    
 end
 
 if nargout>1
