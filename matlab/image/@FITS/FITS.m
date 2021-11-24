@@ -327,6 +327,7 @@ classdef FITS < handle
             % Example: [Out,Head,Col]=FITS.readTable1('asu.fit');
             % Reliable: 2
             %--------------------------------------------------------------------------
+            % @Todo: Fix to return the same cell form as AstroCatalog.ColNames            
             
             arguments
                 TableName
@@ -438,7 +439,6 @@ classdef FITS < handle
 
         
         function Col = getTableCol(Fptr, TableType)
-            
             % Table type
             % Note that these function have different return values and order
             % [ttype,tbcol,tunit,tform,scale,zero,nulstr,tdisp] = getAColParms(fptr,colnum)
@@ -871,6 +871,9 @@ classdef FITS < handle
         
         function Result = writeHeader(Fptr, Header, HeaderField)            
             % write Header            
+            % @Todo: Check performance with big header (keys > 300)
+            
+            t = tic;
             Nline = size(Header.(HeaderField),1);            
             for Inl=1:1:Nline
                 if (~isempty(Header.(HeaderField){Inl,1}))
@@ -917,6 +920,8 @@ classdef FITS < handle
                     end
                 end
             end            
+            time = toc - t;
+            %fprintf('writeHeader time: %0.6f', time);
             Result = true;                        
         end
         
