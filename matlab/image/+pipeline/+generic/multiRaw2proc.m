@@ -166,13 +166,14 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     % save products
     Args.SaveProcIm     = true;
-    Args.SaveProcCat    = true;
     Args.SaveProcMask   = true;
+    Args.SaveProcCat    = true;
     Args.SaveMatchCat   = true;
     Args.SaveMatchSrc   = true;
     Args.SaveCoaddIm    = true;
-    Args.SaveCoaddCat   = true;
     Args.SaveCoaddMask  = true;
+    Args.SaveCoaddCat   = true;
+    
     
     if Args.SaveProcIm
         IP  = ImagePath;
@@ -197,13 +198,39 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             IP.Product = 'Mask';
             % FFU: whos is responsible for creating the dir? ImagePath?
             % FFU: the date is today - BUG!!
-            AllSI(Iim).write1(IP.genFull, 'mask', 'FileType','fits',...
+            AllSI(Iim).write1(IP.genFull, 'Mask', 'FileType','fits',...
                                                    'WriteHeader',true,...
                                                    'Append',false,...
                                                    'OverWrite',true,...
                                                    'WriteTime',false);
         end
     end
+    
+    if Args.SaveProcCat
+        
+    end
+    
+    if Args.SaveMatchCat
+        
+    end
+    
+    if Args.SaveMatchSrc
+        
+    end
+    
+    if Args.SaveCoaddIm
+        
+    end
+    
+    if Args.SaveCoaddMask
+        
+    end
+    
+    if Args.SaveCoaddCat
+        
+    end
+    
+    
     
     
     % for testing:
