@@ -9,6 +9,8 @@ function Result = unitTest(Obj)
 	PWD = pwd;
 	cd(DataSampleDir);
           
+    %test_writeHeader();
+    
     % test constructor
 	io.msgLog(LogLevel.Test, 'testing FITS constructor');
 	F = FITS('*.fits');
@@ -105,7 +107,7 @@ function Result = test_writeTable()
     % Write also extra header
     H = AstroHeader();
     for i=1:20
-        H.insertKey({sprintf('Key%02d', i), sprintf('Value%02d', i), sprintf('Comment%02d', i)});
+        H.insertKey({sprintf('Key%03d', i), sprintf('Value%03d', i), sprintf('Comment%03d', i)});
     end
     
     % Write table with additional Header
@@ -137,7 +139,7 @@ function Result = test_writeTable()
     %     {'RA' }
     %     {'Dec'}
     %
-    % AC.ColNames
+    % AC.ColNames - @Todo: Fix to this form
     % 
     % ans =
     % 
@@ -165,3 +167,32 @@ function Result = test_writeTable()
 	delete(FileName);    
     Result = true;
 end
+
+
+
+function Result = test_writeHeader()
+
+    FileName = 'tmp/writeheader.fits';
+    
+    NumKeys = 10;    
+    for Iter=1:5
+        if isfile(FileName)
+            delete(FileName);
+        end
+
+        % Write also extra header
+        Header = AstroHeader();
+        for i=1:NumKeys
+            Header.insertKey({sprintf('Key%03d', i), sprintf('Value%03d', i), sprintf('Comment%03d', i)});
+        end
+
+        A = rand(1,1);
+        FITS.write(A, FileName, 'Header', Header);
+
+        delete(FileName);    
+        NumKeys = NumKeys + 100;
+    end
+    
+    Result = true;
+end
+

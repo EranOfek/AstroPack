@@ -153,13 +153,31 @@ void mexFunction(
     mwSize inputDimsNum;  
     const mwSize* inputDims;    
     const char *inputType;
+    int argDim = 1;
     
     // Output
     mwSize outputDimsNum;        
-    const mwSize* outputDims;
-        
+    mwSize outputDims[8];
+    
+    // Need at least one argument
+    if (nrhs < 1) {
+        return;
+    }
+
+    // Get dim
+    if ((nrhs > 1) && !mxIsScalar(prhs[1])
+        argDim = (int)mxGetScalar(prhs[0]);
+    }
+    
     inputDimsNum = mxGetNumberOfDimensions(prhs[0]);
     inputDims = mxGetDimensions(prhs[0]);    
+   
+    inputType = mxGetClassName(prhs[0]);
+    
+    mexPrintf("inMatrixDimsNum: %d\n", inputDimsNum);  
+    mexPrintf("inMatrixType: %s\n", inputType);
+    mexPrintf("Dim: %d\n", argDim);  
+        
     outputDimsNum = inputDimsNum - 1;
     if (outputDimsNum < 1) {
         outputDimsNum = 1;
@@ -168,15 +186,9 @@ void mexFunction(
     else {
         outputDims = inputDims + 1;
     }
+
     
-    inputType = mxGetClassName(prhs[0]);
-    
-    mexPrintf("inMatrixDimsNum: %d\n", inputDimsNum);  
-    mexPrintf("inMatrixType: %s\n", inputType);
-        
     // Create output matrix
     plhs[0] = mxCreateNumericArray(outputDimsNum, outputDims, mxUINT32_CLASS, mxREAL);
 
 }
-//-------------------------------------------------------------------------
-
