@@ -19,6 +19,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %            'Radius' - Search radius for source matching.
     %                   Default is 3.
     %            'RadiusUnits' - Search radius units. Default is 'arcsec'.
+    %            'JD' - A vector of JD. If empty, use AstroImage header, if
+    %                   not AstroImage set to 1:Nepochs.
     %            'RelPhot' - Logical indicating if to apply relative phot.
     %                   calibration to the magnitudes. Default is true.
     %            'fitPolyHyp' - A logical indicating if to fit all light
@@ -100,10 +102,11 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %          ds9.plot(MergedCat(I).Catalog(Flag,1:2),'o','Coo','fk5')
     
     arguments
-        Obj AstroImage                          % FFU: why only AstroImage?
+        Obj                                  % FFU: why only AstroImage?
         Args.CooType                 = 'sphere';
         Args.Radius                  = 3;
         Args.RadiusUnits             = 'arcsec';
+        Args.JD                      = [];  % if empty, use header, if no header use 1:N
         
         Args.RelPhot logical         = true;
         Args.fitPolyHyp logical      = true;
@@ -128,7 +131,15 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     
     % find all unique sources
     [Nepochs, Nfields] = size(Obj);
-    JD  = julday(Obj(:,1));     
+    if isempty(Args.JD)
+        if isa(Obj, 'AstroImage')
+            JD  = julday(Obj(:,1));     
+        else
+            JD  = (1:1:Nepochs).';
+        end
+    else
+        JD = Args.JD;
+    end
 
     for Ifields=1:1:Nfields
         MatchedS(Ifields) = MatchedSources;
