@@ -21,12 +21,12 @@ classdef ImagePath < Component
         Counter         = '';           % Counter
         CCDID           = '';           % CCD ID
         CropID          = '';           % Used with sub-images
-        Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe, mask
+        Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe
         Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, ref.
         SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
-        Product         = 'im';         % [lower] Product: im, back, var, imflag, exp, nim, psf, cat, spec.
+        Product         = 'im';         % [lower] Product: im, back, var, imflag, exp, nim, psf, cat, spec, mask
         Version         = '1';          % Version (for multiple processing)
         FileType        = 'fits';       % fits / hdf5 / fits.gz          
         Area            = '';           % Used by genPath()
@@ -543,7 +543,7 @@ classdef ImagePath < Component
             % Verify Type
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
             switch Obj.Type
-                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'science', 'wave', 'mask' }
+                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'science', 'wave' }
                     % Ok
                 otherwise
                     error('Unknown Type option: %s', Obj.Type);
@@ -561,7 +561,7 @@ classdef ImagePath < Component
             % Verify Product
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
-                case { 'im', 'image', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag' }
+                case { 'im', 'image', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag', 'mask' }
                     % Ok
                 otherwise
                     error('Unknown Product option: %s', Obj.Product);
