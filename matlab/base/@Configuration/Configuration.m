@@ -50,11 +50,11 @@
 %
 % Create/load configuration
 %
-%       Configuration.load()
+%       Configuration.loadSysConfig()
 %
 % Reload entire system configuration:
 %
-%       Configuration.reload()
+%       Configuration.reloadSysConfig()
 
 %--------------------------------------------------------------------------
 % Working with user defined Configuration instances
@@ -94,10 +94,9 @@
 % getRange - Get minimum and maximum values from cell array, assuming that cell{1} holds the minimum and cell{2} folds the maximum This is usefull when storing Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
 % getSingleton - Return the singleton Configuration object, this is the 'Global' configuration object of the system
 % getSysConfigPath - Get path to system configuration file, from ASTROPACK_CONFIG_PATH or repository
-% initSysConfig - Return singleton Configuration object, clear entire configuration if argument is 'clear' This function DOES NOT load any configuration file, just create/clear the object
+% internal_initSysConfig - Return singleton Configuration object, clear entire configuration if argument is 'clear' This function DOES NOT load any configuration file, just create/clear the object
 % internal_loadYaml - Read YAML file to struct, add FileName field
 % internal_reloadYaml - Reload configuration file, YamlStruct.FileName property must exist FileName is created by Configuration.loadYaml() on loading.
-% listLen - Return list length
 % loadFile - Load specified file to new property inside Obj.Data. When Args.Field is true, a new property based on the file name will be created in Obj.Data Use this function when working with user Confguuration object, or when you want to explictly load/reload specific
 % loadFolder - Load all configuration files inside the specified folder Each file is loaded to Obj.Data.FileName struct. Example: MyConfig = Configuration(); MyConfig.loadFile('C:/Temp/MyConfigFolder');
 % loadSysConfig - Load entire system configuration, same as getSingleton()
@@ -294,13 +293,13 @@ classdef Configuration < handle
         function Result = getSingleton()
             % Return the singleton Configuration object, this is the 'Global'
             % configuration object of the system
-            Result = Configuration.initSysConfig();
+            Result = Configuration.internal_initSysConfig();
         end
 
         
         function Result = loadSysConfig()
             % Load entire system configuration, same as getSingleton()
-            Result = Configuration.initSysConfig();
+            Result = Configuration.internal_initSysConfig();
         end
 
         
@@ -308,19 +307,21 @@ classdef Configuration < handle
             % Reload entire system configuration, Warning: calls 'clear java'
             io.msgStyle(LogLevel.Info, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
             clear java;
-            Result = Configuration.initSysConfig('clear');
+            Result = Configuration.internal_initSysConfig('clear');
         end
         
                     
-        function Result = initSysConfig(varargin)
+        function Result = internal_initSysConfig(varargin)
+            % **Internal function**
             % Return singleton Configuration object, clear entire configuration if argument is 'clear'
             % This function DOES NOT load any configuration file, just create/clear the object
             persistent Conf
 
             % Optionally clear configuration
-            if numel(varargin) > 0 && strcmp(varargin{1}, 'clear')
+            if numel(varargin) > 0 && strcmp(varargin{1}, 'clear') && ~isempty(Conf)
                 io.msgLog(LogLevel.Info, 'Configuration.init: Clearing Conf');
-                Conf = [];
+                Conf.Data = struct();
+                %Conf = [];
             end
 
             % Load/reload entire configuration
