@@ -26,7 +26,7 @@ classdef ImagePath < Component
         SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
-        Product         = 'im';         % [lower] Product: im, back, var, imflag, exp, nim, psf, cat, spec, mask
+        Product         = 'Image';      % Product: Image, Back, Var, Exp, Nim, PSF, Cat, Spec, Mask, Evt
         Version         = '1';          % Version (for multiple processing)
         FileType        = 'fits';       % fits / hdf5 / fits.gz          
         Area            = '';           % Used by genPath()
@@ -89,7 +89,7 @@ classdef ImagePath < Component
             Obj.Type            = 'sci';
             Obj.Level           = 'raw';
             Obj.SubLevel        = 'sub';
-            Obj.Product         = 'im';
+            Obj.Product         = 'Image';
             Obj.Version         = 'ver1';
             Obj.FileType        = 'fits';
             Obj.SubDir          = 'subdir';
@@ -100,7 +100,7 @@ classdef ImagePath < Component
 
             % Return expected results, used by unitTest()
             ResultPath = '/home/last/data/2021/09/09/raw/';  % '/home/last/data/.../subdir'; %'/home/last/data/2021/10/03/raw/'
-            ResultFileName = 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits';
+            ResultFileName = 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_Image_ver1.fits';
         end
     end
     
@@ -531,7 +531,6 @@ classdef ImagePath < Component
             % Fix field values: type, level, sublevel, product
             Obj.Type = lower(Obj.Type);
             Obj.Level = lower(Obj.Level);
-            Obj.Product = lower(Obj.Product);
             Result = true;
         end
         
@@ -561,7 +560,7 @@ classdef ImagePath < Component
             % Verify Product
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
-                case { 'im', 'image', 'back', 'var', 'exp', 'nim', 'psf', 'cat', 'spec', 'pixflag', 'imflag', 'mask' }
+                case { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt' }
                     % Ok
                 otherwise
                     error('Unknown Product option: %s', Obj.Product);
