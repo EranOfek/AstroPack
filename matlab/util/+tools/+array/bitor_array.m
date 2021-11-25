@@ -1,10 +1,11 @@
-function Val=bitor_array(Array,Dim)
+function Val=bitor_array(Array, Dim, UseMex)
 % Perform a bitor operation along all elements in an array.
 % Package: Util.array
 % Description: Perform a bitor operation along all elements in an array
 %              along a specific dimension.
 % Input  : - An array of integers.
 %          - Dimension along to perform the bitor operation. Default is 1.
+%          - Flag, true to use MEX optimization if possible. Default is 1.
 % Output : - The result of the bitor operation.
 % See also: sum_bitor.m (the same)
 % License: GNU general public license version 3
@@ -19,8 +20,12 @@ if (nargin==1)
     Dim = 1;
 end
 
-C = class(Array);
-switch lower(C)
+if (nargin < 3)
+    UseMex = false;
+end
+
+C = lower(class(Array));
+switch C
     case {'uint8','int8'}
         Nbit = 8;
         Fun  = @uint8;
@@ -37,10 +42,24 @@ switch lower(C)
         error('Unknown class - only integers are allowed');
 end
 
-Val = 0;
-for Ibit=1:1:Nbit
-    Val = Val + (2.^(Ibit-1)).*any(bitget(Array,Ibit),Dim);
+% Check if we can use MEX implementation, convert input to uint64
+if UseMex && (ndims(Array) <= 3)
+    if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
+        Array = uint64(Array);
+    end
+    Val = mex_bitor_array64(Array, Dim);
+    if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
+        Val = Fun(Val);
+    end
+        
+else
+    Val = 0;
+    for Ibit=1:1:Nbit
+        Val = Val + (2.^(Ibit-1)).*any(bitget(Array,Ibit),Dim);
+    end
+
+    % transform back to uint
+    Val = Fun(Val);    
 end
 
-% transform back to uint
-Val = Fun(Val);
+
