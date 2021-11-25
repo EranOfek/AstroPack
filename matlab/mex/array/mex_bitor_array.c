@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "mex.h"
 #include "matrix.h"
-#define _WIN32
+//#define _WIN32
 
 // For Ctrl-C detection http://www.caam.rice.edu/~wy1/links/mex_ctrl_c_trick/
 #if defined (_WIN32)

@@ -3,7 +3,9 @@ function Result = writeTable1(Table, FileName, Args)
     % Static function
     %     The table may have N-dimensions.
     %     Append will write multi extension FITS image.
-    % Input  : - Table      - Array to save as FITS image.
+    % Input  : - Table      - Array to save as FITS image, supported types:
+    %                         AstroTable, AstroCatalog, and any type accepted by 
+    %                         AstroTable constructor
     %          - FileName   - FITS file name to save.
     %          * Arbitrary number of ...,key,val,... pairs.
     %            Following keywords are available:

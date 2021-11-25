@@ -171,7 +171,8 @@ end
 
 
 function Result = test_writeHeader()
-
+    % Test performance of writeHeader and other fits issues (under work)
+    
     FileName = 'tmp/writeheader.fits';
     
     NumKeys = 10;    
