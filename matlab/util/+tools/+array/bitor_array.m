@@ -36,7 +36,7 @@ switch C
         Fun  = @uint32;
     case {'uint64','int64'}
         Nbit = 64;
-        Fun  = @uint64;
+        Fun  = @uint64;h
     otherwise
         error('Unknown class - only integers are allowed');
 end
