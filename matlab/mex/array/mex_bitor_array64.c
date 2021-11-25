@@ -1,5 +1,12 @@
 // See: edit([matlabroot '/extern/examples/mex/explore.c']);
 // See: edit([matlabroot '/extern/examples/refbook/matrixDivide.c']);
+//
+// Access element in 2D array: 
+//    val = input[ col*rows + row ];
+//
+// Access element in 3D array:
+//    val = input[ col*rows + row + dep*cols*rows ];
+//
 
 #include <stdio.h>
 #include "mex.h"
@@ -88,10 +95,10 @@ void mexFunction(
         return;        
     }
     
-    mexPrintf("input_ndims: %d\n", input_ndims);  
-    mexPrintf("input_size: %d, %d, %d\n", input_size[0], input_size[1], input_size[2]);
-    mexPrintf("input_type: %s\n", input_type);
-    mexPrintf("dim: %d\n", dim);  
+    //mexPrintf("input_ndims: %d\n", input_ndims);  
+    //mexPrintf("input_size: %d, %d, %d\n", input_size[0], input_size[1], input_size[2]);
+    //mexPrintf("input_type: %s\n", input_type);
+    //mexPrintf("dim: %d\n", dim);  
         
     // Validate input params
     if ((input_ndims != 2) && (input_ndims != 3)) {
@@ -113,12 +120,12 @@ void mexFunction(
             output_size[1] = input_size[1];        
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
             out = (__Int*)mxGetData(plhs[0]);                    
-                        
+                 
+            //
             for (col = 0;  col < cols;  col++) {
                 out[col] = 0;
                 for (row = 0;  row < rows;  row++) {
                     val = input[ col*rows + row ];
-                    //mexPrintf("input[%02d, %02d] = %d\n", row+1, col+1, val);
                     out[col] |= val;
                 }            
             }                        
@@ -133,6 +140,7 @@ void mexFunction(
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
             out = (__Int*)mxGetData(plhs[0]);                    
 
+            //
             for (row = 0;  row < rows;  row++) {                        
                 out[row] = 0;
                 for (col = 0;  col < cols;  col++) {
@@ -161,6 +169,7 @@ void mexFunction(
         return;
         #endif
         
+        //
         if (dim == 1) {
             output_ndims   = 3;
             output_size[0] = 1;
@@ -169,6 +178,7 @@ void mexFunction(
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
             out = (__Int*)mxGetData(plhs[0]);                                
             
+            //
             for (dep = 0;  dep < deps;  dep++) {
                 for (col = 0;  col < cols;  col++) {
                     out[dep*cols + col] = 0;
@@ -180,35 +190,50 @@ void mexFunction(
             }
         }
         
+        //
         else if (dim == 2) {
-            output_ndims = 3;            
+            output_ndims   = 3;            
             output_size[0] = input_size[0];
             output_size[1] = 1;
             output_size[2] = input_size[2];        
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
             out = (__Int*)mxGetData(plhs[0]);                                
             
+            //
             for (dep = 0;  dep < deps;  dep++) {            
-                out[dep*rows + dep] = 0;                
                 for (row = 0;  row < rows;  row++) {                        
+                    out[dep*rows + row] = 0;                                    
                     for (col = 0;  col < cols;  col++) {
                         val = input[ col*rows + row + dep*cols*rows];
-                        out[dep*rows + dep] |= val;
+                        out[dep*rows + row] |= val;
                     }            
                 }
             }                        
         }
+        
+        //
         else if (dim == 3) {
-            output_ndims = 2;                        
+            output_ndims   = 2;                        
             output_size[0] = input_size[0];
             output_size[1] = input_size[1];            
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
             out = (__Int*)mxGetData(plhs[0]);                                
+            
+            //
+            for (row = 0;  row < rows;  row++) {                        
+                for (col = 0;  col < cols;  col++) {
+                    out[col*rows + row] = 0;                    
+                    for (dep = 0;  dep < deps;  dep++) {                                    
+                        val = input[ col*rows + row + dep*cols*rows ];
+                        out[col*rows + row] |= val;
+                    }
+                }            
+            }        
         }
     }
   
-    mexPrintf("output_ndims: %d\n", output_ndims);  
-    mexPrintf("output_size:  %d, %d, %d\n", output_size[0], output_size[1], output_size[2]); 
+    //mexPrintf("output_ndims: %d\n", output_ndims);  
+    //mexPrintf("output_size:  %d, %d, %d\n", output_size[0], output_size[1], output_size[2]); 
 }
 
 

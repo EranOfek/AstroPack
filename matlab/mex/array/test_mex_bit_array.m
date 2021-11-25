@@ -137,6 +137,7 @@
     assert(ndims(Or3d) == 3);
     assert(isequal(Or3d(:,:,1), ExpectedOr2a));
     assert(isequal(Or3d(:,:,2), ExpectedOr2b));
+    assert(isequal(Or3d(:,:,3), ExpectedOr2c));
     assert(isequal(Or3d, Or3dm));
     
     
@@ -154,9 +155,8 @@
     disp(Or3d);
     assert(strcmp(class(Or3d), 'uint64'));
     assert(ndims(Or3d) == 2);
-    %assert(isequal(Or3d, ExpectedOr3dDim3));   
-    
-    
+    assert(isequal(Or3d, ExpectedOr3dDim3));   
+        
     %-------------------------------------------------------- Random test
     
     % 2D
