@@ -5,9 +5,8 @@
 %
 % list of needed functionality
 % write
-% writeTable
 %
-% NOTE: This file uses this file: obsolete/HEAD.m 
+% NOTE: This file uses obsolete/HEAD.m 
 %--------------------------------------------------------------------------
 % #functions (autogen)
 % FITS - FITS object constructor
