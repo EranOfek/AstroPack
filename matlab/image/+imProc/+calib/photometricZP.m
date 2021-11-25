@@ -71,6 +71,11 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %            'RangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
     %
+    %            'UpdateHeader' - A logical indicating if to update header
+    %                   with {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG', 'BACKMAG'};
+    %                   keywords. Applied only for AstroImage input.
+    %                   Default is true.
+    %
     %            'UpdateMagCols' - A logical indicating if to update the
     %                   magnbitude columns with the ZP.
     %                   NOTE: This will only add the ZP (without the other
@@ -134,6 +139,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.Con cell                 = {};
         Args.UseIndex(1,1) logical    = false;
         
+        Args.UpdateHeader logical     = true;
+        
         % queryRange
         Args.RangeMag                  = [12 19.5];
         Args.ColNamePlx                = {'Plx'};
@@ -177,7 +184,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     'RMS',cell(Nobj,1),...
                     'Chi2',cell(Nobj,1),...
                     'Nsrc',cell(Nobj,1),...
-                    'LimMag',cell(Nobj,1));
+                    'LimMag',cell(Nobj,1),...
+                    'BackMag',cell(Nobj,1));
+                
           
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroCatalog')
@@ -348,7 +357,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             end
         end
         
-        Args.UpdateHeader = true;
+        
         if Args.UpdateHeader && isa(Result, 'AstroImage')
             % write to header the following information:
             % PH_ZP
@@ -360,9 +369,13 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             % PH_NSRC
             % PH_MAGSY
             % LIMMAG
+            % BACKMAG
             
-            Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG'};
-            Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).MagSys, ResFit(Iobj).LimMag};
+            MedBack = median(Result(Iobj).Back, 'all', 'omitnan');
+            BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack);
+            
+            Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG'};
+            Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).MagSys, ResFit(Iobj).LimMag, ResFit(Iobj).BackMag};
             Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);
             
         end
