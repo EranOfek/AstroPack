@@ -17,7 +17,7 @@ function Result = writeTable1(Table, FileName, Args)
     %            'Append'   - Append image as a multi extension to an
     %                         existing FITS file. Default is false.
     %            'OverWrite'- Overwrite an existing file. Default is false.
-    %            'ExtName'  - Extension name. Default is ''
+    %            'ExtName'  - Extension name. Default is 'fits'
     %            'StartRow' - If set, data is written starting this row. default is []
     %            'NRows'    - If set, limit the number of rows written. default is []
     %            'ColNames'    - cell, list of column names. default is []
@@ -44,7 +44,7 @@ function Result = writeTable1(Table, FileName, Args)
         Args.Append         = false;
         Args.OverWrite      = false;
         Args.WriteTime      = false;
-        Args.ExtName        = '';               
+        Args.ExtName        = 'fits';               
         Args.StartRow       = 1;
         Args.NRows          = [];                
         Args.ColNames       = [];
