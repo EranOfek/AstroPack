@@ -105,7 +105,7 @@ void mexFunction(
         mexPrintf("Invalid ndims of input matrix, supported ndims is 2 or 3: %d\n", input_ndims);  
         return;
     }
-
+    
     //-------------------------------------------- Input 2D 
     if (input_ndims == 2) {
         

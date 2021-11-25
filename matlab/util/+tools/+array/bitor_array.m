@@ -43,7 +43,7 @@ switch C
 end
 
 % Check if we can use MEX implementation, convert input to uint64
-if UseMex && (ndims(Array) <= 3)
+if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
     if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
         Array = uint64(Array);
     end

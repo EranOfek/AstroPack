@@ -159,36 +159,41 @@
         
     %-------------------------------------------------------- Random test
     
-    % 2D
+    % 2D - Compare MATLAB and MEX
     for Iter=1:1000
         rows = int32(rand*100);
         cols = int32(rand*100);
-        Array = uint64(0xFFFFFFFFFFFFFFFF * rand(row, cols));
+        Array = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(rows, cols));
         for dim=1:2
             Output = tools.array.bitor_array(Array, dim, false);
+            MexOutput = mex_bitor_array64(Array, dim, true);
+            assert(isequal(Output, MexOutput));   
             MexOutput = tools.array.bitor_array(Array, dim, true);
             assert(isequal(Output, MexOutput));   
         end
     end
     
     
-    % 3D
+    % 3D - Compare MATLAB and MEX
     for Iter=1:1000
         rows = int32(rand*100);
         cols = int32(rand*100);
-        deps = int32(rand*100);        
-        Array = uint64(0xFFFFFFFFFFFFFFFF * rand(row, cols, deps));
+        deps = 2 + int32(rand*100);        
+        Array = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(rows, cols, deps));
         for dim=1:3
             Output = tools.array.bitor_array(Array, dim, false);
+            MexOutput = mex_bitor_array64(Array, dim, true);
+            assert(isequal(Output, MexOutput));               
             MexOutput = tools.array.bitor_array(Array, dim, true);
             assert(isequal(Output, MexOutput));   
         end
     end    
-    
+
+    %%
     %-------------------------------------------------------- Convert Performance    
     % Test conversion to uint64
     for Iter=1:10
-        BigArray = uint64(0xFFFFFFFFFFFFFFFF * rand(8000, 8000));
+        BigArray = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(8000, 8000));
         BigArray64 = [];
         t = tic;
         BigArray64 = uint64(BigArray);
@@ -199,37 +204,41 @@
     %-------------------------------------------------------- Performance
     
     % Or - 3d - dim=3, returns 2d    
-    for Iter=1:10
-        BigArray = uint64(0xFFFFFFFFFFFFFFFF * rand(8000, 8000));  %, 100));
+    for Iter=1:5
+        BigArray = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(4000, 4000));
 
-        t = tic;
-        Or3d = tools.array.bitor_array(BigArray, 1);
-        MatlabTime = toc(t);
+        for dim=1:2
+            t = tic;
+            Or3d = tools.array.bitor_array(BigArray, 1);
+            MatlabTime = toc(t);
 
-        t = tic;
-        MexOr3d = mex_bitor_array64(BigArray, 1);
-        MexTime = toc(t);
+            t = tic;
+            MexOr3d = mex_bitor_array64(BigArray, 1);
+            MexTime = toc(t);
 
-        fprintf('Matlab: %.6f, Mex: %.6f\n', MatlabTime, MexTime);                    
-        assert(isequal(Or3d, MexOr3d));       
+            fprintf('2D, dim=%d: Matlab: %.6f, Mex: %.6f\n', dim, MatlabTime, MexTime);                    
+            assert(isequal(Or3d, MexOr3d));       
+        end
     end
     
     
-    % Or - 3d - dim=3, returns 2d    
-    for Iter=1:10
-        BigArray = uint64(0xFFFFFFFFFFFFFFFF * rand(8000, 8000, 100));
+    % Or - 3d
+    for Iter=1:3
+        BigArray = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(400, 400, 100));
 
-        t = tic;
-        Or3d = tools.array.bitor_array(BigArray, 1);
-        MatlabTime = toc(t);
+        for dim=1:3
+            t = tic;
+            Or3d = tools.array.bitor_array(BigArray, 1);
+            MatlabTime = toc(t);
 
-        t = tic;
-        MexOr3d = mex_bitor_array64(BigArray, 1);
-        MexTime = toc(t);
+            t = tic;
+            MexOr3d = mex_bitor_array64(BigArray, 1);
+            MexTime = toc(t);
 
-        fprintf('Matlab: %.6f, Mex: %.6f\n', MatlabTime, MexTime);                    
-        assert(isequal(Or3d, MexOr3d));       
-    end    
+            fprintf('3D, dim=%d: Matlab: %.6f, Mex: %.6f\n', dim, MatlabTime, MexTime);                    
+            assert(isequal(Or3d, MexOr3d));       
+        end    
+    end
     
     
 %end
