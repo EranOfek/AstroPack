@@ -105,6 +105,9 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     %              'SumExpTime' - A logical indicating if to sum
     %                   the EXPTIME in the new header, or to use
     %                   the mean (false). Default is true.
+    %              'UpdateImagePathKeys' - A logical indicating if to
+    %                   add the LEVEL, SUBLEVEL and CROPID keywords to
+    %                   header. Default is true.
     % Output : - An AstroImage with the coadded image, includinf
     %            the coadded background and mask. The VarData is always
     %            including the empirical variance.
@@ -158,6 +161,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         Args.NewHeader                              = [];
         Args.UpdateTimes(1,1) logical               = true;
         Args.SumExpTime(1,1) logical                = true;
+        Args.UpdateImagePathKeys logical            = true;
 
     end
     DataProp                      = {'ImageData','BackData', 'VarData', 'MaskData'};
@@ -288,6 +292,8 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
                     'MINCOADD',min(CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
                     'MINJD',min(MidJD),'MIDJD of first coadded observation';...
                     'MAXJD',max(MidJD),'MIDJD of last coadded observation'};
+               
+            
         Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
 
         if Args.SumExpTime
@@ -297,6 +303,17 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         end
         Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
 
+    end
+    
+    % Update header ImagePath parameters
+    
+    if Args.UpdateImagePathKeys
+        CropID   = getVal(ImObj(1).HeaderData,'CROPID');
+        InfoCell = {'LEVEL','coadd','';...
+                    'SUBLEVEL','','';...
+                    'CROPID',CropID,''};
+                    
+        Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
     end
     
     % Update Mask

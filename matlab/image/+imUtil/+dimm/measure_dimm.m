@@ -4,19 +4,24 @@ function measure_dimm(Cube,varargin)
 % IC = imCl.fits2imCl('D*20200816-06*.fit');
 % Cube=images2cube(IC);
 
+%List = io.files.filelist('Light*.fit');
+%AI=AstroImage(List(1:100));
+%Cube=imProc.image.images2cube(AI);
+
+
 
 RAD = 180./pi;
 
 InPar = inputParser;
 addOptional(InPar,'z',58);  % zenith distance [deg] 
-addOptional(InPar,'Lambda',6050);  % wavelength [ang] 
-addOptional(InPar,'HoleDiam',8.7);  % D [cm]
-addOptional(InPar,'HoleDist',27.5);  % B [cm]
-addOptional(InPar,'PixScale',0.65);  %  ["/pix]
+addOptional(InPar,'Lambda',5500); %6050);  % wavelength [ang] 
+addOptional(InPar,'HoleDiam',5.3); %8.7);  % D [cm]
+addOptional(InPar,'HoleDist',11.5); %27.5);  % B [cm]
+addOptional(InPar,'PixScale',0.604); % 0.65 %  ["/pix]
 addOptional(InPar,'ColSN','SN_1'); 
 addOptional(InPar,'ColX','X'); 
 addOptional(InPar,'ColY','Y'); 
-addOptional(InPar,'MinSN',10); 
+addOptional(InPar,'MinSN',20); 
 addOptional(InPar,'Verbose',true); 
 
 parse(InPar,varargin{:});
@@ -37,21 +42,22 @@ for Iim=1:1:Nim
     if InPar.Verbose
         fprintf('Analyzing image %d out of %d\n',Iim,Nim);
     end
-    [Cat(Iim),~,~]=imUtil.sources.find_sources(single(Cube(:,:,Iim)),'PsfFunPar',{10});
+    [Cat(Iim),~,~]=imUtil.sources.find_sources(single(Cube(:,:,Iim)),'PsfFunPar',{15});
     
-    ColSN = find(strcmp(Cat(Iim).ColCell,InPar.ColSN));
-    ColX  = find(strcmp(Cat(Iim).ColCell,InPar.ColX));
-    ColY  = find(strcmp(Cat(Iim).ColCell,InPar.ColY));
-    
-    % select stars above S/N threshold
-    Flag  = Cat(Iim).Cat(:,ColSN)>InPar.MinSN;
-    Cat(Iim).Cat = Cat(Iim).Cat(Flag,:);
+    XY = getCol(Cat(Iim),{'XPEAK','YPEAK'});
+    SN = getCol(Cat(Iim),'SN_1');
    
-    Nsrc = size(Cat(Iim).Cat,1);
+    % select stars above S/N threshold
+    Flag  = SN>InPar.MinSN;
+    Cat(Iim).Catalog = Cat(Iim).Catalog(Flag,:);
+   
+    Nsrc = size(Cat(Iim).Catalog,1);
+    
+    XY = XY(Flag,:);
     
     if Nsrc==2
-        X = Cat(Iim).Cat(:,ColX);
-        Y = Cat(Iim).Cat(:,ColY);
+        X = XY(:,1);
+        Y = XY(:,2);
         
         D(Iim)  = sqrt(diff(X).^2 + diff(Y).^2);
         PA(Iim) = atan2(diff(Y), diff(X));
@@ -67,10 +73,11 @@ DX = nan(Nim,1);
 DY = nan(Nim,1);
 
 for Iim=1:1:Nim
-    Nsrc = size(Cat(Iim).Cat,1);
+    Nsrc = size(Cat(Iim).Catalog,1);
     if Nsrc==2
-        X = Cat(Iim).Cat(:,ColX);
-        Y = Cat(Iim).Cat(:,ColY);
+        XY = getCol(Cat(Iim),{'XPEAK','YPEAK'});
+        X = XY(:,1);
+        Y = XY(:,2);
         
         RotXY = (R.'*[X,Y].').';
         DX(Iim) = diff(RotXY(:,1));
