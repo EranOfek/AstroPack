@@ -780,18 +780,21 @@ classdef AstroImage < Component
             
         end
         
-        function writeFITS(Obj, Name, Args)
+        function write(Obj, Name, DataProp, Args)
             %
             % Example: AI.write(
             
             arguments
                 Obj
-                Name                                        % char, cell ImagePath
-                Args.DataProp                 = 'Image';
+                Name                 % cell array of images
+                DataProp                      = 'Image';
+                Args.FileType                 = 'fits';
                 Args.WriteHeader logical      = true;
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
                 Args.WriteTime logical        = false;
+                
+               
             end
             
             if ischar(Args.DataProp)
