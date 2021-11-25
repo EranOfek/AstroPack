@@ -165,19 +165,20 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     % save products
-    Args.SaveProcIm     = true;
-    Args.SaveProcMask   = true;
-    Args.SaveProcCat    = true;
-    Args.SaveMatchCat   = true;
-    Args.SaveMatchSrc   = true;
-    Args.SaveCoaddIm    = true;
-    Args.SaveCoaddMask  = true;
-    Args.SaveCoaddCat   = true;
+    Args.SaveProcIm     = false;
+    Args.SaveProcMask   = false;
+    Args.SaveProcCat    = false;
+    Args.SaveMatchCat   = false;
+    Args.SaveMatchSrc   = false;
+    Args.SaveCoaddIm    = false;
+    Args.SaveCoaddMask  = false;
+    Args.SaveCoaddCat   = false;
     
     
-    Nim = numel(AllSI);
+    
     IP  = ImagePath;
-    if Args.SaveProcIm        
+    if Args.SaveProcIm   
+        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Image';
@@ -194,6 +195,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveProcMask
+        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Mask';
@@ -208,6 +210,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveProcCat
+        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Cat';
@@ -229,6 +232,24 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveCoaddIm
+        tic;
+        Nim = numel(Coadd);
+        for Iim=1:1:Nim
+            IP.readFromHeader(Coadd(Iim));  
+            IP.Product = 'Image';
+            IP.Counter = 0;
+            
+            
+            % need to update ProjName, Time, TimeZone, Filter, Type, CCDID, CROPID, FieldID,...
+            
+            Coadd(Iim).write1(IP.genFull, 'Image', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
+        toc
+        
         
     end
     
