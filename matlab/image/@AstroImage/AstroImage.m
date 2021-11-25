@@ -763,13 +763,16 @@ classdef AstroImage < Component
             
             switch lower(Args.FileType)
                 case 'fits'
-                    switch lower(DataProp)
-                        case {'image','back','var','mask'}
+                    switch DataProp
+                        case {'Image','Back','Var','Mask'}
                             FITS.write(Obj.(DataProp), Name, 'Header',HeaderData,...
                                                                'DataType',class(Obj.(DataProp)),...
                                                                'Append',Args.Append,...
                                                                'OverWrite',Args.OverWrite,...
                                                                'WriteTime',Args.WriteTime);
+                        case 'Cat'
+                            FITS.writeTable1(Obj.(DataProp), Name, 'Header',[]);
+                                                        
                         otherwise
                             % FFU
                             error('DataProp %s is not yet supported',DataProp);

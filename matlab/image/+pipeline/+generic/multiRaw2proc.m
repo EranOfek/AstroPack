@@ -175,9 +175,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Args.SaveCoaddCat   = true;
     
     
+    Nim = numel(AllSI);
+    IP  = ImagePath;
     if Args.SaveProcIm        
-        IP  = ImagePath;
-        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Image';
@@ -194,8 +194,6 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveProcMask
-        IP  = ImagePath;
-        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Mask';
@@ -210,7 +208,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveProcCat
-        
+        for Iim=1:1:Nim
+            IP.readFromHeader(AllSI(Iim));  
+            IP.Product = 'Cat';
+            
     end
     
     if Args.SaveMatchCat
