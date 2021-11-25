@@ -16,13 +16,12 @@ function Val=bitor_array(Array, Dim, UseMex)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if (nargin==1)
-    Dim = 1;
+arguments
+    Array
+    Dim              = 1;
+    UseMex logical   = false;
 end
 
-if (nargin < 3)
-    UseMex = false;
-end
 
 C = lower(class(Array));
 switch C
@@ -44,11 +43,16 @@ end
 
 % Check if we can use MEX implementation, convert input to uint64
 if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
+    %if Nbit~=64
     if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
         Array = uint64(Array);
+        Convert = true;
+    else
+        Convert = false;
     end
     Val = mex_bitor_array64(Array, Dim);
-    if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
+    %if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
+    if Convert
         Val = Fun(Val);
     end
         
