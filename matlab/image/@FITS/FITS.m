@@ -1024,6 +1024,580 @@ classdef FITS < handle
         
     end
     
+    methods (Static)   % write_old
+        % write_old (previously fitswrite_my)
+        function [Flag,HeaderInfo]=write_old(Image,FileName,HeaderInfo,DataType,varargin)
+            % Write a simple 2D FITS image. OBSOLETE: Use FITS.write instead.
+            % Package: @FITS
+            % Description: Write a simple 2D FITS image.
+            %              OBSOLETE: Use FITS.write instead.
+            % Input  : - A 2D matrix to write as FITS file.
+            %          - String containing the image file name to write.
+            %          - Cell array containing header information to write to image.
+            %            The keywords: SIMPLE, BITPIX, NAXIS, NAXIS1, NAXIS2, EXTEND
+            %            will be re-written to header by default.
+            %            The keywords BSCALE and BZERO wil be written to header if
+            %            not specified in the header information cell array.
+            %            Alternatively this could be a character array (Nx80)
+            %            containing the header (no changes will be applied).
+            %            If not given, or if empty matrix (i.e., []) than write a
+            %            minimal header.
+            %          - DataType in which to write the image, supported options are:
+            %            'int8',8            
+            %            'int16',16
+            %            'int32',32
+            %            'int64',64
+            %            'single','float32',-32    (default)
+            %            'double','float64',-64            
+            %          * Arbitrary number of pairs of input arguments: 
+            %            ...,keyword,value,... - possible keys are:
+            %            'IdentifyInt'  - attempt to identify integers in header
+            %                             automaticaly and print them as integer.
+            %                             {'y' | 'n'}, default is 'y'.
+            %            'ResetDefKey'  - Reset default keys {'y' | 'n'},
+            %                             default is 'y'.
+            %                             Default keys are:
+            %                             {'SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2',
+            %                              'EXTEND','BSCALE',BZERO'}.
+            %            'OverWrite'    - Over write existing image {'y' | 'n'},
+            %                             default is 'y'.
+            % Output : - Flag indicating if image was written to disk (1) or not (0).
+            %          - Actual header information written to file.
+            % See also: fitswrite_my.m
+            % Bugs   : Don't write standard FITS file
+            % Tested : Matlab 7.10
+            %     By : Eran O. Ofek                      June 2010
+            %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
+            % Examples: [Flag,HeaderInfo]=FITS.write_old(rand(2048,1024),'Example.fits');
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+
+
+            Def.HeaderInfo = [];
+            Def.DataType   = -32;
+            if (nargin==2)
+               HeaderInfo = Def.HeaderInfo;
+               DataType   = Def.DataType;
+            elseif (nargin==3)
+               DataType   = Def.DataType;
+            end
+
+            % set default for additional keywords:
+            DefV.IdentifyInt = 'y';
+            DefV.ResetDefKey = 'y';
+            DefV.OverWrite   = 'y';
+
+            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+
+
+            Flag = 1;
+
+            switch DataType
+             case {'int8',8}
+                DataType = 8;
+             case {'int16',16}
+                DataType = 16;
+             case {'int32',32}
+                DataType = 32;
+             case {'int64',64}
+                DataType = 64;
+             case {'single','float32',-32}
+                DataType = -32;
+             case {'double','float64',-64}
+                DataType = -64;
+             otherwise
+                error('Unknown DataType option');
+            end
+
+
+
+            if (ischar(HeaderInfo)==0)
+
+            %--- Set the FITS "mandatory" keywords ---
+            ImSize = size(Image);
+            switch lower(InPar.ResetDefKey)
+               case 'n'
+                  % do nothing
+               case 'y'
+                  if (isempty(HeaderInfo))
+                     % do nothing
+                  else
+                     % delete "default" keys:
+                     HeaderInfo = FITS.cellhead_delkey(HeaderInfo,{'SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','EXTEND','BSCALE','BZERO'});
+                  end
+                  HeaderInfo = FITS.cellhead_addkey(HeaderInfo,...
+                                                    0,'SIMPLE',true(1,1),'file does conform to FITS standard',...
+                                                    0,'BITPIX',int32(DataType),'number of bits per data pixel',...
+                                                    0,'NAXIS' ,int32(length(ImSize)),'number of data axes',...
+                                                    0,'NAXIS1',int32(ImSize(2)),'length of data axis 1',...
+                                                    0,'NAXIS2',int32(ImSize(1)),'length of data axis 2',...
+                                                    0,'EXTEND',false(1,1),'FITS dataset may contain extensions',...
+                                                    0,'BZERO' ,single(0),'offset data range to that of unsigned short',...
+                                                    0,'BSCALE',single(1),'default scaling factor');
+               otherwise
+                  error('Unknown ResetDefKey option');
+            end
+
+            % check if last keyword is END - delete if needed.
+            if (strcmp(HeaderInfo{end,1},'END'))
+                HeaderInfo = HeaderInfo(1:end-1,:);
+            end
+
+
+            %--- Write creation date to header ---
+            Time = celestial.time.get_atime([],0,0);
+            HeaderInfo = FITS.cellhead_addkey(HeaderInfo,...
+                                              'CRDATE',Time.ISO,'Creation date of FITS file',...
+                                              'COMMENT','','File Created by MATLAB fitswrite.m written by Eran Ofek');
+
+            %--- Convert default keywords to int32 ---
+            KeysInt32 = {'BITPIX','NAXIS','NAXIS1','NAXIS2','BZERO','BSCALE'};
+            Ni32     = length(KeysInt32);
+            for Ii32=1:1:Ni32
+               I = find(strcmp(HeaderInfo(:,1),KeysInt32{Ii32})==1);
+               if (~isempty(I))
+                  HeaderInfo{I,2} = int32(HeaderInfo{I,2});
+               end
+            end
+
+
+            %--- Convert default keywords to logical ---
+            KeysLogi = {'SIMPLE','EXTEND'};
+            Nlogi     = length(KeysLogi);
+            for Ilogi=1:1:Nlogi
+               I = find(strcmp(HeaderInfo(:,1),KeysLogi{Ilogi})==1);
+               if (~isempty(I))
+                  if (~islogical(HeaderInfo{I,2}))
+                     switch HeaderInfo{I,2}
+                      case 'F'
+                         HeaderInfo{I,2} = false(1,1); 
+                      case 'T'
+                         HeaderInfo{I,2} = true(1,1);
+                      otherwise
+                         error('Keyword type is not logical');
+                     end
+                  end
+               end
+            end
+
+
+            % check if last keyword is END - if not add.
+            if (~strcmp(HeaderInfo{end,1},'END'))
+                HeaderInfo{end+1,1} = 'END';
+                HeaderInfo{end,2} = '';
+                HeaderInfo{end,3} = '';
+            end
+
+            %--- Prepare string of header information to write to header ---
+            HeaderBlock = '';
+            [Nline,Nr] = size(HeaderInfo);
+
+            Counter = 0;
+            for Iline=1:1:Nline
+               if (~isempty(HeaderInfo{Iline,1}) && strcmpi(HeaderInfo{Iline,1},'END')==0)
+                  %--- write keyword name ---
+                  HeaderLine = sprintf('%-8s',upper(HeaderInfo{Iline,1}));
+                  switch upper(HeaderInfo{Iline,1})
+                   case {'COMMENT','HISTORY'}
+                      % do not write "=" sign
+                      HeaderLine = sprintf('%s',HeaderLine);
+                   otherwise
+                      % write "=" sign
+                      HeaderLine = sprintf('%s= ',HeaderLine);
+                  end
+                  %--- write keyword value ---
+                  switch upper(HeaderInfo{Iline,1})
+                   case {'COMMENT','HISTORY'}
+                      % do not write value
+                   otherwise
+                      if (ischar(HeaderInfo{Iline,2}))
+                         HeaderLine = sprintf('%s''%s''',HeaderLine,HeaderInfo{Iline,2});
+                         Nblanks    = 20-(length(HeaderInfo{Iline,2})+2);
+
+                         if (Nblanks<0)
+                            Nblanks = 0;
+                         end
+                         HeaderLine = sprintf('%s%s',HeaderLine,blanks(Nblanks));
+
+                      elseif (islogical(HeaderInfo{Iline,2}))
+                          switch HeaderInfo{Iline,2}
+                          case 1
+                         HeaderLine = sprintf('%s%20s',HeaderLine,'T');
+                          case 0
+                         HeaderLine = sprintf('%s%20s',HeaderLine,'F');                 
+                          otherwise
+                         error('DataType is not logical');
+                         end
+                      elseif (isinteger(HeaderInfo{Iline,2}))
+                         HeaderLine = sprintf('%s%20i',HeaderLine,HeaderInfo{Iline,2});
+                      elseif (isfloat(HeaderInfo{Iline,2}))
+
+                         switch InPar.IdentifyInt
+                          case 'y'
+                             % attempt to identify integers automatically
+                             if (fix(HeaderInfo{Iline,2})==HeaderInfo{Iline,2})
+                                % integer identified - print as integer
+                                HeaderLine = sprintf('%s%20i',HeaderLine,HeaderInfo{Iline,2});
+                             else
+                                % float or double
+                                HeaderLine = sprintf('%s%20.8f',HeaderLine,HeaderInfo{Iline,2});
+                             end
+                          case 'n'
+                               % float or double
+                               HeaderLine = sprintf('%s%20.8f',HeaderLine,HeaderInfo{Iline,2});
+                          otherwise
+                                 error('Unknown IdentifyInt option');
+                         end
+                      else
+                         error('unknown Format in header information');
+                      end
+                  end
+                  %--- write comment to header ---
+                  if (Nr>2)
+                     switch upper(HeaderInfo{Iline,1})
+                      case {'COMMENT','HISTORY'}
+                         % do not write "/"
+                         HeaderLine = sprintf('%s%-s',HeaderLine,HeaderInfo{Iline,3});
+                      otherwise
+                         if (isempty(HeaderInfo{Iline,3}))
+                            % do nothing - do not add comment
+                         else
+                            HeaderLine = sprintf('%s /%-s',HeaderLine,HeaderInfo{Iline,3});
+                         end
+                      end
+                   end
+                   % cut line if longer than 80 characters or paded with spaces
+                   if (length(HeaderLine)>80)
+                      HeaderLine = HeaderLine(1:80);
+                   end
+                   HeaderLine = sprintf('%-80s',HeaderLine);
+
+                   %%HeaderBlock = sprintf('%s%s',HeaderBlock,HeaderLine);
+                   Counter = Counter + 1;
+                   HeaderBlock(Counter,:) = sprintf('%s',HeaderLine);
+                end   
+            end
+            %--- Add End keyword to end of header ---
+            %%HeaderBlock = sprintf('%s%-80s',HeaderBlock,'END');
+            Counter = Counter + 1;
+            HeaderBlock(Counter,:) = sprintf('%-80s','END');
+
+            else
+              %--- HeaderInfo is already provided as char array ---
+              % assume contains also the 'END' keyword
+              HeaderBlock = HeaderInfo;
+            end
+
+
+            %--- pad by spaces up to the next 2880 character block ---
+            PadBlock = sprintf('%s',blanks(2880 - mod(numel(HeaderBlock),2880)));
+
+
+            %--- pad by spaces up to the next 2880 character block ---
+            %HeaderBlock = sprintf('%s%s',HeaderBlock,blanks(2880 - 80 -
+            %mod(length(HeaderBlock),2880)));
+            %--- Add End keyword to end of header ---
+            %HeaderBlock = sprintf('%s%-80s',HeaderBlock,'END');
+
+
+            %--- Open file for writing in rigth byte order in all platforms.
+            switch lower(InPar.OverWrite)
+               case 'n'
+                  if (exist(FileName,'file')==0)
+                     % File does not exist - continue
+                  else
+                     error('Output file already exist');
+                  end
+               otherwise
+                  % do nothing
+            end
+
+            Fid = fopen(FileName,'w','b');  % machineformat: ieee-be
+            if (Fid==-1)
+               fprintf('Error while attempting to open FITS file for writing\n');
+               Flag = 0;
+            else   
+               %--- Write header to file ---
+
+               %fwrite(Fid,HeaderBlock,'char');
+
+               for Ic=1:1:size(HeaderBlock,1)
+                 fprintf(Fid,'%-80s',HeaderBlock(Ic,:));
+               end
+               fprintf(Fid,'%s',PadBlock);
+
+               %--- Write image data ---
+               switch DataType
+                case {'int8',8}
+                   fwrite(Fid,Image.','uchar');
+                case {'int16',16}
+                   fwrite(Fid,Image.','int16');
+                case {'int32',32}
+                   fwrite(Fid,Image.','int32');
+                case {'int64',64}
+                   fwrite(Fid,Image.','int64');
+                case {'single','float32',-32}
+                   fwrite(Fid,Image.','single');
+                case {'double','float64',-64}
+                   fwrite(Fid,Image.','double');
+                otherwise
+                   fclose(Fid);
+                   error('Unknown DataType option');
+               end
+               fclose(Fid);
+            end
+        end % FITS.write_old
+
+        function [NewCellHead]=cellhead_addkey(CellHead,varargin)
+            %--------------------------------------------------------------------------
+            % FITS.cellhead_addkey function                                class/@FITS
+            % Description: A utility program to add new keywords, values and
+            %              comments to a cell array containing A FITS header
+            %              information.
+            %              The FITS header cell array contains an arbitrary number
+            %              of rows and 3 columns, where the columns are:
+            %              {keyword_name, keyword_val, comment}.
+            %              The comment column is optional.
+            % Input  : - Cell array containing the FITS header information.
+            %          * An header cell array to add at the end of the existing
+            %            array (e.g., FITS.cellhead_addkey(CellHead,AddHead);).
+            %            Alternatively, vecor of positions in the existing header
+            %            array in which to add the new keys
+            %            (e.g., FITS.cellhead_addkey(CellHead,NewPos,AddHead);).
+            %            Alternatively, triplets of :...,key,value,comment,...
+            %            to add at the end of the existing header
+            %            (e.g., FITS.cellhead_addkey(CellHead,'NAXIS',1024,'number of axes');)
+            %            Alternatively, quadraplets of :...,pos,key,value,comment,...
+            %            to add at a given position in the existing header specified by
+            %            the integer pos.
+            %            (e.g., FITS.cellhead_addkey(CellHead,Pos,'NAXIS',1024,'number of axes');)
+            % Output : - The new header cell array.
+            % Tested : Matlab 7.10
+            %     By : Eran O. Ofek                    Jun 2010
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+            if (isempty(CellHead))
+               CellHead = cell(0,3);
+            end
+
+            Narg = length(varargin);
+            if (Narg==0)
+               % Do nothing
+               AddHead = [];
+            elseif (Narg==1)
+               AddHead = varargin{1};
+               VecPos  = zeros(size(AddHead,1),1)+Inf;
+            elseif (Narg==2)
+               VecPos     = varargin{1};
+               AddHead = varargin{2};
+            else
+               if (Narg./3==floor(Narg./3) && ischar(varargin{1})==1)
+                  % assume triplets: ...,key,value,comment,...
+                  Counter = 0;
+                  AddHead = cell(Narg./3,3);
+                  VecPos  = zeros(Narg./3,1) + Inf;
+                  for Iarg=1:3:Narg
+                     Counter = Counter + 1; 
+                     [AddHead{Counter,1:3}] = deal(varargin{Iarg:1:Iarg+2});
+                  end
+               elseif (Narg./4==floor(Narg./4) && isnumeric(varargin{1})==1)
+                  % assume quadraplets: ...,pos,key,value,comment,...
+                  Counter = 0;
+                  AddHead = cell(Narg./4,3);
+                  VecPos  = zeros(Narg./4,1);
+                  for Iarg=1:4:Narg
+                     Counter = Counter + 1; 
+                     VecPos(Counter) = varargin{Iarg};
+                     [AddHead{Counter,1:3}] = deal(varargin{Iarg+1:1:Iarg+3});
+                  end
+               else
+                  error('Unknown format of additional parameters');
+               end
+            end
+
+            [~,Ncr] = size(CellHead);
+            [~,Nar] = size(AddHead);
+
+            if (Ncr==Nar)
+               % do nothing
+            else
+               if (Ncr==2 && Nar==3)
+                  CellHead{1,3} = [];
+               elseif (Ncr==3 && Nar==2)
+                  AddHead{1,3} = [];
+               else
+                  error('Illegal number of columns');
+               end
+            end
+
+            % sort AddHead by VecPos
+            NewCellHead = CellHead;
+
+            [SortedVecPos,SortedInd] = sort(VecPos);
+            SortedAddHead = AddHead(SortedInd,:);
+            Nadd = length(SortedVecPos);
+            for Iadd=1:1:Nadd
+               NewCellHead = tools.array.insert_ind(NewCellHead,SortedVecPos(Iadd)+(Iadd-1),SortedAddHead(Iadd,:));
+            end
+
+            NewCellHead = FITS.cellhead_fix(NewCellHead);
+        end
+        
+        function [NewCellHead]=cellhead_delkey(CellHead,Keys)
+            %--------------------------------------------------------------------------
+            % FITS.cellhead_delkey function                                class/@FITS
+            % Description: A utility program to delete a keywords, values and
+            %              comments from a cell array containing A FITS header
+            %              information.
+            %              The FITS header cell array contains an arbitrary number
+            %              of rows and 3 columns, where the columns are:
+            %              {keyword_name, keyword_val, comment}.
+            %              The comment column is optional.
+            % Input  : - Cell array containing the FITS header information.
+            %          - A string containing a keyword name to delete,
+            %            or a cell of strings containing keyword names to delete.
+            % Output : - The new header cell array.
+            % Tested : Matlab 7.10
+            %     By : Eran O. Ofek                    Jun 2010
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+
+            if (ischar(Keys))
+               Keys = {Keys};
+            elseif (iscell(Keys))
+               % do nothing
+            else
+               error('Unknown Keys DataType');
+            end
+
+            NewCellHead = CellHead;
+            Nkeys = length(Keys);
+            for Ikeys=1:1:Nkeys
+               [~,Lines]=FITS.cellhead_getkey(NewCellHead,Keys{Ikeys});
+               NewCellHead = tools.array.delete_ind(NewCellHead,Lines);
+               Nl = length(Lines);
+               for I=1:1:Nl-1
+                  [~,Lines]=FITS.cellhead_getkey(NewCellHead,Keys{Ikeys});
+                  NewCellHead = tools.array.delete_ind(NewCellHead,Lines);
+               end
+            end
+        end
+        
+        function NewHeader=cellhead_fix(Header)
+            %--------------------------------------------------------------------------
+            % FITS.cellhead_fix function                                   class/@FITS
+            % Description: Given an Nx3 cell array of FITS header. Remove blank lines
+            %              and make sure the END keyword is at the end of the header.
+            % Input  : - An Nx3 cell array of FITS header.
+            % Output : - A fixed header.
+            % Tested : Matlab R2013a
+            %     By : Eran O. Ofek                    Mar 2014
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Example: NewHeader=FITS.cellhead_fix(Header);
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+
+            FlagEmpty = strcmp(Header(:,1),'') & strcmpi(Header(:,2),'') & strcmpi(Header(:,3),'');
+            NewHeader = Header(~FlagEmpty,:);
+
+            % remove END
+            FlagEnd   = strcmp(NewHeader(:,1),'END');
+            NewHeader = NewHeader(~FlagEnd,:);
+
+            % add END
+            NewHeader = [NewHeader; {'END','',''}];
+        end
+        
+        function [NewCellHead,Lines]=cellhead_getkey(CellHead,Keys,NotExist,Multiple)
+            %--------------------------------------------------------------------------
+            % FITS.cellhead_getkey function                                class/@FITS
+            % Description: A utility program to get a specific keywords, values and
+            %              comments from a cell array containing A FITS header
+            %              information.
+            %              The FITS header cell array contains an arbitrary number
+            %              of rows and 3 columns, where the columns are:
+            %              {keyword_name, keyword_val, comment}.
+            %              The comment column is optional.
+            % Input  : - Cell array containing the FITS header information.
+            %          - A string containing a keyword to look in the header
+            %            or a cell array of keywords (case insensitive).
+            %          - A parameter to control the behaviour when a specific keyword
+            %            is not found.
+            %            'Ignore' - ignore missing parameters and in that case the
+            %                       length of NewCellHead will be shorter than the
+            %                       length of (CellHead). Default.
+            %            'NaN'    - Replace missing keywords by NaNs.
+            %                       In that case the Lines vector and the NewCellHead
+            %                       will contain NaNs
+            %          - A flag indicating what to do if there are multiple apperances
+            %            of a specific keyword. Options are: {'all','first','last'}.
+            %            Default is 'last'.
+            % Output : - The header cell array with only the requested lines.
+            %          - Indices of requested lines in header.
+            % Tested : Matlab 7.10
+            %     By : Eran O. Ofek                    Jun 2010
+            %    URL : http://weizmann.ac.il/home/eofek/matlab/
+            % Example: [NewCellHead,Lines]=FITS.cellhead_getkey(CellHead,Keys,NotExist);
+            % Reliable: 2
+            %--------------------------------------------------------------------------
+
+            Def.NotExist = 'Ignore';
+            Def.Multiple = 'last';
+            if (nargin==2)
+               NotExist = Def.NotExist;
+               Multiple = Def.Multiple;
+            elseif (nargin==3)
+                Multiple = Def.Multiple;
+            elseif (nargin==4)
+               % do nothing
+            else
+               error('Illegal number of input arguments');
+            end
+
+            if (ischar(Keys))
+               Keys = {Keys};
+            end
+
+            Nkeys = length(Keys);
+            Lines = zeros(0,1);
+            for Ikeys=1:1:Nkeys
+                switch lower(Multiple)
+                    case 'all'
+                        Ifound = find(strcmpi(CellHead(:,1),Keys{Ikeys})==1);
+                    otherwise
+                        Ifound = find(strcmpi(CellHead(:,1),Keys{Ikeys})==1,1,Multiple);
+                end
+
+
+               Lines  = [Lines; Ifound];
+
+               if (isempty(Ifound))
+                  switch lower(NotExist)
+                   case 'nan'
+                      Lines = [Lines; NaN];
+                   otherwise
+                      % do nothing
+                  end
+               end
+            end
+
+            if (sum(isnan(Lines))>0)
+               Inan = find(isnan(Lines));
+               Lines(Inan) = 1;
+               NewCellHead = CellHead(Lines,:);
+               for In=1:1:length(Inan)
+                  NewCellHead(Inan(In),:) = {NaN NaN NaN};
+               end
+            else
+               NewCellHead = CellHead(Lines,:);
+            end
+        end
+        
+        
+        
+    end
     
     methods
         function Nhdu = numHDU(Obj,FileName)
