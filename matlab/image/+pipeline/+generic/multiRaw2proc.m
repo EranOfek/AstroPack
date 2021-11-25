@@ -211,8 +211,14 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Cat';
-            
+            AllSI(Iim).write1(IP.genFull, 'Cat', 'FileType','fits',...
+                                                   'WriteHeader',false,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
     end
+    
     
     if Args.SaveMatchCat
         

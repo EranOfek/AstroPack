@@ -112,6 +112,9 @@ if all(ThresholdedSN==0,'all') || all(isnan(ThresholdedSN),'all')
 else
     
     BW = imregionalmax(ThresholdedSN,Conn);
+    %L = watershed(ThresholdedSN, Conn);
+    
+    %[cent, varargout]=fastPeakFind(ThresholdedSN,5,1);
     
 end
 
