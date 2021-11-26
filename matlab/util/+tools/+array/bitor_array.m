@@ -12,7 +12,8 @@ function Val=bitor_array(Array, Dim, UseMex)
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Jun 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Val=tools.array.bitor_array(Array);
+% Example: Array = uint32(randi(2^16,1600,1600,20));
+%          Val = tools.array.bitor_array(Array,3,false);
 % Reliable: 2
 %--------------------------------------------------------------------------
 
@@ -36,7 +37,7 @@ switch C
         Fun  = @uint32;
     case {'uint64','int64'}
         Nbit = 64;
-        Fun  = @uint64;h
+        Fun  = @uint64;
     otherwise
         error('Unknown class - only integers are allowed');
 end
