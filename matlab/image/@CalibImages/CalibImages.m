@@ -272,7 +272,7 @@ classdef CalibImages < Component
             
             % for each sub image
             
-            [BiasImage, IsBias, CoaddN] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
+            [BiasImage, ~, ~] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
             
             if isempty(Args.BlockSize)
                 Obj.Bias = BiasImage;
@@ -492,7 +492,7 @@ classdef CalibImages < Component
                 Result = Image;
             end
             
-            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+            [Nobj, ~] = Obj.checkObjImageSize(Image);
                         
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
@@ -548,10 +548,10 @@ classdef CalibImages < Component
                 Result = Image;
             end
            
-            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+            [Nobj, ~] = Obj.checkObjImageSize(Image);
                         
             for Iim=1:1:Nobj
-                Iobj = min(Iim, Nobj);
+                % FFU: Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
                 Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
                                                                 'Subtract',true,...
@@ -619,7 +619,7 @@ classdef CalibImages < Component
                 Result = Image;
             end
             
-            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+            %[Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
             % search for filter name
             if isempty(Args.FilterList)
@@ -665,7 +665,7 @@ classdef CalibImages < Component
             %           CalibImages object is of size=1, then this may have
             %           any size.
             %         * ...,key,val,...
-            %           'CreateNewObj' - [], false, true. Default is [].
+            %           'CreateNewObj' - false, true. Default is false.
             %           'BitDictinaryName' - Bit dictionary name.
             %                   Default is 'BitMask.Image.Default'.
             %           'MaskSaturated' - A logical indicating if to flag
@@ -714,7 +714,7 @@ classdef CalibImages < Component
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj                   = false;   % refers to the Image and not the Obj!!!
+                Args.CreateNewObj logical           = false;   % refers to the Image and not the Obj!!!
                 
                 % bit dictionary
                 Args.BitDictinaryName               = 'BitMask.Image.Default';
@@ -748,7 +748,7 @@ classdef CalibImages < Component
             % populate calibration images in a different function
                         
             for Iim=1:1:Nobj
-                Iobj = min(Iim, Nobj);
+                % FFU: Iobj = min(Iim, Nobj);
                 
                 % mark satuarted pixels
                 if Args.MaskSaturated
