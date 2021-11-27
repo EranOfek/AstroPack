@@ -102,7 +102,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %          ds9.plot(MergedCat(I).Catalog(Flag,1:2),'o','Coo','fk5')
     
     arguments
-        Obj                                  % FFU: why only AstroImage?
+        Obj                                 
         Args.CooType                 = 'sphere';
         Args.Radius                  = 3;
         Args.RadiusUnits             = 'arcsec';
