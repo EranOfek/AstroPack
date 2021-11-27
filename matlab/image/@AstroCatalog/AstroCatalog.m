@@ -840,7 +840,7 @@ classdef AstroCatalog < AstroTable
             end
         end
         
-        function Result = cropLonLatInPoly(Obj, RA, Dec, Args)
+        function Result = cropLonLatInPoly(Obj, PolyRA, PolyDec, Args)
             % Crop AstroCatalog by Lon/Lat in spherical polygon.
             % Input  : - An AstroCatalog object.
             %          - A vector of Lon/RA polygon corners.
@@ -871,7 +871,7 @@ classdef AstroCatalog < AstroTable
                 PolyDec
                 Args.CooUnits                      = 'deg';
                 
-                Args.ColLon                        = AstroCatalogDefNamesRA;
+                Args.ColLon                        = AstroCatalog.DefNamesRA;
                 Args.ColLat                        = AstroCatalog.DefNamesDec;
                 Args.SameCats logical              = true;
                 %Args.AddX                          = {};  % additional X-coo to update
@@ -914,21 +914,6 @@ classdef AstroCatalog < AstroTable
             
             end
         end
-        
-        function Result = cropLonLat(Obj, CCDSEC, WCS, Args)
-            %
-           
-            arguments
-                Obj
-                CCDSEC
-                WCS
-                Args
-            end
-            
-            
-            
-        end
-        
     end
     
     methods % interact with Mask images
