@@ -2394,12 +2394,83 @@ classdef catsHTM
         end
         
         
+        function mergeCats(CatNames, Args)
+            % Merge multiple catsHTM catalogs into a single catsHTM cat.
+           
+            arguments
+                CatNames cell    = {'PS1','SDSSDR10', 'GAIAEDR3'}
+                Args.NewCatName  = 'MergedCat';
+            end
+        
+            Ncats = numel(CatsHTM);
+            
+            % load HTM data for Cat1
+            [IndexFileName,IndexVarName] = catsHTM.get_index_filename(CatNames{1});
+            % HTM1 is the HTM index file
+            [HTM,DataHTM] = catsHTM.load_htm_ind(IndexFileName,IndexVarName);
+            % Level, Father, Son1, Son2, Son3, Son4, Poles 1 long,
+            % poles 1 lat, ..., Nsrc
+
+            %
+            Nhtm = numel(HTM);
+            
+            L = celestial.htm.nhtm2level(Nhtm);
+            
+            [HTM,Level] = celestial.htm.htm_build(L);
+            Level = Level(L);
+            Nh    = numel(Level.ptr);
+            
+            [ColCell] = catsHTM.load_colcell(CatName);
+            Ncol      = numel(ColCell);
+            
+            for Ih=1:1:Nh
+                Ihtm   = Level.ptr(Ih);
+                
+                % if HTM in Cat1 contain sources
+                if (DataHTM(Ihtm,13)>0)
+                    % load Cat
+                    Cat = catsHTM.load_cat(CatName,Ihtm);
+                    Bit = bitset(0,1).*ones(size(Cat,1),1);
+                    Cat = [Cat(:,1:2), Bit];
+                else
+                    Cat = zeros(0,3);
+                end
+                
+                % calculate center of HTM
+                Corners = [DataHTM(Ihtm, [7, 9, 11]).', DataHTM(Ihtm, [8 10 12]).'];
+                
+                [CD1,CD2,CD3] = celestial.coo.coo2cosined(Corners(:,1), Corners(:,2));
+                [MeanRA, MeanDec] = celestial.coo.cosined2coo(mean(CD1), mean(CD2), mean(CD3));
+                Radius = celestial.coo.sphere_dist_fast(DataHTM(Ihtm, 7), DataHTM(Ihtm, 8), DataHTM(Ihtm, 9), DataHTM(Ihtm, 10));
+                
+                % search for corresponding HTMs in all other catalogs
+                for Icat=2:1:Ncats
+                    
+                    CatC = catsHTM.cone_search(CatNames{Icat}, MeanRA, MeanDec, Radius, 'RadiusUnits','rad');
+                    % select sources in HTM
+                    Flag = celestial.htm.in_polysphere(CatC(:,1:2), Corners);
+                    CatC = CatC(Flag,:);
+                    
+                    Bit = bitset(0,Icat).*ones(size(CatC,1),1);
+                    Cat  = [Cat; [CatC(:,1:2), Bit]];
+                end
+                
+                % sort Cat
+                Cat = sortrows(Cat, 2);
+                
+                % save HTM 
+                % catsHTM.save_htm_ind(L,Args.NewCatName,[],{},Nsrc)
+                
+            end
+            
+        end
        
 %         function xmatch_save_index(Cat1,Cat2matched,Cat1ID,Cat2matchedID,CatBaseName)
 %             %
 %
 %         end
     end
+   
     
     
     methods (Static)  % prepare some sub/merged catalogs
