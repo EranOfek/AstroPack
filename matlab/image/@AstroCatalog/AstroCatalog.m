@@ -778,12 +778,7 @@ classdef AstroCatalog < AstroTable
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
-            %                   If empty (default), then this argument will
-            %                   be set by the number of output args.
-            %                   If 0, then false, otherwise true.
-            %                   This means that IC.fun, will modify IC,
-            %                   while IB=IC.fun will generate a new copy in
-            %                   IB.
+            %                   Default is false.
             % Output : - An AstroCatalog object with the updated catalog.
             % Author : Eran Ofek (Jul 2021)
             % Example: AC = AstroCatalog({rand(100,3).*100}, 'ColNames',{'XWIN','YWIN','Flux'});
@@ -799,16 +794,9 @@ classdef AstroCatalog < AstroTable
                 Args.AddX                          = {};  % additional X-coo to update
                 Args.AddY                          = {};
                 Args.UpdateXY(1,1) logical         = true;
-                Args.CreateNewObj                  = [];
+                Args.CreateNewObj logical          = false;
             end
             
-            if isempty(Args.CreateNewObj)
-                if nargout==0
-                    Args.CreateNewObj = false;
-                else
-                    Args.CreateNewObj = true;
-                end
-            end
             if Args.CreateNewObj
                 Result = Obj.copy();
             else
@@ -850,6 +838,95 @@ classdef AstroCatalog < AstroTable
                     end
                 end
             end
+        end
+        
+        function Result = cropLonLatInPoly(Obj, RA, Dec, Args)
+            % Crop AstroCatalog by Lon/Lat in spherical polygon.
+            % Input  : - An AstroCatalog object.
+            %          - A vector of Lon/RA polygon corners.
+            %          - A vector of Lat/Dec polygon corners.
+            %          * ...,key,val,...
+            %            'CooUnits' - Units for Lon/Lat coordinates.
+            %                   Default is 'deg'.
+            %            'ColLon' - A cell array of Lon column names dictionary 
+            %                   Default is AstroCatalog.DefNamesRA;
+            %            'ColLat' - A cell array of Lat column names dictionary 
+            %                   Default is AstroCatalog.DefNamesDec;
+            %            'SameCats' - A logical indicating if all
+            %                   AstroCatalogs has the same column names/indices.
+            %                   Default is true.
+            %            'UpdateXY' - A logical indicating if to update the
+            %                   XY positions. Default is false.
+            %            'CreateNewObj' - Create new object.
+            %                   Default is false.
+            % Output : - An AstroCatalog object containing only the sources
+            %             within the spherical polygon.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: Result = cropLonLatInPoly(Obj, RA, Dec)
+            
+            
+            arguments
+                Obj
+                PolyRA
+                PolyDec
+                Args.CooUnits                      = 'deg';
+                
+                Args.ColLon                        = AstroCatalogDefNamesRA;
+                Args.ColLat                        = AstroCatalog.DefNamesDec;
+                Args.SameCats logical              = true;
+                %Args.AddX                          = {};  % additional X-coo to update
+                %Args.AddY                          = {};
+                Args.UpdateXY(1,1) logical         = false;
+                Args.CreateNewObj logical          = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy();
+            else
+                Result = Obj;
+            end
+            
+            RA  = convert.angular(Args.CooUnits, 'rad', PolyRA);
+            Dec = convert.angular(Args.CooUnits, 'rad', PolyDec);
+            RA  = RA(:);
+            Dec = Dec(:);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                
+                if ~Args.SameCats || Iobj==1
+                    ColLon = colnameDict2ind(Obj(Iobj), Args.ColLon);
+                    ColLat = colnameDict2ind(Obj(Iobj), Args.ColLat);
+                end
+            
+                [Lon, LonUnits] = getCol(Obj, ColLon);
+                [Lat, LatUnits] = getCol(Obj, ColLat);
+                
+                LonRad = convert.angular(LonUnits, 'rad', Lon);
+                LatRad = convert.angular(LatUnits, 'rad', Lat);
+                
+                Flag = celestial.htm.in_polysphere([LonRad, LatRad], [RA, Dec]);
+                Result(Iobj) = selectRows(Obj(Iobj), Flag, 'CreateNewObj', Args.CreateNewObj);
+                
+                if Args.UpdateXY
+                    error('UpdateXY is not yet available, requires WCS information');
+                end
+            
+            end
+        end
+        
+        function Result = cropLonLat(Obj, CCDSEC, WCS, Args)
+            %
+           
+            arguments
+                Obj
+                CCDSEC
+                WCS
+                Args
+            end
+            
+            
+            
         end
         
     end
