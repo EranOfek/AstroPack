@@ -175,14 +175,12 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Args.SaveCoaddCat   = false;
     
     
-    
-    IP  = ImagePath;
+    IP   = ImagePath;
     if Args.SaveProcIm   
         Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Image';
-            
             % FFU: whos is responsible for creating the dir? ImagePath?
             % FFU: the date is today - BUG!!
             AllSI(Iim).write1(IP.genFull, 'Image', 'FileType','fits',...
@@ -239,10 +237,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             IP.Product = 'Image';
             IP.Counter = 0;
             
-            
-            % need to update ProjName, Time, TimeZone, Filter, Type, CCDID, CROPID, FieldID,...
-            
-            Coadd(Iim).write1(IP.genFull, 'Image', 'FileType','fits',...
+            % Path need to be like for an individual image
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Image', 'FileType','fits',...
                                                    'WriteHeader',true,...
                                                    'Append',false,...
                                                    'OverWrite',true,...

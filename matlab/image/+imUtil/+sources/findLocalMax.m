@@ -31,7 +31,7 @@ function [ListInd, JJ] = findLocalMax(Image, Thresh, Conn, AllocateFrac)
     [SizeI, SizeJ] = size(Image);
     Npix           = numel(Image);
     
-    ListInd = zeros(1, ceil(AllocateFrac.*SizeI.*SizeJ));
+    ListInd = zeros(ceil(AllocateFrac.*SizeI.*SizeJ),1);
     K = find(Image>Thresh);
     Nk = numel(K);
     Counter = 0;

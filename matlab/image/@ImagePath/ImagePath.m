@@ -322,15 +322,30 @@ classdef ImagePath < Component
 
         end
         
-        function Result = genFull(Obj)
+        function Result = genFull(Obj, Args)
             % Generate a full file name + path from a populated ImagePath
             % Input  : - A populated ImagePath object.
+            %         * ...,key,val,...
+            %           'PathLevel' - Level value for the path only.
+            %                   If empty do nothing. Use this to modify the
+            %                   path only. Default is [].
             % Output : - A full path + file name.
             % Author : Eran Ofek (Nov 2021)
             % Example: IP.genFull
+            
+            arguments
+                Obj
+                Args.PathLevel  = [];  % [] - don't touch 
+            end
         
             File = Obj.genFile;
+            
+            Level = Obj.Level;
+            if ~isempty(Args.PathLevel)
+                Obj.Level = Args.PathLevel;
+            end
             Path = Obj.genPath;
+            Obj.Level = Level;  % return lebel to original value
             
             Result = sprintf('%s%s',Path,File);
             

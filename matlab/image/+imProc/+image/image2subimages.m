@@ -43,6 +43,8 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
     %            'AddX' - A cell array of additional X column names to
     %                   shift. Default is {}.
     %            'AddY' - Like 'AddX', but for the Y-axis. Default is {}.
+    %            'UpdateWCS' - Update WCS. Default is true.
+    %            'UpdatePSF' - Update PSF. Default is true.
     % Output : - An AstroImage of sub images.
     %          - A structure with CCDSEC info, including:
     %            EdgesCCDSEC
@@ -74,6 +76,9 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         Args.ColY                          = AstroCatalog.DefNamesY;  %{'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
         Args.AddX                          = {};  % additional X-coo to update
         Args.AddY                          = {};
+        
+        Args.UpdateWCS logical             = true;
+        Args.UpdatePSF logical             = true;
     end
 
     % find the correct partition
@@ -169,10 +174,14 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         end
 
         % update the PSF
-        warning('Update PSF is not implenmented');
+        if Args.UpdatePSF
+            warning('Update PSF is not implenmented');
+        end
 
         % update the WCS
-        warning('Update WCS is not implenmented');
+        if Args.UpdateWCS
+            warning('Update WCS is not implenmented');
+        end
 
         % update the Catalog
         if Args.UpdateCat

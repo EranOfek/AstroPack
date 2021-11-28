@@ -1,4 +1,4 @@
-function [BW,Pos,MaxIsn]=local_maxima(Image,Variance,Threshold,Conn)
+function [BW,Pos,MaxIsn]=local_maxima(Image, Variance, Threshold, Conn, Algo)
 % Identify local maxima above a threshold in a 2D image
 % Package: @imUtil.image
 % Description: This function identify local maxima, above some threshold,
@@ -64,6 +64,7 @@ arguments
     Variance               = [];
     Threshold              = 5;
     Conn                   = 8;
+    Algo                   = 'imregionalmax'; %findlocalmax';  % 'imregionalmax' | 'findlocalmax'
 end
 
 if isempty(Variance)
@@ -97,7 +98,8 @@ else
    MaxIsn = [];
 end
     
-    
+
+
 
 
 ThresholdedSN = SN;
@@ -132,3 +134,49 @@ end
 
 
 
+
+
+% 
+% 
+% ThresholdedSN = SN;
+% ThresholdedSN(SN<Threshold) = 0;
+%             
+% if all(ThresholdedSN==0,'all') || all(isnan(ThresholdedSN),'all')
+%     % The entire ThresholdedSN image is zeros - there is no local max
+%     % however, in this case imregionalmax retrun that there is local max
+%     % everywhere...
+%     % overide this problem
+%     BW = false(size(SN));
+%     IndLocalMax = [];
+% else
+%     
+%     switch lower(Algo)
+%         case 'imregionalmax'
+%             
+%             BW = imregionalmax(ThresholdedSN,Conn);
+%             if nargout>1
+%                 IndLocalMax   = find(BW);  % must use find (can't use logical indexing)
+%             end
+%         case 'findlocalmax'
+%             BW = [];
+%             [IndLocalMax]      = imUtil.sources.findLocalMax(SN, Threshold, Conn);
+%         otherwise
+%             error('Unknown Algo option');
+%     end
+% end
+% 
+% if nargout>1
+%     %IndLocalMax   = find(BW);  % must use find (can't use logical indexing)
+%     [Y,X] = imUtil.image.ind2sub_fast(size(Image),IndLocalMax);
+%     if isempty(MaxIsn)
+%         % input is an image - set cube image index to 1
+%         Pos   = [X,Y, SN(IndLocalMax), ones(size(X))];
+%     else
+%         % inpt is a cube
+%         Pos   = [X,Y, SN(IndLocalMax), MaxIsn(IndLocalMax)];
+%     end
+%     
+% end
+% 
+% 
+% 
