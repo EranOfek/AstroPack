@@ -49,7 +49,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Nim = numel(AI);
     
     for Iim=1:1:Nim
-        Iim
+        %Iim
         
         if Iim==1 || ~Args.SameField
             % need to generate AstrometricCat for field

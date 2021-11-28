@@ -113,7 +113,6 @@ else
     
     BW = imregionalmax(ThresholdedSN,Conn);
     %L = watershed(ThresholdedSN, Conn);
-    
     %[cent, varargout]=fastPeakFind(ThresholdedSN,5,1);
     
 end

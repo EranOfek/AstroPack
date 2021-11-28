@@ -72,6 +72,7 @@ arguments
     Args.CalcCoaddVarEmpirical(1,1) logical     = true;
     Args.CalcCoaddVar(1,1) logical              = true;
     Args.CalcCoaddN(1,1) logical                = true;
+    Args.BitCoaddUseMex logical                 = true;
 end
 
 if nargout<4
@@ -203,10 +204,10 @@ switch lower(Args.StackMethod)
          end
          
     case 'bitor'
-         Coadd = tools.array.bitor_array(Cube, 3);
+         Coadd = tools.array.bitor_array(Cube, 3, Args.BitCoaddUseMex);
          
     case 'bitand'
-         Coadd = tools.array.bitand_array(Cube, 3);
+         Coadd = tools.array.bitand_array(Cube, 3, Args.BitCoaddUseMex);
          
     case 'bitnot'
         error('bitnot not implemented yet');
