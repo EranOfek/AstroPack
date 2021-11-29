@@ -50,6 +50,8 @@ addOptional(InPar,'MaxIter',6);
 parse(InPar,varargin{:});
 InPar = InPar.Results;
 
+Image = single(Image);
+
 if ~isempty(InPar.CCDSEC)
     Image = Image(InPar.CCDSEC(1,3):InPar.CCDSEC(1,4), InPar.CCDSEC(1,1):InPar.CCDSEC(1,2));
     
