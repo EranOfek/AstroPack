@@ -54,7 +54,7 @@ if ~isempty(InPar.CCDSEC)
     Image = Image(InPar.CCDSEC(1,3):InPar.CCDSEC(1,4), InPar.CCDSEC(1,1):InPar.CCDSEC(1,2));
     
 else
-    if ~ismepty(InPar.HalfSize)
+    if ~isempty(InPar.HalfSize)
         SizeIm   = size(Image);
         CenterIm = floor(SizeIm.*0.5);
         InPar.CCDSEC = [CenterIm(2)-InPar.HalfSize, CenterIm(2)+InPar.HalfSize, CenterIm(1)-InPar.HalfSize, CenterIm(1)+InPar.HalfSize];    
