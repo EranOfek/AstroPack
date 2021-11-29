@@ -48,8 +48,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     Nim = numel(AI);
     
-    Nsub = 24;
-    AllSI = AstroImage([Nim, Nsub]);
+    %Nsub = 24;
+    %AllSI = AstroImage([Nim, Nsub]);
     for Iim=1:1:Nim
         %Iim
         
@@ -57,31 +57,34 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             % need to generate AstrometricCat for field
             %tic;
             % ResultSingle(Iim) is not needed
-            [AllSI(Iim,:), AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            % AllSI(Iim,:),
+            [SI, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
+                                                                                      'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                                       Args.singleRaw2procArgs{:});
             %toc
             
         else
             %tic;
-            [AllSI(Iim,:), ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [SI, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
+                                                                         'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                          Args.singleRaw2procArgs{:});
             %toc
             
         end
        
-%         if Iim==1
-%             % alocate AstroImage for all sub images
-%             Nsub  = numel(SI);
-%             AllSI = AstroImage([Nim, Nsub]);
-%         end
-%                 
-%         AllSI(Iim,:) = SI;
+        if Iim==1
+            % alocate AstroImage for all sub images
+            Nsub  = numel(SI);
+            AllSI = AstroImage([Nim, Nsub]);
+        end
+                
+        AllSI(Iim,:) = SI;
         
         % clean data that will not be used later on
-        AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
+        % AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
 
         % add keywords to Header
         if Args.UpdateCounter
