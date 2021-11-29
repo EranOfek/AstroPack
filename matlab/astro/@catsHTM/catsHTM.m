@@ -2402,7 +2402,7 @@ classdef catsHTM
                 Args.NewCatName  = 'MergedCat';
             end
         
-            Ncats = numel(CatsHTM);
+            Ncats = numel(CatNames);
             
             % load HTM data for Cat1
             [IndexFileName,IndexVarName] = catsHTM.get_index_filename(CatNames{1});

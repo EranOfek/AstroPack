@@ -1,87 +1,98 @@
-function [ListInd, JJ] = findLocalMax(Image, Thresh, Conn, AllocateFrac)
-    % Fast 2D local maxima finder
-    %       This function was designed to be a faster version of
-    %       imregionalmax for some specific cases.
-    %       Its gives an order of magnitude speed improvment over
-    %       imregionalmax.
-    %       Unlike imregionalmax, local maxima are searched only in pixels
-    %       which value is larer than some threshold.
-    % Input  : - A 2D image. NaN are ignored.
-    %          - Threshold above to search local maxima.
-    %            Default is 5.
-    %          - Local maxima connectivity. Either 4, or 8.
-    %            Default is 8.
-    %          - Allocate memory parameter. Default is 0.1 of matrix size.
-    % Output : - If a single output argument is requested then this is a
-    %            linear index of the local maxima.
-    %            If two arguments are requested, then this is the I (rows)
-    %            index of the local maxima.
-    %          - The J (column) index of the local maxima.
+function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
+    % Find local maxima in a set of 2D images using various algorithms.
+    %       Given a cube if images (image index is in the 3rd dim),
+    %       normalize the image by its variance and threshold it.
+    %       Calc the max over all images, and search for local maxima using
+    %       findLocalMaxAboveThreshold or imregionalmax.
+    % Input  : - Image. Either a 2D image or a cube in which the image
+    %            index is in the 3rd dimension.
+    %          * ...,key,val,...
+    %            'Variance' - Variance image (or cube).
+    %                   For example, if the Imgae is a S/N image, then this parameter
+    %                   should be 1.
+    %                   Default is var(Image,0,[1 2]).
+    %           'Threshold' - Threshold in units of std (=sqrt(Variance)).
+    %                   The function is searching only for local maxima above this
+    %                   threshold.
+    %                   Default is 5.
+    %           'Conn' - The connectivity parameter used by imregionalmax for searching
+    %                   local maxima.
+    %                   Default is 8 (i.e., requires that all 8 surrounding pixels
+    %                   will be below the local max).
+    %           'Algo' - Either:
+    %                   'findlocal' - use findLocalMaxAboveThreshold.
+    %                   'imregionalmax' - use imregionalmax.
+    %                   Default is 'findlocal'.
+    % Output : - A five column matrix of [X,Y,SN,ImageIndex,LinaerIndexIn2D].
+    %          - A matrix of logical indicating if a pixel in the input image
+    %            is a local maximum above the threshold.
+    %          - If the first input argument is a cube in which the 3rd
+    %            dimension is the image index, then this is a matrix
+    %            indicating in each pixel which image index have the maximum
+    %            value (the thresholding and local maxima is done on the max of
+    %            the cube, so this enables to identify which plane in the cube
+    %            contributed to the maximum).
+    %            If the first input is a 2D matrix, then this paarameter is
+    %            empty.
     % Author : Eran Ofek (Nov 2021)
-    % Example: Image=randn(1600,1600);
-    %          [I,J]=imUtil.sources.findLocalMax(Image,2,8)
+    % Example: Image = randn(1600,1600,5);
+    %          [Pos, BW, MaxIsn] = imUtil.sources.findLocalMax(Image,'Variance',1,'Threshold',3);
+    
     
     arguments
         Image
-        Thresh       = 5;
-        Conn         = 8;
-        AllocateFrac = 0.1;
+        Args.Variance         = [];   % if empty, calc from image
+        Args.Threshold        = 5;
+        Args.Conn             = 8;
+        Args.Algo             = 'findlocal';  % 'findlocal' | 'imregionalmax'
     end
-   
-    [SizeI, SizeJ] = size(Image);
-    Npix           = numel(Image);
     
-    ListInd = zeros(ceil(AllocateFrac.*SizeI.*SizeJ),1);
-    K = find(Image>Thresh);
-    Nk = numel(K);
-    Counter = 0;
     
-    if Conn==8
-        for Ik=1:1:Nk
-            Ki = K(Ik);
-            Val = Image(Ki);
-            if Ki>(SizeI+1) && Ki<(Npix-SizeI-1) && ...
-                    Val>Image(Ki+1) && Val>Image(Ki-1) && ...
-                    Val>Image(Ki+SizeI) && Val>Image(Ki+SizeI-1) && Val>Image(Ki+SizeI+1) && ...
-                    Val>Image(Ki-SizeI) && Val>Image(Ki-SizeI-1) && Val>Image(Ki-SizeI+1)
-                % local max found
-                Counter = Counter + 1;
-                ListInd(Counter) = Ki;
-            end
-        end
-    elseif Conn==4
-        for Ik=1:1:Nk
-            Ki = K(Ik);
-            Val = Image(Ki);
-            if Ki>(SizeI+1) && Ki<(Npix-SizeI-1) && ...
-                    Val>Image(Ki+1) && Val>Image(Ki-1) && ...
-                    Val>Image(Ki+SizeI) && ...
-                    Val>Image(Ki-SizeI) 
-                % local max found
-                Counter = Counter + 1;
-                ListInd(Counter) = Ki;
-            end
-        end
+    BW = [];
+    if isempty(Args.Variance)
+        Args.Variance = var(Image,0,[1 2]);
+    end
+    
+    if Args.Variance==1
+        SN = Image;
     else
-        error('Connmust be 4 or 8');
-    end
-    ListInd = ListInd(1:Counter);
-    
-    if nargout>1
-        [ListInd, JJ] = imUtil.image.ind2sub_fast([SizeI, SizeJ], ListInd);
+        % in some cases user supplies Var=1 - faster...
+        SN = Image./sqrt(Args.Variance);
     end
     
+    % check if SN is a cube
+    % If this is the case, then take max over third dimension
+    % (image-index)
+    if ~ismatrix(SN)
+        % assume SN is a cube in which the 3rd dim is the image index
+        [SN,MaxIsn] = max(SN,[],3);
+    else
+       MaxIsn = [];
+    end
     
-%     SizeIm = size(Image);
-%     for I=2:1:SizeIm(1)-1
-%         for J=2:1:SizeIm(2)-1
-%             if Image(I,J)>Thresh
-%                 Image(I,J)>Image(I+1,J+1);
-%             end
-%         end
-%     end
+    switch lower(Args.Algo)
+        case 'findlocal'
+            % use the fast findLocalMaxAboveThreshold algorithm
+            if nargout>1
+                [IndLocalMax, Y, X, BW] = imUtil.sources.findLocalMaxAboveThreshold(SN, Args.Threshold, Args.Conn);
+            else
+                [IndLocalMax, Y, X] = imUtil.sources.findLocalMaxAboveThreshold(SN, Args.Threshold, Args.Conn);
+            end            
+            
+        case 'imregionalmax'
+            [IndLocalMax, Y, X, BW]=imUtil.sources.findLocalMaxImregionalmax(SN, Args.Threshold, Args.Conn);
+            
+        otherwise
+            error('Unknown Algo option');
+    end
     
-    
-    
+    if isempty(MaxIsn)
+        % input is an image - set cube image index to 1
+        Pos   = [X,Y, SN(IndLocalMax), ones(size(X)), IndLocalMax];
+    else
+        % inpt is a cube
+        Pos   = [X,Y, SN(IndLocalMax), MaxIsn(IndLocalMax), IndLocalMax];
+    end
     
 end
+    

@@ -51,7 +51,7 @@ if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
     else
         Convert = false;
     end
-    Val = mex_bitor_array64(Array, Dim);
+    Val = tools.array.mex_bitor_array64(Array, Dim);
     %if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
     if Convert
         Val = Fun(Val);

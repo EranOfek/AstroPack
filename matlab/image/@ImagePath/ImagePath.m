@@ -22,7 +22,7 @@ classdef ImagePath < Component
         CCDID           = '';           % CCD ID
         CropID          = '';           % Used with sub-images
         Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe
-        Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, ref.
+        Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, merged, ref.
         SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
@@ -393,7 +393,7 @@ classdef ImagePath < Component
               
             
             Obj.ProjName        = Header.getVal('INSTRUME'); %Obj.DictKeyNames.PROJNAME);
-            Obj.Time            = Header.getVal('JD');
+            Obj.Time            = julday(Header);  %.getVal('JD');
             Obj.TimeZone        = Header.getVal('TIMEZONE');
             Obj.Filter          = Header.getVal('FILTER');
             Obj.FieldID         = Header.getVal('FIELDID');
@@ -566,7 +566,7 @@ classdef ImagePath < Component
             % Verify Level
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
             switch Obj.Level
-                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'calib'}
+                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'merged', 'calib'}
                     % Ok
                 otherwise
                     error('Unknown Level option: %s', Obj.Level);

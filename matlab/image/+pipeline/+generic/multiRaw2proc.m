@@ -54,14 +54,15 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         if Iim==1 || ~Args.SameField
             % need to generate AstrometricCat for field
             %tic;
-            [SI, AstrometricCat, ResultSingle(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            % ResultSingle(Iim) is not needed
+            [SI, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
                                                                                       Args.singleRaw2procArgs{:});
             %toc
             
         else
             %tic;
-            [SI, ~, ResultSingle(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [SI, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
                                                                          Args.singleRaw2procArgs{:});
@@ -222,6 +223,20 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     if Args.SaveMatchCat
+        % save MergedCat
+        Nim = numel(MergedCat);
+        for Iim=1:1:Nim
+            % use the Coadd header 
+            IP.readFromHeader(Coadd(Iim));       %MergedCat(Iim));  
+            IP.Product = 'Cat';
+            IP.Level   = 'merged';
+            IP.Counter = 0;
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
         
     end
     
@@ -230,13 +245,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveCoaddIm
-        tic;
         Nim = numel(Coadd);
         for Iim=1:1:Nim
             IP.readFromHeader(Coadd(Iim));  
             IP.Product = 'Image';
             IP.Counter = 0;
-            
             % Path need to be like for an individual image
             Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Image', 'FileType','fits',...
                                                    'WriteHeader',true,...
@@ -244,17 +257,37 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                    'OverWrite',true,...
                                                    'WriteTime',false);
         end
-        toc
-        
-        
+       
     end
     
     if Args.SaveCoaddMask
-        
+        Nim = numel(Coadd);
+        for Iim=1:1:Nim
+            IP.readFromHeader(Coadd(Iim));  
+            IP.Product = 'Mask';
+            IP.Counter = 0;
+            % Path need to be like for an individual image
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Mask', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
     end
     
     if Args.SaveCoaddCat
-        
+        Nim = numel(Coadd);
+        for Iim=1:1:Nim
+            IP.readFromHeader(Coadd(Iim));  
+            IP.Product = 'Cat';
+            IP.Counter = 0;
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+                                               
+        end
     end
     
     

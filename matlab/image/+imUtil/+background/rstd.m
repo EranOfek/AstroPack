@@ -6,6 +6,8 @@ function Std=rstd(Image,varargin)
 % Input  : - An array.
 %          - Vector of dimensions over which to calculate the robust
 %            std. Default is [1 2].
+%            If 3 arguments are supplied then the 3rd is dim, and the
+%            second is ignored.
 % Output : - The robust median calculated using the scaled iqr
 %      By: Eran O. Ofek                       Apr 2020             
 % Example: imUtil.background.rstd(randn(1000,1000))
@@ -13,6 +15,10 @@ function Std=rstd(Image,varargin)
 
 if isempty(varargin)
     varargin = {[1 2]};
+else
+    if numel(varargin)>1
+        varargin = varargin(2);
+    end
 end
 
 Factor = 0.7413;  %  = 1./norminv(0.75,0,1)

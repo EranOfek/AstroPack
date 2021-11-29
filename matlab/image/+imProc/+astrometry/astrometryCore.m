@@ -211,7 +211,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         
     end
     RAD         = 180./pi;
-    ARCSEC_DEG  = 3600;
+    %ARCSEC_DEG  = 3600;
     % The name of the projected X/Y coordinates in the Reference astrometric catalog
     RefColNameX = 'X';
     RefColNameY = 'Y';
@@ -301,6 +301,15 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % ProjAstCat.plot({'X','Y'},'.')   
     
     Nobj = numel(Obj);
+    
+    % allocate Result
+    Result = struct('ImageCenterXY',cell(Nobj,1),...
+                    'Nsolutions',cell(Nobj,1),...
+                    'ResPattern',cell(Nobj,1),...
+                    'ErrorOnMean',cell(Nobj,1),...
+                    'BestInd',cell(Nobj,1),...
+                    'WCS',cell(Nobj,1));
+                
     for Iobj=1:1:Nobj
         % filter astrometric catalog
         % set CreateNewObj=true, because otherwise the Catalog will be overwritten
@@ -321,7 +330,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         % ProjAstCat is not used anymore so no need to copy it
         % make sure you are no overriding the previous catalog
         FilteredCat = Cat.copy;  % shallow copy is enough
-        [FilteredCat, FilteredProjAstCat, Summary] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
+        [FilteredCat, FilteredProjAstCat] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
                                                                                     'ColCatX',Args.CatColNamesX,...
                                                                                     'ColCatY',Args.CatColNamesY,...
                                                                                     'ColCatMag',Args.CatColNamesMag,...

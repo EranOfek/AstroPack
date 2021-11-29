@@ -269,6 +269,12 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     end
     NastCat = numel(Args.CatName);
     
+    % allocate Result
+    Result = struct('ParWCS',cell(Nobj,1),...
+                    'Tran',cell(Nobj,1),...
+                    'ResFit',cell(Nobj,1),...
+                    'WCS',cell(Nobj,1));
+    
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
         Iwcs = min(Iobj, Nwcs);

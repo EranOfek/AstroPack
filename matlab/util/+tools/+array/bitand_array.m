@@ -47,7 +47,7 @@ if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
     if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
         Array = uint64(Array);
     end
-    Val = mex_bitand_array64(Array, Dim);
+    Val = tools.array.mex_bitand_array64(Array, Dim);
     if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
         Val = Fun(Val);
     end

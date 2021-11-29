@@ -61,7 +61,7 @@ function [Res,H2]=find_shift_pairs(Cat,Ref,varargin)
 %                     Otherwise, this is the number of matches.
 %                     Default is 8.
 %            'Conn' - local maxima finding connectivity parameter.
-%                     For details see imUtil.image.local_maxima.
+%                     For details see imUtil.sources.findLocalMax.
 %                     Default is 8.
 %            'FracOfMax' - The parameter that that used in 'max1frac' and
 %                     'sn' PeakMethod, for selecting peaks.
@@ -253,7 +253,10 @@ for Iflip=1:1:Nflip
             end
 
                     
-            [~,Pos]=imUtil.image.local_maxima(H2,1,InPar.Threshold,InPar.Conn);
+            %[~,Pos]=imUtil.image.local_maxima(H2,1,InPar.Threshold,InPar.Conn);
+            % much faster:
+            [Pos] = imUtil.sources.findLocalMax(H2, 'Variance',1, 'Threshold',InPar.Threshold,'Conn',InPar.Conn, 'Algo','findlocal');
+
             Pos = sortrows(Pos,3,'descend');
             Flag = imUtil.patternMatch.select_maxima(Pos(:,3),'MaxMethod',InPar.MaxMethod,'FracOfMax',InPar.FracOfMax,'Threshold',InPar.Threshold);
             

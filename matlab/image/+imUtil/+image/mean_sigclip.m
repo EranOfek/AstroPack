@@ -13,11 +13,8 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 %            The following keywords are available:
 %            'MeanFun' - Funtion handle for calculating the mean.
 %                   Default is @nanamean.
-%            'StdFun'  - A string indicating the method by which to
-%                   calculate the data StD.
-%                   Options are: 'std' - fo normal StD, or 'rstd' for
-%                   robust StD calculated using imUtil.background.rvar.
-%                   Default is 'rstd'.
+%            'StdFun'  - An std function with std-like input arguments.
+%                   Default is @imUtil.background.rstd.
 %            'Nsigma' - [Lower, Upper] number of sigmas below/above to
 %                   sigma clip the data.
 %                   Default is [5 5].
@@ -49,7 +46,7 @@ arguments
     Data
     Dim                              = [];
     Args.MeanFun                     = @mean;
-    Args.StdFun                      = 'rstd';
+    Args.StdFun                      = @imUtil.background.rstdL1; %'rstd';
     Args.Nsigma(1,2)                 = [5 5];
     Args.MaxIter(1,1)                = 3;
     Args.EpsilonStd                  = 1e-12;
@@ -83,14 +80,16 @@ while Iter<=Args.MaxIter && NrejectNew~=0
     Iter = Iter + 1;
     
     Mean = Args.MeanFun(DataF,Dim);
-    switch lower(Args.StdFun)
-        case 'std'
-            Std  = nanstd(DataF,[],Dim);
-        case 'rstd'
-            Std  = imUtil.background.rstd(DataF,Dim);
-        otherwise
-            error('Unknown StdFun option');
-    end
+    Std  = Args.StdFun(DataF,[],Dim);
+    
+%     switch lower(Args.StdFun)
+%         case 'std'
+%             Std  = std(DataF,[],Dim,'omitnan');
+%         case 'rstd'
+%             Std  = imUtil.background.rstd(DataF,Dim);
+%         otherwise
+%             error('Unknown StdFun option');
+%     end
 
 end
 
