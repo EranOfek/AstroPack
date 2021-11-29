@@ -48,6 +48,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     Nim = numel(AI);
     
+    Nsub = 24;
+    AllSI = AstroImage([Nim, Nsub]);
     for Iim=1:1:Nim
         %Iim
         
@@ -55,14 +57,14 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             % need to generate AstrometricCat for field
             %tic;
             % ResultSingle(Iim) is not needed
-            [SI, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [AllSI(Iim,:), AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
                                                                                       Args.singleRaw2procArgs{:});
             %toc
             
         else
             %tic;
-            [SI, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [AllSI(Iim,:), ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
                                                                          Args.singleRaw2procArgs{:});
@@ -70,13 +72,13 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             
         end
        
-        if Iim==1
-            % alocate AstroImage for all sub images
-            Nsub  = numel(SI);
-            AllSI = AstroImage([Nim, Nsub]);
-        end
-                
-        AllSI(Iim,:) = SI;
+%         if Iim==1
+%             % alocate AstroImage for all sub images
+%             Nsub  = numel(SI);
+%             AllSI = AstroImage([Nim, Nsub]);
+%         end
+%                 
+%         AllSI(Iim,:) = SI;
         
         % clean data that will not be used later on
         AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
