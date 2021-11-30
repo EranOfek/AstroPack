@@ -10,10 +10,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.Dark                             = []; % [] - do nothing
         Args.Flat                             = []; % [] - do nothing
         Args.Fringe                           = []; % [] - do nothing
-        Args.BlockSize                        = [1600 1600];  % empty - full image
+        Args.SubImageSizeXY                   = [1600 1600];  % empty - full image
+        Args.OverlapXY                        = [64 64];
         
         Args.AstroImageReadArgs cell          = {};
-        
+        Args.ImageSizeXY                      = []; % if empty, get size from first image header
         
         Args.SameField logical                = true;
         Args.CatName                          = 'GAIAEDR3';
@@ -40,9 +41,31 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     end
     
+    
+    
+    
     if isa(FilesList, 'AstroImage')
+        % FileList is an AstroImage
         AI = FilesList;
+%         [SizeY, SizeX] = AI(1).sizeImage;
     else
+        % FileList is a cell array of images
+%         OutN = FITS.get_keys(FilesList{1}, {'NAXIS1','NAXIS2'});
+%         SizeX = str2double(OutN{1});
+%         SizeY = str2double(OutN{2});
+%     
+%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
+%                                                                                                'OverlapXY',[64 64]);
+%                                                                                          
+%         
+%         
+%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',Args.SubImageSizeXY,...
+%                                                                                                'OverlapXY',Args.OverlapXY);
+%                                                                                          
+%         
+    
+        %[SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy] = partition_subimage(
+        
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:});
     end
         

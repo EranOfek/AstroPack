@@ -1639,7 +1639,7 @@ classdef catsHTM
             %if nargin<5
             %    Radius = Radius./(RAD.*3600);  % arcsec to [radians]
             %else
-                Radius = convert.angular(Args.RadiusUnits,'rad',Radius);  % [radians]
+            Radius = convert.angular(Args.RadiusUnits,'rad',Radius);  % [radians]
             %end
 
             if (ischar(RA))
@@ -1671,7 +1671,6 @@ classdef catsHTM
                 %FileID    = floor(ID(Iid)./Args.NcatInFile).*Args.NcatInFile;
                 FileName  = sprintf(Args.CatFileTemplate,CatName,FileID(Iid));
                 DataName  = sprintf(Args.htmTemplate,ID(Iid));
-
                 %Cat = [Cat; catsHTM.load_cat(FileName,DataName,[MinDec, MaxDec],Ncol)];
                 if Args.UseIndex
                     C(Iid).Cat = catsHTM.load_cat(FileName,DataName,[MinDec, MaxDec],Ncol).';
@@ -2398,9 +2397,13 @@ classdef catsHTM
             % Merge multiple catsHTM catalogs into a single catsHTM cat.
            
             arguments
-                CatNames cell    = {'PS1','SDSSDR10', 'GAIAEDR3'}
+                CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSS','ROSATfsc','XMM','ztfDR1var'};  % 16 bit
+                Args.Nbit        = 16;
                 Args.NewCatName  = 'MergedCat';
+                Args.SaveInd     = true;
+                
             end
+            
         
             Ncats = numel(CatNames);
             
@@ -2420,16 +2423,18 @@ classdef catsHTM
             Level = Level(L);
             Nh    = numel(Level.ptr);
             
-            [ColCell] = catsHTM.load_colcell(CatName);
+            [ColCell] = catsHTM.load_colcell(CatNames{1});
             Ncol      = numel(ColCell);
             
             for Ih=1:1:Nh
+                [Ih, Nh]
+                
                 Ihtm   = Level.ptr(Ih);
                 
                 % if HTM in Cat1 contain sources
                 if (DataHTM(Ihtm,13)>0)
                     % load Cat
-                    Cat = catsHTM.load_cat(CatName,Ihtm);
+                    Cat = catsHTM.load_cat(CatNames{1},Ihtm);
                     Bit = bitset(0,1).*ones(size(Cat,1),1);
                     Cat = [Cat(:,1:2), Bit];
                 else
@@ -2437,30 +2442,60 @@ classdef catsHTM
                 end
                 
                 % calculate center of HTM
-                Corners = [DataHTM(Ihtm, [7, 9, 11]).', DataHTM(Ihtm, [8 10 12]).'];
+                % Corners = [DataHTM(Ihtm, [7, 9, 11]).', DataHTM(Ihtm, [8
+                % 10 12]).']; % BUG - likely in the construction of the
+                % DataHTM...
                 
-                [CD1,CD2,CD3] = celestial.coo.coo2cosined(Corners(:,1), Corners(:,2));
-                [MeanRA, MeanDec] = celestial.coo.cosined2coo(mean(CD1), mean(CD2), mean(CD3));
-                Radius = celestial.coo.sphere_dist_fast(DataHTM(Ihtm, 7), DataHTM(Ihtm, 8), DataHTM(Ihtm, 9), DataHTM(Ihtm, 10));
+                MeanCD = mean(HTM(Ihtm).cosd, 1);
+                [MeanRA, MeanDec] = celestial.coo.cosined2coo(MeanCD(1), MeanCD(2), MeanCD(3));
+                Corners = HTM(Ihtm).coo;
+                
+                %[CD1,CD2,CD3] = celestial.coo.coo2cosined(Corners(:,1), Corners(:,2));
+                %[MeanRA, MeanDec] = celestial.coo.cosined2coo(mean(CD1), mean(CD2), mean(CD3));
+                %Radius = celestial.coo.sphere_dist_fast(DataHTM(Ihtm, 7), DataHTM(Ihtm, 8), DataHTM(Ihtm, 9), DataHTM(Ihtm, 10));
                 
                 % search for corresponding HTMs in all other catalogs
                 for Icat=2:1:Ncats
                     
-                    CatC = catsHTM.cone_search(CatNames{Icat}, MeanRA, MeanDec, Radius, 'RadiusUnits','rad');
+                    try
+                        CatC = catsHTM.cone_search(CatNames{Icat}, MeanRA, MeanDec, Level.side, 'RadiusUnits','rad');
+                    catch
+                        'a'
+                    end
                     % select sources in HTM
-                    Flag = celestial.htm.in_polysphere(CatC(:,1:2), Corners);
-                    CatC = CatC(Flag,:);
+                    if isempty(CatC)
+                        CatC = zeros(0,2);
+                    else
+                        Flag = celestial.htm.in_polysphere(CatC(:,1:2), Corners);
+                        CatC = CatC(Flag,:);
+                    end
                     
                     Bit = bitset(0,Icat).*ones(size(CatC,1),1);
                     Cat  = [Cat; [CatC(:,1:2), Bit]];
                 end
                 
-                % sort Cat
-                Cat = sortrows(Cat, 2);
                 
-                % save HTM 
-                % catsHTM.save_htm_ind(L,Args.NewCatName,[],{},Nsrc)
+                if size(Cat,1)>0
+                    % sort Cat
+                    Cat = sortrows(Cat, 2);
+
+                    % save HTM 
+                    [FileName,DataName]=HDF5.get_file_var_from_htmid(Args.NewCatName, Ihtm);
+
+                    catsHTM.save_cat(FileName,DataName,Cat,2,30);
+                end
                 
+            end
+            
+            if InPar.SaveInd
+                IndFileName = sprintf('%s_htm.hdf5',InPar.NewCatName);
+                delete(IndFileName);
+                % Nsrc=HDF5.get_nsrc(CatName);
+                HDF5.save_htm_ind(HTM,IndFileName,[],{},Nsrc)
+
+                ColCell = {'RA','Dec','CatBit'};
+                ColUnits = {'rad','rad',''};
+                HDF5.save_cat_colcell(InPar.CatName,ColCell,ColUnits);
             end
             
         end

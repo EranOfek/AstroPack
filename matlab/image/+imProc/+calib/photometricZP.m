@@ -372,7 +372,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             % BACKMAG
             
             MedBack = median(Result(Iobj).Back, 'all', 'omitnan');
-            BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack);
+            ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack);
             
             Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG'};
             Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).MagSys, ResFit(Iobj).LimMag, ResFit(Iobj).BackMag};
