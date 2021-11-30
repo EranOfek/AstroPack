@@ -101,6 +101,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                                'OverlapXY',Args.OverlapXY);
                 Nsub   = numel(Sub);
                 Result = AstroImage([1,Nsub]);
+                Args.CCDSEC = EdgesCCDSEC;  
                 if nargout>1
                     InfoCCDSEC.EdgesCCDSEC     = EdgesCCDSEC;
                     InfoCCDSEC.ListCenters     = ListCenters;
@@ -132,22 +133,10 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
 
     if ~isnan(Nsub)
         % set the Mask data for edge and overlapping pixels
-        
-
         % update the header
-        KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC','ORIGUSEC','UNIQSEC'};
-        KeyVals  = cell(size(KeyNames));
-        for Isub=1:1:Nsub
-            % 
-            KeyVals{1} = size(Result(Isub).ImageData.Image,2);  % NAXIS1
-            KeyVals{2} = size(Result(Isub).ImageData.Image,1);  % NAXI2
-            KeyVals{3} = imUtil.ccdsec.ccdsec2str([1, KeyVals{1}, 1, KeyVals{2}]); % CCDSEC of current image
-            KeyVals{4} = imUtil.ccdsec.ccdsec2str(EdgesCCDSEC(Isub,:));            % ORIGSEC : SEC of subimage in full image
-            KeyVals{5} = imUtil.ccdsec.ccdsec2str(NoOverlapCCDSEC(Isub,:));        % ORIGUSEC : SEC of non-overlapping sub image in full image
-            KeyVals{6} = imUtil.ccdsec.ccdsec2str(NewNoOverlap(Isub,:));           % UNIQSEC : SEC of non-overlapping sub image in new sub image
-
-            Result(Isub).HeaderData.replaceVal(KeyNames, KeyVals);
-        end
+        Result = imProc.transIm.updateHeaderCCDSEC(Result, 'EdgesCCDSEC',EdgesCCDSEC,...
+                                                           'NoOverlapCCDSEC',NoOverlapCCDSEC,...
+                                                           'NewNoOverlap',NewNoOverlap);
 
         % update Mask
         if Args.UpdateMask

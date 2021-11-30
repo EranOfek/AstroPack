@@ -32,6 +32,8 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.Flat                             = []; % [] - do nothing
         Args.Fringe                           = []; % [] - do nothing
         Args.BlockSize                        = [1600 1600];  % empty - full image
+        Args.OverlapXY                        = [64 64];
+        
         Args.Scale                            = 1.25;
         
         Args.AddHeadKeys                      = {'FILTER','clear';...
@@ -73,7 +75,7 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.deflatArgs cell                  = {};
         Args.CorrectFringing logical          = false;
         Args.image2subimagesArgs cell         = {};
-        Args.OverlapXY                        = [64 64];
+        
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
         Args.findMeasureSourcesArgs cell      = {};
