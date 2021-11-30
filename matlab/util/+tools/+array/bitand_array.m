@@ -44,14 +44,16 @@ end
 
 % Check if we can use MEX implementation, convert input to uint64
 if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
-    if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
-        Array = uint64(Array);
-    end
-    Val = tools.array.mex_bitand_array64(Array, Dim);
-    if ~strcmp(C, 'int64') && ~strcmp(C, 'uint64')
-        Val = Fun(Val);
-    end
-        
+     switch Nbit
+        case 8
+            Val = tools.array.mex_bitand_array8(Array, Dim);       
+        case 16
+            Val = tools.array.mex_bitand_array16(Array, Dim);       
+        case 32
+            Val = tools.array.mex_bitand_array32(Array, Dim);       
+        case 64
+            Val = tools.array.mex_bitand_array64(Array, Dim);       
+    end            
 else
     Val = 0;
     for Ibit=1:1:Nbit
