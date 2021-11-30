@@ -51,6 +51,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
             %Fnneg = Array>0;
             % Array = log10(Array(Array>0));
             % faster to use log
+            %Array = single(Array);
             Array = log(Array(Array>0));
         else
             Array = Array(:);

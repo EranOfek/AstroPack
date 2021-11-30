@@ -48,6 +48,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     Nim = numel(AI);
     
+    %Nsub = 24;
+    %AllSI = AstroImage([Nim, Nsub]);
     for Iim=1:1:Nim
         %Iim
         
@@ -55,8 +57,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             % need to generate AstrometricCat for field
             %tic;
             % ResultSingle(Iim) is not needed
+            % AllSI(Iim,:),
             [SI, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
+                                                                                      'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                                       Args.singleRaw2procArgs{:});
             %toc
             
@@ -65,6 +69,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             [SI, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
+                                                                         'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                          Args.singleRaw2procArgs{:});
             %toc
             
@@ -79,7 +84,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         AllSI(Iim,:) = SI;
         
         % clean data that will not be used later on
-        AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
+        % AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
 
         % add keywords to Header
         if Args.UpdateCounter

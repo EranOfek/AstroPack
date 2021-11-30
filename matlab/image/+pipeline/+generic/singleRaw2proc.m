@@ -95,6 +95,7 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                 'APER_AREA','BACK_ANNULUS', 'STD_ANNULUS', ...
                                                 'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
                                                 'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
+        Args.DeletePropAfterSrcFinding        = {'Back','Var'};
         
         Args.UpdateHeader logical             = true;   % CROPID & LEVEL
         
