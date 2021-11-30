@@ -77,7 +77,7 @@
     Or3d = tools.array.bitor_array(Array3d, 1, false);
     disp(size(Or3d));
     disp(Or3d);
-    assert(strcmp(class(Or3d), 'uint64'));
+    assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 3);
     assert(isequal(Or3d(:,:,1), ExpectedOr2a));
     assert(isequal(Or3d(:,:,2), ExpectedOr2b));
@@ -87,7 +87,7 @@
     Or3d = tools.array.bitor_array(Array3d, 2, false);
     disp(size(Or3d));
     disp(Or3d);
-    assert(strcmp(class(Or3d), 'uint64'));
+    assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 3);
     assert(isequal(Or3d(:,:,1), ExpectedOr3dDim2a));
     assert(isequal(Or3d(:,:,2), ExpectedOr3dDim2b));
@@ -97,7 +97,7 @@
     Or3d = tools.array.bitor_array(Array3d, 3, false);
     disp(size(Or3d));
     disp(Or3d);
-    assert(strcmp(class(Or3d), 'uint64'));
+    assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 2);
     assert(isequal(Or3d, ExpectedOr3dDim3));   
     
@@ -106,34 +106,34 @@
     %--------------------------------------------------- 1D    
     
     % Or - Input: 2d -> Output: scalar, ndims=2
-    Or = mex_bitor_array64(Array1, 1);
+    Or = mex_bitor_array32(Array1, 1);
     disp(Or);
-    assert(strcmp(class(Or), 'uint64'));
+    assert(strcmp(class(Or), 'uint32'));
     assert(ndims(Or) == 2);
     assert(isequal(Or, ExpectedOr1));
     
     %--------------------------------------------------- 2D
     
     % Or - Input: 2d, dim=1 -> Output: 2d, ndims=2
-    Or = mex_bitor_array64(Array2a, 1);
+    Or = mex_bitor_array32(Array2a, 1);
     disp(Or);
-    assert(strcmp(class(Or), 'uint64'));
+    assert(strcmp(class(Or), 'uint32'));
     assert(ndims(Or) == 2);
     assert(isequal(Or, ExpectedOr2a));
     
     % Or - Input: 2d, dim=2 -> Output: 2d, ndims=2
-    Or = mex_bitor_array64(Array2a, 2);
+    Or = mex_bitor_array32(Array2a, 2);
     disp(Or);
-    assert(strcmp(class(Or), 'uint64'));
+    assert(strcmp(class(Or), 'uint32'));
     assert(ndims(Or) == 2);
     assert(isequal(Or, ExpectedOr2dim2));    
     
     %--------------------------------------------------- 3D    
     % Or - Input: 3d, dim=1 -> Output: 3d, ndims=3
     Or3dm = tools.array.bitor_array(Array3d, 1);
-    Or3d = mex_bitor_array64(Array3d, 1);
+    Or3d = mex_bitor_array32(Array3d, 1);
     disp(Or3d);
-    assert(strcmp(class(Or3d), 'uint64'));
+    assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 3);
     assert(isequal(Or3d(:,:,1), ExpectedOr2a));
     assert(isequal(Or3d(:,:,2), ExpectedOr2b));
@@ -142,18 +142,18 @@
     
     
     % Or - Input: 3d,dim=2 -> Output: 3d, ndims=3
-    Or3d = mex_bitor_array64(Array3d, 2);
+    Or3d = mex_bitor_array32(Array3d, 2);
     disp(Or3d);
-    assert(strcmp(class(Or3d), 'uint64'));
+    assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 3);
     assert(isequal(Or3d(:,:,1), ExpectedOr3dDim2a));
     assert(isequal(Or3d(:,:,2), ExpectedOr3dDim2b));
     assert(isequal(Or3d(:,:,3), ExpectedOr3dDim2c));
         
     % Or - Input: 3d, dim=3 -> Output: 2d, ndims=2
-    Or3d = mex_bitor_array64(Array3d, 3);
+    Or3d = mex_bitor_array32(Array3d, 3);
     disp(Or3d);
-    assert(strcmp(class(Or3d), 'uint64'));
+    assert(strcmp(class(Or3d), 'uint32'));
     assert(ndims(Or3d) == 2);
     assert(isequal(Or3d, ExpectedOr3dDim3));   
         
@@ -163,10 +163,10 @@
     for Iter=1:1000
         rows = int32(rand*100);
         cols = int32(rand*100);
-        Array = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(rows, cols));
+        Array = uint32(double(0xFFFFFFFF) * rand(rows, cols));
         for dim=1:2
             Output = tools.array.bitor_array(Array, dim, false);
-            MexOutput = mex_bitor_array64(Array, dim, true);
+            MexOutput = mex_bitor_array32(Array, dim, true);
             assert(isequal(Output, MexOutput));   
             MexOutput = tools.array.bitor_array(Array, dim, true);
             assert(isequal(Output, MexOutput));   
@@ -179,10 +179,10 @@
         rows = int32(rand*100);
         cols = int32(rand*100);
         deps = 2 + int32(rand*100);        
-        Array = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(rows, cols, deps));
+        Array = uint32(double(0xFFFFFFFF) * rand(rows, cols, deps));
         for dim=1:3
             Output = tools.array.bitor_array(Array, dim, false);
-            MexOutput = mex_bitor_array64(Array, dim, true);
+            MexOutput = mex_bitor_array32(Array, dim, true);
             assert(isequal(Output, MexOutput));               
             MexOutput = tools.array.bitor_array(Array, dim, true);
             assert(isequal(Output, MexOutput));   
@@ -191,12 +191,12 @@
 
     %%
     %-------------------------------------------------------- Convert Performance    
-    % Test conversion to uint64
+    % Test conversion to uint32
     for Iter=1:10
-        BigArray = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(8000, 8000));
-        BigArray64 = [];
+        BigArray = uint32(double(0xFFFFFFFF) * rand(8000, 8000));
+        BigArray32 = [];
         t = tic;
-        BigArray64 = uint64(BigArray);
+        BigArray32 = uint32(BigArray);
         MatlabTime = toc(t);
         fprintf('Convert: %.6f\n', MatlabTime);        
     end
@@ -205,7 +205,7 @@
     
     % Or - 3d - dim=3, returns 2d    
     for Iter=1:5
-        BigArray = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(4000, 4000));
+        BigArray = uint32(double(0xFFFFFFFF) * rand(4000, 4000));
 
         for dim=1:2
             t = tic;
@@ -213,7 +213,7 @@
             MatlabTime = toc(t);
 
             t = tic;
-            MexOr3d = mex_bitor_array64(BigArray, 1);
+            MexOr3d = mex_bitor_array32(BigArray, 1);
             MexTime = toc(t);
 
             fprintf('2D, dim=%d: Matlab: %.6f, Mex: %.6f\n', dim, MatlabTime, MexTime);                    
@@ -224,7 +224,7 @@
     
     % Or - 3d
     for Iter=1:3
-        BigArray = uint64(double(0xFFFFFFFFFFFFFFFF) * rand(400, 400, 100));
+        BigArray = uint32(double(0xFFFFFFFF) * rand(400, 400, 100));
 
         for dim=1:3
             t = tic;
@@ -232,7 +232,7 @@
             MatlabTime = toc(t);
 
             t = tic;
-            MexOr3d = mex_bitor_array64(BigArray, 1);
+            MexOr3d = mex_bitor_array32(BigArray, 1);
             MexTime = toc(t);
 
             fprintf('3D, dim=%d: Matlab: %.6f, Mex: %.6f\n', dim, MatlabTime, MexTime);                    
