@@ -678,7 +678,7 @@ classdef MatchedSources < Component
                 FieldName = FieldName{1};
             end
         end
-        
+                
         function [MatRA, MatDec, MatErrRA, MatErrDec] = getLonLat(Obj)
             % Get data matrices containing the RA/Dec fields.
             % Input  : - A MatchedSources object.
@@ -718,6 +718,31 @@ classdef MatchedSources < Component
                 MatErrDec = Obj.Data.(FieldErrDec);
             end
             
+        end
+        
+        function Obj = applyZP(Obj, ZP, Args)
+            % FFU
+           
+            arguments
+                Obj
+                ZP
+                Args.FieldZP       = 'FitZP';
+                Args.ApplyToMagCol = 'MAG'; % if cell then exact search
+                Args.Operator      = @minus; 
+                
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isstruct(ZP)
+                    VecZP = ZP(Iobj).(Args.FieldZP);
+                else
+                    VecZP = ZP;
+                end
+               
+                
+                
+            end
         end
     end
     
@@ -949,6 +974,7 @@ classdef MatchedSources < Component
                 Obj
                 Args.FlagsNameDic                = 'FLAGS';
                 Args.FlagsType                   = @uint32;
+                Args.UseMex logical              = true;
             end
 
             [FlagsName] = getFieldNameDic(Obj(1), Args.FlagsNameDic);
@@ -958,7 +984,7 @@ classdef MatchedSources < Component
                 % get Mag matrix
                 
                 DataFlags       = getMatrix(Obj(I), FlagsName);
-                Result(I).FLAGS = tools.array.bitor_array(Args.FlagsType(DataFlags));
+                Result(I).FLAGS = tools.array.bitor_array(Args.FlagsType(DataFlags), 1, Args.UseMex);
             end
 
         end
