@@ -101,6 +101,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                                'OverlapXY',Args.OverlapXY);
                 Nsub   = numel(Sub);
                 Result = AstroImage([1,Nsub]);
+                Args.CCDSEC = EdgesCCDSEC;  
                 if nargout>1
                     InfoCCDSEC.EdgesCCDSEC     = EdgesCCDSEC;
                     InfoCCDSEC.ListCenters     = ListCenters;
@@ -136,8 +137,6 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         Result = imProc.transIm.updateHeaderCCDSEC(Result, 'EdgesCCDSEC',EdgesCCDSEC,...
                                                            'NoOverlapCCDSEC',NoOverlapCCDSEC,...
                                                            'NewNoOverlap',NewNoOverlap);
-         
-        
 
         % update Mask
         if Args.UpdateMask
