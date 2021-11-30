@@ -9,6 +9,18 @@ function unitTest
     % Package Unit-Test   
 	io.msgStyle(LogLevel.Test, '@start', 'test started');
     
+    for Iter=1:5
+        Array = uint32(randi(2^16,1600,1600,20));
+        t = tic;
+        Val = tools.array.bitor_array(Array,3,false);
+        MatlabTime = toc(t);
+        t = tic;
+        ValMex = tools.array.bitor_array(Array,3,true);
+        MexTime = toc(t);
+        fprintf('Matlab: %.6f, Mex: %.6f\n', MatlabTime, MexTime);                    
+        assert(isequal(Val, ValMex));
+    end
+
     test_bit_or_and();
     test_bit_or_and_mex();
 	
