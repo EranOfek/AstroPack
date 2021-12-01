@@ -2460,6 +2460,7 @@ classdef catsHTM
                     try
                         CatC = catsHTM.cone_search(CatNames{Icat}, MeanRA, MeanDec, Level.side, 'RadiusUnits','rad');
                     catch
+                        CatC = [];
                         'a'
                     end
                     % select sources in HTM
