@@ -62,11 +62,11 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 
 arguments
     Cube
-    Args.IndexDim                               = 3;
+    Args.IndexDim                               = 1;
     Args.StackMethod                            = 'mean';
     Args.StackArgs cell                         = {};
     Args.EmpiricalVarFun function_handle        = @var;
-    Args.EmpiricalVarFunArgs cell               = {[],3,'omitnan'};
+    Args.EmpiricalVarFunArgs cell               = {[],1,'omitnan'};
     Args.VarCube                                = [];
     Args.MedianVarCorrForEmpirical(1,1) logical = false;
     Args.DivideEmpiricalByN(1,1) logical        = false;
@@ -217,6 +217,8 @@ switch lower(Args.StackMethod)
     otherwise
         error('Unknown StackMethod option');
 end
+
+Coadd = squeeze(Coadd);
 
 if Args.CalcCoaddVarEmpirical && isempty(CoaddVarEmpirical)
     % calc empirical variance
