@@ -123,14 +123,17 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
 
         switch lower(CommonCooType{Imax})
             case 'sphere'
-                DistFun = @celestial.coo.sphere_dist_fast;
+                DistFun = @celestial.coo.sphere_dist_fast; %Thresh; 
+                
                 Coo1    = getLonLat(Cat1, 'rad');
                 Coo2    = getLonLat(Cat2, 'rad');
 
                 RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
+                %DistFunArgs = {}; %{RadiusRad};
                 ConvertDist = true;
             case 'pix'
                 DistFun = @tools.math.geometry.plane_dist;
+                %DistFunArgs = {};
                 Coo1    = getXY(Cat1);
                 Coo2    = getXY(Cat2);
 
