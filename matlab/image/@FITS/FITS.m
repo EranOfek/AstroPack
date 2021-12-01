@@ -1303,7 +1303,8 @@ classdef FITS < handle
             %--- Open file for writing in rigth byte order in all platforms.
             switch lower(InPar.OverWrite)
                case 'n'
-                  if (exist(FileName,'file')==0)
+                  if ~java.io.File(FileName).exists
+                  %if (exist(FileName,'file')==0)
                      % File does not exist - continue
                   else
                      error('Output file already exist');
