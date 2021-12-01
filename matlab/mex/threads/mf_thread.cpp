@@ -416,12 +416,10 @@ bool Thread::wait(bool* flag, int timeoutMs)
 	return *flag;
 }
 
-
-
-
 //===========================================================================
 //									ThreadPool 
 //===========================================================================
+#ifdef never
 
 ThreadPool::ThreadPool()
 {
@@ -446,42 +444,4 @@ ThreadPool::~ThreadPool()
 #endif
 }
 
-
-void Thread::start()
-{
-	terminated = false;
-
-	// Start new CPU test thread
-#ifdef _WIN32
-    HANDLE thread = CreateThread(NULL, 0, ThreadFunc, this, 0, NULL);
-#elif _WIN32
-	std::thread* thread = new std::thread(thread_entry, this);
-	pthread = (void*)thread;
-	thread->detach();
-#else
-	pthread_t thread;
-	/*int ret =*/ pthread_create(&thread, NULL, thread_entry, (void*)this);
-	pthread = (void*)thread;
 #endif
-}
-
-
-void Thread::kill()
-{
-	terminated = true;
-	sleep(1000);
-
-#ifdef _WIN32
-	//std::thread* thread = (std::thread*)pthread;
-#else
-	//pthread_t thread = (pthread_t)pthread;
-#endif
-}
-
-
-void Thread::terminate()
-{
-	terminated = true;
-}
-
-

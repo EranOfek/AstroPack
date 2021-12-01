@@ -33,7 +33,7 @@ struct CritSect {
 };
 
 //
-// typedef CritSect Mutex;
+typedef CritSect Mutex;
 
 
 // Auto locker for CritSect
@@ -205,6 +205,7 @@ public:
 };
 
 
+#ifdef never
 // Simple thread that executes background operations by derived class
 class ThreadPool {
 public:
@@ -231,7 +232,6 @@ public:
 	void kill();
 
 };
-
 #endif
 
-
+#endif

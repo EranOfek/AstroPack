@@ -49,7 +49,7 @@
 #pragma once
 
 #include "mex.h"
-#include "mf_thread.h"
+#include <windows.h>
 
 // Main functions used in the MEX file you'd like to write:
 // 
@@ -104,22 +104,17 @@ struct Queue {
     void* data;
 };
 
-
 struct ThreadPool {
-	
     // To be our array of handles to threads.
-    Threads* threads;
-	
+    HANDLE* threads;
     // Signals when Queue is free to be modified.
-    Mutex* QueueMutex;
-	
+    HANDLE QueueMutex;
     // Event signals when Queue is not empty or memory needs to be cleaned.
-    EventSignal* JobReadyOrCleanup;
-
+    HANDLE JobReadyOrCleanup;
     // Event signals when a job has finished.
-    EventSignal* JobFinished;
+    HANDLE JobFinished;
     
-    Mutex* ThreadPoolMutex; // Mutex allows checking of vars:
+    HANDLE ThreadPoolMutex; // Mutex allows checking of vars:
     bool isalive;
     int jobsremaining;
     
