@@ -409,7 +409,41 @@ classdef AstroImage < Component
             
             
         end
-                                         
+         
+        function Obj = readByCCDSEC(FileName, CCDSEC, Args)
+            % Read sections of a single image into multiple AstroImage elements.
+            % Input  : - A single file name.
+            %          - A 4 column matrix of CCDSEC [Xmin Xmax Ymin Ymax]
+            %          * ...,key,val,...
+            %            'ReadHeader' - A logical indicating if to read the
+            %                   header. Default is 1.
+            %            'HDU' - HDU number to read. Default is 1.
+            % Output : - An AstroImage array of sub images.
+            % AUthor : Eran Ofek (Dec 2021)
+            % Example: Obj = AstroImage.readByCCDSEC(FileName, [1 100 1 100;101 200 101 200])
+            
+            arguments
+                FileName char
+                CCDSEC
+                Args.ReadHeader logical    = true;
+                Args.HDU                   = 1;
+            end
+            
+            Nsec = size(CCDSEC,1);
+            
+            if Args.ReadHeader
+                HeadCell = FITS.readHeader1(FileName, Args.HDU);
+            else
+                HeadCell = cell(0,3);
+            end
+            
+            Obj = AstroImage([Nsec 1]);
+            for Isec=1:1:Nsec
+                Obj(Isec).Image = FITS.read1(FileName,Args.HDU, 'CCDSEC', CCDSEC(Isec,:));
+                Obj(Isec).HeaderData.Data = HeadCell;
+            end
+            
+        end
     end
 
  

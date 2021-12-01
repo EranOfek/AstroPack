@@ -564,6 +564,44 @@ classdef CalibImages < Component
             end
         end
         
+        function Result = deflatOneFilt(Obj, Image, Args)
+            % Divide multiple flats from multiple images assuming a single filter
+            %   The division is one to one or one to many
+            % Input  : - A CalibImages object.
+            %          - An AstroImage object.
+            %          * ...,key,val,...
+            %            'deflatArgs' - A cell array of additional
+            %                   arguments to pass to imProc.dark.deflat
+            %            'CreateNewObj' - Create new Image object.
+            %                   Default is false.
+            % Output : - Flat divided AstroImage.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: 
+            
+            arguments
+                Obj
+                Image AstroImage
+                Args.deflatArgs cell            = {};
+                Args.CreateNewObj logical       = false;
+            end
+            
+            % create new copy of Image object
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            end
+            
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+                       
+            for Iim=1:1:Nobj
+                Iobj = min(Iim, Nobj);
+                % Note taht CreateNewObj was already done (if needed)
+                Result(Iim) = imProc.flat.deflat(Result(Iim), Obj(Iobj).Flat, 'CreateNewObj',false, Args.deflatArgs{:});
+            end
+            
+        end
+        
         function Result = deflat(Obj, Image, Args)
             % Divide from image from an image and update mask (multiple filters).
             % Input  : - A CalibImages object.
@@ -621,7 +659,7 @@ classdef CalibImages < Component
             
             %[Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
-            % search for filter name
+            % search for filter name [in first image only]
             if isempty(Args.FilterList)
                 ImFilt      = getStructKey(Image, Args.FilterKey, Args.getStructKeyArgs{:});
                 FilterList = {ImFilt.(Args.FilterKey)};
@@ -668,6 +706,11 @@ classdef CalibImages < Component
             %           'CreateNewObj' - false, true. Default is false.
             %           'BitDictinaryName' - Bit dictionary name.
             %                   Default is 'BitMask.Image.Default'.
+            %           'SingleFilter' - A logical indicating if the
+            %                   provided images were taken using a single filter.
+            %                   If true then will use deflatOneFilt,
+            %                   otherwaise will use deflat.
+            %                   Default is false.
             %           'MaskSaturated' - A logical indicating if to flag
             %                   saturated pixels, in the Mask image.
             %                   Default is true.
@@ -719,6 +762,7 @@ classdef CalibImages < Component
                 % bit dictionary
                 Args.BitDictinaryName               = 'BitMask.Image.Default';
                 
+                Args.SingleFilter logical           = false;
                 Args.MaskSaturated logical          = true;
                 Args.maskSaturatedArgs cell         = {};
                 Args.debiasArgs cell                = {};
@@ -774,7 +818,11 @@ classdef CalibImages < Component
             % not be compatible with the flat size
             
             % divide by flat
-            Result = Obj.deflat(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
+            if Args.SingleFilter
+                Result = Obj.deflatOneFilt(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
+            else
+                Result = Obj.deflat(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
+            end
             
             % Fring correction
             if Args.CorrectFringing
