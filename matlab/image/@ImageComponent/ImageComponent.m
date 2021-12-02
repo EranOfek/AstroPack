@@ -676,29 +676,52 @@ classdef ImageComponent < Component
             if isempty(Args.Class)
                 Args.Class = class(Obj(Iobj).(Args.DataPropIn));
             end
-            Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
+            if Args.DimIndex==1
+                Cube = zeros(Nobj, Size(1), Size(2), Args.Class);
+            elseif Args.DimIndex==3
+                Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
+            else
+                error('DimINdex must be 1 or 3');
+            end
                 
             if isempty(Args.CCDSEC)
                 % generate cube from full images
-                for Iobj=1:1:Nobj
-                    Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                if Args.DimIndex==3
+                    for Iobj=1:1:Nobj
+                        Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                    end
+                else
+                    % DimIndex = 1
+                    for Iobj=1:1:Nobj
+                        Cube(Iobj,:,:) = Obj(Iobj).(Args.DataPropIn);
+                    end
                 end
+                        
             else
                 % generate cube from sub images (CCDSEC)
-                for Iobj=1:1:Nobj
-                    Isec = min(Iobj, Nsec);
-                    Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(Isec,3):Args.CCDSEC(Isec,4), Args.CCDSEC(Isec,1):Args.CCDSEC(Isec,2));
+                if Args.DimIndex==3
+                    for Iobj=1:1:Nobj
+                        Isec = min(Iobj, Nsec);
+                        Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(Isec,3):Args.CCDSEC(Isec,4), Args.CCDSEC(Isec,1):Args.CCDSEC(Isec,2));
+                    end
+                else
+                    % DimIndex = 1
+                    for Iobj=1:1:Nobj
+                        Isec = min(Iobj, Nsec);
+                        Cube(Iobj,:,:) = Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(Isec,3):Args.CCDSEC(Isec,4), Args.CCDSEC(Isec,1):Args.CCDSEC(Isec,2));
+                    end
                 end
+                    
             end
                 
             % change dimension
-            if Args.DimIndex==3
-                % do nothing
-            elseif Args.DimIndex==1
-                Cube = permute(Cube, [3 1 2]);
-            else
-                error('DimIndex must be 1 or 3');
-            end
+%             if Args.DimIndex==3
+%                 % do nothing
+%             elseif Args.DimIndex==1
+%                 Cube = permute(Cube, [3 1 2]);
+%             else
+%                 error('DimIndex must be 1 or 3');
+%             end
             
         end
                 
