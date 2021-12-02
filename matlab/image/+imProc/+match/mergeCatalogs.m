@@ -23,6 +23,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %                   not AstroImage set to 1:Nepochs.
     %            'RelPhot' - Logical indicating if to apply relative phot.
     %                   calibration to the magnitudes. Default is true.
+    %            'RelPhotAlgo' - Relative photometry algorithm:
+    %                   'lsq' - default.
+    %                   'meddiff'
     %            'fitPolyHyp' - A logical indicating if to fit all light
     %                   curves with polynomials and calculate the delta\chi^2
     %                   between models. Default is true.
@@ -102,13 +105,14 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %          ds9.plot(MergedCat(I).Catalog(Flag,1:2),'o','Coo','fk5')
     
     arguments
-        Obj                                  % FFU: why only AstroImage?
+        Obj                                 
         Args.CooType                 = 'sphere';
         Args.Radius                  = 3;
         Args.RadiusUnits             = 'arcsec';
         Args.JD                      = [];  % if empty, use header, if no header use 1:N
         
         Args.RelPhot logical         = true;
+        Args.RelPhotAlgo             = 'lsq';
         Args.fitPolyHyp logical      = true;
         Args.PolyDeg cell            = {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]};
         Args.FitPM logical           = true;
@@ -170,7 +174,12 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     
         % relative photometry
         if Args.RelPhot
-            [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
+            switch lower(Args.RelPhotAlgo)
+                case 'lsq'
+                    [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
+                case 'meddiff'
+                    error('meddff is not available yet');
+            end
             
             % apply ZP to all Magnitudes...
             %FFU

@@ -105,6 +105,9 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     %              'SumExpTime' - A logical indicating if to sum
     %                   the EXPTIME in the new header, or to use
     %                   the mean (false). Default is true.
+    %              'UpdateImagePathKeys' - A logical indicating if to
+    %                   add the LEVEL, SUBLEVEL and CROPID keywords to
+    %                   header. Default is true.
     % Output : - An AstroImage with the coadded image, includinf
     %            the coadded background and mask. The VarData is always
     %            including the empirical variance.
@@ -147,7 +150,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     
         
         Args.EmpiricalVarFun function_handle        = @var;
-        Args.EmpiricalVarFunArgs                    = {[],3,'omitnan'};
+        Args.EmpiricalVarFunArgs                    = {[],1,'omitnan'};
         Args.MedianVarCorrForEmpirical(1,1) logical = false;
         Args.DivideEmpiricalByN(1,1) logical        = false;
 
@@ -158,17 +161,18 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         Args.NewHeader                              = [];
         Args.UpdateTimes(1,1) logical               = true;
         Args.SumExpTime(1,1) logical                = true;
+        Args.UpdateImagePathKeys logical            = true;
 
     end
     DataProp                      = {'ImageData','BackData', 'VarData', 'MaskData'};
-    DimIndex                      = 3;
+    IndexDim                      = 1;
 
     % allocate output
     Result = AstroImage;
 
     Nim = numel(ImObj);
 
-    [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
+    [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
      
     % subtract offset (only from image)
     if ~isempty(Args.Offset)
@@ -179,7 +183,13 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         if Noff~=1 && Noff~=Nim
             error('Number of offsets mnust be 1 or equal to number of images');
         end
-        ImageCube = ImageCube - reshape(Args.Offset,[1 1 Noff]);
+        if IndexDim==3
+            ImageCube = ImageCube - reshape(Args.Offset,[1 1 Noff]);
+        elseif IndexDim==1
+            ImageCube = ImageCube - reshape(Args.Offset,[Noff 1 1]);
+        else
+            error('IndexDim must be 1 or 3');
+        end
     end
 
     % pre normalization (only from image and variance)
@@ -191,7 +201,13 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         if Nnorm~=1 && Nnorm~=Nim
             error('Number of pre normalizations mnust be 1 or equal to number of images');
         end
-        PreNorm = reshape(1./Args.PreNorm,[1 1 Nnorm]);
+        if IndexDim==3
+            PreNorm = reshape(1./Args.PreNorm,[1 1 Nnorm]);
+        elseif IndexDim==1
+            PreNorm = reshape(1./Args.PreNorm,[Nnorm 1 1]);
+        else
+            error('IndexDim must be 1 or 3');
+        end
         ImageCube = ImageCube .* PreNorm;
         VarCube   = VarCube   .* PreNorm.^2;
     end
@@ -204,13 +220,21 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
             Args.Weights = VarCube;
         else
             Nw = nuem(Args.Weights);
-            Args.Weights = reshape(Args.Weights, [1 1 Nw]);
+            
+            if IndexDim==3
+                Args.Weights = reshape(Args.Weights, [1 1 Nw]);
+            elseif IndexDim==1
+                Args.Weights = reshape(Args.Weights, [Nw 1 1]);
+            else
+                error('IndexDim must be 1 or 3');
+            end  
         end
     else
         Args.Weights = [];
     end
     [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.stackCube(ImageCube, 'StackMethod',Args.StackMethod,...
                                                                              'StackArgs',Args.StackArgs,...
+                                                                             'IndexDim',IndexDim,...
                                                                              'EmpiricalVarFun',Args.EmpiricalVarFun,...
                                                                              'EmpiricalVarFunArgs',Args.EmpiricalVarFunArgs,...
                                                                              'VarCube',Args.Weights,...
@@ -227,6 +251,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     if Args.CombineBack && ~isempty(BackCube)
         [BackCoadd] = imUtil.image.stackCube(BackCube, 'StackMethod',Args.StackMethod,...
                                                                              'StackArgs',Args.StackArgs,...
+                                                                             'IndexDim',IndexDim,...
                                                                              'VarCube',[],...
                                                                              'CalcCoaddVarEmpirical',false,...
                                                                              'CalcCoaddVar',false,...
@@ -236,6 +261,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     if Args.CombineMask && ~isempty(MaskCube)
         [MaskCoadd] = imUtil.image.stackCube(MaskCube, 'StackMethod',Args.MaskStackMethod,...
                                                                              'StackArgs',Args.MaskStackArgs,...
+                                                                             'IndexDim',IndexDim,...
                                                                              'VarCube',[],...
                                                                              'CalcCoaddVarEmpirical',false,...
                                                                              'CalcCoaddVar',false,...
@@ -280,14 +306,22 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     end
     if Args.UpdateTimes
         % update ExpTime, and MIDJD + add info re coaddition
+        Filter     = getVal(ImObj(1).HeaderData','FILTER');
+        Type       = getVal(ImObj(1).HeaderData','IMTYPE');
+        
         VecExpTime = funHeader(ImObj, @getVal,'EXPTIME');
         MidJD      = funHeader(ImObj, @julday);
-        InfoCell = {'NCOADD',Nim,'Number of coadded images';...
+        InfoCell = {'IMTYPE',Type,'';...
+                    'FILTER',Filter,'';...
+                    'NCOADD',Nim,'Number of coadded images';...
                     'COADDOP',Args.StackMethod,'Coaddition method';...
                     'AVNCOADD',mean(CoaddN,'all'),'Mean number of coadded images per pixel';...
                     'MINCOADD',min(CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
+                    'MIDJD',0.5.*(max(MidJD)+min(MidJD)),'Middle time of observations';...
                     'MINJD',min(MidJD),'MIDJD of first coadded observation';...
                     'MAXJD',max(MidJD),'MIDJD of last coadded observation'};
+               
+            
         Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
 
         if Args.SumExpTime
@@ -297,6 +331,28 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         end
         Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
 
+    end
+    
+    % Update header ImagePath parameters
+    
+    if Args.UpdateImagePathKeys
+        %CCDID, CROPID, FieldID,
+        
+        CropID   = getVal(ImObj(1).HeaderData,'CROPID');
+        CCDID    = getVal(ImObj(1).HeaderData,'CCDID');
+        FieldID  = getVal(ImObj(1).HeaderData,'FieldID');
+        TimeZone = getVal(ImObj(1).HeaderData,'TIMEZONE');
+        
+        InfoCell = {'LEVEL','coadd','';...
+                    'SUBLEVEL','','';...
+                    'CROPID',CropID,'';...
+                    'CCDID',CCDID,'';...
+                    'FIELDID',FieldID,'';...
+                    'TIMEZONE',TimeZone,''};
+                    
+        %Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
+        Result.HeaderData = replaceVal(Result.HeaderData, InfoCell(:,1), InfoCell(:,2), 'Comment',InfoCell(:,3), 'AddPos','end');
+        
     end
     
     % Update Mask

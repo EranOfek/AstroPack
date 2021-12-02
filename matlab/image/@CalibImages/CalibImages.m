@@ -272,7 +272,7 @@ classdef CalibImages < Component
             
             % for each sub image
             
-            [BiasImage, IsBias, CoaddN] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
+            [BiasImage, ~, ~] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
             
             if isempty(Args.BlockSize)
                 Obj.Bias = BiasImage;
@@ -492,7 +492,7 @@ classdef CalibImages < Component
                 Result = Image;
             end
             
-            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+            [Nobj, ~] = Obj.checkObjImageSize(Image);
                         
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
@@ -548,10 +548,10 @@ classdef CalibImages < Component
                 Result = Image;
             end
            
-            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+            [Nobj, ~] = Obj.checkObjImageSize(Image);
                         
             for Iim=1:1:Nobj
-                Iobj = min(Iim, Nobj);
+                % FFU: Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
                 Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
                                                                 'Subtract',true,...
@@ -562,6 +562,44 @@ classdef CalibImages < Component
                                                                 'Method',Args.Method,...
                                                                 'MethodArgs',Args.MethodArgs);
             end
+        end
+        
+        function Result = deflatOneFilt(Obj, Image, Args)
+            % Divide multiple flats from multiple images assuming a single filter
+            %   The division is one to one or one to many
+            % Input  : - A CalibImages object.
+            %          - An AstroImage object.
+            %          * ...,key,val,...
+            %            'deflatArgs' - A cell array of additional
+            %                   arguments to pass to imProc.dark.deflat
+            %            'CreateNewObj' - Create new Image object.
+            %                   Default is false.
+            % Output : - Flat divided AstroImage.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: 
+            
+            arguments
+                Obj
+                Image AstroImage
+                Args.deflatArgs cell            = {};
+                Args.CreateNewObj logical       = false;
+            end
+            
+            % create new copy of Image object
+            if Args.CreateNewObj
+                Result = Image.copy;
+            else
+                Result = Image;
+            end
+            
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+                       
+            for Iim=1:1:Nobj
+                Iobj = min(Iim, Nobj);
+                % Note taht CreateNewObj was already done (if needed)
+                Result(Iim) = imProc.flat.deflat(Result(Iim), Obj(Iobj).Flat, 'CreateNewObj',false, Args.deflatArgs{:});
+            end
+            
         end
         
         function Result = deflat(Obj, Image, Args)
@@ -619,9 +657,9 @@ classdef CalibImages < Component
                 Result = Image;
             end
             
-            [Nobj, Nim] = Obj.checkObjImageSize(Image);
+            %[Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
-            % search for filter name
+            % search for filter name [in first image only]
             if isempty(Args.FilterList)
                 ImFilt      = getStructKey(Image, Args.FilterKey, Args.getStructKeyArgs{:});
                 FilterList = {ImFilt.(Args.FilterKey)};
@@ -665,9 +703,14 @@ classdef CalibImages < Component
             %           CalibImages object is of size=1, then this may have
             %           any size.
             %         * ...,key,val,...
-            %           'CreateNewObj' - [], false, true. Default is [].
+            %           'CreateNewObj' - false, true. Default is false.
             %           'BitDictinaryName' - Bit dictionary name.
             %                   Default is 'BitMask.Image.Default'.
+            %           'SingleFilter' - A logical indicating if the
+            %                   provided images were taken using a single filter.
+            %                   If true then will use deflatOneFilt,
+            %                   otherwaise will use deflat.
+            %                   Default is false.
             %           'MaskSaturated' - A logical indicating if to flag
             %                   saturated pixels, in the Mask image.
             %                   Default is true.
@@ -714,11 +757,12 @@ classdef CalibImages < Component
             arguments
                 Obj
                 Image AstroImage
-                Args.CreateNewObj                   = false;   % refers to the Image and not the Obj!!!
+                Args.CreateNewObj logical           = false;   % refers to the Image and not the Obj!!!
                 
                 % bit dictionary
                 Args.BitDictinaryName               = 'BitMask.Image.Default';
                 
+                Args.SingleFilter logical           = false;
                 Args.MaskSaturated logical          = true;
                 Args.maskSaturatedArgs cell         = {};
                 Args.debiasArgs cell                = {};
@@ -748,7 +792,7 @@ classdef CalibImages < Component
             % populate calibration images in a different function
                         
             for Iim=1:1:Nobj
-                Iobj = min(Iim, Nobj);
+                % FFU: Iobj = min(Iim, Nobj);
                 
                 % mark satuarted pixels
                 if Args.MaskSaturated
@@ -774,7 +818,11 @@ classdef CalibImages < Component
             % not be compatible with the flat size
             
             % divide by flat
-            Result = Obj.deflat(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
+            if Args.SingleFilter
+                Result = Obj.deflatOneFilt(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
+            else
+                Result = Obj.deflat(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
+            end
             
             % Fring correction
             if Args.CorrectFringing

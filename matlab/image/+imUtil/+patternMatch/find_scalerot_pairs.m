@@ -203,7 +203,9 @@ for Iflip=1:1:Nflip
     CCn = fftshift(CCn,2);
     
     % search for local maxuma
-    [BW,Pos,MaxIsn] = imUtil.image.local_maxima(CCn,1,InPar.Threshold,InPar.Conn);
+    %[BW,Pos,MaxIsn] = imUtil.image.local_maxima(CCn,1,InPar.Threshold,InPar.Conn);
+    % much faster:
+    [Pos] = imUtil.sources.findLocalMax(CCn, 'Variance',1, 'Threshold',InPar.Threshold, 'Conn',InPar.Conn, 'Algo','findlocal');
     
     % search for peaks which are in the upper part of the correlation map
     % this peaks have scale which is smaller than 1

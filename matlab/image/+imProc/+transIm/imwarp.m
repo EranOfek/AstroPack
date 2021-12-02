@@ -27,8 +27,11 @@ function Result = imwarp(Obj, Args)
         Args.TransWCS logical          = true;
         
         Args.CreateNewObj logical      = false;
-        Args.GetAllFields logical      = false;  % if CreateNewObj=true & GetAllFields=false then the other fields (e.g., Header) are not copied
+        Args.GetAllFields logical      = false;  % if CreateNewObj=true & GetAllFields=false then the other fields are not copied
+        Args.CopyHeader logical        = true; % copy header even if GellAllFields=false
     end
+    
+    Nobj = numel(Obj);
     
     if Args.CreateNewObj
         if Args.GetAllFields
@@ -36,6 +39,12 @@ function Result = imwarp(Obj, Args)
         else
             % create a new empty AstroImage object
             Result = AstroImage(size(Obj));
+            % copy Header
+            if Args.CopyHeader
+                for Iobj=1:1:Nobj
+                    Result(Iobj).HeaderData = Obj(Iobj).HeaderData;
+                end
+            end
         end
     else
         Result = Obj;

@@ -2,6 +2,7 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 % Stack (coadd) a cube of images using various functions
 % Input  : - A cube of images in which the image index in the 3rd dim.
 %          - * ...,key,val,...
+%              'IndexDim' - Dimension of image index. Default is 3.
 %              'StackMethod' - Stacking method. Options are:
 %                   'sum'
 %                   ['mean']
@@ -61,10 +62,11 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 
 arguments
     Cube
+    Args.IndexDim                               = 1;
     Args.StackMethod                            = 'mean';
     Args.StackArgs cell                         = {};
     Args.EmpiricalVarFun function_handle        = @var;
-    Args.EmpiricalVarFunArgs cell               = {[],3,'omitnan'};
+    Args.EmpiricalVarFunArgs cell               = {[],1,'omitnan'};
     Args.VarCube                                = [];
     Args.MedianVarCorrForEmpirical(1,1) logical = false;
     Args.DivideEmpiricalByN(1,1) logical        = false;
@@ -72,6 +74,7 @@ arguments
     Args.CalcCoaddVarEmpirical(1,1) logical     = true;
     Args.CalcCoaddVar(1,1) logical              = true;
     Args.CalcCoaddN(1,1) logical                = true;
+    Args.BitCoaddUseMex logical                 = true;
 end
 
 if nargout<4
@@ -90,29 +93,29 @@ CoaddN            = [];
 
 switch lower(Args.StackMethod)
     case 'sum'
-        Coadd = sum(Cube, 3,'omitnan');
+        Coadd = sum(Cube, Args.IndexDim, 'omitnan');
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube),Args.IndexDim);
         end
         
         if Args.CalcCoaddVar
-            CoaddVar = sum(Args.VarCube,3,'omitnan');
+            CoaddVar = sum(Args.VarCube, Args.IndexDim, 'omitnan');
         end
         
     case 'mean'
-        Coadd = mean(Cube, 3, 'omitnan');
+        Coadd = mean(Cube, Args.IndexDim, 'omitnan');
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube), Args.IndexDim);
         end
         
         if Args.CalcCoaddVar && ~isempty(Args.VarCube)
-            CoaddVar = sum(Args.VarCube, 3, 'omitnan');  %./(CoaddN.^2);
+            CoaddVar = sum(Args.VarCube, Args.IndexDim, 'omitnan');  %./(CoaddN.^2);
         end
         
     case 'median'
-        Coadd = median(Cube, 3, 'omitnan');
+        Coadd = median(Cube, Args.IndexDim, 'omitnan');
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube), Args.IndexDim);
         end
         
         if Args.CalcCoaddVar && ~isempty(Args.VarCube)
@@ -120,13 +123,13 @@ switch lower(Args.StackMethod)
             % variance of the median and the variance of the
             % mean  (Kenney and Keeping 1962, p. 211).
             CorrFactor = pi.*(2.*CoaddN+1)./(4.*CoaddN);
-            CoaddVar   = CorrFactor.*sum(Args.VarCube, 3, 'omitnan'); %./(CoaddN.^2);
+            CoaddVar   = CorrFactor.*sum(Args.VarCube, Args.IndexDim, 'omitnan'); %./(CoaddN.^2);
         end
         
     case 'var'
-        Coadd = var(Cube, [], 3, 'omitnan');
+        Coadd = var(Cube, [], Args.IndexDim, 'omitnan');
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube), Args.IndexDim);
         end
         
         if Args.CalcCoaddVar
@@ -134,9 +137,9 @@ switch lower(Args.StackMethod)
         end
         
     case 'rvar'
-        Coadd = imUtil.background.rvar(Cube, 3);
+        Coadd = imUtil.background.rvar(Cube, Args.IndexDim);
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube), Args.IndexDim);
         end
         
         if Args.CalcCoaddVar
@@ -144,33 +147,33 @@ switch lower(Args.StackMethod)
         end
         
     case 'min'
-        Coadd = min(Cube, [], 3, 'omitnan');
+        Coadd = min(Cube, [], Args.IndexDim, 'omitnan');
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube), Args.IndexDim);
         end
         
         % CoaddVar is not defined
         
     case 'max'
-        Coadd = max(Cube, [], 3, 'omitnan');
+        Coadd = max(Cube, [], Args.IndexDim, 'omitnan');
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube), Args.IndexDim);
         end
         
         % CoaddVar is not defined
         
     case 'range'
-        Coadd = range(Cube, 3);
+        Coadd = range(Cube, Args.IndexDim);
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube), Args.IndexDim);
         end
         
         % CoaddVar is not defined
         
     case 'quantile'
-        Coadd = quantile(Cube, Args.StackArgs{:}, 3);
+        Coadd = quantile(Cube, Args.StackArgs{:}, Args.IndexDim);
         if Args.CalcCoaddN
-            CoaddN  = sum(~isnan(Cube),3);
+            CoaddN  = sum(~isnan(Cube),Args.IndexDim);
         end
         
         % CoaddVar is not defined
@@ -180,33 +183,33 @@ switch lower(Args.StackMethod)
             error('Can not calc wmean without the variance cube');
         end
         InvVarCube = 1./Args.VarCube;
-        Coadd      = sum(Cube.*InvVarCube, 3, 'omitnan') ./ sum(InvVarCube, 3, 'omitnan');
+        Coadd      = sum(Cube.*InvVarCube, Args.IndexDim, 'omitnan') ./ sum(InvVarCube, Args.IndexDim, 'omitnan');
         CoaddN     = sum(~isnan(Cube),3);
         CoaddVar   = Args.VarCube; %InvVarCube; %.*CoaddN;
         
     case 'sigmaclip'
-         [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.mean_sigclip(Cube, 3, Args.StackArgs{:});
+         [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.mean_sigclip(Cube, Args.IndexDim, Args.StackArgs{:});
          % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
          % 5],'MaxIter',3}
          
          if Args.CalcCoaddVar
-            CoaddVar = sum(Args.VarCube, 3, 'omitnan'); %./(CoaddN.^2);
+            CoaddVar = sum(Args.VarCube, Args.IndexDim, 'omitnan'); %./(CoaddN.^2);
          end
         
     case 'wsigmaclip'
-        [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(Cube,Args.VarCube, 3, Args.StackArgs{:});
+        [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(Cube,Args.VarCube, Args.IndexDim, Args.StackArgs{:});
          % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
          % 5],'MaxIter',3}
          
          if Args.CalcCoaddVar
-            CoaddVar = sum(Args.VarCube, 3, 'omitnan'); %./(CoaddN.^2);
+            CoaddVar = sum(Args.VarCube, Args.IndexDim, 'omitnan'); %./(CoaddN.^2);
          end
          
     case 'bitor'
-         Coadd = tools.array.bitor_array(Cube, 3);
+         Coadd = tools.array.bitor_array(Cube, Args.IndexDim, Args.BitCoaddUseMex);
          
     case 'bitand'
-         Coadd = tools.array.bitand_array(Cube, 3);
+         Coadd = tools.array.bitand_array(Cube,Args.IndexDim , Args.BitCoaddUseMex);
          
     case 'bitnot'
         error('bitnot not implemented yet');
@@ -214,6 +217,8 @@ switch lower(Args.StackMethod)
     otherwise
         error('Unknown StackMethod option');
 end
+
+Coadd = squeeze(Coadd);
 
 if Args.CalcCoaddVarEmpirical && isempty(CoaddVarEmpirical)
     % calc empirical variance

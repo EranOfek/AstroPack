@@ -27,11 +27,17 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     arguments
         File                   % FileName+path / AstroImage
         Args.Dir                              = '';
+        Args.HDU                              = 1;
         Args.CalibImages CalibImages          = [];
         Args.Dark                             = []; % [] - do nothing
         Args.Flat                             = []; % [] - do nothing
         Args.Fringe                           = []; % [] - do nothing
         Args.BlockSize                        = [1600 1600];  % empty - full image
+        Args.OverlapXY                        = [64 64];
+        
+        Args.CCDSEC                           = []; % if provided then override BlockSize and OverlapXY
+        Args.OVERSCAN                         = [];
+        
         Args.Scale                            = 1.25;
         
         Args.AddHeadKeys                      = {'FILTER','clear';...
@@ -73,7 +79,7 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.deflatArgs cell                  = {};
         Args.CorrectFringing logical          = false;
         Args.image2subimagesArgs cell         = {};
-        Args.OverlapXY                        = [64 64];
+        
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
         Args.findMeasureSourcesArgs cell      = {};
@@ -86,6 +92,17 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.WCS                              = [];   % WCS/AstroImage with WCS - will use astrometryRefine...
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
         
+        % source finding
+        Args.Threshold                        = 5;
+        Args.ColCell cell                     = {'XPEAK','YPEAK','SN','BACK_IM','VAR_IM',...           
+                                                'X', 'Y',...
+                                                'X2','Y2','XY',...
+                                                'FLUX_APER', 'FLUXERR_APER',...
+                                                'APER_AREA','BACK_ANNULUS', 'STD_ANNULUS', ...
+                                                'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
+                                                'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
+        Args.DeletePropAfterSrcFinding        = {'Back','Var'};
+        
         Args.UpdateHeader logical             = true;   % CROPID & LEVEL
         
         Args.OrbEl                            = []; %celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
@@ -97,12 +114,25 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     end
     
     % Get Image
+    OverscanValue = [];
     if ischar(File)
         if ~isempty(Args.Dir)
             File = sprintf('%s%s%s',Args.Dir, filesep, File);
         end
         
-        AI = AstroImage(File);
+        if ~isempty(Args.CCDSEC)
+            % read into multiple images [ccdsec]
+            AI = AstroImage.readByCCDSEC(File, Args.CCDSEC, 'ReadHeader',true, 'HDU',Args.HDU);
+            
+            if ~isempty(Args.OVERSCAN)
+                OverScanRegion = AstroImage.readByCCDSEC(File, Args.OVERSCAN, 'ReadHeader',false, 'HDU',Args.HDU);
+                OverscanValue  = median(OverScanRegion,'all','omitnan');
+            end
+        else
+            % read into a single image
+            AI = AstroImage(File, 'HDU',Args.HDU);
+        end
+        
     elseif isa(File, 'AstroImage')
         AI = File;
     else
@@ -132,15 +162,20 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     % fix date
     % JD is can't be written with exponent
-    Date = AI.HeaderData.getVal('DATE-OBS');
-    Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
-    JD   = celestial.time.julday(Date);
-    StrJD = sprintf('%16.8f',JD);
-    AI.setKeyVal('JD',StrJD);
+    Nai = numel(AI);
+    for Iai=1:1:Nai
+        Date = AI(Iai).HeaderData.getVal('DATE-OBS');
+        Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
+        JD   = celestial.time.julday(Date);
+        StrJD = sprintf('%16.8f',JD);
+        AI(Iai).setKeyVal('JD',StrJD);
+    end    
+    
     
     % Note that InterpolateOverSaturated is false, because this is done
     % later on in this function
     AI = CI.processImages(AI, 'SubtractOverscan',false,...
+                              'SingleFilter',true,...
                               'InterpolateOverBadPix',true,...
                               'BitNameBadPix',Args.BitNameBadPix,...
                               'BitNameInterpolated',Args.BitNameInterpolated,...
@@ -152,19 +187,30 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
                               'deflatArgs',Args.deflatArgs,...
                               'CorrectFringing',Args.CorrectFringing,...
                               'MultiplyByGain',Args.MultiplyByGain);
-                              
-    % crop overscan
-    if ~isempty(Args.FinalCrop)
-        AI.crop(Args.FinalCrop, 'CreateNewObj',false);
+                   
+    % specail treatment of overscan
+    if ~isempty(OverscanValue)
+        for Iai=1:1:Nai
+            AI.Image = AI.Image - OverscanValue;
+        end
     end
-    
+        
+    % crop overscan
+    if ~isempty(Args.FinalCrop) && isempty(Args.CCDSEC)
+        % do this only for full images
+        AI.crop(Args.FinalCrop, 'UpdateWCS',false, 'CreateNewObj',false);
+    end
     
     % get JD from header
     JD = julday(AI.HeaderData);
     
     % Sub Images - divide the image to multiple sub images
     % Set UpdatCat to false, since in this stage there is no catalog
-    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI, Args.BlockSize, 'UpdateCat',false, Args.image2subimagesArgs{:}, 'OverlapXY',Args.OverlapXY);
+    [SI, InfoCCDSEC] = imProc.image.image2subimages(AI, Args.BlockSize, 'UpdateCat',false,...
+                                                                        Args.image2subimagesArgs{:},...
+                                                                        'OverlapXY',Args.OverlapXY,...
+                                                                        'UpdateWCS',false,...
+                                                                        'UpdatePSF',false);
     clear AI;
     
     
@@ -176,6 +222,8 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     %SI.cast('double');
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
                                                'RemoveBadSources',true,...
+                                               'Threshold',Args.Threshold,...
+                                               'ColCell',Args.ColCell,...
                                                'ZP',Args.ZP,...
                                                'CreateNewObj',false);
     %SI.cast('single');

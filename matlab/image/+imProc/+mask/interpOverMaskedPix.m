@@ -48,13 +48,9 @@ function Result = interpOverMaskedPix(Obj, Args)
         Result(Iobj).Image(Ind) = NaN;
         % interpolate over staurated pixels
 
-        try
         Result(Iobj) = imProc.image.interpOverNan(Result(Iobj),...
                                                  Args.interpOverNanArgs{:},...
                                                  'CreateNewObj',false);
-        catch
-            'a'
-        end
                                              
         % set Interpolate bit mask to on
         Result(Iobj).MaskData = maskSet(Result(Iobj).MaskData, Ind, Args.BitNameInterpolated, 1);

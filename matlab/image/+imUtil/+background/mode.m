@@ -49,7 +49,10 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
         if Log
             % remove negative numbers
             %Fnneg = Array>0;
-            Array = log10(Array(Array>0));
+            % Array = log10(Array(Array>0));
+            % faster to use log
+            %Array = single(Array);
+            Array = log(Array(Array>0));
         else
             Array = Array(:);
         end
@@ -68,7 +71,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
             % this happens when there is only a single value
             if Max==Min
                 if Log
-                    Mode = 10.^Max;
+                    Mode = exp(Max);
                 else
                     Mode = Max;
                 end
@@ -95,27 +98,35 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
             Mode = Edges(MaxI) + 0.5.*BinSize;
 
             if Log
-                Mode = 10.^Mode;
+                Mode = exp(Mode);
             end
 
             if nargout>1
                 CumN = cumsum(Nhist(:));
                 CumN = CumN + (1:1:numel(CumN)).'.*10000.*eps;
-                % interp1q is faster, but doesnt check validity
-                IqrVal = interp1q(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
+                
                 %IqrVal = interp1(CumN, Edges(1:end-1)+0.5.*BinSize, [0.25 0.75].*CumN(end), 'linear').';
                 %IqrVal = interp1(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end),'linear');
                 %IqrVal1 = interp1q(CumN,10.^Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
-
+                
+                % interp1q is faster, but doesnt check validity
+                IqrVal = interp1q(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
+                
+                %Ntot = CumN(end);
+                %I25 = find(CumN>(0.25.*Ntot), 1, 'first');
+                %I75 = find(CumN>(0.75.*Ntot), 1, 'first');
+                %IqrVal = [Edges(I25); Edges(I75)] + 0.5.*BinSize;
+                
+                
                 Factor = 0.7413;  %  = 1./norminv(0.75,0,1)
 
                 if OnlyLower
-                    IqrVal(2) = log10(Mode);
+                    IqrVal(2) = log(Mode);
                     Factor    = Factor.*2;
                 end
 
                 if Log
-                    Variance = (range(10.^IqrVal).*Factor).^2;
+                    Variance = (range(exp(IqrVal)).*Factor).^2;
                 else
                     Variance = (range(IqrVal).*Factor).^2;
                 end

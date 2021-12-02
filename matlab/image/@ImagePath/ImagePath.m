@@ -22,7 +22,7 @@ classdef ImagePath < Component
         CCDID           = '';           % CCD ID
         CropID          = '';           % Used with sub-images
         Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe
-        Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, ref.
+        Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, merged, ref.
         SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
@@ -322,15 +322,30 @@ classdef ImagePath < Component
 
         end
         
-        function Result = genFull(Obj)
+        function Result = genFull(Obj, Args)
             % Generate a full file name + path from a populated ImagePath
             % Input  : - A populated ImagePath object.
+            %         * ...,key,val,...
+            %           'PathLevel' - Level value for the path only.
+            %                   If empty do nothing. Use this to modify the
+            %                   path only. Default is [].
             % Output : - A full path + file name.
             % Author : Eran Ofek (Nov 2021)
             % Example: IP.genFull
+            
+            arguments
+                Obj
+                Args.PathLevel  = [];  % [] - don't touch 
+            end
         
             File = Obj.genFile;
+            
+            Level = Obj.Level;
+            if ~isempty(Args.PathLevel)
+                Obj.Level = Args.PathLevel;
+            end
             Path = Obj.genPath;
+            Obj.Level = Level;  % return lebel to original value
             
             Result = sprintf('%s%s',Path,File);
             
@@ -378,7 +393,7 @@ classdef ImagePath < Component
               
             
             Obj.ProjName        = Header.getVal('INSTRUME'); %Obj.DictKeyNames.PROJNAME);
-            Obj.Time            = Header.getVal('JD');
+            Obj.Time            = julday(Header);  %.getVal('JD');
             Obj.TimeZone        = Header.getVal('TIMEZONE');
             Obj.Filter          = Header.getVal('FILTER');
             Obj.FieldID         = Header.getVal('FIELDID');
@@ -551,7 +566,7 @@ classdef ImagePath < Component
             % Verify Level
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
             switch Obj.Level
-                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'calib'}
+                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'merged', 'calib'}
                     % Ok
                 otherwise
                     error('Unknown Level option: %s', Obj.Level);

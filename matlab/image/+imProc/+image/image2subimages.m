@@ -43,6 +43,8 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
     %            'AddX' - A cell array of additional X column names to
     %                   shift. Default is {}.
     %            'AddY' - Like 'AddX', but for the Y-axis. Default is {}.
+    %            'UpdateWCS' - Update WCS. Default is true.
+    %            'UpdatePSF' - Update PSF. Default is true.
     % Output : - An AstroImage of sub images.
     %          - A structure with CCDSEC info, including:
     %            EdgesCCDSEC
@@ -74,6 +76,9 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         Args.ColY                          = AstroCatalog.DefNamesY;  %{'Y','YWIN_IMAGE','YWIN','YPEAK','Y_PEAK'};
         Args.AddX                          = {};  % additional X-coo to update
         Args.AddY                          = {};
+        
+        Args.UpdateWCS logical             = true;
+        Args.UpdatePSF logical             = true;
     end
 
     % find the correct partition
@@ -96,6 +101,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                                'OverlapXY',Args.OverlapXY);
                 Nsub   = numel(Sub);
                 Result = AstroImage([1,Nsub]);
+                Args.CCDSEC = EdgesCCDSEC;  
                 if nargout>1
                     InfoCCDSEC.EdgesCCDSEC     = EdgesCCDSEC;
                     InfoCCDSEC.ListCenters     = ListCenters;
@@ -127,22 +133,10 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
 
     if ~isnan(Nsub)
         % set the Mask data for edge and overlapping pixels
-        
-
         % update the header
-        KeyNames = {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC','ORIGUSEC','UNIQSEC'};
-        KeyVals  = cell(size(KeyNames));
-        for Isub=1:1:Nsub
-            % 
-            KeyVals{1} = size(Result(Isub).ImageData.Image,2);  % NAXIS1
-            KeyVals{2} = size(Result(Isub).ImageData.Image,1);  % NAXI2
-            KeyVals{3} = imUtil.ccdsec.ccdsec2str([1, KeyVals{1}, 1, KeyVals{2}]); % CCDSEC of current image
-            KeyVals{4} = imUtil.ccdsec.ccdsec2str(EdgesCCDSEC(Isub,:));            % ORIGSEC : SEC of subimage in full image
-            KeyVals{5} = imUtil.ccdsec.ccdsec2str(NoOverlapCCDSEC(Isub,:));        % ORIGUSEC : SEC of non-overlapping sub image in full image
-            KeyVals{6} = imUtil.ccdsec.ccdsec2str(NewNoOverlap(Isub,:));           % UNIQSEC : SEC of non-overlapping sub image in new sub image
-
-            Result(Isub).HeaderData.replaceVal(KeyNames, KeyVals);
-        end
+        Result = imProc.transIm.updateHeaderCCDSEC(Result, 'EdgesCCDSEC',EdgesCCDSEC,...
+                                                           'NoOverlapCCDSEC',NoOverlapCCDSEC,...
+                                                           'NewNoOverlap',NewNoOverlap);
 
         % update Mask
         if Args.UpdateMask
@@ -169,10 +163,14 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         end
 
         % update the PSF
-        warning('Update PSF is not implenmented');
+        if Args.UpdatePSF
+            warning('Update PSF is not implenmented');
+        end
 
         % update the WCS
-        warning('Update WCS is not implenmented');
+        if Args.UpdateWCS
+            warning('Update WCS is not implenmented');
+        end
 
         % update the Catalog
         if Args.UpdateCat

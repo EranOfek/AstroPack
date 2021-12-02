@@ -177,7 +177,11 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
     if Args.OnlyForced
         Pos = zeros(0,4);
     else
-        [~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
+        %[~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
+        % much faster:
+        [Pos] = imUtil.sources.findLocalMax(SN, 'Variance',1, 'Threshold',Args.Threshold,'Conn',Args.Conn, 'Algo','findlocal');
+        
+        % Pos contains:  [X,Y,SN,index]
     end
     % Pos contains [X,Y,SN,IndexTemplate]
 

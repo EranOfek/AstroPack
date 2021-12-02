@@ -1,4 +1,4 @@
-function [Mean,Var,FlagGood,GoodCounter]=wmean_sigclip(Data,Var,Dim,varargin)
+function [Mean,Var,FlagGood,GoodCounter]=wmean_sigclip(Data,Var,Dim,Args)
 % Calculate the sigma-clipped weighted mean of a dataset
 % Package: imUtil.image
 % Description: Calculate the sigma-clipped weighted mean of a dataset with
@@ -45,27 +45,27 @@ function [Mean,Var,FlagGood,GoodCounter]=wmean_sigclip(Data,Var,Dim,varargin)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: Data = randn(10,10,100);
 %          Data(4,4,18)=100; Data(1,1,1)=-14;  % some outliers
-%          [Mean,VarFlagGood,NC]=imUtil.image.mean_sigclip(Data,3);
+%          [Mean,VarFlagGood,NC]=imUtil.image.wmean_sigclip(Data,3);
 %          [i,j,k]=ind2sub(size(Data),find(~FlagGood))
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if nargin<3
+arguments
+    Data
+    Var
+    Dim = [];
+    Args.MeanFun             = @tools.math.stat.nanmean;
+    Args.StdFun              = @imUtil.background.rstd;
+    Args.Nsigma              = [5 5];
+    Args.MaxIter             = 3;
+end
+
+if isempty(Dim)
     Dim = ndims(Data);
 end
 
-InPar = inputParser;
 
-addOptional(InPar,'MeanFun',@tools.math.stat.nanmean);  
-addOptional(InPar,'StdFun','rstd');   % std | rstd  
-addOptional(InPar,'Nsigma',[5 5]);
-addOptional(InPar,'MaxIter',3);
-
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-[~,~,FlagGood]=imUtil.image.mean_sigclip(Data,Dim);
+[~,~,FlagGood]=imUtil.image.mean_sigclip(Data,Dim, 'MeanFun',Args.MeanFun, 'StdFun',Args.StdFun, 'Nsigma',Args.Nsigma, 'MaxIter',Args.MaxIter);
 Data(~FlagGood) = NaN;
 
 % if all variances are zero, than set weight to 1.

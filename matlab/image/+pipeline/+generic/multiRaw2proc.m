@@ -10,10 +10,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.Dark                             = []; % [] - do nothing
         Args.Flat                             = []; % [] - do nothing
         Args.Fringe                           = []; % [] - do nothing
-        Args.BlockSize                        = [1600 1600];  % empty - full image
+        Args.SubImageSizeXY                   = [1600 1600];  % empty - full image
+        Args.OverlapXY                        = [64 64];
         
         Args.AstroImageReadArgs cell          = {};
-        
+        Args.ImageSizeXY                      = []; % if empty, get size from first image header
         
         Args.SameField logical                = true;
         Args.CatName                          = 'GAIAEDR3';
@@ -40,30 +41,58 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     end
     
+    
+    
+    
     if isa(FilesList, 'AstroImage')
+        % FileList is an AstroImage
         AI = FilesList;
+%         [SizeY, SizeX] = AI(1).sizeImage;
     else
+        % FileList is a cell array of images
+%         OutN = FITS.get_keys(FilesList{1}, {'NAXIS1','NAXIS2'});
+%         SizeX = str2double(OutN{1});
+%         SizeY = str2double(OutN{2});
+%     
+%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
+%                                                                                                'OverlapXY',[64 64]);
+%                                                                                          
+%         
+%         
+%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',Args.SubImageSizeXY,...
+%                                                                                                'OverlapXY',Args.OverlapXY);
+%                                                                                          
+%         
+    
+        %[SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy] = partition_subimage(
+        
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:});
     end
         
     Nim = numel(AI);
     
+    %Nsub = 24;
+    %AllSI = AstroImage([Nim, Nsub]);
     for Iim=1:1:Nim
-        Iim
+        %Iim
         
         if Iim==1 || ~Args.SameField
             % need to generate AstrometricCat for field
             %tic;
-            [SI, AstrometricCat, ResultSingle(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            % ResultSingle(Iim) is not needed
+            % AllSI(Iim,:),
+            [SI, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
+                                                                                      'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                                       Args.singleRaw2procArgs{:});
             %toc
             
         else
             %tic;
-            [SI, ~, ResultSingle(Iim)] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [SI, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
+                                                                         'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                          Args.singleRaw2procArgs{:});
             %toc
             
@@ -78,7 +107,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         AllSI(Iim,:) = SI;
         
         % clean data that will not be used later on
-        AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
+        % AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
 
         % add keywords to Header
         if Args.UpdateCounter
@@ -165,23 +194,22 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     % save products
-    Args.SaveProcIm     = true;
-    Args.SaveProcMask   = true;
-    Args.SaveProcCat    = true;
-    Args.SaveMatchCat   = true;
-    Args.SaveMatchSrc   = true;
-    Args.SaveCoaddIm    = true;
-    Args.SaveCoaddMask  = true;
-    Args.SaveCoaddCat   = true;
+    Args.SaveProcIm     = false;
+    Args.SaveProcMask   = false;
+    Args.SaveProcCat    = false;
+    Args.SaveMatchCat   = false;
+    Args.SaveMatchSrc   = false;
+    Args.SaveCoaddIm    = false;
+    Args.SaveCoaddMask  = false;
+    Args.SaveCoaddCat   = false;
     
     
-    Nim = numel(AllSI);
-    IP  = ImagePath;
-    if Args.SaveProcIm        
+    IP   = ImagePath;
+    if Args.SaveProcIm   
+        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Image';
-            
             % FFU: whos is responsible for creating the dir? ImagePath?
             % FFU: the date is today - BUG!!
             AllSI(Iim).write1(IP.genFull, 'Image', 'FileType','fits',...
@@ -194,6 +222,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveProcMask
+        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Mask';
@@ -208,6 +237,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveProcCat
+        Nim = numel(AllSI);
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Cat';
@@ -221,6 +251,20 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     if Args.SaveMatchCat
+        % save MergedCat
+        Nim = numel(MergedCat);
+        for Iim=1:1:Nim
+            % use the Coadd header 
+            IP.readFromHeader(Coadd(Iim));       %MergedCat(Iim));  
+            IP.Product = 'Cat';
+            IP.Level   = 'merged';
+            IP.Counter = 0;
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
         
     end
     
@@ -229,15 +273,49 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveCoaddIm
-        
+        Nim = numel(Coadd);
+        for Iim=1:1:Nim
+            IP.readFromHeader(Coadd(Iim));  
+            IP.Product = 'Image';
+            IP.Counter = 0;
+            % Path need to be like for an individual image
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Image', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
+       
     end
     
     if Args.SaveCoaddMask
-        
+        Nim = numel(Coadd);
+        for Iim=1:1:Nim
+            IP.readFromHeader(Coadd(Iim));  
+            IP.Product = 'Mask';
+            IP.Counter = 0;
+            % Path need to be like for an individual image
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Mask', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+        end
     end
     
     if Args.SaveCoaddCat
-        
+        Nim = numel(Coadd);
+        for Iim=1:1:Nim
+            IP.readFromHeader(Coadd(Iim));  
+            IP.Product = 'Cat';
+            IP.Counter = 0;
+            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
+                                                   'WriteHeader',true,...
+                                                   'Append',false,...
+                                                   'OverWrite',true,...
+                                                   'WriteTime',false);
+                                               
+        end
     end
     
     

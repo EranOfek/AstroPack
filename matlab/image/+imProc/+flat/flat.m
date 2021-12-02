@@ -24,7 +24,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %                   Default is 'sigmaclip'.
     %            'StackArgs' - A cell array of arguments to pass to the
     %                   method function. Default is
-    %                   {'MeanFun',@tools.math.stat.nanmedian, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',1}.
+    %                   {'MeanFun',@tools.math.stat.nanmedian, 'StdFun',@std, 'Nsigma',[5 5], 'MaxIter',1}.
     %            'EmpiricalVarFun' - Default is @var.
     %            'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
     %            'DivideEmpiricalByN' - A logical indicating if to divide
@@ -83,14 +83,14 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.IsFlatArgs cell            = {};
 
         Args.PreNorm                    = @median;
-        Args.PreNormArgs cell           = {[1 2],'omitnan'};
+        Args.PreNormArgs cell           = {[2 3],'omitnan'};
         Args.PostNorm                   = @median;
-        Args.PostNormArgs cell          = {[1 2],'omitnan'};
+        Args.PostNormArgs cell          = {[2 3],'omitnan'};
 
         Args.StackMethod                = 'sigmaclip';   
-        Args.StackArgs                  = {'MeanFun',@tools.math.stat.nanmedian, 'StdFun','std', 'Nsigma',[5 5], 'MaxIter',2};
+        Args.StackArgs                  = {'MeanFun',@tools.math.stat.nanmedian, 'StdFun',@std, 'Nsigma',[5 5], 'MaxIter',2};
         Args.EmpiricalVarFun            = @var;
-        Args.EmpiricalVarFunArgs        = {[],3,'omitnan'};
+        Args.EmpiricalVarFunArgs        = {[],1,'omitnan'};
         Args.DivideEmpiricalByN         = false;
 
         Args.FilterKey                  = 'FILTER';
