@@ -92,7 +92,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     if (mxGetNumberOfElements(prhs[0]) != mxGetNumberOfElements(prhs[1])) {
         mexErrMsgIdAndTxt("madd:InvalidInput", "Inputs have to be the same size!");
     }
-    
+
     // Grabbing pointers to the actual data for both of our input matrices.
     mxDouble* input1 = mxGetDoubles(prhs[0]);
     mxDouble* input2 = mxGetDoubles(prhs[1]);
@@ -113,7 +113,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     mxArray* n[1];
     mexCallMATLAB(1, n, 0, NULL, "maxNumCompThreads");
     int nthreads = (int) *mxGetDoubles(n[0]);
-    
+
     // A terrible way to, "logically," figure out how many data points will
     // be accessed in each thread.  Figuring out proper multi-threaded
     // algorithms is the hardest part, right?
@@ -124,8 +124,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     // each time we create and begin a new thread.  Thankfully parameter
     // and argument are synonyms for eachother in English language
     // programming; though this naming is still mildly confusing.
-    struct parameters args[nthreads];
-    
+    struct parameters args[256];  // @Chen nthreads];
+
     // This is where we set up how things are divided up into our multiple
     // threads.  Each element of the args array is a parameters struct that
     // contains pointers to the beginning of the data each thread will use.
@@ -160,11 +160,11 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     // again so that your final output makes sense for the problem at hand.
     // And creating a temp array like this makes it hard to properly
     // destroy the array after you're finished.
-    
+
     // This creates an array of HANDLEs (weird generic pointers) that will
     // help us keep track of our threads.  This is a mandatory input to the
     // functions that are used to wait for and properly terminate threads.
-    HANDLE threads[nthreads];
+    HANDLE threads[256];  // @Chen nthreads];
     
     // This loop creates and begins each thread.  I don't really understand
     // all of the input parameters for _beginthreadex, but the most 

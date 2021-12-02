@@ -21,16 +21,10 @@
 #include "threadpool.h"
 #include <process.h>
 
-#ifndef _WIN32
-#define INFINITE 10000000
-#endif
-
-
 // Defining previously declared globals:
 struct Queue* QueuePtr = NULL;
 struct ThreadPool* ThreadPool = NULL;
 
-//
 void AddThreadPoolJob(void (*jobfunc)(void*), void* jobargs)
 {
     struct Job* newjob = (struct Job*) mxCalloc(1, sizeof(struct Job));
@@ -46,16 +40,17 @@ void AddThreadPoolJob(void (*jobfunc)(void*), void* jobargs)
         InitThreadPool();
     }
     
-    ThreadPool -> ThreadPoolMutex->lock();
+    WaitForSingleObject(ThreadPool -> ThreadPoolMutex, INFINITE);
     ThreadPool -> jobsremaining++;
     ResetEvent(ThreadPool -> JobFinished);
     ReleaseMutex(ThreadPool -> ThreadPoolMutex);
     
-    ThreadPool->QueueMutex->lock();    
-    Push(jobnode);    
-    ThreadPool -> QueueMutex->unlock();
+    WaitForSingleObject(ThreadPool -> QueueMutex, INFINITE);
+    
+    Push(jobnode);
+    
+    ReleaseMutex(ThreadPool -> QueueMutex);
 }
-
 
 struct ThreadPool* InitThreadPool()
 {
@@ -64,21 +59,21 @@ struct ThreadPool* InitThreadPool()
     
     // Creates mutex, doesn't need to take immediate ownership of it since
     // we need to do that anyway before pushing anything onto the queue.
-    ThreadPool -> QueueMutex = new Mutex();
+    ThreadPool -> QueueMutex = CreateMutex(NULL, false, NULL);
     if (ThreadPool -> QueueMutex == NULL) {
         mexErrMsgIdAndTxt("AddThreadPoolJob:MutexError", "Error creating mutex!");
     }
     
     // Auto-reset event, initial state is non-signaled since the queue
     // doesn't have any jobs yet--hasn't even been created!
-    ThreadPool -> JobReadyOrCleanup = new EventSignal();  //CreateEvent(NULL, false, false, NULL);
+    ThreadPool -> JobReadyOrCleanup = CreateEvent(NULL, false, false, NULL);
     if (ThreadPool -> JobReadyOrCleanup == NULL) {
         mexErrMsgIdAndTxt("AddThreadPoolJob:EventError", "Error creating event!");
     }
     
     // Auto-reset event, initial state is non-signaled since no jobs have
     // been created yet, let alone finished.
-    ThreadPool -> JobFinished = new EventSignal();  //CreateEvent(NULL, false, false, NULL);
+    ThreadPool -> JobFinished = CreateEvent(NULL, false, false, NULL);
     if (ThreadPool -> JobFinished == NULL) {
         mexErrMsgIdAndTxt("AddThreadPoolJob:EventError", "Error creating event!");
     }
@@ -86,7 +81,7 @@ struct ThreadPool* InitThreadPool()
     // Creates mutex and immediately takes ownership of it so that we can
     // make sure the threads don't start working until everything is
     // properly initalized.
-    ThreadPool -> ThreadPoolMutex = new Mutex();
+    ThreadPool -> ThreadPoolMutex = CreateMutex(NULL, true, NULL);
     if (ThreadPool -> ThreadPoolMutex == NULL) {
         mexErrMsgIdAndTxt("AddThreadPoolJob:MutexError", "Error creating mutex!");
     }
@@ -101,22 +96,20 @@ struct ThreadPool* InitThreadPool()
     int nthreads = ((int) *mxGetDoubles(n[0]));
     ThreadPool -> nthreads = nthreads;
     
-    ThreadPool -> threads = (HANDLE*) mxCalloc(nthreads, sizeof(Thread*));
+    ThreadPool -> threads = (HANDLE*) mxCalloc(nthreads, sizeof(HANDLE));
     mexMakeMemoryPersistent(ThreadPool -> threads);
     
     for (int i = 0; i < nthreads; i++) {
-		ThreadPool -> threads[i] = new Thread();
-        ThreadPool -> threads[i].start();
+        ThreadPool -> threads[i] = (HANDLE) _beginthreadex(NULL, 0, &ThreadFunction, NULL, 0, NULL);
         if (ThreadPool -> threads[i] == 0) {
             mexErrMsgIdAndTxt("AddThreadPoolJob:ThreadError", "Error creating thread!");
         }
     }
-    ThreadPool -> ThreadPoolMutex->unlock();
+    ReleaseMutex(ThreadPool -> ThreadPoolMutex);
     mexAtExit(CleanupMemory);
     
     return ThreadPool;
 }
-
 
 int GetNumThreads()
 {
@@ -126,13 +119,11 @@ int GetNumThreads()
     return ThreadPool -> nthreads;
 }
 
-
 // SetThreadPool(prhs[n]);
 void SetThreadPool(const mxArray* input)
 {
     ThreadPool = (struct ThreadPool*) *mxGetUint64s(input);
 }
-
 
 // plhs[n] = GetThreadPool();
 mxArray* GetThreadPool()
@@ -147,10 +138,6 @@ mxArray* GetThreadPool()
     return output;
 }
 
-//===========================================================================
-//
-//===========================================================================
-//
 void Push(struct Queue* newnode)
 {
     if (QueuePtr == NULL) {
@@ -173,8 +160,6 @@ void Push(struct Queue* newnode)
     newnode -> back = 0;
 }
 
-
-//
 void* Pop()
 {
     if (QueuePtr == NULL) {
@@ -202,8 +187,6 @@ void* Pop()
     return result;
 }
 
-
-//
 void FreeQueue()
 {
     while (QueuePtr != NULL) {
@@ -214,8 +197,6 @@ void FreeQueue()
     }
 }
 
-
-//
 void FreeThreadPool()
 {
     if (ThreadPool != NULL) {
@@ -224,23 +205,22 @@ void FreeThreadPool()
     }
 }
 
-
 void CleanupMemory()
 {
-    ThreadPool ->ThreadPoolMutex->lock();
+    WaitForSingleObject(ThreadPool -> ThreadPoolMutex, INFINITE);
     ThreadPool -> isalive = false;
     SetEvent(ThreadPool -> JobReadyOrCleanup);
-    delete ThreadPool -> ThreadPoolMutex;
+    ReleaseMutex(ThreadPool -> ThreadPoolMutex);
     
     WaitForMultipleObjects(ThreadPool -> nthreads, ThreadPool -> threads, TRUE, INFINITE);
     for (int i = 0; i < ThreadPool -> nthreads; i++) {
         CloseHandle(ThreadPool -> threads[i]);
     }
     
-    delete ThreadPool ->JobFinished;
-    delete ThreadPool ->JobReadyOrCleanup;
-    delete ThreadPool ->QueueMutex;
-    delete ThreadPool ->ThreadPoolMutex;
+    CloseHandle(ThreadPool -> JobFinished);
+    CloseHandle(ThreadPool -> JobReadyOrCleanup);
+    CloseHandle(ThreadPool -> QueueMutex);
+    CloseHandle(ThreadPool -> ThreadPoolMutex);
     
     FreeQueue();
     FreeThreadPool();
@@ -255,18 +235,17 @@ void SynchronizeThreads()
     while (true) {
         // This is signaled every time a thread finishes a job, allowing
         // us to see how many jobs remain to be completed.
-        ThreadPool -> JobFinished->waitFor(INFINITE);
+        WaitForSingleObject(ThreadPool -> JobFinished, INFINITE);
         
-        ThreadPool -> ThreadPoolMutex->unlock();
+        WaitForSingleObject(ThreadPool -> ThreadPoolMutex, INFINITE);
         if (ThreadPool -> jobsremaining == 0) {
             break;
         }
-        delete ThreadPool -> ThreadPoolMutex;
+        ReleaseMutex(ThreadPool -> ThreadPoolMutex);
     }
-    delete ThreadPool -> ThreadPoolMutex;
+    ReleaseMutex(ThreadPool -> ThreadPoolMutex);
 }
 
-//
 unsigned __stdcall ThreadFunction(void* empty)
 {
     while (true)
@@ -274,20 +253,20 @@ unsigned __stdcall ThreadFunction(void* empty)
         // JobReadyOrCleanup is signaled when the queue isn't empty 
         // after popping a job off (or pushing one on), AND in order to 
         // clean up memory--otherwise all threads will just sit here.
-        ThreadPool -> JobReadyOrCleanup->waitFor(INFINITE);
+        WaitForSingleObject(ThreadPool -> JobReadyOrCleanup, INFINITE);
         
         WaitForSingleObject(ThreadPool -> ThreadPoolMutex, INFINITE);
         if (!(ThreadPool -> isalive)) {
             break;
         }
-        ThreadPool -> ThreadPoolMutex->unlock();
+        ReleaseMutex(ThreadPool -> ThreadPoolMutex);
         
         WaitForSingleObject(ThreadPool -> QueueMutex, INFINITE);
         struct Job* job;
         if (QueuePtr != NULL) {
             job = Pop();
         }
-        ThreadPool -> QueueMutex->unlock();
+        ReleaseMutex(ThreadPool -> QueueMutex);
         
         if (job != NULL) {
             // void jobfunc(void* jobargs) { ... }
@@ -298,7 +277,7 @@ unsigned __stdcall ThreadFunction(void* empty)
             WaitForSingleObject(ThreadPool -> ThreadPoolMutex, INFINITE);
             ThreadPool -> jobsremaining--;
             SetEvent(ThreadPool -> JobFinished);
-            ThreadPool -> ThreadPoolMutex->unlock();
+            ReleaseMutex(ThreadPool -> ThreadPoolMutex);
         }
     }
     // Since CleanupMemory only sets this event to signalled once, meaning
@@ -307,7 +286,7 @@ unsigned __stdcall ThreadFunction(void* empty)
     // time.
     SetEvent(ThreadPool -> JobReadyOrCleanup);
     
-    ThreadPool -> ThreadPoolMutex->unlock();
+    ReleaseMutex(ThreadPool -> ThreadPoolMutex);
     
     _endthreadex(0);
     return 0;

@@ -51,7 +51,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     
     int offset = floor((mxDouble) numel / nthreads);
         
-    struct parameters args[nthreads];
+    struct parameters args[256];  // @Chen nthreads];
     SynchronizeThreads();
     for (int i = 0; i < nthreads; i++) {
         args[i].input1 = &input1[i * offset];
