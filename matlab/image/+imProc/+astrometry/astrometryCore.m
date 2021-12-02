@@ -155,6 +155,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefRangePlx                  = [-Inf 50];
         
         Args.EpochOut                     = [];
+        Args.argsGetAstrometricCat cell   = {};
         Args.argsProperMotion cell        = {};
         Args.argsFilterForAstrometry cell = {};
         Args.argsFitPattern cell          = {};
@@ -278,7 +279,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                                     'RangeMag',Args.RefRangeMag,...
                                                                                     'ColNamePlx',Args.RefColNamePlx,...
                                                                                     'RangePlx',Args.RefRangePlx,...
-                                                                                    'OutRADecUnits','rad');
+                                                                                    'OutRADecUnits','rad',...
+                                                                                    Args.argsGetAstrometricCat{:});
           
     % RA/Dec in [deg]
     RAdeg  = RA.*RAD;

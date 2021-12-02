@@ -76,6 +76,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Args.OutRADecUnits             = 'rad';
 
         Args.RemoveNeighboors(1,1) logical      = true;
+        Args.RemoveNeighboorsRadius             =10;
         Args.flagSrcWithNeighborsArgs cell      = {};
            
     end
@@ -135,7 +136,8 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
             % sort AstrometricCat
             Result = sortrows(Result, 'Dec');
             
-            UseFlag = ~imProc.match.flagSrcWithNeighbors(Result, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere');
+            UseFlag = ~imProc.match.flagSrcWithNeighbors(Result, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere',...
+                'Radius',Args.RemoveNeighboorsRadius);
             Result  = selectRows(Result, UseFlag);
         end
        
