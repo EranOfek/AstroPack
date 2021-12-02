@@ -27,12 +27,16 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     arguments
         File                   % FileName+path / AstroImage
         Args.Dir                              = '';
+        Args.HDU                              = 1;
         Args.CalibImages CalibImages          = [];
         Args.Dark                             = []; % [] - do nothing
         Args.Flat                             = []; % [] - do nothing
         Args.Fringe                           = []; % [] - do nothing
         Args.BlockSize                        = [1600 1600];  % empty - full image
         Args.OverlapXY                        = [64 64];
+        
+        Args.CCDSEC                           = []; % if provided then override BlockSize and OverlapXY
+        Args.OVERSCAN                         = [];
         
         Args.Scale                            = 1.25;
         
@@ -110,12 +114,25 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     end
     
     % Get Image
+    OverscanValue = [];
     if ischar(File)
         if ~isempty(Args.Dir)
             File = sprintf('%s%s%s',Args.Dir, filesep, File);
         end
         
-        AI = AstroImage(File);
+        if ~isempty(Args.CCDSEC)
+            % read into multiple images [ccdsec]
+            AI = AstroImage.readByCCDSEC(File, Args.CCDSEC, 'ReadHeader',true, 'HDU',Args.HDU);
+            
+            if ~isempty(Args.OVERSCAN)
+                OverScanRegion = AstroImage.readByCCDSEC(File, Args.OVERSCAN, 'ReadHeader',false, 'HDU',Args.HDU);
+                OverscanValue  = median(OverScanRegion,'all','omitnan');
+            end
+        else
+            % read into a single image
+            AI = AstroImage(File, 'HDU',Args.HDU);
+        end
+        
     elseif isa(File, 'AstroImage')
         AI = File;
     else
@@ -145,15 +162,20 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     % fix date
     % JD is can't be written with exponent
-    Date = AI.HeaderData.getVal('DATE-OBS');
-    Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
-    JD   = celestial.time.julday(Date);
-    StrJD = sprintf('%16.8f',JD);
-    AI.setKeyVal('JD',StrJD);
+    Nai = numel(AI);
+    for Iai=1:1:Nai
+        Date = AI(Iai).HeaderData.getVal('DATE-OBS');
+        Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
+        JD   = celestial.time.julday(Date);
+        StrJD = sprintf('%16.8f',JD);
+        AI(Iai).setKeyVal('JD',StrJD);
+    end    
+    
     
     % Note that InterpolateOverSaturated is false, because this is done
     % later on in this function
     AI = CI.processImages(AI, 'SubtractOverscan',false,...
+                              'SingleFilter',true,...
                               'InterpolateOverBadPix',true,...
                               'BitNameBadPix',Args.BitNameBadPix,...
                               'BitNameInterpolated',Args.BitNameInterpolated,...
@@ -165,12 +187,19 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
                               'deflatArgs',Args.deflatArgs,...
                               'CorrectFringing',Args.CorrectFringing,...
                               'MultiplyByGain',Args.MultiplyByGain);
-                              
+                   
+    % specail treatment of overscan
+    if ~isempty(OverscanValue)
+        for Iai=1:1:Nai
+            AI.Image = AI.Image - OverscanValue;
+        end
+    end
+        
     % crop overscan
-    if ~isempty(Args.FinalCrop)
+    if ~isempty(Args.FinalCrop) && isempty(Args.CCDSEC)
+        % do this only for full images
         AI.crop(Args.FinalCrop, 'UpdateWCS',false, 'CreateNewObj',false);
     end
-    
     
     % get JD from header
     JD = julday(AI.HeaderData);
