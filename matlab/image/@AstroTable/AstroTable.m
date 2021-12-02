@@ -827,6 +827,7 @@ classdef AstroTable < Component
             %            'SelectRows' - A vector of indices or logicals of
             %                   rows to select. If NaN, select all rows.
             %                   Default is NaN.
+            %                   This is not using the selectRows function.
             % Output : - A matrix or a table containing the selected
             %            columns.
             %          - A cell array of units corresponding to the
