@@ -325,6 +325,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             error('Unknown first input argument type - must be AstroImage or AstroCatalog');
         end
         
+        % FFU: get X/Y column indices once
+        
         % can we add here CreateNewObj=false ? Answer: no - this is messing
         % up the catalog in a bad way - not fully understood
         % ProjAstCat is not used anymore 
