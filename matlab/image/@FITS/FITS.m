@@ -152,7 +152,8 @@ classdef FITS < handle
                                    Value=upper(strtrim(Value))=='T';
                                else
                                    % possible number
-                                   Value = str2double(Value);
+                                   %Value = str2double(Value);
+                                   Value = real(str2doubleq(Value));  % faster
                                end
                            else
                                if (length(PosAp)>=2)
@@ -591,7 +592,8 @@ classdef FITS < handle
             for Ikey=1:1:Nkey
                 [KeysVal{Ikey},KeysComment{Ikey}] = matlab.io.fits.readKey(Fptr,Keys{Ikey});
                 if (ischar(KeysVal{Ikey}) && Str)
-                    Tmp = str2double(KeysVal{Ikey});
+                    %Tmp = str2double(KeysVal{Ikey});
+                    Tmp = real(str2doubleq(KeysVal{Ikey}));
                     if (isnan(Tmp))
                         % do nothing - keep as a string
                     else

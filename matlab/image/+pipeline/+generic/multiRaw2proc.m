@@ -51,8 +51,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     else
         % FileList is a cell array of images
 %         OutN = FITS.get_keys(FilesList{1}, {'NAXIS1','NAXIS2'});
-%         SizeX = str2double(OutN{1});
-%         SizeY = str2double(OutN{2});
+%         SizeX = real(str2doubleq(OutN{1}));
+%         SizeY = real(str2doubleq(OutN{2}));
 %     
 %         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
 %                                                                                                'OverlapXY',[64 64]);

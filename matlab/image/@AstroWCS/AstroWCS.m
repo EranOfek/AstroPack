@@ -1553,8 +1553,10 @@ classdef AstroWCS < Component
                 
                 PV1_Powers  =regexp(AH.Data(FlagMatchPV1,1), [BaseX '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
                 for I1 = 1:1:NPV1
-                   PV.PolyX_Xdeg(I1) = str2double(PV1_Powers{I1}.u_power);
-                   PV.PolyX_Ydeg(I1) = str2double(PV1_Powers{I1}.v_power);
+                   %PV.PolyX_Xdeg(I1) = str2double(PV1_Powers{I1}.u_power);
+                   PV.PolyX_Xdeg(I1) = real(str2doubleq(PV1_Powers{I1}.u_power));
+                   %PV.PolyX_Ydeg(I1) = str2double(PV1_Powers{I1}.v_power);
+                   PV.PolyX_Ydeg(I1) = real(str2doubleq(PV1_Powers{I1}.v_power));
                 end
             end
             
@@ -1567,8 +1569,10 @@ classdef AstroWCS < Component
                 PV2_Powers  =regexp(AH.Data(FlagMatchPV2,1), [BaseY '_(?<u_power>\d+)\_(?<v_power>\d+)'],'names');
                 
                 for I2 = 1:1:NPV2
-                   PV.PolyY_Xdeg(I2) = str2double(PV2_Powers{I2}.u_power);
-                   PV.PolyY_Ydeg(I2) = str2double(PV2_Powers{I2}.v_power);
+                   %PV.PolyY_Xdeg(I2) = str2double(PV2_Powers{I2}.u_power);
+                   PV.PolyY_Xdeg(I2) = real(str2doubleq(PV2_Powers{I2}.u_power));
+                   %PV.PolyY_Ydeg(I2) = str2double(PV2_Powers{I2}.v_power);
+                   PV.PolyY_Ydeg(I2) = real(str2doubleq(PV2_Powers{I2}.v_power));
                 end
             end
             
