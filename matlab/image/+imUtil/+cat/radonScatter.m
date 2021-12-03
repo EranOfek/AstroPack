@@ -47,7 +47,7 @@ function Cand = radonScatter(Time,X,Y,Args)
     % Example: Time = [1 2 3 4 5 6 7 8 9 10 9 2 3 3 1 2 1 1 2 3 5 2, rand(1,100)].'./1440;
     %          Nt   = numel(Time); X=rand(Nt,1).*3600; Y    = rand(Nt,1).*3600;
     %          X(1)=0; Y(1)=0; X(2)=10; Y(2)=5; X(3)=20; Y(3)=10; X(5)=40; Y(5)=20;
-    %          Cand = radonScatter(Time,X,Y)
+    %          Cand = imUtil.cat.radonScatter(Time,X,Y)
     
     arguments
         Time
@@ -57,6 +57,7 @@ function Cand = radonScatter(Time,X,Y,Args)
         Args.MinNpairs    = 2;
         Args.MinNprev     = 2;
         Args.MinDist      = 3;
+        Args.UseVChooshK  = true;
     end
     
     Args.HalfRangeVec = Args.HalfRangeVec(:);
@@ -67,7 +68,11 @@ function Cand = radonScatter(Time,X,Y,Args)
     Y    = Y(:);
 
     N = numel(Time);
-    IndAllPairs = nchoosek((1:1:N),2).';
+    if Args.UseVChooshK
+        IndAllPairs = VChooseK((1:1:N),2).';
+    else
+        IndAllPairs = nchoosek((1:1:N),2).';
+    end
     
     
     TimePairs = Time(IndAllPairs);
