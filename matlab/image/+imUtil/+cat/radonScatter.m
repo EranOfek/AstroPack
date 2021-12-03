@@ -111,6 +111,11 @@ function Cand = radonScatter(Time,X,Y,Args)
     Icand = 0;
     for Ipairs=1:1:Npairs
         [Idxs] = kdtree_range_query(Tree, [Par(Ipairs,:).'-Args.HalfRangeVec, Par(Ipairs,:).'+Args.HalfRangeVec]);
+        % FFU: alternatively use rangesearch.m and createns.m
+        % to simulatnaoulsy search for all pairs.
+        % Iprove performences only for large number of point searches by up to factor of
+        % two.
+        
         if numel(Idxs)>=Args.MinNpairs
             % possible candidate
             Icand = Icand + 1;
