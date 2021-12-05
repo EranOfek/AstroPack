@@ -98,7 +98,7 @@ end
 Var = Std.^2;
 
 if nargout>3
-    GoodCounter = sum(~isnan(DataF),Dim);
+    GoodCounter = sum(uint16(~isnan(DataF)),Dim,'native');
 end
 
 

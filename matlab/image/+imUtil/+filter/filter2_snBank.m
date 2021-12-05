@@ -94,6 +94,8 @@ if isempty(Template)
     Template = @imUtil.kernel2.gauss;
 end
 
+Template = cast(Template, 'like',Image);
+
 % treat empty background/variance:
 if isempty(Background)
     if isempty(Variance)

@@ -124,6 +124,12 @@ arguments
     Args.mexCutout(1,1) logical                        = true;
 end
 
+% make sure all the variables has the same type as the Image
+% this is for speeding up single operations
+Args.AperRadius = cast(Args.AperRadius, 'like',Image);
+Args.Annulus    = cast(Args.Annulus, 'like',Image);
+Args.WeightFun  = cast(Args.WeightFun, 'like',Image);
+
 
 MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than all the rest
 Naper      = numel(Args.AperRadius);
@@ -163,6 +169,7 @@ else
 end
 
 SizeCube = size(Cube);
+SizeCube = cast(SizeCube, 'like',Image);
 if (SizeCube(1)~=SizeCube(2))
     error('First two dimensions of cube must be equal');
 end
@@ -208,7 +215,7 @@ else
     error('WeightFun must be a function handle or a numeric scalar');
 end
 % construct a window with maximal radiu
-W_Max = ones(size(MatR2));
+W_Max = ones(size(MatR2),'like',Image);
 W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
@@ -297,7 +304,7 @@ else
         end
 
         % construct a window with maximal radius
-        W_Max = ones(size(MatR2));
+        W_Max = ones(size(MatR2), 'like',Image);
         W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
@@ -338,7 +345,7 @@ else
             error('WeightFun must be a function handle or a numeric scalar');
         end
         % construct a window with maximal radiu
-        W_Max = ones(size(MatR2));
+        W_Max = ones(size(MatR2), 'like',Image);
         W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
@@ -397,10 +404,10 @@ if nargout>1
         Aper.WeightedAper = squeeze(sum(WInt,[1 2])./sum((W.*W_Max).^2,[1 2])); 
 
         % simple aperture photometry in centered pixeleted aperure
-        Aper.AperPhot = zeros(Nsrc,Naper);
-        Aper.AperArea = zeros(Nsrc,Naper);
+        Aper.AperPhot = zeros(Nsrc,Naper, 'like',Image);
+        Aper.AperArea = zeros(Nsrc,Naper, 'like',Image);
         for Iaper=1:1:Naper
-            AperFilter = ones(size(MatR2));
+            AperFilter = ones(size(MatR2), 'like',Image);
             AperFilter(MatR2>(Args.AperRadius(Iaper).^2)) = 0;
             Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
             % back is already subtracted

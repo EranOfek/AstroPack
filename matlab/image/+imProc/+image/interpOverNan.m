@@ -56,6 +56,7 @@ function Result = interpOverNan(Obj, Args)
     else
         KernelConv = Args.Kernel(Args.KernelArgs{:});
     end
+    KernelConv = single(KernelConv);
     
     Nprop = numel(Args.DataProp); 
     Nobj  = numel(Obj);
