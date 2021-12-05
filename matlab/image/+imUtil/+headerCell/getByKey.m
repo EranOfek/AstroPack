@@ -94,7 +94,8 @@ function [SubCell,FlagExist,IndFound,IndKey]=getByKey(Cell,Key,Args)
     end
     
     if Args.Val2Num
-        ValNum  = str2double(SubCell(:,ColVal));
+        %ValNum  = str2double(SubCell(:,ColVal));
+        ValNum  = real(str2doubleq(SubCell(:,ColVal)));  % faster
         FlagNum = ~isnan(ValNum) | strcmpi(SubCell(:,ColVal),'nan');
         [SubCell(FlagNum,ColVal)] = deal(num2cell(ValNum(FlagNum)));
     end

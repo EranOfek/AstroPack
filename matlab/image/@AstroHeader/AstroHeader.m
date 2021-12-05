@@ -547,7 +547,8 @@ classdef AstroHeader < Component
             
             if Args.ReadCCDSEC && ischar(Val)
                 % Convert a CCDSEC like argument to vector
-                CCDSEC = str2double(regexp(Val,'\[|\]|\s','split'));
+                %CCDSEC = str2double(regexp(Val,'\[|\]|\s','split'));
+                CCDSEC = real(str2doubleq(regexp(Val,'\[|\]|\s','split')));
                 Val    = CCDSEC(2:end-1);
             end
         end

@@ -118,9 +118,8 @@ function Result = unitTest()
     H = AstroHeader();
     H.insertKey('Key1');
     H.insertKey({'KeyA','ValueA','CommentA';'KeyB','ValueB','CommentB'},'end-1');
-    assert(H.Data{1,1} == 'A');
-    assert(H.Data{2,1} == 'B');
-    assert(prod(H.Data{3,1} == 'stam'))
+    assert(strcmp(H.Data{1,1},'KeyA'));
+    assert(strcmp(H.Data{2,1},'KeyB'));
 
     % replaceVal
     io.msgLog(LogLevel.Test, 'testing AstroHeader replaceVal')

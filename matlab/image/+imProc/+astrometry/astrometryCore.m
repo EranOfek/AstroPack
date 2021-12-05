@@ -155,6 +155,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefRangePlx                  = [-Inf 50];
         
         Args.EpochOut                     = [];
+        Args.argsGetAstrometricCat cell   = {};
         Args.argsProperMotion cell        = {};
         Args.argsFilterForAstrometry cell = {};
         Args.argsFitPattern cell          = {};
@@ -278,7 +279,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                                     'RangeMag',Args.RefRangeMag,...
                                                                                     'ColNamePlx',Args.RefColNamePlx,...
                                                                                     'RangePlx',Args.RefRangePlx,...
-                                                                                    'OutRADecUnits','rad');
+                                                                                    'OutRADecUnits','rad',...
+                                                                                    Args.argsGetAstrometricCat{:});
           
     % RA/Dec in [deg]
     RAdeg  = RA.*RAD;
@@ -322,6 +324,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         else
             error('Unknown first input argument type - must be AstroImage or AstroCatalog');
         end
+        
+        % FFU: get X/Y column indices once
         
         % can we add here CreateNewObj=false ? Answer: no - this is messing
         % up the catalog in a bad way - not fully understood

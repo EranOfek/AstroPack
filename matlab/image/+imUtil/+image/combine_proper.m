@@ -74,6 +74,7 @@ end
 % proper coaddition: Zackay & Ofek 2017
 PSF_f = fft2(PSF);
 
+% FFU: use norm instaed of sqrt(sum... faster
 PR_f  = sqrt(sum((Args.F.^2./Args.Var) .* abs(PSF_f).^2,IndexDim));
 R_f   = sum((Args.F./Args.Var) .* fft2(Data).*conj(PSF_f),IndexDim)./PR_f;
 R     = ifft2(R_f);

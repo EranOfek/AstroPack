@@ -74,7 +74,9 @@ while Iter<=Args.MaxIter && NrejectNew~=0
     end
     % total number of rejected data points
     NrejectPrev = Nreject;
-    Nreject     = Ngood-sum(FlagGood,'all');
+    Nreject     = Ngood - sum(FlagGood,'all');
+    %Nreject     = Ngood - mcount(double(FlagGood),0.5,'>'); % slower
+    
     NrejectNew  = Nreject-NrejectPrev;
     
     Iter = Iter + 1;

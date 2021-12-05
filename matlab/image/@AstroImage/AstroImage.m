@@ -223,7 +223,7 @@ classdef AstroImage < Component
                 Obj.MaskData    = MaskImage;
                 Obj.HeaderData  = AstroHeader;
                 Obj.CatData     = AstroCatalog;
-                Obj.CatData     = AstroCatalog;
+                Obj.WCS         = AstroWCS;
                 Obj.PSFData     = AstroPSF;
                 %Obj.WCS                             % FFU: update when WCS class is ready
                 
