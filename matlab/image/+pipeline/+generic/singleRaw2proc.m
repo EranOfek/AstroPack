@@ -83,6 +83,7 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
         Args.DiluteStep                       = 2;
+        Args.EstimateRowColNoise logical      = false;
         Args.findMeasureSourcesArgs cell      = {};
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
@@ -216,7 +217,10 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     
     % Background 
-    SI = imProc.background.background(SI, Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY, 'DiluteStep',Args.DiluteStep);
+    SI = imProc.background.background(SI, Args.backgroundArgs{:},...
+                                          'SubSizeXY',Args.BackSubSizeXY,...
+                                          'DiluteStep',Args.DiluteStep,...
+                                          'EstimateRowColNoise',Args.EstimateRowColNoise);
     
     
     % Source finding
