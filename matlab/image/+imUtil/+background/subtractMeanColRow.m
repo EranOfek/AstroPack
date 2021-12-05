@@ -2,6 +2,9 @@ function Image = subtractMeanColRow(Image, Args)
     % Subtract the collapsed median of rows and columns from an image.
     %       This function may be useful in order to remove lines correlated
     %       noise from images.
+    %       However, it is not taking into account the background of the
+    %       image. See imUtil.background.backgroundMeanColRow for full
+    %       treatment.
     % Input  : - A 2D matrix.
     %          * ...,key,val,...
     %            'SubMedRow' - Subtract median of rows. Default is true.
