@@ -129,6 +129,11 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   Default is 'Dec'.
     %            'OutCatColPos' - Position of RA/Dec columns added to catalog.
     %                   Default is Inf.
+    %            'UpdateHeader' - A logical indicating if to add to the
+    %                   header the astrometric quality information.
+    %                   The following columns will be added:
+    %                   'AST_NSRC','AST_ARMS','AST_ERRM'
+    %                   Default is true.
     %            'CatColNamesX' - A cell array dictionary of input catalog
     %                   X column name. Default is AstroCatalog.DefNamesX.
     %            'CatColNamesY' - A cell array dictionary of input catalog
@@ -209,6 +214,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.OutCatColDec                       = 'Dec';
         Args.OutCatColPos                       = Inf;
         
+        Args.UpdateHeader logical         = true;
+
         Args.CatColNamesX                       = AstroCatalog.DefNamesX;
         Args.CatColNamesY                       = AstroCatalog.DefNamesY;
         Args.CatColNamesMag                     = AstroCatalog.DefNamesMag;
@@ -470,6 +477,19 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
         % add RA/Dec to the catalog
         if nargout>1
+            
+            % update header with astrometric quality information
+            if Args.UpdateHeader
+                Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
+                Obj(Iobj).HeaderData.replaceVal(Keys,...
+                                                {Result(Iobj).ResFit.Ngood,...
+                                                 Result(Iobj).ResFit.AssymRMS.*ARCSEC_DEG,...
+                                                 Result(Iobj).ResFit.ErrorOnMean.*ARCSEC_DEG},...
+                                                'Comment',{'Number of astrometric sources',...
+                                                           'Astrometric assymptotic RMS [arcsec]',...
+                                                           'Astrometric error on the mean [arcsec]'});
+            end
+            
             % update RA/Dec in catalog
             [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
             %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
