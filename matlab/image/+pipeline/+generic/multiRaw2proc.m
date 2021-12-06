@@ -189,6 +189,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     Args.photometricZPArgs{:});
         
+        % match against external catalogs
+        %ResInd = imProc.match.matchReturnIndices(Coadd(Ifields), 
+        %[Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, 'MergedCat', Args)
         
     end
     

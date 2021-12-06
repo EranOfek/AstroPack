@@ -130,6 +130,7 @@ Args.AperRadius = cast(Args.AperRadius, 'like',Image);
 Args.Annulus    = cast(Args.Annulus, 'like',Image);
 Args.WeightFun  = cast(Args.WeightFun, 'like',Image);
 
+MomRadius2 = cast(Args.MomRadius.^2, 'single');
 
 MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than all the rest
 Naper      = numel(Args.AperRadius);
@@ -208,7 +209,8 @@ if isa(Args.WeightFun,'function_handle')
 elseif isnumeric(Args.WeightFun)
     % WeightFun is assumed to be the sigma of a Gaussian
     %W   = exp(-0.5.*(MatR./Args.WeightFun).^2) ./ (2.*pi.*Args.WeightFun.^2);
-    W   = exp(-0.5.*MatR2./((Args.WeightFun).^2)) ./ (2.*pi.*Args.WeightFun.^2);
+    InvWeightFun2 = -0.5./(Args.WeightFun.^2);
+    W   = exp(MatR2.*InvWeightFun2) ./ (2.*pi.*Args.WeightFun.^2);
     
     %W         = GaussFun(MatR,WeightFun);   % exp(-MatR.^2./(2.*WeightFun));
 else
@@ -216,7 +218,7 @@ else
 end
 % construct a window with maximal radiu
 W_Max = ones(size(MatR2),'like',Image);
-W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+W_Max(MatR2>MomRadius2) = 0;
 
 
 
@@ -291,10 +293,10 @@ else
                     Factor = 1;
                 end
                 %W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
-                WeightFactor = (Args.WeightFun.*Factor).^2;
-                W   = exp(-0.5.*(MatR2./WeightFactor)) ./ (2.*pi.*WeightFactor);
-                
-                
+                WeightFactor    = (Args.WeightFun.*Factor).^2;
+                InvWeightFactor = -0.5./WeightFactor;
+                NormFactor      = 1./(2.*pi.*WeightFactor);
+                W   = exp(MatR2.*InvWeightFactor) .* NormFactor;
                 
                 %W         = GaussFun(MatR,WeightFun.*Factor);
                 %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
@@ -305,7 +307,7 @@ else
 
         % construct a window with maximal radius
         W_Max = ones(size(MatR2), 'like',Image);
-        W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+        W_Max(MatR2>MomRadius2) = 0;
 
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
@@ -317,7 +319,8 @@ else
         M1.DeltaLastX = CumRelX1 - RelX1;
         M1.DeltaLastY = CumRelY1 - RelY1;
         RelX1         = CumRelX1;
-        RelY1         = CumRelY1; 
+        RelY1         = CumRelY1;
+        
     end
 
     % final iteration with the correct window
@@ -338,7 +341,8 @@ else
         elseif isnumeric(Args.WeightFun)
             %Factor = 1;
             %W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
-            W   = exp(-0.5.*MatR2./((Args.WeightFun).^2)) ./ (2.*pi.*Args.WeightFun.^2);
+            InvWeightFun2 = -0.5./(Args.WeightFun.^2);
+            W   = exp(MatR2.*InvWeightFun2) ./ (2.*pi.*Args.WeightFun.^2);
             %W         = GaussFun(MatR,WeightFun);
             %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
         else
