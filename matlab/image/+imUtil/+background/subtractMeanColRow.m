@@ -7,6 +7,15 @@ function Image = subtractMeanColRow(Image, Args)
     %       treatment.
     % Input  : - A 2D matrix.
     %          * ...,key,val,...
+    %            'Back'      - A background image. If not empty, then, will
+    %                   remove the background image, then subtract the
+    %                   row/columns collapse median, and then return the
+    %                   background image (if RetBack=true).
+    %                   I.e., remove only the correlated
+    %                   noise, but keep the background as it.
+    %                   Default is [].
+    %            'RetBack' - Return the background to the image.
+    %                   Default is true.
     %            'SubMedRow' - Subtract median of rows. Default is true.
     %            'SubMedCol' - Subtract median of columns. Default is true.
     %            'MeanFun' - Function handle for mean. Second argument of
@@ -22,10 +31,16 @@ function Image = subtractMeanColRow(Image, Args)
     
     arguments
         Image
+        Args.Back                     = [];
+        Args.RetBack logical          = true;
         Args.SubMedRow logical        = true;
         Args.SubMedCol logical        = true;
         Args.MeanFun function_handle  = @median;
         Args.MeanFunArgs cell         = {'omitnan'};
+    end
+    
+    if ~isempty(Args.Back)
+        Image = Image - Args.Back;
     end
     
     if Args.SubMedRow
@@ -35,6 +50,10 @@ function Image = subtractMeanColRow(Image, Args)
     if Args.SubMedCol
         MedianCol = Args.MeanFun(Image, 2, Args.MeanFunArgs{:});
         Image     = Image - MedianCol;
+    end
+    
+    if Args.RetBack
+        Image = Image + Args.Back;
     end
     
     

@@ -915,6 +915,7 @@ classdef FITS < handle
                             if isempty(Header.(HeaderField){Inl,2})
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
+                            %if any(strcmp(HeaderField){Inl,2},{'uint16','uint32','int16','int32'}))
                             matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
                                                Header.(HeaderField){Inl,3});

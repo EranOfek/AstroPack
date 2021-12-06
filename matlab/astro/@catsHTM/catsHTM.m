@@ -2503,7 +2503,7 @@ classdef catsHTM
             if Args.SaveInd
                 IndFileName = sprintf('%s_htm.hdf5',Args.NewCatName);
                 delete(IndFileName);
-                % Nsrc=HDF5.get_nsrc(CatName);
+                Nsrc=HDF5.get_nsrc(Args.NewCatName);
                 HDF5.save_htm_ind(HTM,IndFileName,[],{},Nsrc)
 
                 ColCell = {'RA','Dec','CatBit'};

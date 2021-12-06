@@ -84,6 +84,9 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.BackSubSizeXY                    = [128 128];
         Args.DiluteStep                       = 2;
         Args.EstimateRowColNoise logical      = false;
+        Args.SubCorrelaredColRow logical      = true;
+        Args.subtractMeanColRowArgs cell      = {};
+        
         Args.findMeasureSourcesArgs cell      = {};
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
@@ -222,7 +225,12 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                           'DiluteStep',Args.DiluteStep,...
                                           'EstimateRowColNoise',Args.EstimateRowColNoise);
     
-    
+    if Args.SubCorrelaredColRow
+        SI = imProc.background.subtractMeanColRow(SI,'SubOnlyRowColComp',true,...
+                                                     'RetBack',true,...
+                                                     Args.subtractMeanColRowArgs{:});
+    end
+                                                                            
     % Source finding
     %SI.cast('double');
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
