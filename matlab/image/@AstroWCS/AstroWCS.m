@@ -241,8 +241,9 @@ classdef AstroWCS < Component
             %                                  - if Pos is CRPIX then move to CRPIX(1,1:2) = [1,1] and update CRVAL,
             %                                  - if Pos is cropSEC then move to CRPIX(1,1:2) to center of cropSEc and update CRVAL,
             %                              *FFU: Note that currently CV and PV are not changed.
+            %                              Default is false.
             %            'delDistortion' - Flag for deleting distortions
-            %                              (PV, revPV). Default is false.
+            %                              (PV, revPV). Default is true.
             % Output : - Updated AstroWCS object or array of AstroWCS forthe cropped region
             % Author : Yossi Shvartzvald (December 2021)
             % Example:
@@ -252,7 +253,7 @@ classdef AstroWCS < Component
                 Obj
                 Pos
                 Args.centerCRPIX         = false;
-                Args.delDistortion       = false;
+                Args.delDistortion       = true;
             end
             
             Nobj = numel(Obj);
