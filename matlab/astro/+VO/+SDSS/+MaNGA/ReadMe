@@ -1,0 +1,21 @@
+MANGA CasJobs query:
+
+select cenra, cendec, plate, ifudsgn, mangaid, objra, objdec, ifura, ifudec, nexp, exptime, bluesn2, redsn2, seemed, mjdmin, mjdmax, versdrp2, versdrp3
+from mangaDrpAll
+
+
+retrieve data:
+
+
+
+https://data.sdss.org/sas/dr17/manga/spectro/redux/v3_1_1/10001/stack/
+
+
+rsync -avz rsync://data.sdss.org/dr13/manga/spectro/redux/v1_5_4/7443/stack/manga-7443-12703-CUBE.fits.gz .
+
+rsync -avz rsync://data.sdss.org/dr17/manga/spectro/redux/v3_1_1/10001/stack/manga-10001-12701-CUBE.fits.gz .
+
+3621.59598486.*exp((0.833903304339.*4563)./3621)
+
+
+CRVAL3.*exp(CD3_3.*Xpix./CRVAL3)
