@@ -62,9 +62,10 @@ function Result = gainFromFlat(Obj, Args)
         case 'pix'
             % the pix method - RN per pix from std of stack of images
             CubeImage = imProc.image.images2cube(Obj, 'CCDSEC',Args.CCDSEC);
-            
-            Mean  = median(CubeImage,3,'omitnan');
-            Var   = var(CubeImage,[],3,'ominan');
+            % The image index in the cube is 1
+            Dim   = 1;
+            Mean  = median(CubeImage,Dim,'omitnan');
+            Var   = var(CubeImage,[],Dim,'omitnan');
             
             Result.Gain       = Mean./Var;
             Result.GlobalGain = median(Result.Gain(:),1,'omitnan');

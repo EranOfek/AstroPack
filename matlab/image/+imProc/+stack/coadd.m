@@ -181,7 +181,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         end
         Noff = numel(Args.Offset);
         if Noff~=1 && Noff~=Nim
-            error('Number of offsets mnust be 1 or equal to number of images');
+            error('Number of offsets must be 1 or equal to number of images');
         end
         if IndexDim==3
             ImageCube = ImageCube - reshape(Args.Offset,[1 1 Noff]);
