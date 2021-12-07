@@ -129,7 +129,8 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
                 Coo2    = getLonLat(Cat2, 'rad');
 
                 RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
-                %DistFunArgs = {}; %{RadiusRad};
+                %DistFunArgs{1} = RadiusRad;
+                DistFunArgs = {}; %{RadiusRad};
                 ConvertDist = true;
             case 'pix'
                 DistFun = @tools.math.geometry.plane_dist;
@@ -138,6 +139,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
                 Coo2    = getXY(Cat2);
 
                 RadiusRad = Args.Radius;
+                DistFunArgs = {};
                 ConvertDist = false;
             otherwise
                 error('Unknown CooType option');
@@ -145,7 +147,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
 
         % match
         [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest(Coo1,...
-                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun);
+                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, DistFunArgs);
 
         % Columns of IndTable:
         % For each source in Obj2:

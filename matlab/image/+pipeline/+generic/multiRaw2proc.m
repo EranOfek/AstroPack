@@ -2,6 +2,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % 
     % Example: L=io.files.filelist('LAST*science.fits');
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(289:308),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(249:268),'CalibImages',CI);
     
     
     arguments
@@ -51,8 +52,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     else
         % FileList is a cell array of images
 %         OutN = FITS.get_keys(FilesList{1}, {'NAXIS1','NAXIS2'});
-%         SizeX = str2double(OutN{1});
-%         SizeY = str2double(OutN{2});
+%         SizeX = real(str2doubleq(OutN{1}));
+%         SizeY = real(str2doubleq(OutN{2}));
 %     
 %         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
 %                                                                                                'OverlapXY',[64 64]);
@@ -189,6 +190,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     Args.photometricZPArgs{:});
         
+        % match against external catalogs
+        %ResInd = imProc.match.matchReturnIndices(Coadd(Ifields), 
+        %[Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, 'MergedCat', Args)
         
     end
     

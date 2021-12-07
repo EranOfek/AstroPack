@@ -8,7 +8,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     %          * ...,key,val,...
     %            'Coo' - [RA, Dec] of coordinates to search.
     %                   If empty, then will attempt to find this
-    %                   from the catalog itself. DEfault is [].
+    %                   from the catalog itself. Default is [].
     %            'CooUnits' - Units of coordinates. Object default
     %                   is 'deg'.
     %            'Radius' - Matching radius. Default is 3.

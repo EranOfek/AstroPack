@@ -152,7 +152,8 @@ classdef FITS < handle
                                    Value=upper(strtrim(Value))=='T';
                                else
                                    % possible number
-                                   Value = str2double(Value);
+                                   %Value = str2double(Value);
+                                   Value = real(str2doubleq(Value));  % faster
                                end
                            else
                                if (length(PosAp)>=2)
@@ -591,7 +592,8 @@ classdef FITS < handle
             for Ikey=1:1:Nkey
                 [KeysVal{Ikey},KeysComment{Ikey}] = matlab.io.fits.readKey(Fptr,Keys{Ikey});
                 if (ischar(KeysVal{Ikey}) && Str)
-                    Tmp = str2double(KeysVal{Ikey});
+                    %Tmp = str2double(KeysVal{Ikey});
+                    Tmp = real(str2doubleq(KeysVal{Ikey}));
                     if (isnan(Tmp))
                         % do nothing - keep as a string
                     else
@@ -872,7 +874,7 @@ classdef FITS < handle
             % write Header            
             % @Todo: Check performance with big header (keys > 300)
             
-            t = tic;
+            %t = tic;
             Nline = size(Header.(HeaderField),1);            
             for Inl=1:1:Nline
                 if (~isempty(Header.(HeaderField){Inl,1}))
@@ -913,6 +915,7 @@ classdef FITS < handle
                             if isempty(Header.(HeaderField){Inl,2})
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
+                            %if any(strcmp(HeaderField){Inl,2},{'uint16','uint32','int16','int32'}))
                             matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
                                                Header.(HeaderField){Inl,3});

@@ -100,7 +100,8 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
         
         % convert to number
         if Args.Val2Num
-            ValNum  = str2double(Val);
+            %ValNum  = str2double(Val);
+            ValNum  = real(str2doubleq(Val));  % faster
             if isnan(ValNum) && ~strcmpi(Val,'nan')
                 % string
                 % do nothing

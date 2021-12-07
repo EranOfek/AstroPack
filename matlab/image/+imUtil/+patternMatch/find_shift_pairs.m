@@ -216,7 +216,9 @@ for Iflip=1:1:Nflip
     % filter H2
     if ~isempty(InPar.FilterSigma)
         Gaussian = imUtil.kernel2.gauss(InPar.FilterSigma);
-        Gaussian = Gaussian./sqrt(sum(Gaussian(:).^2));
+        %Gaussian = Gaussian./sqrt(sum(Gaussian(:).^2));
+        Gaussian = Gaussian./norm(Gaussian(:)); % faster
+        
         H2       = imUtil.filter.filter2_fast(H2, Gaussian);
     end
     

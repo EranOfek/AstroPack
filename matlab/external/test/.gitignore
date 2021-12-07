@@ -1,0 +1,4 @@
+# Windows default autosave extension
+*.asv
+# Data files
+*.mat

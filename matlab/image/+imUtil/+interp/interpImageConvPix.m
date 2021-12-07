@@ -15,7 +15,7 @@ function Conv2 = interpImageConvPix(Image, Kernel, PosIJ)
     %          K = randi(1e6,100,1);
     %          Image(K) = NaN;
     %          Kernel     = imUtil.kernel2.gauss; %ones(11,11)./121;
-    %          Conv2 = imUtil.filter.interpImageConvPix(Image, Kernel);
+    %          Conv2 = imUtil.interp.interpImageConvPix(Image, Kernel);
     
     
     arguments

@@ -49,7 +49,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     methods % functionality
         function Result = maskSet(Obj, Flag, BitName, SetVal, Args)
-            % Set the value of a bit in a bit mask
+            % Set the value of a single bit in a bit mask
             % Input  : - An ImageMask Object.
             %          - A matrix of logical, with the same size as the
             %            Image in the ImageMask, in which values which are
@@ -69,8 +69,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %       MI=MaskImage;
             %       MI.Dict=BitDictionary('BitMask.Image.Default')
             %       Flag = false(3,3); Flag(1,2)=true;
-            %       Result = MI.maskSet(Flag,'Saturated')
-            %       Result = MI.maskSet(Flag,'Streak')
+            %       Result = MI.maskSet1(Flag,'Saturated')
+            %       Result = MI.maskSet1(Flag,'Streak')
             
             arguments
                 Obj
@@ -120,7 +120,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
                  
         end
-        
+                
         function [Result, XY, Ind] = findBit(Obj, BitNames, Args)
             % find pixels with some specific mask-bit open
             % Input  : - A MaskImage object (multi elements supported).

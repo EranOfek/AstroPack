@@ -39,7 +39,15 @@ function Result = background(Obj, Args)
     %                   Default is 1 (no dilution).
     %            'ExtendFull' - A logical indicating if to extend the
     %                   background map into a full-size image. Default is true.
-    %            
+    %            'EstimateRowColNoise' - A logical indicating if to
+    %                   estimate the rows/columns correlated noise using 
+    %                   imUtil.background.backgroundMeanColRow and to
+    %                   update the background image accordingly.
+    %                   Default is false.
+    %            'backgroundMeanColRowArgs' - A cell array of addidtional
+    %                   arguments to pass to imUtil.background.backgroundMeanColRow
+    %                   Default is {}.
+    %
     %            'SubBack' - A logical indicating if to subtract the
     %                   background from the image. Default is false.
     %            'KeepScaled' - A logical indicating if to rescale the
@@ -77,7 +85,9 @@ function Result = background(Obj, Args)
         Args.Overlap                     = 16;
         Args.DiluteStep                  = 1;
         Args.ExtendFull(1,1) logical     = true; %false;
-
+        Args.EstimateRowColNoise logical = false;
+        Args.backgroundMeanColRowArgs cell = {};
+        
         Args.SubBack(1,1) logical        = false;
         
         Args.KeepScaled(1,1) logical     = false;
@@ -134,6 +144,13 @@ function Result = background(Obj, Args)
                                                             'DiluteStep',Args.DiluteStep,...
                                                             'ExtendFull',Args.ExtendFull);
                         
+            % remove lines/row correlated noise
+            if Args.EstimateRowColNoise
+                Result(Iobj).(Args.BackProp).(Args.BackPropIn) = imUtil.background.backgroundMeanColRow(Obj(Iobj).(Args.ImageProp).(Args.ImagePropIn),...
+                                                                             Result(Iobj).(Args.BackProp).(Args.BackPropIn),...
+                                                                             Args.backgroundMeanColRowArgs{:});
+            end
+            
             % set the scale parameter
             SizeImage = size(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn));
             SizeBack  = size(Result(Iobj).(Args.BackProp).(Args.BackPropIn));

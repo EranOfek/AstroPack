@@ -82,11 +82,17 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
+        Args.DiluteStep                       = 2;
+        Args.EstimateRowColNoise logical      = false;
+        Args.SubCorrelaredColRow logical      = true;
+        Args.subtractMeanColRowArgs cell      = {};
+        
         Args.findMeasureSourcesArgs cell      = {};
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
         Args.astrometryRefineArgs cell        = {};
+        Args.RefineSearchRadius               = 5;
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.Tran                             = Tran2D('poly3');
         Args.WCS                              = [];   % WCS/AstroImage with WCS - will use astrometryRefine...
@@ -215,9 +221,17 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     
     % Background 
-    SI = imProc.background.background(SI, Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY);
+    SI = imProc.background.background(SI, Args.backgroundArgs{:},...
+                                          'SubSizeXY',Args.BackSubSizeXY,...
+                                          'DiluteStep',Args.DiluteStep,...
+                                          'EstimateRowColNoise',Args.EstimateRowColNoise);
     
-    
+    if Args.SubCorrelaredColRow
+        SI = imProc.background.subtractMeanColRow(SI,'SubOnlyRowColComp',true,...
+                                                     'RetBack',true,...
+                                                     Args.subtractMeanColRowArgs{:});
+    end
+                                                                            
     % Source finding
     %SI.cast('double');
     SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
@@ -248,6 +262,8 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                                             'Scale',Args.Scale,...
                                                                                             'CatName',Args.CatName,...
                                                                                             'Tran',Args.Tran,...
+                                                                                            'SearchRadius',Args.RefineSearchRadius,...
+                                                                                            'IncludeDistortions',true,...
                                                                                             'CreateNewObj',false);
             
         end

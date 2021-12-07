@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="file:///usr/local/share/sextractor/sextractor.xsl"?>
+<VOTABLE version="1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.ivoa.net/xml/VOTable/v1.1">
+<DESCRIPTION>produced by SExtractor</DESCRIPTION>
+<!-- VOTable description at http://www.ivoa.net/Documents/latest/VOT.html -->
+<RESOURCE ID="SExtractor" name="PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits">
+ <DESCRIPTION>Catalog of sources extracted with SExtractor</DESCRIPTION>
+ <INFO name="QUERY_STATUS" value="OK" />
+ <COOSYS ID="J2000" equinox="J2000" epoch="J2000" system="ICRS"/>
+ <TABLE ID="Source_List" name="PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits/out">
+  <DESCRIPTION>Table of sources detected in image</DESCRIPTION>
+  <!-- Now comes the definition of each SExtractor parameter -->
+  <FIELD name="NUMBER" ucd="meta.record" datatype="int" unit="">
+   <DESCRIPTION>Running object number</DESCRIPTION>
+  </FIELD>
+  <FIELD name="X_IMAGE" ucd="pos.cartesian.x;pos.barycenter;instr.det;meta.main" datatype="float" unit="pix">
+   <DESCRIPTION>Object position along x</DESCRIPTION>
+  </FIELD>
+  <FIELD name="Y_IMAGE" ucd="pos.cartesian.y;pos.barycenter;instr.det;meta.main" datatype="float" unit="pix">
+   <DESCRIPTION>Object position along y</DESCRIPTION>
+  </FIELD>
+  <FIELD name="XWIN_IMAGE" ucd="pos.cartesian.x;instr.det" datatype="double" unit="pix">
+   <DESCRIPTION>Windowed position estimate along x</DESCRIPTION>
+  </FIELD>
+  <FIELD name="YWIN_IMAGE" ucd="pos.cartesian.y;instr.det" datatype="double" unit="pix">
+   <DESCRIPTION>Windowed position estimate along y</DESCRIPTION>
+  </FIELD>
+  <FIELD name="XMODEL_IMAGE" ucd="pos.cartesian.x;stat.fit.param;instr.det;meta.main" datatype="double" unit="pix">
+   <DESCRIPTION>X coordinate from model-fitting</DESCRIPTION>
+  </FIELD>
+  <FIELD name="YMODEL_IMAGE" ucd="pos.cartesian.y;stat.fit.param;instr.det;meta.main" datatype="double" unit="pix">
+   <DESCRIPTION>Y coordinate from model-fitting</DESCRIPTION>
+  </FIELD>
+  <FIELD name="FLUX_AUTO" ucd="phot.flux;meta.main" datatype="float" unit="ct">
+   <DESCRIPTION>Flux within a Kron-like elliptical aperture</DESCRIPTION>
+  </FIELD>
+  <FIELD name="FLUX_MODEL" ucd="phot.count;stat.fit.param" datatype="float" unit="ct">
+   <DESCRIPTION>Flux from model-fitting</DESCRIPTION>
+  </FIELD>
+  <FIELD name="MAG_AUTO" ucd="phot.mag;meta.main" datatype="float" unit="mag">
+   <DESCRIPTION>Kron-like elliptical aperture magnitude</DESCRIPTION>
+  </FIELD>
+  <FIELD name="MAG_MODEL" ucd="phot.mag;stat.fit.param" datatype="float" unit="mag">
+   <DESCRIPTION>Magnitude from model-fitting</DESCRIPTION>
+  </FIELD>
+  <FIELD name="FLUX_RADIUS" ucd="phys.size.radius;instr.det" datatype="float" unit="pix">
+   <DESCRIPTION>Fraction-of-light radii</DESCRIPTION>
+  </FIELD>
+  <FIELD name="FLAGS" ucd="meta.code.qual" datatype="short" unit="">
+   <DESCRIPTION>Extraction flags</DESCRIPTION>
+  </FIELD>
+  <FIELD name="NITER_MODEL" ucd="meta.number;stat.fit;src.morph" datatype="short" unit="">
+   <DESCRIPTION>Number of iterations for model-fitting</DESCRIPTION>
+  </FIELD>
+   <DATA>
+   </DATA>
+  </TABLE>
+ <RESOURCE ID="MetaData" name="MetaData">
+  <DESCRIPTION>SExtractor meta-data</DESCRIPTION>
+  <INFO name="QUERY_STATUS" value="OK" />
+  <PARAM name="Software" datatype="char" arraysize="*" ucd="meta.title;meta.software" value="SExtractor"/>
+  <PARAM name="Version" datatype="char" arraysize="*" ucd="meta.version;meta.software" value="2.19.5"/>
+  <PARAM name="Soft_URL" datatype="char" arraysize="*" ucd="meta.ref.url;meta.software" value="http://astromatic.net/software/sextractor"/>
+  <PARAM name="Soft_Auth" datatype="char" arraysize="*" ucd="meta.bib.author;meta.software" value="Emmanuel Bertin"/>
+  <PARAM name="Soft_Ref" datatype="char" arraysize="*" ucd="meta.bib.bibcode;meta.software" value="1996A&amp;AS..117..393B"/>
+  <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="1"/>
+  <PARAM name="Date" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="2021-11-25"/>
+  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="08:48:50"/>
+  <PARAM name="Duration" datatype="float" ucd="time.event;meta.software" value="62" unit="s"/>
+  <PARAM name="User" datatype="char" arraysize="*" ucd="meta.curation" value="yossishv"/>
+  <PARAM name="Host" datatype="char" arraysize="*" ucd="meta.curation" value="(null)"/>
+  <PARAM name="Path" datatype="char" arraysize="*" ucd="meta.dataset" value="/home/yossishv/matlab/AstroPack/data/test_images/fits_samples"/>
+  <PARAM name="Image_Name" datatype="char" arraysize="*" ucd="obs.image;meta.fits" value="PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits"/>
+  <TABLE ID="Extension_Data" name="Extension_Data">
+   <DESCRIPTION>Data gathered by SExtractor for every FITS extension</DESCRIPTION>
+   <!-- NExtensions may be 0 if an error occurred early in the processing -->
+   <PARAM name="NExtensions" datatype="int" ucd="meta.number;meta.dataset" value="1"/>
+   <!-- CurrExtension may differ from Nextensions if an error occurred -->
+   <PARAM name="CurrExtension" datatype="int" ucd="meta.number;meta.dataset" value="1"/>
+   <FIELD name="Extension" datatype="int" ucd="meta.record"/>
+   <FIELD name="External_Header" datatype="boolean" arraysize="1" ucd="meta.code"/>
+   <FIELD name="Date" datatype="char" arraysize="*" ucd="meta.record;time.event.end"/>
+   <FIELD name="Time" datatype="char" arraysize="*" ucd="meta.record;time.event.end"/>
+   <FIELD name="Duration" datatype="float" ucd="meta.record;time.event.end"/>
+   <FIELD name="NDetect" datatype="int" ucd="meta.number;src.sample"/>
+   <FIELD name="NSextracted" datatype="int" ucd="meta.number;src.sample"/>
+   <FIELD name="Image_Ident" datatype="char" arraysize="*" ucd="meta.id;obs"/>
+   <FIELD name="Background_Mean" datatype="float" arraysize="1" ucd="instr.skyLevel;obs.image;stat.median" unit="ct"/>
+   <FIELD name="Background_StDev" datatype="float" arraysize="1" ucd="stat.stdev;obs.image;stat.median" unit="ct"/>
+   <FIELD name="Threshold" datatype="float" arraysize="1" ucd="instr.sensitivity;obs.image;stat.median" unit="ct"/>
+   <FIELD name="Weight_Scaling" datatype="float" arraysize="1" ucd="arith.factor;obs.image;stat.median"/>
+   <FIELD name="Pixel_Scale" datatype="float" arraysize="1" ucd="instr.scale;obs.image;stat.mean" unit="arcsec"/>
+   <FIELD name="Epoch" datatype="float" arraysize="1" ucd="time.epoch;obs" unit="yr"/>
+   <FIELD name="Gain" datatype="float" arraysize="1" ucd="instr.param;obs.param"/>
+   <FIELD name="Satur_Level" datatype="float" arraysize="1" ucd="instr.saturation;phot.count" unit="ct"/>
+   <DATA><TABLEDATA>
+    <TR>
+     <TD>1</TD><TD>F</TD><TD>25/11/2021</TD><TD>08:48:50</TD><TD>62</TD><TD>7042</TD><TD>5038</TD>
+     <TD>TILU_Spring_2014</TD><TD>715</TD>
+     <TD>21.1291</TD><TD>31.6936</TD><TD>0</TD><TD>1</TD><TD>0.000000</TD>
+     <TD>1.6</TD><TD>50000</TD>
+    </TR>
+   </TABLEDATA></DATA>
+  </TABLE>
+  <TABLE ID="Warnings" name="Warnings">
+   <DESCRIPTION>SExtractor warnings (limited to the last 1000)</DESCRIPTION>
+   <FIELD name="Date" datatype="char" arraysize="*" ucd="meta;time.event.end"/>
+   <FIELD name="Time" datatype="char" arraysize="*" ucd="meta;time.event.end"/>
+   <FIELD name="Msg" datatype="char" arraysize="*" ucd="meta"/>
+   <DATA><TABLEDATA>
+   </TABLEDATA></DATA>
+  </TABLE>
+  <RESOURCE ID="Config" name="Config">
+   <DESCRIPTION>SExtractor configuration</DESCRIPTION>
+   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="sex PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits"/>
+   <PARAM name="Prefs_Name" datatype="char" arraysize="*" ucd="obs.param;meta.file" value="default.sex"/>
+   <PARAM name="Catalog_Type" datatype="char" arraysize="*" ucd="meta.code;meta.table" value="ASCII_HEAD"/>
+   <PARAM name="Catalog_Name" datatype="char" arraysize="*" ucd="meta;meta.table;meta.file" value="test.cat"/>
+   <PARAM name="Parameters_Name" datatype="char" arraysize="*" ucd="meta;obs.param" value="default.param"/>
+   <PARAM name="Detect_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param;instr.det" value="CCD"/>
+   <PARAM name="Detect_MinArea" unit="pix" datatype="int" ucd="obs.param;phys.area;stat.min" value="2"/>
+   <PARAM name="Detect_MaxArea" unit="pix" datatype="int" ucd="obs.param;phys.area;stat.max" value="0"/>
+   <PARAM name="Thresh_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param;instr.sensitivity" value="RELATIVE"/>
+   <PARAM name="Detect_Thresh" datatype="double" arraysize="1" ucd="obs.param;instr.sensitivity" value="1.5"/>
+   <PARAM name="Analysis_Thresh" datatype="double" arraysize="1" ucd="obs.param;instr.sensitivity" value="2"/>
+   <PARAM name="Filter" datatype="boolean" ucd="meta.code;obs.param" value="T"/>
+   <PARAM name="Filter_Name" datatype="char" arraysize="*" ucd="obs.param;meta.file" value="default.conv"/>
+   <PARAM name="Filter_Thresh" datatype="double" ucd="obs.param" value=""/>
+   <PARAM name="Deblend_NThresh" datatype="int" ucd="meta.number;obs.param" value="32"/>
+   <PARAM name="Deblend_MinCont" datatype="double" ucd="obs.param;arith.ratio" value="0.005"/>
+   <PARAM name="Clean" datatype="boolean" ucd="meta.code;obs.param" value="T"/>
+   <PARAM name="Clean_Param" datatype="double" ucd="obs.param;arith.ratio" value="1"/>
+   <PARAM name="Mask_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param" value="CORRECT"/>
+   <PARAM name="Weight_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param" value="NONE"/>
+   <PARAM name="Rescale_Weights" datatype="boolean" arraysize="1" ucd="meta.code;obs.param" value="T"/>
+   <PARAM name="Weight_Thresh" datatype="double" ucd="obs.param" value=""/>
+   <PARAM name="Weight_Image" datatype="char" arraysize="*" ucd="stat.weight;meta.file;meta.fits" value="weight.fits"/>
+   <PARAM name="Weight_Gain" datatype="boolean" ucd="meta.code;obs.param" value="T"/>
+   <PARAM name="Flag_Image" datatype="char" arraysize="*" ucd="meta.code;meta.file;meta.fits" value="flag.fits"/>
+   <PARAM name="Flag_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param" value="OR"/>
+   <PARAM name="Phot_Apertures" unit="pix" datatype="double" arraysize="1" ucd="obs.param;phys.size.diameter" value="5"/>
+   <PARAM name="Phot_AutoParams" datatype="double" arraysize="2" ucd="meta.code;obs.param" value="2.5 3.5"/>
+   <PARAM name="Phot_PetroParams" datatype="double" arraysize="2" ucd="meta.code;obs.param" value="2 3.5"/>
+   <PARAM name="Phot_AutoApers" unit="pix" datatype="double" arraysize="2" ucd="obs.param;phys.size.diameter" value="0 0"/>
+   <PARAM name="Phot_FluxFrac" datatype="double" arraysize="1" ucd="obs.param;arith.ratio" value="0.5"/>
+   <PARAM name="Satur_Level" unit="ct" datatype="double" ucd="obs.param;instr.saturation" value="50000"/>
+   <PARAM name="Satur_Key" datatype="char" arraysize="*" ucd="meta.code;obs.param;instr.saturation" value="SATURATE"/>
+   <PARAM name="Mag_ZeroPoint" unit="mag" datatype="double" ucd="obs.param;phot.calib;phot.mag" value="0.0000"/>
+   <PARAM name="Mag_Gamma" datatype="double" ucd="obs.param;phot.calib;instr.plate.emulsion" value="4.00"/>
+   <PARAM name="Gain" unit="/ct" datatype="double" ucd="obs.param;instr.param" value="0"/>
+   <PARAM name="Gain_Key" datatype="char" arraysize="*" ucd="meta.code;obs.param;instr.param" value="GAIN"/>
+   <PARAM name="Pixel_Scale" unit="arcsec/pix" datatype="double" ucd="obs.param;instr.scale" value="1"/>
+   <PARAM name="Seeing_FWHM" unit="arcsec" datatype="double" ucd="obs.param;instr.obsty.seeing" value="1.2"/>
+   <PARAM name="StarNNW_Name" datatype="char" arraysize="*" ucd="obs.param;meta.dataset;meta.file" value="default.nnw"/>
+   <PARAM name="Back_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param" value="AUTO"/>
+   <PARAM name="Back_Value" unit="ct" datatype="double" arraysize="1" ucd="obs.param" value="0"/>
+   <PARAM name="Back_Size" unit="pix" datatype="int" arraysize="1" ucd="obs.param" value="64"/>
+   <PARAM name="Back_FilterSize" datatype="int" arraysize="1" ucd="obs.param" value="3"/>
+   <PARAM name="BackPhoto_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param" value="GLOBAL"/>
+   <PARAM name="BackPhoto_Thick" unit="pix" datatype="int" ucd="obs.param" value="24"/>
+   <PARAM name="Back_FiltThresh" unit="ct" datatype="double" ucd="obs.param;" value="0"/>
+   <PARAM name="CheckImage_Type" datatype="char" arraysize="*" ucd="meta.code;obs.param" value="MODELS,-MODELS,-BACKGROUND"/>
+   <PARAM name="CheckImage_Name" datatype="char" arraysize="*" ucd="meta.id;meta.file;meta.fits" value="prof.fits,subprof.fits,orig.fits"/>
+   <PARAM name="Memory_ObjStack" datatype="int" ucd="meta.number;src;obs.param" value="3000"/>
+   <PARAM name="Memory_PixStack" unit="pix" datatype="int" ucd="meta.number;obs.param" value="300000"/>
+   <PARAM name="Memory_BufSize" unit="pix" datatype="int" ucd="meta.number;obs.param" value="1024"/>
+   <PARAM name="Assoc_Name" datatype="char" arraysize="*" ucd="meta;meta.table;meta.file" value="sky.list"/>
+   <PARAM name="Assoc_Data" datatype="int" arraysize="3" ucd="meta;meta.table" value="2 3 4"/>
+   <PARAM name="Assoc_Params" datatype="int" arraysize="3" ucd="meta;meta.table" value="2 3 4"/>
+   <PARAM name="AssocCoord_Type" datatype="char" arraysize="*" ucd="meta.code" value="PIXEL"/>
+   <PARAM name="Assoc_Radius" unit="pix" datatype="double" ucd="meta;phys.size.radius" value=""/>
+   <PARAM name="Assoc_Type" datatype="char" arraysize="*" ucd="meta.code" value="NEAREST"/>
+   <PARAM name="AssocSelec_Type" datatype="char" arraysize="*" ucd="meta.code" value="MATCHED"/>
+   <PARAM name="Verbose_Type" datatype="char" arraysize="*" ucd="meta.code" value="NORMAL"/>
+   <PARAM name="Header_Suffix" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=".head"/>
+   <PARAM name="Write_XML" datatype="boolean" ucd="meta.code" value="T"/>
+   <PARAM name="XML_Name" datatype="char" arraysize="*" ucd="meta;meta.file" value="sex.xml"/>
+   <PARAM name="XSL_URL" datatype="char" arraysize="*" ucd="meta.ref.url;meta.file" value="file:///usr/local/share/sextractor/sextractor.xsl"/>
+   <PARAM name="NThreads" datatype="int" ucd="meta.number" value="1"/>
+   <PARAM name="FITS_Unsigned" datatype="boolean" ucd="meta.code;obs.param" value="F"/>
+   <PARAM name="PSF_Name" datatype="char" arraysize="*" ucd="instr.det.psf;meta.file;meta.fits" value="default.psf"/>
+  </RESOURCE>
+ </RESOURCE>
+</RESOURCE>
+</VOTABLE>

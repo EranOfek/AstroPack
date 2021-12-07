@@ -1,4 +1,4 @@
-function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun)
+function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun, DistFunArgs)
 % Search a single long/lat in a catalog sorted by latitude
 % Package: VO.search
 % Description: A low level function for a single cone search
@@ -10,6 +10,8 @@ function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNea
 %          - Radius [radians] to search.
 %          - A function handle for calculating distances Fun(X1,Y1,X2,Y2).
 %            Default is @celestial.coo.sphere_dist_fast.
+%          - A cell array of additional arguments to pass to the DistFun
+%            (after the 4th position).
 % Output : - A three column matrix with, one line per line in Long,Lat.
 %            Columns are [Index of nearest source, within search radius, in
 %            Cat;
@@ -33,6 +35,7 @@ arguments
     Lat
     Radius
     DistFun function_handle      = @celestial.coo.sphere_dist_fast;
+    DistFunArgs cell             = {};
 end
 
 
@@ -65,7 +68,7 @@ CatFlagAll      = false(Ncat,1);
 
 for I=1:1:Nlat
     %Dist  = celestial.coo.sphere_dist_fast(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
-    Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
+    Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), DistFunArgs{:});
     FlagDist = Dist <= Radius;
     
     IndI  = Ilow(I)-1+find(FlagDist);

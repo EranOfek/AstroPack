@@ -51,7 +51,7 @@ function Result = unitTest()
     AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)},'Var',{ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
     [Result, CoaddN,Cube] = imProc.stack.coadd(AI,'StackMethod','wmean');
     assert(all(Result.Image<2,'all'),'problem with coadd');
-    [Result, CoaddN,Cube] = imProc.stack.coadd(AI,'Offset',@mean,'OffsetArgs',{[1 2]});
+    [Result, CoaddN,Cube] = imProc.stack.coadd(AI,'Offset',@mean,'OffsetArgs',{[2 3]});
     assert(all(Result.Image==0,'all'),'problem with coadd');
     AI = AstroImage({ones(5), 2.*ones(6), 3.*ones(10)});
 %     fails! empty back/mask/var images can't be combined with CCDSEC

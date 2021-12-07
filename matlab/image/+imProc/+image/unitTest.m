@@ -8,11 +8,23 @@ function Result = unitTest()
     [CubeImage] = imProc.image.images2cube(AI,'CCDSEC',[1 2 2 5]);
 
     % cutouts
-    AI=AstroImage({rand(1000,1000)});
-    XY = rand(10000,2).*900 + 50;
+%     AI=AstroImage({rand(1000,1000)});
+%     XY = rand(10000,2).*900 + 50;
+%     Cube = imProc.image.cutouts(AI, XY);
+%     Cube = imProc.image.cutouts(AI, XY,'Shift',true);
+%     Cube = imProc.image.cutouts(AI, XY,'Shift',true,'IsCircFilt',true);
+    
+    AI=AstroImage({[ones(50,50),ones(50,50)*2;3*ones(50,50),ones(50,50)*4]});
+    XY = [20,20;3,20];
+    
+    % Ask Eran, imaginary part
     Cube = imProc.image.cutouts(AI, XY);
-    Cube = imProc.image.cutouts(AI, XY,'Shift',true);
-    Cube = imProc.image.cutouts(AI, XY,'Shift',true,'IsCircFilt',true);
+    Cube = real(imProc.image.cutouts(AI, XY,'Shift',true));
+    Cube = real(imProc.image.cutouts(AI, XY,'Shift',true,'IsCircFilt',true,'PadVal',1));
+    
+    XY = [50,50];
+    Cube = imProc.image.cutouts(AI, XY);
+    Cube = real(imProc.image.cutouts(AI, XY,'Shift',true,'IsCircFilt',true,'PadVal',1));
 
     % image2subimages
     AI = AstroImage({rand(1024, 1024)},'Back',{rand(1024, 1024)});
@@ -29,8 +41,13 @@ function Result = unitTest()
     AI = AstroImage({ones(100,100)});
     AI.Image(50,50:51)=NaN;
     AI.Image(70,70) = NaN;
-    imProc.image.interpOverNan(AI);
-    if ~all(AI.Image==1)
+    imProc.image.interpOverNan(AI,'Method','rowcol');
+    if ~all(AI.Image==1,'all')
+        error('Problem with interpOverNan');
+    end
+    AI = AstroImage({ones(100,100)},'Back',{2*ones(100,100)});
+    imProc.image.interpOverNan(AI,'DataProp',{'Image','Back'});
+    if ~all(~isnan(AI.Image),'all') || ~all(~isnan(AI.Back),'all')
         error('Problem with interpOverNan');
     end
     

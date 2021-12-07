@@ -91,7 +91,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
 
             %Nhist = histcounts(Array,Edges);
             Nhist = matlab.internal.math.histcounts(Array,Edges);
-           
+            %Nhist = cast(Nhist, 'like',Array);  % not helping
             
             [~,MaxI]  = max(Nhist);
 
@@ -112,11 +112,12 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
                 % interp1q is faster, but doesnt check validity
                 IqrVal = interp1q(CumN,Edges(1:end-1)+0.5.*BinSize,[0.25 0.75]'.*CumN(end));
                 
-                %Ntot = CumN(end);
-                %I25 = find(CumN>(0.25.*Ntot), 1, 'first');
-                %I75 = find(CumN>(0.75.*Ntot), 1, 'first');
-                %IqrVal = [Edges(I25); Edges(I75)] + 0.5.*BinSize;
-                
+%                 %Ntot = CumN(end);
+%                 I25=tools.find.mfind_bin(CumN, [0.25 0.75].*CumN(end));
+%                 %I75=tools.find.bin_sear3(CumN, 0.75.*CumN(end));                
+%                 %I25 = find(CumN>(0.25.*Ntot), 1);
+%                 %I75 = find(CumN>(0.75.*Ntot), 1);
+%                 IqrVal = [Edges(I25(1)); Edges(I25(2))];% + 0.5.*BinSize;
                 
                 Factor = 0.7413;  %  = 1./norminv(0.75,0,1)
 

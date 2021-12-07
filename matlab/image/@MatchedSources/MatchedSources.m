@@ -432,7 +432,11 @@ classdef MatchedSources < Component
                 FN = fieldnames(Matrix);
                 for Ifn=1:1:numel(FN)
                     Obj.Data.(FN{Ifn}) = Matrix.(FN{Ifn});
-                    %Obj.Units.(FieldName{Ifn}) = Units{Ifn};
+                    if isempty(Units)
+                        Obj.Units.(FN{Ifn}) = '';
+                    else
+                        Obj.Units.(FN{Ifn}) = Units{Ifn};
+                    end
                 end
             elseif iscell(Matrix)
                 Ncell = numel(Matrix);
@@ -612,8 +616,8 @@ classdef MatchedSources < Component
             end
             
             for Ifn=1:1:numel(FieldName)
-                Obj = rmfield(Obj.Data, FieldName{Ifn});
-                Obj = rmfield(Obj.Units, FieldName{Ifn});
+                Obj.Data = rmfield(Obj.Data, FieldName{Ifn});
+                Obj.Units = rmfield(Obj.Units, FieldName{Ifn});
             end
             
         end

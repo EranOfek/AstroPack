@@ -207,9 +207,9 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
     IndI = repmat(Pos(:,2),1,Ntemplate);
     IndJ = repmat(Pos(:,1),1,Ntemplate);
     IndT = (1:1:Ntemplate).*ones(Nsrc,1);
-    % consider writing sub2ind_fast for 3D
-    Ind  = sub2ind(Size,IndI,IndJ,IndT);
-
+    %Ind  = sub2ind(Size,IndI,IndJ,IndT);
+    Ind  = imUtil.image.sub2ind3d_fast(Size,IndI,IndJ,IndT);
+    
     Src.XPEAK     = Pos(:,1);
     Src.YPEAK     = Pos(:,2);
     % S/N from local_maxima is not usedSrc.BACK_IM
