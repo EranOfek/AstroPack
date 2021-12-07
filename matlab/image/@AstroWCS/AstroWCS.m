@@ -1029,6 +1029,17 @@ classdef AstroWCS < Component
         
     end
     
+    methods  % Functions related to xy2xy
+        function [D,PX,PY,refPX,refPY]  = xy2xy(Obj,CCDSEC,refWCS)
+            % In Progress
+            
+            [PX,PY] = meshgrid(CCDSEC(1):CCDSEC(2),CCDSEC(3):CCDSEC(4));
+            [Alpha, Delta]  = Obj.xy2sky(nPX,nPY);
+            [refPX,refPY] = refWCS.sky2xy(Alpha,Delta);
+            D(:,:,1) = Px-refPX;
+            D(:,:,2) = PY-refPY;
+        end
+    end
     
     methods (Static)  % static methods
 
