@@ -85,6 +85,20 @@ function Result = unitTest()
         disp(sprintf('Max distance for TAN projection (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));
     end
 
+    % test cropWCS
+    OrigCRPIX = AW.CRPIX;
+    AW = AW.cropWCS(AW.CRPIX,'centerCRPIX',true);
+    [Alpha2, Delta2]  = AW.xy2sky(PX-OrigCRPIX(1)+1,PY-OrigCRPIX(1)+1);
+    d_mas2 = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,Alpha2'./RAD,Delta2'./RAD)));
+    disp(sprintf('Max distance for TAN projection (cropped WCS #1) is %.1f [mas]',max(d_mas2)));
+    
+    AW = AstroWCS.header2wcs(AH);
+    [Alpha, Delta]  = AW.xy2sky(PX,PY);
+    AW = AW.cropWCS([1,AH.Key.NAXIS1,1,AH.Key.NAXIS2],'centerCRPIX',true);
+    [Alpha2, Delta2]  = AW.xy2sky(PX,PY);
+    d_mas2 = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,Alpha2'./RAD,Delta2'./RAD)));
+    disp(sprintf('Max distance for TAN projection (cropped WCS #1) is %.1f [mas]',max(d_mas2)));
+    
     % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
     %Im_name = 'tpv.fits';
     Im_name = 'WD0548-001_2457842_215821_Clear_meter.fits';
