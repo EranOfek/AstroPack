@@ -874,7 +874,7 @@ classdef FITS < handle
             % write Header            
             % @Todo: Check performance with big header (keys > 300)
             
-            t = tic;
+            %t = tic;
             Nline = size(Header.(HeaderField),1);            
             for Inl=1:1:Nline
                 if (~isempty(Header.(HeaderField){Inl,1}))
@@ -922,7 +922,7 @@ classdef FITS < handle
                     end
                 end
             end            
-            time = toc - t;
+            %time = toc - t;
             %fprintf('writeHeader time: %0.6f', time);
             Result = true;                        
         end

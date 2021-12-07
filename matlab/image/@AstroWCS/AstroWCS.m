@@ -227,6 +227,56 @@ classdef AstroWCS < Component
                           sum(BinN<2,'all') <= Args.RegionalMaxWithNoSrc && ...
                           Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
         end
+        
+        function Obj = cropWCS(Obj,Pos,Args)
+            % Bla
+            % Input  : - AstroWCS object or array of AstroWCS with size Nobj.
+            %          - Updated position information of either:
+            %                - CRPIX(1,1:2): new CRPIX for all AstroWCS array 
+            %                - CRPIX(Nobj,1:2): pair of CRPIX for each element in the AstroWCS array
+            %                - CCDSEC(1,1:4): cropped CCDSEC region for all AstroWCS array 
+            %                - CCDSEC(Nobj,1:2): Cropped CCDSEC region for each element in the AstroWCS array
+            %          * ...,key,val,...
+            %            'delDistortion' - Flag for deleting distortions
+            %                              (PV, revPV). Default is false.
+            % Output : - Updated AstroWCS object or array of AstroWCS forthe cropped region
+            % Author : Yossi Shvartzvald (December 2021)
+            % Example:
+            %                
+            
+            arguments
+                Obj
+                Pos
+                Args.delDistortion       = false;
+            end
+            
+            Nobj = numel(Obj);
+            Npos = size(Pos,1);
+            PosType = size(Pos,2);
+            
+            if (Nobj<1) || (Npos<1) || (Npos>1 && Npos~=Nob) || (PosType~=2 && PosType~=4)
+               error('Wrong dimensions of either Obj or Pos');
+            end
+            
+            for Iobj = 1:1:Nobj
+                Ipos = min(Iobj,Npos);
+                CurrPos = Pos(Ipos,:);
+                
+                switch PosType
+                    case 2 % new CRPIX
+                        Obj(Iobj).CRPIX(1,1:2) = CurrPos;
+                        
+                    case 4 % CCDSEC is given
+                        Obj(Iobj).CRPIX(1,1:2) = Obj(Iobj).CRPIX(1,1:2) + (CurrPos(1,[1,3]) -1);
+                end
+                
+                if Args.delDistortion
+                     Obj(Iobj).PV = AstroWCS.DefPVstruct;
+                     Obj(Iobj).RevPV = AstroWCS.DefPVstruct;
+                end
+            end
+            
+        end
     end
 
     methods   % Functions to construct AstroWCS from AstroHeader
