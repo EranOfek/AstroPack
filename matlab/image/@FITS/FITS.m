@@ -919,7 +919,7 @@ classdef FITS < handle
                     end
                 end
             end            
-            time = toc - t;
+            %time = toc - t;
             %fprintf('writeHeader time: %0.6f', time);
             Result = true;                        
         end
