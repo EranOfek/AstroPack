@@ -177,10 +177,10 @@ end
 Vec = (1:1:SizeCube(1)) - SizeCube(1).*0.5 - 0.5;
 
 % no need to use meshgrid:
-%[MatX,MatY] = meshgrid(Vec,Vec);
+[MatX,MatY] = meshgrid(Vec,Vec);
 %MatR        = sqrt(MatX.^2 + MatY.^2);
-%MatR2       = MatX.^2 + MatY.^2;
-MatR2        = Vec.^2 + Vec(:).^2;
+MatR2       = MatX.^2 + MatY.^2;
+%MatR2        = Vec.^2 + Vec(:).^2;
 
 %MatR        = sqrt(MatR2);
 

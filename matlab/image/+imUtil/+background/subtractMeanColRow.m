@@ -35,7 +35,7 @@ function Image = subtractMeanColRow(Image, Args)
         Args.RetBack logical          = true;
         Args.SubMedRow logical        = true;
         Args.SubMedCol logical        = true;
-        Args.MeanFun function_handle  = @median;
+        Args.MeanFun function_handle  = @rmeanCol; %@median;
         Args.MeanFunArgs cell         = {'omitnan'};
     end
     
