@@ -5,6 +5,8 @@ function [AC,Res]=autocor(Mat,Args)
 %              subtraction and StD normalization.
 % Input  : - A matrix.
 %          * Pairs of ...,key,val,... Possible keywords include:
+%            'Norm' - A logical indicating if to normalize the ACF such
+%                   that output will be correlation. Default is true.
 %            'SubBack' - Subtract background and divide by std the image
 %                     prior to the autocorrelation.
 %                     Default is true.
@@ -42,9 +44,10 @@ function [AC,Res]=autocor(Mat,Args)
 
 arguments
     Mat
+    Args.Norm logical                      = true;
     Args.SubBack(1,1) logical              = true;
-    Args.BackFun                           = @nanmedian;
-    Args.BackFunPar                        = {'all'};
+    Args.BackFun                           = @median;
+    Args.BackFunPar                        = {'all','omitnan'};
     Args.VarFun                            = @imUtil.background.rvar;
     Args.VarFunPar                         = {};
     Args.SubSizeXY                         = [128 128];
@@ -72,7 +75,13 @@ else
 end
     
 SizeM = size(SN);
+
 AC = imUtil.filter.filter2_fft(SN,SN);
+
+if Args.Norm
+    Npix    = numel(SN);
+    AC = AC./(var(SN,[],'all').*Npix);
+end
 
 if nargout>1
     SizeM = SizeM - 0.5;

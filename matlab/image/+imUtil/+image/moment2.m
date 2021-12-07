@@ -175,10 +175,13 @@ if (SizeCube(1)~=SizeCube(2))
     error('First two dimensions of cube must be equal');
 end
 Vec = (1:1:SizeCube(1)) - SizeCube(1).*0.5 - 0.5;
-[MatX,MatY] = meshgrid(Vec,Vec);
 
+% no need to use meshgrid:
+%[MatX,MatY] = meshgrid(Vec,Vec);
 %MatR        = sqrt(MatX.^2 + MatY.^2);
-MatR2       = MatX.^2 + MatY.^2;
+%MatR2       = MatX.^2 + MatY.^2;
+MatR2        = Vec.^2 + Vec(:).^2;
+
 %MatR        = sqrt(MatR2);
 
 Nsrc = numel(X);

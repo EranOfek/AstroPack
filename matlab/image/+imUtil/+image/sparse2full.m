@@ -22,6 +22,8 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
     % Output : - Filled image.
     % Author : Eran Ofek (Jun 2021)
     % Example: Result = imUtil.image.sparse2full(rand(2,4), [11 21 31 41], [11 21], [30 50])
+    %          R=rand(12,12);
+    %          Result = imUtil.image.sparse2full(R, (128:128:1600),(128:128:1600), [1600 1600]);
     
     arguments
         SparseImage
@@ -50,8 +52,14 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
                 VecY        = [1; VecY(:); SizeIJ(1)];
             end
             
-            [MatX,MatY] = meshgrid((1:1:SizeIJ(2)), (1:1:SizeIJ(1)));
-            Result = interp2(VecX, VecY, SparseImage, MatX, MatY, Args.InterpMethod);
+            % no need to define full matrices
+            %[MatX,MatY] = meshgrid((1:1:SizeIJ(2)), (1:1:SizeIJ(1)));
+            %Result = interp2(VecX, VecY, SparseImage, MatX, MatY, Args.InterpMethod);
+            
+            % This is faster
+            VecXX = (1:1:SizeIJ(2));
+            VecYY = (1:1:SizeIJ(1)).';
+            Result = interp2(VecX, VecY, SparseImage, VecXX, VecYY, Args.InterpMethod);
             
         otherwise
             error('Unknown Method option');
@@ -60,7 +68,7 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
     
     % post interpolation / smothing
     if Args.Smooth
-        KernelSize = [Args.GaussSigma.*Args.FiltSizeFactor + 1].*ones(1,2);
+        KernelSize = (Args.GaussSigma.*Args.FiltSizeFactor + 1).*ones(1,2);
         KernelSize = min([SizeIJ; KernelSize]);
         Kernel     =  imUtil.kernel2.gauss(Args.GaussSigma, fliplr(KernelSize));
         Result     = imUtil.filter.conv2_fast(Result, Kernel);
