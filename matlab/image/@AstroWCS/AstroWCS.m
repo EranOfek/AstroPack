@@ -281,12 +281,12 @@ classdef AstroWCS < Component
                         
                     case 4 % cropSEC is given
                         if ~Args.centerCRPIX                        
-                            Obj(Iobj).CRPIX(1,1:2) = Obj(Iobj).CRPIX(1,1:2) + (CurrPos(1,[1,3]) -1);
+                            Obj(Iobj).CRPIX(1,1:2) = Obj(Iobj).CRPIX(1,1:2) - CurrPos(1,[1,3]) +1;
                         else
                             [newCRVAL(1,1),newCRVAL(1,2)]  = Obj(Iobj).xy2sky(mean(CurrPos(1:2)),mean(CurrPos(3:4)));
                             Obj(Iobj).CRVAL(1,1:2) = newCRVAL;
-                            Obj(Iobj).CRPIX(1,1) = mean(CurrPos(1:2))-CurrPos(1);
-                            Obj(Iobj).CRPIX(1,2) = mean(CurrPos(3:4))-CurrPos(3);
+                            Obj(Iobj).CRPIX(1,1) = mean(CurrPos(1:2))-CurrPos(1)+1;
+                            Obj(Iobj).CRPIX(1,2) = mean(CurrPos(3:4))-CurrPos(3)+1;
                             Obj(Iobj).populate_projMeta;
                         end
                         
@@ -1029,6 +1029,17 @@ classdef AstroWCS < Component
         
     end
     
+    methods  % Functions related to xy2xy
+        function [D,PX,PY,refPX,refPY]  = xy2xy(Obj,CCDSEC,refWCS)
+            % In Progress
+            
+            [PX,PY] = meshgrid(CCDSEC(1):CCDSEC(2),CCDSEC(3):CCDSEC(4));
+            [Alpha, Delta]  = Obj.xy2sky(nPX,nPY);
+            [refPX,refPY] = refWCS.sky2xy(Alpha,Delta);
+            D(:,:,1) = Px-refPX;
+            D(:,:,2) = PY-refPY;
+        end
+    end
     
     methods (Static)  % static methods
 
