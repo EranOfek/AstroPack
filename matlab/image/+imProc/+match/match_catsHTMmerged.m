@@ -10,6 +10,7 @@ function Result = match_catsHTMmerged(Obj, Args)
         Args.CreateNewObj logical         = false;
         
         Args.MergedCatName                = 'MergedCat';
+        Args.MergedCatRadiusCol           = 4;
         Args.Con                          = {};
     end
    
@@ -32,7 +33,7 @@ function Result = match_catsHTMmerged(Obj, Args)
             [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad');
             CatH  = catsHTM.cone_search(Args.MergedCatName, CircX, CircY, CircR, 'RadiusUnits','rad', 'Con',Args.Con, 'OutType','astrocatalog');
             
-            MaxSearchRadius = max(CatH.Catalog(:,4));
+            MaxSearchRadius = max(CatH.Catalog(:,Args.MergedCatRadiusCol));
         end
         
         
@@ -46,6 +47,11 @@ function Result = match_catsHTMmerged(Obj, Args)
         
         % git here
         ResInd.Obj2_IndInObj1
+        
+        FlagNaN = ResInd.Obj2_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
+        ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
+        MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
+        
         
     %                   its matched indices in Obj1. NaN if no match.
     %            'Obj2_Dist' - A vector, for each source in Obj2, of the
