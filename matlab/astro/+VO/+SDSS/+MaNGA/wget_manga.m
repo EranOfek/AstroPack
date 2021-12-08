@@ -1,4 +1,4 @@
-function URL = wget_manga(Plate, IFUdsgn, VerDRP3, Args)
+function [URL,Files] = wget_manga(Plate, IFUdsgn, VerDRP3, Args)
     % wget SDSS/MaNGA spectral cube FITS files.
     % Input  : - A vector of SDSS/MaNGA plate numbers.
     %          - A vector of IFU design numbers.
