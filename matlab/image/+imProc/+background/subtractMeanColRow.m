@@ -22,7 +22,7 @@ function Result = subtractMeanColRow(Obj, Args)
     %            'SubMedCol' - Subtract median of columns. Default is true.
     %            'MeanFun' - Function handle for mean. Second argument of
     %                   function must be the dimension index.
-    %                   Default is @median.
+    %                   Default is @imUtil.background.rmeanCol.
     %            'MeanFunArgs' - A cell array of additional arguments to
     %                   pass to the mean function, after the dimension
     %                   argument. Default is {'omitnan'}.
@@ -44,8 +44,8 @@ function Result = subtractMeanColRow(Obj, Args)
         Args.RetBack logical           = true;
         Args.SubMedRow logical         = true;
         Args.SubMedCol logical         = true;
-        Args.MeanFun function_handle   = @median;
-        Args.MeanFunArgs cell          = {'omitnan'};
+        Args.MeanFun function_handle   = @median; %@imUtil.background.rmeanCol; %@median;
+        Args.MeanFunArgs cell          = {};  %{'omitnan'};
         Args.DataProp                  = 'Image';
         Args.CreateNewObj logical      = false;
     end

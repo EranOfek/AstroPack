@@ -29,7 +29,7 @@ function [MeanVec]=rmeanCol(Image, Dim, Args)
         Args.RemoveFracMin        = 0.1;
         Args.RemoveFracMax        = 0.7;
         Args.MeanFun              = @median;
-        Args.MeanFunArgs          = {'omitnan'};
+        Args.MeanFunArgs          = {}; %{'omitnan'};
     end
 
     Nlines      = size(Image, Dim);

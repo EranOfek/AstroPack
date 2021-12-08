@@ -1,4 +1,4 @@
-function Result = identifyBadImages(Obj, Args)
+function [Result,ACF] = identifyBadImages(Obj, Args)
     % Identify bad images based on simple statistical properties:
     %       Fraction of pixels above threshold value
     %       Number of pixels in the ACF above some threshold correlation.
@@ -29,6 +29,7 @@ function Result = identifyBadImages(Obj, Args)
     %            .NpixAboveThresholdVal
     %            .NpixAboveThresholdACF
     %            .BadImageFlag - true if image is bad.
+    %          - The ACF of the background subtracted image.
     % Author : Eran Ofek (Dec 2021)
     % Example: Result = imProc.stat.identifyBadImages(Obj, Args)
     
@@ -51,7 +52,7 @@ function Result = identifyBadImages(Obj, Args)
     Result = struct('Npix',cell(Nobj,1),...
                     'NpixAboveThresholdVal',cell(Nobj,1),...
                     'NpixAboveThresholdACF',cell(Nobj,1),...
-                    'BadImageFlag'cell(Nobj,1));
+                    'BadImageFlag',cell(Nobj,1));
                 
     for Iobj=1:1:Nobj
         % Number of pixels above threshold
@@ -71,12 +72,14 @@ function Result = identifyBadImages(Obj, Args)
         
         BackSubImage = Obj(Iobj).(Args.DataProp) - Back;
         
+        BackSubImage(BackSubImage>50000) = 0;
+        
         % Autocorrelation function
         [ACF] = imUtil.filter.autocor(BackSubImage, 'Norm',true, 'SubBack',false);
         
         Result(Iobj).NpixAboveThresholdACF = sum(ACF > Args.ThresholdACF, 'all');
         
-        Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal && ...
+        Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
                                     Result(Iobj).NpixAboveThresholdACF > Args.MaxPixAboveACF;
     end
 end

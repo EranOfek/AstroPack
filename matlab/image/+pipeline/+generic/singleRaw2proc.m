@@ -84,7 +84,7 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.BackSubSizeXY                    = [128 128];
         Args.DiluteStep                       = 2;
         Args.EstimateRowColNoise logical      = false;
-        Args.SubCorrelaredColRow logical      = true;
+        Args.SubCorrelaredColRow logical      = false;
         Args.subtractMeanColRowArgs cell      = {};
         
         Args.findMeasureSourcesArgs cell      = {};
