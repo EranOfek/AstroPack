@@ -62,10 +62,13 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.MatchExternal(1,1) logical       = false;
         Args.SaveProducts(1,1) logical        = true;
         
+        Args.RemoveBadImages logical          = true;
+        Args.identifyBadImagesArgs cell       = {};
         
         Args.BitNameBadPix                  = {'Saturated','NaN'};
         Args.BitNameInterpolated            = 'Interpolated';
                 
+        
         
         Args.InterpolateOverProblems logical  = true;
         Args.BitNamesToInterp                 = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
@@ -230,6 +233,19 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         SI = imProc.background.subtractMeanColRow(SI,'SubOnlyRowColComp',true,...
                                                      'RetBack',true,...
                                                      Args.subtractMeanColRowArgs{:});
+    end
+    
+    % identify and remove bad images
+    Args.RemoveBadImages = false;  % FFU: doesn't work properly
+    if Args.RemoveBadImages
+        Result.ResultBadImages = imProc.stat.identifyBadImages(SI, Args.identifyBadImagesArgs{:});
+        Nbad = sum([Result.ResultBadImages.BadImageFlag]);
+        if Nbad>0
+            warning('Identified %d bad sub images',Nbad);
+        end
+        SI = SI(~[Result.ResultBadImages.BadImageFlag]);
+    else
+        Result.ResultBadImages = [];
     end
                                                                             
     % Source finding
