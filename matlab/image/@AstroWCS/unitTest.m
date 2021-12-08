@@ -97,7 +97,7 @@ function Result = unitTest()
     AW = AW.cropWCS([1,AH.Key.NAXIS1,1,AH.Key.NAXIS2],'centerCRPIX',true);
     [Alpha2, Delta2]  = AW.xy2sky(PX,PY);
     d_mas2 = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,Alpha2'./RAD,Delta2'./RAD)));
-    disp(sprintf('Max distance for TAN projection (cropped WCS #1) is %.1f [mas]',max(d_mas2)));
+    disp(sprintf('Max distance for TAN projection (cropped WCS #2) is %.1f [mas]',max(d_mas2)));
     
     % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
     %Im_name = 'tpv.fits';
@@ -163,13 +163,13 @@ function Result = unitTest()
 
     [PX1_no,PY1_no]  = AW.sky2xy(Alpha,Delta,'includeDistortion',false);
     d_pix = sqrt((PX1_no-PX1).^2 + (PY1_no-PY1).^2);
-    disp(sprintf('Max distance for  TAN-SIP projection (compared to no distortion) is %.1f [mili-pix]',max(d_pix)*1000));             
+    disp(sprintf('Max distance for TAN-SIP projection (compared to no distortion) is %.1f [mili-pix]',max(d_pix)*1000));             
 
    % Check with no RevPV
     AW.RevPV = AstroWCS.DefPVstruct; % clear fields
     [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
     d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
-    disp(sprintf('Max distance for  TAN-SIP projection (xy2sky<->sky2xy no RevPV) is %.1f [mili-pix]',max(d_pix)*1000));               
+    disp(sprintf('Max distance for TAN-SIP projection (xy2sky<->sky2xy no RevPV) is %.1f [mili-pix]',max(d_pix)*1000));               
 
     % construct a AstroWCS from AstroHeader with Naxis=3, and empty
     % projtype in CTYPE3 and get [alpha, delta]
@@ -178,9 +178,29 @@ function Result = unitTest()
     PX = rand(1,500) * AH.Key.NAXIS1;
     PY = rand(1,500) * AH.Key.NAXIS2; 
 
-    AW = AstroWCS.header2wcs(AH);
-%            [Alpha, Delta]  = AW.xy2sky(PX,PY); % Not supported yet
+    AW = AstroWCS.header2wcs(AH,'read2axis',true);
+    [Alpha, Delta]  = AW.xy2sky(PX,PY);
 
+    if have_ds9
+        ds9(Im_name);
+        [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
+        d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+        disp(sprintf('Max distance for Naxis=3 (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
+    end
+
+    % test sky2xy for  AstroWCS from AstroHeader with Naxis=3. 
+    % First compare to xy2sky and then compared to ds9
+    [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
+    d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
+    disp(sprintf('Max distance for Naxis=3 (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));          
+
+    if have_ds9            
+        [ds9_PX1,ds9_PY1] = ds9.coo2xy(Alpha, Delta);
+        d_pix = sqrt((ds9_PX1'-PX1).^2 + (ds9_PY1'-PY1).^2);
+        disp(sprintf('Max distance for Naxis=3 (sky2xy vs. ds9) is %.1f [mili-pix]',max(d_pix)*1000));            
+    end    
+    
+    
     % Construct AstroWCS from Tran2D
     TC=Tran2D; 
     TC.symPoly; TC.ParX = ones(1,13);TC.ParY = ones(1,13);

@@ -5,7 +5,7 @@
 %       Greisen & Calabretta 2002, \aap, 395, 1061. doi:10.1051/0004-6361:20021326
 %       Calabretta & Greisen 2002, \aap, 395, 1077. doi:10.1051/0004-6361:20021327
 % Currently supporting only Proj types: TAN, TAN-SIP, TPV
-% Currently not supporting WCSAXES>2
+% Currently not supporting WCSAXES>2. Support only the option to read first 2 axis for NAXIS>2
 %
 % TODO: modify tran2wcs to work with arrays. update unittest to check header2wcs with arrays
 
@@ -339,7 +339,7 @@ classdef AstroWCS < Component
             if isempty(projtype)                        % No projection given
                 Obj.ProjType  = 'none';
                 Obj.ProjClass = 'none';
-            elseif all(strcmp(projtype{1},projtype))
+            elseif strcmp(projtype{1},projtype{1})     % verify both RA and DEC with the same projection type
                 Obj.ProjType = projtype{1};
                 Obj.ProjClass = ProjTypeDict.searchAlt(Obj.ProjType);
             else
@@ -1045,13 +1045,22 @@ classdef AstroWCS < Component
 
    %======== Functions to construct AstroWCS from AstroHeader =========
         
-        function Result = header2wcs(AH)
+        function Result = header2wcs(AH,Args)
             % Create and populate an AstroWCS object from an AstroHeader object
             % Input  : - AstroHeader object.
+            %          * ...,key,val,...
+            %            'read2axis' - Flag to read ONLY first 2 axis. Can
+            %                          be used to ignore 3rd and up axis.
+            %                          Default is false.
             % Output : - AstroWCS object.
-            % Author : Yossi Shvartzvald (October 2021)
+            % Author : Yossi Shvartzvald (December 2021)
             % Example:
             %           AH = AstroHeader(Im_name); AW = AstroWCS.header2wcs(AH);
+            
+            arguments
+                AH
+                Args.read2axis     =  false;
+            end
             
             Nobj   = numel(AH);
             Result = AstroWCS(size(AH));
@@ -1065,6 +1074,11 @@ classdef AstroWCS < Component
                 Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
                 if (Result(Iobj).WCSAXES==0)
                     Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
+                end
+                
+                if Args.read2axis
+                    Result(Iobj).WCSAXES = 2;
+                    Result(Iobj).NAXIS   = 2;
                 end
             
                 Naxis = Result(Iobj).WCSAXES;
