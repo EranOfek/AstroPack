@@ -339,7 +339,7 @@ classdef AstroWCS < Component
             if isempty(projtype)                        % No projection given
                 Obj.ProjType  = 'none';
                 Obj.ProjClass = 'none';
-            elseif all(strcmp(projtype{1},projtype))
+            elseif strcmp(projtype{1},projtype{1})     % verify both RA and DEC with the same projection type
                 Obj.ProjType = projtype{1};
                 Obj.ProjClass = ProjTypeDict.searchAlt(Obj.ProjType);
             else
