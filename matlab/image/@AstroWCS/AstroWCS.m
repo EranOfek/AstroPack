@@ -1049,7 +1049,7 @@ classdef AstroWCS < Component
             % Create and populate an AstroWCS object from an AstroHeader object
             % Input  : - AstroHeader object.
             %          * ...,key,val,...
-            %            'read2axis' - Flag to read ONLY first 2 axis. Can
+            %            'read2axes' - Flag to read ONLY first 2 axis. Can
             %                          be used to ignore 3rd and up axis.
             %                          Default is false.
             % Output : - AstroWCS object.
@@ -1059,7 +1059,7 @@ classdef AstroWCS < Component
             
             arguments
                 AH
-                Args.read2axis     =  false;
+                Args.read2axes     =  false;
             end
             
             Nobj   = numel(AH);
@@ -1076,7 +1076,7 @@ classdef AstroWCS < Component
                     Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
                 end
                 
-                if Args.read2axis
+                if Args.read2axes
                     Result(Iobj).WCSAXES = 2;
                     Result(Iobj).NAXIS   = 2;
                 end

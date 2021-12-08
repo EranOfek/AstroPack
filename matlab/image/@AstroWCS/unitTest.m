@@ -178,7 +178,7 @@ function Result = unitTest()
     PX = rand(1,500) * AH.Key.NAXIS1;
     PY = rand(1,500) * AH.Key.NAXIS2; 
 
-    AW = AstroWCS.header2wcs(AH,'read2axis',true);
+    AW = AstroWCS.header2wcs(AH,'read2axes',true);
     [Alpha, Delta]  = AW.xy2sky(PX,PY);
 
     if have_ds9
