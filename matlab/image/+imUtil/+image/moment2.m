@@ -136,6 +136,9 @@ MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than al
 Naper      = numel(Args.AperRadius);
 
 
+% FFU: replace with:
+% [Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y);    
+
 NdimImage = ndims(Image);
 if NdimImage==2
     % Image is 2D - build a cube of 2D stamps
