@@ -10,8 +10,34 @@ function unitTest
     % Package Unit-Test   
 	io.msgStyle(LogLevel.Test, '@start', 'test started');
     
+    jd = celestial.time.julday;
+    Date = celestial.time.jd2date(jd);
+    jd_inv = celestial.time.date2jd(Date([3,2,1,4]));
+    %celestial.time.date2jd
+    assert(abs(jd_inv-jd)<1e-16);
+    
+    % test year2jd with respect to matlab datetime
+    jd2001_ref= juliandate(datetime([2021,1,1]));
+    jd2001 = celestial.time.year2jd(2021);
+    
+    assert(abs(jd2001-jd2001_ref)<1e-16);
+    
+    
+    Date_str= '2015:04:22 11:11:11.111';
+    vec_str2date = celestial.time.str2date(Date_str);
+    jd_str2date = celestial.time.date2jd(vec_str2date );
+    vec_vec = celestial.time.date_str2vec(Date_str);
+    jd_str2vec = celestial.time.date2jd(vec_vec);
+    
+    assert(abs(jd_str2date-jd_str2vec)<1e-16);
+
+    
+    
     func_unitTest();
     
+    
+    
+    % check jd2date and the opposite
 	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 end
 
