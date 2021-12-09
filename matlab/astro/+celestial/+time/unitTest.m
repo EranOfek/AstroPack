@@ -37,7 +37,7 @@ function unitTest
     
     
     
-    % check jd2date and the opposite
+   
 	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 end
 
