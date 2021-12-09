@@ -283,6 +283,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                     'WCS',cell(Nobj,1));
     
     for Iobj=1:1:Nobj
+        
         % for each element in AstroCatalog
         Iwcs = min(Iobj, Nwcs);
         

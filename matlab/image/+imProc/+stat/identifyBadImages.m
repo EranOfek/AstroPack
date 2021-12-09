@@ -2,6 +2,8 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     % Identify bad images based on simple statistical properties:
     %       Fraction of pixels above threshold value
     %       Number of pixels in the ACF above some threshold correlation.
+    %       Distance from ACF center to the furthest ACF value above some
+    %       threshold.
     %       NOTE: I guess that staellites constellations may be identified
     %       as bad images.
     % Input  : - An AstroImage object, or a char file name with optional
@@ -10,10 +12,17 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            into memory one at a time.
     %          * ...,key,val,...
     %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] on which to
-    %                   operate the ACF. If empty, then use entire image.
+    %                   operate the ACF tests. If empty, then use entire image.
     %                   Default is [].
-    %            'ThresholdACF' - Threshold aotocorrelation.
+    %            'ThresholdACFnpix' - Threshold aotocorrelation.
     %                   Default is 0.25.
+    %            'ThresholdACFdist' - ACF threshold for max dist test. 
+    %                   Default is 0.3.
+    %            'ThresholdMaxDistACF' - ACF distance threshold.
+    %                   If the maximal distance for ACF with values above
+    %                   'ThresholdACFdist' is larger than this threshold
+    %                   than the image is declared as bad.
+    %                   Default is 6 pix.
     %            'ThresholdVal' - Threshold image value.
     %                   Default is 10000.
     %            'MaxFracAboveVal' - Max frac of pixels above ThresholdVal.
@@ -28,7 +37,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %                   the imUtil.background.background.
     %                   This will be used only if the 'Back' field in the
     %                   AstroImage is not populated.
-    %                   Default is {}.
+    %                   Default is {'BackFun',@median, 'BackFunPar',{[1 2],'omitnan'}, 'SubSizeXY',[]}
     %            'PopulateBack' - A logical indicating if to populate the
     %                   calculated back in the AstroImage.
     %                   Default is false.
@@ -46,12 +55,14 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         Obj AstroImage
         
         Args.CCDSEC                 = [];
-        Args.ThresholdACF           = 0.8;
+        Args.ThresholdACFnpix       = 0.8;
+        Args.ThresholdACFdist       = 0.3;
+        Args.ThresholdMaxDistACF    = 6;
         Args.ThresholdVal           = 10000;
         Args.MaxFracAboveVal        = 0.3;
         Args.MaxPixAboveACF         = 20;
         
-        Args.backgroundArgs cell    = {};
+        Args.backgroundArgs cell    = {'BackFun',@median, 'BackFunPar',{[1 2],'omitnan'}, 'SubSizeXY',[]};
         Args.PopulateBack logical   = false;
         Args.DataProp               = 'Image';
         Args.BackProp               = 'Back';
@@ -87,36 +98,54 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
             Iim = 1;
         end
         
+        if isempty(Args.CCDSEC)
+            Image = Obj(Iim).(Args.DataProp);
+            Back  = Obj(Iim).(Args.BackProp);
+        else
+            Image = Obj(Iim).(Args.DataProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
+            if isempty(Obj(Iim).(Args.BackProp))
+                Back = [];
+            else
+                Back  = Obj(Iim).(Args.BackProp)(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
+            end
+        end
+        
+        
         % Number of pixels above threshold
-        Result(Iobj).Npix = numel(Obj(Iim).(Args.DataProp));
-        Result(Iobj).NpixAboveThresholdVal =  sum(Obj(Iim).(Args.DataProp) > Args.ThresholdVal, 'all');
+        Result(Iobj).Npix = numel(Image);
+        Result(Iobj).NpixAboveThresholdVal =  sum(Image > Args.ThresholdVal, 'all');
         
         
         % background
-        if isempty(Obj(Iim).(Args.BackProp))
-            Back = imUtil.background.background(Obj(Iim).(Args.DataProp), Args.backgroundArgs{:});
+        if isempty(Back)
+            Back = imUtil.background.background(Image, Args.backgroundArgs{:});
             if Args.PopulateBack
                 Obj(Iim).(Args.BackProp) = Back;
             end
-        else
-            Back = Obj(Iim).(Args.BackProp);
         end
         
-        BackSubImage = Obj(Iim).(Args.DataProp) - Back;
+        BackSubImage = Image - Back;
         
         
-        if ~isempty(Args.CCDSEC)
-            BackSubImage = BackSubImage(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
-        end
         % FFU: treat saturated pixels!
-        %BackSubImage(BackSubImage>50000) = 0
+        BackSubImage(BackSubImage>40000) = 0;
         
         % Autocorrelation function
         [ACF] = imUtil.filter.autocor(BackSubImage, 'Norm',true, 'SubBack',false);
         
-        Result(Iobj).NpixAboveThresholdACF = sum(ACF > Args.ThresholdACF, 'all');
+        SizeACF = size(ACF);
+     
+        II = find(ACF>Args.ThresholdACFdist);
+        [I,J]=imUtil.image.ind2sub_fast(SizeACF,II);
+        Result(Iobj).MaxDistACFabove = max(sqrt(sum(([I,J] - SizeACF.*0.5).^2,2)));
+        
+        
+        
+        
+        Result(Iobj).NpixAboveThresholdACF = sum(ACF > Args.ThresholdACFnpix, 'all');
         
         Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
-                                    Result(Iobj).NpixAboveThresholdACF > Args.MaxPixAboveACF;
+                                    Result(Iobj).NpixAboveThresholdACF > Args.MaxPixAboveACF || ...
+                                    Result(Iobj).MaxDistACFabove > Args.ThresholdMaxDistACF;
     end
 end
