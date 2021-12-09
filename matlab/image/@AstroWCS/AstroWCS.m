@@ -229,7 +229,7 @@ classdef AstroWCS < Component
         end
         
         function Obj = cropWCS(Obj,Pos,Args)
-            % Bla
+            % Update AstroWCS for a cropped region
             % Input  : - AstroWCS object or array of AstroWCS with size Nobj.
             %          - Updated position information of either:
             %                - CRPIX(1,1:2): new CRPIX for all AstroWCS array 
@@ -244,7 +244,7 @@ classdef AstroWCS < Component
             %                              Default is false.
             %            'delDistortion' - Flag for deleting distortions
             %                              (PV, revPV). Default is true.
-            % Output : - Updated AstroWCS object or array of AstroWCS forthe cropped region
+            % Output : - Updated AstroWCS object or array of AstroWCS for the cropped region
             % Author : Yossi Shvartzvald (December 2021)
             % Example:
             %                
@@ -1029,15 +1029,41 @@ classdef AstroWCS < Component
         
     end
     
-    methods  % Functions related to xy2xy
-        function [D,PX,PY,refPX,refPY]  = xy2xy(Obj,CCDSEC,refWCS)
-            % In Progress
+    methods  % Functions related to xy2refxy
+        function [D,refPX,refPY,PX,PY]  = xy2refxy(Obj,XY,refWCS)
+            % Calculate the displacement field D between current image to refernce image,
+            % by using WCS info of both images to tranlstae XY to refXY.
+            % Input  : - A single element AstroWCS object.
+            %          - Either a four element region (i.e., CCDSEC) [xmin,xmax,ymin,ymax]
+            %            or a two column matrix of XY positons
+            %          - A single refence AstroWCS object
+            % Output : - Displacement field matrix.
+            %          - Translated X pixel coordinates in reference image
+            %          - Translated Y pixel coordinates in reference image
+            %          - X pixel coordinates used
+            %          - Y pixel coordinates used
+            % Author : Yossi Shvartzvald (December 2021)
+            % Example:
+            %      [D,refPX,refPY,PX,PY]=Obj.xy2refxy([1,100,1,100],refWCS);
             
-            [PX,PY] = meshgrid(CCDSEC(1):CCDSEC(2),CCDSEC(3):CCDSEC(4));
-            [Alpha, Delta]  = Obj.xy2sky(nPX,nPY);
+            switch size(XY,2)
+                case 4                              % i.e., CCDSEC
+                    if size(XY,1)>1
+                        error('wrong XY dimensions');
+                    else
+                        [PX,PY] = meshgrid(XY(1):XY(2),XY(3):XY(4));
+                    end
+                case 2                              % matrix of xy
+                   PX = XY(:,1);
+                   PY = XY(:,2);
+                otherwise
+                    error('wrong XY dimensions');
+            end
+                    
+            [Alpha, Delta]  = Obj.xy2sky(PX,PY);
             [refPX,refPY] = refWCS.sky2xy(Alpha,Delta);
-            D(:,:,1) = Px-refPX;
-            D(:,:,2) = PY-refPY;
+            D(:,:,1) = refPX-PX;
+            D(:,:,2) = refPX-PY;
         end
     end
     
