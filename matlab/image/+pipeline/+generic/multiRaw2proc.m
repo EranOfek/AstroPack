@@ -88,10 +88,6 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     for Iim=1:1:Nim
         %Iim
         
-        if Iim==6
-           'a'
-        end
-            
         if Iim==1 || ~Args.SameField || isempty(AstrometricCat)
             % need to generate AstrometricCat for field
             %tic;
