@@ -682,7 +682,28 @@ classdef MatchedSources < Component
                 FieldName = FieldName{1};
             end
         end
-                
+        
+        function [FieldNames] = getFieldNameSearch(Obj, SubString)
+            % Search for MatchedSources field names that contains a substring.
+            % Input  : - A single element MatchedSources Object.
+            %          - A sub string to search.
+            % Output : - A cell array of all field names that contains the
+            %            substring.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: Obj = MatchedSources;
+            %          Obj.addMatrix(rand(30,40),'RA');
+            %          Obj.addMatrix(rand(30,40),'Dec');
+            %          [FieldName] = getFieldNameSearch(Obj, 'De')
+            
+            arguments
+                Obj(1,1)
+                SubString
+            end
+            
+            Flag = contains(Obj.Fields, SubString);
+            FieldNames = Obj.Fields(Flag);
+        end
+        
         function [MatRA, MatDec, MatErrRA, MatErrDec] = getLonLat(Obj)
             % Get data matrices containing the RA/Dec fields.
             % Input  : - A MatchedSources object.
@@ -724,17 +745,68 @@ classdef MatchedSources < Component
             
         end
         
-        function Obj = applyZP(Obj, ZP, Args)
-            % FFU
-           
+        function [Obj,ApplyToMagField] = applyZP(Obj, ZP, Args)
+            % Apply zero point and optional color term to MatchedSources matrices.
+            %   This function can be used to apply a vector of ZP to
+            %   instrumental magnitude matrices.
+            %   Only simple ZP can be treated (i.e., no higher terms,
+            %   detrending).
+            % Input  : - A MatchedSources object.
+            %          - A vector of ZP (ZP per epoch), or structure array
+            %            (elelmnt per MatchedSources element)
+            %            with a ZP vector in each element.
+            %          * ...,key,val,...
+            %            'FieldZP' - If the second input is a structure
+            %                   array, then this is the field name
+            %                   containing the ZP vector.
+            %                   Default is 'FitZP'.
+            %            'ApplyToMagField' - A char or cell array.
+            %                   If char, then will first search for all
+            %                   field names in the first element of the
+            %                   MatchedSources object that contains this
+            %                   substring. All the releveant fields will be
+            %                   put in a cell array. Will apply the ZP for
+            %                   all fields in the cell array.
+            %                   Default is 'MAG'.
+            %            'Operator' - A function handke with operator for
+            %                   the ZP. E.g., NewMatrix = operator(Matrix, ZP)
+            %                   Default is @minus.
+            %            'Color' - A vector of colors (one per source).
+            %                   [No support for structure array].
+            %                   Default is [].
+            %            'ColorTerm' - Color terms that multiplys the color
+            %                   vector. Default is [].
+            %            'ColorOperator' - A function handle for the color
+            %                   operator. Default is @minus.
+            % Output : - The MatchedSources object, but with the magnitude
+            %            fields applied with the ZP.
+            %          - A cell array of field names to which the ZP was
+            %            applied.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          MS.applyZP(ones(100,1))
+            
             arguments
-                Obj
+                Obj(1,1)
                 ZP
-                Args.FieldZP       = 'FitZP';
-                Args.ApplyToMagCol = 'MAG'; % if cell then exact search
-                Args.Operator      = @minus; 
+                Args.FieldZP          = 'FitZP';
+                Args.ApplyToMagField  = 'MAG'; % if cell then exact search - for all Matched sources
+                Args.Operator         = @minus;
+                Args.Color            = [];    %will work only for single element MatchedSources
+                Args.ColorTerm        = [];
+                Args.ColorOperator    = @minus;
                 
             end
+            
+            if ischar(Args.ApplyToMagField)
+                % Args.ApplyToMagCol is a substring to search
+                ApplyToMagField = getFieldNameSearch(Obj(1), Args.ApplyToMagField);
+            else
+                ApplyToMagField = Args.ApplyToMagField;
+            end
+            Nfield = numel(ApplyToMagField);
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
@@ -743,9 +815,16 @@ classdef MatchedSources < Component
                 else
                     VecZP = ZP;
                 end
-               
-                
-                
+             
+                VecZP = VecZP(:); % must be a column vector - line per epoch
+                for Ifield=1:1:Nfield
+                    Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.Operator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), VecZP);
+                    if ~isempty(Args.Color)
+                        ColorVec = Args.Color(:).' .* Args.ColorTerm;  % a must be a row vector [per source]
+                        Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.ColorOperator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), ColorVec);
+                    end
+                end
+             
             end
         end
     end

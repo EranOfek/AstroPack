@@ -160,6 +160,9 @@ classdef AstroImage < Component
             %            'Scale' - Image scale. Default is [].
             %            'ReadHeder' - A logical indicating if to read
             %                   header. Default is true.
+            %            'CCDSEC' - CCDSEC for image to read [Xmin Xmax
+            %                   Ymin Ymax]. If empty, read the entire image.
+            %                   Default is [].
             %            'Back' - The same as the file name argument, but
             %                   for a background image. Default is [].
             %            'BackHDU' - The same as HDU, but for the
@@ -196,6 +199,7 @@ classdef AstroImage < Component
                 Args.HDU                      = 1;
                 Args.Scale                    = [];
                 Args.ReadHeader(1,1) logical  = true;
+                Args.CCDSEC                   = [];
                 
                 Args.Back                     = []; % if empty and BackHDU is not empty, them read from the primary FileNames
                 Args.BackHDU                  = [];
@@ -248,6 +252,7 @@ classdef AstroImage < Component
                         % ImageData
                         Obj = AstroImage.readImages2AstroImage(FileNames,'HDU',Args.HDU,...
                                                                         'Obj',[],...
+                                                                        'CCDSEC',Args.CCDSEC,...
                                                                         'FileType',Args.FileType,...
                                                                         'UseRegExp',Args.UseRegExp,...
                                                                         'Scale',Args.Scale,...
@@ -357,6 +362,9 @@ classdef AstroImage < Component
             %                   Default is empty.
             %            'HDU' - HDU number or Dataset name from which to
             %                   read the images.
+            %            'CCDSEC' - CCDSEC for image to read [Xmin Xmax
+            %                   Ymin Ymax]. If empty, read the entire image.
+            %                   Default is [].
             %            'FileType' - See ImageIO. Default is [].
             %            'UseRegExp' - See ImageIO. Default is false.
             %            'Scale' - The scale of the image (see definition
@@ -381,6 +389,7 @@ classdef AstroImage < Component
                 FileName
                 Args.Obj                    = [];
                 Args.HDU                    = 1;
+                Args.CCDSEC                 = [];
                 Args.FileType               = [];
                 Args.UseRegExp(1,1) logical = false;
                 Args.Scale                  = [];
@@ -393,6 +402,7 @@ classdef AstroImage < Component
                 case {'imagedata','backdata','vardata','maskdata'}
                     ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
                                              'FileType',Args.FileType,...
+                                             'CCDSEC',Args.CCDSEC,...
                                              'IsTable',false,...
                                              'ReadHeader',Args.ReadHeader,...
                                              'UseRegExp',Args.UseRegExp);
