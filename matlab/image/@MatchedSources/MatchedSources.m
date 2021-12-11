@@ -1183,9 +1183,29 @@ classdef MatchedSources < Component
         
         function [PSD, Freq] = psd(Obj, Args)
             % Estimate the mean power spectral density of all the sources.
-            % Input  : -
-            % Output : -
-            % Author : 
+            % Input  : -A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldName' - Field name for which to estimate
+            %                   PSD. Default is 'MAG'.
+            %            'IsEvenlySpaced' - Default is true.
+            %            'SelectedSrcFlag' A vector of logicals indicating
+            %                   which sources to use. If empty, use all.
+            %                   Default is [].
+            %            'SrcInvVar' - A vector of source inverse variance.
+            %                   If empty, ones. If char then this is the
+            %                   field name for the mag error.
+            %                   Default is [].
+            %            'RejectAboveErr' - If 'SrcInvVar' is field name,
+            %                   than sources which median mag error is
+            %                   larger than this will not be used.
+            %                   Default is 0.05.
+            %            'SaturateBelowErr' - If 'SrcInvVar' is field name,
+            %                   than sources which median mag error is
+            %                   smaller than this will be set to this
+            %                   value. Default is 0.02.
+            % Output : - A vector of power spectral density.
+            %          - A vector of frequencies.
+            % Author : Eran Ofek (Dec 2021)
             % Example: MS = MatchedSources;                                                       
             %          MS.addMatrix(rand(100,300),'FLUX');                                        
             %          MS.addMatrix({rand(100,300), rand(100,300), rand(100,200)},{'MAG','X','Y'});
@@ -1196,38 +1216,56 @@ classdef MatchedSources < Component
                 Args.FieldName                 = 'MAG';
                 Args.IsEvenlySpaced logical    = true;
                 Args.SelectedSrcFlag           = [];
-                Args.SrcInvVar                 = [];
+                Args.SrcInvVar                 = [];     % if FieldName than MAGERR
+                Args.RejectAboveErr            = 0.05;
+                Args.SaturateBelowErr          = 0.02;
             end
             
             [FieldName] = getFieldNameDic(Obj, Args.FieldName);
-            
             Matrix = getMatrix(Obj, FieldName);
-            [Nep, Nsrc] = size(Matrix);
-            
-            if isempty(Args.SrcInvVar)
-                Args.SrcInvVar = ones(Nsrc,1);
-            end
+            [Nep, NsrcSel] = size(Matrix);
             
             % selected sources from matrix
             if isempty(Args.SelectedSrcFlag)
-                Args.SelectedSrcFlag = true(Nsrc,1);
+                Args.SelectedSrcFlag = true(NsrcSel,1);
+            else
+                Args.SelectedSrcFlag = Args.SelectedSrcFlag(:);
             end
-            Matrix = Matrix(:,Args.SelectedSrcFlag);
+            
+            if isempty(Args.SrcInvVar)
+                Args.SrcInvVar = ones(NsrcSel,1);
+            end
+            Args.SrcInvVar = Args.SrcInvVar(:).';
+            
+            if ischar(Args.SrcInvVar)
+                % Args.SrcInvVar is a FieldName
+                MagErr    = getMatrix(Obj, Args.SrcInvVar);
+                MedMagErr = median(MagErr, 1, 'omitnan');
+                Args.SelectedSrcFlag = Args.SelectedSrcFlag & MedMagErr<Args.RejectAboveErr;
+            
+                MedMagErr(MedMagErr<Args.SaturateBelowErr) = Args.SaturateBelowErr;
+                
+                Matrix = Matrix(:,Args.SelectedSrcFlag);
+                MedMagErr = MedMagErr(Args.SelectedSrcFlag);
+                Args.SrcInvVar = 1./(MedMagErr.^2);
+            
+            else
+                Matrix = Matrix(:,Args.SelectedSrcFlag);
+                Args.SrcInvVar = Args.SrcInvVar(Args.SelectedSrcFlag);
+            end
             
             if Args.IsEvenlySpaced
-                
                 DT   = mean(diff(Obj.JD));
-                
-                PS   = abs(fft(Matrix, 1)).^2;
                 Freq = ((1:1:Nep).'-1)./Nep;
                 Freq = Freq./DT;
+                
+                PS   = abs(fft(Matrix, [], 1)).^2;
 
                 % calculate the mean PS
                 PSD = sum(PS.*Args.SrcInvVar, 2) ./ sum(Args.SrcInvVar);
             else
                 error('IsEvenlySpaced==false not supported yet');
             end
-            
             
         end
         
