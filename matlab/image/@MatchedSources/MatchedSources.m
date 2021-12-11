@@ -1179,7 +1179,57 @@ classdef MatchedSources < Component
                 
             end
 
-       end
+        end
+        
+        function [PSD, Freq] = psd(Obj, Args)
+            % Estimate the mean power spectral density of all the sources.
+            % Input  : -
+            % Output : -
+            % Author : 
+            % Example: MS = MatchedSources;                                                       
+            %          MS.addMatrix(rand(100,300),'FLUX');                                        
+            %          MS.addMatrix({rand(100,300), rand(100,300), rand(100,200)},{'MAG','X','Y'});
+            %          [PSD, Freq] = psd(MS)
+            
+            arguments
+                Obj(1,1)
+                Args.FieldName                 = 'MAG';
+                Args.IsEvenlySpaced logical    = true;
+                Args.SelectedSrcFlag           = [];
+                Args.SrcInvVar                 = [];
+            end
+            
+            [FieldName] = getFieldNameDic(Obj, Args.FieldName);
+            
+            Matrix = getMatrix(Obj, FieldName);
+            [Nep, Nsrc] = size(Matrix);
+            
+            if isempty(Args.SrcInvVar)
+                Args.SrcInvVar = ones(Nsrc,1);
+            end
+            
+            % selected sources from matrix
+            if isempty(Args.SelectedSrcFlag)
+                Args.SelectedSrcFlag = true(Nsrc,1);
+            end
+            Matrix = Matrix(:,Args.SelectedSrcFlag);
+            
+            if Args.IsEvenlySpaced
+                
+                DT   = mean(diff(Obj.JD));
+                
+                PS   = abs(fft(Matrix, 1)).^2;
+                Freq = ((1:1:Nep).'-1)./Nep;
+                Freq = Freq./DT;
+
+                % calculate the mean PS
+                PSD = sum(PS.*Args.SrcInvVar, 2) ./ sum(Args.SrcInvVar);
+            else
+                error('IsEvenlySpaced==false not supported yet');
+            end
+            
+            
+        end
         
     end
     
