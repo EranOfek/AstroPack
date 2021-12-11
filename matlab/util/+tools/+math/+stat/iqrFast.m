@@ -30,12 +30,25 @@ function Result = iqrFast(X, Dim)
     N   = size(X, Dim);
     X   = sort(X, Dim);
     Ind = ceil(P.*N);
+    Ind = (Ind(1):Ind(2));
+    Ndims = ndims(X);
+    if Ndims>3
+        error('iqrFast can treat only: 1,2,3 dimensions');
+    end
     
     switch Dim
         case 1
-            Result = range(X(Ind,:));
+            if Ndims==3
+                Result = range(X(Ind,:,:));
+            else
+                Result = range(X(Ind,:));
+            end
         case 2
-            Result = range(X(:,Ind),2);
+            if Ndims==3
+                Result = range(X(:,Ind,:),2);
+            else
+                Result = range(X(:,Ind),2);
+            end
         case 3
             Result = range(X(:,:,Ind),3);
         otherwise
