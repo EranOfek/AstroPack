@@ -2398,6 +2398,7 @@ classdef catsHTM
            
             arguments
                 CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSS','ROSATfsc','XMM','ztfDR1var'};  % 16 bit
+                Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       5,      15,    2,           10,    10,        30,        10,   2];
                 Args.Nbit        = 16;
                 Args.NewCatName  = 'MergedCat';
                 Args.SaveInd     = true;
@@ -2427,11 +2428,8 @@ classdef catsHTM
             Ncol      = numel(ColCell);
             
             for Ih=1:1:Nh
-                 
                 [Ih, Nh]
-                
                 Ihtm   = Level.ptr(Ih);
-                
                 [FileName,DataName]=HDF5.get_file_var_from_htmid(Args.NewCatName, Ihtm);
                 Exist = false;
                 if java.io.File(FileName).exists
@@ -2446,8 +2444,9 @@ classdef catsHTM
                     if (DataHTM(Ihtm,13)>0)
                         % load Cat
                         Cat = catsHTM.load_cat(CatNames{1},Ihtm);
-                        Bit = bitset(0,1).*ones(size(Cat,1),1);
-                        Cat = [Cat(:,1:2), Bit];
+                        Nlines = size(Cat,1);
+                        Bit = bitset(0,1).*ones(Nlines,1);
+                        Cat = [Cat(:,1:2), Bit, Args.CatRadius(1).*ones(Nlines,1)];
                     else
                         Cat = zeros(0,3);
                     end
@@ -2481,9 +2480,9 @@ classdef catsHTM
                             Flag = celestial.htm.in_polysphere(CatC(:,1:2), Corners);
                             CatC = CatC(Flag,:);
                         end
-
-                        Bit = bitset(0,Icat).*ones(size(CatC,1),1);
-                        Cat  = [Cat; [CatC(:,1:2), Bit]];
+                        Nlines = size(CatC,1);
+                        Bit = bitset(0,Icat).*ones(Nlines,1);
+                        Cat  = [Cat; [CatC(:,1:2), Bit, Args.CatRadius(1).*ones(Nlines,1)]];
                     end
 
 
@@ -2497,8 +2496,9 @@ classdef catsHTM
                         catsHTM.save_cat(FileName,DataName,Cat,2,30);
                     end
 
-                end
-            end
+                end  % ~Exist
+            end % for
+            
             
             if Args.SaveInd
                 IndFileName = sprintf('%s_htm.hdf5',Args.NewCatName);
@@ -2506,16 +2506,13 @@ classdef catsHTM
                 Nsrc=HDF5.get_nsrc(Args.NewCatName);
                 HDF5.save_htm_ind(HTM,IndFileName,[],{},Nsrc)
 
-                ColCell = {'RA','Dec','CatBit'};
-                ColUnits = {'rad','rad',''};
+                ColCell = {'RA','Dec','CatBit','CatRadius'};
+                ColUnits = {'rad','rad','','arcsec'};
                 HDF5.save_cat_colcell(Args.NewCatName,ColCell,ColUnits);
             end
         end
+    
        
-%         function xmatch_save_index(Cat1,Cat2matched,Cat1ID,Cat2matchedID,CatBaseName)
-%             %
-%
-%         end
     end
    
     
