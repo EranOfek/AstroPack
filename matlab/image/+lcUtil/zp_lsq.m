@@ -126,8 +126,12 @@ function [Result, CorrMS] = zp_lsq(MS, Args)
         
         
         % need another function calib.std_vs_mag
+        if I<Args.Niter
+            [FlagSrc,Res] = imUtil.calib.resid_vs_mag(Mag(:), AllResid(:));
         
-        [FlagSrc,Res] = imUtil.calib.resid_vs_mag(Mag(:), AllResid(:));
+            % update the InvVar based on the rms vs. mag diagram
+            InvVar = 1./(Res.InterpStdResid.^2);
+        end
         
         if Args.Plot
             %semilogy(FitMeanMag(:),Std(:),'.')

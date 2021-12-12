@@ -2398,6 +2398,7 @@ classdef catsHTM
            
             arguments
                 CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSS','ROSATfsc','XMM','ztfDR1var'};  % 16 bit
+                Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       5,      15,    2,           10,    10,        30,        10,   2];
                 Args.Nbit        = 16;
                 Args.NewCatName  = 'MergedCat';
                 Args.SaveInd     = true;
@@ -2428,83 +2429,90 @@ classdef catsHTM
             
             for Ih=1:1:Nh
                 [Ih, Nh]
-                
                 Ihtm   = Level.ptr(Ih);
-                
-                % if HTM in Cat1 contain sources
-                if (DataHTM(Ihtm,13)>0)
-                    % load Cat
-                    Cat = catsHTM.load_cat(CatNames{1},Ihtm);
-                    Bit = bitset(0,1).*ones(size(Cat,1),1);
-                    Cat = [Cat(:,1:2), Bit];
-                else
-                    Cat = zeros(0,3);
+                [FileName,DataName]=HDF5.get_file_var_from_htmid(Args.NewCatName, Ihtm);
+                Exist = false;
+                if java.io.File(FileName).exists
+                    InfoH5 = h5info(FileName);
+                    if any(strcmp({InfoH5.Datasets.Name},DataName))
+                        Exist = true;
+                    end
                 end
                 
-                % calculate center of HTM
-                % Corners = [DataHTM(Ihtm, [7, 9, 11]).', DataHTM(Ihtm, [8
-                % 10 12]).']; % BUG - likely in the construction of the
-                % DataHTM...
-                
-                MeanCD = mean(HTM(Ihtm).cosd, 1);
-                [MeanRA, MeanDec] = celestial.coo.cosined2coo(MeanCD(1), MeanCD(2), MeanCD(3));
-                Corners = HTM(Ihtm).coo;
-                
-                %[CD1,CD2,CD3] = celestial.coo.coo2cosined(Corners(:,1), Corners(:,2));
-                %[MeanRA, MeanDec] = celestial.coo.cosined2coo(mean(CD1), mean(CD2), mean(CD3));
-                %Radius = celestial.coo.sphere_dist_fast(DataHTM(Ihtm, 7), DataHTM(Ihtm, 8), DataHTM(Ihtm, 9), DataHTM(Ihtm, 10));
-                
-                % search for corresponding HTMs in all other catalogs
-                for Icat=2:1:Ncats
-                    
-                    try
-                        CatC = catsHTM.cone_search(CatNames{Icat}, MeanRA, MeanDec, Level.side, 'RadiusUnits','rad');
-                    catch
-                        CatC = [];
-                        'a'
-                    end
-                    % select sources in HTM
-                    if isempty(CatC)
-                        CatC = zeros(0,2);
+                if ~Exist
+                    % if HTM in Cat1 contain sources
+                    if (DataHTM(Ihtm,13)>0)
+                        % load Cat
+                        Cat = catsHTM.load_cat(CatNames{1},Ihtm);
+                        Nlines = size(Cat,1);
+                        Bit = bitset(0,1).*ones(Nlines,1);
+                        Cat = [Cat(:,1:2), Bit, Args.CatRadius(1).*ones(Nlines,1)];
                     else
-                        Flag = celestial.htm.in_polysphere(CatC(:,1:2), Corners);
-                        CatC = CatC(Flag,:);
+                        Cat = zeros(0,3);
                     end
-                    
-                    Bit = bitset(0,Icat).*ones(size(CatC,1),1);
-                    Cat  = [Cat; [CatC(:,1:2), Bit]];
-                end
-                
-                
-                if size(Cat,1)>0
-                    % sort Cat
-                    Cat = sortrows(Cat, 2);
 
-                    % save HTM 
-                    [FileName,DataName]=HDF5.get_file_var_from_htmid(Args.NewCatName, Ihtm);
+                    % calculate center of HTM
+                    % Corners = [DataHTM(Ihtm, [7, 9, 11]).', DataHTM(Ihtm, [8
+                    % 10 12]).']; % BUG - likely in the construction of the
+                    % DataHTM...
 
-                    catsHTM.save_cat(FileName,DataName,Cat,2,30);
-                end
-                
-            end
+                    MeanCD = mean(HTM(Ihtm).cosd, 1);
+                    [MeanRA, MeanDec] = celestial.coo.cosined2coo(MeanCD(1), MeanCD(2), MeanCD(3));
+                    Corners = HTM(Ihtm).coo;
+
+                    %[CD1,CD2,CD3] = celestial.coo.coo2cosined(Corners(:,1), Corners(:,2));
+                    %[MeanRA, MeanDec] = celestial.coo.cosined2coo(mean(CD1), mean(CD2), mean(CD3));
+                    %Radius = celestial.coo.sphere_dist_fast(DataHTM(Ihtm, 7), DataHTM(Ihtm, 8), DataHTM(Ihtm, 9), DataHTM(Ihtm, 10));
+
+                    % search for corresponding HTMs in all other catalogs
+                    for Icat=2:1:Ncats
+
+                        try
+                            CatC = catsHTM.cone_search(CatNames{Icat}, MeanRA, MeanDec, Level.side, 'RadiusUnits','rad');
+                        catch
+                            CatC = [];
+                            'a'
+                        end
+                        % select sources in HTM
+                        if isempty(CatC)
+                            CatC = zeros(0,2);
+                        else
+                            Flag = celestial.htm.in_polysphere(CatC(:,1:2), Corners);
+                            CatC = CatC(Flag,:);
+                        end
+                        Nlines = size(CatC,1);
+                        Bit = bitset(0,Icat).*ones(Nlines,1);
+                        Cat  = [Cat; [CatC(:,1:2), Bit, Args.CatRadius(1).*ones(Nlines,1)]];
+                    end
+
+
+                    if size(Cat,1)>0
+                        % sort Cat
+                        Cat = sortrows(Cat, 2);
+
+                        % save HTM 
+                        [FileName,DataName]=HDF5.get_file_var_from_htmid(Args.NewCatName, Ihtm);
+
+                        catsHTM.save_cat(FileName,DataName,Cat,2,30);
+                    end
+
+                end  % ~Exist
+            end % for
             
-            if InPar.SaveInd
-                IndFileName = sprintf('%s_htm.hdf5',InPar.NewCatName);
+            
+            if Args.SaveInd
+                IndFileName = sprintf('%s_htm.hdf5',Args.NewCatName);
                 delete(IndFileName);
-                % Nsrc=HDF5.get_nsrc(CatName);
+                Nsrc=HDF5.get_nsrc(Args.NewCatName);
                 HDF5.save_htm_ind(HTM,IndFileName,[],{},Nsrc)
 
-                ColCell = {'RA','Dec','CatBit'};
-                ColUnits = {'rad','rad',''};
-                HDF5.save_cat_colcell(InPar.CatName,ColCell,ColUnits);
+                ColCell = {'RA','Dec','CatBit','CatRadius'};
+                ColUnits = {'rad','rad','','arcsec'};
+                HDF5.save_cat_colcell(Args.NewCatName,ColCell,ColUnits);
             end
-            
         end
+    
        
-%         function xmatch_save_index(Cat1,Cat2matched,Cat1ID,Cat2matchedID,CatBaseName)
-%             %
-%
-%         end
     end
    
     

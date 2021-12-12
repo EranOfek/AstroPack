@@ -21,18 +21,19 @@ function [ShiftedImage]=shift_lanczos(Image, ShiftXY, A, IsCircFilt, PadVal)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: G=imUtil.kernel2.gauss(2,[31 31]);
 %          imUtil.image.moment2(G,16,16) 
-%          ShiftedImage=imUtil.trans.shift_lanczos(G,[1.22,-2.1],3,'circ');
+%          ShiftedImage=imUtil.trans.shift_lanczos(G,[1.22,-2.1],3,true);
 %          imUtil.image.moment2(ShiftedImage,16,16) 
-%          ShiftedImage=imUtil.trans.shift_lanczos(G,[1.22,-2.1],3,'noncirc');
+%          ShiftedImage=imUtil.trans.shift_lanczos(ShiftedImage,[-1.22,2.1],3,true);
 %          imUtil.image.moment2(ShiftedImage,16,16) 
+%          max(abs(ShiftedImage-G),[],'all')
 % Reliable: 
 
 arguments
     Image
     ShiftXY
-    A                     = 3;
+    A                         = 3;
     IsCircFilt(1,1) logical   = false;
-    PadVal                = 0;
+    PadVal                    = 0;
 end 
 
 WholeShiftXY = floor(ShiftXY);  % whole pix shoft
@@ -45,12 +46,13 @@ PosXY    = PhaseShiftXY + CenterXY;
 
 SizeIm = size(Image);
 Nim = size(Image,3);
-ShiftedImage = zeros(size(Image));
+ShiftedImage = zeros(size(Image), 'like',Image);
 
 
 
 A   = A.*ones(Nim,1);
 [F] = imUtil.kernel2.lanczos(A,SizeXY,PosXY);
+F   = cast(F, 'like',Image);
 
 
 for Iim=1:1:Nim

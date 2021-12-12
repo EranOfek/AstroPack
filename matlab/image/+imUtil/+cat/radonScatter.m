@@ -44,7 +44,7 @@ function Cand = radonScatter(Time,X,Y,Args)
     %            .StdY - Std in Y residuals for FlagGood. 
     %            .GoodTXY - [Time, X, Y] for FlagGood.
     % Author : Eran Ofek (Nov 2021)
-    % Example: Time = [1 2 3 4 5 6 7 8 9 10 9 2 3 3 1 2 1 1 2 3 5 2, rand(1,100)].'./1440;
+    % Example: Time = [1 2 3 4 5 6 7 8 9 10 9 2 3 3 1 2 1 1 2 3 5 2, randi(100,1,1000)].'./1440;
     %          Nt   = numel(Time); X=rand(Nt,1).*3600; Y    = rand(Nt,1).*3600;
     %          X(1)=0; Y(1)=0; X(2)=10; Y(2)=5; X(3)=20; Y(3)=10; X(5)=40; Y(5)=20;
     %          Cand = imUtil.cat.radonScatter(Time,X,Y)
@@ -79,7 +79,7 @@ function Cand = radonScatter(Time,X,Y,Args)
     
     Flag        = TimePairs(1,:)~=TimePairs(2,:);
     IndAllPairs = IndAllPairs(:,Flag);
-    TimePairs   = TimePairs(:,Flag);
+    TimePairs   = TimePairs(:,Flag);    % BUG? should use this?
     
     Npairs      = size(IndAllPairs,2);
     H           = ones(2,2);
@@ -114,6 +114,7 @@ function Cand = radonScatter(Time,X,Y,Args)
     
     % check number of matches:
     Icand = 0;
+    Cand  = [];
     for Ipairs=1:1:Npairs
         [Idxs] = kdtree_range_query(Tree, [Par(Ipairs,:).'-Args.HalfRangeVec, Par(Ipairs,:).'+Args.HalfRangeVec]);
         % FFU: alternatively use rangesearch.m and createns.m

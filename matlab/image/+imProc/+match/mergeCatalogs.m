@@ -198,7 +198,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     % fit proper motion
     if Args.FitPM
         FitMotion = lcUtil.fitMotion(MatchedS, Args.fitMotionArgs{:});
-        NumColPM    = 8;
+        NumColPM    = 9;
     else
         NumColPM    = 0;
     end
@@ -221,17 +221,18 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         ColUnits = cell(1, NumCol);
         Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
         if Args.FitPM
-            ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb'};
-            ColUnits(1:NumColPM) = {'deg','deg','','deg','deg','deg/day','deg/day',''};
+            ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb'};
+            ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','deg/day','deg/day',''};
             
             Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
             Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
             Cat(:,3)       = FitMotion(Ifields).RA.Nobs(:);
-            Cat(:,4)       = FitMotion(Ifields).RA.StdResid_H0(:);
-            Cat(:,5)       = FitMotion(Ifields).Dec.StdResid_H0(:);
-            Cat(:,6)       = FitMotion(Ifields).RA.ParH1(2,:).';
-            Cat(:,7)       = FitMotion(Ifields).Dec.ParH1(2,:).';
-            Cat(:,8)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
+            Cat(:,4)       = FitMotion(Ifields).RA.Noutlier(:);
+            Cat(:,5)       = FitMotion(Ifields).RA.StdResid_H0(:);
+            Cat(:,6)       = FitMotion(Ifields).Dec.StdResid_H0(:);
+            Cat(:,7)       = FitMotion(Ifields).RA.ParH1(2,:).';
+            Cat(:,8)       = FitMotion(Ifields).Dec.ParH1(2,:).';
+            Cat(:,9)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
             
             %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
             Icol = NumColPM;

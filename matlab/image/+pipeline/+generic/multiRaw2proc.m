@@ -2,6 +2,29 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % 
     % Example: L=io.files.filelist('LAST*science.fits');
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(289:308),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(249:268),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(329:348),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(349:368),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(369:388),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(389:408),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(409:428),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(429:448),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(449:468),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(469:488),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(209:228),'CalibImages',CI);
+    
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(489:508),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(509:528),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(529:548),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(549:568),'CalibImages',CI);
+    
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(619:623),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(624:627),'CalibImages',CI);
+    
+    
+    
+    % with bad images:
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(309:328),'CalibImages',CI);
     
     
     arguments
@@ -12,6 +35,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.Fringe                           = []; % [] - do nothing
         Args.SubImageSizeXY                   = [1600 1600];  % empty - full image
         Args.OverlapXY                        = [64 64];
+        
+        Args.IdentifyBadImagesCCDSEC          = [3001 4000 3001 4000];
         
         Args.AstroImageReadArgs cell          = {};
         Args.ImageSizeXY                      = []; % if empty, get size from first image header
@@ -69,30 +94,41 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:});
     end
         
+    
+    
+    % search for bad images
+    [Result,ACF] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
+    AI = AI(~[Result.BadImageFlag]);
+
     Nim = numel(AI);
     
     %Nsub = 24;
     %AllSI = AstroImage([Nim, Nsub]);
+    AstrometricCat = [];
     for Iim=1:1:Nim
         %Iim
         
-        if Iim==1 || ~Args.SameField
+        if Iim==1 || ~Args.SameField || isempty(AstrometricCat)
             % need to generate AstrometricCat for field
             %tic;
             % ResultSingle(Iim) is not needed
             % AllSI(Iim,:),
-            [SI, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [SI, BadImageFlag, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
                                                                                       'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
+                                                                                      'RefineSearchRadius',10,...
+                                                                                      'RemoveBadImages',false,...
                                                                                       Args.singleRaw2procArgs{:});
             %toc
             
         else
             %tic;
-            [SI, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
+            [SI, BadImageFlag, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
                                                                          'WCS',AllSI(Iim-1,:),...
                                                                          'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
+                                                                         'RefineSearchRadius',10,...
+                                                                         'RemoveBadImages',false,...
                                                                          Args.singleRaw2procArgs{:});
             %toc
             
@@ -104,21 +140,22 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             AllSI = AstroImage([Nim, Nsub]);
         end
                 
-        AllSI(Iim,:) = SI;
-        
-        % clean data that will not be used later on
-        % AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
+        if ~BadImageFlag
+            AllSI(Iim,:) = SI;
 
-        % add keywords to Header
-        if Args.UpdateCounter
-            for Isub=1:1:Nsub
-                AllSI(Iim,Isub).HeaderData.replaceVal({'COUNTER'}, Iim);
+            % clean data that will not be used later on
+            % AllSI(Iim,:) = AllSI(Iim,:).deleteProp(Args.DeletePropAfterSrcFinding);
+
+            % add keywords to Header
+            if Args.UpdateCounter
+                for Isub=1:1:Nsub
+                    AllSI(Iim,Isub).HeaderData.replaceVal({'COUNTER'}, Iim);
+                end
             end
         end
         
     end
     clear SI;
-    
     
     
     % get JD
@@ -189,6 +226,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     Args.photometricZPArgs{:});
         
+        % match against external catalogs
+        %ResInd = imProc.match.matchReturnIndices(Coadd(Ifields), 
+        %[Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, 'MergedCat', Args)
         
     end
     

@@ -124,10 +124,20 @@ arguments
     Args.mexCutout(1,1) logical                        = true;
 end
 
+% make sure all the variables has the same type as the Image
+% this is for speeding up single operations
+Args.AperRadius = cast(Args.AperRadius, 'like',Image);
+Args.Annulus    = cast(Args.Annulus, 'like',Image);
+Args.WeightFun  = cast(Args.WeightFun, 'like',Image);
+
+MomRadius2 = cast(Args.MomRadius.^2, 'single');
 
 MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than all the rest
 Naper      = numel(Args.AperRadius);
 
+
+% FFU: replace with:
+% [Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y);    
 
 NdimImage = ndims(Image);
 if NdimImage==2
@@ -163,14 +173,18 @@ else
 end
 
 SizeCube = size(Cube);
+SizeCube = cast(SizeCube, 'like',Image);
 if (SizeCube(1)~=SizeCube(2))
     error('First two dimensions of cube must be equal');
 end
 Vec = (1:1:SizeCube(1)) - SizeCube(1).*0.5 - 0.5;
-[MatX,MatY] = meshgrid(Vec,Vec);
 
+% no need to use meshgrid:
+[MatX,MatY] = meshgrid(Vec,Vec);
 %MatR        = sqrt(MatX.^2 + MatY.^2);
 MatR2       = MatX.^2 + MatY.^2;
+%MatR2        = Vec.^2 + Vec(:).^2;
+
 %MatR        = sqrt(MatR2);
 
 Nsrc = numel(X);
@@ -201,15 +215,16 @@ if isa(Args.WeightFun,'function_handle')
 elseif isnumeric(Args.WeightFun)
     % WeightFun is assumed to be the sigma of a Gaussian
     %W   = exp(-0.5.*(MatR./Args.WeightFun).^2) ./ (2.*pi.*Args.WeightFun.^2);
-    W   = exp(-0.5.*MatR2./((Args.WeightFun).^2)) ./ (2.*pi.*Args.WeightFun.^2);
+    InvWeightFun2 = -0.5./(Args.WeightFun.^2);
+    W   = exp(MatR2.*InvWeightFun2) ./ (2.*pi.*Args.WeightFun.^2);
     
     %W         = GaussFun(MatR,WeightFun);   % exp(-MatR.^2./(2.*WeightFun));
 else
     error('WeightFun must be a function handle or a numeric scalar');
 end
 % construct a window with maximal radiu
-W_Max = ones(size(MatR2));
-W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+W_Max = ones(size(MatR2),'like',Image);
+W_Max(MatR2>MomRadius2) = 0;
 
 
 
@@ -284,10 +299,10 @@ else
                     Factor = 1;
                 end
                 %W   = exp(-0.5.*(MatR./(Args.WeightFun.*Factor)).^2)./(2.*pi.*(Args.WeightFun.*Factor).^2);
-                WeightFactor = (Args.WeightFun.*Factor).^2;
-                W   = exp(-0.5.*(MatR2./WeightFactor)) ./ (2.*pi.*WeightFactor);
-                
-                
+                WeightFactor    = (Args.WeightFun.*Factor).^2;
+                InvWeightFactor = -0.5./WeightFactor;
+                NormFactor      = 1./(2.*pi.*WeightFactor);
+                W   = exp(MatR2.*InvWeightFactor) .* NormFactor;
                 
                 %W         = GaussFun(MatR,WeightFun.*Factor);
                 %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
@@ -297,8 +312,8 @@ else
         end
 
         % construct a window with maximal radius
-        W_Max = ones(size(MatR2));
-        W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+        W_Max = ones(size(MatR2), 'like',Image);
+        W_Max(MatR2>MomRadius2) = 0;
 
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
@@ -310,7 +325,8 @@ else
         M1.DeltaLastX = CumRelX1 - RelX1;
         M1.DeltaLastY = CumRelY1 - RelY1;
         RelX1         = CumRelX1;
-        RelY1         = CumRelY1; 
+        RelY1         = CumRelY1;
+        
     end
 
     % final iteration with the correct window
@@ -331,14 +347,15 @@ else
         elseif isnumeric(Args.WeightFun)
             %Factor = 1;
             %W   = exp(-0.5.*(MatR./Args.WeightFun).^2)./(2.*pi.*Args.WeightFun.^2);
-            W   = exp(-0.5.*MatR2./((Args.WeightFun).^2)) ./ (2.*pi.*Args.WeightFun.^2);
+            InvWeightFun2 = -0.5./(Args.WeightFun.^2);
+            W   = exp(MatR2.*InvWeightFun2) ./ (2.*pi.*Args.WeightFun.^2);
             %W         = GaussFun(MatR,WeightFun);
             %W         = exp(-MatR.^2./(2.*(WeightFun.*Factor).^2));
         else
             error('WeightFun must be a function handle or a numeric scalar');
         end
         % construct a window with maximal radiu
-        W_Max = ones(size(MatR2));
+        W_Max = ones(size(MatR2), 'like',Image);
         W_Max(MatR2>(Args.MomRadius.^2)) = 0;
 
 
@@ -397,10 +414,10 @@ if nargout>1
         Aper.WeightedAper = squeeze(sum(WInt,[1 2])./sum((W.*W_Max).^2,[1 2])); 
 
         % simple aperture photometry in centered pixeleted aperure
-        Aper.AperPhot = zeros(Nsrc,Naper);
-        Aper.AperArea = zeros(Nsrc,Naper);
+        Aper.AperPhot = zeros(Nsrc,Naper, 'like',Image);
+        Aper.AperArea = zeros(Nsrc,Naper, 'like',Image);
         for Iaper=1:1:Naper
-            AperFilter = ones(size(MatR2));
+            AperFilter = ones(size(MatR2), 'like',Image);
             AperFilter(MatR2>(Args.AperRadius(Iaper).^2)) = 0;
             Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
             % back is already subtracted

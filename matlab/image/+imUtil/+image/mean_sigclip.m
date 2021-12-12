@@ -22,7 +22,7 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 %                   Use 0 in order to calculate the mean without sigma
 %                   clipping. Will stop before maximum number of iterations
 %                   reached if no new points were clipped.
-%                   Default is 3.
+%                   Default is 2.
 %            'EpsilonStd' - A small nuymber that will be added to the StD,
 %                   in order to avoid division by zero. Default is 1e-12.
 % Output : - Sigma clipped mean of data.
@@ -48,7 +48,7 @@ arguments
     Args.MeanFun                     = @mean;
     Args.StdFun                      = @imUtil.background.rstdL1; %'rstd';
     Args.Nsigma(1,2)                 = [5 5];
-    Args.MaxIter(1,1)                = 3;
+    Args.MaxIter(1,1)                = 2;
     Args.EpsilonStd                  = 1e-12;
 end
 
@@ -98,7 +98,7 @@ end
 Var = Std.^2;
 
 if nargout>3
-    GoodCounter = sum(~isnan(DataF),Dim);
+    GoodCounter = sum(int16(~isnan(DataF)),Dim,'native');
 end
 
 

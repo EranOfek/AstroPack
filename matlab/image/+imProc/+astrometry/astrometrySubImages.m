@@ -47,9 +47,9 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.MinNumberCoreSolutions              = 1;
         %Args.assessAstrometricQualityArgs cell   = {};
 
-        Args.CatRadius                           = 3000;
-        Args.RangeX                              = [-1000 1000].*3;
-        Args.RangeY                              = [-1000 1000].*3;
+        Args.CatRadius                           = 3600;
+        Args.RangeX                              = [-1000 1000].*3.5;
+        Args.RangeY                              = [-1000 1000].*3.5;
         Args.StepX                               = 2;
         Args.StepY                               = 2;
         Args.Flip                                = [1 1;-1 -1];

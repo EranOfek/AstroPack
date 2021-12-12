@@ -68,7 +68,8 @@ function JD=date2jd(Date,Output)
             case 6
                 % assume Y M D H M S
                 % convert HMS to Frac
-                Frac = (Date(:,4).*3600 + Date(:,5).*60 + Date(:,6))./Time.SecInDay;
+                % Noam 10.12.21 - change call for old @Time.
+                Frac = (Date(:,4).*3600 + Date(:,5).*60 + Date(:,6))./constant.day;
                 Date = Date(:,1:3);
             otherwise
                 error('Unknown Date option');

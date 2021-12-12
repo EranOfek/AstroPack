@@ -284,6 +284,9 @@ Hx      = Hx(FlagSrc,:);
 Hy      = Hy(FlagSrc,:);
 CatX    = CatX(FlagSrc);
 CatY    = CatY(FlagSrc);
+% RefX    = RefX(FlagSrc);
+% RefY    = RefY(FlagSrc);
+% RefMag  = RefMag(FlagSrc);
 Nsrc    = numel(CatX);
 FlagSrc = true(Nsrc,1);
 InPar.ErrPos = InPar.ErrPos.*ones(Nsrc,1);
@@ -297,21 +300,38 @@ ResResid = [];
 while Iter<InPar.MaxIter
     %
     Iter = Iter + 1;
-    
+    % Change is slicing Noam 08.12.21. The FlagSrc changes his size, while
+    % the rest where unchanged - error with matrix dimension.
+    RefX    = RefX(FlagSrc);
+    RefY    = RefY(FlagSrc);
+    RefMag  = RefMag(FlagSrc);
+    Hx      = Hx(FlagSrc,:);
+    Hy      = Hy(FlagSrc,:);
+    CatX    = CatX(FlagSrc);
+    CatY    = CatY(FlagSrc);
+    Var     = Var(FlagSrc);
+    InvVar   =InvVar(FlagSrc);
     switch lower(InPar.FitMethod)
         case 'lscov'
             
             %warning('off')
-            [ParX,ParErrX] = lscov(Hx(FlagSrc,:), CatX(FlagSrc), InvVar(FlagSrc), InPar.Algo);
+            % Noam 08.12.21 - slicing
+            %[ParX,ParErrX] = lscov(Hx(FlagSrc,:), CatX(FlagSrc), InvVar(FlagSrc), InPar.Algo);
+            %[ParY,ParErrY] = lscov(Hy(FlagSrc,:), CatY(FlagSrc), InvVar(FlagSrc), InPar.Algo);
             
-            [ParY,ParErrY] = lscov(Hy(FlagSrc,:), CatY(FlagSrc), InvVar(FlagSrc), InPar.Algo);
+            [ParX,ParErrX] = lscov(Hx, CatX, InvVar, InPar.Algo);
+            [ParY,ParErrY] = lscov(Hy, CatY, InvVar, InPar.Algo);
+            
             %warning('on')
             
         case '\'
-            ParX = Hx(FlagSrc,:)\CatX(FlagSrc);
+            % Noam 08.12.21
+            %ParX = Hx(FlagSrc,:)\CatX(FlagSrc);
+            ParX = Hx\CatX;
             ParErrX = nan(size(ParX));
-            
-            ParY = Hy(FlagSrc,:)\CatY(FlagSrc);
+            % Noam 08.12.21
+            %ParY = Hy(FlagSrc,:)\CatY(FlagSrc);
+            ParY = Hy\CatY;
             ParErrY = nan(size(ParY));
             
         otherwise
@@ -323,16 +343,33 @@ while Iter<InPar.MaxIter
     ResidY = CatY - Hy*ParY;
     Resid  = sqrt(ResidX.^2 + ResidY.^2);
     % RMS is calculated only for selected sources
-    RMS_X  = std(ResidX(FlagSrc));
-    RMS_Y  = std(ResidY(FlagSrc));
+    %Noam 08.12.21
+    %RMS_X  = std(ResidX(FlagSrc));
+    %RMS_Y  = std(ResidY(FlagSrc));
+    RMS_X  = std(ResidX);
+    RMS_Y  = std(ResidY);
     RMS    = sqrt(RMS_X.^2 + RMS_Y.^2);
+    
+    
     
     % screening of sources
     if Iter<InPar.MaxIter
         % select good sources and re-estimate positional error
         
         % calculate RMS vs. mag.
-        [FlagSrc,ResResid] = imUtil.calib.resid_vs_mag(RefMag(FlagSrc),Resid(FlagSrc),...
+        %--% Noam 08.12.21
+%         [FlagSrc,ResResid] = imUtil.calib.resid_vs_mag(RefMag(FlagSrc),Resid(FlagSrc),...
+%                                                               'MagRange',InPar.MagRange,...
+%                                                               'BinMethod',InPar.BinMethod,...
+%                                                               'PolyDeg',InPar.PolyDeg,...
+%                                                               'BinSize',InPar.BinSize,...
+%                                                               'FunMean',InPar.FunMean,...
+%                                                               'FunStd',InPar.FunStd,...
+%                                                               'InterpMethod',InPar.InterpMethod,...
+%                                                               'ThresholdSigma',InPar.ThresholdSigma);
+        
+
+        [FlagSrc,ResResid] = imUtil.calib.resid_vs_mag(RefMag,Resid,...
                                                               'MagRange',InPar.MagRange,...
                                                               'BinMethod',InPar.BinMethod,...
                                                               'PolyDeg',InPar.PolyDeg,...
@@ -341,7 +378,7 @@ while Iter<InPar.MaxIter
                                                               'FunStd',InPar.FunStd,...
                                                               'InterpMethod',InPar.InterpMethod,...
                                                               'ThresholdSigma',InPar.ThresholdSigma);
-        
+
         % Applay MagRnage
         if ~isempty(InPar.MagRange)
             FlagSrc = FlagSrc & RefMag>InPar.MagRange(1) & RefMag<InPar.MagRange(2);
@@ -361,7 +398,18 @@ while Iter<InPar.MaxIter
     ResLoop(Iter).Flag  = FlagSrc;
 end
 
-[~,ResResid] = imUtil.calib.resid_vs_mag(RefMag(FlagSrc),Resid(FlagSrc),...
+%Noam 08.12.21
+% [~,ResResid] = imUtil.calib.resid_vs_mag(RefMag(FlagSrc),Resid(FlagSrc),...
+%                                                               'MagRange',InPar.MagRange,...
+%                                                               'BinMethod',InPar.BinMethod,...
+%                                                               'PolyDeg',InPar.PolyDeg,...
+%                                                               'BinSize',InPar.BinSize,...
+%                                                               'FunMean',InPar.FunMean,...
+%                                                               'FunStd',InPar.FunStd,...
+%                                                               'InterpMethod',InPar.InterpMethod,...
+%                                                               'ThresholdSigma',InPar.ThresholdSigma);
+
+[~,ResResid] = imUtil.calib.resid_vs_mag(RefMag,Resid,...
                                                               'MagRange',InPar.MagRange,...
                                                               'BinMethod',InPar.BinMethod,...
                                                               'PolyDeg',InPar.PolyDeg,...

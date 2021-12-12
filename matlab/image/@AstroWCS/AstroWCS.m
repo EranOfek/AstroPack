@@ -5,7 +5,7 @@
 %       Greisen & Calabretta 2002, \aap, 395, 1061. doi:10.1051/0004-6361:20021326
 %       Calabretta & Greisen 2002, \aap, 395, 1077. doi:10.1051/0004-6361:20021327
 % Currently supporting only Proj types: TAN, TAN-SIP, TPV
-% Currently not supporting WCSAXES>2
+% Currently not supporting WCSAXES>2. Support only the option to read first 2 axis for NAXIS>2
 %
 % TODO: modify tran2wcs to work with arrays. update unittest to check header2wcs with arrays
 
@@ -227,6 +227,78 @@ classdef AstroWCS < Component
                           sum(BinN<2,'all') <= Args.RegionalMaxWithNoSrc && ...
                           Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
         end
+        
+        function Obj = cropWCS(Obj,Pos,Args)
+            % Update AstroWCS for a cropped region
+            % Input  : - AstroWCS object or array of AstroWCS with size Nobj.
+            %          - Updated position information of either:
+            %                - CRPIX(1,1:2): new CRPIX for all AstroWCS array 
+            %                - CRPIX(Nobj,1:2): pair of CRPIX for each element in the AstroWCS array
+            %                - cropSEC(1,1:4): Same cropped section [xmin,xmax,ymin,ymax] for all AstroWCS array 
+            %                - cropSEC(Nobj,1:4): Cropped section [xmin,xmax,ymin,ymax] for each element in the AstroWCS array
+            %          * ...,key,val,...
+            %            'centerCRPIX'   - Flag for moving CRPIX to within the cropped area using AstroWCS information (including distortions). 
+            %                                  - if Pos is CRPIX then move to CRPIX(1,1:2) = [1,1] and update CRVAL,
+            %                                  - if Pos is cropSEC then move to CRPIX(1,1:2) to center of cropSEc and update CRVAL,
+            %                              *FFU: Note that currently CV and PV are not changed.
+            %                              Default is false.
+            %            'delDistortion' - Flag for deleting distortions
+            %                              (PV, revPV). Default is true.
+            % Output : - Updated AstroWCS object or array of AstroWCS for the cropped region
+            % Author : Yossi Shvartzvald (December 2021)
+            % Example:
+            %                
+            
+            arguments
+                Obj
+                Pos
+                Args.centerCRPIX         = false;
+                Args.delDistortion       = true;
+            end
+            
+            Nobj = numel(Obj);
+            Npos = size(Pos,1);
+            PosType = size(Pos,2);
+            
+            if (Nobj<1) || (Npos<1) || (Npos>1 && Npos~=Nob) || (PosType~=2 && PosType~=4)
+               error('Wrong dimensions of either Obj or Pos');
+            end
+            
+            for Iobj = 1:1:Nobj
+                Ipos = min(Iobj,Npos);
+                CurrPos = Pos(Ipos,:);
+                
+                switch PosType
+                    case 2 % new CRPIX
+                        if ~Args.centerCRPIX
+                            Obj(Iobj).CRPIX(1,1:2) = CurrPos;
+                        else
+                            [newCRVAL(1,1),newCRVAL(1,2)] = Obj(Iobj).xy2sky(CurrPos(1),CurrPos(2));
+                            Obj(Iobj).CRVAL(1,1:2) = newCRVAL;
+                            Obj(Iobj).CRPIX(1,1:2) = [1,1];
+                            Obj(Iobj).populate_projMeta;
+                        end
+                        
+                    case 4 % cropSEC is given
+                        if ~Args.centerCRPIX                        
+                            Obj(Iobj).CRPIX(1,1:2) = Obj(Iobj).CRPIX(1,1:2) - CurrPos(1,[1,3]) +1;
+                        else
+                            [newCRVAL(1,1),newCRVAL(1,2)]  = Obj(Iobj).xy2sky(mean(CurrPos(1:2)),mean(CurrPos(3:4)));
+                            Obj(Iobj).CRVAL(1,1:2) = newCRVAL;
+                            Obj(Iobj).CRPIX(1,1) = mean(CurrPos(1:2))-CurrPos(1)+1;
+                            Obj(Iobj).CRPIX(1,2) = mean(CurrPos(3:4))-CurrPos(3)+1;
+                            Obj(Iobj).populate_projMeta;
+                        end
+                        
+                end
+                
+                if Args.delDistortion
+                     Obj(Iobj).PV = AstroWCS.DefPVstruct;
+                     Obj(Iobj).RevPV = AstroWCS.DefPVstruct;
+                end
+            end
+            
+        end
     end
 
     methods   % Functions to construct AstroWCS from AstroHeader
@@ -267,7 +339,7 @@ classdef AstroWCS < Component
             if isempty(projtype)                        % No projection given
                 Obj.ProjType  = 'none';
                 Obj.ProjClass = 'none';
-            elseif all(strcmp(projtype{1},projtype))
+            elseif strcmp(projtype{1},projtype{1})     % verify both RA and DEC with the same projection type
                 Obj.ProjType = projtype{1};
                 Obj.ProjClass = ProjTypeDict.searchAlt(Obj.ProjType);
             else
@@ -957,18 +1029,81 @@ classdef AstroWCS < Component
         
     end
     
+    methods  % Functions related to xy2refxy
+        function [D,refPX,refPY,PX,PY]  = xy2refxy(Obj,XY,refWCS,Args)
+            % Calculate the displacement field D between current image to refernce image,
+            % by using WCS info of both images to tranlstae XY to refXY.
+            % Input  : - A single element AstroWCS object.
+            %          - Either a four element region (i.e., CCDSEC) [xmin,xmax,ymin,ymax]
+            %            or a two column matrix of XY positons
+            %          - A single refence AstroWCS object
+            %          * ...,key,val,...
+            %            'sampling' - step size for sampling CCDSEC region. default is 1
+            % Output : - Displacement field matrix.
+            %          - Translated X pixel coordinates in reference image
+            %          - Translated Y pixel coordinates in reference image
+            %          - X pixel coordinates used
+            %          - Y pixel coordinates used
+            % Author : Yossi Shvartzvald (December 2021)
+            % Example:
+            %      [D,refPX,refPY,PX,PY]=Obj.xy2refxy([1,100,1,100],refWCS);
+            
+            arguments
+                Obj
+                XY
+                refWCS
+                Args.sampling       =1;
+            end
+            
+            switch size(XY,2)
+                case 4                              % i.e., CCDSEC
+                    if size(XY,1)>1
+                        error('wrong XY dimensions');
+                    else
+                        [PX,PY] = meshgrid(XY(1):Args.sampling:XY(2),XY(3):Args.sampling:XY(4));
+                    end
+                case 2                              % matrix of xy
+                   PX = XY(:,1);
+                   PY = XY(:,2);
+                otherwise
+                    error('wrong XY dimensions');
+            end
+                    
+            [Alpha, Delta]  = Obj.xy2sky(PX,PY);
+            [refPX,refPY] = refWCS.sky2xy(Alpha,Delta);
+            DX = PX-refPX;
+            DY = PY-refPY;
+            
+            if Args.sampling>1
+                D(:,:,1) = imresize(DX, [XY(4),XY(2)]);% imresize(DX, Args.sampling);
+                D(:,:,2) = imresize(DY, [XY(4),XY(2)]);% imresize(DY, Args.sampling);
+            else
+                D(:,:,1) = DX;
+                D(:,:,2) = DY;
+            end
+        end
+    end
     
     methods (Static)  % static methods
 
    %======== Functions to construct AstroWCS from AstroHeader =========
         
-        function Result = header2wcs(AH)
+        function Result = header2wcs(AH,Args)
             % Create and populate an AstroWCS object from an AstroHeader object
             % Input  : - AstroHeader object.
+            %          * ...,key,val,...
+            %            'read2axes' - Flag to read ONLY first 2 axis. Can
+            %                          be used to ignore 3rd and up axis.
+            %                          Default is false.
             % Output : - AstroWCS object.
-            % Author : Yossi Shvartzvald (October 2021)
+            % Author : Yossi Shvartzvald (December 2021)
             % Example:
             %           AH = AstroHeader(Im_name); AW = AstroWCS.header2wcs(AH);
+            
+            arguments
+                AH
+                Args.read2axes     =  false;
+            end
             
             Nobj   = numel(AH);
             Result = AstroWCS(size(AH));
@@ -982,6 +1117,11 @@ classdef AstroWCS < Component
                 Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
                 if (Result(Iobj).WCSAXES==0)
                     Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
+                end
+                
+                if Args.read2axes
+                    Result(Iobj).WCSAXES = 2;
+                    Result(Iobj).NAXIS   = 2;
                 end
             
                 Naxis = Result(Iobj).WCSAXES;
@@ -1890,7 +2030,7 @@ classdef AstroWCS < Component
             %                            Default is false.
             % Output : - Distorted X coordinate vector
             %          - Distorted Y coordinate vector
-            % Author : Yossi Shvartzvald (August 2021)
+            % Author : Yossi Shvartzvald (December 2021)
             % Example: [Xd,Yd]  = AstroWCS.forwardDistortion(PV,1,1);
 
             arguments
@@ -1901,27 +2041,49 @@ classdef AstroWCS < Component
                 Args.plusXY_bool  = false;
             end
             
-            CoefX    = PV.PolyCoefX;
-            X_Xpower = PV.PolyX_Xdeg;
-            X_Ypower = PV.PolyX_Ydeg;
-            if ~isempty(PV.PolyX_Rdeg)
-                X_Rpower = PV.PolyX_Rdeg;
-            else
+            if ~isempty(PV.PolyCoefX)
+                CoefX    = PV.PolyCoefX;
+                X_Xpower = PV.PolyX_Xdeg;
+                X_Ypower = PV.PolyX_Ydeg;
+                if ~isempty(PV.PolyX_Rdeg)
+                    X_Rpower = PV.PolyX_Rdeg;
+                else
+                    X_Rpower = 0;
+                end
+            else                % if no CoefX, return with no distortion
+                X_Xpower = 1;
+                X_Ypower = 0;
                 X_Rpower = 0;
+                if Args.plusXY_bool
+                    CoefX = 0;
+                else
+                    CoefX =1;
+                end
             end
 
-            CoefY    = PV.PolyCoefY;
-            Y_Xpower = PV.PolyY_Xdeg;
-            Y_Ypower = PV.PolyY_Ydeg;
-            if ~isempty(PV.PolyY_Rdeg)
-                Y_Rpower = PV.PolyY_Rdeg;
-            else
+            if ~isempty(PV.PolyCoefY)
+                CoefY    = PV.PolyCoefY;
+                Y_Xpower = PV.PolyY_Xdeg;
+                Y_Ypower = PV.PolyY_Ydeg;
+                if ~isempty(PV.PolyY_Rdeg)
+                    Y_Rpower = PV.PolyY_Rdeg;
+                else
+                    Y_Rpower = 0;
+                end
+            else                % if no CoefX, return with no distortion
+                Y_Ypower = 1;
+                Y_Xpower = 0;
                 Y_Rpower = 0;
+                if Args.plusXY_bool
+                    CoefY = 0;
+                else
+                    CoefY = 1;
+                end
             end
 
 
-            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)) );
-            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)) );
+            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
+            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);
 
             Xd=reshape(Xd,size(X));
             Yd=reshape(Yd,size(Y));

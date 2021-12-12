@@ -1,8 +1,8 @@
 function Im=mfind_bin(X,Vals)
-% Binary search on a vector running simolutnously on multiple values.
+% Binary search on a sorted vector running simolutnously on multiple values.
 % Package: tools.find
-% Description: Binary search on a vector running simolutnously on
-%              multiple values. A feature of this program is that it
+% Description: Multiple value simolutanos binary search.
+%              A feature of this program is that it
 %              you need to add 1 to the index in order to make sure 
 %              the found value is larger than the searched value.
 % Input  : - Sorted column vector.
@@ -13,6 +13,7 @@ function Im=mfind_bin(X,Vals)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: X=sort(rand(1e6,1)); Vals=rand(1,1e5);
 %          Im=tools.find.mfind_bin(X,Vals)
+% Reference: cite Ofe (2014; ascl:1407.005)
 % Reliable: 2
 %--------------------------------------------------------------------------
 

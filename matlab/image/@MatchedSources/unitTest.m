@@ -127,6 +127,15 @@ function Result = unitTest()
 	H=MatchedSources.designMatrixCalib(2,4,'SrcProp',{3.*ones(1,4)});
 	H=MatchedSources.designMatrixCalib(2,4,'SrcProp',{3.*ones(1,4)},'SrcPropCoefType',2);
 
+    
+    MS = MatchedSources;
+    MS.addMatrix(rand(100,200),'FLUX')
+    MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+    MS.applyZP(ones(100,1))
+    if ~(all(MS.Data.MAG<0,'all') && all(MS.Data.MAG>-1,'all'))
+        error('Problem with applyZP');
+    end
+        
 	
 	io.msgStyle(LogLevel.Test, '@passed', 'MatchedSources test passed');
 	Result = true;

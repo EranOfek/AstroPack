@@ -91,7 +91,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
 
             %Nhist = histcounts(Array,Edges);
             Nhist = matlab.internal.math.histcounts(Array,Edges);
-           
+            %Nhist = cast(Nhist, 'like',Array);  % not helping
             
             [~,MaxI]  = max(Nhist);
 

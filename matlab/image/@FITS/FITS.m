@@ -874,7 +874,7 @@ classdef FITS < handle
             % write Header            
             % @Todo: Check performance with big header (keys > 300)
             
-            t = tic;
+            %t = tic;
             Nline = size(Header.(HeaderField),1);            
             for Inl=1:1:Nline
                 if (~isempty(Header.(HeaderField){Inl,1}))
@@ -915,13 +915,14 @@ classdef FITS < handle
                             if isempty(Header.(HeaderField){Inl,2})
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
+                            %if any(strcmp(HeaderField){Inl,2},{'uint16','uint32','int16','int32'}))
                             matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
                                                Header.(HeaderField){Inl,3});
                     end
                 end
             end            
-            time = toc - t;
+            %time = toc - t;
             %fprintf('writeHeader time: %0.6f', time);
             Result = true;                        
         end

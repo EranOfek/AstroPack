@@ -106,7 +106,7 @@ function plot_monthly_smap(Date,varargin)
 %                           'CB'  - Color stars, white planets,
 %                                   black background, 
 %                                   blue milky way.
-%            'Copyright'  - {'off' | 'EO' | 'TAU'}, default is 'TAU'.
+%            'Copyright'  - {'off' | 'EO' | 'TAU'}, default is 'EO'.
 %            'Legend'     - {'off' | 'Mag'}, default is 'Mag'.
 %            'Visible'    - {'on' | 'off'}, default is 'off'
 %                           (for plot visibility).
@@ -344,7 +344,7 @@ ObjectList  = [];
 ColorOut    = [1 1 1];
 ColorIn     = [1 1 1];
 ColorScheme = 'C';
-Copyright   = 'TAU';
+Copyright   = 'EO';
 Legend      = 'Mag';
 Visible     = 'on';
 Ecliptic    = 'no';
@@ -486,7 +486,7 @@ if (ischar(Planets)==1)
     case {'no','off'}
        Planets = [];
     case 'ALL'
-       Planets = (0:1:9);
+       Planets = (0:1:8);
     case 'All'
        Planets = [1 2 4 5 6 7 8];
     case 'EYE'
@@ -576,8 +576,8 @@ end
 switch ConLines
  case 'yes'
     load('ConstellationLines.mat');
-    CL = ConstellationLines;
-    CL = CL.Cat;
+    %CL = ConstellationLines;
+    %CL = CL.Cat;
     clear ConstellationLines;
     %--- convert coordinates to radians ---
     CL_RA1  = CL(:,1); %celestial.coo.convertdms(CL(:,1:3),  'H','r');
@@ -1083,7 +1083,7 @@ switch Copyright
  case 'TAU'
     CopyrightText = 'Copyrights TAU AstroClub - http://astroclub.tau.ac.il';
  case 'EO'
-    CopyrightText = 'Copyrights Eran Ofek - http://wise-obs.tau.ac.il/~eran/';
+    CopyrightText = 'Copyrights Eran Ofek';
  otherwise
     error('Unknown Copyright option');
 end

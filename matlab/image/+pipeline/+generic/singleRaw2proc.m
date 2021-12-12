@@ -1,4 +1,4 @@
-function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
+function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     % Basic processing of a single raw image into a processed image
     %   Including:
     %       Reading the image
@@ -62,10 +62,13 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.MatchExternal(1,1) logical       = false;
         Args.SaveProducts(1,1) logical        = true;
         
+        Args.RemoveBadImages logical          = true;
+        Args.identifyBadImagesArgs cell       = {};
         
         Args.BitNameBadPix                  = {'Saturated','NaN'};
         Args.BitNameInterpolated            = 'Interpolated';
                 
+        
         
         Args.InterpolateOverProblems logical  = true;
         Args.BitNamesToInterp                 = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
@@ -82,11 +85,17 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
+        Args.DiluteStep                       = 2;
+        Args.EstimateRowColNoise logical      = false;
+        Args.SubCorrelaredColRow logical      = false;
+        Args.subtractMeanColRowArgs cell      = {};
+        
         Args.findMeasureSourcesArgs cell      = {};
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
         Args.astrometryRefineArgs cell        = {};
+        Args.RefineSearchRadius               = 5;
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
         Args.Tran                             = Tran2D('poly3');
         Args.WCS                              = [];   % WCS/AstroImage with WCS - will use astrometryRefine...
@@ -94,13 +103,14 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         % source finding
         Args.Threshold                        = 5;
-        Args.ColCell cell                     = {'XPEAK','YPEAK','SN','BACK_IM','VAR_IM',...           
-                                                'X', 'Y',...
-                                                'X2','Y2','XY',...
-                                                'FLUX_APER', 'FLUXERR_APER',...
-                                                'APER_AREA','BACK_ANNULUS', 'STD_ANNULUS', ...
-                                                'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
-                                                'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
+        Args.ColCell cell                     = {'XPEAK','YPEAK',...
+                                                 'X', 'Y',...
+                                                 'X2','Y2','XY',...
+                                                 'SN','BACK_IM','VAR_IM',...  
+                                                 'BACK_ANNULUS', 'STD_ANNULUS', ...
+                                                 'FLUX_APER', 'FLUXERR_APER',...
+                                                 'MAG_APER', 'MAGERR_APER',...
+                                                 'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.DeletePropAfterSrcFinding        = {'Back','Var'};
         
         Args.UpdateHeader logical             = true;   % CROPID & LEVEL
@@ -215,98 +225,136 @@ function [SI, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     
     % Background 
-    SI = imProc.background.background(SI, Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY);
+    SI = imProc.background.background(SI, Args.backgroundArgs{:},...
+                                          'SubSizeXY',Args.BackSubSizeXY,...
+                                          'DiluteStep',Args.DiluteStep,...
+                                          'EstimateRowColNoise',Args.EstimateRowColNoise);
     
+    if Args.SubCorrelaredColRow
+        SI = imProc.background.subtractMeanColRow(SI,'SubOnlyRowColComp',true,...
+                                                     'RetBack',true,...
+                                                     Args.subtractMeanColRowArgs{:});
+    end
     
-    % Source finding
-    %SI.cast('double');
-    SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
-                                               'RemoveBadSources',true,...
-                                               'Threshold',Args.Threshold,...
-                                               'ColCell',Args.ColCell,...
-                                               'ZP',Args.ZP,...
-                                               'CreateNewObj',false);
-    %SI.cast('single');
-    
-    % FFU: flags Holes
-    % imProc.mask.maskHoles
-    
-    % Astrometry, including update coordinates in catalog
-    if Args.DoAstrometry
-        if isempty(Args.WCS)
-            [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
-                                                                                            'EpochOut',JD,...
-                                                                                            'Scale',Args.Scale,...
-                                                                                            'CatName',Args.CatName,...
-                                                                                            'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
-                                                                                            'Tran',Args.Tran,...
-                                                                                            'CreateNewObj',false);
-        else
-            [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometryRefine(SI, Args.astrometryRefineArgs{:},...
-                                                                                            'WCS',Args.WCS,...
-                                                                                            'EpochOut',JD,...
-                                                                                            'Scale',Args.Scale,...
-                                                                                            'CatName',Args.CatName,...
-                                                                                            'Tran',Args.Tran,...
-                                                                                            'CreateNewObj',false);
-            
+    % identify and remove bad images
+    %Args.RemoveBadImages = false;  % FFU: doesn't work properly
+    if Args.RemoveBadImages
+        Result.ResultBadImages = imProc.stat.identifyBadImages(SI, Args.identifyBadImagesArgs{:});
+        Nbad = sum([Result.ResultBadImages.BadImageFlag]);
+        if Nbad>2
+            warning('Identified %d bad sub images',Nbad);
         end
-                                                                                    
-    
-        % Update Cat astrometry
-        %SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:},'UpdateCoo',true);
+        % SI = SI(~[Result.ResultBadImages.BadImageFlag]);
+        
+    else
+        Result.ResultBadImages = [];
+        Nbad = 0;
     end
+      
+    if Nbad>2
+        % do not continue with image reduction for the entire set of
+        % subimages
+        AstrometricCat        = [];
+        Result.AstrometricFit = [];
+        Result.ZP             = [];
+        BadImageFlag          = true;
+    else
+        BadImageFlag          = false;
+        
+        
     
-    % Photometric ZP
-    if Args.DoPhotometry
-        % FFU: add CatName with the previously aquired AstrometricCat
-        [SI, Result.ZP, ~] = imProc.calib.photometricZP(SI, 'CreateNewObj',false,...
-                                                            'MagZP',Args.ZP,...
-                                                            'CatName',AstrometricCat,...
-                                                            Args.photometricZPArgs{:});
-    
-        % Update Cat photometry
-    end
-    
-    
-    % interpolate over problematic pixels
-    if Args.InterpolateOverProblems
-        % interpolate over staurated pixels
-        SI = imProc.mask.interpOverMaskedPix(SI, 'BitNamesToInterp',Args.BitNamesToInterp,...
-                                                     'interpOverNanArgs', Args.interpOverNanArgs,...
-                                                     'BitNameInterpolated',Args.BitNameInterpolated,...
-                                                     'CreateNewObj',false);
-    end
-    
-    % update Header
-    % CROPID, LEVEL
-    if Args.UpdateHeader
-        Nim = numel(SI);
-        for Iim=1:1:Nim
-            SI(Iim).HeaderData.replaceVal({'CROPID','LEVEL'}, {Iim, 'proc'});
+        % Source finding
+        %SI.cast('double');
+        SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
+                                                   'RemoveBadSources',true,...
+                                                   'Threshold',Args.Threshold,...
+                                                   'ColCell',Args.ColCell,...
+                                                   'ZP',Args.ZP,...
+                                                   'CreateNewObj',false);
+        %SI.cast('single');
+
+        % FFU: flags Holes
+        % imProc.mask.maskHoles
+
+        % Astrometry, including update coordinates in catalog
+        if Args.DoAstrometry
+            if isempty(Args.WCS)
+                [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
+                                                                                                'EpochOut',JD,...
+                                                                                                'Scale',Args.Scale,...
+                                                                                                'CatName',Args.CatName,...
+                                                                                                'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
+                                                                                                'Tran',Args.Tran,...
+                                                                                                'CreateNewObj',false);
+            else
+                [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometryRefine(SI, Args.astrometryRefineArgs{:},...
+                                                                                                'WCS',Args.WCS,...
+                                                                                                'EpochOut',JD,...
+                                                                                                'Scale',Args.Scale,...
+                                                                                                'CatName',Args.CatName,...
+                                                                                                'Tran',Args.Tran,...
+                                                                                                'SearchRadius',Args.RefineSearchRadius,...
+                                                                                                'IncludeDistortions',true,...
+                                                                                                'CreateNewObj',false);
+
+                % FFU - treatment in case of a failure
+
+            end
+
+
+            % Update Cat astrometry
+            %SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:},'UpdateCoo',true);
         end
-                                          
-    end
-    
-    
-    
-    % match known solar system objects
-    if ~isempty(Args.OrbEl)
-        % NOTE TIME SHOULD be in TT scale
-        %tic;
-        TTmUTC = 70./86400;
-        [SourcesWhichAreMP, SI] = imProc.match.match2solarSystem(SI, 'JD',JD+TTmUTC, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
-        %toc
-    end
-    
-    % match against external catalogs
-    if Args.MatchExternal
-        % 0. search for non-MP transients
-        
-        % 1. Add columns for matched sources
-        
-        % 2. generate a new catalog of only matched sources
-        
+
+        % Photometric ZP
+        if Args.DoPhotometry
+            % FFU: add CatName with the previously aquired AstrometricCat
+            [SI, Result.ZP, ~] = imProc.calib.photometricZP(SI, 'CreateNewObj',false,...
+                                                                'MagZP',Args.ZP,...
+                                                                'CatName',AstrometricCat,...
+                                                                Args.photometricZPArgs{:});
+
+            % Update Cat photometry
+        end
+
+
+        % interpolate over problematic pixels
+        if Args.InterpolateOverProblems
+            % interpolate over staurated pixels
+            SI = imProc.mask.interpOverMaskedPix(SI, 'BitNamesToInterp',Args.BitNamesToInterp,...
+                                                         'interpOverNanArgs', Args.interpOverNanArgs,...
+                                                         'BitNameInterpolated',Args.BitNameInterpolated,...
+                                                         'CreateNewObj',false);
+        end
+
+        % update Header
+        % CROPID, LEVEL
+        if Args.UpdateHeader
+            Nim = numel(SI);
+            for Iim=1:1:Nim
+                SI(Iim).HeaderData.replaceVal({'CROPID','LEVEL'}, {Iim, 'proc'});
+            end
+
+        end
+
+        % match known solar system objects
+        if ~isempty(Args.OrbEl)
+            % NOTE TIME SHOULD be in TT scale
+            %tic;
+            TTmUTC = 70./86400;
+            [SourcesWhichAreMP, SI] = imProc.match.match2solarSystem(SI, 'JD',JD+TTmUTC, 'OrbEl',Args.OrbEl, 'GeoPos', Args.GeoPos, Args.match2solarSystemArgs{:});
+            %toc
+        end
+
+        % match against external catalogs
+        if Args.MatchExternal
+            % 0. search for non-MP transients
+
+            % 1. Add columns for matched sources
+
+            % 2. generate a new catalog of only matched sources
+
+        end
     end
     
     % Save products

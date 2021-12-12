@@ -432,7 +432,11 @@ classdef MatchedSources < Component
                 FN = fieldnames(Matrix);
                 for Ifn=1:1:numel(FN)
                     Obj.Data.(FN{Ifn}) = Matrix.(FN{Ifn});
-                    %Obj.Units.(FieldName{Ifn}) = Units{Ifn};
+                    if isempty(Units)
+                        Obj.Units.(FN{Ifn}) = '';
+                    else
+                        Obj.Units.(FN{Ifn}) = Units{Ifn};
+                    end
                 end
             elseif iscell(Matrix)
                 Ncell = numel(Matrix);
@@ -612,8 +616,8 @@ classdef MatchedSources < Component
             end
             
             for Ifn=1:1:numel(FieldName)
-                Obj = rmfield(Obj.Data, FieldName{Ifn});
-                Obj = rmfield(Obj.Units, FieldName{Ifn});
+                Obj.Data = rmfield(Obj.Data, FieldName{Ifn});
+                Obj.Units = rmfield(Obj.Units, FieldName{Ifn});
             end
             
         end
@@ -678,7 +682,28 @@ classdef MatchedSources < Component
                 FieldName = FieldName{1};
             end
         end
-                
+        
+        function [FieldNames] = getFieldNameSearch(Obj, SubString)
+            % Search for MatchedSources field names that contains a substring.
+            % Input  : - A single element MatchedSources Object.
+            %          - A sub string to search.
+            % Output : - A cell array of all field names that contains the
+            %            substring.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: Obj = MatchedSources;
+            %          Obj.addMatrix(rand(30,40),'RA');
+            %          Obj.addMatrix(rand(30,40),'Dec');
+            %          [FieldName] = getFieldNameSearch(Obj, 'De')
+            
+            arguments
+                Obj(1,1)
+                SubString
+            end
+            
+            Flag = contains(Obj.Fields, SubString);
+            FieldNames = Obj.Fields(Flag);
+        end
+        
         function [MatRA, MatDec, MatErrRA, MatErrDec] = getLonLat(Obj)
             % Get data matrices containing the RA/Dec fields.
             % Input  : - A MatchedSources object.
@@ -720,17 +745,68 @@ classdef MatchedSources < Component
             
         end
         
-        function Obj = applyZP(Obj, ZP, Args)
-            % FFU
-           
+        function [Obj,ApplyToMagField] = applyZP(Obj, ZP, Args)
+            % Apply zero point and optional color term to MatchedSources matrices.
+            %   This function can be used to apply a vector of ZP to
+            %   instrumental magnitude matrices.
+            %   Only simple ZP can be treated (i.e., no higher terms,
+            %   detrending).
+            % Input  : - A MatchedSources object.
+            %          - A vector of ZP (ZP per epoch), or structure array
+            %            (elelmnt per MatchedSources element)
+            %            with a ZP vector in each element.
+            %          * ...,key,val,...
+            %            'FieldZP' - If the second input is a structure
+            %                   array, then this is the field name
+            %                   containing the ZP vector.
+            %                   Default is 'FitZP'.
+            %            'ApplyToMagField' - A char or cell array.
+            %                   If char, then will first search for all
+            %                   field names in the first element of the
+            %                   MatchedSources object that contains this
+            %                   substring. All the releveant fields will be
+            %                   put in a cell array. Will apply the ZP for
+            %                   all fields in the cell array.
+            %                   Default is 'MAG'.
+            %            'Operator' - A function handke with operator for
+            %                   the ZP. E.g., NewMatrix = operator(Matrix, ZP)
+            %                   Default is @minus.
+            %            'Color' - A vector of colors (one per source).
+            %                   [No support for structure array].
+            %                   Default is [].
+            %            'ColorTerm' - Color terms that multiplys the color
+            %                   vector. Default is [].
+            %            'ColorOperator' - A function handle for the color
+            %                   operator. Default is @minus.
+            % Output : - The MatchedSources object, but with the magnitude
+            %            fields applied with the ZP.
+            %          - A cell array of field names to which the ZP was
+            %            applied.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          MS.applyZP(ones(100,1))
+            
             arguments
-                Obj
+                Obj(1,1)
                 ZP
-                Args.FieldZP       = 'FitZP';
-                Args.ApplyToMagCol = 'MAG'; % if cell then exact search
-                Args.Operator      = @minus; 
+                Args.FieldZP          = 'FitZP';
+                Args.ApplyToMagField  = 'MAG'; % if cell then exact search - for all Matched sources
+                Args.Operator         = @minus;
+                Args.Color            = [];    %will work only for single element MatchedSources
+                Args.ColorTerm        = [];
+                Args.ColorOperator    = @minus;
                 
             end
+            
+            if ischar(Args.ApplyToMagField)
+                % Args.ApplyToMagCol is a substring to search
+                ApplyToMagField = getFieldNameSearch(Obj(1), Args.ApplyToMagField);
+            else
+                ApplyToMagField = Args.ApplyToMagField;
+            end
+            Nfield = numel(ApplyToMagField);
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
@@ -739,9 +815,16 @@ classdef MatchedSources < Component
                 else
                     VecZP = ZP;
                 end
-               
-                
-                
+             
+                VecZP = VecZP(:); % must be a column vector - line per epoch
+                for Ifield=1:1:Nfield
+                    Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.Operator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), VecZP);
+                    if ~isempty(Args.Color)
+                        ColorVec = Args.Color(:).' .* Args.ColorTerm;  % a must be a row vector [per source]
+                        Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.ColorOperator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), ColorVec);
+                    end
+                end
+             
             end
         end
     end
@@ -1096,7 +1179,95 @@ classdef MatchedSources < Component
                 
             end
 
-       end
+        end
+        
+        function [PSD, Freq] = psd(Obj, Args)
+            % Estimate the mean power spectral density of all the sources.
+            % Input  : -A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldName' - Field name for which to estimate
+            %                   PSD. Default is 'MAG'.
+            %            'IsEvenlySpaced' - Default is true.
+            %            'SelectedSrcFlag' A vector of logicals indicating
+            %                   which sources to use. If empty, use all.
+            %                   Default is [].
+            %            'SrcInvVar' - A vector of source inverse variance.
+            %                   If empty, ones. If char then this is the
+            %                   field name for the mag error.
+            %                   Default is [].
+            %            'RejectAboveErr' - If 'SrcInvVar' is field name,
+            %                   than sources which median mag error is
+            %                   larger than this will not be used.
+            %                   Default is 0.05.
+            %            'SaturateBelowErr' - If 'SrcInvVar' is field name,
+            %                   than sources which median mag error is
+            %                   smaller than this will be set to this
+            %                   value. Default is 0.02.
+            % Output : - A vector of power spectral density.
+            %          - A vector of frequencies.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: MS = MatchedSources;                                                       
+            %          MS.addMatrix(rand(100,300),'FLUX');                                        
+            %          MS.addMatrix({rand(100,300), rand(100,300), rand(100,200)},{'MAG','X','Y'});
+            %          [PSD, Freq] = psd(MS)
+            
+            arguments
+                Obj(1,1)
+                Args.FieldName                 = 'MAG';
+                Args.IsEvenlySpaced logical    = true;
+                Args.SelectedSrcFlag           = [];
+                Args.SrcInvVar                 = [];     % if FieldName than MAGERR
+                Args.RejectAboveErr            = 0.05;
+                Args.SaturateBelowErr          = 0.02;
+            end
+            
+            [FieldName] = getFieldNameDic(Obj, Args.FieldName);
+            Matrix = getMatrix(Obj, FieldName);
+            [Nep, NsrcSel] = size(Matrix);
+            
+            % selected sources from matrix
+            if isempty(Args.SelectedSrcFlag)
+                Args.SelectedSrcFlag = true(NsrcSel,1);
+            else
+                Args.SelectedSrcFlag = Args.SelectedSrcFlag(:);
+            end
+            
+            if isempty(Args.SrcInvVar)
+                Args.SrcInvVar = ones(NsrcSel,1);
+            end
+            Args.SrcInvVar = Args.SrcInvVar(:).';
+            
+            if ischar(Args.SrcInvVar)
+                % Args.SrcInvVar is a FieldName
+                MagErr    = getMatrix(Obj, Args.SrcInvVar);
+                MedMagErr = median(MagErr, 1, 'omitnan');
+                Args.SelectedSrcFlag = Args.SelectedSrcFlag(:) & MedMagErr(:)<Args.RejectAboveErr;
+            
+                MedMagErr(MedMagErr<Args.SaturateBelowErr) = Args.SaturateBelowErr;
+                
+                Matrix = Matrix(:,Args.SelectedSrcFlag);
+                MedMagErr = MedMagErr(Args.SelectedSrcFlag);
+                Args.SrcInvVar = 1./(MedMagErr.^2);
+            
+            else
+                Matrix = Matrix(:,Args.SelectedSrcFlag);
+                Args.SrcInvVar = Args.SrcInvVar(Args.SelectedSrcFlag);
+            end
+            
+            if Args.IsEvenlySpaced
+                DT   = mean(diff(Obj.JD));
+                Freq = ((1:1:Nep).'-1)./Nep;
+                Freq = Freq./DT;
+                
+                PS   = abs(fft(Matrix, [], 1)).^2;
+
+                % calculate the mean PS
+                PSD = sum(PS.*Args.SrcInvVar, 2, 'omitnan') ./ sum(Args.SrcInvVar);
+            else
+                error('IsEvenlySpaced==false not supported yet');
+            end
+            
+        end
         
     end
     
