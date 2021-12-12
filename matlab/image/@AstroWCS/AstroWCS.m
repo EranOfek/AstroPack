@@ -1075,8 +1075,8 @@ classdef AstroWCS < Component
             DY = PY-refPY;
             
             if Args.sampling>1
-                D(:,:,1) = imresize(DX, Args.sampling);
-                D(:,:,2) = imresize(DY, Args.sampling);
+                D(:,:,1) = imresize(DX, [XY(4),XY(2)]);% imresize(DX, Args.sampling);
+                D(:,:,2) = imresize(DY, [XY(4),XY(2)]);% imresize(DY, Args.sampling);
             else
                 D(:,:,1) = DX;
                 D(:,:,2) = DY;
