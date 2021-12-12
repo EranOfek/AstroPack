@@ -1241,7 +1241,7 @@ classdef MatchedSources < Component
                 % Args.SrcInvVar is a FieldName
                 MagErr    = getMatrix(Obj, Args.SrcInvVar);
                 MedMagErr = median(MagErr, 1, 'omitnan');
-                Args.SelectedSrcFlag = Args.SelectedSrcFlag & MedMagErr<Args.RejectAboveErr;
+                Args.SelectedSrcFlag = Args.SelectedSrcFlag(:) & MedMagErr(:)<Args.RejectAboveErr;
             
                 MedMagErr(MedMagErr<Args.SaturateBelowErr) = Args.SaturateBelowErr;
                 
@@ -1262,7 +1262,7 @@ classdef MatchedSources < Component
                 PS   = abs(fft(Matrix, [], 1)).^2;
 
                 % calculate the mean PS
-                PSD = sum(PS.*Args.SrcInvVar, 2) ./ sum(Args.SrcInvVar);
+                PSD = sum(PS.*Args.SrcInvVar, 2, 'omitnan') ./ sum(Args.SrcInvVar);
             else
                 error('IsEvenlySpaced==false not supported yet');
             end
