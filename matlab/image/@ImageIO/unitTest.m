@@ -18,8 +18,12 @@ function Result = unitTest()
 
 	% write1
 	FileName = ImageIO.write1(rand(10,10),'tmp.fits');
-	delete(FileName);            
-	
+	delete(FileName);
+    
+    % writeHDF5
+    ImageIO.writeHDF5(rand(100,3),'temp.h5');
+    delete('temp.h5');
+    
 	% constroctor
 	I = ImageIO;
 	I = ImageIO([2, 2]);

@@ -14,13 +14,22 @@ function Result = unitTest
 
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [Result] = isCooPix(AC);
+    if Result
+       error('AstroCatalog with no X/Y coordinates reported as having X/Y coordinates'); 
+    end
 
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [Result, Units] = isCooSphere(AC);
+    if ~Result
+       error('AstroCatalog with spherical coordinates reported as having no spherical coordinates'); 
+    end    
 
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [CooType, Units] = getCooType(AC);   
-
+    if CooType ~= 1
+       error('AstroCatalog Coordinates not interpreted correctly'); 
+    end
+    
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [ColX, ColY] = getColCooForCooType(AC, 'sphere')
 
