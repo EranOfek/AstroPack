@@ -24,6 +24,8 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     %            'RenormErr' - A logical flag inducating if to normalize
     %                   the chi2 for the H1 hypothesis to 1.
     %                   Default is true.
+    %            'OutlierThreshold' - Count the number of H1 ouliers above
+    %                   this threshold. Default is 2./3600 deg.
     % Output : - A structure with the following fields:
     %            .MeanT - Mean epoch relative to which the fit is done.
     %            .RA.ParH1 - Parameters for H1 [pos; vel] for each source.
@@ -58,6 +60,7 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         Args.Prob    = [1e-3 1e-5];
         Args.Units   = 'deg';
         Args.RenormErr(1,1) logical = true;
+        Args.OutlierThreshold   = 1.5./3600;   % deg
     end
     DeltaDoF  = 1;
     ProbDeltaChi2 = chi2inv(1-Args.Prob, DeltaDoF);
@@ -147,11 +150,12 @@ function Result = fitMultiProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         Result.(PropStr).ParH1 = ParH1;
         Result.(PropStr).ParH0 = ParH0;
         
-        Result.(PropStr).Chi2_H1 = nansum((ResidH1./ErrY).^2, 1);
+        Result.(PropStr).Chi2_H1 = sum((ResidH1./ErrY).^2, 1, 'omitnan');
         
-        Result.(PropStr).Chi2_H0 = nansum((ResidH0./ErrY).^2, 1);     
+        Result.(PropStr).Chi2_H0 = sum((ResidH0./ErrY).^2, 1, 'omitnan');     
         
         Result.(PropStr).Nobs    = Nobs;
+        Result.(PropStr).Noutlier= sum(abs(ResidH1)>Args.OutlierThreshold);  % number of outliers per sources
         % calc t-distribution statistics
         
         Result.(PropStr).StudentT_H1     = ParH1(2,:).*StdT./Result.(PropStr).StdResid_H1;   % with Ndof=Nobs-2

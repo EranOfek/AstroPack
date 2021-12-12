@@ -97,6 +97,8 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %                   removed from the asteroid candidates list
     %                   (possibly persistent artifacts).
     %                   Default is 0.4.
+    %            'H1_NoutlierLimit' - Maximum number of H1 PM outliers
+    %                   allowed. Default is 1.
     %
     %            'LinkingRadius' - Search radius for linking. Asteroid
     %                   candidates are linked if their RA/Dec in common epoch
@@ -161,6 +163,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.ColNamePM_Dec                = 'PM_Dec';
         Args.ColNamePM_TdistProb          = 'PM_TdistProb';
         Args.ColNameNobs                  = 'Nobs';
+        Args.ColNameNoutlier              = 'Noutlier';
         Args.ColNameFlags                 = 'FLAGS';
         Args.ColNameMeanSN                = 'Mean_SN_3';  
         Args.ColNameStdSN                 = 'Std_SN_3';   
@@ -175,6 +178,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.PM_RadiusUnits               = 'arcsec';
         Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   
         Args.MinStdSN                     = 0.4;   
+        Args.H1_NoutlierLimit             = 2;  
         
         % linking
         Args.LinkingRadius                = 7;
@@ -215,6 +219,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         PM           = CatPM(Icat).getCol({Args.ColNamePM_RA, Args.ColNamePM_Dec});
         PM_TdistProb = CatPM(Icat).getCol(Args.ColNamePM_TdistProb);
         Nobs         = CatPM(Icat).getCol(Args.ColNameNobs);
+        Noutlier     = CatPM(Icat).getCol(Args.ColNameNoutlier);
         DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
         InfoSN       = CatPM(Icat).getCol({Args.ColNameMeanSN, Args.ColNameStdSN});  % [Mean, Std]
         
@@ -233,6 +238,9 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | InfoSN(:,1)>Args.SN_HighSN;
         end
         
+        % Flag sources with large number of outliers in H1 (PM hypothesis)
+        Flags(Icat).Flag_Outlier      = Noutlier <= Args.H1_NoutlierLimit;
+        
         % FLAGS for good asteroid candidates
         Flags(Icat).Tdist  = ((PM_TdistProb >  Args.Nobs_TdistProb(1,2) & Nobs>Args.Nobs_TdistProb(1,1)) | (PM_TdistProb>Args.Nobs_TdistProb(2,2) & Nobs>Args.Nobs_TdistProb(2,1)));
         %    Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   % NEW
@@ -241,7 +249,12 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         % Args.MinStdSN                     = 0.4;   % NEW
         
         Flags(Icat).Nobs   = Nobs<(ExpectedNobs);
-        Flags(Icat).All    = Flags(Icat).Flags & Flags(Icat).Flags_HighSN & Flags(Icat).Tdist & Flags(Icat).Nobs & Flags(Icat).LowStdSN;
+        Flags(Icat).All    = Flags(Icat).Flags & ...
+                             Flags(Icat).Flags_HighSN & ...
+                             Flags(Icat).Tdist & ...
+                             Flags(Icat).Nobs & ...
+                             Flags(Icat).LowStdSN & ...
+                             Flags(Icat).Flag_Outlier;
         
         % Number of asteroid candidates
         AstInd   = find(Flags(Icat).All);
