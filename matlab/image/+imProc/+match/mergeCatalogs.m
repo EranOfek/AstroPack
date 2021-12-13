@@ -112,7 +112,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.JD                      = [];  % if empty, use header, if no header use 1:N
         
         Args.RelPhot logical         = true;
-        Args.RelPhotAlgo             = 'lsq';
+        Args.RelPhotAlgo             = 'meddiff'; %'lsq';
         Args.fitPolyHyp logical      = true;
         Args.PolyDeg cell            = {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]};
         Args.FitPM logical           = true;
@@ -178,7 +178,11 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
                 case 'lsq'
                     [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
                 case 'meddiff'
-                    error('meddff is not available yet');
+                    
+                    %error('meddff is not available yet');
+                    [ResZP(Ifields)] = lcUtil.zp_meddiff(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
+                otherwise
+                    error('Unknown RelPhotAlgo option');
             end
             
             % apply ZP to all Magnitudes...

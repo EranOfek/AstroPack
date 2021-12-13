@@ -10,7 +10,7 @@ function [Res]=fit_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
 %          - sigma_x: Error in position.
 %          * Arbitrary number of pairs of ...,key,val,... arguments.
 %            The following keywords are available:
-%            'Solver' - Either @Util.fit.fminsearch_my | @Util.fit.fminunc_my
+%            'Solver' - Either @tools.math.fit.fminsearch_my | @tools.math.fit.fminunc_my
 %                       Default is @Util.fit.fminunc_my
 %            'FitPar' - The list of parameters to fit.
 %                       [A0, A1, A2, x0, x1, x2, gamma]
@@ -49,7 +49,7 @@ NPAR2D = 11 -1;
 NPAR1D = 8 -1;
 
 InPar = inputParser;
-addOptional(InPar,'Solver',@Util.fit.fminunc_my);
+addOptional(InPar,'Solver',@tools.math.fit.fminunc_my);
 
 addOptional(InPar,'FitPar',[0 NaN   NaN      0   1   -1        3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
 addOptional(InPar,'DefPar',[0 1     0.66     0   1   -1        3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]

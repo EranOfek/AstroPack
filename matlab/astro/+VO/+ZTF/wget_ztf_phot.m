@@ -117,9 +117,9 @@ for I=1:1:N
     %CL = sprintf('wget --http-user=%s --http-passwd=%s -O %s "%s"',InPar.User,InPar.Pass,OutFile,URL);
     TmpFile = tempname;
     if isempty(InPar.User) || isempty(InPar.Pass)
-        CL = sprintf('wget --auth-no-challenge "%s" -O %s',InPar.User,InPar.Pass,URL,TmpFile);
+        CL = sprintf('wget --no-check-certificate --auth-no-challenge "%s" -O %s',InPar.User,InPar.Pass,URL,TmpFile);
     else
-        CL = sprintf('wget --load-cookies=%s "%s" -O %s',InPar.CookiesFile,URL,TmpFile);
+        CL = sprintf('wget --no-check-certificate --load-cookies=%s "%s" -O %s',InPar.CookiesFile,URL,TmpFile);
     end
     %CL
     [Stat,Res] = system(CL);
@@ -132,7 +132,7 @@ for I=1:1:N
     pause(InPar.Wait);
 end
 
-[Table] = VO.util.read_votable(Str);
+[Table] = VO.Util.read_votable(Str);
 
 % populate filter code with filter number 
 if (~isempty(Table))
