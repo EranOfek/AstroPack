@@ -15,6 +15,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(489:508),'CalibImages',CI);
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(509:528),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(129:148),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(129:148),'CalibImages',CI);
+    
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(189:208),'CalibImages',CI);
+    
+    
+    % fails
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(169:188),'CalibImages',CI);
+    % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(58:77),'CalibImages',CI);
+    
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(529:548),'CalibImages',CI);
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2proc(L(549:568),'CalibImages',CI);
     
@@ -61,6 +71,12 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
         Args.astrometryRefineArgs             = {};
+        
+        % Match against external catalog: 'MergedCat
+        Args.CoaddMatchMergedCat logical      = true;
+        Args.MergedMatchMergedCat logical     = true;
+        
+        Args.mergeCatalogsArgs cell           = {};
         
         Args.ReturnRegisteredAllSI logical    = false;
         
@@ -162,7 +178,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     JD = julday(AllSI(:,1));
     
     % merge catalogs
-    [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI);
+    [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI,...
+                                                                                                            Args.mergeCatalogsArgs{:},...
+                                                                                                            'MergedMatchMergedCat',Args.MergedMatchMergedCat);
     
     % search for asteroids - proper motion channel
     [MergedCat, ResultAsteroids.AstCrop] = imProc.asteroids.searchAsteroids_pmCat(MergedCat, 'BitDict',AllSI(1).MaskData.Dict, 'JD',JD, 'PM_Radius',3, 'Images',AllSI);
@@ -226,10 +244,13 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     Args.photometricZPArgs{:});
         
-        % match against external catalogs
-        %ResInd = imProc.match.matchReturnIndices(Coadd(Ifields), 
-        %[Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, 'MergedCat', Args)
         
+        
+    end
+    
+    if Args.CoaddMatchMergedCat
+        % match against external catalogs
+        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
     end
     
     

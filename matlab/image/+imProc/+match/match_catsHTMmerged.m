@@ -66,7 +66,7 @@ function Result = match_catsHTMmerged(Obj, Args)
         end
         
         if Iobj==1 || ~Args.SameField
-            [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad');
+            [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere');
             CatH  = catsHTM.cone_search(Args.MergedCatName, CircX, CircY, CircR, 'RadiusUnits','rad', 'Con',Args.Con, 'OutType','astrocatalog');
             
             MaxSearchRadius = max(CatH.Catalog(:,Args.MergedCatRadiusCol));
@@ -93,7 +93,7 @@ function Result = match_catsHTMmerged(Obj, Args)
         for Iref=1:1:Nref
             if ~isnan(ResInd.Obj2_IndInObj1(Iref))
                 IndCat = ResInd.Obj2_IndInObj1(Iref);
-                MergedCatFlag(IndCat) = MergedCatFlag(IndCat) + CatH.Catalog(Iref,Args.MergedCatMaskCol);
+                MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), CatH.Catalog(Iref,Args.MergedCatMaskCol));
             end
         end
      

@@ -155,7 +155,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.Con                          = {};
                 
         Args.RefColNameMag                = {'Mag_BP','Mag'};
-        Args.RefRangeMag                  = [12 19.5];
+        Args.RefRangeMag                  = [12 19]; %.5];
         Args.RefColNamePlx                = {'Plx'};
         Args.RefRangePlx                  = [-Inf 50];
         
@@ -171,7 +171,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.Scale                        = 1.0;      % range or value [arcsec/pix]
         Args.RotationRange(1,2)           = [-90, 90];
         Args.RotationStep(1,1)            = 0.2;
-        Args.DistEdges                    = (12:3:300).';
+        Args.DistEdges                    = (12:3:300).';   % 12:3:300
         Args.HistDistEdgesRotScale        = [10 600 300];
         
         Args.RangeX(1,2)                  = [-1000 1000].*2;
@@ -340,7 +340,12 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         
         % ProjAstCat is not used anymore so no need to copy it
         % make sure you are no overriding the previous catalog
-        FilteredCat = Cat.copy;  % shallow copy is enough
+        FilteredCat = Cat.copy;  % shallow copy is enough      
+        
+%         SN = Cat.getCol('SN_3');
+%         FlagSN = SN>100;
+%         Cat.Catalog = Cat.Catalog(FlagSN,:);
+        
         [FilteredCat, FilteredProjAstCat] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
                                                                                     'ColCatX',Args.CatColNamesX,...
                                                                                     'ColCatY',Args.CatColNamesY,...

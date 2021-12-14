@@ -14,7 +14,23 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     %       Photometric ZP
     %       Update photometric ZP in catalog
     %       Save products
-    % Input  : -
+    %
+    % Input  : - A single FileName+path, or an AstroImage object.
+    %          * ...,key,val,...
+    %            'Dir' - Directory name to concat to file name.
+    %                   Default is ''.
+    %            'HDU' - HDU number in the file. Default is 1.
+    %            'CalibImages' - A CalibImages object containing the bias
+    %                   and flat images.
+    %                   If empty, will attempt to construct from the Dark,
+    %                   Flat, and Fringe images. Default is [].
+    %            'Dark' - An optional AstroImage object containing the
+    %                   dark/bias image. Default is [].
+    %            'Flat' - An optional AstroImage object containing the
+    %                   flat image. Default is [].
+    %            'Fringe' - An optional AstroImage object containing the
+    %                   fringe image. Default is [].
+    %            'BlockSize' - 
     % Output : -
     % Author : Eran Ofek (Aug 2021)
     % Example: pipeline.generic.singleRaw2proc

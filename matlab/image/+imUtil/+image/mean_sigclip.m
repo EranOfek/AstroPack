@@ -46,7 +46,7 @@ arguments
     Data
     Dim                              = [];
     Args.MeanFun                     = @mean;
-    Args.StdFun                      = @imUtil.background.rstdL1; %'rstd';
+    Args.StdFun                      = @tools.math.stat.nanstd;  %@imUtil.background.rstdL1; %'rstd';
     Args.Nsigma(1,2)                 = [5 5];
     Args.MaxIter(1,1)                = 2;
     Args.EpsilonStd                  = 1e-12;

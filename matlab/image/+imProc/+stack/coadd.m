@@ -142,7 +142,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         Args.CombineBack(1,1) logical               = true;
         Args.CombineMask(1,1) logical               = true;
 
-        Args.ReplaceNaN                             = 'replace';   % 'replace' | 'interp'
+        Args.ReplaceNaN                             = 'interp';   % 'replace' | 'interp'
         Args.FillValues                             = 'back';
         Args.BitNameNaN                             = 'NaN';
         Args.BitNameInterpolated                    = 'Interpolated';

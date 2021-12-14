@@ -44,7 +44,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %                   pass to lcUtil.fitMotion. Default is {}.
     %            'MatchedColums' - A cell array of column names in the
     %                   input AstroCatalog which to propagate into the
-    %                   MatchedSources object. Default is
+    %                   MatchedSources object.
+    %                   Default is
     %                   {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
     %            'ColNameFlags' - A char array of the column name
     %                   containing a flags (propagated from the bit mask)
@@ -130,7 +131,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
 
         Args.unifiedSourcesCatalogArgs cell     = {};
        
-
+        Args.MergedMatchMergedCat logical       = true;
     end
     
     % find all unique sources
@@ -303,6 +304,10 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         
     end
     
+    if Args.MergedMatchMergedCat
+        % match against external catalogs
+        MergedCat = imProc.match.match_catsHTMmerged(MergedCat, 'SameField',false, 'CreateNewObj',false);
+    end
     
     % DEBUG
     %I= 9;
