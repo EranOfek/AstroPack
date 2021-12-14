@@ -255,15 +255,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     % save products
-    Args.SaveProcIm     = false;
-    Args.SaveProcMask   = false;
-    Args.SaveProcCat    = false;
-    Args.SaveMatchCat   = false;
-    Args.SaveMatchSrc   = false;
-    Args.SaveCoaddIm    = false;
-    Args.SaveCoaddMask  = false;
-    Args.SaveCoaddCat   = false;
+    Args.SaveProcIm     = true;
+    Args.SaveProcMask   = true;
+    Args.SaveProcCat    = true;
+    Args.SaveMatchCat   = true;
+    Args.SaveMatchSrc   = true;
+    Args.SaveCoaddIm    = true;
+    Args.SaveCoaddMask  = true;
+    Args.SaveCoaddCat   = true;
     
+    SubDir = '4';
     
     IP   = ImagePath;
     if Args.SaveProcIm   
@@ -271,6 +272,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Image';
+            IP.SubDir  = SubDir;
             % FFU: whos is responsible for creating the dir? ImagePath?
             % FFU: the date is today - BUG!!
             AllSI(Iim).write1(IP.genFull, 'Image', 'FileType','fits',...
@@ -287,6 +289,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Mask';
+            IP.SubDir  = SubDir;
             % FFU: whos is responsible for creating the dir? ImagePath?
             % FFU: the date is today - BUG!!
             AllSI(Iim).write1(IP.genFull, 'Mask', 'FileType','fits',...
@@ -302,6 +305,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         for Iim=1:1:Nim
             IP.readFromHeader(AllSI(Iim));  
             IP.Product = 'Cat';
+            IP.SubDir  = SubDir;
             AllSI(Iim).write1(IP.genFull, 'Cat', 'FileType','fits',...
                                                    'WriteHeader',false,...
                                                    'Append',false,...
@@ -320,6 +324,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             IP.Product = 'Cat';
             IP.Level   = 'merged';
             IP.Counter = 0;
+            IP.SubDir  = SubDir;
             Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
                                                    'WriteHeader',true,...
                                                    'Append',false,...
@@ -330,7 +335,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     if Args.SaveMatchSrc
-        
+        Nim = numel(MatchedS);
+        for Iim=1:1:Nim
+            IP.Product  = 'MergedMat';
+            IP.Level    = 'merged';
+            IP.Counter  = 0;
+            IP.FileType = 'hdf5';
+            IP.SubDir   = SubDir;
+            IP.CropID   = Iim;
+            MatchedS(Iim).write(IP.genFull('PathLevel','proc'));
+        end
     end
     
     if Args.SaveCoaddIm
@@ -339,6 +353,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             IP.readFromHeader(Coadd(Iim));  
             IP.Product = 'Image';
             IP.Counter = 0;
+            IP.SubDir  = SubDir;
             % Path need to be like for an individual image
             Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Image', 'FileType','fits',...
                                                    'WriteHeader',true,...
@@ -355,6 +370,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             IP.readFromHeader(Coadd(Iim));  
             IP.Product = 'Mask';
             IP.Counter = 0;
+            IP.SubDir  = SubDir;
             % Path need to be like for an individual image
             Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Mask', 'FileType','fits',...
                                                    'WriteHeader',true,...
@@ -370,6 +386,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             IP.readFromHeader(Coadd(Iim));  
             IP.Product = 'Cat';
             IP.Counter = 0;
+            IP.SubDir  = SubDir;
             Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
                                                    'WriteHeader',true,...
                                                    'Append',false,...

@@ -26,7 +26,7 @@ classdef ImagePath < Component
         SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
-        Product         = 'Image';      % Product: Image, Back, Var, Exp, Nim, PSF, Cat, Spec, Mask, Evt
+        Product         = 'Image';      % Product: Image, Back, Var, Exp, Nim, PSF, Cat, Spec, Mask, Evt, MergedMat
         Version         = '1';          % Version (for multiple processing)
         FileType        = 'fits';       % fits / hdf5 / fits.gz          
         Area            = '';           % Used by genPath()
@@ -575,7 +575,7 @@ classdef ImagePath < Component
             % Verify Product
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
-                case { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt' }
+                case { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat'}
                     % Ok
                 otherwise
                     error('Unknown Product option: %s', Obj.Product);
