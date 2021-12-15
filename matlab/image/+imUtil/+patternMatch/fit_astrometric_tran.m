@@ -279,6 +279,7 @@ end
 % fitting
 Iter = 0;
 % fit all sources in first iteration
+
 FlagSrc = ~isnan(sum(Hx,2)) & ~isnan(sum(Hy,2)) & ~isnan(CatX) & ~isnan(CatY);
 Hx      = Hx(FlagSrc,:);
 Hy      = Hy(FlagSrc,:);
@@ -287,13 +288,25 @@ CatY    = CatY(FlagSrc);
 % RefX    = RefX(FlagSrc);
 % RefY    = RefY(FlagSrc);
 % RefMag  = RefMag(FlagSrc);
+
+
+
 Nsrc    = numel(CatX);
 FlagSrc = true(Nsrc,1);
-InPar.ErrPos = InPar.ErrPos.*ones(Nsrc,1);
+
+% Noam 15.12
+if numel(InPar.ErrPos)>1
+    ErrPos = InPar.ErrPos(FlagSrc);
+else
+    ErrPos = InPar.ErrPos.*ones(Nsrc,1);
+end
+%InPar.ErrPos = InPar.ErrPos.*ones(Nsrc,1);
 
 
 % formal error only
-Var     = InPar.ErrPos.^2;
+% Noam 15.12
+%Var     = InPar.ErrPos.^2;
+Var     = ErrPos.^2;
 % error including additional contributions (e.g., scintilations)
 InvVar  = 1./Var;
 ResResid = [];
@@ -311,6 +324,9 @@ while Iter<InPar.MaxIter
     CatY    = CatY(FlagSrc);
     Var     = Var(FlagSrc);
     InvVar   =InvVar(FlagSrc);
+    % Noam 15.12.21
+    
+    
     switch lower(InPar.FitMethod)
         case 'lscov'
             
