@@ -19,5 +19,5 @@ MsgLogger:
 
     FileLevel: LogLevel.All
     DispLevel: LogLevel.Info
-    Console: false
+    Console: true
 
