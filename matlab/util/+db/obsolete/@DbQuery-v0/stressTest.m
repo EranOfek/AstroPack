@@ -16,9 +16,6 @@ function Result = stressTest()
     % NOTE: At this point, we assume that tables master_table and
     % details_table exist and are not empty
 
-    MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
-    MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
-
     % ---------------------------------------------- Select            
     % Select two fields from table, using LIMIT            
     ItersCount = 1; %000;

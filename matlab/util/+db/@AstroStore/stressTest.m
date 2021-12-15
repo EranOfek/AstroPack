@@ -13,9 +13,6 @@ function Result = stressTest()
     FileSizeMB = FileSize / 1024 / 1024;
     FileSizeGB = FileSize / 1024 / 1024 / 1024;
 
-    MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
-    MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
-
     % ---------------------------------------------- Copy            
     % Select two fields from table, using LIMIT            
     ItersCount = 1000;

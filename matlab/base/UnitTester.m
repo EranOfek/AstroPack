@@ -501,7 +501,8 @@ classdef UnitTester < handle
             % folders (i.e. 'unused')
             Result = true;
             fn = lower(FileName);
-            if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || contains(fn, 'draft') || contains(fn, 'external')
+            if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || ...
+                    contains(fn, 'draft') || contains(fn, 'external') || contains(fn, 'temp') || contains(fn, 'tmp')
                 Result = false;
             end
         end

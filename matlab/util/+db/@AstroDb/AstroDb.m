@@ -328,10 +328,7 @@ classdef AstroDb < Component
             
             %HeaderTableName = 'raw_images';
             CatalogTableName = 'sources_proc_cropped';
-           
-            MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');
-            MsgLogger.setLogLevel(LogLevel.Test, 'type', 'disp');
-                        
+                                   
             % Create catalog with column names matching all fields with data type Double
             SqlText = ['SELECT * from ', CatalogTableName, ' LIMIT 1'];
             Q.query(SqlText);

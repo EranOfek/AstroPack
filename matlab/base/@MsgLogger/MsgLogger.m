@@ -62,6 +62,7 @@ classdef MsgLogger < handle
                 Args.FileName = 'AstroPackLog'  % Log file name, if empty it uses the singleton object
                 Args.UseTimestamp = false       % True to add timestamp to file name
                 Args.Console = true             % True to print messages to console
+                Args.LoadConfig = true;         % True to load configuration settings
             end
             Obj.Enabled = true;
             Obj.CurFileLevel = LogLevel.All;
@@ -72,6 +73,30 @@ classdef MsgLogger < handle
                 Obj.LogF = LogFile.getSingleton();
             else
                 Obj.LogF = LogFile(Args.FileName, 'UseTimestamp', Args.UseTimestamp);
+            end
+            
+            %
+            persistent ConfigLoaded;
+            if Args.LoadConfig && isempty(ConfigLoaded)
+                ConfigLoaded = true;
+                persistent AddPath;
+                if isempty(AddPath)
+                    AddPath = true;
+                    MyFileName = mfilename('fullpath');
+                    [MyPath, ~, ~] = fileparts(MyFileName);
+                    ExternalPath = fullfile(MyPath, '..', '..', 'external');
+                    addpath(ExternalPath);                
+                end
+            
+                Path = Configuration.getSysConfigPath();
+                FileName = fullfile(Path, 'MsgLogger.yml');
+                Conf = yaml.ReadYaml(string(FileName).char);
+                
+                if ~isempty(Conf)
+                    Obj.CurFileLevel = eval(Conf.MsgLogger.FileLevel);
+                    Obj.CurDispLevel = eval(Conf.MsgLogger.DispLevel);
+                    Obj.Console = Conf.MsgLogger.Console;
+                end            
             end
         end
     end
@@ -87,7 +112,7 @@ classdef MsgLogger < handle
             if ~Obj.Enabled || Level == LogLevel.None
                 return
             end
-
+			
             % Always use msgStyle to print errors in red color
             if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert
                 Obj.msgStyle(Level, '@error', varargin{:});
@@ -99,19 +124,26 @@ classdef MsgLogger < handle
                 Obj.msgStyle(Level, '@warn', varargin{:});
                 return
             end
-
+			
+			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
+			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);			
+            if Obj.mustLog(Level)
+                LogToDisplay = true;
+                LogToFile = true;
+            end
+            
             % Prepare prompt with level
             LevStr = getLevelStr(Obj, Level);
 
-            % Log to display
-            if Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel)
+            % Log to display			
+            if LogToDisplay
                 fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
                 fprintf(varargin{:});
     			fprintf('\n');
             end
 
             % Log to file
-            if uint32(Level) <= uint32(Obj.CurFileLevel)
+            if LogToFile
                 if ~isempty(Obj.LogF)
                     Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
                 end
@@ -128,18 +160,25 @@ classdef MsgLogger < handle
                 return
             end
 
+			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
+			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);			
+            if Obj.mustLog(Level)
+                LogToDisplay = true;
+                LogToFile = true;
+            end            
+            
             % Prepare prompt with log level
             LevStr = getLevelStr(Obj, Level);
 
             % Log to display
-            if Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel)
+            if LogToDisplay
                 cprintf(Style, '[%s] ', LevStr);
                 cprintf(Style, varargin{:});
                 fprintf('\n');
             end
 
             % Log to file
-            if uint32(Level) <= uint32(Obj.CurFileLevel)
+            if LogToFile
                 if ~isempty(Obj.LogF)
                     Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
                 end
@@ -173,6 +212,16 @@ classdef MsgLogger < handle
         end
 
 
+        function Result = mustLog(Obj, Level)
+            % Return true if specified Level should be logged according
+            Result = false;
+			if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert || ...
+               Level == LogLevel.Warning || Level == LogLevel.Test
+                Result = true;
+            end
+        end
+                
+        
         function Result = getLevelStr(Obj, Level)
             % Convert Level enumeation to string
 

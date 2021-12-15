@@ -15,7 +15,13 @@ classdef EPipelineTables < uint32
         Sources
         StackedCroppedSources
         ReferenceSources
-        TransientSources
-        
+        TransientSources        
     end
+	
+	
+    methods(Static)
+        function Result = unitTest()
+            Result = true;
+        end
+    end	
 end

@@ -82,7 +82,7 @@ end
 
 
 function exampleFromConstructor()
-    %Usage with a singleton logger:
+    % Usage with a singleton logger:
     
     % Call first to create the singleton with the file name.
     % Must be called before creating Configuration object which

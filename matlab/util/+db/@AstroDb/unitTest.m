@@ -18,9 +18,6 @@ function Result = unitTest()
     HeaderTableName = 'raw_images';
     CatalogTableName = 'sources_proc_cropped';
 
-    MsgLogger.setLogLevel(LogLevel.Error, 'type', 'file');            
-    MsgLogger.setLogLevel(LogLevel.Test, 'type', 'disp');            
-
     % Create catalog
     SqlText = ['SELECT * from ', CatalogTableName, ' LIMIT 1'];
     Q.query(SqlText);

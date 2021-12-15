@@ -355,18 +355,20 @@ classdef Configuration < handle
         function Result = getSysConfigPath()
             % Get path to system configuration file, from
             % ASTROPACK_CONFIG_PATH or repository
+            % This function is called from MsgLogger and MUST NOT use
+            % any msgLog() call!
 
             EnvPath = getenv('ASTROPACK_CONFIG_PATH');
             if ~isempty(EnvPath)
                 Path = EnvPath;
-                io.msgLog(LogLevel.Info, 'Configuration.getSysConfigPath: Using env path: %s', Path);
+                %io.msgLog(LogLevel.Info, 'Configuration.getSysConfigPath: Using env path: %s', Path);
             else
                 % Get full path and name of the file in which the call occurs,
                 % not including the filename extension
                 MyFileName = mfilename('fullpath');
                 [MyPath, ~, ~] = fileparts(MyFileName);
                 Path = fullfile(MyPath, '..', '..', '..', 'config');
-                io.msgLog(LogLevel.Info, 'Configuration.getSysConfigPath: Using git path: %s', Path);
+                %io.msgLog(LogLevel.Info, 'Configuration.getSysConfigPath: Using git path: %s', Path);
             end
             Result = Path;
         end
