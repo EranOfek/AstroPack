@@ -1035,7 +1035,9 @@ classdef AstroWCS < Component
             % by using WCS info of both images to tranlstae XY to refXY.
             % Input  : - A single element AstroWCS object.
             %          - Either a four element region (i.e., CCDSEC) [xmin,xmax,ymin,ymax]
-            %            or a two column matrix of XY positons
+            %            or a two column matrix of XY positons.
+            %            This CCDSEC represents the image of the input
+            %            AstroWCS object.
             %          - A single refence AstroWCS object
             %          * ...,key,val,...
             %            'sampling' - step size for sampling CCDSEC region. default is 1
