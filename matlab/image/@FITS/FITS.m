@@ -153,7 +153,7 @@ classdef FITS < handle
                                else
                                    % possible number
                                    %Value = str2double(Value);
-                                   Value = real(str2double(Value));  % faster
+                                   Value = real(str2doubleq(Value));  % faster
                                end
                            else
                                if (length(PosAp)>=2)
