@@ -201,7 +201,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
     
         ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
+        
         % no need to transform WCS - as this will be dealt later on
+        % 'ShiftXY',ShiftXY,...
+        % 'RefWCS',AllSI(1,Ifields).WCS,...
         RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields),...
                                                  'ShiftXY',ShiftXY,...
                                                  'TransWCS',false,...
@@ -262,6 +265,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Args.SaveCoaddIm    = true;
     Args.SaveCoaddMask  = true;
     Args.SaveCoaddCat   = true;
+    
+    Args.SaveProcIm     = false;
+    Args.SaveProcMask   = false;
+    Args.SaveProcCat    = false;
+    Args.SaveMatchCat   = false;
+    Args.SaveMatchSrc   = false;
+    Args.SaveCoaddIm    = false;
+    Args.SaveCoaddMask  = false;
+    Args.SaveCoaddCat   = false;
+    
     
     SubDir = '8';
     

@@ -1030,17 +1030,17 @@ classdef AstroWCS < Component
     end
     
     methods  % Functions related to xy2refxy
-        function [D,refPX,refPY,PX,PY]  = xy2refxy(Obj,XY,refWCS,Args)
+        function [D,refPX,refPY,PX,PY]  = xy2refxy(Obj,XY,RefWCS,Args)
             % Calculate the displacement field D between current image to refernce image,
             % by using WCS info of both images to tranlstae XY to refXY.
             % Input  : - A single element AstroWCS object.
             %          - Either a four element region (i.e., CCDSEC) [xmin,xmax,ymin,ymax]
-            %            or a two column matrix of XY positons.
+            %            or a two column matrix of [X Y] image size.
             %            This CCDSEC represents the image of the input
             %            AstroWCS object.
             %          - A single refence AstroWCS object
             %          * ...,key,val,...
-            %            'sampling' - step size for sampling CCDSEC region. default is 1
+            %            'Sampling' - step size for sampling CCDSEC region. default is 1
             % Output : - Displacement field matrix.
             %          - Translated X pixel coordinates in reference image
             %          - Translated Y pixel coordinates in reference image
@@ -1053,8 +1053,8 @@ classdef AstroWCS < Component
             arguments
                 Obj
                 XY
-                refWCS
-                Args.sampling       =1;
+                RefWCS AstroWCS
+                Args.Sampling       =1;
             end
             
             switch size(XY,2)
@@ -1062,7 +1062,7 @@ classdef AstroWCS < Component
                     if size(XY,1)>1
                         error('wrong XY dimensions');
                     else
-                        [PX,PY] = meshgrid(XY(1):Args.sampling:XY(2),XY(3):Args.sampling:XY(4));
+                        [PX,PY] = meshgrid(XY(1):Args.Sampling:XY(2),XY(3):Args.Sampling:XY(4));
                     end
                 case 2                              % matrix of xy
                    PX = XY(:,1);
@@ -1072,11 +1072,11 @@ classdef AstroWCS < Component
             end
                     
             [Alpha, Delta]  = Obj.xy2sky(PX,PY);
-            [refPX,refPY] = refWCS.sky2xy(Alpha,Delta);
+            [refPX,refPY] = RefWCS.sky2xy(Alpha,Delta);
             DX = PX-refPX;
             DY = PY-refPY;
             
-            if Args.sampling>1
+            if Args.Sampling>1
                 D(:,:,1) = imresize(DX, [XY(4),XY(2)]);
                 D(:,:,2) = imresize(DY, [XY(4),XY(2)]);
             else
