@@ -58,9 +58,10 @@ function Result = imwarp(Obj, Args)
     end
     
     Nprop = numel(Args.DataProp);
-    
-    IsDisplacment = false;
-    if isempty(Args.DisplacmentField)
+
+    Args.RefWCS = [];
+    if isempty(Args.DisplacmentField) && isempty(Args.RefWCS)
+        IsDisplacment = false;
         if isempty(Args.AffineMat)
             % use ShiftXY
             % convert shifts to affine2d
@@ -84,8 +85,23 @@ function Result = imwarp(Obj, Args)
                 
         end
     else 
-        ImWarpTransformation = Args.DisplacmentField;
         IsDisplacment = true;
+        if isempty(Args.RefWCS)
+            if isempty(Args.DisplacmentField)
+                error('Either RefWCS or DisplacmentField must be provided');
+            end
+            
+            DispField(1).DF = Args.DisplacmentField; 
+        
+        else
+            % generate displacment field for pairs of images
+            [ImageSizeY, ImageSizeX]   = sizeImage(Obj);
+
+            DispField = struct('DF',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                DispField(Iobj).DF  = xy2refxy(Obj(Iobj), [ImageSizeX(Iobj), ImageSizeY(Iobj)], Args.RefWCS, 'Sampling', 10);
+            end
+        end
     end
    
     % set OutView
@@ -108,7 +124,13 @@ function Result = imwarp(Obj, Args)
         
         for Iprop=1:1:Nprop
             if ~isemptyImage(Obj(Iobj), Args.DataProp{Iprop})
-                Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), ImWarpTransformation(Iobj), Args.InterpMethod,...
+                if IsDisplacment
+                    TranArg = DispField(Iobj).DF;
+                else
+                    TranArg = ImWarpTransformation(Iobj);
+                end
+                
+                Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), TranArg, Args.InterpMethod,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
@@ -123,7 +145,13 @@ function Result = imwarp(Obj, Args)
         % mask transformation
         if ~isempty(Args.DataPropMask)
             if ~isemptyImage(Obj(Iobj), Args.DataPropMask)
-                Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), ImWarpTransformation(Iobj), Args.InterpMethodMask,...
+                if IsDisplacment
+                    TranArg = DispField(Iobj).DF;
+                else
+                    TranArg = ImWarpTransformation(Iobj);
+                end
+                
+                Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), TranArg, Args.InterpMethodMask,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);

@@ -263,6 +263,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Args.SaveCoaddMask  = true;
     Args.SaveCoaddCat   = true;
     
+    Args.SaveProcIm     = false;
+    Args.SaveProcMask   = false;
+    Args.SaveProcCat    = false;
+    Args.SaveMatchCat   = false;
+    Args.SaveMatchSrc   = false;
+    Args.SaveCoaddIm    = false;
+    Args.SaveCoaddMask  = false;
+    Args.SaveCoaddCat   = false;
+    
+    
     SubDir = '8';
     
     IP   = ImagePath;
