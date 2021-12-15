@@ -194,7 +194,7 @@ classdef Configuration < handle
                 if isfield(Obj.Data, PropName)
                     io.msgLog(LogLevel.Debug, 'Property already exist: Data.%s', PropName);
                 else
-                    io.msgLog(LogLevel.Info, 'Adding property: %s', PropName);
+                    io.msgLog(LogLevel.Debug, 'Adding property: %s', PropName);
                 end
 
                 % Note: Yml is used below by eval()
@@ -226,7 +226,7 @@ classdef Configuration < handle
             % 	 MyConfig = Configuration();
             % 	 MyConfig.loadFile('C:/Temp/MyConfigFolder');
             Obj.Path = Path;
-            io.msgLog(LogLevel.Info, 'loadFolderInternal: %s', Obj.Path);
+            io.msgLog(LogLevel.Debug, 'loadFolderInternal: %s', Obj.Path);
 
             % Scan folder for YML files
             List = dir(fullfile(Path, '*.yml'));
@@ -305,7 +305,7 @@ classdef Configuration < handle
         
         function Result = reloadSysConfig()
             % Reload entire system configuration, Warning: calls 'clear java'
-            io.msgStyle(LogLevel.Info, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
+            io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
             clear java;
             Result = Configuration.internal_initSysConfig('clear');
         end
@@ -319,14 +319,14 @@ classdef Configuration < handle
 
             % Optionally clear configuration
             if numel(varargin) > 0 && strcmp(varargin{1}, 'clear') && ~isempty(Conf)
-                io.msgLog(LogLevel.Info, 'Configuration.init: Clearing Conf');
+                io.msgLog(LogLevel.Debug, 'Configuration.init: Clearing Conf');
                 Conf.Data = struct();
                 %Conf = [];
             end
 
             % Load/reload entire configuration
             if isempty(Conf)
-                io.msgLog(LogLevel.Info, 'Configuration.init: Creating Conf');
+                io.msgLog(LogLevel.Debug, 'Configuration.init: Creating Conf');
                 Conf = Configuration;
             end
 
@@ -361,14 +361,14 @@ classdef Configuration < handle
             EnvPath = getenv('ASTROPACK_CONFIG_PATH');
             if ~isempty(EnvPath)
                 Path = EnvPath;
-                %io.msgLog(LogLevel.Info, 'Configuration.getSysConfigPath: Using env path: %s', Path);
+                %io.msgLog(LogLevel.Debug, 'Configuration.getSysConfigPath: Using env path: %s', Path);
             else
                 % Get full path and name of the file in which the call occurs,
                 % not including the filename extension
                 MyFileName = mfilename('fullpath');
                 [MyPath, ~, ~] = fileparts(MyFileName);
                 Path = fullfile(MyPath, '..', '..', '..', 'config');
-                %io.msgLog(LogLevel.Info, 'Configuration.getSysConfigPath: Using git path: %s', Path);
+                %io.msgLog(LogLevel.Debug, 'Configuration.getSysConfigPath: Using git path: %s', Path);
             end
             Result = Path;
         end
@@ -380,7 +380,7 @@ classdef Configuration < handle
         
         function YamlStruct = internal_loadYaml(FileName)
             % Read YAML file to struct, add FileName field
-            io.msgLog(LogLevel.Info, 'loadYaml: Loading file: %s', FileName);
+            io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
             try
                 if ~isfile(FileName)
                     io.msgLog(LogLevel.Error, 'loadYaml: File not found: %s', FileName);
@@ -434,12 +434,12 @@ classdef Configuration < handle
                             FuncName = Value(2:end);
                             FuncHandle = str2func(FuncName);
                             Struct.(FieldName) = FuncHandle; 
-                            io.msgLog(LogLevel.DebugEx, 'Configuration.convert: %s', Value);                            
+                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
                             
                         % Eval (any expression)
                         elseif startsWith(Value, 'eval(')
                             Struct.(FieldName) = eval(Value);
-                            io.msgLog(LogLevel.DebugEx, 'Configuration.convert: %s', Value);                            
+                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
                         end
                     end
                 end
