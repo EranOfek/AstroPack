@@ -1053,7 +1053,7 @@ classdef AstroWCS < Component
             arguments
                 Obj
                 XY
-                RefWCS
+                RefWCS AstroWCS
                 Args.Sampling       =1;
             end
             

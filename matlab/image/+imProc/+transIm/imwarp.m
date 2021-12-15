@@ -11,6 +11,7 @@ function Result = imwarp(Obj, Args)
         Args.ShiftXY                   = [0 0];
         Args.AffineMat                 = [];    % matrix or affine2d object
         Args.DisplacmentField          = [];
+        Args.RefWCS                    = [];
         Args.Tran2D                    = [];
         
         Args.DataProp                  = {'Image', 'Back', 'Var'};
@@ -58,8 +59,7 @@ function Result = imwarp(Obj, Args)
     end
     
     Nprop = numel(Args.DataProp);
-
-    Args.RefWCS = [];
+    
     if isempty(Args.DisplacmentField) && isempty(Args.RefWCS)
         IsDisplacment = false;
         if isempty(Args.AffineMat)
@@ -99,7 +99,7 @@ function Result = imwarp(Obj, Args)
 
             DispField = struct('DF',cell(Nobj,1));
             for Iobj=1:1:Nobj
-                DispField(Iobj).DF  = xy2refxy(Obj(Iobj), [ImageSizeX(Iobj), ImageSizeY(Iobj)], Args.RefWCS, 'Sampling', 10);
+                DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Args.RefWCS, 'Sampling', 10);
             end
         end
     end
@@ -120,20 +120,28 @@ function Result = imwarp(Obj, Args)
         
         SizeInput = size(Obj(Iobj).(Args.DataProp{1}));
         
-        OutView = affineOutputView(SizeInput, ImWarpTransformation(Iobj),'BoundsStyle','CenterOutput');
+        
+        if IsDisplacment
+            TranArg = DispField(Iobj).DF;
+            OutView = [];
+        else
+            TranArg = ImWarpTransformation(Iobj);
+            OutView = affineOutputView(SizeInput, ImWarpTransformation(Iobj),'BoundsStyle','CenterOutput');
+        end
         
         for Iprop=1:1:Nprop
             if ~isemptyImage(Obj(Iobj), Args.DataProp{Iprop})
-                if IsDisplacment
-                    TranArg = DispField(Iobj).DF;
-                else
-                    TranArg = ImWarpTransformation(Iobj);
-                end
                 
-                Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), TranArg, Args.InterpMethod,...
+                if isempty(OutView)
+                    Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), TranArg, Args.InterpMethod,...
+                                                    'FillValues',FillVal,...
+                                                    'SmoothEdges',Args.SmoothEdges);
+                else
+                    Result(Iobj).(Args.DataProp{Iprop}) = imwarp(Obj(Iobj).(Args.DataProp{Iprop}), TranArg, Args.InterpMethod,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
+                end
                 if Args.ReplaceNaN
                     Result(Iobj).(Args.DataProp{Iprop})(isnan(Result(Iobj).(Args.DataProp{Iprop}))) = FillVal;
                     % FFU: update Mask
@@ -145,16 +153,16 @@ function Result = imwarp(Obj, Args)
         % mask transformation
         if ~isempty(Args.DataPropMask)
             if ~isemptyImage(Obj(Iobj), Args.DataPropMask)
-                if IsDisplacment
-                    TranArg = DispField(Iobj).DF;
+                if isempty(OutView)
+                    Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), TranArg, Args.InterpMethodMask,...
+                                                    'FillValues',FillVal,...
+                                                    'SmoothEdges',Args.SmoothEdges);
                 else
-                    TranArg = ImWarpTransformation(Iobj);
-                end
-                
-                Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), TranArg, Args.InterpMethodMask,...
+                    Result(Iobj).(Args.DataPropMask) = imwarp(Obj(Iobj).(Args.DataPropMask), TranArg, Args.InterpMethodMask,...
                                                     'OutputView',OutView,...
                                                     'FillValues',FillVal,...
                                                     'SmoothEdges',Args.SmoothEdges);
+                end
             end
         end
         
