@@ -1,4 +1,5 @@
 function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Args)
+    % Proper image subtraction between two images
     %
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
