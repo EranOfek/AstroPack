@@ -177,6 +177,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     JD = julday(AllSI(:,1));
     
     % merge catalogs
+    % note that the merging works only on columns of AllSI !!!
     [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI,...
                                                                                                             Args.mergeCatalogsArgs{:},...
                                                                                                             'MergedMatchMergedCat',Args.MergedMatchMergedCat);
