@@ -31,6 +31,18 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     %            'Fringe' - An optional AstroImage object containing the
     %                   fringe image. Default is [].
     %            'BlockSize' - 
+    %            'OverlapXY' -
+    %            'CCDSEC' - 
+    %            'OVERSCAN' -
+    %            'Scale'
+    %            'AddHeadKeys'
+    %            'MultiplyByGain'
+    %            'MaskSaturated'
+    %            'DoAstrometry'
+    %            'DoPhotometry'
+    %            'MatchExternal'
+    %            'SaveProducts'
+    %
     % Output : -
     % Author : Eran Ofek (Aug 2021)
     % Example: pipeline.generic.singleRaw2proc
