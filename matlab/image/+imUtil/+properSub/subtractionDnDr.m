@@ -1,4 +1,4 @@
-function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Args)
+function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     % Proper image subtraction between two images.
     %       Given a new (N) and reference (R) images, along with their
     %       respective PSFs (Pn and Pr), and background noise (SigmaN,
@@ -24,16 +24,13 @@ function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Ar
     %          - (SigmaR) the standard deviation of the background
     %            reference image.
     %          * ...,key,val,...
-    %            'Fn' -
-    %            'Fr' -
+    %            'Beta'
     %            'OutIsFT'
-    %            'VN'
-    %            'VR'
     %
     %
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
-    %          [D, Pd, S, Scorr] = imUtil.subtraction.proper(N, R, Pn, Pr,1,1);
+    %          [Dn,Dr] = imUtil.subtraction.subtractionDnDr(N, R, Pn, Pr,1,1);
     
     
    
@@ -45,16 +42,10 @@ function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Ar
         SigmaN
         SigmaR
         
-        Args.Fn                       = 1;
-        Args.Fr                       = 1;
+        Args.Beta                     = 1;
         
         Args.OutIsFT logical          = false;
         
-        Args.VN                       = [];
-        Args.VR                       = [];
-        Args.SigmaAstR                = []; %[0.02, 0.02];
-        Args.SigmaAstN                = []; %[0.02, 0.02];
-                
         Args.IsImFFT(1,1) logical     = true;
         Args.IsPsfFFT(1,1) logical    = true;
         Args.ShiftIm(1,1) logical     = false;
@@ -64,9 +55,6 @@ function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Ar
         
         
     end
-    
-    Fr = Args.Fr;
-    Fn = Args.Fn;
     
     if Args.AbsUsingConj
         AbsFun = @(X) conj(X).*X;
@@ -98,79 +86,26 @@ function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Ar
         Pr = fftshift(Pr);
     end
     
-    D_num     = Fr.*Pr_hat.*N_hat - Fn.*Pn_hat.*R_hat;
-    D_den     = SigmaN.^2 .* Fr.^2 .* AbsFun(Pr_hat).^2 + SigmaR.^2 .*Fn.^2 .* AbsFun(Pn_hat).^2 + Args.Eps;
-    D_denSqrt = sqrt(D_den);
-    D_hat     = D_num./D_denSqrt;
+    % denominator of D
     
-    Fd        = Fr .* Fn ./ sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
     
-    Pd_num    = Fr .* Fn .* Pr_hat .* Pn_hat;
-    Pd_den    = Fd .* D_denSqrt;
-    Pd_hat    = Pd_num./Pd_den;
-    
-    S_hat     = Fd .* D_hat .* conj(Pd_hat);
-   
-    if nargout>3 
-        if ~isempty(Args.VN) && ~isempty(Args.VR)
-            ApplySourceNoise = true;
-        else
-            ApplySourceNoise = false;
-        end
-        if ~isempty(Args.SigmaAstN) && ~isempty(Args.SigmaAstR)
-            ApplyAstNoise = true;
-        else
-            ApplyAstNoise = false;
-        end
+    D_den_1   = SigmaN.^2 .* AbsFun(Pr_hat).^2;
+    D_den_2   = SigmaR.^2 .* AbsFun(Pn_hat).^2;
+    D_den     = Fr.^2 .* D_den_1 + Fn.^2 .* D_den_2 + Args.Eps;
         
-        % apply source noise 
-        if ApplySourceNoise
-            Kr_hat    = Fr.*Fn.^2.*conj(Pr_hat).*AbsFun(Pn_hat).^2./D_den;
-            Kn_hat    = Fn.*Fr.^2.*conj(Pn_hat).*AbsFun(Pr_hat).^2./D_den;
-            V_Sn      = imUtil.filter.conv2_fft(Args.VN, Kn_hat.^2);
-            V_Sr      = imUtil.filter.conv2_fft(Args.VR, Kr_hat.^2);
-
-            Vcorr     = V_Sn + V_Sr;
-        else
-            Vcorr     = 0;
-        end
-    
-        % apply astrometric noise
-
-        if ApplyAstNoise
-            Sn        = Kn_hat.*N_hat;
-            Sr        = Kr_hat.*R_hat;
-            [GradNx, GradNy] = gradient(Sn);
-            [GradRx, GradRy] = gradient(Sr);
-            Vast_Sn   = Args.SigmaAstN(1).^2 .* GradNx.^2 + Args.SigmaAstN(2).^2 .* GradNy.^2;
-            Vast_Sr   = Args.SigmaAstR(1).^2 .* GradRx.^2 + Args.SigmaAstR(2).^2 .* GradRy.^2;
-            
-            Vcorr     = Vcorr + Vast_Sn + Vast_Sr;
-        else
-            %Vcorr     = Vcorr + 0;
-        end
-    
-        if ApplySourceNoise || ApplyAstNoise
-            % denominator of S_corr
-            Vcorr     = sqrt(Vcorr);
-
-            S         = ifft2(S_hat);
-            Scorr     = S./Vcorr;
-        else
-            Scorr     = [];
-        end
-    else
-        Scorr = [];
-    end
-    
+    % calculate the numerators of Dn and Dr
+    Dn_hat  = Pr_hat.*N_hat;  % numerator of Dn
+    Dr_hat  = Pn_hat.*R_hat;  % numerator of Dr
+    D_num   = Fr.*Dn_hat - Fn.*Dr_hat;
+    Dnr_den = sqrt(D_den_1 + Args.Beta.^2 .* D_den_2 + Args.Eps);
+    Dn_hat  = Dn_hat./Dnr_den;
+    Dr_hat  = Dr_hat./Dnr_den;
+   
     if Args.OutIsFT
-        D_hat  = ifft2(D_hat);
-        Pd_hat = ifft2(Pd_hat);
-        S_hat  = ifft2(S_hat);
-        % Scorr is already in real space
+        % do nothing - already in Fourier domain
     else
-        % convert Scorr to fft
-        Scorr  = fft2(Scorr);
+        Dn_hat = ifft2(Dn_hat);
+        Dr_hat = ifft2(Dr_hat);
     end
     
 end

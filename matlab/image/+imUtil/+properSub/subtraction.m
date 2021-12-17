@@ -1,4 +1,4 @@
-function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Args)
+function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     % Proper image subtraction between two images.
     %       Given a new (N) and reference (R) images, along with their
     %       respective PSFs (Pn and Pr), and background noise (SigmaN,
@@ -42,7 +42,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Ar
     %
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
-    %          [D, Pd, S, Scorr] = imUtil.subtraction.proper(N, R, Pn, Pr,1,1);
+    %          [D, Pd, S, Scorr] = imUtil.subtraction.subtraction(N, R, Pn, Pr,1,1);
     
     
    
