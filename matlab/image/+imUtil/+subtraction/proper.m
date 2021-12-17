@@ -1,5 +1,35 @@
 function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Args)
-    % Proper image subtraction between two images
+    % Proper image subtraction between two images.
+    %       Given a new (N) and reference (R) images, along with their
+    %       respective PSFs (Pn and Pr), and background noise (SigmaN,
+    %       SigmaR), and flux normalizations (Fn, Fr), apply the proper
+    %       image subtraction formulae of Zackay, Ofek, & Gal-Yam (2016;
+    %       ApJ 830, 27).
+    %       Optionaly include the source noise and astrometric noise.
+    %       The function returns the uncorelated difference image D, and
+    %       its PSF Pd,
+    %       the proper subtraction statistics S, and the source noise and
+    %       astrometric-noise corrected statistics S_corr.
+    % Input  : - The background sybtracted new image (N). This can be in
+    %            the image domain or fourier domain (i.e., 'IsImFFT'=true).
+    %          - Like N but, the background subtracted reference image (R).
+    %          - The PSF of the new image N. The PSF image size must be
+    %            equal to the N and R image sizes, and the PSF center
+    %            should be located at pixel 1,1 (corner).
+    %            The input may be in the image domain or Fourier domain
+    %            (i.e., 'IsPsfFFT'=true).
+    %          - Like Pn, but the PSF for the reference image.
+    %          - (SigmaN) the standard deviation of the background new
+    %            image.
+    %          - (SigmaR) the standard deviation of the background
+    %            reference image.
+    %          * ...,key,val,...
+    %            'Fn' -
+    %            'Fr' -
+    %            'OutIsFT'
+    %            'VN'
+    %            'VR'
+    %
     %
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
@@ -15,8 +45,8 @@ function [D_hat, Pd_hat, S_hat, Scorr] = proper(N, R, Pn, Pr, SigmaN, SigmaR, Ar
         SigmaN
         SigmaR
         
-        Args.Fr                       = 1;
         Args.Fn                       = 1;
+        Args.Fr                       = 1;
         
         Args.OutIsFT logical          = false;
         
