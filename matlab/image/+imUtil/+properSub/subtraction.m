@@ -28,24 +28,46 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     %                   Default is 1.
     %            'Fr' - The reference image (R) flux calibration factor.
     %                   Default is 1.
-    %            'OutIsFT'
-    %            'VN'
-    %            'VR'
-    %            'SigmaAstN'
-    %            'SigmaAstR'
-    %            'IsImFFT'
-    %            'IsPsfFFT'
-    %            'ShiftIm'
-    %            'ShiftPsf'
-    %            'Eps'
-    %            'AbsUsingConj'
-    %
+    %            'OutIsFT' - A logical flag indicating if the output is in
+    %                   Fourier domain (true), or not (false).
+    %                   Default is false.
+    %            'VN' - A matrix of variance image of the new (N) including
+    %                   the background and sources variance. This is used 
+    %                   if S_corr is requested.
+    %            'VR' - Like 'VN', but for the reference (R).
+    %            'SigmaAstN' - A two element vector of the X and Y
+    %                   astrometric uncertanties in the new (N) image. If
+    %                   given, and S_corr is requested, then the
+    %                   astrometric errors will be propagated into S_corr.
+    %                   Default is [].
+    %            'SigmaAstR' - Like 'SigmaAstN', but for the reference
+    %                   image (R). Default is [].
+    %            'IsImFFT' - A logical indicating if the input N and R
+    %                   images are in Fourier domain. Default is false.
+    %            'IsPsfFFT' - A logical indicating if the input Pn and Pr
+    %                   PSFs are in Fourier domain. Default is false.
+    %            'ShiftIm' - A logical indicating if to fftshift the input
+    %                   N and R images. Default is false.
+    %            'ShiftPsf' - A logical indicating if to fftshift the input
+    %                   Pn and Pr PSFs. Default is false.
+    %            'Eps' - A small value to add to the demoninators in order
+    %                   to avoid division by zero due to roundoff errors.
+    %                   Default is 0. (If needed set to about 100.*eps).
+    %            'AbsUsingConj' - A logical indicating how to calculate the
+    %                   abs value of a complex matrix.
+    %                   If true, use M*conj(M).
+    %                   If false, use abs(M).
+    %                   Default is false.
+    % Output : - (D_hat) Proper subtraction difference image in real space.
+    %            In Fourier domain if OutIsFFT=true.
+    %          - (Pd_hat) The PSF of D.
+    %          - (S_hat) The score image (S).
+    %          - (Scorr) The corrected score image (S_corr).
+    % Author : Eran Ofek (Dec 2021)
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
     %          [D, Pd, S, Scorr] = imUtil.subtraction.subtraction(N, R, Pn, Pr,1,1);
-    
-    
-   
+       
     arguments
         N         % Background subtracted N
         R         % Background subtracted R
@@ -65,8 +87,8 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Args.SigmaAstR                = []; %[0.02, 0.02];
         
                 
-        Args.IsImFFT(1,1) logical     = true;
-        Args.IsPsfFFT(1,1) logical    = true;
+        Args.IsImFFT(1,1) logical     = fakse;
+        Args.IsPsfFFT(1,1) logical    = false;
         Args.ShiftIm(1,1) logical     = false;
         Args.ShiftPsf(1,1) logical    = false;
         Args.Eps                      = 0;
