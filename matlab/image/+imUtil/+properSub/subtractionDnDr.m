@@ -43,7 +43,7 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     % Author : Eran Ofek (Dec 2021)
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
-    %          [Dn,Dr] = imUtil.subtraction.subtractionDnDr(N, R, Pn, Pr,1,1);
+    %          [Dn,Dr] = imUtil.properSub.subtractionDnDr(N, R, Pn, Pr,1,1);
        
     arguments
         N         % Background subtracted N

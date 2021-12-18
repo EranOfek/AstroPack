@@ -66,7 +66,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     % Author : Eran Ofek (Dec 2021)
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
-    %          [D, Pd, S, Scorr] = imUtil.subtraction.subtraction(N, R, Pn, Pr,1,1);
+    %          [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr,1,1);
        
     arguments
         N         % Background subtracted N
@@ -86,7 +86,6 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Args.SigmaAstN                = []; %[0.02, 0.02];
         Args.SigmaAstR                = []; %[0.02, 0.02];
         
-                
         Args.IsImFFT(1,1) logical     = fakse;
         Args.IsPsfFFT(1,1) logical    = false;
         Args.ShiftIm(1,1) logical     = false;
@@ -122,12 +121,12 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Pr_hat = fft2(Pr);
     end
     if Args.ShiftIm
-        N = fftshift(N);
-        R = fftshift(R);
+        N_hat = fftshift(N_hat);
+        R_hat = fftshift(R_hat);
     end
     if Args.ShiftPsf
-        Pn = fftshift(Pn);
-        Pr = fftshift(Pr);
+        Pn_hat = fftshift(Pn_hat);
+        Pr_hat = fftshift(Pr_hat);
     end
     
     % denominator of D
