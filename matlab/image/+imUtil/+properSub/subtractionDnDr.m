@@ -1,5 +1,5 @@
 function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
-    % The partials proper image subtraction between two images.
+    % The partial proper image subtraction between two images.
     %       These are Dn/Dr (Equations 37, 38) in Zackay, Ofek, & Gal-Yam
     %       (2016; ApJ 830, 27).
     %       Dn/Dr are required for estimating the flux correction ratio

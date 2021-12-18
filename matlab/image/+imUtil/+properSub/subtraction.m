@@ -1,5 +1,5 @@
 function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, SigmaR, Args)
-    % Proper image subtraction between two images.
+    % Proper image subtraction between two images (D, Pd, S, S_corr).
     %       Given a new (N) and reference (R) images, along with their
     %       respective PSFs (Pn and Pr), and background noise (SigmaN,
     %       SigmaR), and flux normalizations (Fn, Fr), apply the proper
