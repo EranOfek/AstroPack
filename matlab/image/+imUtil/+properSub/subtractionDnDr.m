@@ -1,15 +1,9 @@
 function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
-    % Proper image subtraction between two images.
-    %       Given a new (N) and reference (R) images, along with their
-    %       respective PSFs (Pn and Pr), and background noise (SigmaN,
-    %       SigmaR), and flux normalizations (Fn, Fr), apply the proper
-    %       image subtraction formulae of Zackay, Ofek, & Gal-Yam (2016;
-    %       ApJ 830, 27).
-    %       Optionaly include the source noise and astrometric noise.
-    %       The function returns the uncorelated difference image D, and
-    %       its PSF Pd,
-    %       the proper subtraction statistics S, and the source noise and
-    %       astrometric-noise corrected statistics S_corr.
+    % The partials proper image subtraction between two images.
+    %       These are Dn/Dr (Equations 37, 38) in Zackay, Ofek, & Gal-Yam
+    %       (2016; ApJ 830, 27).
+    %       Dn/Dr are required for estimating the flux correction ratio
+    %       (beta= Fn/Fr).
     % Input  : - The background sybtracted new image (N). This can be in
     %            the image domain or fourier domain (i.e., 'IsImFFT'=true).
     %          - Like N but, the background subtracted reference image (R).
@@ -21,19 +15,36 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %          - Like Pn, but the PSF for the reference image.
     %          - (SigmaN) the standard deviation of the background new
     %            image.
-    %          - (SigmaR) the standard deviation of the background
+    %          - (SigmaR) the standar d deviation of the background
     %            reference image.
     %          * ...,key,val,...
-    %            'Beta'
-    %            'OutIsFT'
-    %
-    %
+    %            'Beta' - The flux ratio Fn/Fr. Default is 1.
+    %            'OutIsFT' - A logical flag indicating if the output is in
+    %                   Fourier domain (true), or not (false).
+    %                   Default is false.
+    %            'IsImFFT' - A logical indicating if the input N and R
+    %                   images are in Fourier domain. Default is false.
+    %            'IsPsfFFT' - A logical indicating if the input Pn and Pr
+    %                   PSFs are in Fourier domain. Default is false.
+    %            'ShiftIm' - A logical indicating if to fftshift the input
+    %                   N and R images. Default is false.
+    %            'ShiftPsf' - A logical indicating if to fftshift the input
+    %                   Pn and Pr PSFs. Default is false.
+    %            'Eps' - A small value to add to the demoninators in order
+    %                   to avoid division by zero due to roundoff errors.
+    %                   Default is 0. (If needed set to about 100.*eps).
+    %            'AbsUsingConj' - A logical indicating how to calculate the
+    %                   abs value of a complex matrix.
+    %                   If true, use M*conj(M).
+    %                   If false, use abs(M).
+    %                   Default is false.
+    % Output : - Dn (in real space, unless OutIsFT=true).
+    %          - Dr.
+    % Author : Eran Ofek (Dec 2021)
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
     %          [Dn,Dr] = imUtil.subtraction.subtractionDnDr(N, R, Pn, Pr,1,1);
-    
-    
-   
+       
     arguments
         N         % Background subtracted N
         R         % Background subtracted R
@@ -52,8 +63,6 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.ShiftPsf(1,1) logical    = false;
         Args.Eps                      = 0;
         Args.AbsUsingConj logical     = false;
-        
-        
     end
     
     if Args.AbsUsingConj
@@ -87,7 +96,6 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     end
     
     % denominator of D
-    
     
     D_den_1   = SigmaN.^2 .* AbsFun(Pr_hat).^2;
     D_den_2   = SigmaR.^2 .* AbsFun(Pn_hat).^2;
