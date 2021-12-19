@@ -57,7 +57,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.DeletePropAfterSrcFinding        = {'Back','Var'};
         Args.UpdateCounter logical            = true;
         
-        Args.coaddArgs cell                   = {};
+        Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
         % Background and source finding
         Args.backgroundArgs cell              = {};
@@ -217,7 +217,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         % 1. NOTE that the mean image is returned so that the effective gain
         % is now Gain/Nimages
         % 2. RegisteredImages has no header so no JD...
-        [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},'StackMethod','sigmaclip');
+        [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
+                                                                                             'StackMethod','sigmaclip');
+        
+        
         
         % Background
         Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY);
