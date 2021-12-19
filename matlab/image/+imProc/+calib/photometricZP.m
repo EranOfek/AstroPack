@@ -276,7 +276,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     case 'vega'
                         % do nothing GAIA is already in Vega sys
                     case 'ab'
-                        if 1==0
+                        %if 1==0
                         VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
                         
                         GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
@@ -286,7 +286,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                         
                         I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
                         RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
-                        end
+                        %end
                     otherwise
                         error('Unknown MagSys option');
                 end

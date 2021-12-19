@@ -2397,9 +2397,9 @@ classdef catsHTM
             % Merge multiple catsHTM catalogs into a single catsHTM cat.
            
             arguments
-                CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSS','ROSATfsc','XMM','ztfDR1var'};  % 16 bit
-                Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       5,      15,    2,           10,    10,        30,        10,   2];
-                Args.Nbit        = 16;
+                CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','HSCv2','GALEX','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSS','ROSATfsc','XMM','ztfDR1var','WDEDR3','QSO1M'};  % 16 bit
+                Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       2,      4,       5,      15,    2,           10,    10,        30,        10,   2,         2,       3];
+                Args.Nbit        = 20;
                 Args.NewCatName  = 'MergedCat';
                 Args.SaveInd     = true;
                 
