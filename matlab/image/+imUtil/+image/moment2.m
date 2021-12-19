@@ -137,40 +137,42 @@ Naper      = numel(Args.AperRadius);
 
 
 % FFU: replace with:
-% [Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y);    
+[Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y);    
 
-NdimImage = ndims(Image);
-if NdimImage==2
-    % Image is 2D - build a cube of 2D stamps
-    if Args.mexCutout
-        % Note that the second argument must be a double
-        [Cube]=imUtil.image.mexCutout(Image,double([X,Y]),MaxRadius.*2+1);
-        Cube  = squeeze(Cube);
-        RoundX = round(X);
-        RoundY = round(Y);
-    else
-        [Cube,RoundX,RoundY]=imUtil.image.find_within_radius_mat(Image,X,Y,MaxRadius,Args.Circle);
-    end
-    
-    
-elseif NdimImage==3
-    % Image is already a cube of stamps
-    Cube   = Image;
-    RoundX = round(X);
-    RoundY = round(Y);
-    [~,~,Nc] = size(Cube);
-    if numel(X)==1
-        RoundX = RoundX.*ones(Nc,1);
-        X      = X.*ones(Nc,1);
-    end
-    if numel(Y)==1
-        RoundY = RoundY.*ones(Nc,1);
-        Y      = Y.*ones(Nc,1);
-    end
-    
-else
-    error('Image number of dimensions must be 2 or 3');
-end
+% NdimImage = ndims(Image);
+% if NdimImage==2
+%     % Image is 2D - build a cube of 2D stamps
+%     if Args.mexCutout
+%         % Note that the second argument must be a double
+%         [Cube]=imUtil.image.mexCutout(Image,double([X,Y]),MaxRadius.*2+1);
+%         Cube  = squeeze(Cube);
+%         RoundX = round(X);
+%         RoundY = round(Y);
+%     else
+%         [Cube,RoundX,RoundY]=imUtil.image.find_within_radius_mat(Image,X,Y,MaxRadius,Args.Circle);
+%     end
+%     
+%     
+% elseif NdimImage==3
+%     % Image is already a cube of stamps
+%     Cube   = Image;
+%     RoundX = round(X);
+%     RoundY = round(Y);
+%     [~,~,Nc] = size(Cube);
+%     if numel(X)==1
+%         RoundX = RoundX.*ones(Nc,1);
+%         X      = X.*ones(Nc,1);
+%     end
+%     if numel(Y)==1
+%         RoundY = RoundY.*ones(Nc,1);
+%         Y      = Y.*ones(Nc,1);
+%     end
+%     
+% else
+%     error('Image number of dimensions must be 2 or 3');
+% end
+
+
 
 SizeCube = size(Cube);
 SizeCube = cast(SizeCube, 'like',Image);
