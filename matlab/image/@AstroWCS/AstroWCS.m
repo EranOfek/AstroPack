@@ -376,11 +376,12 @@ classdef AstroWCS < Component
             % Delete all distortion coefficients from original header (if
             % exist). Required in order not to leave old coefficinets that
             % are not overwritten
-            Header.deleteKey('PV\d+_\d+');
-            Header.deleteKey('A_\d+_\d+');
-            Header.deleteKey('B_\d+_\d+');
-            Header.deleteKey('AP_\d+_\d+');
-            Header.deleteKey('BP_\d+_\d+');
+            Header = deleteDistortionsWCS(Header);
+%             Header.deleteKey('PV\d+_\d+');
+%             Header.deleteKey('A_\d+_\d+');
+%             Header.deleteKey('B_\d+_\d+');
+%             Header.deleteKey('AP_\d+_\d+');
+%             Header.deleteKey('BP_\d+_\d+');
             
             
             % Add/create all keywords

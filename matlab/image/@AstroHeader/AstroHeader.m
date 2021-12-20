@@ -1573,6 +1573,26 @@ classdef AstroHeader < Component
         
     end
     
+    methods % specific functions
+        function Obj = deleteDistortionsWCS(Obj)
+            % delete WCS distortion keywords from header
+            % Input  : - An AstroHeader object.
+            % Output : - An AstroHeader object, after deleting all the
+            %            PV/A/AP/B/BP keywords.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: 
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).deleteKey('PV\d+_\d+');
+                Obj(Iobj).deleteKey('A_\d+_\d+');
+                Obj(Iobj).deleteKey('B_\d+_\d+');
+                Obj(Iobj).deleteKey('AP_\d+_\d+');
+                Obj(Iobj).deleteKey('BP_\d+_\d+');
+            end
+            
+        end
+    end
     
     methods (Static)  % help and documentation
         function help
