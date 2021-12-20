@@ -37,7 +37,7 @@ classdef DbRecord < Base
     methods % Constructor
         function Obj = DbRecord(Data, Args)
             % Constructor
-            % Input:   Data - struct array, table, cell array, matrix
+            % Input:   Data - struct array, table, cell array, matrix, AstroTable, AstroCatalog
             % Example: MyRec = db.DbRecord(
             arguments
                 Data = [];
@@ -84,6 +84,9 @@ classdef DbRecord < Base
         
         function Result = getFieldNames(Obj)
             % Get list of field names, properties ending with '_' are excluded
+            % Input:   -
+            % Output:  cell-array of field-names
+            % Example: FieldNames = Obj.getFieldNames()
             Result = fieldnames(Obj.Data);
         end
         
@@ -91,9 +94,9 @@ classdef DbRecord < Base
         function Result = merge(Obj, Stru)
             % Merge struct array with current data
             % Usefull when we constructed from matrix and need key fields
-            % Input:   - 
+            % Input:   Stru - 
             % Output:  -
-            % Example: -
+            % Example: Merged = Obj.merge(MyStructArray)
             FieldList = fieldnames(Stru);
             StruRows = numel(Stru);
             for Row=1:numel(Obj.Data)
@@ -131,8 +134,8 @@ classdef DbRecord < Base
         function Result = convert2table(Obj)
             % Convert record(s) to table
             % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Output:  Table
+            % Example: Tab = Obj.convert2table()       
             if ~isempty(Obj.Data)
                 Result = struct2table(Obj.Data);
                 Size = size(Result);
@@ -147,8 +150,8 @@ classdef DbRecord < Base
             % Convert record(s) to cell
             % Note that we need to transpose it
             % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Output:  Cell-array
+            % Example: Cell = Obj.convert2cell()
             if ~isempty(Obj.Data)            
                 Result = squeeze(struct2cell(Obj.Data))';
                 Size = size(Result);
@@ -163,8 +166,8 @@ classdef DbRecord < Base
             % Convert record(s) to matrix, non-numeric fields are
             % Note that we need to transpose it
             % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Output:  Matrix
+            % Example: Mat = Obj.convert2mat()
             if ~isempty(Obj.Data)            
                 Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Size = size(Result);
@@ -178,8 +181,8 @@ classdef DbRecord < Base
         function Result = convert2AstroTable(Obj)
             % Convert record(s) to AstroTable
             % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Output:  AstroTable object
+            % Example: AT = Obj.convert2AstroTable()
             if ~isempty(Obj.Data)            
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
@@ -194,8 +197,8 @@ classdef DbRecord < Base
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
             % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Output:  AstroCatalog object
+            % Example: AC = Obj.convert2AstroCatalog()            
             if ~isempty(Obj.Data)            
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
@@ -208,10 +211,10 @@ classdef DbRecord < Base
            
 
         function Result = convert2(Obj, OutType)                  
-            %
-            % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Convert Obj.Data struct array to given OutType
+            % Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog'
+            % Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog
+            % Example: Mat = Obj.conevrt2('mat')
             OutType = lower(OutType);
             if strcmp(OutType, 'table')
                 Result = Obj.convert2table();
@@ -231,15 +234,18 @@ classdef DbRecord < Base
                         
         function Result = writeCsv(Obj, FileName, Args)            
             % Write Obj.Data struct array to CSV file, using mex optimization
-            % Input:   - 
-            % Output:  -
-            % Example: -            
+            % @Todo - to be tested
+            % Input:   FileName     -
+            %          Args.Header  - 
+            % Output:  true on sucess
+            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)            
             arguments
                 Obj
-                FileName            %
-                Args.Header         % 
+                FileName            % File name
+                Args.Header         % Header, @TBD
             end
             
+            % Use MEX version which is x30 faster than MATLAB version
             mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Args.Header, Obj.Data);
             Result = true;
         end
@@ -248,14 +254,18 @@ classdef DbRecord < Base
         function Result = readCsv(Obj, FileName)
             % Read from CSV file to Obj.Data struct-array
             % @Todo - Not implemented yet
-            % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Input:   - FileName - CSV file name
+            % Output:  - @TBD
+            % Example: - CsvData = Obj.readCsv('/tmp/data1.csv')
             Result = [];          
         end        
         
         
         function Result = getRowCount(Obj)
+            % Get numer of rows in Data struct array
+            % Input:   - 
+            % Output:  Number of rows in Obj.Data
+            % Example: Count = Obj.getRowCount()
             Result = numel(Obj.Data);
         end
             

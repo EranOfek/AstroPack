@@ -107,7 +107,10 @@ classdef MsgLogger < handle
 		function msgLog(Obj, Level, varargin)
             % Log message to console/file according to current
             % LogLevel settings
-
+            % Input:  
+            % Output: 
+            % Example: 
+            
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
                 return
@@ -154,7 +157,10 @@ classdef MsgLogger < handle
 		function msgStyle(Obj, Level, Style, varargin)
             % Log message to console/file according to current
             % LogLevel settings
-
+            % Input:  
+            % Output: 
+            % Example: 
+            
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
                 return
@@ -189,7 +195,10 @@ classdef MsgLogger < handle
 		function Result = shouldLog(Obj, Level, CurLevel)
             % Return true if specified Level should be logged according
             % to the specified CurLevel settings
-
+            % Input:  
+            % Output: 
+            % Example: 
+            
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
                 Result = false;
@@ -214,6 +223,9 @@ classdef MsgLogger < handle
 
         function Result = mustLog(Obj, Level)
             % Return true if specified Level should be logged according
+            % Input:  
+            % Output: 
+            % Example: 
             Result = false;
 			if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert || ...
                Level == LogLevel.Warning || Level == LogLevel.Test
@@ -224,7 +236,9 @@ classdef MsgLogger < handle
         
         function Result = getLevelStr(Obj, Level)
             % Convert Level enumeation to string
-
+            % Input:  
+            % Output: 
+            % Example: 
             % Convert enum to string
 			s = '';
             switch Level
@@ -259,7 +273,10 @@ classdef MsgLogger < handle
 
 		function msgStack(Obj, Level, varargin)
             % Log stack trace
-
+            % Input:  
+            % Output: 
+            % Example: 
+            
             [StackTrace, WorkspaceIndex] = dbstack;
 
             Obj.msgLog(Level, varargin{:});
@@ -287,6 +304,10 @@ classdef MsgLogger < handle
 
         function Result = getSingleton(Args)
             % Return singleton object, the deafult MsgLogger
+            % Input:  
+            % Output: 
+            % Example: 
+            
             arguments
                 Args.FileName       = 'AstroPackLog'    % File name, if empty, default name is used
                 Args.UseTimestamp   = false             % True to add timestamp to file name
@@ -304,6 +325,10 @@ classdef MsgLogger < handle
 
         function setLogLevel(Level, Args)
             % Set current log level, Args.type is 'all', 'file', 'disp'
+            % Input:  
+            % Output: 
+            % Example: 
+            
             arguments
                 Level LogLevel
                 Args.type = 'all'
@@ -328,6 +353,7 @@ classdef MsgLogger < handle
     methods(Static) % Unit test
 
         Result = unitTest()
+            % Unit test
     end
 
 end

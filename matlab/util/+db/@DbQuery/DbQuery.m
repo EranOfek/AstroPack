@@ -49,8 +49,7 @@
 % getMetadata - Get metadata of the specified table or the current result-set
 % getTableFieldList - Get fields list of specified table as celarray
 % getValidFieldName - Convert specified table field name to valid Matlab property/struct-field name, replace non-valid chars with '_' Example: getValidFieldName('') ->
-% insertCell -
-% insertDbRecord - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('s', d)", uuid, i).char;
+% insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('s', d)", uuid, i).char;
 % isField - Check if field exists by name
 % loadResultSet - Load ResultSet to DbRecord array Might be time and memory consuming!
 % makeInsertFieldsText -
@@ -548,15 +547,16 @@ classdef DbQuery < Component
             % Delete record by fields specified in Rec
             % Note that we cannot use 'delete' as function name because it
             % is a reserved keyword.
-            % Intput:  -
-            % Output:  DbRecord
-            % Example: -             
+            % Intput:  Args.TableName
+            %          Args.Where
+            
+            % Output:  true on success
+            % Example: Obj.deleteRecord('TableName', 'MyTable', 'Where', 'TheFlag == 1')
             
             arguments
                 Obj
-                Args.TableName = '';    %
-                Args.Where = '';        % Exact where clause
-                Args.Rec                % DbRecord or struct
+                Args.TableName = '';    % Table name, if empty, Obj.TableName is used
+                Args.Where = '';        % Optional WHERE clause
             end
 
             % Use all fields that exist in the table
@@ -574,13 +574,11 @@ classdef DbQuery < Component
             % Prepare SQL statement
             % sql = sprintf("DELETE FROM master_table WHERE key1=... and key2=...).char;
             if ~isempty(Args.Where)
+                Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];                
             else
+                Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];                
             end
-
-            FieldNames = Obj.getFieldNames(Rec);
-            FieldMap = struct;
-            Where = Obj.makeWhereFieldsText(FieldNames, 'AND', FieldMap);
-
+            
             %
             Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];
             Obj.msgLog(LogLevel.Debug, 'deleteRecord: SqlText: %s', Obj.SqlText);
@@ -625,9 +623,12 @@ classdef DbQuery < Component
 
         function Result = selectCount(Obj, Args)
             % Select number of records with optionally where clause
-            % Intput:  -
+            % Intput:  Args.TableName
+            %          Args.Where
             % Output:  DbRecord
-            % Example: -             
+            % Example: Count = Obj.selectCount()
+            % Example: Count = Obj.selectCount('TableName', 'MyTable')
+            % Example: Count = Obj.selectCount('TableName', 'MyTable', 'Where', 'Flag == 1')
             
             arguments
                 Obj                     %
