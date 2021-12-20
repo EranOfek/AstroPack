@@ -597,12 +597,12 @@ classdef AstroImage < Component
             % Return the size of images in AstroImage object
             % Input  : - An AstroImage object (multi elements supported).
             %          - A single propery name (char array)
-            % Output : - Number of rows in each AstroImage element.
-            %          - Number of columns in each AstroImage element.
+            % Output : - Number of column in each AstroImage element.
+            %          - Number of row in each AstroImage element.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI=AstroImage;
-            %          [Ny, Nx] = AI.sizeImage
-            %          [Ny, Nx] = AI.sizeImage('Back')
+            %          [Nx, Ny] = AI.sizeImage
+            %          [Nx, Ny] = AI.sizeImage('Back')
             
             arguments
                 Obj
