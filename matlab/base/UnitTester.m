@@ -322,6 +322,9 @@ classdef UnitTester < handle
     
         function Result = runTest(Obj, ClassName, Args)
             % Run single unit test, Target is class name
+            % Input:
+            % Output: 
+            % Example:            
             % Example: runTest('ImagePath')
             arguments
                 Obj
@@ -373,6 +376,9 @@ classdef UnitTester < handle
 
 
         function Result = processFolder(Obj, Path, Args)
+            % Input:
+            % Output: 
+            % Example:            
             % Recursivly call processFile()
             arguments
                 Obj
@@ -434,6 +440,11 @@ classdef UnitTester < handle
 
 
         function Result = processFile(Obj, FileName, Args)
+            % 
+            % Input:
+            % Output: 
+            % Example:
+            
             arguments
                 Obj
                 FileName                        %
@@ -499,6 +510,9 @@ classdef UnitTester < handle
         function Result = shouldProcessFile(Obj, FileName)
             % Return true if file should be procssed, check for special
             % folders (i.e. 'unused')
+            % Input:
+            % Output: 
+            % Example:            
             Result = true;
             fn = lower(FileName);
             if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || ...
@@ -508,17 +522,22 @@ classdef UnitTester < handle
         end
         
         
-        function Result = Warn(Obj, Text)
+        function Warn(Obj, Text)
             % Add text to warnings list
+            % Input:
+            % Output: 
+            % Example:            
             if ~any(find(strcmp(Obj.WarnList, Text)))
                 Obj.WarnList{end+1} = Text;
             end
-            Result = true;
         end
         
         
         function Result = fullName(Obj, PackageName, ClassOrFunc)
             % Return full file name including package
+            % Input:
+            % Output: 
+            % Example:            
             Result = ClassOrFunc;
             if ~isempty(PackageName)
                 Result = [PackageName, '.', ClassOrFunc];
@@ -528,6 +547,9 @@ classdef UnitTester < handle
                     
         function Result = readFile(Obj, FileName)
             % Read file to Lines{}
+            % Input:
+            % Output: 
+            % Example:
             
             fid = fopen(FileName);
             Line = fgetl(fid);
@@ -543,6 +565,9 @@ classdef UnitTester < handle
         
         function Result = findClassDef(Obj, Lines)
             % Search classdef
+            % Input:
+            % Output: 
+            % Example:
             
             ClassName = '';
             for i=1:length(Lines)
@@ -571,6 +596,9 @@ classdef UnitTester < handle
 
         function Result = findFunction(Obj, Lines, FuncName)
             % Search unitTest() function
+            % Input:
+            % Output: 
+            % Example:            
             Result = '';
             for i=1:length(Lines)
 
@@ -587,6 +615,9 @@ classdef UnitTester < handle
         
         function [ClassName, ClassFolder] = getClassName(Obj, FileName)
             % Get class name from folder name that starts with '@'
+            % Input:
+            % Output: 
+            % Example:
             
             [Path, Name, Ext] = fileparts(FileName);
             [Path, Name, Ext] = fileparts(Path);
@@ -601,6 +632,9 @@ classdef UnitTester < handle
                 
         function Result = getPackageName(Obj, FileName)
             % Get package name from file name
+            % Input:
+            % Output: 
+            % Example:            
             Result = '';
             if (contains(FileName, '+'))
                 FileName = strrep(FileName, '\', '/');
@@ -620,6 +654,9 @@ classdef UnitTester < handle
         
         function Result = getFunctionName(Obj, Line)
             % 'function Result = unitTest()'
+            % Input:
+            % Output: 
+            % Example:
             
             Result = '';
             Items = split(Line, '%');
@@ -636,7 +673,10 @@ classdef UnitTester < handle
         
         function Result = isTested(Obj, Target)
             % Check if already tested by inspecting at Obj.TestList
-
+            % Input:
+            % Output: 
+            % Example:
+            
             if any(strcmp(Obj.TestList, Target))
                 Result = true;
             else
@@ -664,6 +704,9 @@ classdef UnitTester < handle
 
         function [FileName, FileSize] = getTestFits(Index)
             % Return FITS file name and size from our test data folder
+            % Input:
+            % Output: 
+            % Example:
             DataSampleDir = tools.os.getTestDataDir;
             List = dir(fullfile(DataSampleDir, '*.fits'));
             assert(~isempty(List));
@@ -689,6 +732,7 @@ classdef UnitTester < handle
     methods(Static)
 
         function Result = unitTest()
+            % Dummy unitTest to avoid warnning about missing unitTest() function
             Result = true;
         end
         

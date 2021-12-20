@@ -136,6 +136,9 @@ classdef DbConnection < Component
         
         function Result = open(Obj)
             % Connect to database specified by Host:Port:Database as UserName/Password
+            % Input   :   -
+            % Output  :  -
+            % Example : -
             
             %PerfLog = io.FuncLog('DbConnection.open');
             Obj.msgLog(LogLevel.Info, 'open');
@@ -236,10 +239,10 @@ classdef DbConnection < Component
             % we call the function with different option for find and to
             % register
             arguments
-                Alias
-                Args.Create     = true
-                Args.Register   = false
-                Args.DbConn     = []
+                Alias                       %
+                Args.Create     = true      %
+                Args.Register   = false     %
+                Args.DbConn     = []        %
             end
 
             if isempty(Alias) && isempty(Args.DbConn)
@@ -280,6 +283,10 @@ classdef DbConnection < Component
     methods(Static)
         function Result = findFieldIC(Struct, Field)
             % Search struct field name, ignore case
+            % Intput:  -
+            % Output:  -
+            % Example: -             
+            
             Result = '';
             List = fieldnames(Struct);
             for i=1:numel(List)
@@ -295,6 +302,7 @@ classdef DbConnection < Component
     % Unit test
     methods(Static)
          Result = unitTest()
+            % unitTest
     end
             
 end

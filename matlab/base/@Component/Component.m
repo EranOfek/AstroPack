@@ -58,7 +58,8 @@ classdef Component < Base
 
         function Obj = Component(varargin)
             % Constructor
-            % By default use system log and configuration
+            % By default use singleton MsgLogger and Configuration
+            % Input  - Optional arguement of type Component, stored in Obj.Owner
             %   NewComp = Component()
             %   NewComp = Component(Owner)
 
@@ -82,14 +83,17 @@ classdef Component < Base
 
         function setName(Obj, Name)
             % Set component name
+            % Intput:  Name - char
+            % Example: Obj.setName('MyClass')
             Obj.Name = Name;
         end
 
 
         function Result = makeUuid(Obj)
-            % Generate or re-generate unique ID for each element in object,
-            % Return Uuid or [] for array
-            % MyUuid = Obj.makeUuid()
+            % Generate or re-generate Obj.Uuid unique ID, using newUuid() function.
+            % If Obj is an array, newUuid() is called for each element.
+            % Output: Uuid, or [] if Obj is array
+            % Example: MyUuid = Obj.makeUuid()
 
             for i = 1:numel(Obj)
                 Obj(i).Uuid = Component.newUuid();
@@ -104,8 +108,10 @@ classdef Component < Base
 
 
         function Result = needUuid(Obj)
-            % Generate unique ID only if empty
-            % Return Uuid or [] for array
+            % Generate unique ID only if Obj.Uuid is empty.
+            % If Obj is an array, generate for each element.
+            % Output:  New/existing Uuid, or [] if Obj is an array
+            % Example: MyUuid = Obj.needUuid()
             for i = 1:numel(Obj)
                 if isempty(Obj(i).Uuid)
                     Obj(i).makeUuid();
@@ -123,6 +129,8 @@ classdef Component < Base
         function Result = needMapKey(Obj)
             % Generate or get current map key as uuid
             % Map key is used with ComponentMap class as key to the object
+            % Output: New/existing Uuid, or [] if Obj is an array
+            % Example: MyMayKey = Obj.needMapKey()
             for i = 1:numel(Obj)
                 if isempty(Obj(i).MapKey)
                     Obj(i).MapKey = Obj(i).needUuid();
@@ -139,6 +147,8 @@ classdef Component < Base
 
         function msgLog(Obj, Level, varargin)
             % Write message to log according to current log-level settings
+            % Input:   Level    - LogLevel enumeration, see LogLevel.m
+            %          varargin - fprintf arguments
             % Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
 
             % Do nothing if both display and file logs are disabled
@@ -169,6 +179,8 @@ classdef Component < Base
 
         function msgStyle(Obj, Level, Style, varargin)
             % Log with style (color, etc.)
+            % Input:   Level    - LogLevel enumeration, see LogLevel.m
+            %          varargin - fprintf arguments
             % Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
 
             % Do nothing if both display and file logs are disabled
@@ -312,6 +324,7 @@ classdef Component < Base
         
         function Result = validateConfig(Obj)
             % Validate that we have all configuration params that we need
+            % Not fully implemented yet!
             
             % @Todo: replace with real params
             %assert(~isempty(Obj.Config.Data.System.EnvFolders.ROOT));
@@ -323,8 +336,9 @@ classdef Component < Base
     %----------------------------------------------------------------------
     methods (Access = protected)
         function NewObj = copyElement(Obj)
-            % Custom copy of object properties
+            % Custom copy of object properties, internally used by matlab.mixin.Copyable
             % Called from copy() of matlab.mixin.Copyable decendents
+            % See: https://www.mathworks.com/help/matlab/ref/matlab.mixin.copyable-class.html
             
             % Make shallow copy of all properties
             NewObj = copyElement@Base(Obj);
@@ -345,7 +359,9 @@ classdef Component < Base
 
     methods(Static)
         function Result = newUuid()
-            % Generate Uuid using java package
+            % Generate Uuid using java package, such as '3ac140ba-19b5-4945-9d75-ff9e45d00e91'
+            % Output:  Uuid char array (36 chars)
+            % Example: U = Component.newUuid()            
             Temp = java.util.UUID.randomUUID;
 
             % Convert java string to char
@@ -354,7 +370,10 @@ classdef Component < Base
 
 
         function Result = newSerial()
-            % Generate simple serial number, used as alternative to Uuid
+            % Generate auto-increment serial number using persistent integer counter, 
+            % used as local/fast alternative to Uuid when real UUID is not required
+            % Output:  Serial number integer
+            % Example: N = Component.newSerial()
             persistent Counter
             if isempty(Counter)
                 Counter = 0;
@@ -365,11 +384,11 @@ classdef Component < Base
 
 
         function Result = newSerialStr(varargin)
-            % Generate simple serial number, used as alternative to Uuid,
-            % shorter string and fast performance.
+            % Generate auto-increment serial number using persistent integer counter, 
+            % used as local/fast alternative to Uuid when real UUID is not required
             % If parameter is specified, use it as prefix to the counter
-            % Example:
-            %   Serial = Obj.newSerialStr('MyIndex') -> 'MyIndex1'
+            % Output:  Serial number char array
+            % Example: Serial = Component.newSerialStr('MyIndex')
             if numel(varargin) == 1
                 Result = string(varargin(1) + string(Component.newSerial())).char;
             else

@@ -57,7 +57,7 @@ classdef DbDriver < Component
     %--------------------------------------------------------
     methods % Constructor
         function Obj = DbDriver(Args)
-            % Constructor            
+            % Constructor, currently only 'postgres' is supported
             arguments
                 Args.DatabaseType = 'postgres'
             end
@@ -72,7 +72,7 @@ classdef DbDriver < Component
         
         
         function delete(Obj)
-            % Destructor
+            % Destructor, unload driver from memory
             Obj.msgLog(LogLevel.Debug, 'deleted started: %s', Obj.Uuid);
             Obj.unloadDriver();
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
@@ -84,10 +84,13 @@ classdef DbDriver < Component
                         
         function Result = loadDriver(Obj)
             % Load database driver library
+            % Calls copyDriverFile() to copy the library file to target folder
+            % Output: true if loaded successfully
+            
             % See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
             Obj.msgLog(LogLevel.Info, 'loadDriver');
             
-            % Already open
+            % Already open?
             if Obj.IsLoaded
                 Obj.msgLog(LogLevel.Info, 'loadDriver: already loaded');
                 Result = true;
@@ -120,6 +123,7 @@ classdef DbDriver < Component
         
         function Result = unloadDriver(Obj)
             % Unload database driver
+            % Output: true if unloaded successfully            
             Obj.msgLog(LogLevel.Info, 'unloadDriver');
             if Obj.IsLoaded
                 try
@@ -139,6 +143,10 @@ classdef DbDriver < Component
         function Result = copyDriverFile(Obj, FileName)
             % Copy driver file from source folder to target path
             % This is requried to call javaclasspath()
+            % Input:   FileName - Jar file name
+            % Output:  true on success
+            % Example: Obj.copyDriverFile(Obj.PostgresJar)
+            
             Result = false;
             
             % Get full path and name of the file in which the call occurs
@@ -174,6 +182,7 @@ classdef DbDriver < Component
         
         % @Todo:        
         function Result = validateConfig(Obj)
+            % NOT IMPLEMENTED YET
             % Validate that we have all configuration params that we need
             
             % @Todo: replace with real params
@@ -188,6 +197,7 @@ classdef DbDriver < Component
         
         function Result = getDbDriver(varargin)
             % Get singleton Map object that maps database type to DbDriver object
+            % Example: Driver = db.DbDriver.getDbDriver('postgres')
             persistent Map
             if isempty(Map)
                 Map = ComponentMap('Name', 'DbDriver');
@@ -218,8 +228,9 @@ classdef DbDriver < Component
     end
     
     %----------------------------------------------------------------------
-    methods(Static) % Unit test
+    methods(Static)
         Result = unitTest()
+            % Unit test
     end
         
 end

@@ -21,7 +21,7 @@ classdef LogFile < handle
         UserData            % Optional user data
         LogPath = ''        % 'C:\\_Ultrasat\\log'
         Timestamp = ''      % Timestamp when log file created
-        UseFlush = true     % DO NOT CHANGE - It does not work without close (Chen, 13/06/2021)
+        UseFlush = true     % DO NOT CHANGE - It does not work without calling close() (Chen, 13/06/2021)
     end
 
     %--------------------------------------------------------
@@ -29,9 +29,13 @@ classdef LogFile < handle
 
         function Obj = LogFile(FileName, Args)
             % Constructor for LogFile
+            % Intput:  FileName - Log file name. If empty, use 'DefaultLogFile'.
+            %                     If FileName does not contain path
+            %                     separator, call LogFile.defaultPath() to
+            %                     get default path for log files.
             arguments
-                FileName = ''               %
-                Args.UseTimestamp = false   %
+                FileName = ''               % File name
+                Args.UseTimestamp = false   % True to add timestamp to file name, 
             end
 
             % Make timestamp
@@ -76,7 +80,7 @@ classdef LogFile < handle
 
 
         function delete(Obj)
-            % Destructor - close file
+            % Destructor - close file if open
             if ~isempty(Obj.Fid)
                 fclose(Obj.Fid);
                 Obj.Fid = [];
@@ -90,13 +94,20 @@ classdef LogFile < handle
 
         function Result = write(Obj, varargin)
             % Write text line to file
+            % Input:   varargin - Any fprintf() arguments
+            % Output:  true on success
+            % Example: MyLogFile.write('Elapsed time: %f', toc)
             Result = write2(Obj, '', varargin{:});
         end
 
 
         function Result = write2(Obj, Title, varargin)
-            % Log title and text line to file
-
+            % Write title and text line to file, usually used internally by
+            % other components.
+            % Input:   varargin - Any fprintf() arguments
+            % Output:  true on success            
+            % Example: MyLogFile.write2('Perf', 'Elapsed time: %f', toc)
+            
             % Prepare prompt from timestamp and title
             if isempty(Title)
                 Prompt = sprintf('%s > ', Obj.getTimestamp());
@@ -135,8 +146,10 @@ classdef LogFile < handle
 
         function Result = defaultPath(varargin)
             % Set/get default log path
-            
-            % Argument is specified, store it as default
+            % Input: When input argument is specified, store it as the
+            % current log path, replacing the old value.
+            % Example: MyPath = LogFile.defaultPath()
+            % Example: LogFile.defaultPath('/tmp/log_folder')
             persistent Path
             if numel(varargin) > 0
                 Path = varargin{1};
@@ -157,9 +170,12 @@ classdef LogFile < handle
         function Result = getSingleton(Args)
             % Return singleton object, this is the default log file
             % to be used by current process (or workspace)
+            % Input:   -
+            % Output:             
+            % Example: SysLogFile = LogFile.getSingleton();
             arguments
-                Args.FileName = ''
-                Args.UseTimestamp = false
+                Args.FileName = ''          % File name
+                Args.UseTimestamp = false   % true to add current timestamp to file name
             end
             persistent PersObj
             if isempty(PersObj)
@@ -170,28 +186,30 @@ classdef LogFile < handle
 
 
         function Result = getTimestamp()
-            % Return current date/time as sortable string with milliseconds
+            % Return current date/time as sortable string with
+            % milliseconds, such as '2021-12-20 11:05:59.357'
+            % Input:   -
+            % Output:             
+            % Example: T = LogFile.getTimestamp()
             Result = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
         end
 
 
         function Result = getFileNameTimestamp()
-            % Return current date/time as sortable string
+            % Return current date/time as sortable string, suitable for
+            % file name on Linux and Windows, such as '2021-12-20__11-07-03'
+            % Input:   -
+            % Output: 
+            % Example: T = LogFile.getFileNameTimestamp()
             Result = datestr(now, 'yyyy-mm-dd__HH-MM-SS');
         end
 
-
-        %function Result = getFileName(SubName)
-            % Currently unused
-            %Obj = LogFile.getSingleton();
-            %fn = sprintf('%s-%s.log', Obj.Timestamp, SubName);
-            %Result = fullfile(Obj.LogPath, fn);
-        %end
     end
 
 
-    methods(Static) % Unit test
+    methods(Static) 
         Result = unitTest()
+            % Unit test
     end
 
 end

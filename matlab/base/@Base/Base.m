@@ -126,6 +126,8 @@ classdef Base < matlab.mixin.Copyable
         function Result = setProps(Obj, Args)
             % Copy fields of struct Args to class properties, non-existing properties are ignored
             % Return number of fields copied
+            % Input:    Args - 'arguments' struct of the caller function
+            % Example:  Obj.setProps(Args)
             Result = 0;
             fn = fieldnames(Args);
             for i = 1:numel(fn)
@@ -140,8 +142,9 @@ classdef Base < matlab.mixin.Copyable
     %----------------------------------------------------------------------
     methods(Access = protected)
         function NewObj = copyElement(Obj)
-            % Custom copy of object properties
+            % Custom copy of object properties, internally used by matlab.mixin.Copyable
             % Called from copy() of matlab.mixin.Copyable decendents
+            % See: https://www.mathworks.com/help/matlab/ref/matlab.mixin.copyable-class.html
             
             % Make shallow copy of all properties
             NewObj = copyElement@matlab.mixin.Copyable(Obj);

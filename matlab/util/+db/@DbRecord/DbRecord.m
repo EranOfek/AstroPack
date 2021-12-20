@@ -37,7 +37,8 @@ classdef DbRecord < Base
     methods % Constructor
         function Obj = DbRecord(Data, Args)
             % Constructor
-            % Data: struct array, table, cell array, matrix
+            % Input:   Data - struct array, table, cell array, matrix
+            % Example: MyRec = db.DbRecord(
             arguments
                 Data = [];
                 Args.ColNames = [];  % Required when Data is Cell or Matrix
@@ -72,8 +73,8 @@ classdef DbRecord < Base
         end
       
         
-        % Destructor
         function delete(Obj)
+            % Destructor            
             %io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
         end
     end
@@ -90,6 +91,9 @@ classdef DbRecord < Base
         function Result = merge(Obj, Stru)
             % Merge struct array with current data
             % Usefull when we constructed from matrix and need key fields
+            % Input:   - 
+            % Output:  -
+            % Example: -
             FieldList = fieldnames(Stru);
             StruRows = numel(Stru);
             for Row=1:numel(Obj.Data)
@@ -109,6 +113,9 @@ classdef DbRecord < Base
         
         function Result = newKey(Obj)
             % Generate unique id, as Uuid or SerialStr (more compact and fast)
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             if Obj.UseUuid
                 Result = Component.newUuid();
             else
@@ -123,6 +130,9 @@ classdef DbRecord < Base
                                   
         function Result = convert2table(Obj)
             % Convert record(s) to table
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             if ~isempty(Obj.Data)
                 Result = struct2table(Obj.Data);
                 Size = size(Result);
@@ -136,6 +146,9 @@ classdef DbRecord < Base
         function Result = convert2cell(Obj)
             % Convert record(s) to cell
             % Note that we need to transpose it
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             if ~isempty(Obj.Data)            
                 Result = squeeze(struct2cell(Obj.Data))';
                 Size = size(Result);
@@ -149,6 +162,9 @@ classdef DbRecord < Base
         function Result = convert2mat(Obj)
             % Convert record(s) to matrix, non-numeric fields are
             % Note that we need to transpose it
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             if ~isempty(Obj.Data)            
                 Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Size = size(Result);
@@ -161,6 +177,9 @@ classdef DbRecord < Base
         
         function Result = convert2AstroTable(Obj)
             % Convert record(s) to AstroTable
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             if ~isempty(Obj.Data)            
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
@@ -174,6 +193,9 @@ classdef DbRecord < Base
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             if ~isempty(Obj.Data)            
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
@@ -186,6 +208,10 @@ classdef DbRecord < Base
            
 
         function Result = convert2(Obj, OutType)                  
+            %
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             OutType = lower(OutType);
             if strcmp(OutType, 'table')
                 Result = Obj.convert2table();
@@ -205,6 +231,9 @@ classdef DbRecord < Base
                         
         function Result = writeCsv(Obj, FileName, Args)            
             % Write Obj.Data struct array to CSV file, using mex optimization
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             arguments
                 Obj
                 FileName            %
@@ -219,6 +248,9 @@ classdef DbRecord < Base
         function Result = readCsv(Obj, FileName)
             % Read from CSV file to Obj.Data struct-array
             % @Todo - Not implemented yet
+            % Input:   - 
+            % Output:  -
+            % Example: -            
             Result = [];          
         end        
         
