@@ -1420,15 +1420,8 @@ classdef ImageComponent < Component
             %            'Type' - ['ccdsec'] | 'center'
             %            'DataPropIn' - Data property on which to operate.
             %                   Default is 'Data'.
-            %            'CreateNewObj' - Indicating if the output
-            %                   is a new copy of the input (true), or an
-            %                   handle of the input (false).
-            %                   If empty (default), then this argument will
-            %                   be set by the number of output args.
-            %                   If 0, then false, otherwise true.
-            %                   This means that IC.fun, will modify IC,
-            %                   while IB=IC.fun will generate a new copy in
-            %                   IB.
+            %            'CreateNewObj' - Copy to new object.
+            %                   Default is false.
             % Output : - An ImageComponent object with the cropped images.
             % Author : Eran Ofek (Apr 2021)
             % Example: IC=ImageComponent({rand(5,5),2.*rand(5,5),3.*ones(5,5)});
@@ -1439,16 +1432,9 @@ classdef ImageComponent < Component
                 CCDSEC                  % [xmin xmax ymin ymax]
                 Args.Type char                   = 'ccdsec';
                 Args.DataPropIn char             = 'Data';
-                Args.CreateNewObj                = [];
+                Args.CreateNewObj logical        = false;
             end
             
-            if isempty(Args.CreateNewObj)
-                if nargout>0
-                    Args.CreateNewObj = true;
-                else
-                    Args.CreateNewObj = false;
-                end
-            end
             if Args.CreateNewObj
                 Result = Obj.copy();
             else
@@ -1468,8 +1454,8 @@ classdef ImageComponent < Component
                     Iobj = min(Imax, Nobj);
                     Isec = min(Imax, Nsec);
                     
-                    Result(Imax).Data   = imUtil.image.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type);
-                    Result(Imax).CCDSEC = CCDSEC;
+                    [Result(Imax).Data, UsedCCDSEC]   = imUtil.image.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type);
+                    Result(Imax).CCDSEC = UsedCCDSEC;
                 end
             else
                 error('crop function works on a single ImageComponent, or a single CCDSEC or number of images equal to number of sections');
