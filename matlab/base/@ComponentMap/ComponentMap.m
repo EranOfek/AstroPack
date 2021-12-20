@@ -56,7 +56,7 @@ classdef ComponentMap < handle
 
 
         function delete(Obj)
-            % Destructor
+            % Destructor, display message and call Obj.release()
             Obj.msgLog(LogLevel.Debug, 'ComponentMap deleted: %s', Obj.Name);
             Obj.release();
         end
@@ -66,7 +66,9 @@ classdef ComponentMap < handle
     methods % Map functions
         function add(Obj, Comp)
             % Add Component to the map using its MapKey property
-
+            % Input:  Comp - 
+            % Example: 
+            
             Key = Obj.getKey(Comp);
             if Obj.IgnoreCase
                 Key = lower(Key);
@@ -83,7 +85,9 @@ classdef ComponentMap < handle
 
         function remove(Obj, Comp)
             % Remove the specified component from map
-
+            % Input:  Comp - 
+            % Example: 
+            
             Key = Obj.getKey(Comp);
             if Obj.IgnoreCase
                 Key = lower(Key);
@@ -99,8 +103,9 @@ classdef ComponentMap < handle
 
 
         function Result = find(Obj, CompKey)
-            % Find component in map by the specified key, returns [] if not
-            % found
+            % Find component in map by the specified key, returns [] if not found
+            % Input:  Comp - 
+            % Example:             
             if Obj.IgnoreCase
                 CompKey = lower(CompKey);
             end
@@ -115,6 +120,8 @@ classdef ComponentMap < handle
 
         function Result = getKey(Obj, Comp)
             % Get component map key, generate it if required
+            % Input:  Comp - 
+            % Example: 
             Result = Comp.needMapKey();
             if Obj.IgnoreCase
                 Result = lower(Result);
@@ -124,13 +131,15 @@ classdef ComponentMap < handle
 
         function Result = getCount(Obj)
             % Return number of items in map
+            % Example: Count = MyMap.getCount()
             Result = Obj.Map.Count;
         end
 
 
         function release(Obj)
             % Release all components from map
-
+            % Example: MyMap.release()
+            
             Keys = keys(Obj.Map);
             for i = 1:numel(Keys)
                 Key = Keys{i};
@@ -150,6 +159,8 @@ classdef ComponentMap < handle
 
         function msgLog(Obj, Level, varargin)
             % Write message to log
+            % Input: Level      - LogLevel enumeration, see LogLevel.m
+            %        varargin   - Any fprintf arguments
 
             % Since ComponentMap is derived from Base and not from Component
             % we use the global io.msgLog() function
@@ -162,19 +173,21 @@ classdef ComponentMap < handle
     methods(Static) % Unit test
 
         function Result = getSingleton()
-            % Return singleton object
+            % Return singleton ComponentMap object
+            % Example: Map = ComponentMap.getSingleton()
             persistent PersObj
             if isempty(PersObj)
-                PersObj = ComponentMap('Global');
+                PersObj = ComponentMap('Name', 'Global');
             end
             Result = PersObj;
         end
     end
 
 
-    methods(Static) % Unit test
+    methods(Static)
 
         Result = unitTest()
+            % Unit test
     end
 
 end

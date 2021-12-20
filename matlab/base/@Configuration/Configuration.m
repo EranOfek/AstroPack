@@ -124,10 +124,14 @@ classdef Configuration < handle
     %--------------------------------------------------------
     methods % Constructor
         function Obj = Configuration(Args)
+            % Constructor
+            % Intput:  -
+            % Output:  -
+            % Example: -                         
             arguments
-                Args.Name = '';
-                Args.File = '';
-                Args.Folder = '';
+                Args.Name = '';         %
+                Args.File = '';         %
+                Args.Folder = '';       %
             end
             
             % Constructor: Validate that we have access to 'external/' folder
@@ -222,6 +226,7 @@ classdef Configuration < handle
         function loadFolder(Obj, Path)
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
+            % Input: 
             % Example:
             % 	 MyConfig = Configuration();
             % 	 MyConfig.loadFile('C:/Temp/MyConfigFolder');
@@ -242,6 +247,7 @@ classdef Configuration < handle
         function reloadFile(Obj, YamlStructOrFileName)
             % Reload specified configuration object (file name)
             % Call this function with the
+            % Input:
             % Example: 
 			%     MyConfig.reloadFile(MyConfig.Data.unittest)
             if isa(YamlStructOrFileName, 'char')
@@ -293,18 +299,21 @@ classdef Configuration < handle
         function Result = getSingleton()
             % Return the singleton Configuration object, this is the 'Global'
             % configuration object of the system
+            % Example: 
             Result = Configuration.internal_initSysConfig();
         end
 
         
         function Result = loadSysConfig()
             % Load entire system configuration, same as getSingleton()
+            % Example:             
             Result = Configuration.internal_initSysConfig();
         end
 
         
         function Result = reloadSysConfig()
             % Reload entire system configuration, Warning: calls 'clear java'
+            % Example:             
             io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
             clear java;
             Result = Configuration.internal_initSysConfig('clear');
@@ -315,6 +324,7 @@ classdef Configuration < handle
             % **Internal function**
             % Return singleton Configuration object, clear entire configuration if argument is 'clear'
             % This function DOES NOT load any configuration file, just create/clear the object
+            % Example:             
             persistent Conf
 
             % Optionally clear configuration
@@ -357,7 +367,8 @@ classdef Configuration < handle
             % ASTROPACK_CONFIG_PATH or repository
             % This function is called from MsgLogger and MUST NOT use
             % any msgLog() call!
-
+            % Example: 
+            
             EnvPath = getenv('ASTROPACK_CONFIG_PATH');
             if ~isempty(EnvPath)
                 Path = EnvPath;
@@ -380,6 +391,9 @@ classdef Configuration < handle
         
         function YamlStruct = internal_loadYaml(FileName)
             % Read YAML file to struct, add FileName field
+            % Input:   -
+            % Output:  -
+            % Example: -
             io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
             try
                 if ~isfile(FileName)
@@ -403,6 +417,9 @@ classdef Configuration < handle
         function NewYamlStruct = internal_reloadYaml(YamlStruct)
             % Reload configuration file, YamlStruct.FileName property must exist
             % FileName is created by Configuration.loadYaml() on loading.
+            % Input:   -
+            % Output:  -
+            % Example: -            
             if isfield(YamlStruct, 'FileName')
                 NewYamlStruct = Configuration.internal_loadYaml(YamlStruct.FileName);
             else
@@ -420,6 +437,10 @@ classdef Configuration < handle
             %
             % See also:
             %     https://stackoverflow.com/questions/56338151/matlab-recursive-function-to-browse-and-modify-a-structure
+            %
+            % Input:   -
+            % Output:  -
+            % Example: -            
             fields = fieldnames(Struct);
             for i=1:numel(fields)
                 FieldName = fields{i};
@@ -454,6 +475,9 @@ classdef Configuration < handle
 
         function Result = unmacro(Str, MacrosStruct)
             % Replace macros in string with values from struct
+            % Input:   -
+            % Output:  -
+            % Example: -            
             % Example:
             % Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc"
             % Configuration.unmacro(Component.Config.Data.DarkImage.InputFolder, Component.Config.Data.EnvFolders)
@@ -477,6 +501,7 @@ classdef Configuration < handle
     methods(Static) % Unit test
 
         Result = unitTest()
+            % Unit test
     end
 
 end

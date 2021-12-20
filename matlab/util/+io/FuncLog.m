@@ -1,4 +1,5 @@
 % Automatic scope/function entry/exit logger
+% Currently unused because MATLAB scope behavious is not clear yet.
 
 % #functions (autogen)
 % FuncLog - Constructor
@@ -18,14 +19,16 @@ classdef FuncLog < handle
     %--------------------------------------------------------
     methods
         function Obj = FuncLog(Title)
-            % Constructor
+            % Constructor, display termination message using io.msgStyle()
+            % Input:    Title - char with description of the function
+            % Example:  F1 = FuncLog('MyFuncName');
             Obj.Title = Title;
             io.msgStyle(LogLevel.Debug, '@start', 'Func Start: %s', Obj.Title);
         end
         
         
         function delete(Obj)
-            % Destructor
+            % Destructor, display termination message using io.msgStyle()
             io.msgStyle(LogLevel.Debug, '@done', 'Func Done: %s', Obj.Title);
         end
     end
@@ -70,4 +73,3 @@ classdef FuncLog < handle
     end
     
 end
-

@@ -1,17 +1,16 @@
-# PostgresSQL - Installation Guide - Use V13
+# PostgresSQL - Installation Guide - Use Postgres version 13
 
 ## General
 
-This documents contains instructions about installation of PostgreSQL
+This documents contains installation instructions of PostgreSQL
 database engine in Windows and Linux, along with utilities such as
 JetBrains DataGrip.
 
 ## PostgresSQL Installation - Windows
 
-
 Web: https://www.postgresql.org/download/
 
-Download and install postgresql-13.1-1-windows-x64.exe.
+Download and install **postgresql-13.1-1-windows-x64.exe**.
 
 
 ## Database GUI
@@ -24,14 +23,6 @@ Download page:
 
 https://www.sqlmanager.net/products/postgresql/manager/download
 
-
-On Linux, use **DataGrip** by JetBrains
-
-https://www.jetbrains.com/datagrip/
-
-Download page:
-
-https://www.jetbrains.com/datagrip/download/
 
 
 
@@ -73,9 +64,18 @@ Postgres V13 is not supported yet by apt-get, you need to perform this sequence:
     systemctl status postgresql.service
 
 
-
-
 Set Postgres Password
+
+    sudo su - postgres
+    psql
+
+    postgres-# \password
+    Enter new password: (enter 'pass')
+    Enter it again: (enter 'pass')
+    postgres-#quit
+
+
+Set Postgres Password - Term 
 
     chent@ubuntu:~$ sudo su - postgres
     [sudo] password for chent:
@@ -108,5 +108,16 @@ Check login
 Configure Postgresq to ask for password
 
 https://djangocentral.com/how-to-fix-fatal-peer-authentication-failed-for-user-postgres-error/
+
+
+
+
+On Linux, use **DataGrip** by JetBrains
+
+https://www.jetbrains.com/datagrip/
+
+Download page:
+
+https://www.jetbrains.com/datagrip/download/
 
 

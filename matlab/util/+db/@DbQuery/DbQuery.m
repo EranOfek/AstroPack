@@ -163,6 +163,9 @@ classdef DbQuery < Component
 
         function Result = select(Obj, Fields, Args)
             % Execute SELECT Fields FROM TableName and load results to memory
+            % Intput:  -
+            % Output:  - 
+            % Example: - 
             % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
             arguments
                 Obj                     %
@@ -246,16 +249,14 @@ classdef DbQuery < Component
 
         function Result = loadResultSet(Obj, Args)
             % Load ResultSet to DbRecord array
-            % Might be time and memory consuming!
-            % Input:
-            %
-            % Output: DbRecord
-            %
-            %
+            % Might be time and memory consuming!            
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
 
             arguments
                 Obj
-                Args.MaxRows = Inf
+                Args.MaxRows = Inf      % Maximum numer of rows to select
             end
 
             %PerfLog = io.FuncLog('loadResultSet');
@@ -307,6 +308,10 @@ classdef DbQuery < Component
         function Result = insert(Obj, Rec, Args)
             % Simple insert, all arguments are char
             % Insert new record to table, Keys and Values are celarray
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
             arguments
                 Obj
@@ -466,6 +471,10 @@ classdef DbQuery < Component
 
         function Result = update(Obj, Rec, Args)
             % Update record
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 Rec                     % DbRecord or struct
@@ -539,6 +548,10 @@ classdef DbQuery < Component
             % Delete record by fields specified in Rec
             % Note that we cannot use 'delete' as function name because it
             % is a reserved keyword.
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 Args.TableName = '';    %
@@ -612,6 +625,10 @@ classdef DbQuery < Component
 
         function Result = selectCount(Obj, Args)
             % Select number of records with optionally where clause
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj                     %
                 Args.TableName = ''     %
@@ -639,6 +656,10 @@ classdef DbQuery < Component
 
         function Result = createDatabase(Obj, DbName, Args)
             % Create database
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 DbName              %
@@ -652,6 +673,10 @@ classdef DbQuery < Component
             % Import records from file to table
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 TableName           % Table name
@@ -681,6 +706,10 @@ classdef DbQuery < Component
             % Export records from table to file
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 TableName           % Table name
@@ -714,6 +743,10 @@ classdef DbQuery < Component
 
         function Result = setConnection(Obj, DbTableOrConn)
             % Set connection
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             % Connection argument may be either:
             %   - Empty string: use default connetion()
             %   - Non empty string: used as connection key for DbConnection.getDbConnection
@@ -745,6 +778,10 @@ classdef DbQuery < Component
 
         function Result = openConn(Obj)
             % Open connection, throw exception on failure
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Result = false;
             if isempty(Obj.Conn)
                 error('DbQuery.query: No connection');
@@ -761,12 +798,21 @@ classdef DbQuery < Component
 
         function Result = close(Obj)
             % Close current query
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Result = Obj.clear();
         end
 
 
         function Result = query(Obj, varargin)
             % Run SELECT query, for other statements use exec()
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+
+            
             % If no char argument is specified, use the current Obj.SqlText
             % @Todo: Support query with params
             % Example:
@@ -822,6 +868,10 @@ classdef DbQuery < Component
 
         function Result = exec(Obj, varargin)
             % Execute SQL statement (that does not return data)
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             % Example: exec('INSERT ...')
 
             %Obj.msgLog(LogLevel.Debug, 'exec');
@@ -874,6 +924,10 @@ classdef DbQuery < Component
 
         function Result = next(Obj)
             % Move cursor to next record, return false if reached end of data
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Result = false;
             Obj.Eof = true;
             try
@@ -887,6 +941,10 @@ classdef DbQuery < Component
 
         function Result = prev(Obj)
             % Move cursor to previous record, return false if reached end of data
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Result = false;
             Obj.Eof = true;
             try
@@ -901,6 +959,10 @@ classdef DbQuery < Component
         function Result = getField(Obj, FieldName)
             % Get field value from current ResultSet, when FieldName is
             % numeric, it is used as column index
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             % Example:
             %    Value = getField('MyFieldName')
 
@@ -941,6 +1003,10 @@ classdef DbQuery < Component
 
         function Result = isField(Obj, FieldName)
             % Check if field exists by name
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             if isempty(Obj.JavaResultSet)
                 Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
                 Result = '';
@@ -962,12 +1028,20 @@ classdef DbQuery < Component
 
         function Result = getFieldIndex(Obj, FieldName)
             % Get field index by field name, search in ColNames{}
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Result = find(strcmp(Obj.ColNames, FieldName));
         end
 
 
         function Result = getFieldType(Obj, FieldName)
             % Get field type
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             if isnumeric(FieldName)
                 Index = FieldName;
             else
@@ -983,13 +1057,21 @@ classdef DbQuery < Component
 
         function Result = getFieldList(Obj)
             % Get fields list of current ResultSet as celarray
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Result = Obj.ColNames;
         end
 
 
         function Result = getTableFieldList(Obj, TableName)
             % Get fields list of specified table as celarray
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
 
+            
             % Select single record from table
             % @Todo: Check how to get it without select, or what we do when
             % the table is empty?
@@ -1012,7 +1094,11 @@ classdef DbQuery < Component
 
         function Result = clear(Obj)
             % Clear current statement and ResultSet
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
 
+            
             Obj.clearResultSet();
             if ~isempty(Obj.JavaResultSet)
                 Obj.JavaResultSet.close();
@@ -1032,6 +1118,10 @@ classdef DbQuery < Component
 
         function Result = clearResultSet(Obj)
             % Clear current ResultSet and related data
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Obj.JavaResultSet = [];
             Obj.JavaMetadata = [];
             Obj.ColCount = 0;
@@ -1043,6 +1133,10 @@ classdef DbQuery < Component
 
         function Result = getMetadata(Obj, Args)
             % Get metadata of the specified table or the current result-set
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 Args.TableName = '';        % Table name, if not specified
@@ -1091,6 +1185,10 @@ classdef DbQuery < Component
 
 
         function [SqlFields, SqlValues] = makeInsertFieldsText(Obj, FieldNames, Args)
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 FieldNames
@@ -1131,10 +1229,14 @@ classdef DbQuery < Component
 
         function SqlFields = makeUpdateFieldsText(Obj, FieldNames, Args)
             % Prepare SQL text from cell array
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             % "UPDATE master_table set RecID=?,FInt=? WHERE..."
             arguments
                 Obj
-                FieldNames
+                FieldNames              %
                 Args.FieldMap = [];     % Optional struct.FieldName = ActualFieldName;
             end
 
@@ -1168,11 +1270,15 @@ classdef DbQuery < Component
         function SqlFields = makeWhereFieldsText(Obj, FieldNames, Operand, FieldMap)
             % Prepare SQL text from cell array
             % "WHERE RecID=? AND FInt=?..."
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
-                FieldNames
+                FieldNames      %
                 Operand         % 'AND' / 'OR'
-                FieldMap
+                FieldMap        %
             end
 
             SqlFields = '';
@@ -1205,8 +1311,8 @@ classdef DbQuery < Component
             arguments
                 Obj                     %
                 Rec                     % DbRecord
-                FirstRecord
-                RecordCount
+                FirstRecord             %
+                RecordCount             %
                 Args.FieldNames = [];   % cell
                 Args.FieldMap = []      % Optional
                 Args.StartIndex = 1     % Index of field in current JavaStatement
@@ -1265,6 +1371,10 @@ classdef DbQuery < Component
         function Result = getValidFieldName(Obj, Str)
             % Convert specified table field name to valid Matlab
             % property/struct-field name, replace non-valid chars with '_'
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             % Example: getValidFieldName('') ->
             for i=1:numel(Str)
                 Ch = Str(i);
@@ -1280,6 +1390,10 @@ classdef DbQuery < Component
 
         function Result = getFieldNamesOfType(Obj, FieldType)
             % Get cell array field names that match the specified field type
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             arguments
                 Obj
                 FieldType       % Specified field type
@@ -1301,6 +1415,10 @@ classdef DbQuery < Component
         function Result = getDbVersion(Obj)
             % Query Postgres version, result should be similar to
             % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
+            % Intput:  -
+            % Output:  DbRecord
+            % Example: -             
+            
             Result = [];
             Obj.query('SELECT version()');
             if Obj.ColCount == 1
