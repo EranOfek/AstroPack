@@ -177,6 +177,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         if Args.RelPhot
             switch lower(Args.RelPhotAlgo)
                 case 'lsq'
+                    warning('apply ZP in this case is partial in code');
                     [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
                 case 'meddiff'
                     
@@ -187,8 +188,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             end
             
             % apply ZP to all Magnitudes...
-            %FFU
-            warning('Relative photometry implementation is not complete');
+            [MatchedS(Ifields) ,ApplyToMagField] = applyZP(MatchedS(Ifields), ResZP(Ifields).FitZP, 'FieldZP','FitZP', 'ApplyToMagField','MAG_', 'Operator',@plus);
+           
         else
             ResZP = [];
         end

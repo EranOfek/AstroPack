@@ -792,7 +792,7 @@ classdef MatchedSources < Component
                 Obj(1,1)
                 ZP
                 Args.FieldZP          = 'FitZP';
-                Args.ApplyToMagField  = 'MAG'; % if cell then exact search - for all Matched sources
+                Args.ApplyToMagField  = 'MAG_'; % if cell then exact search - for all Matched sources
                 Args.Operator         = @minus;
                 Args.Color            = [];    %will work only for single element MatchedSources
                 Args.ColorTerm        = [];
@@ -1181,6 +1181,9 @@ classdef MatchedSources < Component
 
         end
         
+    end
+    
+    methods % light curves analysis
         function [PSD, Freq] = psd(Obj, Args)
             % Estimate the mean power spectral density of all the sources.
             % Input  : -A single element MatchedSources object.
