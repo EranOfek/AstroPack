@@ -1,4 +1,7 @@
 # Outgoing Alerts Manager
+#
+# Author: Chen Tishler (Sep 2021)
+#
 
 class OutgingAlertsManager(Component):
 

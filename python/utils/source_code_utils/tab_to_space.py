@@ -1,4 +1,7 @@
+# Convert tab characters to spaces in all processed files
 #
+# Author: Chen Tishler (May 2021)
+
 # See: https://gist.github.com/antivanov/59e00f6129725e9b4404
 
 import os, glob, time, argparse, shutil

@@ -1,5 +1,8 @@
 # Insert records into database tables
 #
+# Author: Chen Tishler (May 2021)
+
+#
 # See: https://gist.github.com/antivanov/59e00f6129725e9b4404
 
 import os, glob, time, argparse, shutil, csv, json, yaml, psycopg2, uuid, random

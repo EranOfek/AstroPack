@@ -1,6 +1,8 @@
 # Automatic tool to extract functions from matlab source files
 # with their H1 comments.
 #
+# Author: Chen Tishler (May 2021)
+#
 # Running/debugging from PyChart: Run -> Edit Configurations:
 #
 #     Script path:        D:\Ultrasat\AstroPack.git\python\utils\matlab_utils\get_matlab_functions.py

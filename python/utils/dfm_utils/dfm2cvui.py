@@ -1,4 +1,7 @@
 # Convert Delphi/Lazarus forms (.DFM/.LFM) files to cvui source code
+#
+# Author: Chen Tishler (Aug 2021)
+#
 
 import os, glob, time, argparse, shutil
 from datetime import datetime

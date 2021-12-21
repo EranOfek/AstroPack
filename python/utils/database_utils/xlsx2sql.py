@@ -1,4 +1,7 @@
 # Generate SQL scripts from CSV files downloaded from Google Sheets tabs
+#
+# Author: Chen Tishler (June 2021)
+#
 # See: https://gist.github.com/antivanov/59e00f6129725e9b4404
 # Use unittest__tables from GDrive to test
 #
