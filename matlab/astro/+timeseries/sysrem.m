@@ -76,12 +76,12 @@ else
     C = Args.C(:);
 end
 
-S2_Orig = sum( (Resid./Sigma).^2,[1 2]);
+S2_Orig = sum( (Resid./Sigma).^2,[1 2],'omitnan');
 
 if (Args.ReNormSigma)
     Sigma = Sigma.*sqrt(S2_Orig./Ndof);
 
-    S2_Prev = sum( (Resid./Sigma).^2,[1 2]);
+    S2_Prev = sum( (Resid./Sigma).^2,[1 2],'omitnan');
 else
     S2_Prev = S2_Orig;
 end
@@ -91,7 +91,7 @@ Summary(K).Resid = Resid;
 Summary(K).A     = A;
 Summary(K).C     = C;
 Summary(K).S2    = S2_Prev;
-Summary(K).rms   = std(Resid(:));
+Summary(K).rms   = std(Resid(:),1,'omitnan');
 Summary(K).Ndof  = Nobs;
  
 
@@ -110,10 +110,10 @@ for IterR=1:1:Args.Niter
         Iter = Iter + 1;
         %Args.Niter
 
-        C = sum(Resid.*A ./ (Sigma.^2), 2) ./ sum( A.^2./Sigma.^2, 2);
-        A = sum(Resid.*C ./ (Sigma.^2), 1) ./ sum( C.^2./Sigma.^2, 1);
+        C = sum(Resid.*A ./ (Sigma.^2), 2, 'omitnan') ./ sum( A.^2./Sigma.^2, 2, 'omitnan');
+        A = sum(Resid.*C ./ (Sigma.^2), 1, 'omitnan') ./ sum( C.^2./Sigma.^2, 1, 'omitnan');
 
-        S2 = sum( ((Resid - C.*A)./Sigma).^2,[1 2]);
+        S2 = sum( ((Resid - C.*A)./Sigma).^2,[1 2],'omitnan');
         DeltaS2 = S2 - S2_Prev;
         S2_Prev = S2;
     end
@@ -124,7 +124,7 @@ for IterR=1:1:Args.Niter
     Summary(K).A     = A;
     Summary(K).C     = C;
     Summary(K).S2    = S2;
-    Summary(K).rms   = std(Resid(:));
+    Summary(K).rms   = std(Resid(:),1,'omitnan');
     Summary(K).Ndof  = Summary(K-1).Ndof - Nst - Nim;
     
 end
