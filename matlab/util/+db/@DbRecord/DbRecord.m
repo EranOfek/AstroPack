@@ -1,7 +1,8 @@
-% Database record with dynamic properties
-% Similar to struct, but based on dynamicprops class
-% Used by DbQuery with select and insert SQL operations.
-
+% DbRecord - Data container that holds struct array of database table data.
+% Used with DbQuery.insert(), select(), etc.
+%
+% Author: Chen Tishler (Aug 2021)
+%
 % #functions (autogen)
 % DbRecord - Constructor - @Todo - discuss corret row,col order! Data: struct array, table, cell array, matrix
 % convert2AstroCatalog - Convert record(s) to AstroCatalog
@@ -20,16 +21,13 @@ classdef DbRecord < Base
     
     % Properties
     properties (SetAccess = public)
-        Name         = 'DbRecord'
-        Query        = []           % Linked DbQuery
+        Name         = 'DbRecord'   % Object name
+        Query        = []           % Linked DbQuery (optional)
         KeyField     = ''           % Key field(s)
-        Uuid         = ''           % Used when UseUuid is true
-        UseUuid      = true;        % True to use Uuid, otherwise the faster SerialStr is used
-        
-        ColCount     = 0;           % Number of columns
-        ColNames     = [];          % cell
-        ColType      = [];          % cell
-        
+        UseUuid      = true;        % True to use Uuid, otherwise SerialStr() is used        
+        %ColCount     = 0;           % Number of columns
+        ColNames     = [];          % cell - Field names
+        ColType      = [];          % cell - Field data types
         Data struct                 % Array of data struct per table row
     end
     
@@ -37,8 +35,9 @@ classdef DbRecord < Base
     methods % Constructor
         function Obj = DbRecord(Data, Args)
             % Constructor
-            % Input:   Data - struct array, table, cell array, matrix, AstroTable, AstroCatalog
-            % Example: MyRec = db.DbRecord(
+            % Input:   Data          - struct array, table, cell array, matrix, AstroTable, AstroCatalog
+            %          Args.ColNames - char comma separated, or cell array
+            % Example: MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
             arguments
                 Data = [];
                 Args.ColNames = [];  % Required when Data is Cell or Matrix
@@ -48,7 +47,7 @@ classdef DbRecord < Base
                 Args.ColNames = strsplit(Args.ColNames, ',');
             end
             
-            % Check what we need to transpose
+            % Load data
             if ~isempty(Data)
                 if ischar(Data)
                     Obj.Data = table2struct(readtable(Data));
@@ -58,15 +57,21 @@ classdef DbRecord < Base
                     Obj.Data = table2struct(Data);
                 elseif iscell(Data)
                     Obj.Data = cell2struct(Data, Args.ColNames, 2);
-                elseif isnumeric(Data)
-                    
-                    % @Perf - Need to be improved, it works very slow with
-                    % arrays > 10,000
+                elseif isnumeric(Data)                    
+                    % @Perf - Need to be improved, it works very slow with arrays > 10,000
                     Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 2);  %numel(Args.ColNames));
-                elseif isa(Data, 'AstroCatalog')
-                    % Obj.Data = @Todo
-                elseif isa(Data, 'AstroTable')
-                    % Obj.Data = @Todo
+                elseif isa(Data, 'AstroTable') || isa(Data, 'AstroCatalog')
+                    if numel(Data) == 1
+                        Tab = Data.array2table();
+                        Obj.Data = table2struct(Tab.Catalog);
+                        
+                        % Validate conversion
+                        Sz = size(Tab.Catalog);
+                        assert(Sz(1) == numel(Obj.Data));
+                        assert(Sz(2) == numel(fieldnames(Obj.Data(1))));
+                    else
+                        error('DbRecord currently supports only single AstroTable/AstroCatalog');
+                    end
                 end
             end
             
@@ -91,10 +96,10 @@ classdef DbRecord < Base
         end
         
         
-        function Result = merge(Obj, Stru)
+        function merge(Obj, Stru)
             % Merge struct array with current data
             % Usefull when we constructed from matrix and need key fields
-            % Input:   Stru - 
+            % Input:   Stru - Struct array to merge into Obj.Data
             % Output:  -
             % Example: Merged = Obj.merge(MyStructArray)
             FieldList = fieldnames(Stru);
@@ -109,8 +114,6 @@ classdef DbRecord < Base
                     end
                 end
             end
-            Result = true;
-            
         end
         
         

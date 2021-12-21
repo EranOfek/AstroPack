@@ -1,8 +1,9 @@
 % DbConnection Class, connection to database
-% Impleented as wrapper for Java Connection class
-% 'jdbc:postgresql://localhost:5432/pipeline'
-%
+% Impleented as wrapper for Java Connection class 
+% Sample connection string: 'jdbc:postgresql://localhost:5432/pipeline'
 % Used internally by DbQuery
+%
+% Author: Chen Tishler (July 2021)
 %
 % Usual usage:
 %
@@ -58,8 +59,14 @@ classdef DbConnection < Component
         
         function Obj = DbConnection(Args)
             % Constructor
-            % Input:
-            %
+            % Input:            
+            %       'DriverName'    -
+            %       'Host'          -
+            %       'DatabaseName'  -
+            %       'User'          - 
+            %       'Password'      -
+            %       'Port           -
+            %       'DriverUrl'     - 
             % Example:
             %   % Connection from configuration
             %   Conn = DbConnection('Db', 'UnitTest')
@@ -71,13 +78,13 @@ classdef DbConnection < Component
                 
                 % Allow user to set value explicitly, when not empty they
                 % override the values loaded from configuration
-                Args.DriverName
-                Args.Host
-                Args.DatabaseName
-                Args.User
-                Args.Password
-                Args.Port
-                Args.DriverUrl
+                Args.DriverName         %
+                Args.Host               %
+                Args.DatabaseName       %
+                Args.User               %
+                Args.Password           %
+                Args.Port               %
+                Args.DriverUrl          %
             end            
             
             % Check if already exists - Do not create another object
@@ -136,9 +143,9 @@ classdef DbConnection < Component
         
         function Result = open(Obj)
             % Connect to database specified by Host:Port:Database as UserName/Password
-            % Input   :   -
-            % Output  :  -
-            % Example : -
+            % Input   : -
+            % Output  : true on success
+            % Example : Obj.open()
             
             %PerfLog = io.FuncLog('DbConnection.open');
             Obj.msgLog(LogLevel.Info, 'open');
@@ -200,6 +207,9 @@ classdef DbConnection < Component
         
         function Result = close(Obj)
             % Disconnect from database, % @Todo
+            % Input   : -
+            % Output  : true on success
+            % Example : Obj.close()
             
             Obj.msgLog(LogLevel.Info, 'close');
             if Obj.IsOpen
@@ -217,6 +227,9 @@ classdef DbConnection < Component
         
         function Result = newQuery(Obj)
             % Create new DbQuery instance linked to this connection
+            % Input   : -
+            % Output  : DbQuery object lnked to Obj DbConnection
+            % Example : Q = Obj.newQuery()            
             Result = db.DbQuery(Obj);
         end                
     end

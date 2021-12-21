@@ -162,7 +162,7 @@ classdef DbQuery < Component
 
         function Result = select(Obj, Fields, Args)
             % Execute SELECT Fields FROM TableName and load results to memory
-            % Intput:  -
+            % Intput:  - Fie
             % Output:  - 
             % Example: - 
             % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
@@ -563,6 +563,12 @@ classdef DbQuery < Component
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             Result = false;
 
+            % Use speified TableName or Obj.TableName
+            if isempty(Args.TableName)
+                Args.TableName = Obj.TableName;
+            end
+            assert(~isempty(Args.TableName));
+            
             % Execute SQL statement (using java calls)
             Obj.msgLog(LogLevel.Info, 'DbQuery: deleteRecord');
             tic();
@@ -576,7 +582,7 @@ classdef DbQuery < Component
             if ~isempty(Args.Where)
                 Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];                
             else
-                Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];                
+                Obj.SqlText = ['DELETE FROM ', string(TableName).char];                
             end
             
             %

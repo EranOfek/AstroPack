@@ -82,13 +82,25 @@ function Result = unitTest()
     AstTab = R.convert2AstroTable();
     assert(~isempty(AstTab.Catalog));    
     
+    % Construct from AstroTable
+    Q = db.DbRecord(AstTab);
+    Sz = size(AstTab.Catalog);
+    assert(Sz(1) == numel(Q.Data));
+    assert(Sz(2) == numel(fieldnames(Q.Data(1))));
+    
     %------------------------------------- Construct/Convert AstroCatalog
     % convert2AstroCatalog @Todo: better testing
     AstCat = R.convert2AstroCatalog();
     assert(~isempty(AstCat.Catalog));
     
+    % Construct from AstroCatalog
+    Q = db.DbRecord(AstCat);
+    Sz = size(AstTab.Catalog);
+    assert(Sz(1) == numel(Q.Data));
+    assert(Sz(2) == numel(fieldnames(Q.Data(1))));
+    
     %-------------------------------------- Merge 
-    % Merge
+    % Merge struct into existing DbRecord
     Stru = struct;
     for i=1:4    
         Stru(i).Field1 = sprintf('Row_%02d_Field1', i);

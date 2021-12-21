@@ -17,6 +17,8 @@
 % it. We hold a persistent ComponentMap of all created DbDriver objects with
 % the database type (i.e. 'postgres') as the key.
 %
+% Author: Chen Tishler (July 2021)
+%
 % Usage:
 %   Drv = DbDriver.getDbDriver('postgres');
 %   Drv.loadDriver();
