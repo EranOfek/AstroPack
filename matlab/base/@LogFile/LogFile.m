@@ -1,6 +1,10 @@
 % #autogen:_off
-% Simple textual log file
-% Note that this class is derived from handle and not from Component
+%
+% Simple textual log file with timestamp and other features.
+% Note that this class is derived from 'handle' and not from 'Component'
+% 
+% Author: Chen Tishler (Apr 2021)
+%
 
 % #functions (autogen)
 % LogFile - Constructor for LogFile
@@ -29,10 +33,10 @@ classdef LogFile < handle
 
         function Obj = LogFile(FileName, Args)
             % Constructor for LogFile
-            % Intput:  FileName - Log file name. If empty, use 'DefaultLogFile'.
-            %                     If FileName does not contain path
-            %                     separator, call LogFile.defaultPath() to
-            %                     get default path for log files.
+            % Input:  FileName - Log file name. If empty, use 'DefaultLogFile'.
+            %               If FileName does not contain path separator, call 
+            %               LogFile.defaultPath() to get default path for log files.
+            %         'UseTimestamp' - When true, add current timestamp to file name
             arguments
                 FileName = ''               % File name
                 Args.UseTimestamp = false   % True to add timestamp to file name, 
@@ -189,7 +193,7 @@ classdef LogFile < handle
             % Return current date/time as sortable string with
             % milliseconds, such as '2021-12-20 11:05:59.357'
             % Input:   -
-            % Output:             
+            % Output:  Current time formated as 'yyyy-mm-dd HH:MM:SS.FFF'
             % Example: T = LogFile.getTimestamp()
             Result = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
         end
@@ -199,7 +203,7 @@ classdef LogFile < handle
             % Return current date/time as sortable string, suitable for
             % file name on Linux and Windows, such as '2021-12-20__11-07-03'
             % Input:   -
-            % Output: 
+            % Output:  Current time formated as 'yyyy-mm-dd__HH-MM-SS'
             % Example: T = LogFile.getFileNameTimestamp()
             Result = datestr(now, 'yyyy-mm-dd__HH-MM-SS');
         end

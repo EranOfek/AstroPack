@@ -1,6 +1,8 @@
 % Component base class
 %   This is the base class from which all the classes in AstroPack hinerits.
 %
+% Authors: Chen Tishler & Eran Ofek (Apr 2021)
+%
 % Functionality:
 %   copyProp - Copy specific properyies from one object to another
 %--------------------------------------------------------------------------

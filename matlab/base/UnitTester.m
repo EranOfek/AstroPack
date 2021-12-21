@@ -1,5 +1,7 @@
 % Top-Level Unit Tester
+% Author: Chen Tishler, 
 %
+
 % Usage:
 %
 
@@ -63,7 +65,8 @@ classdef UnitTester < handle
     methods % Main functions
 
         function Result = setup(Obj)
-            % Class setup, prepare path to source code
+            % Class setup, prepare path to source code [Internal use]
+            % Output: true on success
 
             % Clear all persistent objecst and java spaces, requried
             % to the the tests with clean workspace
@@ -107,6 +110,7 @@ classdef UnitTester < handle
 
         function Result = doTest(Obj)
             % Run all unit-tests and show report
+            % Output: 
 
             Obj.msgLog(LogLevel.Test, 'Started\n');
             try
@@ -120,9 +124,10 @@ classdef UnitTester < handle
         end
 
 
-        function Result = report(Obj)
+        function report(Obj)
             % Print report of all performed tests
-
+            % Output: 
+            
             % Print passed tests
             Obj.msgLog(LogLevel.Test, '\n');
             Obj.msgLog(LogLevel.Test, 'Passed:');
@@ -153,15 +158,15 @@ classdef UnitTester < handle
             for i = 1:numel(Obj.WarnList)
                 Obj.msgStyle(LogLevel.Warning, 'red', '%s', Obj.WarnList{i});
             end
-
-            Result = true;
         end
 
 
         function Result = doBeforePush(Obj)
             % Run all required tests before 'git push' command
             % WARNING: DO NOT PUSH to common branch (currently: 'dev1') if there are failed tests!
-
+            % Output:  true on success
+            % Example: Obj.doBeforePush()
+            
             % Here for Debug only!
             % Result = Obj.processFolder(Obj.SourcePath);
             
@@ -190,7 +195,9 @@ classdef UnitTester < handle
 
         function Result = doPerfTest(Obj)
             % Run all Performance tests
-
+            % Output:  true on success
+            % Example: Obj.doPerfTest()
+            
             % Image
             AstroImage.perfTest();
             AstroCatalog.perfTest();
@@ -207,7 +214,9 @@ classdef UnitTester < handle
 
         function Result = doStressTest(Obj)
             % Run all Stress tests
-
+            % Output:  true on success
+            % Example: Obj.doStressTest()
+            
             db.DbQuery.stressTest();
             db.AstroDb.stressTest();
             db.AstroStore.stressTest();
@@ -223,8 +232,10 @@ classdef UnitTester < handle
 
         function Result = testAll(Obj)
             % Run all unit-test functions found in MATLAB source files
-
-            % First run core unit-tests, required before any other tests
+            % Output:  true on success
+            % Example: Obj.testAll()
+            
+            % First, run core unit-tests, required before any other tests
             Result = Obj.testCore();
 
             % Run unit-tests in .m files
@@ -237,6 +248,8 @@ classdef UnitTester < handle
 
         function Result = testCore(Obj)
             % Run core unit-tests, required before we can run any other
+            % Output:  
+            % Example:             
             Obj.msgLog(LogLevel.Test, 'UnitTester.testCore started\n');
             Result = false;
 
@@ -275,6 +288,8 @@ classdef UnitTester < handle
 
         function Result = testImage(Obj)
             % Run image related unit-tests
+            % Output:  
+            % Example: 
 
             Obj.msgLog(LogLevel.Test, 'UnitTester.testImage started\n');
             Result = false;
@@ -322,9 +337,9 @@ classdef UnitTester < handle
     
         function Result = runTest(Obj, ClassName, Args)
             % Run single unit test, Target is class name
-            % Input:
+            % Input:    ClassName
+            %           'FuncName'
             % Output: 
-            % Example:            
             % Example: runTest('ImagePath')
             arguments
                 Obj
@@ -376,15 +391,18 @@ classdef UnitTester < handle
 
 
         function Result = processFolder(Obj, Path, Args)
-            % Input:
+            % Recursivly call processFile() for all files in given folder name
+            % Input:    Path       - 
+            %           'FuncName' - 
+            %           'Required' - 
             % Output: 
             % Example:            
-            % Recursivly call processFile()
+
             arguments
                 Obj
                 Path                            %
                 Args.FuncName = 'unitTest';     % Function name
-                Args.Required = true;
+                Args.Required = true;           % true if FuncName is required to be in all files
             end
             
 
@@ -440,16 +458,17 @@ classdef UnitTester < handle
 
 
         function Result = processFile(Obj, FileName, Args)
-            % 
-            % Input:
-            % Output: 
-            % Example:
+            % Process file
+            % Input:    FileName
+            %           '
+            % Output:   true on success
+            % Example:  processFile('~/AstroPack/matlab/@Base/Base.m')
             
             arguments
                 Obj
                 FileName                        %
                 Args.FuncName = 'unitTest';     % Function name
-                Args.Required = true;
+                Args.Required = true;           %
             end
             
             %Obj.msgLog(LogLevel.Test, 'UnitTester.processFile: %s', FileName);
@@ -510,9 +529,9 @@ classdef UnitTester < handle
         function Result = shouldProcessFile(Obj, FileName)
             % Return true if file should be procssed, check for special
             % folders (i.e. 'unused')
-            % Input:
-            % Output: 
-            % Example:            
+            % Input:   FileName - 
+            % Output:  true if given file should be processed
+            % Example: shouldProcessFile('~/AstroPack/matlab/obsolete/hello.m')
             Result = true;
             fn = lower(FileName);
             if contains(fn, 'obsolete') || contains(fn, 'unused') || contains(fn, 'testing') || ...
@@ -523,10 +542,10 @@ classdef UnitTester < handle
         
         
         function Warn(Obj, Text)
-            % Add text to warnings list
-            % Input:
-            % Output: 
-            % Example:            
+            % Add text to warnings list stored in Obj.WarnList
+            % Input:   Text - any text to add to warnings list
+            % Output:  -
+            % Example: Obj.Warn('New warning text')
             if ~any(find(strcmp(Obj.WarnList, Text)))
                 Obj.WarnList{end+1} = Text;
             end
@@ -535,9 +554,10 @@ classdef UnitTester < handle
         
         function Result = fullName(Obj, PackageName, ClassOrFunc)
             % Return full file name including package
-            % Input:
-            % Output: 
-            % Example:            
+            % Input:   PackageName - Package name
+            %          ClassOrFunc - Class name or function name
+            % Output:  
+            % Example: Full = fullName('io', 'msgLog')
             Result = ClassOrFunc;
             if ~isempty(PackageName)
                 Result = [PackageName, '.', ClassOrFunc];
@@ -547,9 +567,9 @@ classdef UnitTester < handle
                     
         function Result = readFile(Obj, FileName)
             % Read file to Lines{}
-            % Input:
-            % Output: 
-            % Example:
+            % Input:   FileName - file name to read
+            % Output:  Cell array 
+            % Example: Lines = readFile('~/AstroPack/matlab/Base/LogLevel.m')
             
             fid = fopen(FileName);
             Line = fgetl(fid);
@@ -564,10 +584,10 @@ classdef UnitTester < handle
         
         
         function Result = findClassDef(Obj, Lines)
-            % Search classdef
-            % Input:
-            % Output: 
-            % Example:
+            % Search 'classdef' in text lines
+            % Input:   Lines - 
+            % Output:  Given class name
+            % Example: ClassName = findClassDef(TextLines)
             
             ClassName = '';
             for i=1:length(Lines)
@@ -595,10 +615,11 @@ classdef UnitTester < handle
         
 
         function Result = findFunction(Obj, Lines, FuncName)
-            % Search unitTest() function
-            % Input:
-            % Output: 
-            % Example:            
+            % Search specified function name in text lines
+            % Input:   Lines - cell array of char
+            %          FuncName - function name to find
+            % Output:  FuncName if found, '' if not found
+            % Example: Found = findFunction(Lines, 'MyFunc')
             Result = '';
             for i=1:length(Lines)
 
@@ -615,9 +636,9 @@ classdef UnitTester < handle
         
         function [ClassName, ClassFolder] = getClassName(Obj, FileName)
             % Get class name from folder name that starts with '@'
-            % Input:
-            % Output: 
-            % Example:
+            % Input:   FileName - file name of .m source code
+            % Output:  [Class name (char), Class folder (char)]
+            % Example: [TheClass, Folder] = getClassName('matlab/@Base/Base.m');
             
             [Path, Name, Ext] = fileparts(FileName);
             [Path, Name, Ext] = fileparts(Path);
@@ -632,9 +653,9 @@ classdef UnitTester < handle
                 
         function Result = getPackageName(Obj, FileName)
             % Get package name from file name
-            % Input:
-            % Output: 
-            % Example:            
+            % Input:   FileName - file name of .m source code
+            % Output:  Package name
+            % Example: PkgName = getPackageName('matlab/+io/Test.m')
             Result = '';
             if (contains(FileName, '+'))
                 FileName = strrep(FileName, '\', '/');
@@ -653,29 +674,33 @@ classdef UnitTester < handle
         
         
         function Result = getFunctionName(Obj, Line)
+            % Extract function name from given source code line
             % 'function Result = unitTest()'
-            % Input:
-            % Output: 
-            % Example:
+            % Input:   Line - source code line that should include 'function'
+            % Output:  Function name if found in Line
+            % Example: Func = getFunctionName(''function Result = unitTest()')
             
             Result = '';
             Items = split(Line, '%');
             Items = split(Items{1}, 'function');
             if numel(Items) > 1
-                Items = split(Items{2}, '=');
-                if numel(Items) > 1
-                    Items = split(strip(Items{2}), '(');
-                    Result = strip(Items{1});
+                Items2 = split(Items{2}, '=');
+                if numel(Items2) > 1
+                    Items2 = split(strip(Items2{2}), '(');
+                    Result = strip(Items2{1});
+                else
+                    Items2 = split(strip(Items{2}), '(');
+                    Result = strip(Items2{1});
                 end
             end
         end
         
         
         function Result = isTested(Obj, Target)
-            % Check if already tested by inspecting at Obj.TestList
-            % Input:
-            % Output: 
-            % Example:
+            % Check if already tested by inspecting Obj.TestList
+            % Input:   Target - file name, function name, etc.
+            % Output:  True if already tested (found in Obj.TestList)
+            % Example: Tested = Obj.isTested('Base.m')
             
             if any(strcmp(Obj.TestList, Target))
                 Result = true;
@@ -686,13 +711,13 @@ classdef UnitTester < handle
 
 
         function msgLog(Obj, Level, varargin)
-            % Write message to log
+            % Write message to log, see io.msgLog()
             io.msgLog(Level, varargin{:});
         end
 
 
         function msgStyle(Obj, Level, Style, varargin)
-            % Write message to log
+            % Write message to log with color, see io.msgStyle()
             io.msgStyle(Level, Style, varargin{:});
         end
     end
@@ -704,9 +729,9 @@ classdef UnitTester < handle
 
         function [FileName, FileSize] = getTestFits(Index)
             % Return FITS file name and size from our test data folder
-            % Input:
-            % Output: 
-            % Example:
+            % Input:   Index - integer file number in the FITS folder
+            % Output:  FileName - char, FileSize - numeric
+            % Example: [File,Size] = getTestFits(1)
             DataSampleDir = tools.os.getTestDataDir;
             List = dir(fullfile(DataSampleDir, '*.fits'));
             assert(~isempty(List));
@@ -732,11 +757,15 @@ classdef UnitTester < handle
     methods(Static)
 
         function Result = unitTest()
-            % Dummy unitTest to avoid warnning about missing unitTest() function
+            % Dummy unitTest to avoid warnning about missing unitTest() function            
             Result = true;
         end
         
+        
         function Result = test()
+            %
+            % Output:  true if all tested passed successfully
+            % Example: UnitTester.test()            
             Tester = UnitTester;
             Result = Tester.doTest();
         end
@@ -744,8 +773,9 @@ classdef UnitTester < handle
 
         function Result = beforePush()
             % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-            
-            %
+            % Before processing it calls 'clear all' and 'clear java'            
+            % Output:  true if all tested passed successfully
+            % Example: UnitTester.beforePush()
             clear all;
             clear java;
             
@@ -757,6 +787,8 @@ classdef UnitTester < handle
 
         function Result = perfTest()
             % Run all Performance tests
+            % Output:  true if all tested passed successfully
+            % Example: UnitTester.perfTest()
             Tester = UnitTester;
             Result = Tester.doPerfTest();
         end
@@ -764,6 +796,8 @@ classdef UnitTester < handle
 
         function Result = stressTest()
             % Run all Stress tests
+            % Output:  true if all tested passed successfully
+            % Example: UnitTester.stressTest()
             Tester = UnitTester;
             Result = Tester.doStressTest();
         end

@@ -3,6 +3,9 @@
 % Only messages with log level above current log level are
 % displayed and written to log file, with some exceptions (i.e. 'Test' is
 % aloways logged)
+%
+% Author: Chen Tishler (Apr 2021)
+%
 
 % #functions (autogen)
 % unitTest -

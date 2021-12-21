@@ -1,5 +1,8 @@
-%
+% Message Logger to log-file and console
 % Note that this class is derived from handle (and not from Component)
+%
+% Author: Chen Tishler (Apr 2021)
+%
 
 % #functions (autogen)
 % MsgLogger -
@@ -105,11 +108,11 @@ classdef MsgLogger < handle
 	methods
 
 		function msgLog(Obj, Level, varargin)
-            % Log message to console/file according to current
-            % LogLevel settings
-            % Input:  
-            % Output: 
-            % Example: 
+            % Log message to console/file according to current LogLevel settings
+            % Input:   Level    - LogLevel enumeration, see LogLevel.m
+            %          varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.msgLog(LogLevel.Debug, 'Elapsed time: %f', toc)
             
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
@@ -155,11 +158,12 @@ classdef MsgLogger < handle
 
 
 		function msgStyle(Obj, Level, Style, varargin)
-            % Log message to console/file according to current
-            % LogLevel settings
-            % Input:  
-            % Output: 
-            % Example: 
+            % Log message to console/file according to current LogLevel settings
+            % Input:   Level    - LogLevel enumeration, see LogLevel.m
+            %          Style    - 'red', 'blue', etc., see cprintf.m
+            %          varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.msgStype(LogLevel.Debug, 'red', 'Elapsed time: %f', toc)
             
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
@@ -195,9 +199,10 @@ classdef MsgLogger < handle
 		function Result = shouldLog(Obj, Level, CurLevel)
             % Return true if specified Level should be logged according
             % to the specified CurLevel settings
-            % Input:  
-            % Output: 
-            % Example: 
+            % Input:   Level    - 
+            %          CurLevel - 
+            % Output:  true/false according to specified Level and CurLevel
+            % Example: Obj.shouldLog(LogLevel.Debug, Obj.CurLevel)
             
             % Do nothing if log is disabled
             if ~Obj.Enabled || Level == LogLevel.None
@@ -223,9 +228,9 @@ classdef MsgLogger < handle
 
         function Result = mustLog(Obj, Level)
             % Return true if specified Level should be logged according
-            % Input:  
-            % Output: 
-            % Example: 
+            % Input:   Level - 
+            % Output:  true/false
+            % Example: Obj.mustLog(LogLevel.Debug)
             Result = false;
 			if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert || ...
                Level == LogLevel.Warning || Level == LogLevel.Test
@@ -272,7 +277,7 @@ classdef MsgLogger < handle
 
 
 		function msgStack(Obj, Level, varargin)
-            % Log stack trace
+            % Log stack trace, @Todo
             % Input:  
             % Output: 
             % Example: 
@@ -303,10 +308,12 @@ classdef MsgLogger < handle
     methods(Static) % Static functions
 
         function Result = getSingleton(Args)
-            % Return singleton object, the deafult MsgLogger
-            % Input:  
-            % Output: 
-            % Example: 
+            % Return singleton object, the default MsgLogger
+            % Input:   'FileName'       - 
+            %          'UseTimestamp'   -
+            %          'Console'        - 
+            % Output:  MsgLogger object
+            % Example: Logger = MsgLogger.getSingleton()
             
             arguments
                 Args.FileName       = 'AstroPackLog'    % File name, if empty, default name is used
@@ -325,9 +332,10 @@ classdef MsgLogger < handle
 
         function setLogLevel(Level, Args)
             % Set current log level, Args.type is 'all', 'file', 'disp'
-            % Input:  
-            % Output: 
-            % Example: 
+            % Input:   Level  - 
+            %          'type' - 
+            % Output:  -
+            % Example: MsgLogger.getSingleton().setLogLevel(LogLevel.Debug)
             
             arguments
                 Level LogLevel

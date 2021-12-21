@@ -1,5 +1,7 @@
 % ComponentMap - Wrapper for MATLAB's containers.Map dictionary object
-% Note that this class is derived from Base and not from Component
+% Note that this class is derived from 'Base' and not from 'Component'.
+%
+% Author: Chen Tishler (June 2021)
 %
 % ComponentMap is used to hold global (i.e. 'persistent')
 % maps (key -> object) of singleton objects, such as database driver,
@@ -66,8 +68,9 @@ classdef ComponentMap < handle
     methods % Map functions
         function add(Obj, Comp)
             % Add Component to the map using its MapKey property
-            % Input:  Comp - 
-            % Example: 
+            % Input:   Comp - Component to be added to the map 
+            % Output:  -            
+            % Example: Obj.add(MyComp)
             
             Key = Obj.getKey(Comp);
             if Obj.IgnoreCase
@@ -85,8 +88,9 @@ classdef ComponentMap < handle
 
         function remove(Obj, Comp)
             % Remove the specified component from map
-            % Input:  Comp - 
-            % Example: 
+            % Input:   Comp - Component to be removed from map
+            % Output:  -
+            % Example: Obj.remove(MyComp)
             
             Key = Obj.getKey(Comp);
             if Obj.IgnoreCase
@@ -104,8 +108,9 @@ classdef ComponentMap < handle
 
         function Result = find(Obj, CompKey)
             % Find component in map by the specified key, returns [] if not found
-            % Input:  Comp - 
-            % Example:             
+            % Input:   CompKey - Component key, char array
+            % Output:  Component found by CompKey, [] if not found
+            % Example: Comp = Obj.find('MyCompKey')
             if Obj.IgnoreCase
                 CompKey = lower(CompKey);
             end
@@ -120,8 +125,9 @@ classdef ComponentMap < handle
 
         function Result = getKey(Obj, Comp)
             % Get component map key, generate it if required
-            % Input:  Comp - 
-            % Example: 
+            % Input:   Comp - Component 
+            % Output:  
+            % Example: Key = Obj.getKey(MyComp)
             Result = Comp.needMapKey();
             if Obj.IgnoreCase
                 Result = lower(Result);
@@ -130,7 +136,8 @@ classdef ComponentMap < handle
 
 
         function Result = getCount(Obj)
-            % Return number of items in map
+            % Return   number of items in map
+            % Output:  integer, number of items in map
             % Example: Count = MyMap.getCount()
             Result = Obj.Map.Count;
         end
@@ -158,7 +165,7 @@ classdef ComponentMap < handle
 
 
         function msgLog(Obj, Level, varargin)
-            % Write message to log
+            % Write message to log, see io.msgLog()
             % Input: Level      - LogLevel enumeration, see LogLevel.m
             %        varargin   - Any fprintf arguments
 

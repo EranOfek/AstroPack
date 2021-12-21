@@ -1,6 +1,8 @@
 % Component class - this class hinerits from Base class, and most
 % astro-related class are hinerits from this class.
 %
+% Authors: Chen Tishler & Eran Ofek (Apr 2021)
+%
 % The component class starts loads the Configuration object into it.
 % Functionality:
 %       makeUuid - (re)generate a UUID to each element in an object

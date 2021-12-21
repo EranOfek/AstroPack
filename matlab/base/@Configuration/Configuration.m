@@ -1,7 +1,10 @@
 % #autogen:_off
+%
 % Configuration class for YML files, based on Java.
 % Each yml file is loaded as struct under the Data property of the object.
 %
+% Author: Chen Tishler (Apr 2021)
+
 % There is a singleton configuration object which loads the system configuration.
 % Note: Since Configuration.getSingleton() uses persistant object,
 %       in order to load fresh configuration you need to do 'clear all'
@@ -127,7 +130,8 @@ classdef Configuration < handle
             % Constructor
             % Intput:  -
             % Output:  -
-            % Example: -                         
+            % Example: Conf = Configuration.getSingleton()
+            % Example: Conf = Configuration('File', '~/conf/conf.yml')
             arguments
                 Args.Name = '';         %
                 Args.File = '';         %
@@ -176,6 +180,9 @@ classdef Configuration < handle
             % Use this function when working with user Confguuration
             % object, or when you want to explictly load/reload specific
             % file.
+            % Input:  FileName - 
+            %         'Field'  - true: , false: 
+            % Output: true on success
             % Example:
             % 	 MyConfig = Configuration();
             % 	 MyConfig.loadFile('C:/Temp/MyConfig.yml');
@@ -223,13 +230,17 @@ classdef Configuration < handle
         end
 
 
-        function loadFolder(Obj, Path)
+        function loadFolder(Obj, Path, Args)
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
-            % Input: 
+            % Input:   Path - folder name to look for *.yml files
             % Example:
             % 	 MyConfig = Configuration();
             % 	 MyConfig.loadFile('C:/Temp/MyConfigFolder');
+            arguments
+                Args.Recurse = false;       % When true, load also file from sub-folders
+            end
+            
             Obj.Path = Path;
             io.msgLog(LogLevel.Debug, 'loadFolderInternal: %s', Obj.Path);
 
@@ -239,6 +250,9 @@ classdef Configuration < handle
                 if ~List(i).isdir
                     FileName = fullfile(List(i).folder, List(i).name);
                     Obj.loadFile(FileName, 'Field', true);
+                elseif Args.Recurse
+                    Folder = fullfile(List(i).folder, List(i).name);
+                    Obj.loadFolder(Folder);
                 end
             end
         end
@@ -391,9 +405,9 @@ classdef Configuration < handle
         
         function YamlStruct = internal_loadYaml(FileName)
             % Read YAML file to struct, add FileName field
-            % Input:   -
-            % Output:  -
-            % Example: -
+            % Input:   FileName - File name of YAML file to be loaded
+            % Output:  struct with hierarchical data loaded from YAML file 
+            % Example: MyStruct = Configuration.internal_loadYaml('conf.yml')
             io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
             try
                 if ~isfile(FileName)
@@ -419,7 +433,7 @@ classdef Configuration < handle
             % FileName is created by Configuration.loadYaml() on loading.
             % Input:   -
             % Output:  -
-            % Example: -            
+            % Example: - MyStruct = internal_reloadYaml(MyStruct)
             if isfield(YamlStruct, 'FileName')
                 NewYamlStruct = Configuration.internal_loadYaml(YamlStruct.FileName);
             else
@@ -438,9 +452,9 @@ classdef Configuration < handle
             % See also:
             %     https://stackoverflow.com/questions/56338151/matlab-recursive-function-to-browse-and-modify-a-structure
             %
-            % Input:   -
-            % Output:  -
-            % Example: -            
+            % Input:   Struct - struct returned by internal_loadYaml()
+            % Output:  struct with fixed data
+            % Example: MyStruct = Configuration.internal_convertStruct(MyStruct)
             fields = fieldnames(Struct);
             for i=1:numel(fields)
                 FieldName = fields{i};
