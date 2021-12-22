@@ -1,6 +1,6 @@
 
-call mex -R2020b mex_bitor_array32_threads.c mf_threads.c -lut
-goto exit
+rem call mex -R2020b mex_bitor_array32_threads.c mf_threads.c -lut
+rem goto exit
 
 call mex mex_bitor_array8.c -lut
 call mex mex_bitor_array16.c -lut

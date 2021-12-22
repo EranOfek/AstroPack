@@ -58,8 +58,8 @@ end
 
 function Result = test_bit_or_and_mex()
     %
-    io.msgLog(LogLevel.Test, 'tools.array unitTest sarted');
-    Iters = 10000;
+    io.msgLog(LogLevel.Test, 'tools.array unitTest started');
+    Iters = 10;
     
     % ------------------------------------------- OR
     % 2D - Compare MATLAB and MEX
@@ -117,6 +117,3 @@ function Result = test_bit_or_and_mex()
     io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed')
     Result = true;
 end
-
-
-

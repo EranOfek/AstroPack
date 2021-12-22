@@ -20,6 +20,10 @@ if (nargin==1)
     Dim = 1;
 end
 
+% MEX version of AND still has bugs and is currently disabled
+% @Todo, Chen, 22/12/2021
+UseMex = false;
+
 if (nargin < 3)
     UseMex = false;
 end

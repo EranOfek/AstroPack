@@ -44,7 +44,7 @@
 //    int nrhs              - Number of input arguments
 //    const mxArray* prhs[] - Input arguments
 // 
-
+	
 void mexFunction( 
         int nlhs, mxArray *plhs[],          // Output arguments
         int nrhs, const mxArray *prhs[])    // Input arguments
@@ -233,26 +233,3 @@ void mexFunction(
     //mexPrintf("output_ndims: %d\n", output_ndims);  
     //mexPrintf("output_size:  %d, %d, %d\n", output_size[0], output_size[1], output_size[2]); 
 }
-
-
-#ifdef never
-
-    mwSize s1, s2, s3;
-    mxArray   *Data;
-    nDimNum = mxGetNumberOfDimensions(phi);
-    pDims = mxGetDimensions(phi);
-    Data = mxCreateNumericArray(nDimNum, pDims, mxDOUBLE_CLASS, mxReal);
-    pD = (double *) mxGetPr(Data);
-    s1 = pDims[0];
-    s2 = pDims[1];
-    s3 = pDims[2];
-    for(i=0; i<s1; i++) {
-       for(j=0; j<s2; j++) {
-          for(k=0; k<s3; k++) {
-             pD[i + j * s1 + k * (s1 * s2)] = i*100+j*10+k;
-          }
-       }
-    }
-        
-#endif
-
