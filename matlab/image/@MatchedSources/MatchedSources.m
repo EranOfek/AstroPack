@@ -1303,6 +1303,8 @@ classdef MatchedSources < Component
             %            'Ylabel' - Default is 'RMS'.
             %            'FontSize' - Default is 16.
             %            'Interpreter' - Default is 'latex'
+            %            ** Additional parameters available for adding a
+            %            noise curve.
             % Output : - Handle for data points plot.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
@@ -1322,20 +1324,21 @@ classdef MatchedSources < Component
                 Args.XScale                   = 'linear';
                 Args.YScale                   = 'log';
                 Args.MeanFun function_handle  = @tools.math.stat.nanmedian;
-                Args.StdFun  function_handle  = @tools.math.stat.nanstd;
+                Args.StdFun function_handle   = @tools.math.stat.nanstd;
                 Args.Xlabel                   = 'Mean Mag';
                 Args.Ylabel                   = 'RMS';
                 Args.FontSize                 = 16;
                 Args.Interpreter              = 'latex';
                 
                 % add noise curve
-                Args.PlotNoiseCurve logical   = true;
+                Args.PlotNoiseCurve logical   = false;
                 Args.SNField                  = 'SN_3'; % if given skip other fields
                 Args.AperArea                 = pi.*6.^2;
                 Args.RN                       = 3.5;
                 Args.Gain                     = 1;
                 Args.FluxField                = 'FLUX_APER_3';
-                Args.StdField                 = 'STD_ANNULUS';
+                Args.StdField                 = 'VAR_IM'; %'STD_ANNULUS';
+                Args.IsStd logical            = false;
             end
         
             if ischar(Args.FieldX)
@@ -1391,11 +1394,23 @@ classdef MatchedSources < Component
                 
                    Flux   = median(Obj.Data.(FluxField),1,'omitnan');
                    Std    = median(Obj.Data.(StdField),1,'omitnan');
-                
-                   SN = Flux./(Args.Area.*Std.^2.*Args.Gain + Flux.*Args.Gain + Args.Area.*Args.RN.^2);
+                   if Args.IsStd
+                       Var = Std.^2;
+                   else
+                       Var = Std;
+                   end
+                   SN = Flux./sqrt(Args.AperArea.*Var.*Args.Gain + Flux.*Args.Gain + Args.AperArea.*Args.RN.^2);
                 end
                 
-                plot(AxisX, 1.086./SN,'k-')
+                FlagNN = ~isnan(AxisX) & ~isnan(SN);
+                VecX   = AxisX(FlagNN);
+                SN     = SN(FlagNN);
+                
+                B=timeseries.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
+                FlagNN = ~isnan(B(:,2));
+                B = B(FlagNN,:);
+                hold on;
+                plot(B(:,1), B(:,2),'k-')
                 
             end
             Hgca = gca;

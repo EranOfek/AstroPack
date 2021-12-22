@@ -25,7 +25,7 @@ function Obj = maskSourceNoise(Obj, Args)
         % for each image
         if ~isempty(Obj(Iobj).Image) && ~isempty(Obj(Iobj).Back) && ~isempty(Obj(Iobj).Var)
             FlagSourceNoise = (Obj(Iobj).Image - Obj(Iobj).Back) > Args.Factor.*Obj(Iobj).Var;
-            Obj(Iobj) = maskSet(Obj(Iobj).MaskData, FlagSourceNoise, Args.BitName, 1, 'CreateNewObj',Args.CreateNewObj);
+            Obj(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, FlagSourceNoise, Args.BitName, 1, 'CreateNewObj',Args.CreateNewObj);
         end
     end
 end
