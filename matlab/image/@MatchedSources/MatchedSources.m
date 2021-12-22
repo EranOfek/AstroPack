@@ -872,9 +872,11 @@ classdef MatchedSources < Component
                 Data = getMatrix(Obj, Field);
             end
             
-            if size(Data,1)==1
+            if size(Data,1)==1 
                 % already single epoch
                 Obj.SrcData.(Field) = Data;
+            elseif size(Data,2)==1
+                Obj.SrcData.(Field) = Data.';
             else
                 Obj.SrcData.(Field) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
             end
