@@ -837,6 +837,8 @@ classdef MatchedSources < Component
             %   This can be used to store some mean properties (e.g., mean
             %   magnitude).
             % Input  : - An MatchedSources object.
+            %            If Data is empty, this may be a multi-element
+            %            object.
             %          - A field name in the SrcData to populate.
             %          - Data. If empty, then will look for the field name
             %            in the Data property, abd calculate the mean over
@@ -867,21 +869,30 @@ classdef MatchedSources < Component
                 Args.MeanFunArgs cell           = {};
             end
             
+            Nobj = numel(Obj);
+            
+            
             if isempty(Data)
                 % get data from some mean of existing property
-                Data = getMatrix(Obj, Field);
-            end
-            
-            if size(Data,1)==1 
-                % already single epoch
-                Obj.SrcData.(Field) = Data;
-            elseif size(Data,2)==1
-                Obj.SrcData.(Field) = Data.';
+                for Iobj=1:1:Nobj
+                    Data = getMatrix(Obj(Iobj), Field);
+                    Obj(Iobj).SrcData.(Field) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
+                end
             else
-                Obj.SrcData.(Field) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
+                if numel(Obj)>1
+                    error('When Data is not empty, the MatchedSources elenment must has a single element');
+                end
+                if size(Data,1)==1 
+                    % already single epoch
+                    Obj.SrcData.(Field) = Data;
+                elseif size(Data,2)==1
+                    Obj.SrcData.(Field) = Data.';
+                else
+                    Obj.SrcData.(Field) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
+                end
             end
-                
         end
+        
     end
     
     methods % design matrix
