@@ -93,7 +93,7 @@ function Result = match_catsHTMmerged(Obj, Args)
         for Iref=1:1:Nref
             if ~isnan(ResInd.Obj2_IndInObj1(Iref))
                 IndCat = ResInd.Obj2_IndInObj1(Iref);
-                MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), CatH.Catalog(Iref,Args.MergedCatMaskCol));
+                MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
             end
         end
      

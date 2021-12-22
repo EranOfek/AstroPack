@@ -13,7 +13,8 @@ function Result = unitTest()
 
     % construct an empty AstroWCS
     AW = AstroWCS([2 2]);
-
+    assert(isequal(size(AW),[2,2]),'Initialized object with wrong sizes')
+    
     % construct a AstroWCS from AstroHeader with full TAN projection
     Im_name = 'FOCx38i0101t_c0f.fits';
     AH = AstroHeader(Im_name);
@@ -21,34 +22,38 @@ function Result = unitTest()
 
     % Test for header without some: CD matrix missing, no CD matrix,  partial PC matrix, no PC matrix
     ValCD = cell2mat(AH.getCellKey({'CD1_1','CD1_2','CD2_1','CD2_2'}));
-
+    
     AH.deleteKey({'CD1_2','CD2_2'});
     AW = AstroWCS.header2wcs(AH); % should fill with zeros
-
+    assert(AW.CD(1,2)==0&AW.CD(2,2)==0,'Fill missing CD elements with non-zero')
     AH.deleteKey({'CD1_1','CD2_1'});
     AH.insertKey({'CDELT1',ValCD(1);'CDELT2',ValCD(4)}); 
+    
     AW = AstroWCS.header2wcs(AH); % should give diagonal CD with CDELT
-
+    assert(isequal(diag(AW.CD),[ValCD(1);ValCD(4)]),'Fill CD matrix with wrong values');
     AH.insertKey({'PC1_1',1;'PC2_2',1});
     AW = AstroWCS.header2wcs(AH); % should give diagonal CD using PC and filling with zeros
 
     AH.insertKey({'PC1_2',ValCD(2)/ValCD(1);'PC2_1',ValCD(3)/ValCD(4)});
     AW = AstroWCS.header2wcs(AH); % using CDELT and PC should give identical CD to original
-
+    assert(isequal(reshape(AW.CD',1,[]),ValCD),'CDELT and PC did not gives the original CD matrix')
+    
+    
     % Test with no projection (fill ProjType=ProjClass='none')
     AH.replaceVal({'CTYPE1','CTYPE2'},{'RA','DEC'});
     AW = AstroWCS.header2wcs(AH);
-
+    assert(strcmp(AW.ProjType,'none'),'No projection test result with key different from none')
     % Test with no radesys info
     AH.deleteKey('EQUINOX');
     AW = AstroWCS.header2wcs(AH);
-
+    assert(AW.EQUINOX==2000,'Auto filled EQUINOX different than J2000')
     % Test with only radesys (no equinox)
     AH.insertKey({'RADESYS','FK5'});
     AW = AstroWCS.header2wcs(AH);
 
     % xy2sky tests
     RAD = 180./pi;
+    
 
     % get [alpha, delta] for TAN projection
     %Im_name = 'FOCx38i0101t_c0f.fits';
@@ -63,13 +68,20 @@ function Result = unitTest()
     PY = rand(1,500) * AH.Key.NAXIS2;           
 
     AW = AstroWCS.header2wcs(AH);
+    % Test CRPIX with [Alpha0,Delta0]
+    [alpha0_inv,delta0_inv] = AW.xy2sky(AW.CRPIX);
+    assert(abs(alpha0_inv - AW.Alpha0)<1e-13,'xy2sky did not transform CRPIX(1) to alpha0')
+    assert(abs(delta0_inv - AW.Delta0)<1e-13,'xy2sky did not transform CRPIX(2) to delta0')
+    
     [Alpha, Delta]  = AW.xy2sky(PX,PY);
 
     % Test DS9 only on Linux/Mac
     if have_ds9
         ds9(Im_name);
         [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-        d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+        % sphere_dist_fast return imaginary distance for some alpha,delta
+        % abs() fixed that
+        d_mas = convert.angular('rad','mas',abs(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
         disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
     end
 
@@ -112,7 +124,7 @@ function Result = unitTest()
     if have_ds9
         ds9(Im_name);
         [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-        d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+        d_mas = convert.angular('rad','mas',(abs(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD))));
         disp(sprintf('Max distance for TPV projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
     end
 
