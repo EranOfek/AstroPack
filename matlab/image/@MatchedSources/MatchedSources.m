@@ -1312,7 +1312,7 @@ classdef MatchedSources < Component
            
             arguments
                 Obj(1,1)
-                Args.FieldX cell              = {'MAG','MAG_PSF','MAG_APER'};
+                Args.FieldX                   = {'MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
                 Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
                 Args.BinSize                  = [];
                 Args.DivideErrBySqrtN(1,1) logical = true;
@@ -1327,8 +1327,21 @@ classdef MatchedSources < Component
                 Args.Ylabel                   = 'RMS';
                 Args.FontSize                 = 16;
                 Args.Interpreter              = 'latex';
+                
+                % add noise curve
+                Args.PlotNoiseCurve logical   = true;
+                Args.SNField                  = 'SN_3'; % if given skip other fields
+                Args.AperArea                 = pi.*6.^2;
+                Args.RN                       = 3.5;
+                Args.Gain                     = 1;
+                Args.FluxField                = 'FLUX_APER_3';
+                Args.StdField                 = 'STD_ANNULUS';
             end
         
+            if ischar(Args.FieldX)
+                Args.FieldX = {Args.FieldX};
+            end
+            
             if ischar(Args.PlotSymbol)
                 Args.PlotSymbol = {Args.PlotSymbol};
             end
@@ -1343,9 +1356,7 @@ classdef MatchedSources < Component
             AxisY = Args.StdFun(Mat, [], Obj.DimEpoch);
             
             H = plot(AxisX, AxisY, Args.PlotSymbol{:});
-            Hgca = gca;
-            Hgca.XScale = Args.XScale;
-            Hgca.YScale = Args.YScale;
+            
             
             if ~isempty(Args.BinSize)
                 % add bins to plot
@@ -1367,6 +1378,29 @@ classdef MatchedSources < Component
             Hy = ylabel(Args.Ylabel);
             Hy.FontSize = Args.FontSize;
             Hy.Interpreter = Args.Interpreter;
+            
+            % plot noise curve
+            if Args.PlotNoiseCurve
+                if ~isempty(Args.SNField)
+                    [SNField] = getFieldNameDic(Obj, Args.SNField);
+                    SN        = median(Obj.Data.(SNField),1,'omitnan');
+                else
+                    % S/N is not provided - calc from other fields
+                   [FluxField] = getFieldNameDic(Obj, Args.FluxField);
+                   [StdField]  = getFieldNameDic(Obj, Args.StdField);
+                
+                   Flux   = median(Obj.Data.(FluxField),1,'omitnan');
+                   Std    = median(Obj.Data.(StdField),1,'omitnan');
+                
+                   SN = Flux./(Args.Area.*Std.^2.*Args.Gain + Flux.*Args.Gain + Args.Area.*Args.RN.^2);
+                end
+                
+                plot(AxisX, 1.086./SN,'k-')
+                
+            end
+            Hgca = gca;
+            Hgca.XScale = Args.XScale;
+            Hgca.YScale = Args.YScale;
             
         end
         
