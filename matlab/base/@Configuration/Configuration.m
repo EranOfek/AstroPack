@@ -238,6 +238,8 @@ classdef Configuration < handle
             % 	 MyConfig = Configuration();
             % 	 MyConfig.loadFile('C:/Temp/MyConfigFolder');
             arguments
+                Obj
+                Path
                 Args.Recurse = false;       % When true, load also file from sub-folders
             end
             
