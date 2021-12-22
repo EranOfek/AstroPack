@@ -97,11 +97,11 @@ classdef DbRecord < Base
         
         
         function merge(Obj, Stru)
-            % Merge struct array with current data
-            % Usefull when we constructed from matrix and need key fields
+            % Merge input struct array with current data
+            % Usefull for example when we constructed from matrix and need key fields
             % Input:   Stru - Struct array to merge into Obj.Data
             % Output:  -
-            % Example: Merged = Obj.merge(MyStructArray)
+            % Example: Obj.merge(MyStructArray)
             FieldList = fieldnames(Stru);
             StruRows = numel(Stru);
             for Row=1:numel(Obj.Data)
@@ -120,8 +120,8 @@ classdef DbRecord < Base
         function Result = newKey(Obj)
             % Generate unique id, as Uuid or SerialStr (more compact and fast)
             % Input:   - 
-            % Output:  -
-            % Example: -            
+            % Output:  New Uuid or SerialStr
+            % Example: Key = Obj.newKey()
             if Obj.UseUuid
                 Result = Component.newUuid();
             else

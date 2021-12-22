@@ -91,7 +91,7 @@ classdef DbConnection < Component
             if ~isempty(Args.Db)
                 DbConn = db.DbConnection.getDbConnection(Args.Db, 'Create', false);
                 if ~isempty(DbConn)
-                    io.msgLog(LogLevel.Error, 'DbConnection: Already created by alias: %s', Args.Db);
+                    io.msgLog(LogLevel.Warning, 'DbConnection: Already created by alias, new connection was not created. Use "clear all": %s', Args.Db);
                     
                     % @Todo: Throw exception!
                     return;

@@ -6,7 +6,7 @@
 %
 
 
-function unitTest
+function Result = unitTest()
     % Package Unit-Test   
 	io.msgStyle(LogLevel.Test, '@start', 'test started');
     
@@ -37,7 +37,7 @@ function unitTest
     
     
     
-   
+    Result = true;
 	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 end
 

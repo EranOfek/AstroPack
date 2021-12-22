@@ -128,7 +128,9 @@ classdef Configuration < handle
     methods % Constructor
         function Obj = Configuration(Args)
             % Constructor
-            % Intput:  -
+            % Intput:  'Name'   - Optionall name for the configuration object
+            %          'File'   - YML file name to load
+            %          'Folder' - Folder to load
             % Output:  -
             % Example: Conf = Configuration.getSingleton()
             % Example: Conf = Configuration('File', '~/conf/conf.yml')
@@ -152,16 +154,19 @@ classdef Configuration < handle
             assert(~isempty(Obj.ExternalPath));
             assert(isfolder(Obj.ExternalPath));
             
+            % Call addpath() only once
             persistent AddPath;
             if isempty(AddPath)
                 AddPath = true;
                 addpath(Obj.ExternalPath);
             end
             
+            % Store name
             if ~isempty(Args.Name)
                 Obj.ConfigName = Args.Name;
             end
             
+            % Load file or entire folder
             if ~isempty(Args.File)
                 Obj.loadFile(Args.File);
             elseif ~isempty(Args.Folder)
@@ -180,8 +185,11 @@ classdef Configuration < handle
             % Use this function when working with user Confguuration
             % object, or when you want to explictly load/reload specific
             % file.
-            % Input:  FileName - 
-            %         'Field'  - true: , false: 
+            % Input:  FileName - YML file name to load
+            %         'Field'  - true: field with the file name is created instide Obj.Data
+            %                    i.e., when loading 'MyConf.yml', it will be loaded to
+            %                    Obj.Data.MyConf...
+            %                    false: it will be loaded to Obj.Data...
             % Output: true on success
             % Example:
             % 	 MyConfig = Configuration();
@@ -234,6 +242,7 @@ classdef Configuration < handle
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
             % Input:   Path - folder name to look for *.yml files
+            %          'Recurse' - true: Load files in sub-folders
             % Example:
             % 	 MyConfig = Configuration();
             % 	 MyConfig.loadFile('C:/Temp/MyConfigFolder');
@@ -263,12 +272,16 @@ classdef Configuration < handle
         function reloadFile(Obj, YamlStructOrFileName)
             % Reload specified configuration object (file name)
             % Call this function with the
-            % Input:
-            % Example: 
-			%     MyConfig.reloadFile(MyConfig.Data.unittest)
+            % Input:   YamlStructOrFileName - if char, it specified the file name 
+            %          to be loaded, otherwise it is assumed to be struct that contains
+            %          also FileName field, and this file is reloaded
+            % Output:  Obj.Data... is afected
+            % Example: MyConfig.reloadFile(MyConfig.Data.unittest)
             if isa(YamlStructOrFileName, 'char')
                 Obj.loadFile(YamlStructOrFileName);
             else
+                % @Todo: This is probably a bug, we need to update Obj.Data..
+                % fix it (22/12/2021)
                 Configuration.internal_reloadYaml(Obj.(YamlStructOrFileName));
             end
                 
@@ -298,6 +311,9 @@ classdef Configuration < handle
             % Expand Path with macros from Configuration.System.EnvFolders
             % This functions assume that we already loaded a configuration
             % file called System.yml which has EnvFolders section.
+            % Input:   
+            % Output:  
+            % Example: 
             if isfield(Obj.Data, 'System') && isfield(Obj.Data.System, 'EnvFolders')
                 Result = Configuration.unmacro(Path, Obj.Data.System.EnvFolders);
             else
@@ -315,21 +331,21 @@ classdef Configuration < handle
         function Result = getSingleton()
             % Return the singleton Configuration object, this is the 'Global'
             % configuration object of the system
-            % Example: 
+            % Example: Conf = Configuration.getSingleton() 
             Result = Configuration.internal_initSysConfig();
         end
 
         
         function Result = loadSysConfig()
             % Load entire system configuration, same as getSingleton()
-            % Example:             
+            % Example: Configuration.loadSysConfig()
             Result = Configuration.internal_initSysConfig();
         end
 
         
         function Result = reloadSysConfig()
             % Reload entire system configuration, Warning: calls 'clear java'
-            % Example:             
+            % Example: Configuration.reloadSysConfig()          
             io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
             clear java;
             Result = Configuration.internal_initSysConfig('clear');
@@ -340,7 +356,8 @@ classdef Configuration < handle
             % **Internal function**
             % Return singleton Configuration object, clear entire configuration if argument is 'clear'
             % This function DOES NOT load any configuration file, just create/clear the object
-            % Example:             
+            % Output:  New Configuration object
+            % Example: Conf = Configuration.internal_initSysConfig('clear')
             persistent Conf
 
             % Optionally clear configuration
@@ -383,7 +400,8 @@ classdef Configuration < handle
             % ASTROPACK_CONFIG_PATH or repository
             % This function is called from MsgLogger and MUST NOT use
             % any msgLog() call!
-            % Example: 
+            % Output:  Path of configuration files
+            % Example: Path = Configuration.getSysConfigPath()
             
             EnvPath = getenv('ASTROPACK_CONFIG_PATH');
             if ~isempty(EnvPath)
@@ -490,6 +508,7 @@ classdef Configuration < handle
     methods(Static) % Helper functions
 
         function Result = unmacro(Str, MacrosStruct)
+            % @Todo help
             % Replace macros in string with values from struct
             % Input:   -
             % Output:  -

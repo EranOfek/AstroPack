@@ -65,8 +65,9 @@ classdef UnitTester < handle
     methods % Main functions
 
         function Result = setup(Obj)
-            % Class setup, prepare path to source code [Internal use]
-            % Output: true on success
+            % [Internal use, called from constructor] Class setup, prepare path to source code 
+            % Output:  true on success
+            % Example: Obj.setup()
 
             % Clear all persistent objecst and java spaces, requried
             % to the the tests with clean workspace
@@ -110,7 +111,8 @@ classdef UnitTester < handle
 
         function Result = doTest(Obj)
             % Run all unit-tests and show report
-            % Output: 
+            % Output:  true if all tests passed
+            % Example: Obj.doTest()
 
             Obj.msgLog(LogLevel.Test, 'Started\n');
             try
@@ -126,7 +128,9 @@ classdef UnitTester < handle
 
         function report(Obj)
             % Print report of all performed tests
-            % Output: 
+            % Output:  Display report to console & log file using Obj.msgLog()
+            %          Returns none
+            % Example: Obj.report()
             
             % Print passed tests
             Obj.msgLog(LogLevel.Test, '\n');
@@ -248,8 +252,9 @@ classdef UnitTester < handle
 
         function Result = testCore(Obj)
             % Run core unit-tests, required before we can run any other
-            % Output:  
-            % Example:             
+            % Output:  true on success
+            % Example: Obj.testCore()
+            
             Obj.msgLog(LogLevel.Test, 'UnitTester.testCore started\n');
             Result = false;
 
@@ -288,8 +293,8 @@ classdef UnitTester < handle
 
         function Result = testImage(Obj)
             % Run image related unit-tests
-            % Output:  
-            % Example: 
+            % Output:  true on success
+            % Example: Obj.testImage()
 
             Obj.msgLog(LogLevel.Test, 'UnitTester.testImage started\n');
             Result = false;
@@ -337,13 +342,13 @@ classdef UnitTester < handle
     
         function Result = runTest(Obj, ClassName, Args)
             % Run single unit test, Target is class name
-            % Input:    ClassName
-            %           'FuncName'
-            % Output: 
+            % Input:    ClassName  - Class name to run test for
+            %           'FuncName' - Test function name to call, default is 'unitTest'
+            % Output:  true on success
             % Example: runTest('ImagePath')
             arguments
                 Obj
-                ClassName                          %
+                ClassName                       %
                 Args.FuncName = 'unitTest';     % Function name
             end
             
@@ -392,9 +397,10 @@ classdef UnitTester < handle
 
         function Result = processFolder(Obj, Path, Args)
             % Recursivly call processFile() for all files in given folder name
-            % Input:    Path       - 
-            %           'FuncName' - 
-            %           'Required' - 
+            % Input:    Path       - Path to source files folder
+            %           'FuncName' - Test function name, default is 'unitTest'
+            %           'Required' - true if FuncName is required to be defined in the
+            %           class
             % Output: 
             % Example:            
 
@@ -459,8 +465,9 @@ classdef UnitTester < handle
 
         function Result = processFile(Obj, FileName, Args)
             % Process file
-            % Input:    FileName
-            %           '
+            % Input:    FileName   - 
+            %           'FuncName' - 
+            %           'Required' - 
             % Output:   true on success
             % Example:  processFile('~/AstroPack/matlab/@Base/Base.m')
             

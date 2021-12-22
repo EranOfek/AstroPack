@@ -8,7 +8,7 @@
 %
 
 
-function unitTest
+function Result = unitTest()
     % telescope.sn Unit-Test
     
 	io.msgStyle(LogLevel.Test, '@start', 'telescope.sn test started');
@@ -16,6 +16,7 @@ function unitTest
     snr_unitTest();
     
 	io.msgStyle(LogLevel.Test, '@passed', 'telescope.sn test passed');
+	Result = true;
 end
 
 %--------------------------------------------------------------------------

@@ -277,10 +277,11 @@ classdef MsgLogger < handle
 
 
 		function msgStack(Obj, Level, varargin)
-            % Log stack trace, @Todo
-            % Input:  
-            % Output: 
-            % Example: 
+            % Log stack trace, @Todo - NOT fully tested yet!
+            % Input:   Level
+            %          varargin - fprintf arguments
+            % Output:  Log to file and console with msgLog()
+            % Example: Obj.msgStack(LogLevel.Error);
             
             [StackTrace, WorkspaceIndex] = dbstack;
 

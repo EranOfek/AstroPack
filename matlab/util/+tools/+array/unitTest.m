@@ -5,7 +5,7 @@
 %
 %
 
-function unitTest
+function Result = unitTest
     % Package Unit-Test   
 	io.msgStyle(LogLevel.Test, '@start', 'test started');
     
@@ -25,6 +25,7 @@ function unitTest
     test_bit_or_and_mex();
 	
 	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+	Result = true;
 end
 
 %--------------------------------------------------------------------------

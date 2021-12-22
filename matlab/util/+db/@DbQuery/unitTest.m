@@ -19,6 +19,8 @@ function Result = unitTest()
     Q = db.DbQuery('unittest', 'TableName', 'master_table');
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
     
+    testDelete(Q);
+    
     %testInsert(Q);
     %testSelect(Q);        
         
@@ -78,9 +80,7 @@ function Result = unitTest()
         %testDelete(Q);
         %testCopy(Q);
         %testMisc(Q);
-
-        % Tests using 'Pipeline' database
-        %testPipeline();
+        
     end
         
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
@@ -490,17 +490,19 @@ end
 function Result = testDelete(Q)
 
     Result = true;
-    return;
+
+    Count1 = Q.selectCount('master_table');
     
-    % ---------------------------------------------- Delete
-    sql = sprintf("DELETE FROM master_table WHERE RecID='%s'", uuid);
-    Q.exec(sql);           
-    count2 = Q.selectCount('master_table');
-    assert(count2 == count);
-
-    % ---------------------------------------------- Create database
-    %
-
+    if count1 > 0
+        R = Q.select('recid', 'TableName', 'master_table', 'Limit', 1);
+        assert(isa(R, 'db.DbRecord'));       
+        recid = R.Data(1).recid;
+        Q.deleteRecord(
+        
+        Count2 = Q.selectCount('master_table');        
+        assert(Count2 == (Count1-1));
+    end
+          
     
     Result = true;
 end
@@ -546,24 +548,6 @@ function Result = testCopy(Q)
 
     %Q.copyFrom('master_table', CsvFileName);
 
-    Result = true;
-end
-
-%==========================================================================
-%
-%==========================================================================
-
-function Result = testPipeline()
-
-    io.msgStyle(LogLevel.Test, '@start', 'DbQuery-Pipeline test started')
-    io.msgLog(LogLevel.Test, 'Postgres database "pipeline" should exist');
-    
-    %Q = DbQuery('pipeline', 'table', 'rawimages');
-    
-    %Q = DbQuery('pipeline:rawimages')
-    
-    io.msgStyle(LogLevel.Test, '@passed', 'DbQuery-Pipeline test passed')
-    
     Result = true;
 end
 
