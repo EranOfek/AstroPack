@@ -2,6 +2,8 @@
 % Properties:
 %   Data  - A structure, in which each field is a matrix of identical sizes
 %           containing Nepoch X Nsrc measurments of some property.
+%   SrcData - A structure, in which each field is a vector of properties
+%           per source (e.g., mean mag).
 %   JD     - A vector of times per epoch. If not set by user default is a
 %            vector of 1..Nepoch.
 %   Fields - A cell array of field names (Dependent)
@@ -45,6 +47,7 @@ classdef MatchedSources < Component
         Data(1,1) struct  % each field [Nepoch, Nsrc]
         Units(1,1) struct % each field [Units]
         JD                % time per epoch
+        SrcData(1,1) struct   % Data for sources (e.g., mean RA)
     end
     
     properties (Dependent)
@@ -401,7 +404,6 @@ classdef MatchedSources < Component
             %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
             %          MS = MatchedSources;
             %          St.Flux=rand(100,200); MS.addMatrix(St);
-            
             
             arguments
                 Obj(1,1)
@@ -826,6 +828,57 @@ classdef MatchedSources < Component
                 end
              
             end
+        end
+        
+        function Obj = addSrcData(Obj, Field, Data, Args)
+            % Populate/calculate the SrcData structure 
+            %   The SrcData property contains a structure in which each
+            %   field may contain a vector (element per source).
+            %   This can be used to store some mean properties (e.g., mean
+            %   magnitude).
+            % Input  : - An MatchedSources object.
+            %          - A field name in the SrcData to populate.
+            %          - Data. If empty, then will look for the field name
+            %            in the Data property, abd calculate the mean over
+            %            all columns of the data property.
+            %            If input is a matrix, then apply the MeanFun over
+            %            columns. If a vector then pipulate the
+            %            SrcData.(Field) with this vector.
+            %          * ...,key,val,...
+            %            'MeanFun' - Mean function to apply over columns.
+            %                   Default is @tools.math.stat.nanmedian
+            %            'MeanFunArgs' - A cell array of additional
+            %                   arguments to pass to 'MeanFun' after the
+            %                   Dim argument. Default is {}.
+            % Output : - The MatchedSources object with the added SrcData.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          MS = MatchedSources;
+            %          St.Flux=rand(100,200); MS.addMatrix(St);
+            %          MS.addSrcData('FLUX')
+            
+            arguments
+                Obj
+                Field
+                Data                            = [];
+                Args.MeanFun function_handle    = @tools.math.stat.nanmedian;
+                Args.MeanFunArgs cell           = {};
+            end
+            
+            if isempty(Data)
+                % get data from some mean of existing property
+                Data = getMatrix(Obj, Field);
+            end
+            
+            if size(Data,1)==1
+                % already single epoch
+                Obj.SrcData.(Field) = Data;
+            else
+                Obj.SrcData.(Field) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
+            end
+                
         end
     end
     
