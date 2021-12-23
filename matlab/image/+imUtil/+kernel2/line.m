@@ -4,7 +4,7 @@ function K=line(Par,SizeXY,PosXY)
 % Input  : - (Par) A three or four column matrix of
 %            [Length, Width, Angle, Gap] of line. Ifthree columns are given
 %            then Gap is set to zero.
-%            Length is the line length.
+%            Length is the line length (odd number).
 %            Width is the line width.
 %            Angle is the angle in degrees as measured from the X-axis
 %            anti-clock wise.
@@ -19,7 +19,7 @@ function K=line(Par,SizeXY,PosXY)
 %            index.
 %      By: Eran O. Ofek                         May 2020
 % Example: imUtil.kernel2.line
-%          imUtil.kernel2.line([10 2 20 5],[30 30])
+%          imUtil.kernel2.line([11 2 20 5],[30 30])
 
 
 if nargin<3
