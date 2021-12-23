@@ -329,7 +329,12 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
             end
 
+            % plot for LAST pipeline paper
+            %semilogy(Result.AstrometricFit(9).ResFit.RefMag, Result.AstrometricFit(9).ResFit.Resid.*3600,'.')
+            %H=xlabel('B$_{p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;                                 
+            %H=ylabel('Residual [arcsec]'); H.Interpreter='latex'; H.FontSize=18;
 
+            
             % Update Cat astrometry
             %SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:},'UpdateCoo',true);
         end

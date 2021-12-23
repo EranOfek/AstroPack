@@ -1398,7 +1398,7 @@ classdef MatchedSources < Component
                 
                 % add noise curve
                 Args.PlotNoiseCurve logical   = false;
-                Args.SNField                  = 'SN_3'; % if given skip other fields
+                Args.SNField                  = []; %'SN_3'; % if given skip other fields
                 Args.AperArea                 = pi.*6.^2;
                 Args.RN                       = 3.5;
                 Args.Gain                     = 1;

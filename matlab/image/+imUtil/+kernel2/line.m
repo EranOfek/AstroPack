@@ -19,6 +19,7 @@ function K=line(Par,SizeXY,PosXY)
 %            index.
 %      By: Eran O. Ofek                         May 2020
 % Example: imUtil.kernel2.line
+%          imUtil.kernel2.line([10 2 20 5],[30 30])
 
 
 if nargin<3

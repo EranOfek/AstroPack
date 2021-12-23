@@ -258,6 +258,18 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     end
     
+    % plot for LAST pipeline paper
+    % semilogy(ResultCoadd(1).AstrometricFit.ResFit.RefMag, ResultCoadd(1).AstrometricFit.ResFit.Resid.*3600,'k.')
+    % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;                                 
+    % H=ylabel('Residual [arcsec]'); H.Interpreter='latex'; H.FontSize=18;
+
+    % semilogy(ResultCoadd(5).ZP.RefMag, abs(ResultCoadd(5).ZP.Resid),'k.')
+    % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
+    % H=ylabel('$|$Residual$|$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
+    
+    % 
+    
+    
     if Args.CoaddMatchMergedCat
         % match against external catalogs
         Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
