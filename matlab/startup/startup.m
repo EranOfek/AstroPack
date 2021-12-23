@@ -17,20 +17,20 @@
 %
 
 fprintf('AstroPack startup.m started: %s\n', mfilename('fullpath'));
-fprintf('Master startup.m file is located in AstroPack/matlab/startup\n');
+%fprintf('Master startup.m file is located in AstroPack/matlab/startup\n');
 
 % Do the actual work
 doStartup();
 
-fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
-fprintf('Remember to set environment variable ASTROPACK_PATH to AstroPack root folder, for example /home/eran/matlab/AstroPack\n');
-fprintf('Remember to set environment variable ASTROPACK_DATA_PATH to AstroPack root folder, for example ~/matlab/data\n');
-fprintf('Remember to set environment variable ASTROPACK_CONFIG_PATH to configuration files folder, if not set, repo config/ is used\n');
+%fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
+%fprintf('Remember to set environment variable ASTROPACK_PATH to AstroPack root folder, for example /home/eran/matlab/AstroPack\n');
+%fprintf('Remember to set environment variable ASTROPACK_DATA_PATH to AstroPack root folder, for example ~/matlab/data\n');
+%fprintf('Remember to set environment variable ASTROPACK_CONFIG_PATH to configuration files folder, if not set, repo config/ is used\n');
 
 %--------------------------------------------------------------------------
 function doStartup()
 
-    fprintf('AstroPack doStartup() started: %s\n', mfilename('fullpath'));
+    %fprintf('AstroPack doStartup() started: %s\n', mfilename('fullpath'));
 
     % display numbers format
     format short g
@@ -92,7 +92,7 @@ function doStartup()
     end
 
     if (isempty(AstroPackDataPath))
-        fprintf('Warning: Can not find AstroPack Data directory, set ASTROPACK_DATA_PATH (default is ~/matlab/data on Linux, C:\AstroPack\matlab\data on Windows');
+        fprintf('Warning: Can not find AstroPack Data directory, set ASTROPACK_DATA_PATH (default is ~/matlab/data on Linux, C:\\AstroPack\\matlab\\data on Windows');
     end
 
 
@@ -109,13 +109,14 @@ function doStartup()
     % The inside cell gives the directory path - e.g., {'matlab','astro'} means .../matlab/astro/
     % Check with @Eran if we can remove the 'data' folders because they are
     % part of Installer
+            %{AstroPackPath,'data','test_images','fits_samples'},...
     DirList.AstroPack = {...
-             {AstroPackPath,'data','test_images','fits_samples'},...
              {AstroPackPath,'..','data','SolarSystem','Time'},...
              {AstroPackPath,'..','data','SolarSystem','VSOPE87'},...
              {AstroPackPath,'..','data','SolarSystem','MinorPlanets'},...
              {AstroPackPath,'..','data'},...
              {AstroPackPath,'..','data','spec','GAIA_SpecTemplate'},...
+             {AstroPackPath,'..','data','TestImages'},...
              {AstroPackPath,'matlab','astro'},...
              {AstroPackPath,'matlab','base'},...
              {AstroPackPath,'matlab','external'},...
