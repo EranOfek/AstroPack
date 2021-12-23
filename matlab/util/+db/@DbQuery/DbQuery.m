@@ -468,7 +468,7 @@ classdef DbQuery < Component
 
     methods % High-level: Update, Delete
 
-        function Result = update(Obj, Rec, Args)
+        function Result = update(Obj, Args)
             % Update record
             % Intput:  -
             % Output:  DbRecord
@@ -476,70 +476,70 @@ classdef DbQuery < Component
             
             arguments
                 Obj
-                Rec                     % DbRecord or struct
-                Args.TableName
-                Args.Where
-                Args.FieldMap = []      % Optional field map
+                Args.Statement          % SQL statement 
+                Args.TableName          % Table name
+                Args.Where              % Where condition
+                %Args.FieldMap = []      % Optional field map
             end
 
             % Use all fields that exist in the table
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             Result = false;
-%
-%             % Execute SQL statement (using java calls)
-%             Obj.msgLog(LogLevel.Info, 'DbQuery: updateRecord');
-%             tic();
-%
-%             % Use speified TableName or Obj.TableName
-%             if isempty(Args.TableName)
-%                 Args.TableName = Obj.TableName;
-%             end
-%             assert(~isempty(Args.TableName));
-%
-%
-%             % Need connection, clear current query
-%             Obj.openConn();
-%             Obj.clear();
-%
-%             % Prepare SQL statement
-%             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-%             FieldNames = Obj.getFieldNames(Rec);
-%             WhereFieldNames = Obj.getFieldNames(WhereRec);
-%             disp(FieldNames);
-%             SqlFields = Obj.makeUpdateFieldsText(FieldNames, Args.FieldMap);
-%             WhereFields = Obj.getFieldNames(WhereRec);
-%             Where = Obj.makeWhereFieldsText(WhereFieldNames, ' AND ', Args.FieldMap);
-%
-%             %
-%             Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', SqlFields, ' WHERE ', Where];
-%             Obj.msgLog(LogLevel.Debug, 'updateRecord: SqlText: %s', Obj.SqlText);
-%
-%             % Prepare query
-%             Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
-%             try
-%                 Obj.JavaStatement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
-%             catch
-%                 Obj.msgLog(LogLevel.Error, 'updateRecord: prepareStatement failed: %s', Obj.SqlText);
-%             end
-%
-%             % Iterate struct fields
-%             Obj.setStatementValues(FieldNames, Rec, Args.FieldMap);
-%             Obj.setStatementValues(WhereFieldNames, WhereRec, Args.FieldMap, 'FieldIndex', numel(FieldNames)+1);
-%
-%             % Execute
-%             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
-%             try
-%                 Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
-%                 Obj.ExecOk = true;
-%                 Result = true;
-%             catch
-%                 Obj.msgLog(LogLevel.Error, 'updateRecord: executeQuery failed: %s', Obj.SqlText);
-%             end
-%
-%             Obj.Toc = toc();
-%             Obj.msgLog(LogLevel.Info, 'updateRecord time: %.6f', Obj.Toc);
-%
-%             Result = true;
+
+            % Execute SQL statement (using java calls)
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: updateRecord');
+            tic();
+
+            % Use speified TableName or Obj.TableName
+            if isempty(Args.TableName)
+                Args.TableName = Obj.TableName;
+            end
+            assert(~isempty(Args.TableName));
+
+
+            % Need connection, clear current query
+            Obj.openConn();
+            Obj.clear();
+
+            % Prepare SQL statement
+            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
+            FieldNames = Obj.getFieldNames(Rec);
+            WhereFieldNames = Obj.getFieldNames(WhereRec);
+            disp(FieldNames);
+            SqlFields = Obj.makeUpdateFieldsText(FieldNames, Args.FieldMap);
+            WhereFields = Obj.getFieldNames(WhereRec);
+            Where = Obj.makeWhereFieldsText(WhereFieldNames, ' AND ', Args.FieldMap);
+
+            %
+            Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', SqlFields, ' WHERE ', string(Where).char];
+            Obj.msgLog(LogLevel.Debug, 'updateRecord: SqlText: %s', Obj.SqlText);
+
+            % Prepare query
+            Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
+            try
+                Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
+            catch
+                Obj.msgLog(LogLevel.Error, 'updateRecord: prepareStatement failed: %s', Obj.SqlText);
+            end
+
+            % Iterate struct fields
+            %Obj.setStatementValues(FieldNames, Rec, Args.FieldMap);
+            %Obj.setStatementValues(WhereFieldNames, WhereRec, Args.FieldMap, 'FieldIndex', numel(FieldNames)+1);
+
+            % Execute
+            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+            try
+                Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
+                Obj.ExecOk = true;
+                Result = true;
+            catch
+                Obj.msgLog(LogLevel.Error, 'updateRecord: executeQuery failed: %s', Obj.SqlText);
+            end
+
+            Obj.Toc = toc();
+            Obj.msgLog(LogLevel.Perf, 'updateRecord time: %.6f', Obj.Toc);
+
+            Result = true;
         end
 
 
@@ -570,7 +570,7 @@ classdef DbQuery < Component
             assert(~isempty(Args.TableName));
             
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Info, 'DbQuery: deleteRecord');
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: deleteRecord');
             tic();
 
             % Need connection, clear current query
@@ -580,25 +580,21 @@ classdef DbQuery < Component
             % Prepare SQL statement
             % sql = sprintf("DELETE FROM master_table WHERE key1=... and key2=...).char;
             if ~isempty(Args.Where)
-                Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];                
+                Obj.SqlText = ['DELETE FROM ', string(Args.TableName).char, ' WHERE ', string(Args.Where).char];                
             else
-                Obj.SqlText = ['DELETE FROM ', string(TableName).char];                
-            end
-            
-            %
-            Obj.SqlText = ['DELETE FROM ', string(TableName).char, ' WHERE ', Where];
-            Obj.msgLog(LogLevel.Debug, 'deleteRecord: SqlText: %s', Obj.SqlText);
+                Obj.SqlText = ['DELETE FROM ', string(Args.TableName).char];                
+            end            
 
             % Prepare query
             Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
             try
-                Obj.JavaStatement = Obj.Conn.Conn.prepareStatement(Obj.SqlText);
+                Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch
                 Obj.msgLog(LogLevel.Error, 'deleteRecord: prepareStatement failed: %s', Obj.SqlText);
             end
 
             % Iterate struct fields
-            Obj.setStatementValues(FieldNames, Rec, FieldMap);
+            %Obj.setStatementValues(FieldNames, Rec, FieldMap);
 
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -611,7 +607,7 @@ classdef DbQuery < Component
             end
 
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Info, 'deleteRecord time: %.6f', Obj.Toc);
+            Obj.msgLog(LogLevel.Perf, 'deleteRecord time: %.6f', Obj.Toc);
 
             Result = true;
         end

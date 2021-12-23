@@ -3,7 +3,8 @@ function Result = unitTest()
     % Unit-Test
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
     % On Linux, use DataGrip by JetBrains 
-    
+        
+    MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
     
@@ -489,20 +490,21 @@ end
 
 function Result = testDelete(Q)
 
-    Result = true;
+    Result = false;
+    Q.TableName = 'master_table';
+    for Iter=1:5
+        Count1 = Q.selectCount();    
+        if Count1 > 0
+            R = Q.select('recid', 'Limit', 1);
+            assert(isa(R, 'db.DbRecord'));       
+            recid = R.Data(1).recid;
+            Where = sprintf("recid = '%s'", recid);
+            Q.deleteRecord('Where', Where);
 
-    Count1 = Q.selectCount('master_table');
-    
-    if count1 > 0
-        R = Q.select('recid', 'TableName', 'master_table', 'Limit', 1);
-        assert(isa(R, 'db.DbRecord'));       
-        recid = R.Data(1).recid;
-        Q.deleteRecord(
-        
-        Count2 = Q.selectCount('master_table');        
-        assert(Count2 == (Count1-1));
+            Count2 = Q.selectCount();
+            assert(Count2 == (Count1-1));
+        end
     end
-          
     
     Result = true;
 end

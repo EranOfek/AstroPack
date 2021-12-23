@@ -334,7 +334,7 @@ classdef MsgLogger < handle
         function setLogLevel(Level, Args)
             % Set current log level, Args.type is 'all', 'file', 'disp'
             % Input:   Level  - 
-            %          'type' - 
+            %          'type' - 'all', 'file', 'disp'
             % Output:  -
             % Example: MsgLogger.getSingleton().setLogLevel(LogLevel.Debug)
             

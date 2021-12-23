@@ -25,7 +25,7 @@ classdef DbRecord < Base
         Query        = []           % Linked DbQuery (optional)
         KeyField     = ''           % Key field(s)
         UseUuid      = true;        % True to use Uuid, otherwise SerialStr() is used        
-        %ColCount     = 0;           % Number of columns
+        ColCount     = 0;           % Number of columns
         ColNames     = [];          % cell - Field names
         ColType      = [];          % cell - Field data types
         Data struct                 % Array of data struct per table row
