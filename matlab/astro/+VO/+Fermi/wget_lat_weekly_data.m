@@ -14,6 +14,7 @@ function List=wget_lat_weekly_data(WeekNumber,Get,pwgetPar)
 %     By : Eran O. Ofek                    Jan 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: List=VO.Fermi.wget_lat_weekly_data(Inf,false);
+% To read files use: T=FITS.readTable1('lat_photon_weekly_w433_p305_v001.fits','BreakRepCol',0);
 % Reliable: 2
 
 if (nargin<3)
