@@ -677,7 +677,8 @@ classdef ImageComponent < Component
                 Args.Class = class(Obj(Iobj).(Args.DataPropIn));
             end
             if Args.DimIndex==1
-                Cube = zeros(Nobj, Size(1), Size(2), Args.Class);
+                Cube = zeros(Size(1), Size(2), Nobj, Args.Class);  % faster
+                %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
             elseif Args.DimIndex==3
                 Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
             else
@@ -692,9 +693,17 @@ classdef ImageComponent < Component
                     end
                 else
                     % DimIndex = 1
+                    
                     for Iobj=1:1:Nobj
-                        Cube(Iobj,:,:) = Obj(Iobj).(Args.DataPropIn);
+                        Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
                     end
+                    Cube = permute(Cube,[3 1 2]);
+
+                    % slower
+                    %for Iobj=1:1:Nobj
+                    %   Cube(Iobj,:,:) = Obj(Iobj).(Args.DataPropIn);
+                    %end
+                    
                 end
                         
             else
