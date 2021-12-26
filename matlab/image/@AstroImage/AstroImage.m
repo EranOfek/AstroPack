@@ -2204,7 +2204,7 @@ classdef AstroImage < Component
             %                   the {'NAXIS1','NAXIS2','CCDSEC','ORIGSEC'}
             %                   header keywords. Default is true.
             %            'UpdateWCS' - A logical indicating if to update
-            %                   the WCS. Default is true.
+            %                   the WCS. Default is false.
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
@@ -2231,7 +2231,7 @@ classdef AstroImage < Component
                 Args.UpdateCat(1,1) logical    = true;
                 Args.cropXYargs cell           = {};
                 Args.UpdateHeader(1,1) logical = true;
-                Args.UpdateWCS(1,1) logical    = true;
+                Args.UpdateWCS(1,1) logical    = false;
                 
                 Args.CreateNewObj logical      = true;
             end
