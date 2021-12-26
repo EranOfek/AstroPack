@@ -66,6 +66,12 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'mexCutout' - use imUtil.image.mexCutout.m (true) or
 %                       imUtil.image.find_within_radius_mat (false).
 %                       Default is true.
+%            'CalcBoxPhot' - Return BoXPhot in photometry.
+%                       Default is false.
+%            'CalcWeightedAper' - Return WeightedAper in photometry.
+%                       Default is false.
+%            'SubPixShiftBeforePhot' - Perform sub pixel shift to stamp
+%                       before aperture photometry. Default is false.
 % Output  : - First moment information. 
 %             A structure with the following fields.
 %             .RoundX - Vector of roundex X position
@@ -89,7 +95,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %             .AperPhot - Matrix of aperture photometry. Column per
 %                         aperture.
 %             .AperArea - Matrix of apertures area. Column per aperture.
-%             .BoxPhot  - Vector of the full box photometry
+%             .BoxPhot  - Vector of the full box photometry (if requested)
 %             .AnnulusBack - Annulus background.
 %             .AnnulusStd - Annulus StD.
 %             .WeightedAper - Weighted photometry. Weighted by the user
@@ -122,6 +128,9 @@ arguments
     Args.WindowOnlyOnLastIter(1,1) logical             = false;
     Args.FinalIterWithCorrectWin(1,1) logical          = true;
     Args.mexCutout(1,1) logical                        = true;
+    Args.CalcBoxPhot logical                           = false;
+    Args.CalcWeightedAper logical                      = false;
+    Args.SubPixShiftBeforePhot logical                 = false;
 end
 
 % make sure all the variables has the same type as the Image
@@ -377,7 +386,6 @@ end
 
 M1.Iter = Iter;
 
-
 M1.X = RoundX + CumRelX1;
 M1.Y = RoundY + CumRelY1;
 M1.Xstart = X;
@@ -386,8 +394,18 @@ M1.Ystart = Y;
 if nargout>1
     % 2nd moment
     % the MatX/MatY cube - shifted to the first moment position
-    MatXcen = MatX - reshape(RelX1,1,1,Nsrc);
-    MatYcen = MatY - reshape(RelY1,1,1,Nsrc);
+    
+    if Args.SubPixShiftBeforePhot
+        % FFU
+        error('Not supported yet');
+        %Cube = imUtil.trans.shift_lanczos(Cube, [CumRelX1, CumRelY1], 3, true);
+        %[Cube]=imUtil.trans.shift_fft(Cube, CumRelX1, CumRelY1);
+        %Cube = 
+    else
+        MatXcen = MatX - reshape(RelX1,1,1,Nsrc);
+        MatYcen = MatY - reshape(RelY1,1,1,Nsrc);
+        MatR2   = MatXcen.^2 + MatYcen.^2;
+    end
     
     M2.X2 = squeeze(sum(WInt.*MatXcen.^2,[1 2])).*Norm;
     M2.Y2 = squeeze(sum(WInt.*MatYcen.^2,[1 2])).*Norm;
@@ -397,12 +415,11 @@ if nargout>1
         % aperture photometry
         Aper.AperRadius = Args.AperRadius;
 
-        
-
         % total box photometry - on non centred position
-        Aper.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));
-
-        
+        if Args.CalcBoxPhot
+            Aper.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));
+        end
+                
 %         % Annulus background
 %         BackFilter = nan(size(MatR));
 %         BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
