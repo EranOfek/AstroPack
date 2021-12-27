@@ -20,13 +20,14 @@ function Result = unitTest()
     Q = db.DbQuery('unittest', 'TableName', 'master_table');
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
     
-    testDelete(Q);
+    testUpdate(Q);
+    %testDelete(Q);
     
     %testInsert(Q);
     %testSelect(Q);        
         
     ColNames = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
-    ColNames = Q.Config.Data.Database.Items.UnitTest.DoubleFields;
+    ColNames = Q.Config.Data.Database.DbConnection.Connections.UnitTest.DoubleFields;
     Cols = numel(strsplit(ColNames, ','));
     Mat = rand(1000, Cols);
     R = db.DbRecord(Mat, 'ColNames', ColNames);
@@ -80,7 +81,6 @@ function Result = unitTest()
         %testUpdate(Q);
         %testDelete(Q);
         %testCopy(Q);
-        %testMisc(Q);
         
     end
         
@@ -318,6 +318,8 @@ end
 
 
 function Result = testInsert(Q)
+    % Test DbQuery.insert()
+    
     % Assume that we are the single process writing to this table at the moment
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery.insert test started')
     
@@ -383,105 +385,41 @@ function Result = testInsert(Q)
     if TestCopy
     end
     
-%       
-%     % ---------------------------------------------- insertRecord: struct
-% 
-%     % Create struct with different types of fields
-%     s = struct;            
-%     s.recid = Component.newUuid();
-%     Q.insert('master_table', s);            
-% 
-%     % int32
-%     s = struct;            
-%     s.recid = Component.newUuid();
-%     s.fint = int32(1);
-%     Q.insert('master_table', s);            
-% 
-%     % bool
-%     s = struct;            
-%     s.recid = Component.newUuid();
-%     s.fbool = true;
-%     Q.insert('master_table', s);             
-% 
-%     % bigint            
-%     s = struct;            
-%     s.recid = Component.newUuid();            
-%     s.fbigint = int64(3);
-%     Q.insert('master_table', s);             
-% 
-%     % double
-%     s = struct;            
-%     s.recid = Component.newUuid();            
-%     s.fdouble = double(5);
-%     Q.insert('master_table', s);                         
-% 
-%     % string
-%     s = struct;            
-%     s.recid = Component.newUuid();                        
-%     s.fstring = 'abcd';
-%     Q.insert('master_table', s);             
-% 
-%     % Insert struct with field mapping
-%     s = struct;            
-%     s.recid = Component.newUuid();
-%     s.fintTest = int32(1);
-%     map = struct;
-%     map.fintTest = 'fint';            
-%     Q.insert('master_table', s, 'FieldMap', map);
-% 
-%     % ---------------------------------------------- insertRecord: DbRecord
-%     r = db.DbRecord;
-%     r.addProp('recid', Component.newUuid());
-%     r.addProp('fint', 3);
-%     Q.insert('master_table', r);
-
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery.insert test passed')
     Result = true;
 end
 
-
 %==========================================================================
 
 function Result = testUpdate(Q)
-
-    Result = true;
-    return;
+    % Test DbQuery.update()
     
-    % ---------------------------------------------- Update
+    Q.TableName = 'master_table';
+    
+    % Insert some records
+    Uuid = Component.newUuid();
+    RecCount = 5;
+    R = db.DbRecord;    
+    for i = 1:RecCount
+        R.Data(i).recid = sprintf('%s_%02d', Uuid, i);
+        R.Data(i).fint = 0;
+        R.Data(i).fdouble = 0;            
+        R.Data(i).fstring = sprintf('MyStr_%03d', i);        
+    end    
+    Q.insert(R);
+    
+    % Update all records with recid that starts with Uuid_
+    for i=1:10
+        Where = sprintf('recid like ''%s_%%''', Uuid);
+        MyStr = sprintf('NewValue_%04d', i);
+        Q.update(sprintf('fint=%d,fdouble=%f,fstring=''%s''', i, 0.1*i, MyStr), 'Where', Where);
 
-    % string
-    s = struct;            
-    s.recid = Component.newUuid();                        
-    s.fstring = 'Original Text';
-    Q.insertRecord('master_table', s);             
-
-    u = struct;
-    u.fstring = 'My new TEXT';
-    where = struct;
-    where.recid = s.recid;
-    Q.updateRecord('master_table', u, where);                         
-    %function Result = updateRecord(Obj, TableName, Rec, WhereRec, Args)
-
-    Q.deleteRecord('master_table', where);
-
-    io.msgLog(LogLevel.Test, 'testing UPDATE...');
-    UpdateCount = 100;
-    uuid = Component.newUuid();
-    sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-    Q.exec(sql);
-    for i = 1:UpdateCount
-        sql = sprintf("UPDATE master_table SET FInt=%d WHERE RecID='%s'", i, uuid);
-        Q.exec(sql);
-
-        sql = sprintf("SELECT RecID,FInt from master_table where RecID='%s'", uuid).char;
-        Q.query(sql);
-        val = Q.getField('FInt');
-        assert(val == i);
-    end            
-
-    count2 = Q.selectCount('master_table');
-    assert(count2 == count+1);
-
+        R = Q.select('fint,fdouble,fstring', 'Where', Where);        
+        for j=1:RecCount
+            assert(R.Data(j).fint == i);
+            assert(strcmp(R.Data(j).fstring, MyStr));
+        end
+    end
     
     Result = true;
 end
@@ -489,7 +427,8 @@ end
 %==========================================================================
 
 function Result = testDelete(Q)
-
+    % Test DbQuery.deleteRecord()
+    
     Result = false;
     Q.TableName = 'master_table';
     for Iter=1:5
@@ -508,17 +447,6 @@ function Result = testDelete(Q)
     
     Result = true;
 end
-
-%==========================================================================
-
-function Result = testMisc(Q)
-
-    Result = true;
-    return;
-    
-    Result = true;
-end
-
 
 %==========================================================================
 

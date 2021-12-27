@@ -57,6 +57,13 @@ function Result = unitTest()
     M.msgStyle(LogLevel.Test, 'blue', 'Message in blue');
     M.msgStyle(LogLevel.Test, 'red', 'Message in red');
 
+    % Test exception
+    try
+        throw(MException('MyFunc:MyExType', 'This is my message'));
+    catch Ex
+        M.msgLogEx(LogLevel.Error, Ex, 'elapsed time: %f', toc);
+    end
+    
     % Create another logger, besides the singleton one.
     MyLog = MsgLogger('FileName', fullfile(Path, 'OtherLogFile'), 'UseTimestamp', true);
     MyLog.setLogLevel(LogLevel.Info, 'type', 'file');            
@@ -65,7 +72,7 @@ function Result = unitTest()
     MyLog.msgLog(LogLevel.Debug,   'Test: %d', uint32(LogLevel.Debug));
     MyLog.msgLog(LogLevel.Info,    'Test: %d', uint32(LogLevel.Info));
     MyLog.msgLog(LogLevel.Warning, 'Test: %d', uint32(LogLevel.Warning));    
-           
+               
     fprintf('MsgLogger test passed\n');
     Result = true;
 end

@@ -5,14 +5,53 @@ function Result = unitTest()
     % as we validate that LogFile works without any dependencies
     fprintf('Exception test started\n');
 
+    % assert() - This should throw MException as:
+    %    identifier: ''
+    %    message:    'Indexing array is not numeric.'
+    %    cause:      {}
+    idx = 'a';
     Catched = false;
     try
-        assert(isnumeric(idx),'MYFUN:notNumeric', 'Indexing array is not numeric.')
+        assert(isnumeric(idx), 'Indexing array is not numeric.');
     catch Ex
         Catched = true;
         getReport(Ex)
     end
     assert(Catched == true);
+    
+    % assert() with errID - This should throw MException as:
+    %    identifier: 'MYFUN:notNumeric'
+    %    message:    'Indexing array is not numeric.'
+    %    cause:      {}    
+    %
+    % NOTE that errID must be formated as 'component:mnemonic' 
+    % (i.e. 'Function:ExceptionType')
+    Catched = false;
+    try
+        assert(isnumeric(idx), 'MYFUN:notNumeric', 'Indexing array is not numeric.');
+    catch Ex
+        Catched = true;
+        getReport(Ex)
+    end
+    assert(Catched == true);
+    
+    
+    % throw() with errID - This should throw MException as:
+    %    identifier: 'MyFunc:MyExType'
+    %    message:    'This is my message'
+    %    cause:      {}    
+    %
+    % NOTE that errID must be formated as 'component:mnemonic' 
+    % (i.e. 'Function:ExceptionType')
+    Catched = false;
+    try
+        throw(MException('MyFunc:MyExType', 'This is my message'));
+    catch Ex
+        Catched = true;
+        getReport(Ex)
+    end
+    assert(Catched == true);
+    
     
     % Should NOT throw
     Catched = false;
@@ -25,6 +64,7 @@ function Result = unitTest()
         error('Should not throw');
     end
     assert(Catched == false);
+    
     
     % Index out of range
     Catched = false;
@@ -61,6 +101,16 @@ function Result = unitTest()
     end
     assert(Catched == true);
     
+    
+    % Log file
+    Catched = false;
+    try 
+        io.msgLogThrow(LogLevel.Error, MException('MyFunc:MyErrorType', 'This is my message'));
+    catch Ex
+        Catched = true;
+        getReport(Ex)
+    end
+    assert(Catched == true);
     
     % Done
     fprintf('Exception test passed\n');

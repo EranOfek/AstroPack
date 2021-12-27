@@ -196,6 +196,23 @@ classdef MsgLogger < handle
         end
 
 
+		function msgLogEx(Obj, Level, Ex, varargin)
+            % Log MException message to console/file according to current LogLevel settings
+            % Input:   Level    - LogLevel enumeration, see LogLevel.m
+            %          Ex       - MException object
+            %          varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
+            MsgReport = getReport(Ex, 'extended', 'hyperlinks', 'off');
+            if ~isempty(varargin)
+                Msg = sprintf('Exception: %s - %s - %s - %s', Ex.identifier, Ex.message, MsgReport, sprintf(varargin{:}));
+            else
+                Msg = sprintf('Exception: %s - %s - %s', Ex.identifier, Ex.message, MsgReport);
+            end
+            Obj.msgStyle(Level, 'red', Msg);
+        end
+        
+        
 		function Result = shouldLog(Obj, Level, CurLevel)
             % Return true if specified Level should be logged according
             % to the specified CurLevel settings
