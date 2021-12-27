@@ -1,4 +1,4 @@
-function [Result,FiltImage,FiltImageVar] = findSources(Image, Args)
+function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     % Find sources, using matched filter template bank, in a 2D image
     % Input  : - A 2D image.
     %          * ...,key,val,...
@@ -68,6 +68,7 @@ function [Result,FiltImage,FiltImageVar] = findSources(Image, Args)
     %                   templates.
     %            .BACK_IM - A vector of background at source position.
     %            .VAR_IM - A vector of variance at source position.
+    %          - Cube of templates.
     %          - Filtered image.
     %          - Filtered image variance.
     % Author : Eran Ofek (Dec 2021)
@@ -86,7 +87,6 @@ function [Result,FiltImage,FiltImageVar] = findSources(Image, Args)
         Args.BackIm                        = [];
         Args.VarIm                         = [];
         Args.BackPar cell                  = {};
-        Args.MomPar cell                   = {};
         Args.OutType                       = 'struct';   % 'astrocatalog' | 'struct' | 'table'
         Args.Conn                          = 8;
         Args.ImageField char               = 'Im';
