@@ -26,6 +26,8 @@ function [ShiftedImage]=shift_lanczos(Image, ShiftXY, A, IsCircFilt, PadVal)
 %          ShiftedImage=imUtil.trans.shift_lanczos(ShiftedImage,[-1.22,2.1],3,true);
 %          imUtil.image.moment2(ShiftedImage,16,16) 
 %          max(abs(ShiftedImage-G),[],'all')
+%          G=imUtil.kernel2.gauss([2;3],[31 31]);
+%          imUtil.image.moment2(G,16,16) 
 % Reliable: 
 
 arguments
