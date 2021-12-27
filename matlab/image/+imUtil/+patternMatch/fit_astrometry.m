@@ -119,7 +119,7 @@ if nargin==0
     IC = IC.trim([500 1500 1500 2500]);
     IC = gain_correct(IC);
     
-    [Cat,ColCell,ResFindSrc]=imUtil.sources.find_sources(IC.Im,'Threshold',5);
+    [Cat,ColCell,ResFindSrc]=imUtil.sources.find_measure_sources(IC.Im,'Threshold',5);
 
     
     %Catalog = S.Cat(:,[2 3 20]);

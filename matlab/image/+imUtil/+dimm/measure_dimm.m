@@ -42,7 +42,7 @@ for Iim=1:1:Nim
     if InPar.Verbose
         fprintf('Analyzing image %d out of %d\n',Iim,Nim);
     end
-    [Cat(Iim),~,~]=imUtil.sources.find_sources(single(Cube(:,:,Iim)),'PsfFunPar',{15});
+    [Cat(Iim),~,~]=imUtil.sources.find_measure_sources(single(Cube(:,:,Iim)),'PsfFunPar',{15});
     
     XY = getCol(Cat(Iim),{'XPEAK','YPEAK'});
     SN = getCol(Cat(Iim),'SN_1');

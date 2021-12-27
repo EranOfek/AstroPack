@@ -70,7 +70,7 @@ if nargin==0
     IC = imCl.fits2imCl('PTF*.fits'); 
     IC = IC(1);
     cd(PWD)
-    C  = imUtil.sources.find_sources(IC.Im);
+    C  = imUtil.sources.find_measure_sources(IC.Im);
     
     Mag = abs(27 - 2.5.*log10(C.Cat(:,18)));
     Cat = [C.Cat(:,12:13),Mag];

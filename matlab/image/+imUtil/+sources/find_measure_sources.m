@@ -1,4 +1,4 @@
-function [Cat, ColCellOut, Res]=find_sources(Image, Args)
+function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     % find sources in an image
     % Package: imUtil.sources
     % Description: Find sources in an image using a matched filter of template
@@ -96,10 +96,10 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
     % Tested : Matlab R2015b
     %     By : Eran O. Ofek                    Apr 2016
     %    URL : http://weizmann.ac.il/home/eofek/matlab/
-    % Example: [Cat,ColCell,Res]=imUtil.sources.find_sources(I1.Im,'Threshold',5)
+    % Example: [Cat,ColCell,Res]=imUtil.sources.find_measure_sources(I1.Im,'Threshold',5)
     %          Im=imUtil.kernel2.gauss(2,[128 128]);
     %          Im=Im.*1000 +randn(size(Im));        
-    %          [Cat,ColCell,Res]=imUtil.sources.find_sources(Im,'Threshold',5);
+    %          [Cat,ColCell,Res]=imUtil.sources.find_measure_sources(Im,'Threshold',5);
     % Reliable: 2
     %--------------------------------------------------------------------------
 
@@ -141,9 +141,7 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
     Mom2Cell   = {'X2','Y2','XY'};
     Mom3Cell   = {'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS', 'FLUX_WAPER', 'FLUXERR_APER', 'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS'};
 
-
-
-
+    
     if isstruct(Image)
         if isempty(Args.BackIm)
             Back = Image.(Args.BackField);
@@ -160,74 +158,27 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
         [Back,Var] = imUtil.background.background(Image,Args.BackPar{:});
     end
 
-    if ~isempty(Args.Psf)
-        Template = Args.Psf;
-    else
-        Template = Args.PsfFun(Args.PsfFunPar{:});
-    end
-
-    % Template = single(Template);
-    % Back     = single(Back);
-    % Var      = single(Var);
-    % Image    = single(Image);
-
-
-    % filter the images with all the templates
-    [SN,Flux,FiltImage,FiltImageVar] = imUtil.filter.filter2_snBank(Image,Back,Var,Template);
-    if Args.OnlyForced
-        Pos = zeros(0,4);
-    else
-        %[~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
-        % much faster:
-        [Pos] = imUtil.sources.findLocalMax(SN, 'Variance',1, 'Threshold',Args.Threshold,'Conn',Args.Conn, 'Algo','findlocal');
-        
-        % Pos contains:  [X,Y,SN,index]
-    end
-    % Pos contains [X,Y,SN,IndexTemplate]
-
-
-    %{'X_PEAK','Y_PEAK','SN','TEMPLATE_ID','FLUX','BACK_IM','VAR_IM','XWIN_IMAGE','YWIN_IMAGE'
-    Size = size(SN);
-    Ntemplate = size(Template,3);
-
-    % add forced photometry surces
-    if ~isempty(Args.ForcedList)
-        NsrcF = size(Args.ForcedList,1);
-        PosF  = nan(NsrcF,4);
-        % take the rounded positions
-        PosF(:,1:2) = round(Args.ForcedList);
-        % forced photomety are marked as arriving from template=NaN
-        Pos = [Pos; PosF];
-    end
-
-
-
-    Nsrc = size(Pos,1);
-
-    IndI = repmat(Pos(:,2),1,Ntemplate);
-    IndJ = repmat(Pos(:,1),1,Ntemplate);
-    IndT = (1:1:Ntemplate).*ones(Nsrc,1);
-    %Ind  = sub2ind(Size,IndI,IndJ,IndT);
-    Ind  = imUtil.image.sub2ind3d_fast(Size,IndI,IndJ,IndT);
     
-    Src.XPEAK     = Pos(:,1);
-    Src.YPEAK     = Pos(:,2);
-    % S/N from local_maxima is not usedSrc.BACK_IM
-    Src.TEMP_ID   = Pos(:,4);
-    Src.SN        = SN(Ind);
-    Src.FLUX_CONV = Flux(Ind);
 
-    if numel(Back)==1
-        Src.BACK_IM = Back;
-        Src.VAR_IM  = Var;
-    else
-        Ind  = imUtil.image.sub2ind_fast(Size(1:2),IndI(:,1),IndJ(:,1));
-        Src.BACK_IM   = Back(Ind);
-        Src.VAR_IM    = Var(Ind);
-    end
-
-
-
+    [Src,Template] = imUtil.sources.findSources(Image, 'Threshold',Args.Threshold,...
+                                            'Psf',Args.Psf,...
+                                            'PsfFun',Args.PsfFun,...
+                                            'PsfFunPar',Args.PsfFunPar,...
+                                            'ForcedList',Args.ForcedList,...
+                                            'OnlyForced',Args.OnlyForced,...
+                                            'BackIm',Back,...
+                                            'VarIm',Var,...
+                                            'OutType','struct',...
+                                            'Conn',Args.Conn,...
+                                            'ImageField',Args.ImageField,...
+                                            'BackField',Args.BackField,...
+                                            'VarField',Args.VarField);
+    
+    % Number of templates
+    Ntemplate = size(Template,3);
+    Nsrc      = numel(Src.XPEAK);
+    
+   
 
     %if nargout>2
     %    varargout = cell(1:nargout-1);
