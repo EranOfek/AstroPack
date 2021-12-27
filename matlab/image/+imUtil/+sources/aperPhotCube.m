@@ -1,5 +1,6 @@
 function Result = aperPhotCube(Cube, X, Y, Args)
-    % Aperture and simple PSF (no-fit) photometry on a cube of stamps.
+    % Aperture and simple PSF (no-fit) photometry on a cube of stamps
+    % including sub-pix shifts.
     %       This function may optional center the sources (given their
     %       position) using fft or Lanczos shifts.
     %       The PSF photometry is calculated without fitting (just PSF
