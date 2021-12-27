@@ -40,12 +40,17 @@ Npos = size(PosXY,1);
 K = zeros(SizeXY(2),SizeXY(1),Ntemp);
 for I=1:1:Ntemp
     Ipos = min(I, Npos);
-    [MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(Ipos,1), (1:1:SizeXY(2))-PosXY(Ipos,2) );
-    MatR        = sqrt(MatX.^2 + MatY.^2);
+    %[MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(Ipos,1), (1:1:SizeXY(2))-PosXY(Ipos,2) );
+    %MatR        = sqrt(MatX.^2 + MatY.^2);
     
-    Tmp = zeros(SizeXY(2),SizeXY(1));
+    VecX = (1:1:SizeXY(1))-PosXY(Ipos,1);
+    VecY = [(1:1:SizeXY(2))-PosXY(Ipos,2)].'; 
+    MatR = sqrt(VecX.^2 + VecY.^2);
     
-    Tmp = sinc(MatX).*sinc(MatX./A(I)).*sinc(MatY).*sinc(MatY./A(I));
+    %Tmp = zeros(SizeXY(2),SizeXY(1));
+    
+    %Tmp = sinc(MatX).*sinc(MatX./A(I)).*sinc(MatY).*sinc(MatY./A(I));
+    Tmp = sinc(VecX).*sinc(VecX./A(I)).*sinc(VecY).*sinc(VecY./A(I));
     Tmp(MatR>A(I)) = 0;
     
     K(:,:,I) =  Tmp./sum(Tmp,'all');
