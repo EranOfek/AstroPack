@@ -72,7 +72,7 @@ switch Geom
  case 'sphere'
     DistIJ  = celestial.coo.sphere_dist(RA(1),Dec(1),RA(2:end),Dec(2:end));
  case 'plane'
-    DistIJ  = Util.Geom.plane_dist(RA(1),Dec(1),RA(2:end),Dec(2:end));
+    DistIJ  = tools.math.geometry.plane_dist(RA(1),Dec(1),RA(2:end),Dec(2:end));
  otherwise
     error('Unknown geometry option');
 end
@@ -136,7 +136,7 @@ switch Geom
  case 'sphere'
     [Dist,PA] = celestial.coo.sphere_dist(RA,Dec,BestCen(1),BestCen(2)); 
  case 'plane'
-    [Dist,PA] = Util.Geom.plane_dist(RA,Dec,BestCen(1),BestCen(2)); 
+    [Dist,PA] = tools.math.geometry.plane_dist(RA,Dec,BestCen(1),BestCen(2)); 
  otherwise
     error('Unknown geometry option');
 end
