@@ -59,7 +59,7 @@ F   = cast(F, 'like',Image);
 
 for Iim=1:1:Nim
     Ish = min(Iim,Nsh);
-    if any(abs(ShiftXY)>1)
+    if any(abs(ShiftXY(Ish,:))>1)
         if IsCircFilt
             Image(:,:,Iim) = circshift(Image(:,:,Iim), WholeShiftXY(Ish,[2 1]));
 

@@ -80,7 +80,7 @@ function [LabeledImage]=connected_prop(Image,varargin)
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Apr 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Cat,ColCell,Res]=imUtil.sources.find_sources(I1.Im,'Threshold',5)
+% Example: 
 % Reliable: 2
 %--------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-function [Cat, ColCellOut, Res]=find_sources(Image, Args)
+function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     % find sources in an image
     % Package: imUtil.sources
     % Description: Find sources in an image using a matched filter of template
@@ -96,10 +96,10 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
     % Tested : Matlab R2015b
     %     By : Eran O. Ofek                    Apr 2016
     %    URL : http://weizmann.ac.il/home/eofek/matlab/
-    % Example: [Cat,ColCell,Res]=imUtil.sources.find_sources(I1.Im,'Threshold',5)
+    % Example: [Cat,ColCell,Res]=imUtil.sources.find_measure_sources(I1.Im,'Threshold',5)
     %          Im=imUtil.kernel2.gauss(2,[128 128]);
     %          Im=Im.*1000 +randn(size(Im));        
-    %          [Cat,ColCell,Res]=imUtil.sources.find_sources(Im,'Threshold',5);
+    %          [Cat,ColCell,Res]=imUtil.sources.find_measure_sources(Im,'Threshold',5);
     % Reliable: 2
     %--------------------------------------------------------------------------
 
@@ -140,9 +140,6 @@ function [Cat, ColCellOut, Res]=find_sources(Image, Args)
     Mom1Cell   = {'X', 'Y'};
     Mom2Cell   = {'X2','Y2','XY'};
     Mom3Cell   = {'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS', 'FLUX_WAPER', 'FLUXERR_APER', 'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS'};
-
-
-
 
     if isstruct(Image)
         if isempty(Args.BackIm)

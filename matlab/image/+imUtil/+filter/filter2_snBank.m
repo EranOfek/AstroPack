@@ -98,7 +98,7 @@ end
      Template = Template(varargin{:});
  end
  
-Template = cast(Template, 'like',Image);
+
 
 % treat empty background/variance:
 if isempty(Background)
@@ -119,6 +119,8 @@ if ~isnumeric(Template)
     Template = Template(varargin{:});
 end
 
+Template = cast(Template, 'like',Image);
+
 % normalize template to have unity sum
 SumTemplate = sum(Template,[1 2]);
 Template    = Template./SumTemplate;
@@ -135,13 +137,13 @@ end
 [~,~,Nbank]  = size(Template);
 SizeIm       = size(Image);
 SizeVar      = size(Variance);
-FiltImage    = zeros(SizeIm(1),SizeIm(2),Nbank);
+FiltImage    = zeros(SizeIm(1),SizeIm(2),Nbank,'like',Image);
 NormVar      = zeros(Nbank,1);
-FiltImageVar = zeros(SizeVar(1),SizeVar(2),Nbank);
+FiltImageVar = zeros(SizeVar(1),SizeVar(2),Nbank,'like',Image);
 %FiltImageStd = zeros(SizeVar(1),SizeVar(2),Nbank);
-SN           = zeros(SizeIm(1),SizeIm(2),Nbank);
+SN           = zeros(SizeIm(1),SizeIm(2),Nbank,'like',Image);
 if nargout>1
-    Flux         = zeros(SizeIm(1),SizeIm(2),Nbank);
+    Flux         = zeros(SizeIm(1),SizeIm(2),Nbank,'like',Image);
 end
 
 % OLD - slow code
