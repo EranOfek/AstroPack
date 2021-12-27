@@ -123,7 +123,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     Result.Back = squeeze(Result.Back);
     Result.Std  = squeeze(Result.Std);
      
-    ShiftXY = [X - ceil(SizeX.*0.5), Y - ceil(SizeY.*0.5)];  % is this correct?
+    ShiftXY = [ceil(SizeX.*0.5) - X, ceil(SizeY.*0.5) - Y];  % is this correct?
     
     % sub pixel shift
     switch Args.SubPixShift   

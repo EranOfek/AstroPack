@@ -178,8 +178,6 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     Ntemplate = size(Template,3);
     Nsrc      = numel(Src.XPEAK);
     
-   
-
     %if nargout>2
     %    varargout = cell(1:nargout-1);
     %    [varargout{1:nargout-1}] = imUtil.image.moment2(Image-Back,Pos(:,1),Pos(:,2),Args.MomPar{:});
