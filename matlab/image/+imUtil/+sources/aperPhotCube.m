@@ -65,7 +65,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     %                   Element per PSF. Fields are:
     %                   .Phot - Vector of PSF photometry.
     %            .BoxPhot (optional)
-    % Example: Cube = randn(17,17,100); X=ones(100,1).*9; Y=X;
+    % Example: Cube = randn(17,17,4000); X=ones(4000,1).*9; Y=X;
     %          imUtil.sources.aperPhotCube(Cube, X, Y);
     %          PSF  = imUtil.kernel2.gauss([1.5;2],[17 17]);
     %          imUtil.sources.aperPhotCube(Cube, X, Y, 'PSF',PSF)

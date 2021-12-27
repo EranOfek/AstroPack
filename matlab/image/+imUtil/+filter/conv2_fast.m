@@ -34,9 +34,10 @@ arguments
 end
 
 Threshold = 0.004;  % requires calibration
+SizeThresh = 2500;
 if isempty(UseFFT)
     % auto method
-    UseFFT = (numel(Mat2)./numel(Mat1))>Threshold;
+    UseFFT = (numel(Mat2)./numel(Mat1))>Threshold && numel(Mat1)>SizeThresh;
 end
 
 if ~isempty(PadMethod)
