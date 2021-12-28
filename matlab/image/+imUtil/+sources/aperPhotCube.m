@@ -70,6 +70,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     %          PSF  = imUtil.kernel2.gauss([1.5;2],[17 17]);
     %          imUtil.sources.aperPhotCube(Cube, X, Y, 'PSF',PSF)
     %          imUtil.sources.aperPhotCube(Cube, X, Y, 'PSF',PSF,'SubPixShift','fft')
+    %          
     
     arguments
         Cube    % image index is in thrid dimension
