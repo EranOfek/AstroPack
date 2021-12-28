@@ -131,12 +131,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         case 'lanczos'
             [Cube] = imUtil.trans.shift_lanczos(Cube, ShiftXY, Args.A, Args.IsCircFilt, Args.PadVal);
         case 'fft'
-            Iim = 1;
-            [Cube(:,:,Iim),NY,NX,Nr,Nc] = imUtil.trans.shift_fft(Cube(:,:,Iim), ShiftXY(Iim,1), ShiftXY(Iim,2));
-            for Iim=2:1:Nim
-                [Cube(:,:,Iim)] = imUtil.trans.shift_fft(Cube(:,:,Iim), ShiftXY(Iim,1), ShiftXY(Iim,2), NY,NX,Nr,Nc);
-            end
-            
+            [Cube] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));            
         case 'none'
             % no sub pixel shift
             % need to prepare a new version of MatR2 with the correct

@@ -7,9 +7,12 @@ function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
 %              Note that the shift is defined on the content of the image,
 %              rather than the image boundries - e.g., the stars will be
 %              shifted in the requested direction.
-% Input  : - An image (2D matrix).
-%          - X shift to apply to input image.
-%          - Y shift to apply to input image.
+% Input  : - An image (2D matrix), or a cube of images, in which the image
+%            index is in the 3rd dimension.
+%          - X shift to apply to input image, or a vector (if image is
+%            cube).
+%          - Y shift to apply to input image, or a vector (if image is
+%            cube).
 %          - NY (supply for faster performences). See output.
 %          - NX (supply for faster performences). See output.
 %          - Nr (supply for faster performences). See output.
@@ -26,10 +29,14 @@ function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
 %     By : Eran O. Ofek                    May 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: ShiftedImage=imUtil.trans.shift_fft(Image,1.22,-3.1);
+%          PSF=imUtil.kernel2.gauss([2;2.5]);
+%          SI2_1 =imUtil.trans.shift_fft(PSF(:,:,1),1.22,-3.1);
+%          SI2_2 =imUtil.trans.shift_fft(PSF(:,:,2),1.22,-3.1);
+%          SI3   =imUtil.trans.shift_fft(PSF,[1.22;1.22],[-3.1;-3.1]);
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-Algo = 1;
+Algo = 3;
 
 
 if Algo==0
@@ -141,6 +148,75 @@ elseif Algo==1
     Nr = [];
     Nc = [];
 elseif Algo==2
+    % new / without the padding
+  
+    [NY,NX] = size(Image);
+   
+    % Kernel for X dimension
+    OperX = fft([0 1 zeros(1,NX-2)]);
+    KernelX = fftshift(exp(1i.*DX.*phase(OperX)));
+    KernelX = KernelX./KernelX(1);
+    KernelX(floor(NX.*0.5+1)) = 1;
+    %KernelX = ifft(KernelX);
+
+    % Kernel for Y dimension
+    OperY = fft([0 1 zeros(1,NY-2)]);
+    KernelY = fftshift(exp(1i.*DY.*phase(OperY))).';
+    KernelY = KernelY./KernelY(1);
+    KernelY(floor(NY.*0.5+1)) = 1;
+    %KernelY = ifft(KernelY);
+
+    
+    %SX = ifft( bsxfun(@times,fft(Image,[],2),KernelX) ,[],2);
+    SX = ifft(fft(Image,[],2).*KernelX, [], 2);
+    
+    % need to take the real part as there is some residual imaginary
+    % part due to computer precision errors
+    %ShiftedImage=real(ifft( bsxfun(@times,fft(SX,[],1), KernelY) ,[],1));
+    ShiftedImage=real(ifft( fft(SX,[],1).*KernelY ,[],1));
+    
+    Nr = [];
+    Nc = [];
+    
+elseif Algo==3
+    % new / without the padding / for cube
+  
+    [NY,NX, Nim] = size(Image);  % must ask for Nim, otherwise wrong results
+   
+    DX = DX(:);
+    DY = DY(:);
+    
+    % Kernel for X dimension
+    OperX = fft([0 1 zeros(1,NX-2)]);
+    KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
+    KernelX = KernelX./KernelX(1,1,:);
+    KernelX(:,floor(NX.*0.5+1)) = 1;
+    %KernelX = ifft(KernelX);
+
+    % Kernel for Y dimension
+    OperY = fft([0 1 zeros(1,NY-2)]);
+    KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
+    KernelY = KernelY./KernelY(1,1,:);
+    KernelY(:,floor(NY.*0.5+1)) = 1;
+    %KernelY = ifft(KernelY);
+    KernelY = KernelY.';
+    
+    KernelX = permute(KernelX,[3 2 1]);  % e.g., size is 1x15x2
+    KernelY = permute(KernelY,[1 3 2]);  %e.g., size is 15x1x2
+    
+    %SX = ifft( bsxfun(@times,fft(Image,[],2),KernelX) ,[],2);
+    SX = ifft(fft(Image,[],2).*KernelX, [], 2);
+    
+    % need to take the real part as there is some residual imaginary
+    % part due to computer precision errors
+    %ShiftedImage=real(ifft( bsxfun(@times,fft(SX,[],1), KernelY) ,[],1));
+    ShiftedImage=real(ifft( fft(SX,[],1).*KernelY ,[],1));
+    
+    Nr = [];
+    Nc = [];
+    
+    
+elseif Algo==4
     % old
     
     %function [ShiftedImage,NY,NX,Nr,Nc]=image_shift_fft(Image,DX,DY,NY,NX,Nr,Nc)

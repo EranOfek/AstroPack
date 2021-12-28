@@ -73,7 +73,7 @@ function Result = unitTest
     
     
     % now with sub-pix shifts / no noise
-    PSF = imUtil.kernel2.gauss(1.5+0.15,[25 25]);
+    PSF = imUtil.kernel2.gauss(1.5,[25 25]);
     Nsrc  = 10;
     Flux  = rand(Nsrc, 1).*1e6;
     Cube  = imUtil.kernel2.gauss(1.5.*ones(Nsrc,1),[25 25]);
@@ -85,7 +85,6 @@ function Result = unitTest
         [ShiftedCube(:,:,Isrc)]=imUtil.trans.shift_fft(Cube(:,:,Isrc),DX(Isrc),DY(Isrc));
         %[ShiftedCube(:,:,Isrc)]=imUtil.trans.shift_lanczos(Cube(:,:,Isrc),[DX(Isrc),DY(Isrc)]);
     end
-    
     ShiftedCube  = ShiftedCube.*permute(Flux,[3 2 1]); % + randn(25,25,Nsrc).*0.1;
     %ShiftedCube  = poissrnd(ShiftedCube) + randn(25,25,Nsrc).*0.1;
     Result = imUtil.sources.aperPhotCube(ShiftedCube, 13.*ones(Nsrc,1)+DX, 13.*ones(Nsrc,1)+DY, 'AperRad',[2 4 5 6],'PSF',PSF,'SubPixShift','fft');
