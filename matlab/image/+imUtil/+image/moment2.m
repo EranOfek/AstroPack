@@ -23,6 +23,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %              Note that the measurment of the second moment may be
 %              biased and it can be usually used only as a relative
 %              quantity.
+%              For more accurate PSF photometry - use imUtil.sources.aperPhotCube
 % Input  : - a 2D image (background subtracted), or a 3D cube of cutouts
 %            (3rd dim is ciutout index).
 %          - A vector of X coordinates around to calculate moments.
@@ -145,7 +146,6 @@ MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than al
 Naper      = numel(Args.AperRadius);
 
 
-% FFU: replace with:
 [Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y);    
 
 % NdimImage = ndims(Image);
@@ -188,13 +188,18 @@ SizeCube = cast(SizeCube, 'like',Image);
 if (SizeCube(1)~=SizeCube(2))
     error('First two dimensions of cube must be equal');
 end
-Vec = (1:1:SizeCube(1)) - SizeCube(1).*0.5 - 0.5;
+StampCenterX = SizeCube(2).*0.5 + 0.5;
+StampCenterY = SizeCube(1).*0.5 + 0.5;
+
+VecX = (1:1:SizeCube(2)) - StampCenterX;
+VecY = (1:1:SizeCube(1)) - StampCenterY;
+Vec  = VecX;
 
 % no need to use meshgrid:
 [MatX,MatY] = meshgrid(Vec,Vec);
 %MatR        = sqrt(MatX.^2 + MatY.^2);
 MatR2       = MatX.^2 + MatY.^2;
-%MatR2        = Vec.^2 + Vec(:).^2;
+MatR2        = VecX.^2 + VecY(:).^2;
 
 %MatR        = sqrt(MatR2);
 
@@ -412,38 +417,50 @@ if nargout>1
     M2.XY = squeeze(sum(WInt.*MatXcen.*MatYcen,[1 2])).*Norm;
     
     if nargout>2
-        % aperture photometry
-        Aper.AperRadius = Args.AperRadius;
+        Args.UseAperPhotCube = false;
+        Args.PSF             = [];
+        if Args.UseAperPhotCube
+            XX   = M1.X - M1.Xstart + StampCenterX;
+            YY   = M1.Y - M1.Ystart + StampCenterY;
+            % probelms:
+            % 1. when using 'none' - plot(Aper1.AperPhot(:,3), Aper.AperPhot(:,3),'.')
+            %    what is the nature of zeros.
+            % 2. when using fft - what is going on?
+            Aper1 = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','fft', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
+            
+        else
+        
+            % aperture photometry
+            Aper.AperRadius = Args.AperRadius;
 
-        % total box photometry - on non centred position
-        if Args.CalcBoxPhot
-            Aper.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));
-        end
-                
-%         % Annulus background
-%         BackFilter = nan(size(MatR));
-%         BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
-%         BackCube = BackFilter.*Cube;
-%         % note - use NaN ignoring functions!
-%         Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
-%         Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+            % total box photometry - on non centred position
+            if Args.CalcBoxPhot
+                Aper.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));
+            end
 
-        % weighted aperture photometry
-        % back is already subtracted
-        Aper.WeightedAper = squeeze(sum(WInt,[1 2])./sum((W.*W_Max).^2,[1 2])); 
+    %         % Annulus background
+    %         BackFilter = nan(size(MatR));
+    %         BackFilter(MatR>Args.Annulus(1) & MatR<Args.Annulus(2)) = 1;
+    %         BackCube = BackFilter.*Cube;
+    %         % note - use NaN ignoring functions!
+    %         Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
+    %         Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
 
-        % simple aperture photometry in centered pixeleted aperure
-        Aper.AperPhot = zeros(Nsrc,Naper, 'like',Image);
-        Aper.AperArea = zeros(Nsrc,Naper, 'like',Image);
-        for Iaper=1:1:Naper
-            AperFilter = ones(size(MatR2), 'like',Image);
-            AperFilter(MatR2>(Args.AperRadius(Iaper).^2)) = 0;
-            Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
+            % weighted aperture photometry
             % back is already subtracted
-            Aper.AperPhot(:,Iaper)   = sum(Cube.*AperFilter,[1 2]);
+            Aper.WeightedAper = squeeze(sum(WInt,[1 2])./sum((W.*W_Max).^2,[1 2])); 
+
+            % simple aperture photometry in centered pixeleted aperure
+            Aper.AperPhot = zeros(Nsrc,Naper, 'like',Image);
+            Aper.AperArea = zeros(Nsrc,Naper, 'like',Image);
+            for Iaper=1:1:Naper
+                AperFilter = ones(size(MatR2), 'like',Image);
+                AperFilter(MatR2>(Args.AperRadius(Iaper).^2)) = 0;
+                Aper.AperArea(:,Iaper)   = squeeze(sum(AperFilter,[1 2]));
+                % back is already subtracted
+                Aper.AperPhot(:,Iaper)   = sum(Cube.*AperFilter,[1 2]);
+            end
         end
-                
-        % Aperure photometry on shifted kernel
 
     end
 end

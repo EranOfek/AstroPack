@@ -53,17 +53,15 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     %                   If empty, then do not calculate PSF photometry.
     %                   Default is [].
     % Output : - A structure containing the following fields:
-    %            .Back - Vector of annulus background mean.
-    %            .Std - Vectof of annulus background std.
-    %            .BackArea - Back area.
-    %            .AperPhot - A structure array with aper phot.
-    %                   Element per aperture. Fields are:
-    %                   .Phot - Vector of photometry.
-    %                   .Area - Scalar of aperture area.
-    %                   .Radius - Scalar of aperture radius.
-    %            .PsfPhot - A structure array of PSF phot.
-    %                   Element per PSF. Fields are:
-    %                   .Phot - Vector of PSF photometry.
+    %            .AnnulusBack - Vector of annulus background mean.
+    %            .AnnulusStd - Vectof of annulus background std.
+    %            .AnnulusBackArea - Back area.
+    %            .AperPhot - A matrix with photometry, column per aperture.
+    %            .AperArea - A vector of aperture area (element per
+    %                   aperture).
+    %            .AperRadius - A vector of aperture radii (element per
+    %                   aperture).
+    %            .PsfPhot - A matrix with photometry, column per PSF.
     %            .BoxPhot (optional)
     % Example: Cube = randn(17,17,4000); X=ones(4000,1).*9; Y=X;
     %          imUtil.sources.aperPhotCube(Cube, X, Y);
@@ -84,7 +82,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         Args.StdFun function_handle   = @std
         Args.StdFunArgs cell          = {'omitnan'};
         
-        Args.SubPixShift              = 'lanczos';    % 'lanczos' | 'fft' | 'none'
+        Args.SubPixShift              = 'fft';    % 'lanczos' | 'fft' | 'none'
         Args.A                        = 3;
         Args.IsCircFilt logical       = true;
         Args.PadVal                   = 0;
@@ -111,18 +109,19 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     VecY  = 0.5.*SizeY - (1:1:SizeY).';
     MatR2 = VecX.^2 + VecY.^2;
     
-    Flag  = MatR2>Rin2 & MatR2<Rout2;
-    CubeAnnulus = Cube.*Flag;
-    Result.Back  = Args.BackFun(CubeAnnulus, [1 2], Args.BackFunArgs{:});
-    Result.Std   = Args.StdFun(CubeAnnulus, 0, [1 2], Args.StdFunArgs{:});
-    Result.BackArea = pi.*(Rout2 - Rin2);
+    Flag  = cast(MatR2<Rin2 | MatR2>Rout2, 'like',Cube);
+    Flag(Flag==1) = NaN;
+    CubeAnnulus = Cube+Flag;
+    Result.AnnulusBack  = Args.BackFun(CubeAnnulus, [1 2], Args.BackFunArgs{:});
+    Result.AnnulusStd   = Args.StdFun(CubeAnnulus, 0, [1 2], Args.StdFunArgs{:});
+    Result.AnnulusBackArea = pi.*(Rout2 - Rin2);
     
     % subtract background
     if Args.SubBack
-        Cube = Cube - Result.Back;
+        Cube = Cube - Result.AnnulusBack;
     end
-    Result.Back = squeeze(Result.Back);
-    Result.Std  = squeeze(Result.Std);
+    Result.AnnulusBack = squeeze(Result.AnnulusBack);
+    Result.AnnulusStd  = squeeze(Result.AnnulusStd);
      
     ShiftXY = [ceil(SizeX.*0.5) - X, ceil(SizeY.*0.5) - Y];  % is this correct?
     
@@ -151,11 +150,11 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     end
     
     % aperture photometry
-    
+    Result.AperArea   = pi.*AperRad2;
+    Result.AperRadius = Args.AperRad;
+    Result.AperPhot = zeros(Nim, Naper);
     for Iaper=1:1:Naper        
-        Result.AperPhot(Iaper).Phot   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
-        Result.AperPhot(Iaper).Area   = pi.*AperRad2(Iaper);
-        Result.AperPhot(Iaper).Radius = Args.AperRad(Iaper);
+        Result.AperPhot(:,Iaper)   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
     end
     
     if Args.BoxPhot
@@ -169,8 +168,9 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         end
         
         NormPSF = squeeze(sum(Args.PSF.^2,[1 2]));
+        Result.PsfPhot = zeros(Nim,Npsf);
         for Ipsf=1:1:Npsf
-            Result.PsfPhot(Ipsf).Phot = squeeze(sum(Cube.*Args.PSF(:,:,Ipsf),[1 2],'omitnan')./NormPSF(Ipsf));
+            Result.PsfPhot(:,Ipsf) = squeeze(sum(Cube.*Args.PSF(:,:,Ipsf),[1 2],'omitnan')./NormPSF(Ipsf));
         end
         
     end
