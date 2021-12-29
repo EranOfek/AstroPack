@@ -400,33 +400,40 @@ if nargout>1
     % 2nd moment
     % the MatX/MatY cube - shifted to the first moment position
     
-    if Args.SubPixShiftBeforePhot
-        % FFU
-        error('Not supported yet');
-        %Cube = imUtil.trans.shift_lanczos(Cube, [CumRelX1, CumRelY1], 3, true);
-        %[Cube]=imUtil.trans.shift_fft(Cube, CumRelX1, CumRelY1);
-        %Cube = 
-    else
+%     if Args.SubPixShiftBeforePhot
+%         % FFU
+%         error('Not supported yet');
+%         %Cube = imUtil.trans.shift_lanczos(Cube, [CumRelX1, CumRelY1], 3, true);
+%         %[Cube]=imUtil.trans.shift_fft(Cube, CumRelX1, CumRelY1);
+%         %Cube = 
+%     else
         MatXcen = MatX - reshape(RelX1,1,1,Nsrc);
         MatYcen = MatY - reshape(RelY1,1,1,Nsrc);
         MatR2   = MatXcen.^2 + MatYcen.^2;
-    end
+    %end
     
     M2.X2 = squeeze(sum(WInt.*MatXcen.^2,[1 2])).*Norm;
     M2.Y2 = squeeze(sum(WInt.*MatYcen.^2,[1 2])).*Norm;
     M2.XY = squeeze(sum(WInt.*MatXcen.*MatYcen,[1 2])).*Norm;
     
     if nargout>2
-        Args.UseAperPhotCube = false;
+        Args.UseAperPhotCube = true;
         Args.PSF             = [];
         if Args.UseAperPhotCube
             XX   = M1.X - M1.Xstart + StampCenterX;
             YY   = M1.Y - M1.Ystart + StampCenterY;
             % probelms:
             % 1. when using 'none' - plot(Aper1.AperPhot(:,3), Aper.AperPhot(:,3),'.')
-            %    what is the nature of zeros.
+            %    what is the nature of zeros. - X,Y=NaN sources!
             % 2. when using fft - what is going on?
-            Aper1 = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','fft', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
+            % 3. what is the nature of negative flux? - near edges!
+            
+            %For sources that XX,YY=NaN set XX,YY to center of stamp
+            IsXXnan = isnan(XX);
+            XX(IsXXnan) = StampCenterX;
+            YY(IsXXnan) = StampCenterY;
+            
+            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','none', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
             
         else
         

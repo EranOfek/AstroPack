@@ -152,7 +152,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     % aperture photometry
     Result.AperArea   = pi.*AperRad2;
     Result.AperRadius = Args.AperRad;
-    Result.AperPhot = zeros(Nim, Naper);
+    Result.AperPhot   = zeros(Nim, Naper);
     for Iaper=1:1:Naper        
         Result.AperPhot(:,Iaper)   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
     end
