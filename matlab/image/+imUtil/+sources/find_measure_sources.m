@@ -177,16 +177,24 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     % Number of templates
     Ntemplate = size(Template,3);
     Nsrc      = numel(Src.XPEAK);
-    
-   
-
+    %
     %if nargout>2
     %    varargout = cell(1:nargout-1);
     %    [varargout{1:nargout-1}] = imUtil.image.moment2(Image-Back,Pos(:,1),Pos(:,2),Args.MomPar{:});
     %end
 
     if any(ismember(Args.ColCell,Mom3Cell))
+        %ImageSubBack = Image-Back;
+        
+        %[Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image-Back, Src.XPEAK,Src.YPEAK);
+        
+        % For aperture/PSF photometry use: imUtil.sources.aperPhotCube
+        %
+        %Aper = imUtil.sources.aperPhotCube(Cube, X, Y, 'PSF',PSF,'SubPixShift','fft')
+        
+        % old:
         [M1,M2,Aper] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
+        
     elseif any(ismember(Args.ColCell,Mom2Cell))
         [M1,M2] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
         Aper    = [];

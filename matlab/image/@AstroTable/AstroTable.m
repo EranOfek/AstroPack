@@ -580,7 +580,8 @@ classdef AstroTable < Component
                 Result(FlagI, :) = Obj2(FlagI2, 1:Ncol1);
             end
 
-        end
+       end
+       
     end
     
     

@@ -50,8 +50,8 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
         Cube   = Image;
         if isempty(X) && isempty(Y)
             SizeCube = size(Cube);
-            X        = SizeCube(2).*0.5;
-            Y        = SizeCube(1).*0.5;
+            X        = SizeCube(2).*0.5 + 0.5;
+            Y        = SizeCube(1).*0.5 + 0.5;
         end
         
         RoundX = round(X);

@@ -47,8 +47,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     %                   Default is {}.
     %            'OutType' - Output type. Options are:
     %                   'table' - a table.
-    %                   'struct'
-    %                   'astrocatalog'
+    %                   'struct' - a struct.
     %                   Default is 'struct'.
     %            'Conn' - Connectivity parameter for local maxima
     %                   identification.
@@ -87,7 +86,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         Args.BackIm                        = [];
         Args.VarIm                         = [];
         Args.BackPar cell                  = {};
-        Args.OutType                       = 'struct';   % 'astrocatalog' | 'struct' | 'table'
+        Args.OutType                       = 'struct';   %  'struct' | 'table'
         Args.Conn                          = 8;
         Args.ImageField char               = 'Im';
         Args.BackField char                = 'Back';
@@ -170,8 +169,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     switch lower(Args.OutType)
         case 'struct'
             Result = Src;
-        case 'astrocatalog'
-            Result = AstroTable(Src);
+       
         case 'table'
             Result = struct2table(Src);
         otherwise
