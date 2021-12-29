@@ -25,6 +25,14 @@
 %     Q.insert(R, 'InsertRecFunc', @makePK, 'BatchSize', 10000);
 %
 %
+% PostgreSQL V14 - Installation instructions for Linux:
+%
+%     https://techviewleo.com/how-to-install-postgresql-database-on-ubuntu/
+%
+% Create database on remote server:
+%
+%     psql -h ubuntu -p 5432 -U admin -W -d postgres -f unittest.sql
+%
 % Create database from the output SQL file
 %
 %     psql -U postgres -f unittest.sql
@@ -1492,7 +1500,7 @@ classdef DbQuery < Component
                 if isfile(SqlFileName)
                     
                     if Args.CreateDb
-                        Psql = sprintf('psql -U postgres -f %s', SqlFileName);
+                        Psql = sprintf('psql --port=5433 -U postgres -f %s', SqlFileName);
                         io.msgLog(LogLevel.Info, 'xls2sql: %s', Psql);
                         [Status, Output] = system(Psql);
                         io.msgLog(LogLevel.Info, 'psql: %s', Output);

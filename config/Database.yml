@@ -13,12 +13,21 @@ DbConnection:
 
     # Default values, override by adding values to per-database section under Items below
     Default:
+        Host            : 'ubuntu'          # Host name or IP address
+        DriverName      : 'postgres'        # Driver name
+        UserName        : 'admin'           # Login user
+        Password        : 'Passw0rd'        # Login password
+        Port            : 5432              # Port number, 5432 for PostgresV13, 5433 for PostgresV14
+
+
+    # Default values, override by adding values to per-database section under Items below
+    DefaultV13_Win:
         Host            : 'localhost'       # Host name or IP address
         DriverName      : 'postgres'        # Driver name
         UserName        : 'postgres'        # Login user
         Password        : 'pass'            # Login password
-        Port            : 5432              # Post number, 5432 is Postgres default
-
+        Port            : 5432              # Port number
+        
 
     # Databases, items names are used by DbConnection
     Connections:
@@ -26,7 +35,6 @@ DbConnection:
         #
         UnitTest:
             DatabaseName    : 'unittest'        # Database name
-            Host            : 'localhost'       # Host name or IP address
             
             # User defined data, used it test
             DoubleFields    : 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5,fdouble6,fdouble7,fdouble8,fdouble9,fdouble10'
@@ -34,21 +42,16 @@ DbConnection:
         #
         Pipeline:
             DatabaseName    : 'pipeline'        # Database name
-            Host            : 'localhost'       # Host name or IP address
 
         #
         Last:
             DatabaseName    : 'last'            # Database name
-            Host            : 'localhost'       # Host name or IP address
 
         #
         Observations:
             DatabaseName    : 'observations'    # Database name
-            Host            : 'localhost'       # Host name or IP address
-
 
         #
         Soc:
             DatabaseName    : 'observations'    # Database name
-            Host            : 'localhost'       # Host name or IP address
 

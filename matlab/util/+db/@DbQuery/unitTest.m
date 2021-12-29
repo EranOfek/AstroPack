@@ -39,6 +39,9 @@ function Result = unitTest()
     Limit = 10000;    
     Fields = 'recid,fdouble1,fdouble2,fdouble3';
     
+    UseCopy = false;  %%% !!!!!!!!    
+    
+    
     % Compare performance of SELECT vs COPY TO
     for Iter=1:5
         TempFile = 'C:/temp/__tmp1.csv';
@@ -49,15 +52,17 @@ function Result = unitTest()
         io.msgStyle(LogLevel.Test, 'magenta', 'SELECT: %0.5f', double(tic()-t)/1e7);
 
         t = tic();
-        RecCopy   = Q.select(Fields,  'Limit', Limit, 'UseCopy', true, 'TempName', TempFile);
+        
+        % @Todo
+        RecCopy   = Q.select(Fields,  'Limit', Limit, 'UseCopy', UseCopy, 'TempName', TempFile);
         io.msgStyle(LogLevel.Test, 'magenta', 'SELECT using COPY: %0.5f', double(tic()-t)/1e7);
 
         assert(numel(RecSelect.Data) == numel(RecCopy.Data));
     end
     
     %Mat1 = Q.select('fdouble1,fdouble2,fdouble3',       'Where', 'fdouble1 > fdouble2', 'OutType', 'mat', 'Limit', Limit);
-    Rec1 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp1.csv');
-    Rec2 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', true, 'TempName', 'C:/temp/__tmp2.csv');
+    Rec1 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', UseCopy, 'TempName', 'C:/temp/__tmp1.csv');
+    Rec2 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', UseCopy, 'TempName', 'C:/temp/__tmp2.csv');
         
     
     % Insert Mat

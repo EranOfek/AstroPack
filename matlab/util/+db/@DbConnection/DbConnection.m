@@ -39,7 +39,7 @@ classdef DbConnection < Component
         UserName        = '' %postgres'    % Login user
         Password        = '' %pass'        % Login password
         Host            = '' %localhost'   % Host name or IP address
-        Port            = 0  %5432         % Post number, 5432 is Postgres default
+        Port            = 0  %v13=5432, v14=5433    % Port number, 5432 is PostgresV13 default
         DriverUrl       = ''               % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
         
         % Internal data and flags

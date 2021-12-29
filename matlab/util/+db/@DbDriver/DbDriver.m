@@ -1,7 +1,7 @@
 % Database Driver Class, currently supports PostgreSQL
 % DbDriver is used **internally** by DbConnection, and SHOULD NOT be 
 % accessed by the user.
-% We currently use postgresql-42.2.19.jar
+% We currently use postgresql-42.3.1.jar
 %
 % The native MATLAB database functions require installation of MATLAB
 % Database Toolbox. To avoid dependency on it, we implement our database
@@ -44,7 +44,7 @@ classdef DbDriver < Component
         DatabaseType = 'postgres'   % Currently we support only Postgres
         
         % Driver Java package file (.jar)
-        PostgresJar = 'postgresql-42.2.19.jar'
+        PostgresJar = 'postgresql-42.3.1.jar'
         
         % We copy the jar file from its original loation in the repository
         % to a target folder that is added by javaclasspath()
