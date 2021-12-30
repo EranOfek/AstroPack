@@ -335,6 +335,7 @@ else
         WInt = W.*W_Max.*Cube; % Weighted intensity
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
+        % FFU : check the possibility to limit the step size to 0.5...
         CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
         CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
 
@@ -423,17 +424,15 @@ if nargout>1
             XX   = M1.X - M1.Xstart + StampCenterX;
             YY   = M1.Y - M1.Ystart + StampCenterY;
             % probelms:
-            % 1. when using 'none' - plot(Aper1.AperPhot(:,3), Aper.AperPhot(:,3),'.')
-            %    what is the nature of zeros. - X,Y=NaN sources!
-            % 2. when using fft - what is going on?
-            % 3. what is the nature of negative flux? - near edges!
+            % when using fft - large fraction of negative flux - why?
             
             %For sources that XX,YY=NaN set XX,YY to center of stamp
             IsXXnan = isnan(XX);
             XX(IsXXnan) = StampCenterX;
             YY(IsXXnan) = StampCenterY;
             
-            Aper1 = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','none', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
+            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','none', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
+            %AperF = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','fft', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
             
         else
         

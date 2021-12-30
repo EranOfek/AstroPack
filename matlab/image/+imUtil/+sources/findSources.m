@@ -52,6 +52,13 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     %            'Conn' - Connectivity parameter for local maxima
     %                   identification.
     %                   Default is 8.
+    %            'CleanSources' - A logocal indicating if to remove bad
+    %                   sources (delta functions and near edge) using
+    %                   imUtil.sources.cleanSources
+    %                   Default is false.
+    %            'cleanSourcesArgs' - A cell array of additional args to
+    %                   pass to imUtil.sources.cleanSources.
+    %                   Default is {}.
     %
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
@@ -88,6 +95,8 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         Args.BackPar cell                  = {};
         Args.OutType                       = 'struct';   %  'struct' | 'table'
         Args.Conn                          = 8;
+        Args.CleanSources logical          = false;
+        Args.cleanSourcesArgs cell         = {};
         Args.ImageField char               = 'Im';
         Args.BackField char                = 'Back';
         Args.VarField char                 = 'Var';
@@ -166,6 +175,11 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         Src.VAR_IM    = Var(Ind);
     end
 
+    if Args.CleanSources
+        ImageSizeXY = fliplr(size(Image));
+        [Src] = imUtil.sources.cleanSources(Src, Args.cleanSourcesArgs{:}, 'ImageSizeXY',ImageSizeXY);
+    end
+    
     switch lower(Args.OutType)
         case 'struct'
             Result = Src;
@@ -175,6 +189,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         otherwise
             error('Unknown OutType option');
     end
-            
+           
+    
     
 end
