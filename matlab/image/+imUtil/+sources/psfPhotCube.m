@@ -67,14 +67,15 @@ function psfPhotCube(Cube, Args)
         Chi2_Dx  = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep,    DY,                WeightedPSF);
         Chi2_Dx2 = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep.*2, DY,                WeightedPSF);
         ParX     = polyfit(VecD, [Chi2, Chi2_Dx, Chi2_Dx2], 2);
-        DX       = DX -ParX(2)./(2.*ParX(1));
+        
         
         %Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX, DY,                  WeightedPSF);
         Chi2_Dy  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep,   WeightedPSF);
         Chi2_Dy2 = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep.*2,WeightedPSF);
-        ParY     = polyfit(VecD, [Chi2, Chi2_Dy, Chi2_Dxy], 2);
+        ParY     = polyfit(VecD, [Chi2, Chi2_Dy, Chi2_Dy2], 2);
         DY       = DY -ParY(2)./(2.*ParY(1));
         
+        DX       = DX -ParX(2)./(2.*ParX(1));
         
         Chi2_Dy = internalCalcChi2(Cube, Std, Args.PSF, DX,                DY+Args.SmallStep, WeightedPSF);
         
