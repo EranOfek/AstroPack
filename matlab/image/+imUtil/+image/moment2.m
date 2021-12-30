@@ -71,8 +71,9 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %                       Default is false.
 %            'CalcWeightedAper' - Return WeightedAper in photometry.
 %                       Default is false.
-%            'SubPixShiftBeforePhot' - Perform sub pixel shift to stamp
-%                       before aperture photometry. Default is false.
+%            'SubPixShift' - Method for sub pixels hift before during photometry
+%                       with imUtil.sources.aperPhotCube.
+%                       Default is 'fft'.
 % Output  : - First moment information. 
 %             A structure with the following fields.
 %             .RoundX - Vector of roundex X position
@@ -131,7 +132,8 @@ arguments
     Args.mexCutout(1,1) logical                        = true;
     Args.CalcBoxPhot logical                           = false;
     Args.CalcWeightedAper logical                      = false;
-    Args.SubPixShiftBeforePhot logical                 = false;
+    %Args.SubPixShiftBeforePhot logical                 = false;
+    Args.SubPixShift                                   = 'fft';   % 'fft' | 'lanczos' | 'none'
 end
 
 % make sure all the variables has the same type as the Image
@@ -431,9 +433,7 @@ if nargout>1
             XX(IsXXnan) = StampCenterX;
             YY(IsXXnan) = StampCenterY;
             
-            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','fft', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
-            %AperF = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','fft', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
-            
+            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift',Args.SubPixShift, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);            
         else
         
             % aperture photometry
