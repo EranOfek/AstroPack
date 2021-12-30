@@ -75,7 +75,7 @@ function doStartup()
     MatlabPath        = cellElements2str(Def.MatlabDir,    HomeDir);
     AstroPackPath     = cellElements2str(Def.AstroPackDir, HomeDir);
     CatsHTMDir        = cellElements2str(Def.CatsHTMDir);
-    AstroPackDataPath = cellElements2str(Def.AstroPackData);
+    AstroPackDataPath = cellElements2str(Def.AstroPackData, HomeDir);
     
     
     
@@ -256,11 +256,11 @@ function Str = cellElements2str(Cell, PreStr)
         N = numel(Cell);
         Str = Cell{1};
         for I=2:1:N
-            Str = sprintf('%s%s',filesep,Cell{I});
+            Str = sprintf('%s%s%s',Str,filesep,Cell{I});
         end
     end
     if nargin>1
-        Str = sprintf('%s%s',PreStr,Str);
+        Str = sprintf('%s%s%s',PreStr,filesep,Str);
     end
 end
 
