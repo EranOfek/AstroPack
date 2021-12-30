@@ -431,7 +431,7 @@ if nargout>1
             XX(IsXXnan) = StampCenterX;
             YY(IsXXnan) = StampCenterY;
             
-            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','none', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
+            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','fft', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
             %AperF = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift','fft', 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);
             
         else
