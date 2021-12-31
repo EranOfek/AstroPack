@@ -35,30 +35,36 @@ function [Back, Std] = backgroundCube(Cube, Args)
         Args.Squeeze logical           = true;
     end
         
+  
     [Ny, Nx, Nim] = size(Cube);
-    
+
     if numel(Args.AnnulusRad)==1
         % calc [inner, outer] annulus radius
         Args.AnnulusRad = (Nx-1).*0.5 - [Args.AnnulusRad, 0];
     end
     AnnulusRad2 = Args.AnnulusRad.^2;
-        
+
     Xcenter = Nx.*0.5 + 0.5;
     Ycenter = Ny.*0.5 + 0.5;
-    
+
     VecXrel = (1:1:Nx) - Xcenter;
     VecYrel = (1:1:Ny) - Ycenter;
     MatR2   = VecXrel.^2 + VecYrel(:).^2;
-    
+
     FlagAnnulus = cast(MatR2>AnnulusRad2(1) & MatR2<AnnulusRad2(2), 'like',Cube);
     FlagAnnulus(~FlagAnnulus) = NaN;
-    
-    Std  = Args.StdFun(Cube.*FlagAnnulus,  Args.StdFunArgs{:});
+
+
     Back = Args.MeanFun(Cube.*FlagAnnulus, Args.MeanFunArgs{:});
-    
+
+    if nargout>1
+        Std  = Args.StdFun(Cube.*FlagAnnulus,  Args.StdFunArgs{:});
+    end
+
     if Args.Squeeze
         Back = squeeze(Back);
-        Std  = squeeze(Std);
+        if nargout>1
+            Std  = squeeze(Std);
+        end
     end
-    
 end

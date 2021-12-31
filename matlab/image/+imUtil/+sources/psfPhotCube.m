@@ -2,9 +2,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     % The core function for PSF-fitting photometry.
     %   The input of this function is a cube of stamps of sources, and a
     %   PSF to fit.
-    %   The fit is for only, flux and position, while we assume the
-    %   background was already subtracted, or is given and should be
-    %   stabtracted.
+    %   The fit is for only, flux and position.
     %   The function fits all the stamps simultanously.
     %   The flux fit is fitted linearly, while the positions are fitted
     %   using a one-directional steepest descent style method.
@@ -16,19 +14,24 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %            'PSF' - A PSF stamp to fit. If this is a scalar, then will
     %                   use a Gaussian PSF, which sigma-width is given by
     %                   the scalar. Default is 1.5.
-    %            'Std' - Either a vector (element per stamp), or a cube
-    %                   (the same size as the input cube) of std in the
-    %                   cube. Default is 1.
     %            'Back' - Either a vector (element per stamp), or a cube
     %                   (the same size as the input cube) of background in the
-    %                   cube. This background will be subtracted prior to
+    %                   cube. If empty (or Std is empty, then will
+    %                   recaculate the background and std using
+    %                   imUtil.sources.backgroundCube
+    %                   This background will be subtracted prior to
     %                   fit, and will be returned to the CubePsfSub output.
-    %                   If empty, then do not subtract background.
+    %                   If 0, then do not subtract background.
     %                   Default is []
+    %            'Std' - Like 'Back', but for the std. Default is [].
     %            'FitRadius' - Radius around source center to fit.
     %                   This can be used in order to exclude regions
     %                   outside the stellar core.
     %                   Default is 3.
+    %            'backgroundCubeArgs' - A cell array of additional
+    %                   arguments to pass to imUtil.sources.backgroundCube
+    %                   Default is {}.
+    %
     %            'Xinit' - A vector of initial X position for the PSF
     %                   position in the stamps. If empty, then 
     %                   use size/2 + 0.5. Default is [].
@@ -71,9 +74,10 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     arguments
         Cube
         Args.PSF        = 1.5;  % scalar will generate a Gaussian PSF - normalized to 1
-        Args.Std        = 1;   % vector or cube
+        Args.Std        = [];   % vector or cube
         Args.Back       = [];
         Args.FitRadius  = 3;
+        Args.backgroundCubeArgs cell = {};
         
         Args.Xinit      = [];
         Args.Yinit      = [];
@@ -90,23 +94,24 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     % 3. measure in first image [NaN] - same for std!
     % 4. fit?
     
-    if ~isempty(Args.Back)
-        % subtract background from cube
-        
+    if isempty(Args.Back) || isempty(Args.Std)
+        % calculate background and std
+        [Back, Std] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:}, 'Squeeze',false);
+    else
         if ndims(Args.Back)<3
             Back = permute(Args.Back(:), [3 2 1]);
         else
             Back = Args.Back;
         end
-        % subtract background
-        Cube = Cube - Back;
+        if ndims(Args.Std)<3
+            Std = permute(Args.Std(:),[3 2 1]);
+        else
+            Std = Args.Std;
+        end
     end
-    
-    if ndims(Args.Std)<3
-        Std = permute(Args.Std(:),[3 2 1]);
-    else
-        Std = Args.Std;
-    end
+        
+    % subtract background
+    Cube = Cube - Back;
     
     FitRadius2 = Args.FitRadius.^2;
     
@@ -127,10 +132,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     
     if numel(Args.PSF)==1
         Args.PSF = imUtil.kernel2.gauss(Args.PSF);
-    end
-    
-    % measure and subtract background
-    
+    end    
     
     WeightedPSF = sum(Args.PSF.^2, [1 2]); % for flux estimation
     
