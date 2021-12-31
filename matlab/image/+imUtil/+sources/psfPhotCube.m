@@ -16,6 +16,10 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %            'Std' - Either a vector (element per stamp), or a cube
     %                   (the same size as the input cube) of std in the
     %                   cube. Default is 1.
+    %            'FitRadius' - Radius around source center to fit.
+    %                   This can be used in order to exclude regions
+    %                   outside the stellar core.
+    %                   Default is 3.
     %            'Xinit' - A vector of initial X position for the PSF
     %                   position in the stamps. If empty, then 
     %                   use size/2 + 0.5. Default is [].
@@ -58,6 +62,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Cube
         Args.PSF        = 1.5;  % scalar will generate a Gaussian PSF - normalized to 1
         Args.Std        = 1;   % vector or cube
+        Args.FitRadius  = 3;
         
         Args.Xinit      = [];
         Args.Yinit      = [];
@@ -74,11 +79,15 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Std = Args.Std;
     end
     
+    FitRadius2 = Args.FitRadius.^2;
     
     [Ny, Nx, Nim] = size(Cube);
     Xcenter = Nx.*0.5 + 0.5;
     Ycenter = Ny.*0.5 + 0.5;
     Dof     = Nx.*Ny - 3;
+    
+    VecXrel = (1:1:Nx) - Xcenter;
+    VecYrel = (1:1:Ny) - Ycenter;
     
     if isempty(Args.Xinit)
         Args.Xinit = Xcenter;
@@ -112,16 +121,16 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Ind = Ind + 1;
        
         % calc \chi2 and gradient
-        Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX,                   DY,                WeightedPSF);
-        Chi2_Dx  = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep,    DY,                WeightedPSF);
-        Chi2_Dx2 = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep.*2, DY,                WeightedPSF);
+        Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX,                   DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
+        Chi2_Dx  = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep,    DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
+        Chi2_Dx2 = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep.*2, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
         
         %ParX     = polyfit(VecD, [Chi2, Chi2_Dx, Chi2_Dx2], 2);
         ParX     = H\[Chi2.'; Chi2_Dx.'; Chi2_Dx2.'];
         
         %Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX, DY,                  WeightedPSF);
-        Chi2_Dy  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep,   WeightedPSF);
-        Chi2_Dy2 = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep.*2,WeightedPSF);
+        Chi2_Dy  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep,   WeightedPSF, VecXrel, VecYrel, FitRadius2);
+        Chi2_Dy2 = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep.*2,WeightedPSF, VecXrel, VecYrel, FitRadius2);
         
         %ParY     = polyfit(VecD, [Chi2, Chi2_Dy, Chi2_Dy2], 2);
         ParY     = H\[Chi2.'; Chi2_Dy.'; Chi2_Dy2.'];
@@ -151,7 +160,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         
     end
     % final fit and return flux
-    [Result.Chi2, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF);
+    [Result.Chi2, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
     Result.Dof  = Nx.*Ny - 3;
     
     Result.Flux = squeeze(Flux);
@@ -173,16 +182,31 @@ end
 
 % Internal functions
 
-function [Chi2,WeightedFlux, ShiftedPSF] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF)
+function [Chi2,WeightedFlux, ShiftedPSF] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
     % Return Chi2 for specific PSF and Cube
     % shift PSF
+    
+    
+        
     ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
     WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
     Resid = Cube - WeightedFlux.*ShiftedPSF;
     
-    % search / remove outliers
+    % FFU: search / remove outliers
 
-    Chi2  = sum( (Resid./Std).^2, [1 2], 'omitnan');
+    if isempty(FitRadius2)
+        % use the entire stamp
+        ResidStd = Resid./Std;
+    else
+        MatX     = permute(VecXrel - DX(:),[3 2 1]);
+        MatY     = permute(VecYrel - DY(:),[2 3 1]);
+        MatR2    = MatX.^2 + MatY.^2;
+        Flag     = MatR2<FitRadius2;
+        ResidStd = Flag.*Resid./Std;
+    end
+    
+    Chi2  = sum( ResidStd.^2, [1 2], 'omitnan');
+    %Chi2  = sum( (Resid./Std).^2, [1 2], 'omitnan');
     Chi2  = squeeze(Chi2);
      
 end
