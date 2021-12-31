@@ -1,5 +1,51 @@
-function Result = psfPhotCube(Cube, Args)
-    % 
+function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
+    % The core function for PSF-fitting photometry.
+    %   The input of this function is a cube of stamps of sources, and a
+    %   PSF to fit.
+    %   The function fits all the stamps simultanously.
+    %   The flux fit is fitted linearly, while the positions are fitted
+    %   using a one-directional steepest descent style method.
+    %   In each iteration the PSF is shifted using fft-sub-pixels-shift.
+    % Input  : - A cube of stamps around sources.
+    %            The third dimesnion is the stamp index.
+    %            The code is debugged only for an odd-size PSF and stamps.
+    %          * ...,key,val,...
+    %            'PSF' - A PSF stamp to fit. If this is a scalar, then will
+    %                   use a Gaussian PSF, which sigma-width is given by
+    %                   the scalar. Default is 1.5.
+    %            'Std' - Either a vector (element per stamp), or a cube
+    %                   (the same size as the input cube) of std in the
+    %                   cube. Default is 1.
+    %            'Xinit' - A vector of initial X position for the PSF
+    %                   position in the stamps. If empty, then 
+    %                   use size/2 + 0.5. Default is [].
+    %            'Yinit' - Like 'Xinit' but for the Y position.
+    %                   Default is [].
+    %
+    %            Fitting-related parameters:
+    %            'SmallStep' - Gradient step size. Default is 1e-4 (pix).
+    %            'MaxStep' - Maximum step size in each iteration.
+    %                   Default is 1.
+    %            'ConvThresh' - Convergence threshold. Default is 1e-4.
+    %            'MaxIter' - Max number of iterations. Default is 10.
+    % Output : - A structure with the following fields:
+    %            .Chi2 - Vector of \chi^2 (element per stamp).
+    %            .Dof - The number of degrees of freedom in the fit.
+    %                   This is the stamp area minus 3.
+    %            .Flux - Vector of fitted fluxes.
+    %            .DX - Vector of fitted X positions relative the Xcenter.
+    %            .DY - Vector of fitted Y positions relative the Xcenter.
+    %            .Xinit - Xinit
+    %            .Yinit - Yinit
+    %            .Xcenter - Stamp X center.
+    %            .Ycenter - Stamp Y center.
+    %            .ConvergeFlag - A vector of logicals (one per stamp)
+    %                   indicating if the PSF fitting for the stamp
+    %                   converged.
+    %            .Niter - Number of iterations used.
+    %          - The input cube, after subtracting the fitted PSF from each
+    %            stamp.
+    % Author : Eran Ofek (Dec 2021)
     % Example: P=imUtil.kernel2.gauss;
     %          Ps=imUtil.trans.shift_fft(P,0.4,0.7);
     %          imUtil.sources.psfPhotCube(Ps, 'PSF',P)
@@ -10,14 +56,16 @@ function Result = psfPhotCube(Cube, Args)
    
     arguments
         Cube
+        Args.PSF        = 1.5;  % scalar will generate a Gaussian PSF - normalized to 1
+        Args.Std        = 1;   % vector or cube
+        
         Args.Xinit      = [];
         Args.Yinit      = [];
-        Args.PSF        = 1.5;  % scalar will generate a Gaussian PSF - normalized to 1
-        Args.MaxIter    = 10;
-        Args.Std        = 1;   % vector or cube
+        
         Args.SmallStep  = 1e-4;
         Args.MaxStep    = 1;
         Args.ConvThresh = 1e-4;
+        Args.MaxIter    = 10;
     end
     
     if ndims(Args.Std)<3
@@ -96,26 +144,36 @@ function Result = psfPhotCube(Cube, Args)
         DY       = DY + StepY;
          
         % stoping criteria
-        if max(abs(StepX))<Args.ConvThresh && max(abs(StepX))<Args.ConvThresh
+        ConvergeFlag = abs(StepX)<Args.ConvThresh & abs(StepY)<Args.ConvThresh;
+        if all(ConvergeFlag)
             NotConverged = false;
         end
         
-        
     end
     % final fit and return flux
-    [Result.Chi2, Result.Flux]  = internalCalcChi2(Cube, Std, Args.PSF, DX,                   DY,                WeightedPSF);
+    [Result.Chi2, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF);
+    Result.Dof  = Nx.*Ny - 3;
     
+    Result.Flux = squeeze(Flux);
     Result.DX = DX(:);
     Result.DY = DY(:);
     Result.Xinit = Args.Xinit;
     Result.Yinit = Args.Yinit;
     Result.Xcenter = Xcenter;
     Result.Ycenter = Ycenter;
+    Result.ConvergeFlag = ConvergeFlag;
+    Result.Niter   = Ind;
     
+    if nargout>1
+        % subtract best fit PSFs from cube
+        CubePsfSub = Cube - ShiftedPSF.*Flux;
+    end
     
 end
 
-function [Chi2,WeightedFlux] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF)
+% Internal functions
+
+function [Chi2,WeightedFlux, ShiftedPSF] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF)
     % Return Chi2 for specific PSF and Cube
     % shift PSF
     ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
@@ -126,8 +184,5 @@ function [Chi2,WeightedFlux] = internalCalcChi2(Cube, Std, PSF, DX, DY, Weighted
 
     Chi2  = sum( (Resid./Std).^2, [1 2], 'omitnan');
     Chi2  = squeeze(Chi2);
-    
-    if nargout>1
-        WeightedFlux = squeeze(WeightedFlux);
-    end
+     
 end

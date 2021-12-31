@@ -110,6 +110,7 @@ function Result = unitTest
     Ps=imUtil.trans.shift_fft(P,[0.4;0.7;-1.1;3.6],[0.7;-0.2;-0.9;-2.6]);
     Ps = Ps.*permute([100 110 200 300],[1 3 2]) + randn(15,15);
     Result = imUtil.sources.psfPhotCube(Ps, 'PSF',P(:,:,1));
+    
     % test results
     Nsrc = 4000;
     ShiftXY = rand(Nsrc,2).*6 - 3;
@@ -117,13 +118,14 @@ function Result = unitTest
     Ps=imUtil.trans.shift_fft(P,ShiftXY(:,1), ShiftXY(:,2));
     Flux = rand(Nsrc,1).*100;
     Ps = Ps.*permute(Flux,[3 2 1]);
-    Result = imUtil.sources.psfPhotCube(Ps, 'PSF',P);
+    [Result, CubePS] = imUtil.sources.psfPhotCube(Ps, 'PSF',P);
     if max(max(abs([Result.DX, Result.DY]-ShiftXY)))>1e-8
         error('Problem with imUtil.sources.psfPhotCube position finiding');
     end
     if max(abs(Result.Flux-Flux))>1e-6
        error('Problem with imUtil.sources.psfPhotCube flux finiding');
     end 
+    
     % with noise
     Nsrc = 4000;
     ShiftXY = rand(Nsrc,2).*6 - 3;
@@ -132,7 +134,7 @@ function Result = unitTest
     Flux = rand(Nsrc,1).*1000;
     Ps = Ps.*permute(Flux,[3 2 1]);
     Ps = Ps + randn(15,15,Nsrc);
-    Result = imUtil.sources.psfPhotCube(Ps, 'PSF',P);
+    [Result, CubePS] = imUtil.sources.psfPhotCube(Ps, 'PSF',P);
     
     ResidPos = sum(([Result.DX, Result.DY]-ShiftXY).^2,2);
     % error in poistions
