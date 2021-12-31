@@ -176,7 +176,6 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         StepX(NotMinimaX) = -StepX(NotMinimaX);
         StepY(NotMinimaY) = -StepY(NotMinimaY);
         
-        
         StepX    = sign(StepX).*min(abs(StepX), Args.MaxStep);
         StepY    = sign(StepY).*min(abs(StepY), Args.MaxStep);
         
@@ -223,9 +222,7 @@ end
 function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
     % Return Chi2 for specific PSF and Cube
     % shift PSF
-    
-    
-        
+            
     ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
     WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
     Resid = Cube - WeightedFlux.*ShiftedPSF;
