@@ -2,11 +2,14 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     % The core function for PSF-fitting photometry.
     %   The input of this function is a cube of stamps of sources, and a
     %   PSF to fit.
+    %   The fit is for only, flux and position, while we assume the
+    %   background was already subtracted, or is given and should be
+    %   stabtracted.
     %   The function fits all the stamps simultanously.
     %   The flux fit is fitted linearly, while the positions are fitted
     %   using a one-directional steepest descent style method.
     %   In each iteration the PSF is shifted using fft-sub-pixels-shift.
-    % Input  : - A cube of stamps around sources.
+    % Input  : - A background subtracted cube of stamps around sources.
     %            The third dimesnion is the stamp index.
     %            The code is debugged only for an odd-size PSF and stamps.
     %          * ...,key,val,...
@@ -16,6 +19,12 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %            'Std' - Either a vector (element per stamp), or a cube
     %                   (the same size as the input cube) of std in the
     %                   cube. Default is 1.
+    %            'Back' - Either a vector (element per stamp), or a cube
+    %                   (the same size as the input cube) of background in the
+    %                   cube. This background will be subtracted prior to
+    %                   fit, and will be returned to the CubePsfSub output.
+    %                   If empty, then do not subtract background.
+    %                   Default is []
     %            'FitRadius' - Radius around source center to fit.
     %                   This can be used in order to exclude regions
     %                   outside the stellar core.
@@ -48,7 +57,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   converged.
     %            .Niter - Number of iterations used.
     %          - The input cube, after subtracting the fitted PSF from each
-    %            stamp.
+    %            stamp. If the background is provided, then it is returned
+    %            to the stamps.
     % Author : Eran Ofek (Dec 2021)
     % Example: P=imUtil.kernel2.gauss;
     %          Ps=imUtil.trans.shift_fft(P,0.4,0.7);
@@ -62,6 +72,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Cube
         Args.PSF        = 1.5;  % scalar will generate a Gaussian PSF - normalized to 1
         Args.Std        = 1;   % vector or cube
+        Args.Back       = [];
         Args.FitRadius  = 3;
         
         Args.Xinit      = [];
@@ -71,6 +82,24 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.MaxStep    = 1;
         Args.ConvThresh = 1e-4;
         Args.MaxIter    = 10;
+    end
+    
+    % background treatment
+    % 1. do nothing
+    % 2. subtract and return
+    % 3. measure in first image [NaN] - same for std!
+    % 4. fit?
+    
+    if ~isempty(Args.Back)
+        % subtract background from cube
+        
+        if ndims(Args.Back)<3
+            Back = permute(Args.Back(:), [3 2 1]);
+        else
+            Back = Args.Back;
+        end
+        % subtract background
+        Cube = Cube - Back;
     end
     
     if ndims(Args.Std)<3
@@ -160,8 +189,12 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         
     end
     % final fit and return flux
-    [Result.Chi2, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-    Result.Dof  = Nx.*Ny - 3;
+    [Result.Chi2, Flux, ShiftedPSF, Dof]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
+    if isempty(Dof)
+        Result.Dof  = Nx.*Ny - 3;
+    else
+        Result.Dof  = Dof;
+    end
     
     Result.Flux = squeeze(Flux);
     Result.DX = DX(:);
@@ -176,13 +209,16 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     if nargout>1
         % subtract best fit PSFs from cube
         CubePsfSub = Cube - ShiftedPSF.*Flux;
+        if ~isempty(Args.Back)
+            % return the background
+            CubePsfSub = CubePsfSub + Back;
+        end
     end
-    
 end
 
 % Internal functions
 
-function [Chi2,WeightedFlux, ShiftedPSF] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
+function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
     % Return Chi2 for specific PSF and Cube
     % shift PSF
     
@@ -197,12 +233,14 @@ function [Chi2,WeightedFlux, ShiftedPSF] = internalCalcChi2(Cube, Std, PSF, DX, 
     if isempty(FitRadius2)
         % use the entire stamp
         ResidStd = Resid./Std;
+        Dof      = [];
     else
         MatX     = permute(VecXrel - DX(:),[3 2 1]);
         MatY     = permute(VecYrel - DY(:),[2 3 1]);
         MatR2    = MatX.^2 + MatY.^2;
         Flag     = MatR2<FitRadius2;
         ResidStd = Flag.*Resid./Std;
+        Dof      = sum(Flag,[1 2]) - 3;
     end
     
     Chi2  = sum( ResidStd.^2, [1 2], 'omitnan');
