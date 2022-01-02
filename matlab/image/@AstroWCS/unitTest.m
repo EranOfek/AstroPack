@@ -79,7 +79,7 @@ function Result = unitTest()
     if have_ds9
         ds9(Im_name);
         [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-        % sphere_dist_fast return imaginary distance for some alpha,delta
+        % sphere_dist_fast return imaginary distance for acos argument>1
         % abs() fixed that
         d_mas = convert.angular('rad','mas',abs(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
         disp(sprintf('Max distance for TAN projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
@@ -101,14 +101,14 @@ function Result = unitTest()
     OrigCRPIX = AW.CRPIX;
     AW = AW.cropWCS(AW.CRPIX,'centerCRPIX',true);
     [Alpha2, Delta2]  = AW.xy2sky(PX-OrigCRPIX(1)+1,PY-OrigCRPIX(1)+1);
-    d_mas2 = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,Alpha2'./RAD,Delta2'./RAD)));
+    d_mas2 = convert.angular('rad','mas',(abs(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,Alpha2'./RAD,Delta2'./RAD))));
     disp(sprintf('Max distance for TAN projection (cropped WCS #1) is %.1f [mas]',max(d_mas2)));
     
     AW = AstroWCS.header2wcs(AH);
     [Alpha, Delta]  = AW.xy2sky(PX,PY);
     AW = AW.cropWCS([1,AH.Key.NAXIS1,1,AH.Key.NAXIS2],'centerCRPIX',true);
     [Alpha2, Delta2]  = AW.xy2sky(PX,PY);
-    d_mas2 = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,Alpha2'./RAD,Delta2'./RAD)));
+    d_mas2 = convert.angular('rad','mas',abs(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,Alpha2'./RAD,Delta2'./RAD)));
     disp(sprintf('Max distance for TAN projection (cropped WCS #2) is %.1f [mas]',max(d_mas2)));
     
     % construct a AstroWCS from Header with TPV projection and get [alpha, delta]
@@ -152,7 +152,7 @@ function Result = unitTest()
     if have_ds9            
         ds9(Im_name);
         [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-        d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+        d_mas = convert.angular('rad','mas',abs(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
         disp(sprintf('Max distance for TAN-SIP projection (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
     end
 
@@ -170,7 +170,7 @@ function Result = unitTest()
 
     % Check with no distortions
     [Alpha_no, Delta_no]  = AW.xy2sky(PX,PY,'includeDistortion',false);
-    d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha./RAD,Delta./RAD,Alpha_no./RAD,Delta_no./RAD)));
+    d_mas = convert.angular('rad','mas',abs(celestial.coo.sphere_dist_fast(Alpha./RAD,Delta./RAD,Alpha_no./RAD,Delta_no./RAD)));
     disp(sprintf('Max distance for TAN-SIP projection (compared to no distortion) is %.1f [mas]',max(d_mas)));            
 
     [PX1_no,PY1_no]  = AW.sky2xy(Alpha,Delta,'includeDistortion',false);
@@ -196,7 +196,7 @@ function Result = unitTest()
     if have_ds9
         ds9(Im_name);
         [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
-        d_mas = convert.angular('rad','mas',(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
+        d_mas = convert.angular('rad','mas',abs(celestial.coo.sphere_dist_fast(Alpha'./RAD,Delta'./RAD,ds9_alpha./RAD,ds9_delta./RAD)));
         disp(sprintf('Max distance for Naxis=3 (xy2sky vs. ds9) is %.1f [mas]',max(d_mas)));
     end
 
