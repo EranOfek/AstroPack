@@ -80,7 +80,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         % Astrometry
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
-        Args.astrometryRefineArgs             = {};
+        Args.astrometryRefineArgs cell        = {};
         
         % Match against external catalog: 'MergedCat
         Args.CoaddMatchMergedCat logical      = true;
@@ -89,6 +89,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.mergeCatalogsArgs cell           = {};
         
         Args.ReturnRegisteredAllSI logical    = false;
+        
+        Args.StackMethod                      = 'sigmaclip';
+        Args.Asteroids_PM_MatchRadius         = 3;
         
     end
     
@@ -190,109 +193,133 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     clear SI;
     
     
-    % get JD
-    JD = julday(AllSI(:,1));
-    
-    % merge catalogs
-    % note that the merging works only on columns of AllSI !!!
-    [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI,...
-                                                                                                            Args.mergeCatalogsArgs{:},...
-                                                                                                            'MergedMatchMergedCat',Args.MergedMatchMergedCat);
-    
-    % search for asteroids - proper motion channel
-    [MergedCat, ResultAsteroids.AstCrop] = imProc.asteroids.searchAsteroids_pmCat(MergedCat, 'BitDict',AllSI(1).MaskData.Dict, 'JD',JD, 'PM_Radius',3, 'Images',AllSI);
-    
-    % search for asteroids - orphan channel
-    % imProc.asteroids.searchAsteroids_orphans
-    
-    % cross match with external catalogs
-    
-    % flag orphans
-    
-    
-    % coadd images
-    Nfields = numel(MatchedS);
-    ResultCoadd = struct('ShiftX',cell(Nfields,1), 'ShiftY',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
-    Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
-    for Ifields=1:1:Nfields
-        ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
-        ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
-    
-        ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
-        
-        % no need to transform WCS - as this will be dealt later on
-        % 'ShiftXY',ShiftXY,...
-        % 'RefWCS',AllSI(1,Ifields).WCS,...
-        RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields),...
-                                                 'ShiftXY',ShiftXY,...
-                                                 'TransWCS',false,...
-                                                 'FillValues',0,...
-                                                 'ReplaceNaN',true,...
-                                                 'CreateNewObj',~Args.ReturnRegisteredAllSI);
-        
-        % use sigma clipping...
-        % 1. NOTE that the mean image is returned so that the effective gain
-        % is now Gain/Nimages
-        % 2. RegisteredImages has no header so no JD...
-        [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
-                                                                                             'StackMethod','sigmaclip');
-        
-        
-        
-        % Background
-        Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY);
-    
-        
-        % Mask Source noise dominated pixels
-        Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
-        
-        % Source finding
-        Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
-                                                   'RemoveBadSources',true,...
-                                                   'ZP',Args.ZP,...
-                                                   'ColCell',Args.ColCell,...
-                                                   'Threshold',Args.Threshold,...
-                                                   'CreateNewObj',false);
-                                           
-                                           
-        % astrometry    
-        MeanJD = mean(JD);
-        [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
-                                                                                                'WCS',AllSI(1,Ifields).WCS,...
-                                                                                                'EpochOut',MeanJD,...
-                                                                                                'Scale',Args.Scale,...
-                                                                                                'CatName',Args.CatName,...
-                                                                                                'Tran',Args.Tran,...
-                                                                                                'CreateNewObj',false);
-
-        
-        % photometric calibration
-        [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
-                                                                                                    'CreateNewObj',false,...
-                                                                                                    'MagZP',Args.ZP,...
-                                                                                                    'CatName',AstrometricCat,...
-                                                                                                    Args.photometricZPArgs{:});
-        
-        
-        
-    end
-    
-    % plot for LAST pipeline paper
-    % semilogy(ResultCoadd(1).AstrometricFit.ResFit.RefMag, ResultCoadd(1).AstrometricFit.ResFit.Resid.*3600,'k.')
-    % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;                                 
-    % H=ylabel('Residual [arcsec]'); H.Interpreter='latex'; H.FontSize=18;
-
-    % semilogy(ResultCoadd(5).ZP.RefMag, abs(ResultCoadd(5).ZP.Resid),'k.')
-    % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
-    % H=ylabel('$|$Residual$|$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
-    
-    % 
+    [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = pipeline.generic.procMergeCoadd(AllSI,...
+                                                                                             'mergeCatalogsArgs',Args.mergeCatalogsArgs,...
+                                                                                             'MergedMatchMergedCat',Args.MergedMatchMergedCat,...
+                                                                                             'CoaddMatchMergedCat',Args.CoaddMatchMergedCat,...
+                                                                                             'coaddArgs',Args.coaddArgs,...
+                                                                                             'backgroundArgs',Args.backgroundArgs,...
+                                                                                             'BackSubSizeXY',Args.BackSubSizeXY,...
+                                                                                             'findMeasureSourcesArgs',Args.findMeasureSourcesArgs,...
+                                                                                             'ZP',Args.ZP,...
+                                                                                             'ColCell',Args.ColCell,...
+                                                                                             'Threshold',Args.Threshold,...
+                                                                                             'astrometryRefineArgs',Args.astrometryRefineArgs,...
+                                                                                             'Scale',Args.Scale,...
+                                                                                             'Tran',Args.Tran,...
+                                                                                             'CatName',Args.CatName,...
+                                                                                             'photometricZPArgs',Args.photometricZPArgs,...
+                                                                                             'ReturnRegisteredAllSI',Args.ReturnRegisteredAllSI,...
+                                                                                             'StackMethod',Args.StackMethod,...
+                                                                                             'Asteroids_PM_MatchRadius',Args.Asteroids_PM_MatchRadius);
+                                                                                         
     
     
-    if Args.CoaddMatchMergedCat
-        % match against external catalogs
-        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
-    end
+   
+    
+%     % get JD
+%     JD = julday(AllSI(:,1));
+%     
+%     % merge catalogs
+%     % note that the merging works only on columns of AllSI !!!
+%     [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI,...
+%                                                                                                             Args.mergeCatalogsArgs{:},...
+%                                                                                                             'MergedMatchMergedCat',Args.MergedMatchMergedCat);
+%     
+%     % search for asteroids - proper motion channel
+%     [MergedCat, ResultAsteroids.AstCrop] = imProc.asteroids.searchAsteroids_pmCat(MergedCat, 'BitDict',AllSI(1).MaskData.Dict, 'JD',JD, 'PM_Radius',3, 'Images',AllSI);
+%     
+%     % search for asteroids - orphan channel
+%     % imProc.asteroids.searchAsteroids_orphans
+%     
+%     % cross match with external catalogs
+%     
+%     % flag orphans
+%     
+%     
+%     % coadd images
+%     Nfields = numel(MatchedS);
+%     ResultCoadd = struct('ShiftX',cell(Nfields,1), 'ShiftY',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
+%     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
+%     for Ifields=1:1:Nfields
+%         ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
+%         ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
+%     
+%         ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
+%         
+%         % no need to transform WCS - as this will be dealt later on
+%         % 'ShiftXY',ShiftXY,...
+%         % 'RefWCS',AllSI(1,Ifields).WCS,...
+%         RegisteredImages = imProc.transIm.imwarp(AllSI(:,Ifields),...
+%                                                  'ShiftXY',ShiftXY,...
+%                                                  'TransWCS',false,...
+%                                                  'FillValues',0,...
+%                                                  'ReplaceNaN',true,...
+%                                                  'CreateNewObj',~Args.ReturnRegisteredAllSI);
+%         
+%         % use sigma clipping...
+%         % 1. NOTE that the mean image is returned so that the effective gain
+%         % is now Gain/Nimages
+%         % 2. RegisteredImages has no header so no JD...
+%         [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
+%                                                                                              'StackMethod','sigmaclip');
+%         
+%         
+%         
+%         % Background
+%         Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:}, 'SubSizeXY',Args.BackSubSizeXY);
+%     
+%         
+%         % Mask Source noise dominated pixels
+%         Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+%         
+%         % Source finding
+%         Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
+%                                                    'RemoveBadSources',true,...
+%                                                    'ZP',Args.ZP,...
+%                                                    'ColCell',Args.ColCell,...
+%                                                    'Threshold',Args.Threshold,...
+%                                                    'CreateNewObj',false);
+%                                            
+%                                            
+%         % astrometry    
+%         MeanJD = mean(JD);
+%         [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
+%                                                                                                 'WCS',AllSI(1,Ifields).WCS,...
+%                                                                                                 'EpochOut',MeanJD,...
+%                                                                                                 'Scale',Args.Scale,...
+%                                                                                                 'CatName',Args.CatName,...
+%                                                                                                 'Tran',Args.Tran,...
+%                                                                                                 'CreateNewObj',false);
+% 
+%         
+%         % photometric calibration
+%         [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
+%                                                                                                     'CreateNewObj',false,...
+%                                                                                                     'MagZP',Args.ZP,...
+%                                                                                                     'CatName',AstrometricCat,...
+%                                                                                                     Args.photometricZPArgs{:});
+%         
+%         
+%         
+%     end
+%     
+%     % plot for LAST pipeline paper
+%     % semilogy(ResultCoadd(1).AstrometricFit.ResFit.RefMag, ResultCoadd(1).AstrometricFit.ResFit.Resid.*3600,'k.')
+%     % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;                                 
+%     % H=ylabel('Residual [arcsec]'); H.Interpreter='latex'; H.FontSize=18;
+% 
+%     % semilogy(ResultCoadd(5).ZP.RefMag, abs(ResultCoadd(5).ZP.Resid),'k.')
+%     % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
+%     % H=ylabel('$|$Residual$|$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
+%     
+%     % 
+%     
+%     
+%     if Args.CoaddMatchMergedCat
+%         % match against external catalogs
+%         Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
+%     end
     
     
     % save products
