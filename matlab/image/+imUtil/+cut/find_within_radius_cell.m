@@ -30,7 +30,7 @@ function [CellInd,CellRad2]=find_within_radius_cell(Size,X,Y,Radius,Circle)
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Jun 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [CI,CR2]=imUtil.image.find_within_radius_cell([1024 1024],X,Y,20);
+% Example: [CI,CR2]=imUtil.cut.find_within_radius_cell([1024 1024],X,Y,20);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

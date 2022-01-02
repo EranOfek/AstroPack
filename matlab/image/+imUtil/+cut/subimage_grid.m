@@ -22,8 +22,8 @@ function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [CCDSEC,unCCDSEC,Center,Nxy]=imUtil.image.subimage_grid([256 258],'SubSizeXY',[64 64])
-%          [CCDSEC,unCCDSEC,Center,Nxy]=imUtil.image.subimage_grid([256 258],'Nxy',[5 4])
+% Example: [CCDSEC,unCCDSEC,Center,Nxy]=imUtil.cut.subimage_grid([256 258],'SubSizeXY',[64 64])
+%          [CCDSEC,unCCDSEC,Center,Nxy]=imUtil.cut.subimage_grid([256 258],'Nxy',[5 4])
 % Reliable: 2
 %--------------------------------------------------------------------------
 

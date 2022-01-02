@@ -23,8 +23,8 @@ function [Mean, Var] = constructPSF_cutouts(Image, XY, Args)
     %            'PostNorm' - Post normalization value. If [], do not
     %                   perform post normalization. Default is 1.
     %
-    %            'mexCutout' - use imUtil.image.mexCutout.m (true) or
-    %                   imUtil.image.find_within_radius_mat (false).
+    %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+    %                   imUtil.cut.find_within_radius_mat (false).
     %                   Default is true.
     %            'Circle' - If true, then will set all points outside the radius to NaN.
     %                   Default is false.
@@ -80,7 +80,7 @@ function [Mean, Var] = constructPSF_cutouts(Image, XY, Args)
         Y = XY(:,2);
     end
     
-    [Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+    [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
     Dim = 3;
     
     %if Args.ReCenter

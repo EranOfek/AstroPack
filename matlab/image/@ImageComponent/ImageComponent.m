@@ -1476,7 +1476,7 @@ classdef ImageComponent < Component
                     Iobj = min(Imax, Nobj);
                     Isec = min(Imax, Nsec);
                     
-                    [Result(Imax).Data, UsedCCDSEC]   = imUtil.image.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type);
+                    [Result(Imax).Data, UsedCCDSEC]   = imUtil.cut.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type);
                     Result(Imax).CCDSEC = UsedCCDSEC;
                 end
             else
@@ -1492,7 +1492,7 @@ classdef ImageComponent < Component
             %            If the image is scaled, then will rescale the
             %            image (i.e., will use the 'Image' property).
             %          - BlockSize [X, Y] of sub images. or [X] (will be copied as [X, X]).
-            %            If empty, will use imUtil.image.subimage_grid
+            %            If empty, will use imUtil.cut.subimage_grid
             %          * ...,key,val,...
             %            'CCDSEC' - A 4 column matrix of CCDSEC
             %                   [Xmin, Xmax, Ymin, Ymax]. Each line
@@ -1520,7 +1520,7 @@ classdef ImageComponent < Component
             
             arguments
                 Obj(1,1)               % must be a single element object
-                BlockSize             = [256 256];   % If empty, will use imUtil.image.subimage_grid
+                BlockSize             = [256 256];   % If empty, will use imUtil.cut.subimage_grid
                 Args.CCDSEC           = [];   % [xmin xmax ymin ymax] If given, override BlockSize
                 Args.Nxy              = [];   % If empty then use SubSizeXY. Default is [].
                 Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
@@ -1531,7 +1531,7 @@ classdef ImageComponent < Component
             
             
             [Sub,EdgesCCDSEC,ListCenters,NoOverlapCCDSEC] = ...
-                    imUtil.image.partition_subimage(Obj.Image, Args.CCDSEC,...
+                    imUtil.cut.partition_subimage(Obj.Image, Args.CCDSEC,...
                            'Output','struct',...
                            'FieldName','Im',...
                            'SubSizeXY',BlockSize,...
@@ -1558,7 +1558,7 @@ classdef ImageComponent < Component
             % break image to sub images
             
             % consider writing a new version of:
-            % [FullImage]=imUtil.image.subimages2image(SubImage,CCDSEC);
+            % [FullImage]=imUtil.cut.subimages2image(SubImage,CCDSEC);
         end
        
         
@@ -1617,10 +1617,10 @@ classdef ImageComponent < Component
             Iobj = 1;
             switch lower(Args.CutAlgo)
                 case 'mex'
-                    [CutoutCube] = imUtil.image.mexCutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
+                    [CutoutCube] = imUtil.cut.mexCutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
                     CutoutCube   = squeeze(CutoutCube);
                 case 'wmat'
-                    [CutoutCube] = imUtil.image.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);
+                    [CutoutCube] = imUtil.cut.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);
                 otherwise
                     error('Unknown Algo option');
             end

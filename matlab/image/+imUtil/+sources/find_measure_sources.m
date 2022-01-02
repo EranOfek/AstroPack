@@ -186,7 +186,7 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     if any(ismember(Args.ColCell,Mom3Cell))
         %ImageSubBack = Image-Back;
         
-        %[Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image-Back, Src.XPEAK,Src.YPEAK);
+        %[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image-Back, Src.XPEAK,Src.YPEAK);
         
         % For aperture/PSF photometry use: imUtil.sources.aperPhotCube
         %

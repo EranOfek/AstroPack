@@ -4,10 +4,10 @@ function [Back,Var]=background(Image,Args)
 % Description: A wrapper function for estimating the background and
 %              background variance of an imaage in a matrix form.
 %              The function partition the image into sub images 
-%              (using imUtil.image.partition_subimage) and
+%              (using imUtil.cut.partition_subimage) and
 %              estimate the background and variance in each sub image.
 %              Next, it collect all the sub images into a full image
-%              (using: imUtil.image.subimages2image).
+%              (using: imUtil.cut.subimages2image).
 %              The background and variance are calculated in each sub image
 %              by calling a user supplied functions.
 % Input  : - a 2D matrix.
@@ -51,7 +51,7 @@ function [Back,Var]=background(Image,Args)
 %                   background map into a full-size image. Default is true.
 %         Not relevent anymore:
 %            'StitchMethod' - Stitching method.
-%                   See imUtil.image.subimages2image for options.
+%                   See imUtil.cut.subimages2image for options.
 %                   Another option is 'scalar'. If there is only one sub
 %                   image, then the ouput will be a scalar.
 %                   Default is 'IgnoreOverlap'.
@@ -113,10 +113,10 @@ if ischar(Args.SubSizeXY)
 else
     
     %[SubImage,CCDSEC,Center]=imUtil.partition.image_partitioning(Image,Args.SubSizeXY,'Overlap',Args.Overlap,'FieldNameIm',Args.FieldName);
-    [SubImage, CCDSEC, Center, ~, ~, Nxy] = imUtil.image.partition_subimage(Image, [], 'SubSizeXY',Args.SubSizeXY, 'OverlapXY',Args.Overlap,...
+    [SubImage, CCDSEC, Center, ~, ~, Nxy] = imUtil.cut.partition_subimage(Image, [], 'SubSizeXY',Args.SubSizeXY, 'OverlapXY',Args.Overlap,...
                                                                                'Output','struct', 'FieldName',Args.FieldName);
     
-%     [SubImage,CCDSEC,Center]=imUtil.image.partition_subimage(Image,[],...
+%     [SubImage,CCDSEC,Center]=imUtil.cut.partition_subimage(Image,[],...
 %                                 'SubSizeXY',Args.SubSizeXY,'OverlapXY',Args.OverlapXY,...
 %                                 'Output','struct','FieldName',FieldName);
 end
@@ -265,7 +265,7 @@ end
 %                 %Y = reshape([SubImage.CenterY],SizeSub);
 %                 %Y = reshape(Center(:,2),SizeSub);
 %                 Y = reshape(Center(:,2), fliplr(Nxy));
-%                 [Back] = imUtil.partition.interp_sparse2full(X, Y, BackIm, fliplr(size(Image)));
+%                 [Back] = imUtil.interp.interp_sparse2full(X, Y, BackIm, fliplr(size(Image)));
 %             end
 % 
 %             if isempty(SubImage(1).Var) || nargout<2
@@ -292,7 +292,7 @@ end
 %     case {'scalar'}
 %         Back = SubImage.Back;
 %     case {'ignoreoverlap','meanoverlap'}
-%         Back = imUtil.image.subimages2image(SubImage,CCDSEC,'FieldName','Back','StitchMethod',Args.StitchMethod);
+%         Back = imUtil.cut.subimages2image(SubImage,CCDSEC,'FieldName','Back','StitchMethod',Args.StitchMethod);
 %     case {'si','impaint'}
 %         GridVal = [Center, [SubImage.Back].'];
 %         Back = imUtil.background.fill_sparse(GridVal,max(CCDSEC(:,[2 4])));
@@ -328,7 +328,7 @@ end
 %             case {'scalar'}
 %                 Var = SubImage.Var;
 %             case {'ignoreoverlap','meanoverlap'}
-%                 Var  = imUtil.image.subimages2image(SubImage,CCDSEC,'FieldName','Var','StitchMethod',Args.StitchMethod);
+%                 Var  = imUtil.cut.subimages2image(SubImage,CCDSEC,'FieldName','Var','StitchMethod',Args.StitchMethod);
 %             case {'si','impaint'}
 %                 GridVal = [Center, [SubImage.Var].'];
 %                 Var = imUtil.background.fill_sparse(GridVal,max(CCDSEC(:,[2 4])));

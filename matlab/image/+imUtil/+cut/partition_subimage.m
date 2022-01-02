@@ -2,10 +2,10 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy]=partition_sub
 % Partition image into sub images
 % Package: mUtil.image
 % Description: Partition image into sub images defined either by a CCDSEC
-%              matrix, or by imUtil.image.subimage_grid function.
+%              matrix, or by imUtil.cut.subimage_grid function.
 % Input  : - Image.
 %          - A 4 column matrix of CCDSEC by which to partition the image.
-%            Line per sub image. If empty, will use imUtil.image.subimage_grid
+%            Line per sub image. If empty, will use imUtil.cut.subimage_grid
 %            Default is empty.
 %          * Arbitrary number of pairs of input arguments ...,key,val,...
 %            The following keywords are available:
@@ -30,10 +30,10 @@ function [SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy]=partition_sub
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [SubImage,CCDSEC,Center,NoOverLap,NewNoOverlap]=imUtil.image.partition_subimage(rand(256,256),[],'SubSizeXY',[64 64],'OverlapXY',[50 50],'Output','struct');
-%          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC)
+% Example: [SubImage,CCDSEC,Center,NoOverLap,NewNoOverlap]=imUtil.cut.partition_subimage(rand(256,256),[],'SubSizeXY',[64 64],'OverlapXY',[50 50],'Output','struct');
+%          [SubImage]=imUtil.cut.partition_subimage(rand(256,258),CCDSEC)
 %          cellfun(@(x) std(x(:)),SubImage,'UniformOutput',false)  % calculate std for each sub image
-%          [SubImage]=imUtil.image.partition_subimage(rand(256,258),CCDSEC,'Output','struct');
+%          [SubImage]=imUtil.cut.partition_subimage(rand(256,258),CCDSEC,'Output','struct');
 % Reliable: 2
 %--------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ if isempty(CCDSEC)
         Args.SubSizeXY = SizeXY;
     end
     % partition image using subimage_grid
-    [CCDSEC,NooverlapCCDSEC,~,Nxy,NewNoOverlap] = imUtil.image.subimage_grid(SizeXY,...
+    [CCDSEC,NooverlapCCDSEC,~,Nxy,NewNoOverlap] = imUtil.cut.subimage_grid(SizeXY,...
                                                             'SubSizeXY',Args.SubSizeXY,...
                                                             'Nxy',Args.Nxy,...
                                                             'OverlapXY',Args.OverlapXY);

@@ -108,12 +108,12 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 %         SizeX = real(str2doubleq(OutN{1}));
 %         SizeY = real(str2doubleq(OutN{2}));
 %     
-%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
+%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.cut.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
 %                                                                                                'OverlapXY',[64 64]);
 %                                                                                          
 %         
 %         
-%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.image.subimage_grid([SizeX, SizeY], 'SubSizeXY',Args.SubImageSizeXY,...
+%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.cut.subimage_grid([SizeX, SizeY], 'SubSizeXY',Args.SubImageSizeXY,...
 %                                                                                                'OverlapXY',Args.OverlapXY);
 %                                                                                          
 %         

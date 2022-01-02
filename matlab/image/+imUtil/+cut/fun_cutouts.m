@@ -16,14 +16,14 @@ function [varargout] = fun_cutouts(Image, X, Y, Fun, Args)
 %            'Radius' - Radius of cutouts (if input is a matrix).
 %            'Circle' - A flag indicating if to extract the stamps with
 %                       circular shape. Default is false.
-%            'mexCutout' - use imUtil.image.mexCutout.m (true) or
-%                       imUtil.image.find_within_radius_mat (false).
+%            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+%                       imUtil.cut.find_within_radius_mat (false).
 %                       Default is true.
 % Output : * Arbitrary numbre of vectors. Each vector for each output of
 %            Fun. each element in each vector corresponds to one cutout.
 % Author : Eran Ofek (Mar 2021)
-% Example: [M] = imUtil.image.fun_cutouts(rand(1000,1000), rand(100,1).*600+10, rand(100,1).*600+10, @median, 'FunWorksOnMatrix',true)
-%          [M] = imUtil.image.fun_cutouts(rand(20,20,100), [], [], @median, 'FunWorksOnMatrix',true)
+% Example: [M] = imUtil.cut.fun_cutouts(rand(1000,1000), rand(100,1).*600+10, rand(100,1).*600+10, @median, 'FunWorksOnMatrix',true)
+%          [M] = imUtil.cut.fun_cutouts(rand(20,20,100), [], [], @median, 'FunWorksOnMatrix',true)
 
 arguments
     Image
@@ -42,12 +42,12 @@ NdimImage = ndims(Image);
 if NdimImage==2
     % Image is 2D - build a cube of 2D stamps
     if Args.mexCutout
-        [Cube]=imUtil.image.mexCutout(Image,[X,Y],Args.Radius.*2+1);
+        [Cube]=imUtil.cut.mexCutout(Image,[X,Y],Args.Radius.*2+1);
         Cube  = squeeze(Cube);
         RoundX = round(X);
         RoundY = round(Y);
     else
-        [Cube,RoundX,RoundY]=imUtil.image.find_within_radius_mat(Image, X, Y, Args.Radius, Args.Circle);
+        [Cube,RoundX,RoundY]=imUtil.cut.find_within_radius_mat(Image, X, Y, Args.Radius, Args.Circle);
     end
     
     

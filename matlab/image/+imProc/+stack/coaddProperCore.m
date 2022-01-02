@@ -18,6 +18,6 @@ function Result = coaddProperCore(Obj, Args)
     CubeImage = imProc.image.images2cube(Obj, 'CCDSEC',Args.CCDSEC);
     CubePSF   = imProc.psf.psf2cube(Obj);
     
-    [R,PR,R_f,PR_f] = combine_proper(CubeImage, CubePSF, Args)
+    [R,PR,R_f,PR_f] = imUtil.properCoadd.combine_proper(CubeImage, CubePSF, Args)
     
 end
