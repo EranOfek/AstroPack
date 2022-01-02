@@ -505,6 +505,9 @@ class DatabaseDef:
                 field.display_name = get_csv(row, 'Display Name')
                 field.display_format = get_csv(row, 'Display Format')
 
+                # Get 'Index' field
+                Index = get_csv(row, 'Index')
+
                 # Load field metadata as YAML data
                 field.yaml = yaml.load('{' + field.metadata + '}', Loader=yaml.FullLoader)
 
@@ -513,12 +516,12 @@ class DatabaseDef:
                     field.index_method = field.yaml['index_method']
 
                 # Primary key
-                if field.field_name.find('**') > -1:
+                if field.field_name.find('**') > -1 or Index.find('**') > -1:
                     field.field_name = field.field_name.replace('**', '')
                     field.primary_key = True
 
                 # Index
-                if field.field_name.find('*') > -1:
+                elif field.field_name.find('*') > -1 or Index.find('*') > -1:
                     field.field_name = field.field_name.replace('*', '')
                     field.index = True
 

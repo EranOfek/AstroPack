@@ -110,11 +110,11 @@ classdef DbConnection < Component
             % Alias specified, set values from config
             if ~isempty(Args.Db) && Args.UseConfig
                 Obj.Db = Args.Db;
-                Alias = db.DbConnection.findFieldIC(Obj.Config.Data.Database.DbConnection.Connections, Obj.Db);
+                Alias = db.DbConnection.findFieldIC(Obj.Config.Data.Database.DbConnections, Obj.Db);
                 if ~isempty(Alias)
                     Obj.Db = Alias;
                     Obj.msgLog(LogLevel.Info, 'Using db alias from config: %s', Obj.Db);
-                    Item = Obj.Config.Data.Database.DbConnection.Connections.(Obj.Db);
+                    Item = Obj.Config.Data.Database.DbConnections.(Obj.Db);
                     Obj.setProps(Item);
                 else
                     Obj.msgLog(LogLevel.Warning, 'Db alias not found in config, make sure this is on purpose: %s', Obj.Db);

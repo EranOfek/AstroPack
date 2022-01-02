@@ -29,29 +29,29 @@ DbConnection:
         Port            : 5432              # Port number
         
 
-    # Databases, items names are used by DbConnection
-    Connections:
+# Databases, items names are used by DbConnection
+DbConnections:
 
-        #
-        UnitTest:
-            DatabaseName    : 'unittest'        # Database name
-            
-            # User defined data, used it test
-            DoubleFields    : 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5,fdouble6,fdouble7,fdouble8,fdouble9,fdouble10'
+    #
+    UnitTest:
+        DatabaseName    : 'unittest'        # Database name
+        
+        # User defined data, used it test
+        DoubleFields    : 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5,fdouble6,fdouble7,fdouble8,fdouble9,fdouble10'
 
-        #
-        Pipeline:
-            DatabaseName    : 'pipeline'        # Database name
+    #
+    Pipeline:
+        DatabaseName    : 'pipeline'        # Database name
 
-        #
-        Last:
-            DatabaseName    : 'last'            # Database name
+    #
+    Last:
+        DatabaseName    : 'last'            # Database name
 
-        #
-        Observations:
-            DatabaseName    : 'observations'    # Database name
+    #
+    Observations:
+        DatabaseName    : 'observations'    # Database name
 
-        #
-        Soc:
-            DatabaseName    : 'observations'    # Database name
+    #
+    Soc:
+        DatabaseName    : 'observations'    # Database name
 
