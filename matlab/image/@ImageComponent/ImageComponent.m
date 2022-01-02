@@ -645,6 +645,13 @@ classdef ImageComponent < Component
             %            'Class'    - Force thr output to be of some class.
             %                   If empty will use the first object class.
             %                   Default is empty.
+            %            'Cube' - Pre allocated cube. This can be a
+            %                   pre-allocated cube with the exact same size
+            %                   needed by the function. If provided, this
+            %                   will be used instaed of allocating new
+            %                   memory using the zeros command.
+            %                   If empty, then the Cube will be allocated.
+            %                   Default is [].
             % Output : - A cube of images.
             % Author : Eran Ofek (Apr 2021)
             % Example: IC=ImageComponent({ones(5,5),2.*ones(5,5),3.*ones(5,5)});
@@ -660,6 +667,7 @@ classdef ImageComponent < Component
                 Args.DataPropIn                    = 'Image';
                 Args.DimIndex                      = 3;
                 Args.Class                         = [];
+                Args.Cube                          = [];
             end
             
             
@@ -676,13 +684,18 @@ classdef ImageComponent < Component
             if isempty(Args.Class)
                 Args.Class = class(Obj(Iobj).(Args.DataPropIn));
             end
-            if Args.DimIndex==1
-                Cube = zeros(Size(1), Size(2), Nobj, Args.Class);  % faster
-                %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
-            elseif Args.DimIndex==3
-                Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
+            if isempty(Args.Cube)
+                if Args.DimIndex==1
+                    Cube = zeros(Size(1), Size(2), Nobj, Args.Class);    % faster
+                    %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
+                elseif Args.DimIndex==3
+                    Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
+                else
+                    error('DimINdex must be 1 or 3');
+                end
             else
-                error('DimINdex must be 1 or 3');
+                % use previously allocated cube
+                Cube = Args.Cube;
             end
                 
             if isempty(Args.CCDSEC)
