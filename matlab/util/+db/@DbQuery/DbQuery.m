@@ -29,13 +29,16 @@
 %
 %     https://techviewleo.com/how-to-install-postgresql-database-on-ubuntu/
 %
-% Create database on remote server:
+% Create database on remote server (password: 'Passw0rd')
 %
-%     psql -h ubuntu -p 5432 -U admin -W -d postgres -f unittest.sql
+%     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
 %
-% Create database from the output SQL file
+% Using COPY:
+% Still need to find a solution for this:
+% https://gpdb.docs.pivotal.io/6-9/admin_guide/load/topics/g-loading-data-with-copy.html
+% The COPY source file must be accessible to the postgres process on the master host. 
+% Specify the COPY source file name relative to the data directory on the master host, or specify an absolute path.
 %
-%     psql -U postgres -f unittest.sql
 %--------------------------------------------------------------------------
 
 % #functions (autogen)

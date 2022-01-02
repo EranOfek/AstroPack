@@ -39,6 +39,10 @@ function Result = unitTest()
     Limit = 10000;    
     Fields = 'recid,fdouble1,fdouble2,fdouble3';
     
+    % Still need to find a solution for this:
+    % https://gpdb.docs.pivotal.io/6-9/admin_guide/load/topics/g-loading-data-with-copy.html
+    % The COPY source file must be accessible to the postgres process on the master host. 
+    % Specify the COPY source file name relative to the data directory on the master host, or specify an absolute path.
     UseCopy = false;  %%% !!!!!!!!    
     
     
