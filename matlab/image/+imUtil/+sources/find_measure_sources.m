@@ -331,7 +331,7 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
             case 'aper_area'
                 % may have multiple columns
                 NC = size(Aper.AperArea,2);
-                Cat(:,K:K+NC-1) = Aper.AperArea;
+                Cat(:,K:K+NC-1) = Aper.AperArea.*ones(size(Cat(:,1)));
                 [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('APER_AREA',(1:1:NC)));
                 K = K + NC - 1;
             case 'flux_box'
