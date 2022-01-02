@@ -1,0 +1,9 @@
+# Database.DbConnections.UnitTest
+
+DatabaseName    : 'unittest'        # Database name
+Host            : 'gauss'           # Host name or IP address
+DriverName      : 'postgres'        # Driver name
+UserName        : 'admin'           # Login user
+Password        : 'Passw0rd'        # Login password
+Port            : 5432              # Port number, 5432 for PostgresV13, 5433 for PostgresV14
+
