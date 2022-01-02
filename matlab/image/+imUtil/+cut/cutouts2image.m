@@ -15,8 +15,8 @@ function Image = cutouts2image(Cube, Image, X, Y, Args)
     % Author : Eran Ofek (Jan 2022)
     % Example: Nsrc = 4000; Cube = randn(15,15,Nsrc); Image = zeros(1700,1700);
     %          XY = floor(rand(Nsrc,2).*1700);
-    %          Image = imUtil.image.cutouts2image(Cube, Image, XY(:,1),XY(:,2));
-    %          Image = imUtil.image.cutouts2image(Cube(:,:,1), Image, 1, 1)
+    %          Image = imUtil.cut.cutouts2image(Cube, Image, XY(:,1),XY(:,2));
+    %          Image = imUtil.cut.cutouts2image(Cube(:,:,1), Image, 1, 1)
     
     arguments
         Cube

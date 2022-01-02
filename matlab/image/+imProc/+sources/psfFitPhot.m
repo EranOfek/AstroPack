@@ -9,6 +9,9 @@ function Result = psfFitPhot(Obj, Args)
         Args.ColX                    = Obj(1).DefNamesX;        
         Args.ColY                    = Obj(1).DefNamesY;        
         Args.CreateNewObj logical    = false;
+        Args.mexCutout logical       = true;
+        Args.Circle logical          = false;
+        Args.psfPhotCubeArgs cell    = {};
     end
     
     Result = Obj;
@@ -35,9 +38,6 @@ function Result = psfFitPhot(Obj, Args)
                                                         'Psf',PSF,...
                                                         
                 XY = [Src.XPEAK, Src.YPEAK];
-                                                        
-                                                                                      
-                error('Find sources in psfFitPhot is not yet implemented');
             end 
         else
             XY = Args.XY;
@@ -47,11 +47,18 @@ function Result = psfFitPhot(Obj, Args)
         ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;
         
         % get Cube of stamps around sources
-        
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
         
         % PSF fitting
-            
-        
+        [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                'Std',
+                                                                'Back',
+                                                                'FitRadius',
+                                                                'backgroundCubeArgs',
+                                                                Args.psfPhotCubeArgs{:});
+                                                                
+        % second iteration
+        Image = imUtil.cut.cutouts2image(Cube, Image, X, Y)
         
     
     end
