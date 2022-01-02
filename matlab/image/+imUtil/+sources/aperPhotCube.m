@@ -105,8 +105,8 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     Rout2 = Args.AnnulusRad(2).^2;
     
     
-    VecX  = 0.5.*SizeX - (1:1:SizeX);
-    VecY  = 0.5.*SizeY - (1:1:SizeY).';
+    VecX  = 0.5.*SizeX + 0.5 - (1:1:SizeX);
+    VecY  = 0.5.*SizeY + 0.5 - (1:1:SizeY).';
     MatR2 = VecX.^2 + VecY.^2;
     
     Flag  = cast(MatR2<Rin2 | MatR2>Rout2, 'like',Cube);
@@ -130,7 +130,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         case 'lanczos'
             [Cube] = imUtil.trans.shift_lanczos(Cube, ShiftXY, Args.A, Args.IsCircFilt, Args.PadVal);
         case 'fft'
-            [Cube] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));            
+            [Cube1] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));            
         case 'none'
             % no sub pixel shift
             % need to prepare a new version of MatR2 with the correct

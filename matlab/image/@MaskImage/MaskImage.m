@@ -221,7 +221,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
             if nargout>1
                 Ind = find(Flag);
-                XY  = imUtil.image.ind2sub_fast(size(Flag), Ind);
+                [X,Y]  = imUtil.image.ind2sub_fast(size(Flag), Ind);
+                XY     = [X,Y];
             end
             
             

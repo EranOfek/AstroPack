@@ -21,7 +21,7 @@ classdef ImagePath < Component
         Counter         = '';           % Counter
         CCDID           = '';           % CCD ID
         CropID          = '';           % Used with sub-images
-        Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe
+        Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe, focus,...
         Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, merged, ref.
         SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
@@ -557,7 +557,7 @@ classdef ImagePath < Component
             % Verify Type
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
             switch Obj.Type
-                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'sci', 'science', 'wave' }
+                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'science', 'wave' }
                     % Ok
                 otherwise
                     error('Unknown Type option: %s', Obj.Type);
