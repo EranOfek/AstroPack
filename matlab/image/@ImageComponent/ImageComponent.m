@@ -627,6 +627,107 @@ classdef ImageComponent < Component
             
         end
                 
+        function Cube = images2cubeIC(Obj, Args)
+            % Generate a cube of images from ImageComponent object and return an ImageComponent with a cube
+            % Input  : - An ImageComponent object (multi elements
+            %            supported).
+            %          * ...,key,val,...
+            %            'CCDSEC' - A 4 column matrix of CCDSEC of each
+            %                   image in ImageComponent to insert into the
+            %                   cube [Xmin, Xmax, Ymin, Ymax].
+            %                   If single line, then use the same CCDSEC
+            %                   for all images. If empty, use entore image.
+            %                   Default is [].
+            %            'DataPropIn' - Data property from which to take
+            %                   the image. Default is 'Image'.
+            %            'DimIndex' - Cube dimension of the image index.
+            %                   Either 1 or 3. Default is 3.
+            %            'Class'    - Force thr output to be of some class.
+            %                   If empty will use the first object class.
+            %                   Default is empty.
+            %            'Cube' - Pre allocated cube. This can be a
+            %                   single-element ImageComponent object  with
+            %                   pre-allocated cube with the exact same size
+            %                   needed by the function. If provided, this
+            %                   will be used instaed of allocating new
+            %                   memory using the zeros command.
+            %                   If empty, then the Cube will be allocated.
+            %                   Default is [].
+            % Output : - An Image component containing a cube of images.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: IC=ImageComponent({ones(5,5),2.*ones(5,5),3.*ones(5,5)});
+            %          Cube = images2cubeIC(IC)
+            
+            arguments
+                Obj
+                Args.CCDSEC                        = [];  % empty for the entire image
+                Args.DataPropIn                    = 'Data';
+                Args.DimIndex                      = 3;
+                Args.Class                         = [];
+                Args.Cube                          = [];
+            end
+            
+            Nobj      = numel(Obj);
+            Nsec      = size(Args.CCDSEC,1);
+            % size of images
+            Iobj = 1;
+            if isempty(Args.CCDSEC)
+                Size = size(Obj(Iobj).(Args.DataPropIn));
+            else
+                Size = [Args.CCDSEC(Iobj,4)-Args.CCDSEC(Iobj,3)+1, Args.CCDSEC(Iobj,2)-Args.CCDSEC(Iobj,1)+1];
+            end
+            % allocate cube
+            if isempty(Args.Class)
+                Args.Class = class(Obj(Iobj).(Args.DataPropIn));
+            end
+            if isempty(Args.Cube)
+                if Args.DimIndex==1
+                    Cube = ImageComponent({zeros(Size(1), Size(2), Nobj, Args.Class)});    % faster
+                    %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
+                elseif Args.DimIndex==3
+                    Cube = ImageComponent({zeros(Size(1), Size(2), Nobj, Args.Class)});
+                else
+                    error('DimINdex must be 1 or 3');
+                end
+            else
+                % use previously allocated cube
+                Cube = ImageComponent({Args.Cube});
+            end
+                
+            if isempty(Args.CCDSEC)
+                % generate cube from full images
+                if Args.DimIndex==3
+                    for Iobj=1:1:Nobj
+                        Cube.(Args.DataPropIn)(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                    end
+                else
+                    % DimIndex = 1
+                    
+                    for Iobj=1:1:Nobj
+                        Cube.(Args.DataPropIn)(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                    end
+                    Cube.(Args.DataPropIn) = permute(Cube.(Args.DataPropIn),[3 1 2]);
+
+                end
+                        
+            else
+                % generate cube from sub images (CCDSEC)
+                if Args.DimIndex==3
+                    for Iobj=1:1:Nobj
+                        Isec = min(Iobj, Nsec);
+                        Cube.(Args.DataPropIn)(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(Isec,3):Args.CCDSEC(Isec,4), Args.CCDSEC(Isec,1):Args.CCDSEC(Isec,2));
+                    end
+                else
+                    % DimIndex = 1
+                    for Iobj=1:1:Nobj
+                        Isec = min(Iobj, Nsec);
+                        Cube.(Args.DataPropIn)(Iobj,:,:) = Obj(Iobj).(Args.DataPropIn)(Args.CCDSEC(Isec,3):Args.CCDSEC(Isec,4), Args.CCDSEC(Isec,1):Args.CCDSEC(Isec,2));
+                    end
+                end
+            end
+        end
+              
+        
         function Cube = images2cube(Obj, Args)
             % Generate a cube of images from ImageComponent object
             % Input  : - An ImageComponent object (multi elements
@@ -645,13 +746,6 @@ classdef ImageComponent < Component
             %            'Class'    - Force thr output to be of some class.
             %                   If empty will use the first object class.
             %                   Default is empty.
-            %            'Cube' - Pre allocated cube. This can be a
-            %                   pre-allocated cube with the exact same size
-            %                   needed by the function. If provided, this
-            %                   will be used instaed of allocating new
-            %                   memory using the zeros command.
-            %                   If empty, then the Cube will be allocated.
-            %                   Default is [].
             % Output : - A cube of images.
             % Author : Eran Ofek (Apr 2021)
             % Example: IC=ImageComponent({ones(5,5),2.*ones(5,5),3.*ones(5,5)});
@@ -667,7 +761,6 @@ classdef ImageComponent < Component
                 Args.DataPropIn                    = 'Image';
                 Args.DimIndex                      = 3;
                 Args.Class                         = [];
-                Args.Cube                          = [];
             end
             
             
@@ -684,20 +777,15 @@ classdef ImageComponent < Component
             if isempty(Args.Class)
                 Args.Class = class(Obj(Iobj).(Args.DataPropIn));
             end
-            if isempty(Args.Cube)
-                if Args.DimIndex==1
-                    Cube = zeros(Size(1), Size(2), Nobj, Args.Class);    % faster
-                    %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
-                elseif Args.DimIndex==3
-                    Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
-                else
-                    error('DimINdex must be 1 or 3');
-                end
+            if Args.DimIndex==1
+                Cube = zeros(Size(1), Size(2), Nobj, Args.Class);    % faster
+                %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
+            elseif Args.DimIndex==3
+                Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
             else
-                % use previously allocated cube
-                Cube = Args.Cube;
+                error('DimINdex must be 1 or 3');
             end
-                
+            
             if isempty(Args.CCDSEC)
                 % generate cube from full images
                 if Args.DimIndex==3

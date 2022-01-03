@@ -13,6 +13,8 @@ function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 %                    If empty then use SubSizeXY. Default is [].
 %            'OverlapXY' - Overlapping extra [X, Y] to add to SubSizeXY
 %                    from each side. Default is [32 32].
+%            'MakeEqualSize' - A logical indicating if the sub image sizes
+%                   must be of equal size. Default is true.
 % Output : - CCDSEC of the images with overlap [xmin, xmax, ymin, ymax].
 %            A line per sub image.
 %          - CCDSEC of the images without overlap.
@@ -23,7 +25,7 @@ function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: [CCDSEC,unCCDSEC,Center,Nxy]=imUtil.cut.subimage_grid([256 258],'SubSizeXY',[64 64])
-%          [CCDSEC,unCCDSEC,Center,Nxy]=imUtil.cut.subimage_grid([256 258],'Nxy',[5 4])
+%          [CCDSEC,unCCDSEC,Center,Nxy, NonOverlap]=imUtil.cut.subimage_grid([256 258],'Nxy',[5 4])
 % Reliable: 2
 %--------------------------------------------------------------------------
 
@@ -32,6 +34,7 @@ arguments
     Args.SubSizeXY(1,2)                                  = [128 128];
     Args.Nxy                                             = [];
     Args.OverlapXY(1,2)                                  = [32  32];
+    Args.MakeEqualSize logical                           = true;
 end
 
 
@@ -97,5 +100,17 @@ WY = UnCCDSEC(:,4)-UnCCDSEC(:,3);
 NewNoOverlap = 1+[DX, WX-DX, DY, WY-DY];
 
 
-
-
+if Args.MakeEqualSize
+    MaxXY = max([CCDSEC(:,2)-CCDSEC(:,1), CCDSEC(:,4)-CCDSEC(:,3)]);
+    AddXY = MaxXY - [CCDSEC(:,2)-CCDSEC(:,1), CCDSEC(:,4)-CCDSEC(:,3)];
+    
+    FlagEdgeX = CCDSEC(:,2)==SizeXY(1);
+    FlagEdgeY = CCDSEC(:,4)==SizeXY(2);
+    
+    CCDSEC(~FlagEdgeX,2) = CCDSEC(~FlagEdgeX,2) + AddXY(~FlagEdgeX,1);
+    CCDSEC(FlagEdgeX,1)  = CCDSEC(FlagEdgeX,1)  - AddXY(FlagEdgeX,1);
+    
+    CCDSEC(~FlagEdgeY,4) = CCDSEC(~FlagEdgeY,4) + AddXY(~FlagEdgeY,2);
+    CCDSEC(FlagEdgeY,3)  = CCDSEC(FlagEdgeY,3)  - AddXY(FlagEdgeY,2);
+    
+end

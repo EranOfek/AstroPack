@@ -108,6 +108,13 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     %              'UpdateImagePathKeys' - A logical indicating if to
     %                   add the LEVEL, SUBLEVEL and CROPID keywords to
     %                   header. Default is true.
+    %              'Cube' - Pre allocated cube. This can be a
+    %                   pre-allocated cube with the exact same size
+    %                   needed by the function. If provided, this
+    %                   will be used instaed of allocating new
+    %                   memory using the zeros command.
+    %                   If empty, then the Cube will be allocated.
+    %                   Default is [].
     % Output : - An AstroImage with the coadded image, includinf
     %            the coadded background and mask. The VarData is always
     %            including the empirical variance.
@@ -162,6 +169,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         Args.UpdateTimes(1,1) logical               = true;
         Args.SumExpTime(1,1) logical                = true;
         Args.UpdateImagePathKeys logical            = true;
+        Args.Cube                                   = [];
 
     end
     DataProp                      = {'ImageData','BackData', 'VarData', 'MaskData'};
@@ -172,7 +180,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
 
     Nim = numel(ImObj);
 
-    [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn);
+    [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn, 'Cube',Args.Cube);
      
     % subtract offset (only from image)
     if ~isempty(Args.Offset)

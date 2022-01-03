@@ -48,7 +48,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.Tran                             = Tran2D('poly3');
         Args.CatName                          = 'GAIAEDR3';
         Args.photometricZPArgs cell           = {};                                                              
-        Args.ReturnRegisteredAllSI logical    = false;
+        Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
           
         Args.StackMethod                      = 'sigmaclip';        
         Args.Asteroids_PM_MatchRadius         = 3;
@@ -78,8 +78,23 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % flag orphans
     
     
+    
+    
     % coadd images
-    Nfields = numel(MatchedS);
+    %Nfields = numel(MatchedS);
+    [Nepoch, Nfields]  = size(AllSI);
+    % check if all sub images has equal size
+    % if so preallocate memory for cube
+    [SizeSI, SizeSJ] = sizeImage(AllSI);
+    if numel(unique(SizeSI))==1 && numel(unique(SizeSJ))==1
+        % all sub images have equal size
+        PreAllocCube = [];
+        %%% FFU: in order for this to work the PreAllocCube must be an handle object...
+        %PreAllocCube = ImageComponent({zeros(SizeSI(1), SIzeSJ(1), Nepoch, 'like',AllSI(1).Image)});
+    else
+        PreAllocCube = [];
+    end
+        
     ResultCoadd = struct('ShiftX',cell(Nfields,1),...
                          'ShiftY',cell(Nfields,1),...
                          'CoaddN',cell(Nfields,1),...
@@ -107,7 +122,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         % 1. NOTE that the mean image is returned so that the effective gain
         % is now Gain/Nimages
         % 2. RegisteredImages has no header so no JD...
+        
         [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
+                                                                                             'Cube',PreAllocCube,...
                                                                                              'StackMethod',Args.StackMethod);
         
         
