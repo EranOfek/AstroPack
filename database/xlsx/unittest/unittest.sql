@@ -113,6 +113,75 @@ dstring3 VARCHAR,
 CONSTRAINT details_table_pkey PRIMARY KEY(RecID)
 );
 
+CREATE INDEX details_table_idx_InsertTime ON public.details_table
+  USING btree (InsertTime);
+
+CREATE INDEX details_table_idx_UpdateTime ON public.details_table
+  USING btree (UpdateTime);
+
+CREATE INDEX details_table_idx_FInt ON public.details_table
+  USING btree (FInt);
+
+CREATE INDEX details_table_idx_FBigInt ON public.details_table
+  USING btree (FBigInt);
+
+CREATE INDEX details_table_idx_FBool ON public.details_table
+  USING btree (FBool);
+
+CREATE INDEX details_table_idx_FDouble ON public.details_table
+  USING btree (FDouble);
+
+CREATE INDEX details_table_idx_FTimestamp ON public.details_table
+  USING btree (FTimestamp);
+
+CREATE INDEX details_table_idx_FString ON public.details_table
+  USING btree (FString);
+
+CREATE INDEX details_table_idx_FDouble1 ON public.details_table
+  USING btree (FDouble1);
+
+CREATE INDEX details_table_idx_FDouble2 ON public.details_table
+  USING btree (FDouble2);
+
+CREATE INDEX details_table_idx_FDouble3 ON public.details_table
+  USING btree (FDouble3);
+
+CREATE INDEX details_table_idx_FDouble4 ON public.details_table
+  USING btree (FDouble4);
+
+CREATE INDEX details_table_idx_FInt1 ON public.details_table
+  USING btree (FInt1);
+
+CREATE INDEX details_table_idx_FInt2 ON public.details_table
+  USING btree (FInt2);
+
+CREATE INDEX details_table_idx_FInt3 ON public.details_table
+  USING btree (FInt3);
+
+CREATE INDEX details_table_idx_FInt4 ON public.details_table
+  USING btree (FInt4);
+
+CREATE INDEX details_table_idx_FString1 ON public.details_table
+  USING btree (FString1);
+
+CREATE INDEX details_table_idx_FString2 ON public.details_table
+  USING btree (FString2);
+
+CREATE INDEX details_table_idx_FString3 ON public.details_table
+  USING btree (FString3);
+
+CREATE INDEX details_table_idx_FString4 ON public.details_table
+  USING btree (FString4);
+
+CREATE INDEX details_table_idx_dstring1 ON public.details_table
+  USING btree (dstring1);
+
+CREATE INDEX details_table_idx_dstring2 ON public.details_table
+  USING btree (dstring2);
+
+CREATE INDEX details_table_idx_dstring3 ON public.details_table
+  USING btree (dstring3);
+
 -- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest\csv\unittest - master_table.csv
 CREATE TABLE public.master_table (
 RecID VARCHAR NOT NULL,
@@ -170,4 +239,73 @@ mstring3 VARCHAR,
 
 CONSTRAINT master_table_pkey PRIMARY KEY(RecID)
 );
+
+CREATE INDEX master_table_idx_InsertTime ON public.master_table
+  USING btree (InsertTime);
+
+CREATE INDEX master_table_idx_UpdateTime ON public.master_table
+  USING btree (UpdateTime);
+
+CREATE INDEX master_table_idx_FInt ON public.master_table
+  USING btree (FInt);
+
+CREATE INDEX master_table_idx_FBigInt ON public.master_table
+  USING btree (FBigInt);
+
+CREATE INDEX master_table_idx_FBool ON public.master_table
+  USING btree (FBool);
+
+CREATE INDEX master_table_idx_FDouble ON public.master_table
+  USING btree (FDouble);
+
+CREATE INDEX master_table_idx_FTimestamp ON public.master_table
+  USING btree (FTimestamp);
+
+CREATE INDEX master_table_idx_FString ON public.master_table
+  USING btree (FString);
+
+CREATE INDEX master_table_idx_FDouble1 ON public.master_table
+  USING btree (FDouble1);
+
+CREATE INDEX master_table_idx_FDouble2 ON public.master_table
+  USING btree (FDouble2);
+
+CREATE INDEX master_table_idx_FDouble3 ON public.master_table
+  USING btree (FDouble3);
+
+CREATE INDEX master_table_idx_FDouble4 ON public.master_table
+  USING btree (FDouble4);
+
+CREATE INDEX master_table_idx_FInt1 ON public.master_table
+  USING btree (FInt1);
+
+CREATE INDEX master_table_idx_FInt2 ON public.master_table
+  USING btree (FInt2);
+
+CREATE INDEX master_table_idx_FInt3 ON public.master_table
+  USING btree (FInt3);
+
+CREATE INDEX master_table_idx_FInt4 ON public.master_table
+  USING btree (FInt4);
+
+CREATE INDEX master_table_idx_FString1 ON public.master_table
+  USING btree (FString1);
+
+CREATE INDEX master_table_idx_FString2 ON public.master_table
+  USING btree (FString2);
+
+CREATE INDEX master_table_idx_FString3 ON public.master_table
+  USING btree (FString3);
+
+CREATE INDEX master_table_idx_FString4 ON public.master_table
+  USING btree (FString4);
+
+CREATE INDEX master_table_idx_mstring1 ON public.master_table
+  USING btree (mstring1);
+
+CREATE INDEX master_table_idx_mstring2 ON public.master_table
+  USING btree (mstring2);
+
+CREATE INDEX master_table_idx_mstring3 ON public.master_table
+  USING btree (mstring3);
 
