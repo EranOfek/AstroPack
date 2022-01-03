@@ -181,103 +181,217 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     Nim = numel(ImObj);
 
     [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn, 'Cube',Args.Cube);
-     
-    % subtract offset (only from image)
-    if ~isempty(Args.Offset)
-        if isa(Args.Offset,'function_handle')
-            Args.Offset = Args.Offset(ImageCube, Args.OffsetArgs{:});
-        end
-        Noff = numel(Args.Offset);
-        if Noff~=1 && Noff~=Nim
-            error('Number of offsets must be 1 or equal to number of images');
-        end
-        if IndexDim==3
-            ImageCube = ImageCube - reshape(Args.Offset,[1 1 Noff]);
-        elseif IndexDim==1
-            ImageCube = ImageCube - reshape(Args.Offset,[Noff 1 1]);
-        else
-            error('IndexDim must be 1 or 3');
-        end
+    
+    if isa(ImageCube, 'ImageComponent')
+        IsIC = true;
+    else
+        IsIC = false;
     end
-
-    % pre normalization (only from image and variance)
-    if ~isempty(Args.PreNorm)
-        if isa(Args.PreNorm,'function_handle')
-            Args.PreNorm = Args.PreNorm(ImageCube, Args.PreNormArgs{:});
-       end
-        Nnorm = numel(Args.PreNorm);
-        if Nnorm~=1 && Nnorm~=Nim
-            error('Number of pre normalizations mnust be 1 or equal to number of images');
-        end
-        if IndexDim==3
-            PreNorm = reshape(1./Args.PreNorm,[1 1 Nnorm]);
-        elseif IndexDim==1
-            PreNorm = reshape(1./Args.PreNorm,[Nnorm 1 1]);
-        else
-            error('IndexDim must be 1 or 3');
-        end
-        ImageCube = ImageCube .* PreNorm;
-        VarCube   = VarCube   .* PreNorm.^2;
-    end
-
-    % stack the images
-    if Args.UseWeights
-        %
-        if isempty(Args.Weights)
-            % use inverse variance as weights
-            Args.Weights = VarCube;
-        else
-            Nw = nuem(Args.Weights);
-            
+    
+    if IsIC
+        % This is a copy of the else block, but using a cube in an
+        % ImageComponent
+        DataProp = 'Data';
+        
+        % subtract offset (only from image)
+        if ~isempty(Args.Offset)
+            if isa(Args.Offset,'function_handle')
+                Args.Offset = Args.Offset(ImageCube.(DataProp), Args.OffsetArgs{:});
+            end
+            Noff = numel(Args.Offset);
+            if Noff~=1 && Noff~=Nim
+                error('Number of offsets must be 1 or equal to number of images');
+            end
             if IndexDim==3
-                Args.Weights = reshape(Args.Weights, [1 1 Nw]);
+                ImageCube.(DataProp) = ImageCube.(DataProp) - reshape(Args.Offset,[1 1 Noff]);
             elseif IndexDim==1
-                Args.Weights = reshape(Args.Weights, [Nw 1 1]);
+                ImageCube.(DataProp) = ImageCube.(DataProp) - reshape(Args.Offset,[Noff 1 1]);
             else
                 error('IndexDim must be 1 or 3');
-            end  
+            end
         end
+
+        % pre normalization (only from image and variance)
+        if ~isempty(Args.PreNorm)
+            if isa(Args.PreNorm,'function_handle')
+                Args.PreNorm = Args.PreNorm(ImageCube.(DataProp), Args.PreNormArgs{:});
+           end
+            Nnorm = numel(Args.PreNorm);
+            if Nnorm~=1 && Nnorm~=Nim
+                error('Number of pre normalizations mnust be 1 or equal to number of images');
+            end
+            if IndexDim==3
+                PreNorm = reshape(1./Args.PreNorm,[1 1 Nnorm]);
+            elseif IndexDim==1
+                PreNorm = reshape(1./Args.PreNorm,[Nnorm 1 1]);
+            else
+                error('IndexDim must be 1 or 3');
+            end
+            ImageCube.(DataProp) = ImageCube.(DataProp) .* PreNorm;
+            VarCube.(DataProp)   = VarCube.(DataProp)   .* PreNorm.^2;
+        end
+
+        % stack the images
+        if Args.UseWeights
+            %
+            if isempty(Args.Weights)
+                % use inverse variance as weights
+                Args.Weights = VarCube.(DataProp);
+            else
+                Nw = nuem(Args.Weights);
+
+                if IndexDim==3
+                    Args.Weights = reshape(Args.Weights, [1 1 Nw]);
+                elseif IndexDim==1
+                    Args.Weights = reshape(Args.Weights, [Nw 1 1]);
+                else
+                    error('IndexDim must be 1 or 3');
+                end  
+            end
+        else
+            Args.Weights = [];
+        end
+        [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.stackCube(ImageCube.(DataProp), 'StackMethod',Args.StackMethod,...
+                                                                                 'StackArgs',Args.StackArgs,...
+                                                                                 'IndexDim',IndexDim,...
+                                                                                 'EmpiricalVarFun',Args.EmpiricalVarFun,...
+                                                                                 'EmpiricalVarFunArgs',Args.EmpiricalVarFunArgs,...
+                                                                                 'VarCube',Args.Weights,...
+                                                                                 'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
+                                                                                 'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
+                                                                                 'DivideVarByN',false,...
+                                                                                 'CalcCoaddVarEmpirical',true,...
+                                                                                 'CalcCoaddVar',false,...
+                                                                                 'CalcCoaddN',true);
+
+
+
+
+        if Args.CombineBack && ~isempty(BackCube.(DataProp))
+            [BackCoadd] = imUtil.image.stackCube(BackCube.(DataProp), 'StackMethod',Args.StackMethod,...
+                                                                                 'StackArgs',Args.StackArgs,...
+                                                                                 'IndexDim',IndexDim,...
+                                                                                 'VarCube',[],...
+                                                                                 'CalcCoaddVarEmpirical',false,...
+                                                                                 'CalcCoaddVar',false,...
+                                                                                 'CalcCoaddN',false);
+             Result.BackData.(Args.DataPropIn)  = BackCoadd;                                                                
+        end
+        if Args.CombineMask && ~isempty(MaskCube.(DataProp))
+            [MaskCoadd] = imUtil.image.stackCube(MaskCube.(DataProp), 'StackMethod',Args.MaskStackMethod,...
+                                                                                 'StackArgs',Args.MaskStackArgs,...
+                                                                                 'IndexDim',IndexDim,...
+                                                                                 'VarCube',[],...
+                                                                                 'CalcCoaddVarEmpirical',false,...
+                                                                                 'CalcCoaddVar',false,...
+                                                                                 'CalcCoaddN',false);
+            Result.MaskData.(Args.DataPropIn)  = MaskCoadd;   
+
+        end
+        
+        
     else
-        Args.Weights = [];
+    
+        % subtract offset (only from image)
+        if ~isempty(Args.Offset)
+            if isa(Args.Offset,'function_handle')
+                Args.Offset = Args.Offset(ImageCube, Args.OffsetArgs{:});
+            end
+            Noff = numel(Args.Offset);
+            if Noff~=1 && Noff~=Nim
+                error('Number of offsets must be 1 or equal to number of images');
+            end
+            if IndexDim==3
+                ImageCube = ImageCube - reshape(Args.Offset,[1 1 Noff]);
+            elseif IndexDim==1
+                ImageCube = ImageCube - reshape(Args.Offset,[Noff 1 1]);
+            else
+                error('IndexDim must be 1 or 3');
+            end
+        end
+
+        % pre normalization (only from image and variance)
+        if ~isempty(Args.PreNorm)
+            if isa(Args.PreNorm,'function_handle')
+                Args.PreNorm = Args.PreNorm(ImageCube, Args.PreNormArgs{:});
+           end
+            Nnorm = numel(Args.PreNorm);
+            if Nnorm~=1 && Nnorm~=Nim
+                error('Number of pre normalizations mnust be 1 or equal to number of images');
+            end
+            if IndexDim==3
+                PreNorm = reshape(1./Args.PreNorm,[1 1 Nnorm]);
+            elseif IndexDim==1
+                PreNorm = reshape(1./Args.PreNorm,[Nnorm 1 1]);
+            else
+                error('IndexDim must be 1 or 3');
+            end
+            ImageCube = ImageCube .* PreNorm;
+            VarCube   = VarCube   .* PreNorm.^2;
+        end
+
+        % stack the images
+        if Args.UseWeights
+            %
+            if isempty(Args.Weights)
+                % use inverse variance as weights
+                Args.Weights = VarCube;
+            else
+                Nw = nuem(Args.Weights);
+
+                if IndexDim==3
+                    Args.Weights = reshape(Args.Weights, [1 1 Nw]);
+                elseif IndexDim==1
+                    Args.Weights = reshape(Args.Weights, [Nw 1 1]);
+                else
+                    error('IndexDim must be 1 or 3');
+                end  
+            end
+        else
+            Args.Weights = [];
+        end
+        [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.stackCube(ImageCube, 'StackMethod',Args.StackMethod,...
+                                                                                 'StackArgs',Args.StackArgs,...
+                                                                                 'IndexDim',IndexDim,...
+                                                                                 'EmpiricalVarFun',Args.EmpiricalVarFun,...
+                                                                                 'EmpiricalVarFunArgs',Args.EmpiricalVarFunArgs,...
+                                                                                 'VarCube',Args.Weights,...
+                                                                                 'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
+                                                                                 'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
+                                                                                 'DivideVarByN',false,...
+                                                                                 'CalcCoaddVarEmpirical',true,...
+                                                                                 'CalcCoaddVar',false,...
+                                                                                 'CalcCoaddN',true);
+
+
+
+
+        if Args.CombineBack && ~isempty(BackCube)
+            [BackCoadd] = imUtil.image.stackCube(BackCube, 'StackMethod',Args.StackMethod,...
+                                                                                 'StackArgs',Args.StackArgs,...
+                                                                                 'IndexDim',IndexDim,...
+                                                                                 'VarCube',[],...
+                                                                                 'CalcCoaddVarEmpirical',false,...
+                                                                                 'CalcCoaddVar',false,...
+                                                                                 'CalcCoaddN',false);
+             Result.BackData.(Args.DataPropIn)  = BackCoadd;                                                                
+        end
+        if Args.CombineMask && ~isempty(MaskCube)
+            [MaskCoadd] = imUtil.image.stackCube(MaskCube, 'StackMethod',Args.MaskStackMethod,...
+                                                                                 'StackArgs',Args.MaskStackArgs,...
+                                                                                 'IndexDim',IndexDim,...
+                                                                                 'VarCube',[],...
+                                                                                 'CalcCoaddVarEmpirical',false,...
+                                                                                 'CalcCoaddVar',false,...
+                                                                                 'CalcCoaddN',false);
+            Result.MaskData.(Args.DataPropIn)  = MaskCoadd;   
+
+        end
     end
-    [Coadd, CoaddVarEmpirical, ~, CoaddN] = imUtil.image.stackCube(ImageCube, 'StackMethod',Args.StackMethod,...
-                                                                             'StackArgs',Args.StackArgs,...
-                                                                             'IndexDim',IndexDim,...
-                                                                             'EmpiricalVarFun',Args.EmpiricalVarFun,...
-                                                                             'EmpiricalVarFunArgs',Args.EmpiricalVarFunArgs,...
-                                                                             'VarCube',Args.Weights,...
-                                                                             'MedianVarCorrForEmpirical',Args.MedianVarCorrForEmpirical,...
-                                                                             'DivideEmpiricalByN',Args.DivideEmpiricalByN,...
-                                                                             'DivideVarByN',false,...
-                                                                             'CalcCoaddVarEmpirical',true,...
-                                                                             'CalcCoaddVar',false,...
-                                                                             'CalcCoaddN',true);
-
-
 
     
-    if Args.CombineBack && ~isempty(BackCube)
-        [BackCoadd] = imUtil.image.stackCube(BackCube, 'StackMethod',Args.StackMethod,...
-                                                                             'StackArgs',Args.StackArgs,...
-                                                                             'IndexDim',IndexDim,...
-                                                                             'VarCube',[],...
-                                                                             'CalcCoaddVarEmpirical',false,...
-                                                                             'CalcCoaddVar',false,...
-                                                                             'CalcCoaddN',false);
-         Result.BackData.(Args.DataPropIn)  = BackCoadd;                                                                
-    end
-    if Args.CombineMask && ~isempty(MaskCube)
-        [MaskCoadd] = imUtil.image.stackCube(MaskCube, 'StackMethod',Args.MaskStackMethod,...
-                                                                             'StackArgs',Args.MaskStackArgs,...
-                                                                             'IndexDim',IndexDim,...
-                                                                             'VarCube',[],...
-                                                                             'CalcCoaddVarEmpirical',false,...
-                                                                             'CalcCoaddVar',false,...
-                                                                             'CalcCoaddN',false);
-        Result.MaskData.(Args.DataPropIn)  = MaskCoadd;   
-        
-    end
-
+    % FINISH DEALING WITH CUBE
+    
     % post normalization (image and variance)
     if ~isempty(Args.PostNorm)
         if isa(Args.PostNorm,'function_handle')
