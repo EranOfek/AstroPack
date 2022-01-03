@@ -809,8 +809,12 @@ classdef FITS < handle
         
         
         function DataType = getDataType(ArgDataType)
-            % Get FITS DataType
-            
+            % Get FITS DataType 
+            % Input  : - ArgDataType: 'int8', 8, 'uint16', 'int16', 16,
+            %            'uint32', 'int32', 32, 'int64', 64, 
+            %            'single', 'float32', -32, 'double', 'float64', -64
+            % Output : - 'uint8', 'int16', 'int32', 'int64', 'single', 'double'
+            % Example: DataType = FITS.getDataType(16);
             switch ArgDataType
                  case {'int8',8}
                     DataType = 'uint8';
@@ -834,6 +838,11 @@ classdef FITS < handle
     
         function Header = prepareHeader(ArgsHeader, HeaderField, Args)
             % Prepare header before write
+            % Input  : - ArgsHeader  : HEAD or AstroHeader object
+            %            HeaderField : Name of header field, see HEAD.HeaderField
+            %            'WriteTime' : If true, set current time
+            % Output : - HEAD object
+            % Example: H = FITS.prepareHeader(Header, HeaderField, 'WriteTime', WriteTime)
             arguments
                 ArgsHeader
                 HeaderField
@@ -872,6 +881,12 @@ classdef FITS < handle
         
         function Result = writeHeader(Fptr, Header, HeaderField)            
             % write Header            
+            % Input  : - Fptr - File pointer returned by matlab.io.fits.createFile or
+            %                   matlab.io.fits.openFile()
+            %            Header - HEAD object
+            %            HeaderField - See HEAD.HeaderField
+            % Output : true on sucess
+            % Example: FITS.writeHeader(Fptr, Header, HeaderField)
             % @Todo: Check performance with big header (keys > 300)
             
             %t = tic;
@@ -1352,6 +1367,7 @@ classdef FITS < handle
             end
         end % FITS.write_old
 
+        
         function [NewCellHead]=cellhead_addkey(CellHead,varargin)
             %--------------------------------------------------------------------------
             % FITS.cellhead_addkey function                                class/@FITS
@@ -1448,6 +1464,7 @@ classdef FITS < handle
             NewCellHead = FITS.cellhead_fix(NewCellHead);
         end
         
+        
         function [NewCellHead]=cellhead_delkey(CellHead,Keys)
             %--------------------------------------------------------------------------
             % FITS.cellhead_delkey function                                class/@FITS
@@ -1489,6 +1506,7 @@ classdef FITS < handle
             end
         end
         
+        
         function NewHeader=cellhead_fix(Header)
             %--------------------------------------------------------------------------
             % FITS.cellhead_fix function                                   class/@FITS
@@ -1513,6 +1531,7 @@ classdef FITS < handle
             % add END
             NewHeader = [NewHeader; {'END','',''}];
         end
+        
         
         function [NewCellHead,Lines]=cellhead_getkey(CellHead,Keys,NotExist,Multiple)
             %--------------------------------------------------------------------------
@@ -1599,9 +1618,8 @@ classdef FITS < handle
             end
         end
         
-        
-        
     end
+
     
     methods
         function Nhdu = numHDU(Obj,FileName)
@@ -1836,7 +1854,6 @@ classdef FITS < handle
     methods (Static) % tests
         Result = unitTest(Obj)
             % unitTest for the FITS class
-
     end
     
 end
