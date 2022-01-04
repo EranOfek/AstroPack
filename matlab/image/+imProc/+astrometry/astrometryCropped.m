@@ -101,7 +101,7 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
         CroppedAI(Iim) = imProc.background.background(CroppedAI(Iim), Args.backgroundArgs{:});
         % find sources
         CroppedAI(Iim) = imProc.sources.findMeasureSources(CroppedAI(Iim), 'Threshold',Args.Threshold, Args.findMeasureSourcesArgs{:});
-        [Xsize, Ysize] = sizeImage(CroppedAI(Iim));
+        [Ysize, Xsize] = sizeImage(CroppedAI(Iim));
         Xcenter = Xsize.*0.5;
         Ycenter = Ysize.*0.5;
         

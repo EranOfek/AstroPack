@@ -88,9 +88,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     [SizeSI, SizeSJ] = sizeImage(AllSI);
     if numel(unique(SizeSI))==1 && numel(unique(SizeSJ))==1
         % all sub images have equal size
-        PreAllocCube = [];
         %%% FFU: in order for this to work the PreAllocCube must be an handle object...
-        %PreAllocCube = ImageComponent({zeros(SizeSI(1), SIzeSJ(1), Nepoch, 'like',AllSI(1).Image)});
+        PreAllocCube = ImageComponent({zeros(SizeSI(1), SizeSJ(1), Nepoch, 'like',AllSI(1).Image)});
     else
         PreAllocCube = [];
     end

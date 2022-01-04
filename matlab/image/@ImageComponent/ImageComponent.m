@@ -682,7 +682,7 @@ classdef ImageComponent < Component
             end
             if isempty(Args.Cube)
                 if Args.DimIndex==1
-                    Cube = ImageComponent({zeros(Size(1), Size(2), Nobj, Args.Class)});    % faster
+                    Cube = ImageComponent({Nobj, zeros(Size(1), Size(2), Args.Class)});    % faster
                     %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
                 elseif Args.DimIndex==3
                     Cube = ImageComponent({zeros(Size(1), Size(2), Nobj, Args.Class)});
@@ -691,7 +691,8 @@ classdef ImageComponent < Component
                 end
             else
                 % use previously allocated cube
-                Cube = ImageComponent({Args.Cube});
+                % assuming Cube is an ImageComponent
+                Cube = Args.Cube;
             end
                 
             if isempty(Args.CCDSEC)
@@ -704,9 +705,9 @@ classdef ImageComponent < Component
                     % DimIndex = 1
                     
                     for Iobj=1:1:Nobj
-                        Cube.(Args.DataPropIn)(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                        Cube.(Args.DataPropIn)(Iobj,:,:) = Obj(Iobj).(Args.DataPropIn);
                     end
-                    Cube.(Args.DataPropIn) = permute(Cube.(Args.DataPropIn),[3 1 2]);
+                    %Cube.(Args.DataPropIn) = permute(Cube.(Args.DataPropIn),[3 1 2]);
 
                 end
                         
