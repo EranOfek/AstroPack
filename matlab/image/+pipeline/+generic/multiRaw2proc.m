@@ -191,6 +191,14 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     end
     clear SI;
+
+    % delete Back and Var before coaddition
+    if Args.DeleteBackBeforeCoadd
+        AllSI.deleteProp('Back');
+    end
+    if Args.DeleteVarBeforeCoadd
+        AllSI.deleteProp('Var');
+    end
     
     Args.ReturnRegisteredAllSI = false;
     [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = pipeline.generic.procMergeCoadd(AllSI,...

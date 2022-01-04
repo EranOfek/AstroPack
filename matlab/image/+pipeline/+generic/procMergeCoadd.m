@@ -53,8 +53,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.StackMethod                      = 'sigmaclip';        
         Args.Asteroids_PM_MatchRadius         = 3;
 
-        Args.DeleteBackBeforeCoadd logical    = false;
-        Args.DeleteVarBeforeCoadd logical     = false;
+        %Args.DeleteBackBeforeCoadd logical    = false;
+        %Args.DeleteVarBeforeCoadd logical     = false;
 
     end
     
@@ -121,13 +121,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                  'ReplaceNaN',true,...
                                                  'CreateNewObj',~Args.ReturnRegisteredAllSI);
         
-        % delete Back and Var before coaddition
-        if Args.DeleteBackBeforeCoadd
-            RegisteredImages.deleteProp('Back');
-        end
-        if Args.DeleteVarBeforeCoadd
-            RegisteredImages.deleteProp('Var');
-        end
+        
 
         % use sigma clipping...
         % 1. NOTE that the mean image is returned so that the effective gain
