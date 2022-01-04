@@ -1,0 +1,11 @@
+# Database.DbConnections.UnitTest
+# Edit this file and save it in config/local/
+
+DatabaseName       : 'unittest'        # Database name
+Host               : 'gauss'           # Host name or IP address
+DriverName         : 'postgres'        # Driver name
+Port               : 5432              # Port number
+UserName           : '?'               # Login user - Replace ? with username
+Password           : '?'               # Login password - Replace ? with password
+ServerSharePath    : ''                # Linux
+WinServerSharePath : 'S:/'             # Windows (run: net use S: \\gauss\pgshare)

@@ -77,7 +77,7 @@ classdef ComponentMap < handle
                 Key = lower(Key);
             end
             
-            Obj.msgLog(LogLevel.Debug, 'ComponentMap.add: %s', Key);
+            %Obj.msgLog(LogLevel.Debug, 'ComponentMap.add: %s', Key);
             if ~Obj.Map.isKey(Key)
                 Obj.Map(Key) = Comp;
             else
@@ -97,7 +97,7 @@ classdef ComponentMap < handle
                 Key = lower(Key);
             end
             
-            Obj.msgLog(LogLevel.Debug, 'ComponentMap.remove: %s', Key);
+            %Obj.msgLog(LogLevel.Debug, 'ComponentMap.remove: %s', Key);
             if Obj.Map.isKey(Key)
                 Obj.Map.remove(Key);
             else
