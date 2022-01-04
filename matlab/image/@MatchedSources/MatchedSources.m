@@ -1338,6 +1338,147 @@ classdef MatchedSources < Component
             
         end
         
+        function [Result] = rmsMag(Obj, Args)
+            % Calculate rms of some parameter as a function of magnitude.
+            %       The mean magnitude over epochs, of all sources is
+            %       calculated.
+            %       The std of some parameter over epochs, of all sources is 
+            %       calculated.
+            %       The std as a function of mean magnitude is estimated
+            %       using binning of polynomial fit.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'MagField' - A field name containing the 'mag'
+            %                   like matrix. Default is 'MAG'.
+            %            'ParField' - A firld name containing the parameter
+            %                   matrix. Default is 'MAG'.
+            %            'Method' - Method:
+            %                   'binning' - Use binning.
+            %                   'polyfit' - use polyfit.
+            %            'BinSize' - Bin Size. Default is 0.5.
+            %            'InterpMethod' - Default is 'linear'.
+            %            'PolyDeg' - Polynomial degree. Default is 3.
+            %            'MeanFun' - Function handle for calculating the
+            %                   mean. Default is @median.
+            %            'MeanFunArgs' - A cell array of additional arguments to pass to
+            %                   the 'MeanFun'. Default is {1,'omitnan'}.
+            %            'StdFun' - Function handle for calculating the
+            %                   std. Default is @std.
+            %            'StdFunArgs' - A cell array of additional arguments to pass to
+            %                   the 'StdFun'. Default is {[],1,'omitnan'}.
+            % Output : - A structure array (element per object element).
+            %            .MeanMag - mean mag for all sources.
+            %            .StdPar - par std for all sources.
+            %            .EstimatedStdPar - The binned/polyfitted parameter-std
+            %                   for all sources.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200).*10,'MAG')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          [Result] = MS.rmsMag
+            
+            arguments
+                Obj
+                Args.MagField                  = 'MAG';
+                Args.ParField                  = 'MAG';
+                Args.Method                    = 'binning';
+                Args.BinSize                   = 0.5;
+                Args.InterpMethod              = 'linear';
+                Args.PolyDeg                   = 3;
+                Args.MeanFun function_handle   = @median;
+                Args.MeanFunArgs cell          = {1, 'omitnan'}
+                Args.StdFun function_handle    = @std;
+                Args.StdFunArgs cell           = {[],1,'omitnan'};
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [FieldNameMag] = getFieldNameDic(Obj(Iobj), Args.MagField);
+                Mag = getMatrix(Obj(Iobj), FieldNameMag);
+                [Nep, NsrcSel] = size(Mag);
+                if strcmp(Args.MagField, Args.ParField)
+                    Par = Mag;
+                else
+                    [FieldNamePar] = getFieldNameDic(Obj(Iobj), Args.ParField);
+                    Par = getMatrix(Obj(Iobj), FieldNamePar);
+                end
+
+                Result(Iobj).MeanMag = Args.MeanFun(Mag, Args.MeanFunArgs{:});
+                Result(Iobj).StdPar  = Args.StdFun(Par, Args.StdFunArgs{:});
+
+                switch lower(Args.Method)
+                    case 'binning'
+                        B = timeseries.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median});
+                        Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                    case 'polyfit'
+                        Par = polyfit(Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:), Args.PolyDeg);
+                        Result(Iobj).EstimatedStdPar = polyval(Par, Result(Iobj).MeanMag);
+                    otherwise
+                        error('Unknown Method option');
+                end                
+            end
+            
+        end
+        
+        function [Resul] = matchedFilter(Obj, Args)
+            % Matched filtering with template bank for equally spaced time series.
+            % Input  : - A Matched sources object.
+            %          * ...,key,val,...
+            %            'FieldName' - Field name on which to run the
+            %                   matched filter. Default is 'MAG'.
+            %            'SubMean' - Subtract mean before filtering.
+            %                   If empty, do not sutract mean, otherwise,
+            %                   this is a function handle for the mean
+            %                   calculation. Default is @median.
+            %            'Templates' - Template bank (column-wise), with
+            %                   the same length (epochs) as the matced
+            %                   sources matrix.
+            %            'rmsMagArgs' - Additional arguments to pass to
+            %                   MatchedSources/rmsMag. Default is {}.
+            
+            arguments
+                Obj
+                Args.FieldName    = 'MAG';
+                Args.SubMean      = @median;  % empty - do not subtract
+                Args.Templates    = [];
+                Args.rmsMagArgs   = {};
+            end
+            
+            error('under construction')
+            
+            
+            [TempLen, Ntemp] = size(Args.Templates);
+            
+            Templates        = padarray(Args.Templates, [Npad 0], Args.PadVal, 'post');
+            
+            Norm2Template    = sqrt(sum(Templates.^2, 1));
+            TemplatesFFTconj = conj(fft(Templates, 1));
+            
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [FieldName] = getFieldNameDic(Obj(Iobj), Args.FieldName);
+                Matrix = getMatrix(Obj(Iobj), FieldName);
+                [Nep, NsrcSel] = size(Matrix);
+
+                [ResRMS] = rmsMag(Obj, 'MagField',Args.FieldName,...
+                                       'ParField',Args.FieldName,...
+                                       Args.rmsMagArgs{:});
+
+                NormStd = ResRMS.EstimatedStdPar./Norm2Template;
+
+                if ~isempty(Args.SubMean)
+                    MeanMatrix = Args.SubMean(Matrix, 1, 'omitnan');
+                    Matrix     = Matrix - MeanMatrix;
+                end
+            
+                for Itemp=1:1:Ntemp
+                Result(Iobj).S = ifft(fft(Matrix,1).*TemplatesFFTconj(:,Itemp), 1)./NormStd;
+            
+                Result(Iobj).MaxS = max(Result(Iobj).S, [], 1);
+                Result(Iobj).MinS = min(Result(Iobj).S, [], 1);
+            end
+        end
     end
     
     methods % plot
