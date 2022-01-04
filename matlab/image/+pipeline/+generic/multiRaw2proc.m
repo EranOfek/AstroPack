@@ -91,7 +91,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         Args.StackMethod                      = 'sigmaclip';
         Args.Asteroids_PM_MatchRadius         = 3;
-        
+        Args.DeleteBackBeforeCoadd logical    = true;
+        Args.DeleteVarBeforeCoadd logical     = true;
     end
     
     
@@ -210,7 +211,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                              'photometricZPArgs',Args.photometricZPArgs,...
                                                                                              'ReturnRegisteredAllSI',Args.ReturnRegisteredAllSI,...
                                                                                              'StackMethod',Args.StackMethod,...
-                                                                                             'Asteroids_PM_MatchRadius',Args.Asteroids_PM_MatchRadius);
+                                                                                             'Asteroids_PM_MatchRadius',Args.Asteroids_PM_MatchRadius,...
+                                                                                             'DeleteBackBeforeCoadd',Args.DeleteBackBeforeCoadd,...
+                                                                                             'DeleteVarBeforeCoadd',Args.DeleteVarBeforeCoadd);
                                                                                          
     
     

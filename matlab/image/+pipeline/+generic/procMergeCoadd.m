@@ -52,6 +52,10 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
           
         Args.StackMethod                      = 'sigmaclip';        
         Args.Asteroids_PM_MatchRadius         = 3;
+
+        Args.DeleteBackBeforeCoadd logical    = false;
+        Args.DeleteVarBeforeCoadd logical     = false;
+
     end
     
     % get JD
@@ -89,7 +93,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     if numel(unique(SizeSI))==1 && numel(unique(SizeSJ))==1
         % all sub images have equal size
         %%% FFU: in order for this to work the PreAllocCube must be an handle object...
-        PreAllocCube = ImageComponent({zeros(SizeSI(1), SizeSJ(1), Nepoch, 'like',AllSI(1).Image)});
+        PreAllocCube = []; %ImageComponent({zeros(Nepoch, SizeSI(1), SizeSJ(1), 'like',AllSI(1).Image)});
     else
         PreAllocCube = [];
     end
@@ -117,6 +121,14 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                  'ReplaceNaN',true,...
                                                  'CreateNewObj',~Args.ReturnRegisteredAllSI);
         
+        % delete Back and Var before coaddition
+        if Args.DeleteBackBeforeCoadd
+            RegisteredImages.deleteProp('Back');
+        end
+        if Args.DeleteVarBeforeCoadd
+            RegisteredImages.deleteProp('Var');
+        end
+
         % use sigma clipping...
         % 1. NOTE that the mean image is returned so that the effective gain
         % is now Gain/Nimages
