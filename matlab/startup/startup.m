@@ -1,4 +1,4 @@
-function startup1(Args)
+function startup(Args)
     % Startup file for AstroPack
     % Input  : ...,key,val,...
     %          'setGraphics' - Default is true.
@@ -29,6 +29,10 @@ function startup1(Args)
     %          'EnvVar_ConfigPath' - Like 'EnvVar_BasePath', but for the data
     %                   dir. Default is 'ASTROPACK_CONFIG_PATH'.
     % Author : Eran Ofek (Jan 2022)
+    % Example: startup,
+    %          startup('AstroPack_CatsHTMPath','/last01/data/catsHTM','AstroPack_BasePath',  '/home/last01/ocs/matlab/LAST/AstroPack', 'AstroPack_ConfigPath','/home/last01/ocs/matlab/LAST/AstroPack/config', 'AstroPack_DataPath','/home/last01/ocs/matlab/data');
+    
+    
     
     
     arguments
