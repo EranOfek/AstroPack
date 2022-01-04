@@ -1,10 +1,11 @@
-function [Mean, Var] = constructPSF_cutouts(Image, XY, Args)
+function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
     % Given a background-subtracted image and PSF star positions, construct a mean PSF stamp from cutouts
     % Input  : - A 2-D image, or a cube of cutouts around sources.
     %            If a cube then the image index must be in the 3rd
     %            dimesniosn.
     %          - A two column matrix of [X, Y] sources positions.
-    %            Not relevant if first input is a cube.
+    %            If first input is a cube, then these are the positions in
+    %            the cube. If empty, then set position to (stamp size -1)/2
     %            Default is [].
     %          * ...,key,val,...
     %            'Norm' - Vector of normalizations per cutrouts.
@@ -23,8 +24,8 @@ function [Mean, Var] = constructPSF_cutouts(Image, XY, Args)
     %            'PostNorm' - Post normalization value. If [], do not
     %                   perform post normalization. Default is 1.
     %
-    %            'mexCutout' - use imUtil.image.mexCutout.m (true) or
-    %                   imUtil.image.find_within_radius_mat (false).
+    %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+    %                   imUtil.cut.find_within_radius_mat (false).
     %                   Default is true.
     %            'Circle' - If true, then will set all points outside the radius to NaN.
     %                   Default is false.
@@ -43,7 +44,9 @@ function [Mean, Var] = constructPSF_cutouts(Image, XY, Args)
     % Output : - Mean cutout (PSF).
     %          - Variance of all cutouts.
     % Author : Eran Ofek (Dec 2021)
-    % Example: 
+    % Example: Cube = imUtil.kernel2.gauss(1.5.*ones(100,1));
+    %          Cube = poissrnd(Cube.*1e5) + randn(size(Cube));
+    %          [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Cube, [], 'Norm',1)
     
     arguments
         Image                             % 2D image or cube of cutouts
@@ -57,55 +60,58 @@ function [Mean, Var] = constructPSF_cutouts(Image, XY, Args)
         
         Args.mexCutout logical     = true;
         Args.Circle logical        = false;
-        %Args.ReCenter logical      = true;    % call moment2
+        Args.ReCenter logical      = true;    % call moment2
         Args.MomRadius             = 8;
                 
-        Args.ShiftMethod           = 'lanczos';   % 'lanczos' | 'fft'
+        Args.ShiftMethod           = 'fft';   % 'lanczos' | 'fft'
         Args.A                     = 2;
         Args.IsCircFilt logical    = true;
         Args.PadVal                = 0;
     end
             
     if isempty(Args.Norm)
-        error('Norm argument musu be provided');
+        error('Norm argument must be provided');
     end
     
     MaxRadius = Args.MomRadius;
     
     if isempty(XY)
-        X = [];
-        Y = [];
+        if ndims(Image)==3
+            % Image is a cube
+            [SizeY, SizeX, Nim] = size(Image);
+            
+            X = ones(Nim,1).*(SizeX.*0.5 + 0.5);
+            Y = ones(Nim,1).*(SizeY.*0.5 + 0.5);
+        else
+            error('if input is an image, XY must be provided');
+        end
     else
         X = XY(:,1);
         Y = XY(:,2);
     end
     
-    [Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+    [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
     Dim = 3;
+    Nim = size(Cube,3);
     
-    %if Args.ReCenter
-    M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
-    %end
+    if Args.ReCenter
+        M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
+        X  = M1.X;
+        Y  = M1.Y;
+    end
     
     SizeCube = size(Cube);
     Ncube    = SizeCube(3);
-    Xcen     = SizeCube(2).*0.5;
-    Ycen     = SizeCube(1).*0.5;
+    Xcen     = SizeCube(2).*0.5 + 0.5;
+    Ycen     = SizeCube(1).*0.5 + 0.5;
     
     ShiftXY  = [Xcen - M1.X, Ycen - M1.Y];
     
     switch lower(Args.ShiftMethod)
         case 'lanczos'
             [ShiftedCube] = imUtil.trans.shift_lanczos(Cube, ShiftXY, Args.A, Args.IsCircFilt, Args.PadVal);
-        case 'fft'
-            Icube = 1;
-            ShiftedCube = zeros(Cube);
-            
-            [ShiftedCube(:,:,Icube),NY,NX,Nr,Nc] = imUtil.trans.shift_fft(Cube(:,:,Icube), ShiftXY(Icube,1), ShiftXY(Icube,2));
-            for Icube=2:1:Ncube
-                ShiftedCube(:,:,Icube) = imUtil.trans.shift_fft(Cube(:,:,Icube), ShiftXY(Icube,1), ShiftXY(Icube,2), NY,NX,Nr,Nc);
-            end
-            
+        case 'fft'            
+            [ShiftedCube] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));
         otherwise
             error('Unknown ShiftMethod option');
     end
@@ -121,7 +127,7 @@ function [Mean, Var] = constructPSF_cutouts(Image, XY, Args)
     % cutout summation
     switch lower(Args.SumMethod)
         case 'sigclip'
-            [Mean,Var,FlagGood,GoodCounter] = mean_sigclip(ShiftedCube, Dim, Args.mean_sigclipArgs{:});
+            [Mean,Var,FlagGood,GoodCounter] = imUtil.image.mean_sigclip(ShiftedCube, Dim, Args.mean_sigclipArgs{:});
         case 'mean'
             Mean = mean(ShiftedCube, Dim, 'omitnan');
             Var  = var(ShiftedCube,1, Dim, 'omitnan');

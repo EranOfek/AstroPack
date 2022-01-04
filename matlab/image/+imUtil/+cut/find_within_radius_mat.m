@@ -30,7 +30,7 @@ function [Cube,RoundXorig,RoundYorig]=find_within_radius_mat(Matrix,X,Y,Radius,C
 %     By : Eran O. Ofek                    Jun 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: Image=rand(1024,1024); X=rand(100,1).*1023+1; Y=rand(100,1).*1023+1;
-%          [Cube,RoundX,RoundY]=imUtil.image.find_within_radius_mat(Image,X,Y,3);
+%          [Cube,RoundX,RoundY]=imUtil.cut.find_within_radius_mat(Image,X,Y,3);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

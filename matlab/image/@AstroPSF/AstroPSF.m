@@ -268,8 +268,8 @@ classdef AstroPSF < Component
             %            'WindowOnlyOnLastIter' -Default is false.
             %            'FinalIterWithCorrectWin' - Apply an additional final
             %                       iteration with the correct window.
-            %            'mexCutout' - use imUtil.image.mexCutout.m (true) or
-            %                       imUtil.image.find_within_radius_mat (false).
+            %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+            %                       imUtil.cut.find_within_radius_mat (false).
             %                       Default is true.
             % Output  : - First moment information.
             %             A structure with the following fields.

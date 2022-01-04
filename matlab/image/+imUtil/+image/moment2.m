@@ -64,8 +64,8 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'WindowOnlyOnLastIter' -Default is false.
 %            'FinalIterWithCorrectWin' - Apply an additional final
 %                       iteration with the correct window.
-%            'mexCutout' - use imUtil.image.mexCutout.m (true) or
-%                       imUtil.image.find_within_radius_mat (false).
+%            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+%                       imUtil.cut.find_within_radius_mat (false).
 %                       Default is true.
 %            'CalcBoxPhot' - Return BoXPhot in photometry.
 %                       Default is false.
@@ -148,42 +148,7 @@ MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than al
 Naper      = numel(Args.AperRadius);
 
 
-[Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y);    
-
-% NdimImage = ndims(Image);
-% if NdimImage==2
-%     % Image is 2D - build a cube of 2D stamps
-%     if Args.mexCutout
-%         % Note that the second argument must be a double
-%         [Cube]=imUtil.image.mexCutout(Image,double([X,Y]),MaxRadius.*2+1);
-%         Cube  = squeeze(Cube);
-%         RoundX = round(X);
-%         RoundY = round(Y);
-%     else
-%         [Cube,RoundX,RoundY]=imUtil.image.find_within_radius_mat(Image,X,Y,MaxRadius,Args.Circle);
-%     end
-%     
-%     
-% elseif NdimImage==3
-%     % Image is already a cube of stamps
-%     Cube   = Image;
-%     RoundX = round(X);
-%     RoundY = round(Y);
-%     [~,~,Nc] = size(Cube);
-%     if numel(X)==1
-%         RoundX = RoundX.*ones(Nc,1);
-%         X      = X.*ones(Nc,1);
-%     end
-%     if numel(Y)==1
-%         RoundY = RoundY.*ones(Nc,1);
-%         Y      = Y.*ones(Nc,1);
-%     end
-%     
-% else
-%     error('Image number of dimensions must be 2 or 3');
-% end
-
-
+[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y);    
 
 SizeCube = size(Cube);
 SizeCube = cast(SizeCube, 'like',Image);

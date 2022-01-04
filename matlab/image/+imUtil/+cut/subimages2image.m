@@ -29,8 +29,8 @@ function [FullImage]=subimages2image(SubImage,CCDSEC,Args)
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Mar 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [SubImage,CCDSEC,Center,NoCCDSEC]=imUtil.image.partition_subimage(Image,[],'SubSizeXY',[512 512],'OverlapXY',[16 16],'Output','struct');
-%          [FullImage]=imUtil.image.subimages2image(SubImage,CCDSEC);
+% Example: [SubImage,CCDSEC,Center,NoCCDSEC]=imUtil.cut.partition_subimage(Image,[],'SubSizeXY',[512 512],'OverlapXY',[16 16],'Output','struct');
+%          [FullImage]=imUtil.cut.subimages2image(SubImage,CCDSEC);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

@@ -43,7 +43,7 @@ function Result = unitTest
     % size and empty   
     io.msgLog(LogLevel.Test, 'testing ImageComponent sizeImage');
     IC = ImageComponent({rand(0,1), rand(10,12)});
-    [Nx, Ny] = IC.sizeImage;
+    [Ny, Nx] = IC.sizeImage;
     io.msgLog(LogLevel.Test, 'testing ImageComponent isemptyImage');
     Res = IC.isemptyImage();
     assert(all(Res == [1, 0]));

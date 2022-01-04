@@ -8,8 +8,8 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
     %          - Vector of Y coordinates.
     %          - Radius of cutouts. Default is 12.
     %          * ...,key,val,...
-    %            'mexCutout' - use imUtil.image.mexCutout.m (true) or
-    %                   imUtil.image.find_within_radius_mat (false).
+    %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+    %                   imUtil.cut.find_within_radius_mat (false).
     %                   Default is true.
     %            'Circle' - If true, then will set all points outside the radius to NaN.
     %                   Default is false.
@@ -20,7 +20,7 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
     %          - Y position.
     % Author : Eran Ofek (Dec 2021)
     % Example: Image=rand(100,100); X=[1; 30]; Y=[1; 56];
-    %          [Cube, RoundX, RoundY, X, Y] = imUtil.image.image2cutouts(Image, X, Y);
+    %          [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y);
     
     arguments
         Image
@@ -37,12 +37,12 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
         % Image is 2D - build a cube of 2D stamps
         if Args.mexCutout
             % Note that the second argument must be a double
-            [Cube] = imUtil.image.mexCutout(Image,double([X, Y]),MaxRadius.*2+1);
+            [Cube] = imUtil.cut.mexCutout(Image,double([X, Y]),MaxRadius.*2+1);
             Cube   = squeeze(Cube);
             RoundX = round(X);
             RoundY = round(Y);
         else
-            [Cube, RoundX, RoundY] = imUtil.image.find_within_radius_mat(Image, X, Y, MaxRadius, Args.Circle);
+            [Cube, RoundX, RoundY] = imUtil.cut.find_within_radius_mat(Image, X, Y, MaxRadius, Args.Circle);
         end
 
     elseif NdimImage==3
