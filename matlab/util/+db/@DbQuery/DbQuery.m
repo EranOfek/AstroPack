@@ -10,7 +10,7 @@
 %
 %   Insert single record
 %
-%   Insert records with callback to add fields not in input:
+%   Insert records with callback to add columns not in input:
 %
 %
 %     function Result = makePK(Q, Rec, First, Last)
@@ -52,20 +52,20 @@
 % delete -
 % exec - Execute SQL statement (that does not return data) Example: exec('INSERT ...')
 % getDbVersion - Query Postgres version, result should be similar to 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-% getField - Get field value from current ResultSet, when FieldName is numeric, it is used as column index Example: Value = getField('MyFieldName')
-% getFieldIndex - Get field index by field name, search in ColNames{}
-% getFieldList - Get fields list of current ResultSet as celarray
-% getFieldNamesOfType - Get cell array field names that match the specified field type
-% getFieldType - Get field type
+% getColumn - Get field value from current ResultSet, when FieldName is numeric, it is used as column index Example: Value = getField('MyFieldName')
+% getColumnIndex - Get field index by field name, search in ColNames{}
+% getColumnList - Get fields list of current ResultSet as celarray
+% getColumnNamesOfType - Get cell array field names that match the specified field type
+% getColumnType - Get field type
 % getMetadata - Get metadata of the specified table or the current result-set
-% getTableFieldList - Get fields list of specified table as celarray
-% getValidFieldName - Convert specified table field name to valid Matlab property/struct-field name, replace non-valid chars with '_' Example: getValidFieldName('') ->
+% getTableColumnList - Get fields list of specified table as celarray
+% getValidColumnName - Convert specified table field name to valid Matlab property/struct-field name, replace non-valid chars with '_' Example: getValidFieldName('') ->
 % insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('s', d)", uuid, i).char;
-% isField - Check if field exists by name
+% isColumn - Check if field exists by name
 % loadResultSet - Load ResultSet to DbRecord array Might be time and memory consuming!
-% makeInsertFieldsText -
-% makeUpdateFieldsText - Prepare SQL text from cell array "UPDATE master_table set RecID=?,FInt=? WHERE..."
-% makeWhereFieldsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..."
+% makeInsertColumnsText -
+% makeUpdateColumnsText - Prepare SQL text from cell array "UPDATE master_table set RecID=?,FInt=? WHERE..."
+% makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..."
 % next - Move cursor to next record, return false if reached end of data
 % openConn - Open connection, throw exception on failure
 % prev - Move cursor to previous record, return false if reached end of data
@@ -91,7 +91,7 @@ classdef DbQuery < Component
 
         TableName       = '';       % Current table name
         PrimaryKey                  % Primary Key(s) used when TableName is not empty - char or celarray
-        FieldMap        = [];       % struct
+        ColumnMap        = [];      % struct - @Todo
         InsertRecFunc   = [];       % function(DbQuery, DbRecord, First, Last)
         InsertBatchSize = 100;      %
         InsertUseCopy   = 5000;     % Above this number of records, insert() uses copyFrom()
@@ -141,7 +141,7 @@ classdef DbQuery < Component
                 DbTableOrConn   = []        % DbAlias / DbAlias:TableName / DbConnection object
                 Args.TableName              % Set TableName when not included in DbTable parameter
                 Args.PrimaryKey             % Primary key(s)
-                Args.InsertRecFunc
+                Args.InsertRecFunc          % 
             end
 
             % Setup component
@@ -170,19 +170,20 @@ classdef DbQuery < Component
     methods % High-level: Select/Insert/Update/Delete
 
         function Result = select(Obj, Columns, Args)
-            % Execute SELECT Fields FROM TableName and load results to memory
+            % Execute SELECT Columns FROM TableName and load results to memory
             % Input:   - Columns - Comma-separated field names to select (i.e. 'recid,fint')
-            %            'TableName' - 
-            %            'Where'     -
-            %            'Order'     -
-            %            'Limit'     -
-            %            'Load'      -
-            %            'OutType'   - 
-            %            'UseCopy'   - 
-            %            'TempName'  - 
+            %            'TableName' - Table name, if not specified, Obj.TableName is used
+            %            'Where'     - Where condition (excluding WHERE keyword)
+            %            'Order'     - Order by clause  (excluding ORDER BY keyword)
+            %            'Limit'     - Maximum number of records (LIMIT)
+            %            'Load'      - true to load entire result set
+            %            'OutType'   - Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
+            %            'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
+            %            'TempName'  - @Todo
+            %            'CsvFileName' - @Todo
             % Output:  - 
             % Example: - 
-            % Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
+            % Obj.select('Column1', 'Table', 'Where', '...', 'Order', '...')
             arguments
                 Obj                     %
                 Columns                 % Comma-separated field names to select (i.e. 'recid,fint')
@@ -190,10 +191,11 @@ classdef DbQuery < Component
                 Args.Where = ''         % Where condition (excluding WHERE keyword)
                 Args.Order = ''         % Order by clause  (excluding ORDER BY keyword)
                 Args.Limit = -1         % Maximum number of records (LIMIT)
-                Args.Load = true        % True to load entire result set
+                Args.Load = true        % true to load entire result set
                 Args.OutType = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
                 Args.UseCopy = false    % @Todo (not implemented yet): True to use copyTo() instead of SELECT
-                Args.TempName           %
+                Args.TempName = ''      % @Todo
+                Args.CsvFileName = ''   % @Todo
             end
 
             Result = [];
@@ -233,7 +235,9 @@ classdef DbQuery < Component
 
                 Res = Obj.exec();
                 if Res
-                    if Args.Load
+                    if ~isempty(Args.CsvFileName)
+                        Obj.writeResultSetCsv(Args.CsvFileName);                    
+                    elseif Args.Load
                         tic();
                         Result = db.DbRecord(Args.TempName);
                         Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
@@ -250,7 +254,9 @@ classdef DbQuery < Component
                 % Run query
                 Res = Obj.query();
                 if Res
-                    if Args.Load
+                    if ~isempty(Args.CsvFileName)
+                        Obj.writeResultSetCsv(Args.CsvFileName);                    
+                    elseif Args.Load
                         Result = Obj.loadResultSet();
                         if ~isempty(Args.OutType)
                             Result = Result.convert2(Args.OutType);
@@ -267,14 +273,14 @@ classdef DbQuery < Component
             % Simple insert, all arguments are char
             % Insert new record to table, Keys and Values are celarray
             % Input:   Rec             -
-            %          'TableName'     -
-            %          'ColNames'      -
-            %          'FieldMap'      - 
-            %          'ExFields'      -
-            %          'BatchSize'     -
-            %          'InsertRecFunc' -
-            %          'InsertRecArgs' - 
-            %          'UseCopy'       -
+            %          'TableName'     - Table name, if not specified, Obj.TableName is used
+            %          'ColNames'      - Comma-separated field names (i.e. 'recid,fint')
+            %          'ColumnMap'     - Optional field map
+            %          'ExColumns'     - Additional fields as struct
+            %          'BatchSize'     - Number of records per operation
+            %          'InsertRecFunc' - Called to generate primary key if required
+            %          'InsertRecArgs' - Arguments to InsertRecFunc 
+            %          'UseCopy'       - When number of records is above this value, copyFrom() is used
             %
             % Output:  DbRecord
             % Example: -             
@@ -282,15 +288,17 @@ classdef DbQuery < Component
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
             arguments
                 Obj
-                Rec                         %
+                Rec                         % db.DbRecord, struct array, table, cell array, matrix,
+                                            % AstroTable, AstroCatalog, AstroHeader
                 Args.TableName = ''         % Table name, if not specified, Obj.TableName is used
                 Args.ColNames = []          % Comma-separated field names (i.e. 'recid,fint')
                 Args.ColumnMap = []         % Optional field map
                 Args.ExColumns struct = []  % Additional fields as struct
                 Args.BatchSize = []         % Number of records per operation
                 Args.InsertRecFunc = []     % Called to generate primary key if required
-                Args.InsertRecArgs = {}     %
+                Args.InsertRecArgs = {}     % Arguments to InsertRecFunc 
                 Args.UseCopy = 0            % When number of records is above this value, copyFrom() is used
+                Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
             end
 
             % Execute SQL statement (using java calls)
@@ -336,10 +344,17 @@ classdef DbQuery < Component
             %
             RecordCount = numel(Rec.Data);
 
+            % Get table columns list
+            if Args.ColumnsOnly
+                TableColumnList = Obj.getTableColumnList(Args.TableName);
+            else
+                TableColumnList = [];
+            end
+            
             % Prepare SQL statement
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
             ColumnNames = fieldnames(Rec.Data);
-            [SqlFields, SqlValues] = Obj.makeInsertFieldsText(ColumnNames, 'ColumnMap', Args.ColumnMap);
+            [SqlColumns, SqlValues] = Obj.makeInsertColumnsText(ColumnNames, 'ColumnMap', Args.ColumnMap, 'TableColumnList', TableColumnList);
             
             % Use COPY FROM 
             if Args.UseCopy > 0 && RecordCount > Args.UseCopy
@@ -360,7 +375,7 @@ classdef DbQuery < Component
             T1 = tic();
 
             %
-            RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlFields, ') VALUES (', SqlValues, ');'];
+            RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlColumns, ') VALUES (', SqlValues, ');'];
             Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
 
             % Iterate struct array and insert in batchs
@@ -398,7 +413,7 @@ classdef DbQuery < Component
 
                 % Iterate struct fields
                 T2 = tic();
-                Obj.setStatementValues(Rec, RecIndex, BatchSize);  %Args.FieldMap, 'FirstIndex', FieldIndex);
+                Obj.setStatementValues(Rec, RecIndex, BatchSize, 'TableColumnList', TableColumnList);  %Args.ColumnMap, 'FirstIndex', ColumnIndex);
                 RecIndex = RecIndex + BatchSize;
                 Toc2 = toc(T2);
 
@@ -433,22 +448,22 @@ classdef DbQuery < Component
         end
 
 
-        function Result = update(Obj, SetFields, Args)
+        function Result = update(Obj, SetColumns, Args)
             % Update record
-            % Intput:  SetFields    - Note that string values must be enclosed by single '
+            % Intput:  SetColumns   - Note that string values must be enclosed by single '
             %                         for example: 'MyField=''MyValue'''
             %          'TableName'  - 
             %          'Where'      - 
-            %          'FieldMap'   - for future use
+            %          'ColumnMap'  - @Todo - for future use
             % Output:  true on success
             % Example: Obj.update('TableName', 'MyTable', 'MyField=1', 'Where', 'TheFlag = 1')
             
             arguments
                 Obj
-                SetFields               % SQL statement, i.e. 'FInt=1', etc.
+                SetColumns              % SQL statement, i.e. 'FInt=1', etc.
                 Args.TableName = ''     % Table name
                 Args.Where = ''         % Where condition
-                %Args.FieldMap = []     % Optional field map, for future use
+                %Args.ColumnMap = []    % Optional field map, for future use
             end
 
             % Use all fields that exist in the table
@@ -481,9 +496,9 @@ classdef DbQuery < Component
 
             %
             if ~isempty(Args.Where)            
-                Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetFields).char, ' WHERE ', string(Args.Where).char];
+                Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char, ' WHERE ', string(Args.Where).char];
             else
-                Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetFields).char];
+                Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char];
             end
             
             Obj.msgLog(LogLevel.Debug, 'update: SqlText: %s', Obj.SqlText);
@@ -497,8 +512,8 @@ classdef DbQuery < Component
             end
 
             % Iterate struct fields
-            %Obj.setStatementValues(FieldNames, Rec, Args.FieldMap);
-            %Obj.setStatementValues(WhereFieldNames, WhereRec, Args.FieldMap, 'FieldIndex', numel(FieldNames)+1);
+            %Obj.setStatementValues(ColumnNames, Rec, Args.ColumnMap);
+            %Obj.setStatementValues(WhereColumnNames, WhereRec, Args.ColumnMap, 'ColumnIndex', numel(ColumnNames)+1);
 
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -568,7 +583,7 @@ classdef DbQuery < Component
             end
 
             % Iterate struct fields
-            %Obj.setStatementValues(FieldNames, Rec, FieldMap);
+            %Obj.setStatementValues(ColumnNames, Rec, ColumnMap);
 
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -589,6 +604,7 @@ classdef DbQuery < Component
     end
 
     %----------------------------------------------------------------------
+    
     methods % High-level: Run query / Execute statement(s)
 
         function Result = query(Obj, varargin)
@@ -737,7 +753,7 @@ classdef DbQuery < Component
             % Might be time and memory consuming!            
             % Input:  'MaxRows' - Optional limit of number of rows to load to memory
             % Output:  DbRecord object: ColCount, ColNames, ColType, Data(i) 
-            % Example: -             
+            % Example: Obj.loadResultSet();
 
             arguments
                 Obj
@@ -761,7 +777,7 @@ classdef DbQuery < Component
                 % Loop over all columns in the row
                 for ColIndex = 1 : Obj.ColCount
                     ColumnName = Obj.ColNames{ColIndex};
-                    ColumnValue = Obj.getField(ColIndex);
+                    ColumnValue = Obj.getColumn(ColIndex);
                     Result.Data(RowIndex).(ColumnName) = ColumnValue;
                 end
 
@@ -783,86 +799,257 @@ classdef DbQuery < Component
                 Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
             end
         end
+
         
-
-        function Result = copyFrom(Obj, TableName, FileName, Args)
-            % Helper function for insert() - Import records from file to table
-            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
-            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
-            % Input:   TableName - 
-            %          FileName  - 
-            %          'Fields'  - 
-            %          'Csv'     -
+        function Result = writeResultSetCsv(Obj, CsvFileName)
             %
-            % Output:  true on success
-            % Example: -             
+            % Input:   CsvFileName
+            % Output:  true on sucess
+            % Example: Obj.writeResultSetCsv('/tmp/test1.csv');
+            % See: https://stackoverflow.com/questions/60756995/write-a-sql-resultset-to-a-csv-file
             
-            arguments
-                Obj
-                TableName           % Table name
-                FileName            % Input file name (CSV)
-                Args.Columns = ''   % Fields list, default is to use CSV headers as field names and import all fields
-                Args.Csv = true     % true=Csv file,
+            Result = false;
+            persistent Init;
+            if isempty(Init)
+                Init = true;
+                Jar = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv', 'opencsv-4.1.jar');
+                javaclasspath(Jar);
             end
-
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyFrom');
-
-            AColumns = '';
-            if ~isempty(Args.Columns)
-                AColumns = [' (', Args.Columns, ') '];
+                        
+            try
+                File = java.io.FileWriter(CsvFileName);
+                Writer = com.opencsv.CSVWriter(File, ',');
+                Writer.writeAll(Obj.JavaResultSet, true);
+                Writer.close();
+                File.close();
+                Result = true;
+            catch Ex
+                
             end
-
-            % Prepare SQL:
-            % COPY tablename field1, field2 FROM 'filename' DELIMITER ',' CSV HEADER
-            ASql = ['COPY ', string(TableName).char, string(AFields).char, ' FROM ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER;'];
-
-            % Execute
-            Result = Obj.exec(ASql);
-            Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);
+                    
         end
-
-
-        function Result = copyTo(Obj, TableName, FileName, Args)
-            % Helper function for select() - Export records from table to file
-            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
-            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
-            % Input:   TableName
-            %          FileName
-            %          'Fields'  - 
-            %          'Csv'     -
-            % Output:  true on success
-            % Example: -             
-            
-            arguments
-                Obj
-                TableName           % Table name
-                FileName            % Output file name
-                Args.Columns = ''   % Fields list, if empty all fileds are exported
-                Args.Csv = true     % true to use CSV format
-            end
-
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyTo');
-
-            AColumns = '';
-            if ~isempty(Args.Columns)
-                AFields = [' (', Args.Columns, ') '];
-            end
-
-            % Prepare SQL
-            ASql = ['COPY ', string(TableName).char, string(AColumns).char, ' TO ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER'];
-
-            Result = Obj.exec(ASql);
-            Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);
-            Result = Obj.ExecOk;
-        end
-
+        
     end
 
+    %======================================================================
+    %
+    %======================================================================
+    methods % Low-level: Record, Fields
+
+        function Result = next(Obj)
+            % Move cursor to next record, return false if reached end of data
+            % Input:   -
+            % Output:  true on sucess
+            % Example: Obj.next()            
+            
+            Result = false;
+            Obj.Eof = true;
+            try
+                Obj.Eof = ~Obj.JavaResultSet.next();
+                Result = ~Obj.Eof;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
+            end
+        end
+
+
+        function Result = prev(Obj)
+            % Move cursor to previous record, return false if reached end of data
+            % Input:   -
+            % Output:  true on sucess
+            % Example: Obj.prev()
+            
+            Result = false;
+            Obj.Eof = true;
+            try
+                Obj.Eof = ~Obj.JavaResultSet.previous();
+                Result = ~Obj.Eof;
+            catch
+                Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
+            end
+        end
+
+
+        function Result = getColumn(Obj, ColumnName)
+            % Get field value from current ResultSet, when ColumnName is
+            % numeric, it is used as column index
+            % Input:   ColumnName
+            % Output:  Column value: double/integer/char/
+            % Example: Value = Obj.getColumn('MyFieldName')          
+            
+            % Example:
+            %    Value = getColumn('MyFieldName')
+
+            if isnumeric(ColumnName)
+                ColIndex = ColumnName;
+            else
+                ColIndex = Obj.getColumnIndex(lower(ColumnName));
+            end
+
+            if ColIndex > 0
+                try
+                    Type = Obj.ColType{ColIndex};
+
+                    switch Type
+                        case { 'Float', 'Double' }
+                            Result = Obj.JavaResultSet.getDouble(ColIndex);
+                        case { 'Long', 'Integer', 'Short', 'BigDecimal' }
+                            Result = double(Obj.JavaResultSet.getDouble(ColIndex));
+                        case 'Boolean'
+                            Result = logical(Obj.JavaResultSet.getBoolean(ColIndex));
+                        case 'String'
+                            Result = char(Obj.JavaResultSet.getString(ColIndex));
+                        otherwise % case { 'Date', 'Time', 'Timestamp' }
+                            Result = char(Obj.JavaResultSet.getString(ColIndex));
+                    end
+                    if Obj.DebugMode
+                        %Obj.msgLog(LogLevel.Debug, 'getColumn %s = %s', string(ColumnName).char, string(Result).char);
+                    end
+
+                catch
+                    Obj.msgLog(LogLevel.Error, 'getColumn failed: %s', string(ColumnName).char);
+                end
+            else
+                Obj.msgLog(LogLevel.Error, 'getColumn failed: Column not found: %s', string(ColumnName).char);
+            end
+        end
+
+
+        function Result = isColumn(Obj, ColumnName)
+            % Check if field exists by name
+            % Input:   ColumnName
+            % Output:  true if current result set 
+            % Example: IsColumn = Obj.isColumn('MyFieldName')           
+            
+            if isempty(Obj.JavaResultSet)
+                Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
+                Result = '';
+            else
+                try
+                    if ~isempty(Obj.JavaMetadata)
+                        Index = getColumnIndex(ColumnName);
+                        Result = (Index > 0);
+                    else
+                        Result = Obj.JavaResultSet.getString(ColumnName);
+                        Result = true;
+                    end
+                catch
+                    Obj.msgLog(LogLevel.Error, 'Column not found: %s', ColumnName);
+                end
+            end
+        end
+
+
+        function Result = getColumnIndex(Obj, ColumnName)
+            % Get column index by column name, search in ColNames{}
+            % Input:   ColumnName - 
+            % Output:  DbRecord
+            % Example: Index = Obj.getColumnIndex('')
+            
+            Result = find(strcmp(Obj.ColNames, ColumnName));
+        end
+
+
+        function Result = getColumnType(Obj, ColumnName)
+            % Get column type
+            % Input:   ColumnName - 
+            % Output:  char - 
+            % Example: -             
+            
+            if isnumeric(ColumnName)
+                Index = ColumnName;
+            else
+                Index = Obj.getColumnIndex(ColumnName);
+            end
+
+            if Index > 0
+                Result = Obj.ColType{Index};
+            else
+            end
+        end
+
+
+        function Result = getColumnList(Obj)
+            % Get columns list of current ResultSet as celarray
+            % Input:   -
+            % Output:  
+            % Example: ColNames = Obj.getColumnList()
+            
+            Result = Obj.ColNames;
+        end
+
+
+        function Result = getTablesList(Obj)
+            % Get columns list of specified table as cell array
+            % Input:   -
+            % Output:  Cell array
+            % Example: = Obj.getTablesList()
+            Text = 'SELECT table_name FROM information_schema.tables WHERE table_schema = ''public'' ORDER BY table_name';
+            Result = Obj.selectColumn(Text, 'table_name');
+        end
+              
+        
+        function Result = getTableColumnList(Obj, TableName)
+            % Get columns list of specified table as cell array
+            % Input:   TableName
+            % Output:  Cell array
+            % Example: = Obj.getTableColumnList('master_table')
+            Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' ORDER BY column_name', TableName);
+            Result = Obj.selectColumn(Text, 'column_name');
+        end
+                
+
+        function Result = getTablePrimaryKey(Obj, TableName)
+            % Get primary key column names of specified table
+            % Input:   TableName
+            % Output:  Cell array
+            % Example: = Obj.getTablePrimaryKey('master_table')
+            Text = ['SELECT c.column_name, c.data_type '...
+                'FROM information_schema.table_constraints tc '...
+                'JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_name) '...
+                'JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema '...
+                'AND tc.table_name = c.table_name AND ccu.column_name = c.column_name '...
+                'WHERE constraint_type = ''PRIMARY KEY'' and tc.table_name = ''' TableName ''''];
+            Result = Obj.selectColumn(Text, 'column_name');
+        end
+
+        
+        function Result = getTableIndexList(Obj, TableName)
+            % Get list of index names of specified table
+            % Input:   TableName
+            % Output:  Cell array
+            % Example: = Obj.getTableIndexList('master_table')
+            Text = sprintf('SELECT * FROM pg_indexes WHERE tablename = ''%s''', TableName);
+            Result = Obj.selectColumn(Text, 'indexname');
+        end
+        
+        
+        function Result = selectColumn(Obj, SqlText, ColumnName)
+            % Get column from specified table as cell array
+            % Input:   SqlText - SELECT query text
+            %          ColumnName - Column name to select from query result
+            % Output:  Cell array
+            % Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
+            
+            Result = {};
+            if Obj.query(SqlText)
+                while ~Obj.Eof
+                    Value = Obj.getColumn(ColumnName);
+                    Result{end+1} = Value;                    
+                    if ~Obj.next()
+                        break
+                    end
+                end                
+            end
+        end        
+
+    end
+    
     %======================================================================
     %                      Low-Level & Internal Functions
     %======================================================================
 
-    methods(Hidden=true) % Low-level: open, close, query, exec
+    methods(Hidden=true)
 
         function Result = setConnection(Obj, DbTableOrConn)
             % [Internal Use] Set connection
@@ -927,183 +1114,79 @@ classdef DbQuery < Component
             
             Result = Obj.clear();
         end
-
-    end
-    %======================================================================
-    %
-    %======================================================================
-    methods % Low-level: Record, Fields
-
-        function Result = next(Obj)
-            % Move cursor to next record, return false if reached end of data
-            % Input:   -
-            % Output:  true on sucess
-            % Example: Obj.next()            
-            
-            Result = false;
-            Obj.Eof = true;
-            try
-                Obj.Eof = ~Obj.JavaResultSet.next();
-                Result = ~Obj.Eof;
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
-            end
-        end
-
-
-        function Result = prev(Obj)
-            % Move cursor to previous record, return false if reached end of data
-            % Input:   -
-            % Output:  true on sucess
-            % Example: Obj.prev()
-            
-            Result = false;
-            Obj.Eof = true;
-            try
-                Obj.Eof = ~Obj.JavaResultSet.previous();
-                Result = ~Obj.Eof;
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
-            end
-        end
-
-
-        function Result = getColumn(Obj, ColumnName)
-            % Get field value from current ResultSet, when FieldName is
-            % numeric, it is used as column index
-            % Input:   FieldName
-            % Output:  Field value: double/integer/char/
-            % Example: Value = Obj.getField('MyFieldName')          
-            
-            % Example:
-            %    Value = getField('MyFieldName')
-
-            if isnumeric(ColumnName)
-                ColIndex = ColumnName;
-            else
-                ColIndex = Obj.getColumnIndex(lower(ColumnName));
-            end
-
-            if ColIndex > 0
-                try
-                    Type = Obj.ColType{ColIndex};
-
-                    switch Type
-                        case { 'Float', 'Double' }
-                            Result = Obj.JavaResultSet.getDouble(ColIndex);
-                        case { 'Long', 'Integer', 'Short', 'BigDecimal' }
-                            Result = double(Obj.JavaResultSet.getDouble(ColIndex));
-                        case 'Boolean'
-                            Result = logical(Obj.JavaResultSet.getBoolean(ColIndex));
-                        case 'String'
-                            Result = char(Obj.JavaResultSet.getString(ColIndex));
-                        otherwise % case { 'Date', 'Time', 'Timestamp' }
-                            Result = char(Obj.JavaResultSet.getString(ColIndex));
-                    end
-                    if Obj.DebugMode
-                        %Obj.msgLog(LogLevel.Debug, 'getColumn %s = %s', string(ColumnName).char, string(Result).char);
-                    end
-
-                catch
-                    Obj.msgLog(LogLevel.Error, 'getColumn failed: %s', string(ColumnName).char);
-                end
-            else
-                Obj.msgLog(LogLevel.Error, 'getColumn failed: Column not found: %s', string(ColumnName).char);
-            end
-        end
-
-
-        function Result = isColumn(Obj, ColumnName)
-            % Check if field exists by name
-            % Input:   ColumnName
-            % Output:  true if current result set 
-            % Example: IsColumn = Obj.isColumn('MyFieldName')           
-            
-            if isempty(Obj.JavaResultSet)
-                Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
-                Result = '';
-            else
-                try
-                    if ~isempty(Obj.JavaMetadata)
-                        Index = getColumnIndex(ColumnName);
-                        Result = (Index > 0);
-                    else
-                        Result = Obj.JavaResultSet.getString(ColumnName);
-                        Result = true;
-                    end
-                catch
-                    Obj.msgLog(LogLevel.Error, 'Field not found: %s', ColumnName);
-                end
-            end
-        end
-
-
-        function Result = getColumnIndex(Obj, ColumnName)
-            % Get column index by field name, search in ColNames{}
-            % Input:   ColumnName - 
-            % Output:  DbRecord
-            % Example: Index = Obj.getColumnIndex('')
-            
-            Result = find(strcmp(Obj.ColNames, ColumnName));
-        end
-
-
-        function Result = getColumnType(Obj, ColumnName)
-            % Get column type
-            % Input:   FieldName - 
-            % Output:  char - 
+        
+        
+        function Result = copyFrom(Obj, TableName, FileName, Args)
+            % Helper function for insert() - Import records from file to table
+            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
+            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+            % Input:   TableName - Table name
+            %          FileName  - Input file name (CSV)
+            %          'Columns' - Columns list, default is to use CSV headers as field names and import all fields
+            %          'Csv'     - true=Csv file, @Todo - binary file?
+            %
+            % Output:  true on success
             % Example: -             
             
-            if isnumeric(ColumnName)
-                Index = ColumnName;
-            else
-                Index = Obj.getColumnIndex(ColumnName);
+            arguments
+                Obj
+                TableName           % Table name
+                FileName            % Input file name (CSV)
+                Args.Columns = ''   % Fields list, default is to use CSV headers as field names and import all fields
+                Args.Csv = true     % true=Csv file, @Todo - binary file?
             end
 
-            if Index > 0
-                Result = Obj.ColType{Index};
-            else
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyFrom');
+
+            AColumns = '';
+            if ~isempty(Args.Columns)
+                AColumns = [' (', Args.Columns, ') '];
             end
+
+            % Prepare SQL:
+            % COPY tablename field1, field2 FROM 'filename' DELIMITER ',' CSV HEADER
+            ASql = ['COPY ', string(TableName).char, string(AColumns).char, ' FROM ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER;'];
+
+            % Execute
+            Result = Obj.exec(ASql);
+            Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);
         end
 
 
-        function Result = getColumnList(Obj)
-            % Get columns list of current ResultSet as celarray
-            % Input:   -
-            % Output:  
-            % Example: ColNames = Obj.getColumnList()
+        function Result = copyTo(Obj, TableName, FileName, Args)
+            % Helper function for select() - Export records from table to file
+            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
+            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
+            % Input:   TableName
+            %          FileName
+            %          'Columns' - 
+            %          'Csv'     -
+            % Output:  true on success
+            % Example: -             
             
-            Result = Obj.ColNames;
-        end
+            arguments
+                Obj
+                TableName           % Table name
+                FileName            % Output file name
+                Args.Columns = ''   % Fields list, if empty all fileds are exported
+                Args.Csv = true     % true to use CSV format
+            end
 
+            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyTo');
 
-        function Result = getTableColumnList(Obj, TableName)
-            % Get columns list of specified table as cell array
-            % Intput:  -
-            % Output:  DbRecord
-            % Example: = Obj.getTableColumnList('master_table')
+            AColumns = '';
+            if ~isempty(Args.Columns)
+                AColumns = [' (', Args.Columns, ') '];
+            end
 
-            
-            % Select single record from table
-            % @Todo: Check how to get it without select, or what we do when
-            % the table is empty?
-            Text = ['SELECT * from ', TableName, ' LIMIT 1'];
-            Obj.query(Text);
+            % Prepare SQL
+            ASql = ['COPY ', string(TableName).char, string(AColumns).char, ' TO ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER'];
 
-            % @Todo This still does not work
-            % Obj.getMetadata(TableName);
+            Result = Obj.exec(ASql);
+            Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);
+            Result = Obj.ExecOk;
+        end        
 
-            % Loop over all columns in the row
-            Result = Obj.ColNames;
-        end
-
-    end
-    
-    %======================================================================
-    %                         Internal Functions
-    %======================================================================
-
-    methods(Hidden=true)
 
         function Result = clear(Obj)
             % Clear current statement and ResultSet
@@ -1197,55 +1280,71 @@ classdef DbQuery < Component
         end
 
 
-        function [SqlFields, SqlValues] = makeInsertFieldsText(Obj, FieldNames, Args)
+        function [SqlColumns, SqlValues] = makeInsertColumnsText(Obj, ColumnNames, Args)
             % Input:   FieldNames -
+            %          'TableColumnList'
             %          'FieldMap' -
             % Output:  SqlFields  -
             %          SqlValues  -
-            % Example: [SqlFields, SqlValues] = Obj.makeInsertFieldsText('fint,fdouble')
+            % Example: [SqlFields, SqlValues] = Obj.makeInsertColumnsText('fint,fdouble')
             
             arguments
                 Obj
-                FieldNames
-                Args.FieldMap = [];     % Optional struct.FieldName = ActualFieldName;
+                ColumnNames
+                Args.TableColumnList = [];   %
+                Args.ColumnMap = [];         % Optional struct.ColumnName = ActualColumnName;
             end
 
             % Prepare SQL text from cell array of field names
             % "INSERT INTO master_table(RecID, FInt) VALUES (?,?)"
-            SqlFields = '';
+            SqlColumns = '';
             SqlValues = '';
 
             if Obj.DebugMode
-                %disp(FieldNames);
+                %disp(ColumnNames);
             end
 
+            %CheckColumns = false;
+            %if Args.TableName
+            %    CheckColumns = true;
+            %    ColumnList = Obj.getTableColumnList(Args.TableName);
+            %end
+            
             % Iterate struct fields
-            for i = 1:numel(FieldNames)
-                FieldName = FieldNames{i};
+            for i = 1:numel(ColumnNames)
+                ColumnName = ColumnNames{i};
 
+                % When Args.TableColumnList is specified, ignore columns not in list
+                if ~isempty(Args.TableColumnList)
+                    if ~any(strcmpi(Args.TableColumnList, ColumnName))
+                        continue;                        
+                    end
+                end
+
+                    
                 % Optionally replace field name from mapping
-                if ~isempty(Args.FieldMap) && isfield(Args.FieldMap, FieldName)
-                    FieldName = Args.FieldMap.(FieldName);
+                if ~isempty(Args.ColumnMap) && isfield(Args.ColumnMap, ColumnName)
+                    ColumnName = Args.ColumnMap.(ColumnName);
                 end
 
                 %
-                if numel(SqlFields) > 0
-                    SqlFields = [SqlFields, ',', FieldName]; %#ok<AGROW>
+                if numel(SqlColumns) > 0
+                    SqlColumns = [SqlColumns, ',', ColumnName]; %#ok<AGROW>
                     SqlValues = [SqlValues, ',?']; %#ok<AGROW>
                 else
-                    SqlFields = [SqlFields, FieldName]; %#ok<AGROW>
+                    SqlColumns = [SqlColumns, ColumnName]; %#ok<AGROW>
                     SqlValues = [SqlValues, '?']; %#ok<AGROW>
                 end
             end
 
-            %Obj.msgLog(LogLevel.Debug, 'makeInsertFieldsText: %s', SqlFields);
+            %Obj.msgLog(LogLevel.Debug, 'makeInsertColumnsText: %s', SqlFields);
         end
 
 
-        function SqlFields = makeUpdateColumnsText(Obj, ColumnNames, Args)
+        function SqlColumns = makeUpdateColumnsText(Obj, ColumnNames, Args)
             % Prepare SQL text from cell array
-            % Input:   FieldNames -
-            %          'FieldMap' -
+            % Input:   ColumnNames -
+            %          'ColumnMap' - @Todo Future
             % Output:  char-array
             % Example: -             
             
@@ -1257,33 +1356,33 @@ classdef DbQuery < Component
             end
 
 
-            SqlFields = '';
+            SqlColumns = '';
 
             % Iterate struct fields
             disp(ColumnNames);
 
             for i = 1:numel(ColumnNames)
-                FieldName = ColumnNames{i};
+                ColumnName = ColumnNames{i};
 
                 % Optionally replace field name from mapping
-                if ~isempty(Args.FieldMap) && isfield(Args.FieldMap, FieldName)
-                    FieldName = Args.FieldMap.(FieldName);
+                if ~isempty(Args.ColumnMap) && isfield(Args.ColumnMap, ColumnName)
+                    ColumnName = Args.ColumnMap.(ColumnName);
                 end
 
                 %
-                if numel(SqlFields) > 0
-                    SqlFields = [SqlFields, ',' ColumnName, '=?']; %#ok<AGROW>
+                if numel(SqlColumns) > 0
+                    SqlColumns = [SqlColumns, ',' ColumnName, '=?']; %#ok<AGROW>
                 else
-                    SqlFields = [SqlFields, ColumnName, '=?']; %#ok<AGROW>
+                    SqlColumns = [SqlColumns, ColumnName, '=?']; %#ok<AGROW>
                 end
             end
 
-            Obj.msgLog(LogLevel.Debug, 'makeUpdateColumnText: %s', SqlFields);
+            Obj.msgLog(LogLevel.Debug, 'makeUpdateColumnText: %s', SqlColumns);
         end
 
 
 
-        function SqlFields = makeWhereColumnsText(Obj, ColumnNames, Operand, ColumnMap)
+        function SqlColumns = makeWhereColumnsText(Obj, ColumnNames, Operand, ColumnMap)
             % Prepare SQL text from cell array
             % "WHERE RecID=? AND FInt=?..."
             % Input:   ColumnNames -
@@ -1299,7 +1398,7 @@ classdef DbQuery < Component
                 ColumnMap       %
             end
 
-            SqlFields = '';
+            SqlColumns = '';
 
             % Iterate struct fields
             disp(ColumnNames);
@@ -1308,30 +1407,31 @@ classdef DbQuery < Component
                 ColumnName = ColumnNames{i};
 
                 % Optionally replace field name from mapping
-                if ~isempty(ColumnMap) && isfield(ColumnMap, FieldName)
-                    FieldName = FieldMap.(FieldName);
+                if ~isempty(ColumnMap) && isfield(ColumnMap, ColumnName)
+                    ColumnName = ColumnMap.(ColumnName);
                 end
 
                 %
-                if numel(SqlFields) > 0
-                    SqlFields = [SqlFields, ' ', Operand, ' ', ColumnName, '=?']; %#ok<AGROW>
+                if numel(SqlColumns) > 0
+                    SqlColumns = [SqlColumns, ' ', Operand, ' ', ColumnName, '=?']; %#ok<AGROW>
                 else
-                    SqlFields = [SqlFields, FieldName, '=?']; %#ok<AGROW>
+                    SqlColumns = [SqlColumns, ColumnName, '=?']; %#ok<AGROW>
                 end
             end
 
-            Obj.msgLog(LogLevel.Debug, 'makeWhereFieldsText: %s', SqlFields);
+            Obj.msgLog(LogLevel.Debug, 'makeWhereColumnsText: %s', SqlColumns);
         end
 
 
         function Result = setStatementValues(Obj, Rec, FirstRecord, RecordCount, Args)
             % Set statement values from specified DbRecord or struct
-            % Input:   Rec -
-            %          FirstRecord
-            %          RecordCount
-            %          'FieldNames'
-            %          'FieldMap'
-            %          'StartIndex'
+            % Input:   Rec               - 
+            %          FirstRecord       -
+            %          RecordCount       -
+            %          'ColumnNames'     -
+            %          'ColumnMap'       -
+            %          'StartIndex'      -
+            %          'TableColumnList' - 
             % Output:  
             % Example: 
             arguments
@@ -1342,6 +1442,7 @@ classdef DbQuery < Component
                 Args.ColumnNames = [];  % cell
                 Args.ColumnMap = []     % Optional
                 Args.StartIndex = 1     % Index of field in current JavaStatement
+                Args.TableColumnList = [];
             end
 
             % Iterate struct fields
@@ -1361,8 +1462,15 @@ classdef DbQuery < Component
             for DataIndex = FirstRecord:FirstRecord+RecordCount-1
 
                 for ColumnNo = 1:numel(Args.ColumnNames)
-                    FieldName = Args.FieldNames{ColumnNo};
-
+                    ColumnName = Args.ColumnNames{ColumnNo};
+                    
+                    % When Args.TableColumnList is specified, ignore columns not in list
+                    if ~isempty(Args.TableColumnList)
+                        if ~any(strcmpi(Args.TableColumnList, ColumnName))
+                            continue;                        
+                        end
+                    end
+                    
                     % Get value
                     Value = Rec.Data(DataIndex).(ColumnName);
 
@@ -1413,13 +1521,13 @@ classdef DbQuery < Component
 
         function Result = getColumnNamesOfType(Obj, ColumnType)
             % Get cell array field names that match the specified field type
-            % Input:   FieldType: 'Integer', 'Double', etc.
+            % Input:   ColumnType: 'Integer', 'Double', etc.
             % Output:  Cell array with list of all fields
-            % Example: ColNames = Q.getFieldNamesOfType('Double');             
+            % Example: ColNames = Q.getColumnNamesOfType('Double');             
             
             arguments
                 Obj
-                ColumnType      % Specified field type
+                ColumnType      % Specified column type
             end
 
             % Iterate struct fields
@@ -1451,7 +1559,6 @@ classdef DbQuery < Component
                 Obj.msgLog(LogLevel.Warning, 'getDbVersion: Invalid result: %s', Result);
             end
         end
-
         
     end
     

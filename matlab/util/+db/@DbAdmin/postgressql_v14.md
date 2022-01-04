@@ -1,13 +1,14 @@
-# PostgreSQL V14
+# PostgreSQL V14 - Installation Instructions
+
+This documents contains installation instructions of PostgreSQL
+database engine in Windows and Linux, along with utilities such as
+JetBrains DataGrip.
 
 
-### Installation
 
-Installation instructions for Linux:
-
+### PostgreSQL V14 - Installation on Linux:
 
 https://techviewleo.com/how-to-install-postgresql-database-on-ubuntu/
-
 
 
 	sudo apt update && sudo apt upgrade
@@ -27,7 +28,7 @@ Verify the installed PostgreSQL version
 
 ### Connect
 
-Password: Passw0rd
+	Password: Passw0rd
 
 
 	psql -h ubuntu -p 5432 -U admin -W -d template1
@@ -42,4 +43,37 @@ Password: Passw0rd
 ### JDBC Driver
 
 https://jdbc.postgresql.org/download.html
+
+
+## PostgresSQL Installation - Windows
+
+Web: https://www.postgresql.org/download/
+
+Download and install **postgresql-13.1-1-windows-x64.exe**.
+
+
+## Database GUI (Windows) - SQL Manager Lite - by EMS Software
+
+On Windows, use **SQL Manager Lite for PostgreSQL** by EMS Software (or DataGrip):
+
+https://www.sqlmanager.net/products/postgresql/manager
+
+Download page:
+
+https://www.sqlmanager.net/products/postgresql/manager/download
+
+
+
+### Database GUI (Linux/Windows) - DataGrip by JetBrains
+
+On Linux, use **DataGrip** by JetBrains
+
+https://www.jetbrains.com/datagrip/
+
+Download page:
+
+https://www.jetbrains.com/datagrip/download/
+
+
+
 

@@ -41,6 +41,7 @@ classdef DbConnection < Component
         Host            = '' %localhost'   % Host name or IP address
         Port            = 0  %v13=5432, v14=5433    % Port number, 5432 is PostgresV13 default
         DriverUrl       = ''               % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
+        ServerSharePath = '' %             % Path to shared folder on the server, for COPY statements
         
         % Internal data and flags
         IsOpen = false                  % True if connection is open
@@ -60,13 +61,15 @@ classdef DbConnection < Component
         function Obj = DbConnection(Args)
             % Constructor
             % Input:            
-            %       'DriverName'    -
-            %       'Host'          -
-            %       'DatabaseName'  -
-            %       'User'          - 
-            %       'Password'      -
-            %       'Port           -
-            %       'DriverUrl'     - 
+            %       'DriverName'      - Currently only 'postgres' is supported
+            %       'Host'            - Network host name or IP address
+            %       'DatabaseName'    - Database name, i.e. 'unittest'
+            %       'User'            - Database user name
+            %       'Password'        - Database user password
+            %       'Port             - Port number, default is 5432
+            %       'DriverUrl'       - Composed connection string
+            %       'ServerSharePath' - Path to shared server folder (use NFS)
+            %
             % Example:
             %   % Connection from configuration
             %   Conn = DbConnection('Db', 'UnitTest')
@@ -85,6 +88,7 @@ classdef DbConnection < Component
                 Args.Password           %
                 Args.Port               %
                 Args.DriverUrl          %
+                Args.ServerSharePath    %
             end            
             
             % Check if already exists - Do not create another object
@@ -102,10 +106,10 @@ classdef DbConnection < Component
             Obj.needUuid();
             
             % Set default values from config
-            if ~isempty(Obj.Config.Data.Database)
-                Conf = Obj.Config.Data.Database.DbConnection.Default;
-                Obj.setProps(Conf);
-            end
+            %if ~isempty(Obj.Config.Data.Database)
+            %    Conf = Obj.Config.Data.Database.DbConnection.Default;
+            %    Obj.setProps(Conf);
+            %end
 
             % Alias specified, set values from config
             if ~isempty(Args.Db) && Args.UseConfig
@@ -116,6 +120,11 @@ classdef DbConnection < Component
                     Obj.msgLog(LogLevel.Info, 'Using db alias from config: %s', Obj.Db);
                     Item = Obj.Config.Data.Database.DbConnections.(Obj.Db);
                     Obj.setProps(Item);
+                    
+                    % On Windows use 'WinServerSharePath' from config
+                    if tools.os.iswindows && isfield(Item, 'WinServerSharePath') && ~isempty(Item.WinServerSharePath)
+                        Obj.ServerSharePath = Item.WinServerSharePath;
+                    end
                 else
                     Obj.msgLog(LogLevel.Warning, 'Db alias not found in config, make sure this is on purpose: %s', Obj.Db);
                 end

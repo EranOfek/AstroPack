@@ -15,6 +15,23 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
 
+    % Get tables list
+    TablesList = Q.getTablesList();
+    ColumnList = Q.getTableColumnList('master_table');
+    PkList = Q.getTablePrimaryKey('master_table');
+    IndexList = Q.getTableIndexList('master_table');
+    
+    % Convert AstroHeader to DbRecord
+    H = AstroHeader();
+    H.insertKey('Key1');
+    H.insertKey({'KeyA','ValueA','CommentA';'KeyB','ValueB','CommentB'},'end-1');
+    R = db.DbRecord(H);
+    
+    
+    H = AstroHeader();
+    H.insertKey({'FInt1',1,'CommentA';'FInt2',2,'CommentB';'FIntXX','XX','CommentXX'},'end-1');
+    Q.insert(H, 'TableName', 'master_table', 'InsertRecFunc', @make_recid, 'ColumnsOnly', true);
+    
     %
     Q = db.DbQuery('unittest:master_table');
     Q = db.DbQuery('unittest', 'TableName', 'master_table');
@@ -26,8 +43,11 @@ function Result = unitTest()
     %testInsert(Q);
     %testSelect(Q);        
         
-    ColNames = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
-    ColNames = Q.Config.Data.Database.DbConnection.Connections.UnitTest.DoubleFields;
+    ColNames = 'fdouble1,fdouble2,fdouble3';
+    if isfield(Q.Config.Data.Database.DbConnections.UnitTest, 'DoubleFields')
+        ColNames = Q.Config.Data.Database.DbConnections.UnitTest.DoubleFields;
+    end
+    
     Cols = numel(strsplit(ColNames, ','));
     Mat = rand(1000, Cols);
     R = db.DbRecord(Mat, 'ColNames', ColNames);
@@ -37,7 +57,7 @@ function Result = unitTest()
     % Select fields
     Q = db.DbQuery('unittest:master_table');    
     Limit = 10000;    
-    Fields = 'recid,fdouble1,fdouble2,fdouble3';
+    Columns = 'recid,fdouble1,fdouble2,fdouble3';
     
     % Still need to find a solution for this:
     % https://gpdb.docs.pivotal.io/6-9/admin_guide/load/topics/g-loading-data-with-copy.html
@@ -45,20 +65,22 @@ function Result = unitTest()
     % Specify the COPY source file name relative to the data directory on the master host, or specify an absolute path.
     UseCopy = false;  %%% !!!!!!!!    
     
-    
+    % CsvFileName
+    Q.select(Columns, 'CsvFileName', 'C:/temp/test_select.csv');
+
     % Compare performance of SELECT vs COPY TO
     for Iter=1:5
         TempFile = 'C:/temp/__tmp1.csv';
         delete(TempFile);
 
         t = tic();
-        RecSelect = Q.select(Fields,  'Limit', Limit);
+        RecSelect = Q.select(Columns,  'Limit', Limit);
         io.msgStyle(LogLevel.Test, 'magenta', 'SELECT: %0.5f', double(tic()-t)/1e7);
 
         t = tic();
         
         % @Todo
-        RecCopy   = Q.select(Fields,  'Limit', Limit, 'UseCopy', UseCopy, 'TempName', TempFile);
+        RecCopy   = Q.select(Columns,  'Limit', Limit, 'UseCopy', UseCopy, 'TempName', TempFile);
         io.msgStyle(LogLevel.Test, 'magenta', 'SELECT using COPY: %0.5f', double(tic()-t)/1e7);
 
         assert(numel(RecSelect.Data) == numel(RecCopy.Data));
@@ -74,10 +96,10 @@ function Result = unitTest()
     Mat = rand(10, 3);
     Q.insert(Mat, 'ColNames', 'fdouble1,fdouble2,fdouble3');
     
-    DoubleFields = 'fdouble1,fdouble2,fdouble3';  %Q.Config.Data.Database.Items.UnitTest.DoubleFields;
-    Cols = numel(strsplit(DoubleFields, ','));
+    DoubleColumns = 'fdouble1,fdouble2,fdouble3';
+    Cols = numel(strsplit(DoubleColumns, ','));
     Mat = rand(1000, Cols);
-    Q.insert(Mat, 'ColNames', DoubleFields);
+    Q.insert(Mat, 'ColNames', DoubleColumns);
     
     % Call tests using 'UnitTest' database    
     TestAll = true;
@@ -168,19 +190,19 @@ function Result = testSelect(Q)
     Table = Record.convert2table();
     
     % Select and load records, automatically convert to output type
-    Fields = '*';
-    Table = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'table', 'Limit', Limit);
+    Columns = '*';
+    Table = Q.select(Columns, 'TableName', 'master_table', 'OutType', 'table', 'Limit', Limit);
     assert(isa(Table, 'table'));       
-    Cell = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'cell', 'Limit', Limit);
+    Cell = Q.select(Columns, 'TableName', 'master_table', 'OutType', 'cell', 'Limit', Limit);
     assert(isa(Cell, 'cell'));  
     
     %----------------------------------------------------- Select double fields into Mat/AstroTable
-    Fields = 'fdouble1,fdouble2';
-    Mat = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'mat', 'Limit', Limit);    
+    Columns = 'fdouble1,fdouble2';
+    Mat = Q.select(Columns, 'TableName', 'master_table', 'OutType', 'mat', 'Limit', Limit);    
     assert(isa(Mat, 'double'));       
-    AstTable = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'AstroTable', 'Limit', Limit);
+    AstTable = Q.select(Columns, 'TableName', 'master_table', 'OutType', 'AstroTable', 'Limit', Limit);
     assert(isa(AstTable, 'AstroTable'));       
-    AstCatalog = Q.select(Fields, 'TableName', 'master_table', 'OutType', 'AstroCatalog', 'Limit', Limit);    
+    AstCatalog = Q.select(Columns, 'TableName', 'master_table', 'OutType', 'AstroCatalog', 'Limit', Limit);    
     assert(isa(AstCatalog, 'AstroCatalog'));       
     
     % Switch to another table
@@ -193,17 +215,17 @@ function Result = testSelect(Q)
     R = Q.select('*', 'Limit', 1);
     assert(numel(R.Data) == 1);
 
-    % getTableFieldList     
-    Fields = Q.getTableFieldList('master_table');
-    assert(numel(Fields) > 0);
-    disp(Fields);
+    % getTableColumnList     
+    Columns = Q.getTableColumnList('master_table');
+    assert(numel(Columns) > 0);
+    disp(Columns);
 
     % Select and load records, automatically convert to output type
-    Fields = 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5';
+    Columns = 'fdouble1,fdouble2,fdouble3,fdouble4,fdouble5';
     Where = 'fdouble1 > fdouble2';
     Limit = 100000;
     Output = 'mat';
-    Mat = Q.select(Fields, 'TableName', 'master_table', 'where', Where, 'OutType', Output, 'Limit', Limit);
+    Mat = Q.select(Columns, 'TableName', 'master_table', 'where', Where, 'OutType', Output, 'Limit', Limit);
     Size = size(Mat);
     disp(Size(1));
     
@@ -213,15 +235,15 @@ function Result = testSelect(Q)
 
     % Select two fields from table, using LIMIT
     Q.query('SELECT count(*)');
-    count = Q.getField('count');
+    count = Q.getColumn('count');
     if count > 0
 
         R = Q.select('RecId, FInt', 'Limit', 5);
         assert(Q.ColCount == 2);
 
         % Get fields list as celarray
-        fields = Q.getFieldList();
-        assert(all(size(fields)) > 0);
+        columns = Q.getColumnList();
+        assert(all(size(columns)) > 0);
 
         % @Todo @Chen
         % Get fields list as empty table
@@ -475,9 +497,9 @@ function Result = testCopy(Q)
     % \COPY master_table TO 'c:\temp\aa1.csv' DELIMITER ',' CSV HEADER
 
     Q.copyFrom('master_table', 'c:\temp\aa1c.csv');
-    Q.copyFrom('master_table', 'c:\\temp\\aa1c.csv', 'Fields', 'recid,fint');
+    Q.copyFrom('master_table', 'c:\\temp\\aa1c.csv', 'Columns', 'recid,fint');
     Q.copyTo('master_table', 'c:\\temp\\a1.csv');           
-    Q.copyTo('master_table', 'c:\\temp\\a2.csv', 'Fields', 'recid,fint');
+    Q.copyTo('master_table', 'c:\\temp\\a2.csv', 'Columns', 'recid,fint');
 
     % Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
 

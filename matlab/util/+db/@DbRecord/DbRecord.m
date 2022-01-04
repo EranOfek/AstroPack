@@ -35,7 +35,8 @@ classdef DbRecord < Base
     methods % Constructor
         function Obj = DbRecord(Data, Args)
             % Constructor
-            % Input:   Data          - struct array, table, cell array, matrix, AstroTable, AstroCatalog
+            % Input:   Data          - struct array, table, cell array, matrix,
+            %                          AstroTable, AstroCatalog, AstroHeader
             %          Args.ColNames - char comma separated, or cell array
             % Example: MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
             arguments
@@ -71,6 +72,22 @@ classdef DbRecord < Base
                         assert(Sz(2) == numel(fieldnames(Obj.Data(1))));
                     else
                         error('DbRecord currently supports only single AstroTable/AstroCatalog');
+                    end
+                elseif isa(Data, 'AstroHeader')
+                    % Load from AstroHeader
+                    if numel(Data) == 1
+                        Data = Data.Data;
+                        Sz = size(Data);
+                        Rows = Sz(1);
+                        Stru = struct;
+                        for Row=1:Rows
+                            Key = Data{Row, 1};
+                            Value = Data{Row, 2};
+                            Stru.(Key) = Value;
+                        end
+                        Obj.Data = Stru;
+                    else
+                        error('DbRecord currently supports only single AstroHeader');                    
                     end
                 end
             end

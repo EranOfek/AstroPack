@@ -516,7 +516,7 @@ class DatabaseDef:
                     field.index_method = field.yaml['index_method']
 
                 # Primary key
-                if field.field_name.find('**') > -1 or Index.find('**') > -1:
+                if field.field_name.find('**') > -1 or Index.find('**') > -1 or Index.lower().find('pk') > -1:
                     field.field_name = field.field_name.replace('**', '')
                     field.primary_key = True
 
