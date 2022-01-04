@@ -42,6 +42,7 @@ classdef DbConnection < Component
         Port            = 0  %v13=5432, v14=5433    % Port number, 5432 is PostgresV13 default
         DriverUrl       = ''               % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
         ServerSharePath = '' %             % Path to shared folder on the server, for COPY statements
+        MountSharePath  = '' 
         
         % Internal data and flags
         IsOpen = false                  % True if connection is open
@@ -121,9 +122,9 @@ classdef DbConnection < Component
                     Item = Obj.Config.Data.Database.DbConnections.(Obj.Db);
                     Obj.setProps(Item);
                     
-                    % On Windows use 'WinServerSharePath' from config
-                    if tools.os.iswindows && isfield(Item, 'WinServerSharePath') && ~isempty(Item.WinServerSharePath)
-                        Obj.ServerSharePath = Item.WinServerSharePath;
+                    % On Windows use 'WinMountSharePath' from config
+                    if tools.os.iswindows && isfield(Item, 'WinMountSharePath') && ~isempty(Item.WinMountSharePath)
+                        Obj.MountSharePath = Item.WinMountSharePath;
                     end
                 else
                     Obj.msgLog(LogLevel.Warning, 'Db alias not found in config, make sure this is on purpose: %s', Obj.Db);

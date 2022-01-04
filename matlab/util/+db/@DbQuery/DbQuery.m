@@ -108,6 +108,9 @@ classdef DbQuery < Component
         Toc             = 0;        % Time of last operation
         PerfLog         = false;    % True to log performance times
 
+        ServerShareFileName = ''    %
+        ClientShareFileName = ''    %
+                
         % Internals
         JavaStatement   = []        % Java object - Prepared statement object
         JavaMetadata    = []        % Java object, set by getMetadata()
@@ -227,10 +230,18 @@ classdef DbQuery < Component
 
             % Use COPY TO statement to temporary csv file, and read file
             if Args.UseCopy
+                ServerPath = Obj.Conn.ServerSharePath;
+                ClientPath = Obj.Conn.MountSharePath;
+                
+                Args.TempPath = sprintf('%s/%s', ServerPath, Component.newUuid());
                 if isempty(Args.TempName)
-                    Args.TempName = sprintf('%s.csv', tempname);
+                    Args.TempName = sprintf('%s.csv', Component.newUuid());
                 end
-                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Args.TempName, ''' CSV HEADER'];
+                
+                Obj.ServerShareFileName = sprintf('%s/%s', ServerPath, Args.TempName);
+                Obj.ClientShareFileName = sprintf('%s/%s', ClientPath, Args.TempName);
+                
+                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Obj.ServerShareFileName, ''' CSV HEADER'];
                 %Obj.msgLog(LogLevel.Debug, 'insert: UseCopy is not implemented yet, using INSERT');
 
                 Res = Obj.exec();
@@ -812,13 +823,27 @@ classdef DbQuery < Component
             persistent Init;
             if isempty(Init)
                 Init = true;
-                Jar = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv', 'opencsv-4.1.jar');
-                javaclasspath(Jar);
+                Path = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv'); 
+                Jar = fullfile(Path, 'opencsv-5.5.2.jar');
+                
+                try
+                    import('com.opencsv.*');
+                    javaObject('CSVWriter');
+                catch
+                    dp = Jar;  %[pth filesep 'external' filesep 'snakeyaml-1.9.jar'];
+                    if not(ismember(dp, javaclasspath ('-dynamic')))
+                        javaaddpath(dp); % javaaddpath clears global variables!?
+                    end
+                    import('com.opencsv.*');
+                end;
+    
+                %javaclasspath(Jar);
+                %javaaddpath(Path, '-end');
             end
                         
             try
                 File = java.io.FileWriter(CsvFileName);
-                Writer = com.opencsv.CSVWriter(File, ',');
+                Writer = CSVWriter(File, ',');
                 Writer.writeAll(Obj.JavaResultSet, true);
                 Writer.close();
                 File.close();

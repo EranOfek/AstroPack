@@ -15,6 +15,10 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
 
+    % CsvFileName
+    Q.select('*', 'TableName', 'master_table', 'CsvFileName', 'C:/temp/test_select.csv');
+    
+    
     % Get tables list
     TablesList = Q.getTablesList();
     ColumnList = Q.getTableColumnList('master_table');
@@ -80,7 +84,7 @@ function Result = unitTest()
         t = tic();
         
         % @Todo
-        RecCopy   = Q.select(Columns,  'Limit', Limit, 'UseCopy', UseCopy, 'TempName', TempFile);
+        RecCopy   = Q.select(Columns,  'Limit', Limit, 'UseCopy', UseCopy);   %, 'TempName', TempFile);
         io.msgStyle(LogLevel.Test, 'magenta', 'SELECT using COPY: %0.5f', double(tic()-t)/1e7);
 
         assert(numel(RecSelect.Data) == numel(RecCopy.Data));
