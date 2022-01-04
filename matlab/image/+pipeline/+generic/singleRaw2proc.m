@@ -184,12 +184,12 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     % set CalibImages
     if isempty(Args.CalibImages)
-        CI = CalibImages;
-        CI.Dark   = Args.Dark;
-        CI.Flat   = Args.Flat;
-        CI.Fringe = Args.Fringe;
+        Args.CalibImages = CalibImages;
+        Args.CalibImages.Dark   = Args.Dark;
+        Args.CalibImages.Flat   = Args.Flat;
+        Args.CalibImages.Fringe = Args.Fringe;
     else
-        CI = Args.CalibImages;
+        % Args.CalibImages;
     end
         
     
@@ -212,7 +212,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     
     % Note that InterpolateOverSaturated is false, because this is done
     % later on in this function
-    AI = CI.processImages(AI, 'SubtractOverscan',false,...
+    AI = Args.CalibImages.processImages(AI, 'SubtractOverscan',false,...
                               'SingleFilter',true,...
                               'InterpolateOverBadPix',true,...
                               'BitNameBadPix',Args.BitNameBadPix,...
