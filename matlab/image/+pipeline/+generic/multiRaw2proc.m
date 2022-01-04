@@ -190,6 +190,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         end
         
     end
+    clear AI;
     clear SI;
 
     % delete Back and Var before coaddition
