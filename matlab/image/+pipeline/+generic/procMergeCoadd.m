@@ -53,8 +53,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.StackMethod                      = 'sigmaclip';        
         Args.Asteroids_PM_MatchRadius         = 3;
 
-        %Args.DeleteBackBeforeCoadd logical    = false;
-        %Args.DeleteVarBeforeCoadd logical     = false;
+        Args.DeleteBackBeforeCoadd logical    = false;
+        Args.DeleteVarBeforeCoadd logical     = false;
 
     end
     
@@ -82,7 +82,13 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % flag orphans
     
     
-    
+    % delete Back and Var before coaddition
+    if Args.DeleteBackBeforeCoadd
+        AllSI.deleteProp('Back');
+    end
+    if Args.DeleteVarBeforeCoadd
+        AllSI.deleteProp('Var');
+    end
     
     % coadd images
     %Nfields = numel(MatchedS);
