@@ -65,7 +65,7 @@ classdef DbConnection < Component
             %       'DriverName'      - Currently only 'postgres' is supported
             %       'Host'            - Network host name or IP address
             %       'DatabaseName'    - Database name, i.e. 'unittest'
-            %       'User'            - Database user name
+            %       'UserName'        - Database user name
             %       'Password'        - Database user password
             %       'Port             - Port number, default is 5432
             %       'DriverUrl'       - Composed connection string
@@ -85,7 +85,7 @@ classdef DbConnection < Component
                 Args.DriverName         %
                 Args.Host               %
                 Args.DatabaseName       %
-                Args.User               %
+                Args.UserName           %
                 Args.Password           %
                 Args.Port               %
                 Args.DriverUrl          %

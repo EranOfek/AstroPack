@@ -21,11 +21,11 @@ classdef DbAdmin < Component
 
         % Connection details
         Conn            = []        % DbConnection
-        Query           = []        % DbQuery        
-        Host            = ''        %
+        Query           = []        % DbQuery, required to execute statements
+        Host            = ''        % 
         Port            = 5432      %                               
         DatabaseName    = ''        % Use 'postgres' to when creating databases or for general
-        User            = ''        %
+        UserName        = ''        %
         Password        = ''        %
         TableName       = ''        %        
     end
@@ -40,7 +40,7 @@ classdef DbAdmin < Component
             %    'DbCon'     -
             %    'Host'      -
             %    'Database'  -
-            %    'User'      -
+            %    'UserName'  -
             %    'Password'  - 
             %    'Port'      - 
             %    'TableName' - 
@@ -55,7 +55,7 @@ classdef DbAdmin < Component
                 Args.Host          = ''        %
                 Args.Port          = 5432      %                               
                 Args.DatabaseName  = ''        % Use 'postgres' to when creating databases or for general
-                Args.User          = ''        %
+                Args.UserName      = ''        %
                 Args.Password      = ''        %
                 Args.TableName     = ''        %
             end
@@ -68,16 +68,19 @@ classdef DbAdmin < Component
 
             % Set connection
             if ~isempty(Args.DbQuery)
-                Obj.Conn = Args.DbQuery.Conn;
+                Obj.setConn(Args.DbQuery.Conn);
             elseif ~isempty(Args.DbCon)
-                Obj.Conn = Args.DbCon;
+                Obj.setConn(Args.DbCon);
             else
-                Obj.Conn = db.DbConnection('Host', Args.Host, 'Port', Args.Port, ...
-                    'DatabaseName', Args.DatabaseName, 'User', Args.User, 'Password', Args.Password);
+                
+                NewCon = db.DbConnection('Host', Args.Host, 'Port', Args.Port, ...
+                    'DatabaseName', Args.DatabaseName, 'UserName', Args.UserName, 'Password', Args.Password);
+                
+                Obj.setConn(NewCon);
             end
                        
             % Override TableName and set other properties
-            Obj.setProps(Args);
+            %Obj.setProps(Args);
             
             Obj.Query = db.DbQuery(Obj.Conn);
 
@@ -89,39 +92,62 @@ classdef DbAdmin < Component
             Obj.clear();
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end
+        
+        
+        function Result = setConn(Obj, Conn)
+            % Input:   Conn - 
+            % Output:  true on success
+            % Example: Obj.setConn(DbCon);
+            
+            Obj.Conn = Conn;            
+            Obj.Host = Conn.Host;
+            Obj.Port = Conn.Port;
+            Obj.DatabaseName = Conn.DatabaseName;
+            Obj.UserName = Conn.UserName;
+            Obj.Password = Conn.Password;
+            Result = true;            
+        end
     end
 
-    %----------------------------------------------------------------------
-    methods
+    %----------------------------------------------------------------------    
+    methods % Database creating & modification
         
         function Result = createDatabase(Obj, Args)
-            % Create empty database
-            % Input:   'DatabaseName'  - 
+            % Create database
+            % Input:   
+            %    'XlsFileName' - When specified, 
+            %
+            % 'DatabaseName'  - 
             %          'SqlFileName'   -
-            %          'XlsFileName'   -
+            %          
             % Output:  true on success
             % Example: -            
             % Instructions
             
             arguments
                 Obj
+                Args.XlsFileName    = ''        %
                 Args.DatabaseName   = ''        %
                 Args.Script         = ''        % Script text
                 Args.SqlFileName    = ''        %
-                Args.XlsFileName    = ''        %
+                
             end
             
+            % Execute SQL file using psql
             if ~isempty(Args.SqlFileName)
                 if isfile(Args.SqlFileName)
                     Obj.runPsql('SqlFileName', Args.SqlFileName);
                 end
                 
+            % Extract database definition from XLS file and execute the
+            % resulting SQL file using psql
             elseif ~isempty(Args.XlsFileName)
                 SqlFileName = Obj.xls2sql(Args.XlsFileName);
                 if ~isempty(SqlFileName) && isfile(SqlFileName)
                     Obj.runPsql(SqlFileName);
                 end
             else
+                
             end
 
         end
@@ -185,10 +211,16 @@ classdef DbAdmin < Component
         
         
         function Result = addColumn(Obj, TableName, ColumnName, DataType, ColumnDef)
-            % Add column to table
+            % Add single or multiple columns to table
             % Input:   
             % Output:  
             % Example: Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0')
+            % Refs:    https://www.postgresqltutorial.com/postgresql-add-column/
+            % SQL:     ALTER TABLE table_name
+            %          ADD COLUMN column_name1 data_type constraint,
+            %          ADD COLUMN column_name2 data_type constraint,
+            %          ...
+            %          ADD COLUMN column_namen data_type constraint;
             arguments
                 Obj
                 TableName               %
@@ -197,120 +229,205 @@ classdef DbAdmin < Component
                 ColumnDef               %                            
             end
 
+            % Validate input
+            assert(numel(ColumnName) == numel(DataType));
+            assert(numel(ColumnName) == numel(ColumnDef));
             
-            % https://www.postgresqltutorial.com/postgresql-add-column/
+            SqlText = sprintf('ALTER TABLE %s ', TableName);
+
+            for i=1:numel(ColumnName)
+                SqlText = sprintf('%s ADD COLUMN %s %s %s', ColumnName(i), DataType(i), ColumnDef(i));
+                if i == numel(ColumnName)
+                    SqlText = strcat(SqlText, ';');
+                else
+                    SqlText = strcat(SqlText, ',');
+                end
+            end
             
-            SqlText = sprintf('ALTER TABLE %s ADD COLUMN %s %s %s', TableName, ColumnName, DataType, ColumnDef);            
             Result = Obj.exec(SqlText);
 
-%             ALTER TABLE table_name
-%             ADD COLUMN new_column_name data_type constraint;
-
-%             ALTER TABLE table_name
-%             ADD COLUMN column_name1 data_type constraint,
-%             ADD COLUMN column_name2 data_type constraint,
-%             ...
-%             ADD COLUMN column_namen data_type constraint;
         end
 
         
         function Result = addIndex(Obj, TableName, IndexName, IndexDef)
+            % Add single index to table, may include one or multiple fields
+            % Input:   TableName - Table name to be altered
+            %          IndexName - Unique index name, usually composed as
+            %                      TableName_idx_FieldNames, for example 'master_table_idx_FDouble2'
+            %          IndexDef  - Index definition text with list of fields, for example: 'USING btree (FDouble2)'
             %
-            % Input:   
-            % Output:  
-            % Example: db.DbAdmin.addIndex()
-            %
-            
+            % Output:  true on sucess
+            % Example: addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
+            % Refs:    https://www.postgresql.org/docs/9.1/sql-createindex.html
+            %          https://www.postgresqltutorial.com/postgresql-indexes/postgresql-create-index/
+            % SQL:     CREATE INDEX index_name ON table_name [USING method]
+            %          (
+            %             column_name [ASC | DESC] [NULLS {FIRST | LAST }],
+            %             ...
+            %          );
             arguments
                 Obj                 %
                 TableName           %
                 IndexName           %                
                 IndexDef            %
-            end
-            
-            % https://www.postgresql.org/docs/9.1/sql-createindex.html
-            % https://www.postgresqltutorial.com/postgresql-indexes/postgresql-create-index/
-            %for field in self.field_list:
-            %if field.index:
-            %    index_name = self.table_name + '_idx_' + field.field_name
-            %    self.write('CREATE INDEX {} ON public.{}\n  USING {} ({});\n\n'.format(index_name, self.table_name, field.index_method, field.field_name))
-            % CREATE INDEX index_name ON table_name [USING method]
-            %(
-            %    column_name [ASC | DESC] [NULLS {FIRST | LAST }],
-            %    ...
-            %);
-
-            %if isempty(Args.TableName)
-            %    Args.TableName = Obj.TableName;
-            %end
-            
+            end           
+                        
             SqlText = sprintf('CREATE INDEX %s ON %s %s', IndexName, TableName, IndexDef);            
             Result = Obj.exec(SqlText);            
         end        
-       
+        
+    end
+    
+    %----------------------------------------------------------------------        
+    methods % User Management
+        
+        % https://www.postgresql.org/docs/14/user-manag.html
+        %
+        % PostgreSQL manages database access permissions using the concept of roles. 
+        % A role can be thought of as either a database user, or a group of database 
+        % users, depending on how the role is set up. Roles can own database objects 
+        % (for example, tables and functions) and can assign privileges on those 
+        % objects to other roles to control who has access to which objects. 
+        % Furthermore, it is possible to grant membership in a role to another role, 
+        % thus allowing the member role to use privileges assigned to another role.
+        %
+        % The concept of roles subsumes the concepts of “users” and “groups”.
+        % In PostgreSQL versions before 8.1, users and groups were distinct kinds 
+        % of entities, but now there are only roles. Any role can act as a user, 
+        % a group, or both.
+        %
+        %
+        % Database roles are conceptually completely separate from operating 
+        % system users. In practice it might be convenient to maintain a 
+        % correspondence, but this is not required. Database roles are global 
+        % across a database cluster installation (and not per individual database). 
+        %         
+        % Every connection to the database server is made using the name of 
+        % some particular role, and this role determines the initial access 
+        % privileges for commands issued in that connection. 
+        % The role name to use for a particular database connection is indicated 
+        % by the client that is initiating the connection request in an 
+        % application-specific fashion. For example, the psql program uses 
+        % the -U command line option to indicate the role to connect as. 
+        % Many applications assume the name of the current operating system 
+        % user by default (including createuser and psql). 
+        % Therefore it is often convenient to maintain a naming correspondence 
+        % between roles and operating system users.
+        %
+        %
+        % 
+        % CREATE ROLE admin WITH LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD 'Passw0rd';
+        %
+        % 
+        
         
         function Result = addUser(Obj, UserName, Password, Args)
             % Add database user
-            % Input:   
-            % Output:  
+            % Input:   UserName       -
+            %          Password       - 
+            %          'DatabaseName' - 
+            %          'Permission'   - 'read', 'write'
+            % Output:  true on sucess
             % Example: db.DbAdmin.addUser('robert', 'pass123')
+            % Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
+            % SQL:     CREATE USER user user_name WITH ENCRYPED PASSWORD 'mypassword';
+            %          GRANT ALL PRIVILEGES ON DATABASE sample_db TO user_name;                        
             arguments
                 Obj                     %
                 UserName                %
                 Password                %
                 Args.DatabaseName = ''  %
+                Args.Permission = ''    %
             end
-
             
-            % https://www.postgresql.org/docs/8.0/sql-createuser.html
-            % create user user_name with encrypted password 'mypassword';
-            % grant all privileges on database sample_db to user_name;
-            
-            SqlText = sprintf('CREATE USER %s WITH ENCRYPED PASSWORD ''%s''', UserName, Password);
-            Obj.exec(SqlText);
+            SqlText = sprintf('CREATE USER %s WITH PASSWORD ''%s''', UserName, Password);
+            Result = Obj.exec(SqlText);
             
             if ~isempty(Args.DatabaseName)
                 SqlText = sprintf('GRANT ALL PRIVILEGES ON %s TO %s', Args.DatabaseName, UserName);
-                Obj.exec(SqlText);
+                Result = Obj.exec(SqlText);
+            end
+            
+            % Read-only 
+            % https://ubiq.co/database-blog/how-to-create-read-only-user-in-postgresql/
+            if strcmp(Args.Permission, 'read')
+
+                Text = sprintf('CREATE USER %s WITH PASSWORD ''%s''', UserName, Password);
+
+                Text = sprintf('GRANT CONNECT ON DATABASE %s TO %s', UserName);
+                Text = sprintf('GRANT USAGE ON SCHEMA public TO %s', UserName);
+
+                Text = sprintf('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', UserName);
+
+                %ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                %GRANT SELECT ON TABLES TO user2;
+
+
+
+            else
             end
         end
         
         
         function Result = removeUser(Obj, UserName)
-            %
+            % Remove user
             % Input:   
             % Output:  
             % Example: db.DbAdmin.removeUser('robert')
-            
+            % Refs:    https://www.postgresql.org/docs/9.4/sql-dropuser.html
+            % SQL:     DROP USER [ IF EXISTS ] name [, ...]            
             arguments
                 Obj                 %
                 UserName            %
-
             end
-            
-            % https://www.postgresql.org/docs/9.4/sql-dropuser.html
-            % DROP USER [ IF EXISTS ] name [, ...]
-            
+
             SqlText = sprintf('DROP USER IF EXISTS %s', UserName);
-            Obj.exec(SqlText);
+            Result = Obj.exec(SqlText);
         end        
         
         
+        function Result = getUserList(Obj)
+            % Get columns list of specified table as cell array
+            % Input:   -
+            % Output:  Cell array
+            % Example: List = Obj.getTablesList()
+            % Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
+            
+            Text = [...
+                'SELECT usename AS role_name, '...
+                '  CASE '...
+                '     WHEN usesuper AND usecreatedb THEN '...
+                '       CAST(''superuser, create database'' AS pg_catalog.text) '...
+                '     WHEN usesuper THEN '...
+                '        CAST(''superuser'' AS pg_catalog.text) '...
+                '     WHEN usecreatedb THEN '...
+                '        CAST(''create database'' AS pg_catalog.text) '...
+                '     ELSE '...
+                '        CAST('''' AS pg_catalog.text) '...
+                '  END role_attributes '...
+                'FROM pg_catalog.pg_user '...
+                'ORDER BY role_name desc; '...
+                ];
+            
+            Result = Obj.Query.selectColumn(Text, 'role_name');
+        end
+
     end
-    
+    %----------------------------------------------------------------------        
     
     methods(Hidden)    
         
         function Result = exec(Obj, SqlText)
-            % Execute SQL statement
+            % Execute SQL statement, by calling Obj.Query.exec()
             % Input:   SqlText - Statement text
-            % Output:  true on sucess
+            % Output:  true on success
             % Example: Obj.exec('DROP USER IF EXISTS user1')
             Result = Obj.Query.exec(SqlText);
         end
         
         
-        function Result = writeLocalConfig(Obj, DatabaseName, Args)
+        function Result = writeLocalConfig(Obj, Args)
+            % Write configuration file
             % config/local/Database.DbConnections.UnitTest.yml
             % Input: 
             %    DatabaseName 
@@ -325,33 +442,38 @@ classdef DbAdmin < Component
             
             arguments
                 Obj
-                DatabaseName 
+                Args.FileName        = ''       %
+                Args.DatabaseName    = ''       %
                 Args.UserName        = ''       %
                 Args.Password        = ''       %
                 Args.Host            = ''       %
                 Args.Port            = 5432     %
                 Args.ServerSharePath = ''       % Path to shared folder on the server, for COPY statements
-
             end
             
             Result = false;
-            ConfigPath = '';
-            FileName = fullfile(ConfigPath, 'local', strcat('Database.DbConnections.', DatabaseName, '.yml'));
             
-            Fid = fopen(Obj.FileName, 'wt');
+            % Prepare file name
+            if isempty(Args.FileName)
+                ConfigPath = fullfile(tools.os.getAstroPackConfigPath(), local);
+                Args.FileName = fullfile(ConfigPath, strcat('Database.DbConnections.', Args.DatabaseName, '.yml'));
+            end
             
-            fprintf(Fid, '# %s\n', FileName);
-
-            fprintf(Fid, 'DatabaseName    : ''%s''        # Database name\n', DatabaseName);
-            fprintf(Fid, 'Host            : ''%s''        # Host name or IP address\n', Args.Host);
-            fprintf(Fid, 'Port            : %d            # Port number\n', Args.Port);            
-            fprintf(Fid, 'DriverName      : ''postgres''  # Driver name\n');
-            fprintf(Fid, 'UserName        : ''%s''        # Login user\n', Args.UserName);
-            fprintf(Fid, 'Password        : ''%s''        # Login password\n', Args.Password);
-
-            fclose(Fid);
-            if isfile(FileName)
-                Result = true;
+            % Create file
+            Fid = fopen(Args.FileName, 'wt');
+            if Fid > -1
+                fprintf(Fid, '# %s\n', Args.FileName);
+                fprintf(Fid, 'DatabaseName    : ''%s''        # Database name\n', Args.DatabaseName);
+                fprintf(Fid, 'Host            : ''%s''        # Host name or IP address\n', Args.Host);
+                fprintf(Fid, 'Port            : %d            # Port number\n', Args.Port);            
+                fprintf(Fid, 'DriverName      : ''postgres''  # Driver name\n');
+                fprintf(Fid, 'UserName        : ''%s''        # Login user\n', Args.UserName);
+                fprintf(Fid, 'Password        : ''%s''        # Login password\n', Args.Password);
+                fclose(Fid);
+                
+                if isfile(FileName)
+                    Result = true;
+                end
             end
             
         end        
@@ -405,7 +527,7 @@ classdef DbAdmin < Component
             arguments
                 Obj
                 Args.Host          = ''        %
-                Args.Port          = 5432      %                               
+                Args.Port          = 0         %                               
                 Args.DatabaseName  = ''        % Use 'postgres' to when creating databases or for general
                 Args.UserName      = ''        %
                 Args.Password      = ''        %
@@ -416,15 +538,13 @@ classdef DbAdmin < Component
 
             Result = false;
             
-            if ~isempty(Args.Host)
+            if isempty(Args.Host)
                 Args.Host = Obj.Host;
             end
-            Args.Host = Obj.Conn.Host;
             
             if Args.Port == 0
                 Args.Port = Obj.Port;
             end            
-            Args.Port = Obj.Conn.Port;
 
             if isempty(Args.DatabaseName)
                 Args.DatabaseName = Obj.DatabaseName;
@@ -433,17 +553,15 @@ classdef DbAdmin < Component
             if isempty(Args.UserName)
                 Args.UserName = Obj.UserName;
             end
-            Args.UserName = Obj.Conn.UserName;
         
             if isempty(Args.Password)
                 Args.Password = Obj.Password;
             end
-            Args.Password = Obj.Conn.Password;
 
             try
                                 
                 % Prepare command line
-                Cmd = sprintf('psql -h %s -port %d -U %s -w', Args.Host, Args.Port, Args.UserName);
+                Cmd = sprintf('psql -h %s -p %d -U %s -w', Args.Host, Args.Port, Args.UserName);
                 
                 % -d
                 if ~isempty(Args.DatabaseName)
@@ -462,8 +580,12 @@ classdef DbAdmin < Component
                 
                 % Password
                 if ~isempty(Args.Password)
+                    
+                    % Windows - note that we MUST NOT have a spaces next to '&&'
                     if tools.os.iswindows()
                         Cmd = sprintf('set PGPASSWORD=%s&&%s', Args.Password, Cmd);
+                        
+                    % Linux - use 'export'
                     else
                         Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
                     end

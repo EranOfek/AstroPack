@@ -16,14 +16,22 @@ function Result = unitTest()
     assert(contains(pgver, 'PostgreSQL'));
 
     % CsvFileName
+    Q.select('*', 'TableName', 'master_table', 'UseCopy', true, 'Load', false);  %
+    CsvFileName = Q.Obj.ClientShareFileName;
+    
     Q.select('*', 'TableName', 'master_table', 'CsvFileName', 'C:/temp/test_select.csv');
     
-    
+    % Get Metadata    
     % Get tables list
     TablesList = Q.getTablesList();
     ColumnList = Q.getTableColumnList('master_table');
+    
+    % Get list of fields composing the primary key
     PkList = Q.getTablePrimaryKey('master_table');
+    
+    % Get list of index NAMES (not the fields)
     IndexList = Q.getTableIndexList('master_table');
+    
     
     % Convert AstroHeader to DbRecord
     H = AstroHeader();

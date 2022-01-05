@@ -26,6 +26,31 @@ Verify the installed PostgreSQL version
 	sudo -u postgres psql -c "SELECT version();"
 
 
+### Set password
+
+https://stackoverflow.com/questions/27107557/what-is-the-default-password-for-postgres
+
+
+After installing postgres follow following steps in order to setup password 
+for default system account of Linux execute following in terminal:
+
+	user:~$ sudo -i -u postgres
+	postgres@user:~$ psql
+
+after executing above two commands you will get into postgres shell
+
+Execute this query in postgres shell:
+
+	postgres=# ALTER USER postgres PASSWORD 'PassRoot';
+
+your new password is 'mynewpassword' without quotes and now you can connect 
+with external GUI tools like DBeaver.
+
+Connect with password 'PassRoot'
+
+	psql -U postgres -W
+
+
 ### Connect
 
 	Password: Passw0rd

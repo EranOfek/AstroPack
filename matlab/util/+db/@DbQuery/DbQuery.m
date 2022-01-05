@@ -230,16 +230,20 @@ classdef DbQuery < Component
 
             % Use COPY TO statement to temporary csv file, and read file
             if Args.UseCopy
-                ServerPath = Obj.Conn.ServerSharePath;
-                ClientPath = Obj.Conn.MountSharePath;
                 
-                Args.TempPath = sprintf('%s/%s', ServerPath, Component.newUuid());
+                % Generate UUID.csv or make sure that we only take the filename part
                 if isempty(Args.TempName)
                     Args.TempName = sprintf('%s.csv', Component.newUuid());
+                else
+                    [filepath, FName, ext] = fileparts(Args.TempName);
+                    Args.TempName = strcat(FName, '.csv');
                 end
                 
-                Obj.ServerShareFileName = sprintf('%s/%s', ServerPath, Args.TempName);
-                Obj.ClientShareFileName = sprintf('%s/%s', ClientPath, Args.TempName);
+                % Prepare path, use ServerShareFileName in the COPY statement
+                % so the file name will be local on the server, we will be able
+                % to access over the network using ClientShareFileName
+                Obj.ServerShareFileName = sprintf('%s/%s', Obj.Conn.ServerSharePath, Args.TempName);
+                Obj.ClientShareFileName = sprintf('%s/%s', Obj.Conn.MountSharePath, Args.TempName);
                 
                 Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Obj.ServerShareFileName, ''' CSV HEADER'];
                 %Obj.msgLog(LogLevel.Debug, 'insert: UseCopy is not implemented yet, using INSERT');
