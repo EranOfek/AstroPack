@@ -1374,7 +1374,6 @@ classdef MatchedSources < Component
             % Author : Eran Ofek (Jan 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200).*10,'MAG')
-            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
             %          [Result] = MS.rmsMag
             
             arguments
@@ -1435,6 +1434,13 @@ classdef MatchedSources < Component
             %                   sources matrix.
             %            'rmsMagArgs' - Additional arguments to pass to
             %                   MatchedSources/rmsMag. Default is {}.
+            % Output : 
+            % Author :
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(randn(100,200).*10,'MAG')
+            %          T = [0 1 2 3 2 1 0].';
+            %          [Resul] = matchedFilter(MS, 'Templates', [T, T, T])
+            
             
             arguments
                 Obj
@@ -1444,15 +1450,10 @@ classdef MatchedSources < Component
                 Args.rmsMagArgs   = {};
             end
             
-            error('under construction')
-            
-            
             [TempLen, Ntemp] = size(Args.Templates);
-            
-            Templates        = padarray(Args.Templates, [Npad 0], Args.PadVal, 'post');
-            
-            Norm2Template    = sqrt(sum(Templates.^2, 1));
-            TemplatesFFTconj = conj(fft(Templates, 1));
+                        
+            Norm2Template    = sqrt(sum(Args.Templates.^2, 1));
+            %TemplatesFFTconj = conj(fft(Args.Templates, 1));
             
             
             Nobj = numel(Obj);
@@ -1465,18 +1466,36 @@ classdef MatchedSources < Component
                                        'ParField',Args.FieldName,...
                                        Args.rmsMagArgs{:});
 
-                NormStd = ResRMS.EstimatedStdPar./Norm2Template;
+                
 
                 if ~isempty(Args.SubMean)
                     MeanMatrix = Args.SubMean(Matrix, 1, 'omitnan');
                     Matrix     = Matrix - MeanMatrix;
                 end
             
+                PadLen = Nep - TempLen;
+                if PadLen<0
+                    error('Template is longer than time series');
+                end
+                Templates = padarray(Args.Templates, [PadLen 0], 0, 'post');
+                TemplatesFFTconj = conj(fft(Templates, [], 1));
+                
+                Result(Iobj).S = zeros(Nep, NsrcSel);
                 for Itemp=1:1:Ntemp
-                Result(Iobj).S = ifft(fft(Matrix,1).*TemplatesFFTconj(:,Itemp), 1)./NormStd;
-            
-                Result(Iobj).MaxS = max(Result(Iobj).S, [], 1);
-                Result(Iobj).MinS = min(Result(Iobj).S, [], 1);
+                    
+                    NormStd  = ResRMS.EstimatedStdPar./Norm2Template(Itemp);
+                    % Detection statistics for all LC, for a given template Itemp
+                    StatTemp = ifft(fft(Matrix,1).*TemplatesFFTconj(:,Itemp), [], 1)./NormStd;
+                    [Max, MaxInd] = max(StatTemp);
+                    [Min, MinInd] = min(StatTemp);
+                    
+                    
+                    Result(Iobj).MaxS(Itemp) = Max;
+                    Result(Iobj).MaxI(Itemp) = MaxInd;
+                    Result(Iobj).MinS(Itemp) = Min;
+                    Result(Iobj).MinI(Itemp) = MinInd;
+                    
+                end
             end
         end
     end
