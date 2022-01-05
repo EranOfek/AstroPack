@@ -10,16 +10,14 @@ Serevr host name: gauss
 
 On server:
 
-    sudo mkdir /var/samba/pgshare
-    sudo chmod 777 /var/samba/pgshare
-
-
     sudo apt-get install samba
-
     smbpasswd -a root
     pass
     pass
 
+    sudo mkdir /var/samba/pgshare
+    sudo chmod 777 /var/samba/pgshare
+	
     sudo nano /etc/samba/smb.conf
 
 

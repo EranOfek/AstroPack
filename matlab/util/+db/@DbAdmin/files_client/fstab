@@ -1,0 +1,37 @@
+# /etc/fstab: static file system information.
+#
+# Use 'blkid' to print the universally unique identifier for a
+# device; this may be used with UUID= as a more robust way to name devices
+# that works even if disks are added and removed. See fstab(5).
+#
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+# / was on /dev/sda1 during installation
+UUID=1888d868-d971-4b09-b30e-0d654ab68304 /               ext4    errors=remount-ro 0       1
+/swapfile                                 none            swap    sw              0       0
+/dev/fd0        /media/floppy0  auto    rw,user,noauto,exec,utf8 0       0
+
+#----------------------------------------------------------------------
+# @Chen - Mount as guest with full read/write permissions
+#
+# 1. Install cifs:
+#
+#    sudo apt-get install cifs-utils
+#
+# 2. Create mount point folder: /media/gauss_pgshare
+#
+#    sudo mkdir /media/gauss_pgshare
+#    sudo chown -R nobody:nogroup /media/gauss_pgshare
+#    sudo chmod -R 0777 /media/gauss_pgshare
+#
+# 3. Edit /etc/fstab and add the line below this comment block:
+#
+#    sudo nano /etc/fstab
+#
+# 4. Apply modifications:
+#
+#    sudo mount -a
+#
+
+//gauss/pgshare /media/gauss_pgshare cifs rw,guest,uid=nobody,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0
+#----------------------------------------------------------------------
+
