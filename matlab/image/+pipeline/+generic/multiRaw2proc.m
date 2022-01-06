@@ -272,10 +272,20 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Args.SaveCoaddCat   = false;
     
     
-    SubDir = '8';
+    SubDir = '9';
     
     %%% MUST save AllSI before procMergeCoadd
     
+
+    IP   = ImagePath;
+    saveProduct(IP, AllSI, 'Save',Args.SaveProcIm,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Image', 'SubDir',SubDir});
+
+
+
     IP   = ImagePath;
     if Args.SaveProcIm   
         Nim = numel(AllSI);

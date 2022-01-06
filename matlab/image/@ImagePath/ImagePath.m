@@ -373,7 +373,7 @@ classdef ImagePath < Component
             arguments
                 Obj(1,1)
                 Input(1,1)       % AstroHeader | AstroImage
-                DataProp    = 'image';    % DataProp in AstroImage or Product name
+                DataProp    = 'Image';    % DataProp in AstroImage or Product name
             end
             
             %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
@@ -606,6 +606,49 @@ classdef ImagePath < Component
             % Convert a file name string to a structure with all available information
         end
         
+    end
+
+
+    methods % write product
+        function saveProduct(ObjIP, ObjProduct, Args) 
+            % Save product to disk
+
+            arguments
+                ObjIP
+                ObjProduct
+                Args.Save logical              = true;
+                Args.SaveFun function_handle   = @write1;
+                Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
+                Args.PropFromHeader logical    = true;
+                Args.SetProp cell              = {'Product','Image'};   % overide header
+            end
+            
+            if Args.Save
+
+                % FFU:
+                % create dir
+                % use parfeval
+
+                NsetProp = numel(Args.SetProp);
+                if (0.5.*NsetProp)~=floor(0.5.*NsetProp)
+                    % odd number of SetProp
+                    error('Number of elements in SetProp argument must be even (key,val)');
+                end
+
+                Nprod = numel(ObjProduct);
+                for Iprod=1:1:Nprod
+                    if Args.PropFromHeader
+                        ObjIP.readFromHeader(ObjProduct(Iprod));  
+                    end
+                    for Iset=1:2:NsetProp
+                        ObjIP.(Args.SetProp{Iset}) = Args.SetProp{Iset+1};
+                    end
+
+
+                    Args.SaveFun(ObjProduct(Iprod), ObjIP.genFull, Args.SaveFunArgs{:});
+                end
+            end
+        end
     end
             
             
