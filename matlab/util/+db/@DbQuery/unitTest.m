@@ -17,7 +17,8 @@ function Result = unitTest()
 
     % CsvFileName
     Q.select('*', 'TableName', 'master_table', 'UseCopy', true, 'Load', false);  %
-    CsvFileName = Q.Obj.ClientShareFileName;
+    CsvFileName = Q.ClientShareFileName;
+    assert(~isempty(CsvFileName));
     
     Q.select('*', 'TableName', 'master_table', 'CsvFileName', 'C:/temp/test_select.csv');
     

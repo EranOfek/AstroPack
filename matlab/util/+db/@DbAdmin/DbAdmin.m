@@ -305,7 +305,7 @@ classdef DbAdmin < Component
             SqlText = sprintf('ALTER TABLE %s ', TableName);
 
             for i=1:numel(ColumnName)
-                SqlText = sprintf('%s ADD COLUMN %s %s %s', ColumnName(i), DataType(i), ColumnDef(i));
+                SqlText = sprintf('%s ADD COLUMN %s %s %s', SqlText, ColumnName{i}, DataType{i}, ColumnDef{i});
                 if i == numel(ColumnName)
                     SqlText = strcat(SqlText, ';');
                 else

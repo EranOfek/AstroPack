@@ -12,8 +12,13 @@ function Result = unitTest()
     % psql -h gauss -U admin -d unittest -W
     
     % Create DbAdmin from DbQuery Connection
-    %Q = db.DbQuery('unittest');
-    %Admin = db.DbAdmin('DbQuery', Q);
+    Q = db.DbQuery('unittest');
+    Admin = db.DbAdmin('DbQuery', Q);
+    
+    % Add column to table
+    Admin.addColumn('master_table', {'MyColA'}, {'INTEGER'}, {'DEFAULT 0'});
+    
+    
     
     % Create DbAdmin without connection, use it to create Config file
     Admin = db.DbAdmin();    
@@ -73,8 +78,7 @@ function Result = unitTest()
     %Admin.addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
     %IndexList2 = Q.getTableIndexList('master_table');
         
-    % Add column to table
-    Admin.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0');
+
 
     % Users:
     
