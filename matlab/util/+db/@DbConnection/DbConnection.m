@@ -1,5 +1,5 @@
 % DbConnection Class, connection to database
-% Impleented as wrapper for Java Connection class 
+% Impleented as wrapper for Java Connection class
 % Sample connection string: 'jdbc:postgresql://localhost:5432/pipeline'
 % Used internally by DbQuery
 %
@@ -15,10 +15,12 @@
 %
 
 % #functions (autogen)
-% DbConnection - Constructor
-% close - Disconnect from database,  @Todo
+% DbConnection - Constructor Input:       'DriverName'      - Currently only 'postgres' is supported       'Host'            - Network host name or IP address       'DatabaseName'    - Database name, i.e. 'unittest'
+% close - Disconnect from database, % @Todo
 % delete - Destructor
-% getDbConnection - Search global (singleton) map of DbConnection for the specified connection key
+% findFieldIC - Search struct field name, ignore case Intput:  - Output:  - Example: -
+% getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+% getDbConnection - Search global (singleton) map of DbConnection for the specified connection key Since persistent data is visible only inside this function, we call the function with different option for find and to
 % newQuery - Create new DbQuery instance linked to this connection
 % open - Connect to database specified by Host:Port:Database as UserName/Password
 % #/functions (autogen)
@@ -42,7 +44,7 @@ classdef DbConnection < Component
         Port            = 0  %v13=5432, v14=5433    % Port number, 5432 is PostgresV13 default
         DriverUrl       = ''               % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
         ServerSharePath = '' %             % Path to shared folder on the server, for COPY statements
-        MountSharePath  = '' 
+        MountSharePath  = ''
         
         % Internal data and flags
         IsOpen = false                  % True if connection is open
@@ -61,7 +63,7 @@ classdef DbConnection < Component
         
         function Obj = DbConnection(Args)
             % Constructor
-            % Input:            
+            % Input:
             %       'DriverName'      - Currently only 'postgres' is supported
             %       'Host'            - Network host name or IP address
             %       'DatabaseName'    - Database name, i.e. 'unittest'
@@ -90,7 +92,7 @@ classdef DbConnection < Component
                 Args.Port               %
                 Args.DriverUrl          %
                 Args.ServerSharePath    %
-            end            
+            end
             
             % Check if already exists - Do not create another object
             if ~isempty(Args.Db)
@@ -132,10 +134,10 @@ classdef DbConnection < Component
                 
             % Alias not speified, use explict values
             else
-                Obj.setProps(Args);               
+                Obj.setProps(Args);
             end
             
-            % Register 
+            % Register
             db.DbConnection.getDbConnection('', 'DbConn', Obj, 'Register', true);
 
             Obj.msgLog(LogLevel.Debug, 'created: %s, uuid: %s', Obj.Db, Obj.Uuid);
@@ -149,7 +151,7 @@ classdef DbConnection < Component
     end
     
     
-    methods % Connect, disconnect         
+    methods % Connect, disconnect
         
         function Result = open(Obj)
             % Connect to database specified by Host:Port:Database as UserName/Password
@@ -239,9 +241,9 @@ classdef DbConnection < Component
             % Create new DbQuery instance linked to this connection
             % Input   : -
             % Output  : DbQuery object lnked to Obj DbConnection
-            % Example : Q = Obj.newQuery()            
+            % Example : Q = Obj.newQuery()
             Result = db.DbQuery(Obj);
-        end                
+        end
     end
     
     %----------------------------------------------------------------------
@@ -276,11 +278,11 @@ classdef DbConnection < Component
             persistent Map
             if isempty(Map)
                 Map = ComponentMap('Name', 'DbConnection');
-            end                       
+            end
            
             % Register in map
             if ~isempty(Args.DbConn) && Args.Register
-                Res = Map.find(Args.DbConn.Db);            
+                Res = Map.find(Args.DbConn.Db);
                 if isempty(Res)
                     io.msgLog(LogLevel.Debug, 'getDbConnection: Register: %s', Args.DbConn.Db);
                     Args.DbConn.MapKey = Args.DbConn.Db;
@@ -291,8 +293,8 @@ classdef DbConnection < Component
             end
             
             % Not found, create new connection object
-            % Already exist in the map, just return it            
-            DbConn = Map.find(Alias);            
+            % Already exist in the map, just return it
+            DbConn = Map.find(Alias);
             if isempty(DbConn) && Args.Create
                 % This will call us again with Register=true
                 io.msgLog(LogLevel.Debug, 'getDbConnection: Creating: %s', Alias);
@@ -308,7 +310,7 @@ classdef DbConnection < Component
             % Search struct field name, ignore case
             % Intput:  -
             % Output:  -
-            % Example: -             
+            % Example: -
             
             Result = '';
             List = fieldnames(Struct);
@@ -316,8 +318,8 @@ classdef DbConnection < Component
                 if strcmpi(List{i}, Field)
                     Result = List{i};
                     break;
-                end                
-            end            
+                end
+            end
         end
     end
     

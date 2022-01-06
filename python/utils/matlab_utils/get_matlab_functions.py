@@ -56,7 +56,7 @@ import xml.sax.saxutils
 # When true, update_class_m_file() will be called on each processed .m files to update
 # the #functions comment block on top of file. This results in wide modifications
 # to the repository, so use with care, and let the other team members know about it.
-UPDATE_M = False
+UPDATE_M = True
 #----------------------------------------------------------------------------
 
 # --- Global flags ---
@@ -779,6 +779,7 @@ class PackageData:
         self.class_dict = {}        # Currently unused
         self.func_dict = {}
         self.comment = ''
+        self.long_comment = ''      # ? Added 06/01/2022 to avoid bug - do we need it?
         self.markdown = None        # MarkdownReader()
 
 # ===========================================================================
@@ -1614,8 +1615,8 @@ class MatlabProcessor:
                         func.comment = self.get_short_comment(lines, line_num)
                         func.long_comment = self.get_long_comment(lines, line_num)
 
-                        if os.path.exists(self.markdown_fname):
-                            func.markdown = MarkdownReader(self.markdown_fname)
+                        if os.path.exists(self.func_markdown_fname):
+                            func.markdown = MarkdownReader(self.func_markdown_fname)
 
                         # Add to functions list
                         pkg.func_dict[func_name] = func

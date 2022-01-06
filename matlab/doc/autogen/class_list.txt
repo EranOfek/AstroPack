@@ -77,6 +77,7 @@ db.AstroDb
 db.AstroDbOper
 db.AstroStore
 db.Db
+db.DbAdmin
 db.DbConnection
 db.DbDriver
 db.DbQuery
@@ -86,6 +87,7 @@ db.HdfDb
 db.ImageDb
 db.ImageDbManager
 db.ImageDbParams
+db.ImagePathDb
 draft_alerts.AlertsManager
 draft_alerts.PipelineAlert
 draft_obs.BasicObs

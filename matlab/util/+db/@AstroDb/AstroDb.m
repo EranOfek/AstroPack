@@ -18,7 +18,7 @@
 % getDefaultQuery - Get default database query
 % insertCatalog - Insert AstroCatalog / AstroTable to the specified database table Note that AstroCatalog is derived from AstroTable
 % insertCatalogImpl - Internal implementations Insert AstroCatalog / AstroTable to the specified database table Note that AstroCatalog is derived from AstroTable
-% insertHeader - Insert AstroHeader/AstroImage object to the specified database table arguments
+% insertHeader - % Insert AstroHeader/AstroImage object to the specified database table             arguments                 Input                           % AstroHeader / AstroImage                 TableName char                 Args.Fields = {}                % As
 % insertHeaderImpl - Internal implementation Insert AstroHeader/AstroImage object to the specified database table
 % manage - @Todo: Manage queue of pending operations
 % perfTest -

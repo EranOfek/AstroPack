@@ -1,5 +1,5 @@
 % Database Driver Class, currently supports PostgreSQL
-% DbDriver is used **internally** by DbConnection, and SHOULD NOT be 
+% DbDriver is used **internally** by DbConnection, and SHOULD NOT be
 % accessed by the user.
 % We currently use postgresql-42.3.1.jar
 %
@@ -25,12 +25,13 @@
 %--------------------------------------------------------------------------
 
 % #functions (autogen)
-% DbDriver - Constructor
-% copyDriverFile - Copy driver file from source folder to target path This is requried to call javaclasspath()
-% delete - Destructor
-% getDbDriver - Get singleton Map object that maps database type to DbDriver object
-% loadDriver - Load database driver library See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
-% unloadDriver - Unload database driver
+% DbDriver - Constructor, currently only 'postgres' is supported
+% copyDriverFile - Copy driver file from source folder to target path This is requried to call javaclasspath() Input:   FileName - Jar file name Output:  true on success Example: Obj.copyDriverFile(Obj.PostgresJar)
+% delete - Destructor, unload driver from memory
+% getDbDriver - Get singleton Map object that maps database type to DbDriver object Example: Driver = db.DbDriver.getDbDriver('postgres')
+% loadDriver - Load database driver library Calls copyDriverFile() to copy the library file to target folder Output: true if loaded successfully
+% unloadDriver - Unload database driver Output: true if unloaded successfully
+% validateConfig - NOT IMPLEMENTED YET Validate that we have all configuration params that we need
 % #/functions (autogen)
 %
 
@@ -125,7 +126,7 @@ classdef DbDriver < Component
         
         function Result = unloadDriver(Obj)
             % Unload database driver
-            % Output: true if unloaded successfully            
+            % Output: true if unloaded successfully
             Obj.msgLog(LogLevel.Info, 'unloadDriver');
             if Obj.IsLoaded
                 try
@@ -182,7 +183,7 @@ classdef DbDriver < Component
         end
                 
         
-        % @Todo:        
+        % @Todo:
         function Result = validateConfig(Obj)
             % NOT IMPLEMENTED YET
             % Validate that we have all configuration params that we need
@@ -191,7 +192,7 @@ classdef DbDriver < Component
             % assert(~isempty(Obj.Config.Data.System.EnvFolders.ROOT));
             
             Result = true;
-        end                
+        end
     end
     
     

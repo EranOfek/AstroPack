@@ -36,45 +36,50 @@
 % Using COPY:
 % Still need to find a solution for this:
 % https://gpdb.docs.pivotal.io/6-9/admin_guide/load/topics/g-loading-data-with-copy.html
-% The COPY source file must be accessible to the postgres process on the master host. 
+% The COPY source file must be accessible to the postgres process on the master host.
 % Specify the COPY source file name relative to the data directory on the master host, or specify an absolute path.
 %
 %--------------------------------------------------------------------------
 
 % #functions (autogen)
-% DbQuery - Create new DbQuery obeject
-% clear - Clear current statement and ResultSet
-% clearResultSet - Clear current ResultSet and related data
-% close - Close current query
-% copyFrom - Import records from file to table Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
-% copyTo - Export records from table to file Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
-% createDatabase - Create database
+% DbQuery - Create new DbQuery obeject Input:   DbTableOrConn - Database alias from Database.yml, with   optional table name, for example: 'UnitTest'
+% clear - Clear current statement and ResultSet Input:   - Output:  true on sucess Example: Obj.clear()
+% clearResultSet - Clear current ResultSet and related data Input:   - Output:  - Example: Obj.clearResultSet()
+% close - [Internal Use] Close current query Intput:  - Output:  true on sucess Example: -
+% columnName2matlab - Convert specified table column name to valid MATLAB property/ struct-field name, replace non-valid chars with '_' Input:   Str - char array, i.e. 'My:Field' Output:  char array, i.e. 'My_Field' Example: ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
+% copyFrom - Helper function for insert() - Import records from file to table Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/ Input:   TableName - Table name          FileName  - Input file name (CSV)
+% copyTo - Helper function for select() - Export records from table to file Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/ Input:   TableName          FileName
 % delete -
-% exec - Execute SQL statement (that does not return data) Example: exec('INSERT ...')
-% getDbVersion - Query Postgres version, result should be similar to 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-% getColumn - Get field value from current ResultSet, when FieldName is numeric, it is used as column index Example: Value = getField('MyFieldName')
-% getColumnIndex - Get field index by field name, search in ColNames{}
-% getColumnList - Get fields list of current ResultSet as celarray
-% getColumnNamesOfType - Get cell array field names that match the specified field type
-% getColumnType - Get field type
-% getMetadata - Get metadata of the specified table or the current result-set
-% getTableColumnList - Get fields list of specified table as celarray
-% getValidColumnName - Convert specified table field name to valid Matlab property/struct-field name, replace non-valid chars with '_' Example: getValidFieldName('') ->
-% insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('s', d)", uuid, i).char;
-% isColumn - Check if field exists by name
-% loadResultSet - Load ResultSet to DbRecord array Might be time and memory consuming!
-% makeInsertColumnsText -
-% makeUpdateColumnsText - Prepare SQL text from cell array "UPDATE master_table set RecID=?,FInt=? WHERE..."
-% makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..."
-% next - Move cursor to next record, return false if reached end of data
-% openConn - Open connection, throw exception on failure
-% prev - Move cursor to previous record, return false if reached end of data
-% query - Run SELECT query, for other statements use exec() If no char argument is specified, use the current Obj.SqlText @Todo: Support query with params Example: Result = query('SELECT COUNT(*) from master_table')
-% select - Execute SELECT Fields FROM TableName and load results to memory Obj.select('Field', 'Table', 'Where', '...', 'Order', '...')
-% selectCount - Select number of records with optionally where clause
-% setConnection - Set connection Connection argument may be either: - Empty string: use default connetion() - Non empty string: used as connection key for DbConnection.getDbConnection - DbConnection object
-% setStatementValues - Set statement values from specified DbRecord or struct
-% updateRecord - Update record
+% deleteRecord - Delete record by fields specified in Rec Note that we cannot use 'delete' as function name because it is a reserved keyword. Intput:  Args.TableName -          Args.Where     -
+% exec - Execute SQL statement (that does not return data), for SELECT, use query() Input:   char-array - SQL text. If not specified, Obj.SqlText is used Output:  true on success Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
+% getColumn - Get field value from current ResultSet, when ColumnName is numeric, it is used as column index Input:   ColumnName Output:  Column value: double/integer/char/ Example: Value = Obj.getColumn('MyFieldName')
+% getColumnIndex - Get column index by column name, search in ColNames{} Input:   ColumnName - Output:  DbRecord Example: Index = Obj.getColumnIndex('')
+% getColumnList - Get columns list of current ResultSet as celarray Input:   - Output: Example: ColNames = Obj.getColumnList()
+% getColumnNamesOfType - Get cell array field names that match the specified field type Input:   ColumnType: 'Integer', 'Double', etc. Output:  Cell array with list of all fields Example: ColNames = Q.getColumnNamesOfType('Double');
+% getColumnType - Get column type Input:   ColumnName - Output:  char - Example: -
+% getDbVersion - Query Postgres version, note that DbQuery must be linked to DbConnection Input:   - Output:  char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit' Example: Ver = DbQuery.getDbVersion()
+% getMetadata - Get metadata of the specified table or the current result-set Input:   -          'TableName' - Output:  true on success Example: -
+% getTableColumnList - Get columns list of specified table as cell array Input:   TableName Output:  Cell array Example: = Obj.getTableColumnList('master_table')
+% getTableIndexList - Get list of index names of specified table Input:   TableName Output:  Cell array Example: = Obj.getTableIndexList('master_table')
+% getTablePrimaryKey - Get primary key column names of specified table Input:   TableName Output:  Cell array Example: = Obj.getTablePrimaryKey('master_table')
+% getTablesList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: = Obj.getTablesList()
+% insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray Input:   Rec             -          'TableName'     - Table name, if not specified, Obj.TableName is used          'ColNames'      - Comma-separated field names (i.e. 'recid,fint')
+% isColumn - Check if field exists by name Input:   ColumnName Output:  true if current result set Example: IsColumn = Obj.isColumn('MyFieldName')
+% loadResultSet - Helper function for select() - Load ResultSet to DbRecord array Might be time and memory consuming! Input:  'MaxRows' - Optional limit of number of rows to load to memory Output:  DbRecord object: ColCount, ColNames, ColType, Data(i) Example: Obj.loadResultSet();
+% makeInsertColumnsText - Input:   FieldNames -          'TableColumnList'          'FieldMap' - Output:  SqlFields  -          SqlValues  -
+% makeUpdateColumnsText - Prepare SQL text from cell array Input:   ColumnNames -          'ColumnMap' - @Todo Future Output:  char-array Example: -
+% makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input:   ColumnNames -          Operand    -          ColumnMap   -
+% next - Move cursor to next record, return false if reached end of data Input:   - Output:  true on sucess Example: Obj.next()
+% openConn - [Internal Use] Open connection, throw exception on failure Input:   - Output:  true on sucess Example: Obj.openConn()
+% prev - Move cursor to previous record, return false if reached end of data Input:   - Output:  true on sucess Example: Obj.prev()
+% query - Run SELECT query, do NOT load any data. For non-SELECT statements, use exec() Input:   char-array - SQL text. If not specified, Obj.SqlText is used Output:  true on success, use loadResultSet() to load the data Example: Obj.query('SELECT COUNT(*) FROM master_table');
+% select - Execute SELECT Columns FROM TableName and load results to memory Input:   - Columns - Comma-separated field names to select (i.e. 'recid,fint')            'TableName' - Table name, if not specified, Obj.TableName is used            'Where'     - Where condition (excluding WHERE keyword)            'Order'     - Order by clause  (excluding ORDER BY keyword)
+% selectColumn - Get column from specified table as cell array Input:   SqlText - SELECT query text          ColumnName - Column name to select from query result Output:  Cell array Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
+% selectCount - Select number of records with optionally WHERE clause Intput:  Args.TableName - If empty, use Obj.TableName          Args.Where     - Example: 'Flag == 1' Output:  integer        - COUNT returned by query Example: Count = Obj.selectCount()
+% setConnection - [Internal Use] Set connection Input:   DbTableOrConn - Output:  true on sucess Example: Obj.setConnection('unittest')
+% setStatementValues - Set statement values from specified DbRecord or struct Input:   Rec               -          FirstRecord       -          RecordCount       -          'ColumnNames'     -
+% update - Update record Intput:  SetColumns   - Note that string values must be enclosed by single '                         for example: 'MyField=''MyValue'''          'TableName'  -          'Where'      -
+% writeResultSetCsv - Input:   CsvFileName Output:  true on sucess Example: Obj.writeResultSetCsv('/tmp/test1.csv'); See: https://stackoverflow.com/questions/60756995/write-a-sql-resultset-to-a-csv-file
 % #/functions (autogen)
 %
 
@@ -144,7 +149,7 @@ classdef DbQuery < Component
                 DbTableOrConn   = []        % DbAlias / DbAlias:TableName / DbConnection object
                 Args.TableName              % Set TableName when not included in DbTable parameter
                 Args.PrimaryKey             % Primary key(s)
-                Args.InsertRecFunc          % 
+                Args.InsertRecFunc          %
             end
 
             % Setup component
@@ -184,8 +189,8 @@ classdef DbQuery < Component
             %            'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
             %            'TempName'  - @Todo
             %            'CsvFileName' - @Todo
-            % Output:  - 
-            % Example: - 
+            % Output:  -
+            % Example: -
             % Obj.select('Column1', 'Table', 'Where', '...', 'Order', '...')
             arguments
                 Obj                     %
@@ -251,7 +256,7 @@ classdef DbQuery < Component
                 Res = Obj.exec();
                 if Res
                     if ~isempty(Args.CsvFileName)
-                        Obj.writeResultSetCsv(Args.CsvFileName);                    
+                        Obj.writeResultSetCsv(Args.CsvFileName);
                     elseif Args.Load
                         tic();
                         Result = db.DbRecord(Args.TempName);
@@ -270,7 +275,7 @@ classdef DbQuery < Component
                 Res = Obj.query();
                 if Res
                     if ~isempty(Args.CsvFileName)
-                        Obj.writeResultSetCsv(Args.CsvFileName);                    
+                        Obj.writeResultSetCsv(Args.CsvFileName);
                     elseif Args.Load
                         Result = Obj.loadResultSet();
                         if ~isempty(Args.OutType)
@@ -294,11 +299,11 @@ classdef DbQuery < Component
             %          'ExColumns'     - Additional fields as struct
             %          'BatchSize'     - Number of records per operation
             %          'InsertRecFunc' - Called to generate primary key if required
-            %          'InsertRecArgs' - Arguments to InsertRecFunc 
+            %          'InsertRecArgs' - Arguments to InsertRecFunc
             %          'UseCopy'       - When number of records is above this value, copyFrom() is used
             %
             % Output:  DbRecord
-            % Example: -             
+            % Example: -
             
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
             arguments
@@ -311,7 +316,7 @@ classdef DbQuery < Component
                 Args.ExColumns struct = []  % Additional fields as struct
                 Args.BatchSize = []         % Number of records per operation
                 Args.InsertRecFunc = []     % Called to generate primary key if required
-                Args.InsertRecArgs = {}     % Arguments to InsertRecFunc 
+                Args.InsertRecArgs = {}     % Arguments to InsertRecFunc
                 Args.UseCopy = 0            % When number of records is above this value, copyFrom() is used
                 Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
             end
@@ -371,7 +376,7 @@ classdef DbQuery < Component
             ColumnNames = fieldnames(Rec.Data);
             [SqlColumns, SqlValues] = Obj.makeInsertColumnsText(ColumnNames, 'ColumnMap', Args.ColumnMap, 'TableColumnList', TableColumnList);
             
-            % Use COPY FROM 
+            % Use COPY FROM
             if Args.UseCopy > 0 && RecordCount > Args.UseCopy
                 CsvFileName = sprintf('%s.csv', tempname);
                 Obj.msgLog(LogLevel.Warning, 'insert: UseCopy is not implemented yet, using INSERT');
@@ -467,8 +472,8 @@ classdef DbQuery < Component
             % Update record
             % Intput:  SetColumns   - Note that string values must be enclosed by single '
             %                         for example: 'MyField=''MyValue'''
-            %          'TableName'  - 
-            %          'Where'      - 
+            %          'TableName'  -
+            %          'Where'      -
             %          'ColumnMap'  - @Todo - for future use
             % Output:  true on success
             % Example: Obj.update('TableName', 'MyTable', 'MyField=1', 'Where', 'TheFlag = 1')
@@ -510,7 +515,7 @@ classdef DbQuery < Component
             %Where = Obj.makeWhereFieldsText(WhereFieldNames, ' AND ', Args.FieldMap);
 
             %
-            if ~isempty(Args.Where)            
+            if ~isempty(Args.Where)
                 Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char, ' WHERE ', string(Args.Where).char];
             else
                 Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char];
@@ -584,10 +589,10 @@ classdef DbQuery < Component
             % Prepare SQL statement
             % sql = sprintf("DELETE FROM master_table WHERE key1=... and key2=...).char;
             if ~isempty(Args.Where)
-                Obj.SqlText = ['DELETE FROM ', string(Args.TableName).char, ' WHERE ', string(Args.Where).char];                
+                Obj.SqlText = ['DELETE FROM ', string(Args.TableName).char, ' WHERE ', string(Args.Where).char];
             else
-                Obj.SqlText = ['DELETE FROM ', string(Args.TableName).char];                
-            end            
+                Obj.SqlText = ['DELETE FROM ', string(Args.TableName).char];
+            end
 
             % Prepare query
             Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
@@ -765,9 +770,9 @@ classdef DbQuery < Component
 
         function Result = loadResultSet(Obj, Args)
             % Helper function for select() - Load ResultSet to DbRecord array
-            % Might be time and memory consuming!            
+            % Might be time and memory consuming!
             % Input:  'MaxRows' - Optional limit of number of rows to load to memory
-            % Output:  DbRecord object: ColCount, ColNames, ColType, Data(i) 
+            % Output:  DbRecord object: ColCount, ColNames, ColType, Data(i)
             % Example: Obj.loadResultSet();
 
             arguments
@@ -827,7 +832,7 @@ classdef DbQuery < Component
             persistent Init;
             if isempty(Init)
                 Init = true;
-                Path = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv'); 
+                Path = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv');
                 Jar = fullfile(Path, 'opencsv-5.5.2.jar');
                 
                 try
@@ -869,7 +874,7 @@ classdef DbQuery < Component
             % Move cursor to next record, return false if reached end of data
             % Input:   -
             % Output:  true on sucess
-            % Example: Obj.next()            
+            % Example: Obj.next()
             
             Result = false;
             Obj.Eof = true;
@@ -904,7 +909,7 @@ classdef DbQuery < Component
             % numeric, it is used as column index
             % Input:   ColumnName
             % Output:  Column value: double/integer/char/
-            % Example: Value = Obj.getColumn('MyFieldName')          
+            % Example: Value = Obj.getColumn('MyFieldName')
             
             % Example:
             %    Value = getColumn('MyFieldName')
@@ -947,8 +952,8 @@ classdef DbQuery < Component
         function Result = isColumn(Obj, ColumnName)
             % Check if field exists by name
             % Input:   ColumnName
-            % Output:  true if current result set 
-            % Example: IsColumn = Obj.isColumn('MyFieldName')           
+            % Output:  true if current result set
+            % Example: IsColumn = Obj.isColumn('MyFieldName')
             
             if isempty(Obj.JavaResultSet)
                 Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
@@ -971,7 +976,7 @@ classdef DbQuery < Component
 
         function Result = getColumnIndex(Obj, ColumnName)
             % Get column index by column name, search in ColNames{}
-            % Input:   ColumnName - 
+            % Input:   ColumnName -
             % Output:  DbRecord
             % Example: Index = Obj.getColumnIndex('')
             
@@ -981,9 +986,9 @@ classdef DbQuery < Component
 
         function Result = getColumnType(Obj, ColumnName)
             % Get column type
-            % Input:   ColumnName - 
-            % Output:  char - 
-            % Example: -             
+            % Input:   ColumnName -
+            % Output:  char -
+            % Example: -
             
             if isnumeric(ColumnName)
                 Index = ColumnName;
@@ -1001,7 +1006,7 @@ classdef DbQuery < Component
         function Result = getColumnList(Obj)
             % Get columns list of current ResultSet as celarray
             % Input:   -
-            % Output:  
+            % Output:
             % Example: ColNames = Obj.getColumnList()
             
             Result = Obj.ColNames;
@@ -1064,13 +1069,13 @@ classdef DbQuery < Component
             if Obj.query(SqlText)
                 while ~Obj.Eof
                     Value = Obj.getColumn(ColumnName);
-                    Result{end+1} = Value;                    
+                    Result{end+1} = Value;
                     if ~Obj.next()
                         break
                     end
-                end                
+                end
             end
-        end        
+        end
 
     end
     
@@ -1082,9 +1087,9 @@ classdef DbQuery < Component
 
         function Result = setConnection(Obj, DbTableOrConn)
             % [Internal Use] Set connection
-            % Input:   DbTableOrConn - 
+            % Input:   DbTableOrConn -
             % Output:  true on sucess
-            % Example: Obj.setConnection('unittest')          
+            % Example: Obj.setConnection('unittest')
             
             % Connection argument may be either:
             %   - Empty string: use default connetion()
@@ -1139,7 +1144,7 @@ classdef DbQuery < Component
             % [Internal Use] Close current query
             % Intput:  -
             % Output:  true on sucess
-            % Example: -             
+            % Example: -
             
             Result = Obj.clear();
         end
@@ -1155,7 +1160,7 @@ classdef DbQuery < Component
             %          'Csv'     - true=Csv file, @Todo - binary file?
             %
             % Output:  true on success
-            % Example: -             
+            % Example: -
             
             arguments
                 Obj
@@ -1188,10 +1193,10 @@ classdef DbQuery < Component
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
             % Input:   TableName
             %          FileName
-            %          'Columns' - 
+            %          'Columns' -
             %          'Csv'     -
             % Output:  true on success
-            % Example: -             
+            % Example: -
             
             arguments
                 Obj
@@ -1214,7 +1219,7 @@ classdef DbQuery < Component
             Result = Obj.exec(ASql);
             Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);
             Result = Obj.ExecOk;
-        end        
+        end
 
 
         function Result = clear(Obj)
@@ -1260,7 +1265,7 @@ classdef DbQuery < Component
             % Input:   -
             %          'TableName' -
             % Output:  true on success
-            % Example: -             
+            % Example: -
             
             arguments
                 Obj
@@ -1346,7 +1351,7 @@ classdef DbQuery < Component
                 % When Args.TableColumnList is specified, ignore columns not in list
                 if ~isempty(Args.TableColumnList)
                     if ~any(strcmpi(Args.TableColumnList, ColumnName))
-                        continue;                        
+                        continue;
                     end
                 end
 
@@ -1375,7 +1380,7 @@ classdef DbQuery < Component
             % Input:   ColumnNames -
             %          'ColumnMap' - @Todo Future
             % Output:  char-array
-            % Example: -             
+            % Example: -
             
             % "UPDATE master_table set RecID=?,FInt=? WHERE..."
             arguments
@@ -1416,9 +1421,9 @@ classdef DbQuery < Component
             % "WHERE RecID=? AND FInt=?..."
             % Input:   ColumnNames -
             %          Operand    -
-            %          ColumnMap   - 
+            %          ColumnMap   -
             % Output:  DbRecord
-            % Example: -             
+            % Example: -
             
             arguments
                 Obj
@@ -1454,15 +1459,15 @@ classdef DbQuery < Component
 
         function Result = setStatementValues(Obj, Rec, FirstRecord, RecordCount, Args)
             % Set statement values from specified DbRecord or struct
-            % Input:   Rec               - 
+            % Input:   Rec               -
             %          FirstRecord       -
             %          RecordCount       -
             %          'ColumnNames'     -
             %          'ColumnMap'       -
             %          'StartIndex'      -
-            %          'TableColumnList' - 
-            % Output:  
-            % Example: 
+            %          'TableColumnList' -
+            % Output:
+            % Example:
             arguments
                 Obj                     %
                 Rec                     % DbRecord
@@ -1496,7 +1501,7 @@ classdef DbQuery < Component
                     % When Args.TableColumnList is specified, ignore columns not in list
                     if ~isempty(Args.TableColumnList)
                         if ~any(strcmpi(Args.TableColumnList, ColumnName))
-                            continue;                        
+                            continue;
                         end
                     end
                     
@@ -1538,7 +1543,7 @@ classdef DbQuery < Component
             % Output:  char array, i.e. 'My_Field'
             % Example: ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
             for i=1:numel(Str)
-                Ch = Str(i);               
+                Ch = Str(i);
                 Valid = isstrprop(Ch, 'alpha') || isstrprop(Ch, 'digit') || Ch == '_';
                 if ~Valid
                     Str(i) = '_';
@@ -1552,7 +1557,7 @@ classdef DbQuery < Component
             % Get cell array field names that match the specified field type
             % Input:   ColumnType: 'Integer', 'Double', etc.
             % Output:  Cell array with list of all fields
-            % Example: ColNames = Q.getColumnNamesOfType('Double');             
+            % Example: ColNames = Q.getColumnNamesOfType('Double');
             
             arguments
                 Obj
@@ -1598,10 +1603,10 @@ classdef DbQuery < Component
             % Unit-Test
 
         Result = perfTest()
-            % Performance Test - test timing of various operations 
+            % Performance Test - test timing of various operations
 
         Result = stressTest()
-            % Stress Test - run continuous operations that create large 
+            % Stress Test - run continuous operations that create large
             % amount of data
 
     end

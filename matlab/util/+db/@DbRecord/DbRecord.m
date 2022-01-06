@@ -4,16 +4,20 @@
 % Author: Chen Tishler (Aug 2021)
 %
 % #functions (autogen)
-% DbRecord - Constructor - @Todo - discuss corret row,col order! Data: struct array, table, cell array, matrix
-% convert2AstroCatalog - Convert record(s) to AstroCatalog
-% convert2AstroTable - Convert record(s) to AstroTable
-% convert2cell - Convert record(s) to cell
-% convert2mat - Convert record(s) to matrix, non-numeric fields are
-% convert2table - Convert record(s) to table
-% delete -
-% getFieldNames - Get list of field names, properties ending with '_' are excluded
-% merge - Merge struct array with current data Usefull when we constructed from matrix and need key fields
-% newKey - Generate unique id, as Uuid or SerialStr (more compact and fast)
+% DbRecord - Constructor Input:   Data          - struct array, table, cell array, matrix,                          AstroTable, AstroCatalog, AstroHeader          Args.ColNames - char comma separated, or cell array Example: MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
+% convert2 - Convert Obj.Data struct array to given OutType Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog' Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog Example: Mat = Obj.conevrt2('mat')
+% convert2AstroCatalog - Convert record(s) to AstroCatalog Input:   - Output:  AstroCatalog object Example: AC = Obj.convert2AstroCatalog()
+% convert2AstroTable - Convert record(s) to AstroTable Input:   - Output:  AstroTable object Example: AT = Obj.convert2AstroTable()
+% convert2cell - Convert record(s) to cell Note that we need to transpose it Input:   - Output:  Cell-array Example: Cell = Obj.convert2cell()
+% convert2mat - Convert record(s) to matrix, non-numeric fields are Note that we need to transpose it Input:   - Output:  Matrix Example: Mat = Obj.convert2mat()
+% convert2table - Convert record(s) to table Input:   - Output:  Table Example: Tab = Obj.convert2table()
+% delete - Destructor io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
+% getFieldNames - Get list of field names, properties ending with '_' are excluded Input:   - Output:  cell-array of field-names Example: FieldNames = Obj.getFieldNames()
+% getRowCount - Get numer of rows in Data struct array Input:   - Output:  Number of rows in Obj.Data Example: Count = Obj.getRowCount()
+% merge - Merge input struct array with current data
+% newKey - Generate unique id, as Uuid or SerialStr (more compact and fast) Input:   - Output:  New Uuid or SerialStr Example: Key = Obj.newKey()
+% readCsv - Read from CSV file to Obj.Data struct-array @Todo - Not implemented yet Input:   - FileName - CSV file name Output:  - @TBD Example: - CsvData = Obj.readCsv('/tmp/data1.csv')
+% writeCsv - Write Obj.Data struct array to CSV file, using mex optimization @Todo - to be tested Input:   FileName     -          Args.Header  - Output:  true on sucess
 % #/functions (autogen)
 %
 
@@ -24,7 +28,7 @@ classdef DbRecord < Base
         Name         = 'DbRecord'   % Object name
         Query        = []           % Linked DbQuery (optional)
         KeyField     = ''           % Key field(s)
-        UseUuid      = true;        % True to use Uuid, otherwise SerialStr() is used        
+        UseUuid      = true;        % True to use Uuid, otherwise SerialStr() is used
         ColCount     = 0;           % Number of columns
         ColNames     = [];          % cell - Field names
         ColType      = [];          % cell - Field data types
@@ -58,7 +62,7 @@ classdef DbRecord < Base
                     Obj.Data = table2struct(Data);
                 elseif iscell(Data)
                     Obj.Data = cell2struct(Data, Args.ColNames, 2);
-                elseif isnumeric(Data)                    
+                elseif isnumeric(Data)
                     % @Perf - Need to be improved, it works very slow with arrays > 10,000
                     Obj.Data = cell2struct(num2cell(Data, size(Data, 1)), Args.ColNames, 2);  %numel(Args.ColNames));
                 elseif isa(Data, 'AstroTable') || isa(Data, 'AstroCatalog')
@@ -87,7 +91,7 @@ classdef DbRecord < Base
                         end
                         Obj.Data = Stru;
                     else
-                        error('DbRecord currently supports only single AstroHeader');                    
+                        error('DbRecord currently supports only single AstroHeader');
                     end
                 end
             end
@@ -96,7 +100,7 @@ classdef DbRecord < Base
       
         
         function delete(Obj)
-            % Destructor            
+            % Destructor
             %io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
         end
     end
@@ -136,7 +140,7 @@ classdef DbRecord < Base
         
         function Result = newKey(Obj)
             % Generate unique id, as Uuid or SerialStr (more compact and fast)
-            % Input:   - 
+            % Input:   -
             % Output:  New Uuid or SerialStr
             % Example: Key = Obj.newKey()
             if Obj.UseUuid
@@ -153,9 +157,9 @@ classdef DbRecord < Base
                                   
         function Result = convert2table(Obj)
             % Convert record(s) to table
-            % Input:   - 
+            % Input:   -
             % Output:  Table
-            % Example: Tab = Obj.convert2table()       
+            % Example: Tab = Obj.convert2table()
             if ~isempty(Obj.Data)
                 Result = struct2table(Obj.Data);
                 Size = size(Result);
@@ -169,10 +173,10 @@ classdef DbRecord < Base
         function Result = convert2cell(Obj)
             % Convert record(s) to cell
             % Note that we need to transpose it
-            % Input:   - 
+            % Input:   -
             % Output:  Cell-array
             % Example: Cell = Obj.convert2cell()
-            if ~isempty(Obj.Data)            
+            if ~isempty(Obj.Data)
                 Result = squeeze(struct2cell(Obj.Data))';
                 Size = size(Result);
                 assert(numel(Obj.Data) == Size(1));
@@ -185,25 +189,25 @@ classdef DbRecord < Base
         function Result = convert2mat(Obj)
             % Convert record(s) to matrix, non-numeric fields are
             % Note that we need to transpose it
-            % Input:   - 
+            % Input:   -
             % Output:  Matrix
             % Example: Mat = Obj.convert2mat()
-            if ~isempty(Obj.Data)            
+            if ~isempty(Obj.Data)
                 Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Size = size(Result);
                 assert(numel(Obj.Data) == Size(1));
             else
                 Result = [];
-            end                
+            end
         end
 
         
         function Result = convert2AstroTable(Obj)
             % Convert record(s) to AstroTable
-            % Input:   - 
+            % Input:   -
             % Output:  AstroTable object
             % Example: AT = Obj.convert2AstroTable()
-            if ~isempty(Obj.Data)            
+            if ~isempty(Obj.Data)
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
                 Size = size(Result.Catalog);
@@ -216,21 +220,21 @@ classdef DbRecord < Base
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
-            % Input:   - 
+            % Input:   -
             % Output:  AstroCatalog object
-            % Example: AC = Obj.convert2AstroCatalog()            
-            if ~isempty(Obj.Data)            
+            % Example: AC = Obj.convert2AstroCatalog()
+            if ~isempty(Obj.Data)
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
                 Size = size(Result.Catalog);
                 assert(numel(Obj.Data) == Size(1));
             else
                 Result = [];
-            end            
+            end
         end
            
 
-        function Result = convert2(Obj, OutType)                  
+        function Result = convert2(Obj, OutType)
             % Convert Obj.Data struct array to given OutType
             % Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog'
             % Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog
@@ -252,13 +256,13 @@ classdef DbRecord < Base
         end
                     
                         
-        function Result = writeCsv(Obj, FileName, Args)            
+        function Result = writeCsv(Obj, FileName, Args)
             % Write Obj.Data struct array to CSV file, using mex optimization
             % @Todo - to be tested
             % Input:   FileName     -
-            %          Args.Header  - 
+            %          Args.Header  -
             % Output:  true on sucess
-            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)            
+            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)
             arguments
                 Obj
                 FileName            % File name
@@ -277,13 +281,13 @@ classdef DbRecord < Base
             % Input:   - FileName - CSV file name
             % Output:  - @TBD
             % Example: - CsvData = Obj.readCsv('/tmp/data1.csv')
-            Result = [];          
-        end        
+            Result = [];
+        end
         
         
         function Result = getRowCount(Obj)
             % Get numer of rows in Data struct array
-            % Input:   - 
+            % Input:   -
             % Output:  Number of rows in Obj.Data
             % Example: Count = Obj.getRowCount()
             Result = numel(Obj.Data);
