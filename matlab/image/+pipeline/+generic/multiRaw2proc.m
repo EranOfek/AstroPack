@@ -104,13 +104,31 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 %         [SizeY, SizeX] = AI(1).sizeImage;
     else
         % FileList is a cell array of images
+% tic;
 %         OutN = FITS.get_keys(FilesList{1}, {'NAXIS1','NAXIS2'});
 %         SizeX = real(str2doubleq(OutN{1}));
 %         SizeY = real(str2doubleq(OutN{2}));
 %     
 %         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.cut.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
 %                                                                                                'OverlapXY',[64 64]);
-%                                                                                          
+% 
+%         Nccdsec = size(CCDSEC,1);
+%         for Iim=1:1:numel(FilesList)
+%             for Iccdsec=1:1:Nccdsec
+%                 if Iccdsec==1
+%                     ReadHeader = true;
+%                 else
+%                     ReadHeader = false;
+%                 end
+%                 AI(Iim,Iccdsec) = AstroImage(FilesList{Iim}, Args.AstroImageReadArgs{:}, 'CCDSEC',CCDSEC(Iccdsec,:),'ReadHeader',ReadHeader);
+%                 if Iccdsec>1
+%                     AI(Iim,Iccdsec).HeaderData = AI(Iim,1).HeaderData;
+%                 end
+%             end
+%         end
+% toc
+
+                                                                                         
 %         
 %         
 %         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.cut.subimage_grid([SizeX, SizeY], 'SubSizeXY',Args.SubImageSizeXY,...
@@ -120,7 +138,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
         %[SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy] = partition_subimage(
         
+%tic;
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:});
+%toc
+
     end
         
     
@@ -190,8 +211,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         end
         
     end
-    clear AI;
-    clear SI;
+    %clear AI;
+    %clear SI;
 
     % delete Back and Var before coaddition
     if Args.DeleteBackBeforeCoadd

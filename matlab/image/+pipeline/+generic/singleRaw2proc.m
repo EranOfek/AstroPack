@@ -249,7 +249,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                         'OverlapXY',Args.OverlapXY,...
                                                                         'UpdateWCS',false,...
                                                                         'UpdatePSF',false);
-    clear AI;
+    %clear AI;
     
     
     % Background 
