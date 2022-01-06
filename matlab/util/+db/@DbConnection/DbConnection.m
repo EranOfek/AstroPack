@@ -82,7 +82,7 @@ classdef DbConnection < Component
                 
                 % Allow user to set value explicitly, when not empty they
                 % override the values loaded from configuration
-                Args.DriverName         %
+                Args.DriverName         = 'postgres' %
                 Args.Host               %
                 Args.DatabaseName       %
                 Args.UserName           %

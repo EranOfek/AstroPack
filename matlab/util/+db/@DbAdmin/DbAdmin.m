@@ -122,7 +122,10 @@ classdef DbAdmin < Component
             %          
             % Output:  true on success
             % Example: -            
-            % Instructions
+            % Instructions:
+            %    1. Download database definition from Google Sheet by selecting
+            %       File -> Download -> (XLS)
+            %
             
             arguments
                 Obj
@@ -144,7 +147,7 @@ classdef DbAdmin < Component
             elseif ~isempty(Args.XlsFileName)
                 SqlFileName = Obj.xls2sql(Args.XlsFileName);
                 if ~isempty(SqlFileName) && isfile(SqlFileName)
-                    Obj.runPsql(SqlFileName);
+                    Obj.runPsql('SqlFileName', SqlFileName);
                 end
             else
                 
@@ -153,21 +156,62 @@ classdef DbAdmin < Component
         end
 
         
-        function Result = createConnection(Obj, DatabaseName, Args)
+        function Result = createConnectionConfig(Obj, Args)
             % Create database connection in config/local/Database.DbConnections.UnitTest.yml
-            % Input:   DbName
-            % Output:  true on success
-            % Example: db.DbAdmin.createConnection()
+            % Input:   
+            %    'FileName'        = ''                %
+            %    'DatabaseName'    = ''                %
+            %    'Host'            = 'localhost'       % Host name or IP address
+            %    'Port'            = 5432              %
+            %    'DriverName'      = 'postgres'        % Driver name
+            %    'UserName'        = ''                % Login user
+            %    'Password'        = ''                % Login password
+            %    'ServerSharePath' = '' %              % Path to shared folder on the server, for COPY statements
+            %    'MountSharePath'  = ''                 
+            %    'WinMountSharePath'  = ''                 
+            % Output:  Configuration file name on success
+            % Example: db.DbAdmin.createConnectionConfig('DatabaseName', 'unittest5', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
             % Database.DbConnections.UnitTest.yml
             
             arguments
                 Obj
-                DatabaseName                            %
-                Args.Host           = 'localhost'       % Host name or IP address
-                Args.Port           = 5432
-                Args.DriverName     = 'postgres'        % Driver name
-                Args.UserName       = ''                % Login user
-                Args.Password       = ''                % Login password
+                Args.FileName        = ''                %
+                Args.DatabaseName    = ''                %
+                Args.Host            = 'localhost'       % Host name or IP address
+                Args.Port            = 5432              %
+                Args.DriverName      = 'postgres'        % Driver name
+                Args.UserName        = ''                % Login user
+                Args.Password        = ''                % Login password
+                Args.ServerSharePath = '' %              % Path to shared folder on the server, for COPY statements
+                Args.MountSharePath  = ''                 
+                Args.WinMountSharePath  = ''                 
+            end
+                                  
+            % Prepare file name if not specified
+            Result = [];            
+            if isempty(Args.FileName)
+                ConfigPath = fullfile(tools.os.getAstroPackConfigPath(), 'local');
+                Args.FileName = fullfile(ConfigPath, strcat('Database.DbConnections.', Args.DatabaseName, '.yml'));
+            end
+            
+            % Create file
+            Fid = fopen(Args.FileName, 'wt');
+            if Fid > -1
+                fprintf(Fid, '# %s\n\n',                        Args.FileName);
+                fprintf(Fid, 'DatabaseName    : ''%s\n',        Args.DatabaseName);
+                fprintf(Fid, 'Host            : ''%s''\n',      Args.Host);
+                fprintf(Fid, 'Port            : %d\n',          Args.Port);            
+                fprintf(Fid, 'DriverName      : ''postgres''\n');
+                fprintf(Fid, 'UserName        : ''%s''\n',      Args.UserName);
+                fprintf(Fid, 'Password        : ''%s''\n',      Args.Password);
+                fprintf(Fid, 'ServerSharePath : ''%s''\n',      Args.ServerSharePath);
+                fprintf(Fid, 'MountSharePath  : ''%s''\n',      Args.MountSharePath);                
+                fprintf(Fid, 'WinMountSharePath : ''%s''\n',    Args.WinMountSharePath);                                
+                fclose(Fid);
+                
+                if isfile(Args.FileName)
+                    Result = Args.FileName;
+                end
             end
             
         end
@@ -178,7 +222,13 @@ classdef DbAdmin < Component
             % Input:   
             % Output:  
             % Example: db.DbAdmin.createTable('unittest', )
-            % https://www.postgresql.org/docs/8.0/sql-createuser.html
+            % Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
+            % SQL:     [DROP TABLE IF EXISTS customers CASCADE;]           
+            %          CREATE TABLE customers (
+            %             id SERIAL PRIMARY KEY,
+            %             customer_name VARCHAR NOT NULL
+            %          );
+            %
             arguments
                 Obj
                 Args.SqlText        = ''
@@ -187,25 +237,25 @@ classdef DbAdmin < Component
                 Args.PrimaryKeyDef  = ''
             end
 
-%         DROP TABLE IF EXISTS customers CASCADE;
-% 
-%         CREATE TABLE customers (
-%             id SERIAL PRIMARY KEY,
-%             customer_name VARCHAR NOT NULL
-%         );
 
-            % Read input file
+            Result = false;
             SqlText = '';
+            
+            % SQL text
             if ~isempty(Args.SqlText)
                 SqlText = Args.SqlText;
+                
+            % SQL file name
             elseif ~isempty(Args.SqlFileName)
                 SqlText = fileread(Args.SqlFileName);
-            else                
-                SqlText = sprintf('CREATE TABLE %s (%s PRIMARY KEY)', TableName, PrimaryKeyDef);
+                
+            % Table name with Primary key
+            elseif ~isempty(Args.TableName) && ~isempty(Args.PrimaryKeyDef)
+                SqlText = sprintf('CREATE TABLE %s (%s PRIMARY KEY)', Args.TableName, Args.PrimaryKeyDef);
             end
             
             if ~isempty(SqlText)
-                Obj.exec(SqlText);            
+                Result = Obj.exec(SqlText);            
             end
         end
         
@@ -276,6 +326,17 @@ classdef DbAdmin < Component
             Result = Obj.exec(SqlText);            
         end        
         
+
+        function Result = getDbList(Obj)
+            % Get columns list of specified table as cell array
+            % Input:   -
+            % Output:  Cell array
+            % Example: List = Obj.getTablesList()
+            % Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
+            
+            Text = 'SELECT datname FROM pg_database WHERE datistemplate = false';           
+            Result = Obj.Query.selectColumn(Text, 'datname');
+        end        
     end
     
     %----------------------------------------------------------------------        
@@ -319,14 +380,13 @@ classdef DbAdmin < Component
         % CREATE ROLE admin WITH LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD 'Passw0rd';
         %
         % 
-        
-        
+                
         function Result = addUser(Obj, UserName, Password, Args)
             % Add database user
-            % Input:   UserName       -
-            %          Password       - 
-            %          'DatabaseName' - 
-            %          'Permission'   - 'read', 'write'
+            % Input:   UserName       - User name
+            %          Password       - Pasword string
+            %          'DatabaseName' - If specified user will be granted only for this database
+            %          'Permission'   - 'read', 'write', 'full'
             % Output:  true on sucess
             % Example: db.DbAdmin.addUser('robert', 'pass123')
             % Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
@@ -340,39 +400,36 @@ classdef DbAdmin < Component
                 Args.Permission = ''    %
             end
             
+            % 1. Create new user
             SqlText = sprintf('CREATE USER %s WITH PASSWORD ''%s''', UserName, Password);
             Result = Obj.exec(SqlText);
             
-            if ~isempty(Args.DatabaseName)
+            % 2. Grant the CONNECT access
+            SqlText = sprintf('GRANT CONNECT ON DATABASE %s TO %s', DatabaseName, UserName);
+            Result = Obj.exec(SqlText);
+            
+            % 3. Grant full access
+            if ~isempty(Args.DatabaseName) && (strcmp(Args.Permission, 'write') || strcmp(Args.Permission, 'full'))
                 SqlText = sprintf('GRANT ALL PRIVILEGES ON %s TO %s', Args.DatabaseName, UserName);
                 Result = Obj.exec(SqlText);
             end
             
-            % Read-only 
+            % Create read-only user on specified database
             % https://ubiq.co/database-blog/how-to-create-read-only-user-in-postgresql/
             if strcmp(Args.Permission, 'read')
-
-                Text = sprintf('CREATE USER %s WITH PASSWORD ''%s''', UserName, Password);
-
-                Text = sprintf('GRANT CONNECT ON DATABASE %s TO %s', UserName);
-                Text = sprintf('GRANT USAGE ON SCHEMA public TO %s', UserName);
-
-                Text = sprintf('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', UserName);
-
-                %ALTER DEFAULT PRIVILEGES IN SCHEMA public
-                %GRANT SELECT ON TABLES TO user2;
-
-
-
-            else
+                SqlText = sprintf('GRANT USAGE ON SCHEMA public TO %s', UserName);
+                Result = Obj.exec(SqlText);
+                
+                SqlText = sprintf('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', UserName);
+                Result = Obj.exec(SqlText);
             end
         end
         
         
         function Result = removeUser(Obj, UserName)
             % Remove user
-            % Input:   
-            % Output:  
+            % Input:   UserName to remove
+            % Output:  true on success
             % Example: db.DbAdmin.removeUser('robert')
             % Refs:    https://www.postgresql.org/docs/9.4/sql-dropuser.html
             % SQL:     DROP USER [ IF EXISTS ] name [, ...]            
@@ -426,70 +483,17 @@ classdef DbAdmin < Component
         end
         
         
-        function Result = writeLocalConfig(Obj, Args)
-            % Write configuration file
-            % config/local/Database.DbConnections.UnitTest.yml
-            % Input: 
-            %    DatabaseName 
-            %    'UserName'        = ''       %
-            %    'Password'        = ''       %
-            %    'Host'            = ''       %
-            %    'Port'            = 5432     %
-            %    'ServerSharePath' = ''       % Path to shared folder on the server, for COPY statements
-
-            % Output: true on success
-            % Example: Obj.writeLocalConfig()
-            
-            arguments
-                Obj
-                Args.FileName        = ''       %
-                Args.DatabaseName    = ''       %
-                Args.UserName        = ''       %
-                Args.Password        = ''       %
-                Args.Host            = ''       %
-                Args.Port            = 5432     %
-                Args.ServerSharePath = ''       % Path to shared folder on the server, for COPY statements
-            end
-            
-            Result = false;
-            
-            % Prepare file name
-            if isempty(Args.FileName)
-                ConfigPath = fullfile(tools.os.getAstroPackConfigPath(), local);
-                Args.FileName = fullfile(ConfigPath, strcat('Database.DbConnections.', Args.DatabaseName, '.yml'));
-            end
-            
-            % Create file
-            Fid = fopen(Args.FileName, 'wt');
-            if Fid > -1
-                fprintf(Fid, '# %s\n', Args.FileName);
-                fprintf(Fid, 'DatabaseName    : ''%s''        # Database name\n', Args.DatabaseName);
-                fprintf(Fid, 'Host            : ''%s''        # Host name or IP address\n', Args.Host);
-                fprintf(Fid, 'Port            : %d            # Port number\n', Args.Port);            
-                fprintf(Fid, 'DriverName      : ''postgres''  # Driver name\n');
-                fprintf(Fid, 'UserName        : ''%s''        # Login user\n', Args.UserName);
-                fprintf(Fid, 'Password        : ''%s''        # Login password\n', Args.Password);
-                fclose(Fid);
-                
-                if isfile(FileName)
-                    Result = true;
-                end
-            end
-            
-        end        
-
-        
-        
-        function SqlFileName = xls2sql(Obj, XlsFileName)
+        function Result = xls2sql(Obj, XlsFileName)
             % Convert XLSX file downloaded from Google Drive to SQL file
             % Input:   XlsFileName
-            % Output:  
+            % Output:  true on success
             % Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
             arguments
                 Obj
                 XlsFileName
             end
             
+            Result = '';
             SqlFileName = '';
             if ~isfile(XlsFileName)
                 return;
@@ -500,7 +504,13 @@ classdef DbAdmin < Component
                 
                 [Path, FName] = fileparts(XlsFileName);
                 cd(Path);
-                Py = fullfile(tools.os.getAstroPackPath, 'python', 'utils', 'database_utils', 'xlsx2sql.py');
+                PyScript = fullfile('python', 'utils', 'database_utils', 'xlsx2sql.py');
+                Py = fullfile(tools.os.getAstroPackPath, PyScript);
+                if ~isfile(Py)
+                    return;
+                end
+                
+                % Prepare command line, assume we have 'python3' installed
                 Cmd = sprintf('python3 %s -f %s', Py, XlsFileName);
                 io.msgLog(LogLevel.Info, 'xlsx2sql.py: %s', Cmd);
                 [Status, Output] = system(Cmd);
@@ -508,7 +518,14 @@ classdef DbAdmin < Component
                 io.msgLog(LogLevel.Info, '%s', Output);
                 
                 SqlFileName = sprintf('%s%s%s.sql', FName, filesep, FName);
-                if ~isfile(SqlFileName)
+                if isfile(SqlFileName)
+                    SqlFileName = fullfile(pwd, SqlFileName);
+                    if isfile(SqlFileName)
+                        Result = SqlFileName;
+                    else
+                        SqlFileName = '';
+                    end
+                else
                     SqlFileName = '';
                 end
                 

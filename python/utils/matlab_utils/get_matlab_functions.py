@@ -2146,7 +2146,7 @@ def main():
     proc = MatlabProcessor()
 
     #
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db/@DbQuery')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
 
     # Test for package
     # proc.process('D:/Ultrasat/AstroPack.git/matlab/astro/+celestial')
