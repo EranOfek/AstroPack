@@ -97,7 +97,6 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         Args.Conn                          = 8;
         Args.CleanSources logical          = false;
         Args.cleanSourcesArgs cell         = {};
-        Args.ImageField char               = 'Im';
         Args.BackField char                = 'Back';
         Args.VarField char                 = 'Var';
     end
