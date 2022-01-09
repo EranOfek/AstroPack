@@ -44,8 +44,18 @@ function Result = findSources(Obj, Args)
     %                   content of the CatData object. Default is false.
     % Output : - An AstroImage object with the sources found in the CatData
     %            object.
+    %            The catalog include the following columns:
+    %            'XPEAK', 'YPEAK' - X and Y whole pixel position
+    %            'TEMP_ID' - The template index that maximizes the S/N.
+    %            'SN_%d - S/N for each template.
+    %            'FLUX_CONV_%d - convolution based PSF flux for each
+    %                   template.
+    %            'BACK_IM', 'VAR_IM' - Background and variance at source
+    %                   position as read from the Back and Var images.
     % Author : Eran Ofek (Jan 2022)
-    % Example: 
+    % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+    %          AI=imProc.background.background(AI);
+    %          AI = imProc.sources.findSources(AI)
     
     arguments
         Obj AstroImage        
@@ -64,8 +74,13 @@ function Result = findSources(Obj, Args)
     
     Result = Obj;
     
+    if any(isemptyImage(Obj, {'Image','Back','Var'}),'all')
+        error('Image, Back, and Var properties must be not empty - run imProc.background.background');
+    end    
+    
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
+        
         if Args.CreateNewObj
             Result(Iobj).CatData = Obj(Iobj).CatData.copy;
         end
@@ -100,7 +115,7 @@ function Result = findSources(Obj, Args)
         
         SN_Cell   = tools.cell.cellNumericSuffix('SN', (1:1:Npsf));
         Flux_Cell = tools.cell.cellNumericSuffix('FLUX_CONV', (1:1:Npsf));
-        Result(Iobj).ColNames = [{'XPEAK', 'YPEAK', 'TEMP_ID'}, SN_Cell, Flux_Cell, {'BACK_IM', 'VAR_IM'}];
+        Result(Iobj).CatData.ColNames = [{'XPEAK', 'YPEAK', 'TEMP_ID'}, SN_Cell, Flux_Cell, {'BACK_IM', 'VAR_IM'}];
         
         
     end
