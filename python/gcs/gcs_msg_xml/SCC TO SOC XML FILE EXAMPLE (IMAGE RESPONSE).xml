@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSPY v5 rel. 4 U (http://www.xmlspy.com) by VladislavGavrielov (Altova) -->
+<SCC_SOC_Response>
+	<Header>
+		<TimeStamp>2001-12-17T09:30:4.0Z</TimeStamp>
+		<SCCMessageId>
+			<Time>2018-02-28T00:00:00.0Z</Time>
+			<CreatorName>SCC1</CreatorName>
+			<MessageType>ImageResponse</MessageType>
+		</SCCMessageId>
+		<ExternalMessageId>WhateverYouDecide</ExternalMessageId>
+		<Source>SCC1</Source>
+		<SourceNetId>8.9.10.11</SourceNetId>
+		<Target>SOC1</Target>
+		<TargetNetId>11.10.9.8</TargetNetId>
+		<SchemaVersion>1</SchemaVersion>
+	</Header>
+	<Tasks>
+		<TaskRequest>New</TaskRequest>
+		<Task>
+			<TaskId>US1_20240304112233000000</TaskId>
+			<ExternalTaskId>WhateverYouDecide</ExternalTaskId>
+			<SatelliteId>US1</SatelliteId>
+			<Encoding>0</Encoding>
+			<SCCResponseNo>01013</SCCResponseNo>
+			<Responses>
+				<Response>
+					<ResponseID>123</ResponseID>
+					<ImageId>00104</ImageId>
+					<Timetag>2024-03-04T09:23:00.0Z</Timetag>
+					<RequestStatus>Accept</RequestStatus>
+					<StatusDetails>All Is OK</StatusDetails>
+					<Sunlight>No</Sunlight>
+					<SunlightCounter>11</SunlightCounter>
+					<HGComm>Yes</HGComm>
+				</Response>
+			</Responses>
+		</Task>
+	</Tasks>
+</SCC_SOC_Response>
