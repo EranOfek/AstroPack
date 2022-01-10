@@ -40,7 +40,10 @@ function Obj = constructPSF(Obj, Args)
         Nsrc = size(PsfXY,1);
         
         % get flux for normalization
-        Norm = 1./Flux;
+        Norm = Flux;
+        
+        % NEED TO SUBTRACT BACKGROUND!
+        % two nethods: 
         
         [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
                                                            'Norm',Norm,...

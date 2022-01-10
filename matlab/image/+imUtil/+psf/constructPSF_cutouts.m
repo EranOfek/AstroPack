@@ -98,14 +98,17 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
         M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
         X  = M1.X;
         Y  = M1.Y;
+        
+        ShiftXY  = [Xcen - X, Ycen - Y];
+    else
+        
+        ShiftXY  = [RoundX - X, RoundY - Y];
     end
     
     SizeCube = size(Cube);
     Ncube    = SizeCube(3);
     Xcen     = SizeCube(2).*0.5 + 0.5;
     Ycen     = SizeCube(1).*0.5 + 0.5;
-    
-    ShiftXY  = [Xcen - X, Ycen - Y];
     
     switch lower(Args.ShiftMethod)
         case 'lanczos'
