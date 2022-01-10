@@ -1,5 +1,9 @@
+import os, yaml
 
 
+# ===========================================================================
+#
+# ===========================================================================
 # Base class for all objects
 class Base:
 
@@ -7,41 +11,20 @@ class Base:
         self.UserData = None
 
 
-class Config
+# ===========================================================================
+#
+# ===========================================================================
+class Config:
 
-
-    import yaml
-
-    with open("example.yaml", 'r') as stream:
-        try:
-            print(yaml.safe_load(stream))
-        except yaml.YAMLError as exc:
-            print(exc)
-
-
-
-# GCS Observasion Plan Validator
-
-# Run IAI validator?
-
-class Logger(Component):
-
-    # Constructor
     def __init__(self):
-        self.interface_name = ''
+        self.UserData = None
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-    # Validate the specified task
-    def validate_task(self, task):
-        pass
-
-
-    #
-
+    def load(self):
+        with open("example.yaml", 'r') as stream:
+            try:
+                print(yaml.safe_load(stream))
+            except yaml.YAMLError as exc:
+                print(exc)
 
 
 
@@ -77,6 +60,36 @@ class Component(Base):
 
         return self.Uuid
 
+    def log(self, msg):
+        #pass
+
+# ===========================================================================
+#
+# ===========================================================================
+
+class Logger(Component):
+
+    # Constructor
+    def __init__(self):
+        self.interface_name = ''
+
+    # Destructor
+    def __del__(self):
+        # Deleted
+        pass
+
+    # Validate the specified task
+    def validate_task(self, task):
+        pass
 
 
+    #
+
+
+
+
+
+# ===========================================================================
+#
+# ===========================================================================
 

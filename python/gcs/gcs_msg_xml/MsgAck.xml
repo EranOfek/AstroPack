@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSPY v5 rel. 4 U (http://www.xmlspy.com) by VladislavGavrielov (Altova) -->
+<ACK>
+	<Header>
+		<TimeStamp>2001-12-17T09:30:47.0Z</TimeStamp>
+		<SOCMessageId>
+			<Time>2018-02-28T00:00:00.0Z</Time>
+			<CreatorName>SOC1</CreatorName>
+			<MessageType>ImageRequest</MessageType>
+		</SOCMessageId>
+		<ExternalMessageId>WhateverYouDecide</ExternalMessageId>
+		<Source>SOC1</Source>
+		<SourceNetId>11.10.9.8</SourceNetId>
+		<Target>SCC1</Target>
+		<TargetNetId>8.9.10.11</TargetNetId>
+		<SchemaVersion>1</SchemaVersion>
+	</Header>
+</ACK>
+

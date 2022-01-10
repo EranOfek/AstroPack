@@ -1,3 +1,5 @@
+from gcsbase import Component
+
 # GCS Interface - Main
 
 class GcsMain(Component):

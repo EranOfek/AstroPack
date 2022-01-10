@@ -1,0 +1,12 @@
+# Delphi uniGui project
+
+*.o
+*.obj
+*.exe
+*.res
+*.dcu
+
+*.identcache
+
+Win32/
+

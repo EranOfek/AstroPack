@@ -1,3 +1,7 @@
+import psycopg2
+import datetime
+from gcsbase import Component
+
 # GCS Data Types
 
 
@@ -25,49 +29,62 @@ class Database(Component):
 
     #
 
+# ===========================================================================
+#
+# ===========================================================================
+#
+class DbConnetion:
+
+    def __init__(self):
+        self.con = psycopg2.connect(database="db1", user="postgres", password="pass", host="gauss", port="5432")
+        print("Database opened successfully")
 
 
-import psycopg2
-import datetime
+    def __del__(self):
+        self.con.close()
 
-con = psycopg2.connect(database="db1", user="postgres", password="pass", host="127.0.0.1", port="5432")
+#
+class DbQuery:
+    def __init__(self, con=None):
+        self.con = con
+        self.cur = con.cursor()
 
-print("Database opened successfully")
+    def __del__(self):
+        self.cur.close()
 
+    def exec(self, sql_text):
+        self.cur.execute(sql_text)
+        self.con.commit()
+        #print("Record inserted successfully:", i)
 
-cur = con.cursor()
-
-start = str(datetime.datetime.now())
-data = bytes(1000*100*1)
-
-for i in range(100000, 100999):
-    pkey = start + '_' + str(i)
-    cur.execute("INSERT INTO blobs(pkey, blob1) VALUES(%s,%s)",
-                    (pkey, psycopg2.Binary(data)))
-
-    con.commit()
-    print("Record inserted successfully:", i)
-
-con.close()
-
+    def query(self, sql_text):
+        self.cur.execute(sql_text)
+        # mobile_records = self.cur.fetchall()
+        #print("Record inserted successfully:", i)
 
 
-# declare a new PostgreSQL connection object
-conn = connect(
-dbname = "python_test",
-user = "objectrocket",
-host = "localhost",
-password = "mypass"
-)
-
-# object type: psycopg2.extensions.connection
-print ("\ntype(conn):", type(conn))
-
-
-
+# ===========================================================================
+#
+# ===========================================================================
 # GCS Event Data
 
-class GcsEventBase:
+class EventBase:
+    # Constructor
+    def __init__(self):
+        self.uuid = ''
+        self.time = 0
+
+    # Destructor
+    def __del__(self):
+        # Deleted
+        pass
+
+
+# ===========================================================================
+#
+# ===========================================================================
+class EventData:
+
     # Constructor
     def __init__(self):
         self.uuid = ''
@@ -80,28 +97,12 @@ class GcsEventBase:
 
 
 
-class GcsEventData:
 
-    # Constructor
-    def __init__(self):
-        self.uuid = ''
-        self.time = 0
+# ===========================================================================
+#
+# ===========================================================================
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-
-
-
-
-
-
-#============================================================================
-
-
-class GcsInterface(InterfaceBase):
+class GcsInterface:
 
     # Constructor
     def __init__(self):
@@ -113,9 +114,9 @@ class GcsInterface(InterfaceBase):
         pass
 
 
-# GCS Observasion Plan Validator
-
-# Run IAI validator?
+# ===========================================================================
+#
+# ===========================================================================
 
 class History(Component):
 
@@ -132,9 +133,9 @@ class History(Component):
     def validate_task(self, task):
         pass
 
-
-    #
-
+# ===========================================================================
+#
+# ===========================================================================
 
 class Reports(Component):
 
@@ -155,6 +156,8 @@ class Reports(Component):
     #
 
 
+# ===========================================================================
+#
+# ===========================================================================
 
-#============================================================================
 
