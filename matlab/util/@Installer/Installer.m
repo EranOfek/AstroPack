@@ -378,7 +378,7 @@ classdef Installer < Component
                     Format = '%12s %f %f %f %f %f %f %f %f %f %s\n';
             end
             
-            FID = fopen(FileName,'r');
+            FID = fopen(FullFileName,'r');
             C = textscan(FID, Format, 'Delimiter','\t', 'Headerlines',2);
             fclose(FID);
             
