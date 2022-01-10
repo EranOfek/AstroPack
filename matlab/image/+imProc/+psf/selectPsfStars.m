@@ -1,4 +1,4 @@
-function [PsfXY, Flag, Flux] = selectPsfStars(Obj, Args)
+function [PsfXY, Flag, Flux, Back] = selectPsfStars(Obj, Args)
     % Select PSF stars from AstroCatalog
     %   Selection is based on:
     %   1. S/N in range 
@@ -21,6 +21,9 @@ function [PsfXY, Flag, Flux] = selectPsfStars(Obj, Args)
     %                   Default is {'X','Y'}.
     %            'ColFluxNorm' - Column name for normalization flux.
     %                   Default is 'FLUX_APER_3'.
+    %            'ColBack' - Column name for background flux.
+    %                   E.g., 'BACK_ANNULUS' | 'BACK_IM'
+    %                   Default is 'BACK_ANNULUS'.
     % Outout : - A two column matrix of [X,Y] of selected sources.
     %          - A logical vector of flags (true for selected object).
     %          - The flux of each selected source.
@@ -37,6 +40,7 @@ function [PsfXY, Flag, Flux] = selectPsfStars(Obj, Args)
         Args.DeltaSigma        = 0.5;
         Args.ColMom1           = {'X','Y'};
         Args.ColFluxNorm       = 'FLUX_APER_3';  % column of flux for normalization
+        Args.ColBack           = 'BACK_ANNULUS';
     end
     
     if isa(Obj, 'AstroImage')
@@ -62,7 +66,14 @@ function [PsfXY, Flag, Flux] = selectPsfStars(Obj, Args)
     % get PSF sources
     PsfXY    = XY(Flag,:);
     
-    Flux     = getCol(Cat, Args.ColFluxNorm);
-    Flux     = Flux(Flag);
+    if nargout>2
+        Flux     = getCol(Cat, Args.ColFluxNorm);
+        Flux     = Flux(Flag);
+    
+        if nargout>3
+            Back     = getCol(Cat, Args.ColBack);
+            Back     = Back(Flag);
+        end
+    end
     
 end

@@ -24,6 +24,8 @@ function Obj = constructPSF(Obj, Args)
         Obj AstroImage   % CatData must be populated
         Args.HalfSize                       = 8;
         Args.ColFluxNorm                    = 'FLUX_APER_3';  % column of flux for normalization
+        Args.ColBack                        = 'BACK_ANNULUS';
+        Args.SumMethod                      = 'sigclip';
         
         Args.selectPsfStarsArgs cell        = {};
         Args.constructPSF_cutoutsArgs cell  = {};
@@ -35,21 +37,29 @@ function Obj = constructPSF(Obj, Args)
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         % select PSF stars
-        [PsfXY, ~, Flux] = imProc.psf.selectPsfStars(Obj(Iobj).CatData, Args.selectPsfStarsArgs{:});
+        [PsfXY, ~, Flux, Back] = imProc.psf.selectPsfStars(Obj(Iobj).CatData,...
+                                                     Args.selectPsfStarsArgs{:},...
+                                                     'ColFluxNorm',Args.ColFluxNorm,...
+                                                     'ColBack',Args.ColBack);
         
         Nsrc = size(PsfXY,1);
         
         % get flux for normalization
-        Norm = Flux;
+        Norm = 1./Flux;
         
-        % NEED TO SUBTRACT BACKGROUND!
-        % two nethods: 
+        % remove sources with non unity flux (maybe neighboors?)
+        hist(squeeze(sum(ShiftedCube,[1 2])),1000)
         
+        % constructPSF_cutouts
+        Args.SumMethod = 'median';
         [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
                                                            'Norm',Norm,...
+                                                           'Back',Back,...
+                                                           'SumMethod',Args.SumMethod,...
                                                            'ReCenter',Args.ReCenter,...
                                                            'MomRadius',Args.HalfSize);
-                                                       
+                    
+        
         % populate the PSFData
         Obj(Iobj).PSFData
         

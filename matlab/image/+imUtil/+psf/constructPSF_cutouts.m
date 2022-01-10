@@ -11,6 +11,9 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
     %            'Norm' - Vector of normalizations per cutrouts.
     %                   These are the flux normalization one has to
     %                   multiply each cutout, before summation.
+    %            'Back' - A vector of background to subtract from each
+    %                   source stamp. If empty, don't subtract background.
+    %                   Default is [].
     %            'SumMethod' - One of the following summation of PSFs:
     %                    'sigclip' - Use imUtil.image.mean_sigclip.
     %                    'mean' - Mean of PSFs.
@@ -53,6 +56,7 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
         XY                         = [];  % XY positions of sources in image
         
         Args.Norm                  = [];  % vector of normalization per cutout
+        Args.Back                  = [];  % Back to subtract. If [] don't subtract.
         Args.SumMethod             = 'sigclip';
         Args.mean_sigclipArgs cell = {};
         Args.PostNormBySum logical = true;
@@ -94,6 +98,10 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
     Dim = 3;
     Nim = size(Cube,3);
     
+    if ~isempty(Args.Back)
+        Cube = Cube - reshape(Args.Back(:), 1, 1, Nim);
+    end
+    
     if Args.ReCenter
         M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
         X  = M1.X;
@@ -127,6 +135,10 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
     Args.Norm = reshape(Args.Norm, 1,1, Ncube);  % put Norm in 3rd dim
     ShiftedCube = ShiftedCube.*Args.Norm;
     
+    % remove sources with non unity flux (maybe neighboors?)
+    hist(squeeze(sum(ShiftedCube,[1 2])),1000)
+    
+    
     % cutout summation
     switch lower(Args.SumMethod)
         case 'sigclip'
@@ -140,6 +152,8 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
         otherwise
             error('Unknown SumMethod option');
     end
+    
+    % smooth wings...
     
     if ~isempty(Args.PostNorm)
         if Args.PostNormBySum
