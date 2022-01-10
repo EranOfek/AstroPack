@@ -1,4 +1,4 @@
-function [PsfXY, Flag] = selectPsfStars(Obj, Args)
+function [PsfXY, Flag, Flux] = selectPsfStars(Obj, Args)
     % Select PSF stars from AstroCatalog
     %   Selection is based on:
     %   1. S/N in range 
@@ -19,8 +19,11 @@ function [PsfXY, Flag] = selectPsfStars(Obj, Args)
     %                   Default is 0.5.
     %            'ColMom1' - Column names for source position in X,Y.
     %                   Default is {'X','Y'}.
+    %            'ColFluxNorm' - Column name for normalization flux.
+    %                   Default is 'FLUX_APER_3'.
     % Outout : - A two column matrix of [X,Y] of selected sources.
     %          - A logical vector of flags (true for selected object).
+    %          - The flux of each selected source.
     % Author : Eran Ofek (Jan 2022)
     % Example: XY = imProc.psf.selectPsfStars(AI);
     
@@ -33,14 +36,12 @@ function [PsfXY, Flag] = selectPsfStars(Obj, Args)
         Args.ColMom2           = {'X2','Y2','XY'};
         Args.DeltaSigma        = 0.5;
         Args.ColMom1           = {'X','Y'};
+        Args.ColFluxNorm       = 'FLUX_APER_3';  % column of flux for normalization
     end
     
     if isa(Obj, 'AstroImage')
         Cat = Obj.CatData;
     elseif isa(Obj, 'AstroCatalog')
-        if nargout>2
-            error('In order to return Cube of PSFs, AstroImage must be provided');
-        end
         Cat = Obj;
     else
         error('First input argument must be of AstroImage or AstroCatalog type');
@@ -61,6 +62,7 @@ function [PsfXY, Flag] = selectPsfStars(Obj, Args)
     % get PSF sources
     PsfXY    = XY(Flag,:);
     
-    
+    Flux     = getCol(Cat, Args.ColFluxNorm);
+    Flux     = Flux(Flag);
     
 end

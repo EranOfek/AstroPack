@@ -14,24 +14,36 @@ function Obj = constructPSF(Obj, Args)
     % Output : - The input AstroImage object in which the PSFData is
     %            populated with the measured pixelated PSF.
     % Author : Eran Ofek (Jan 2022)
-    % Example: 
+    % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+    %          AI=imProc.background.background(AI);
+    %          AI=imProc.sources.findMeasureSources(AI);
+    %          AI=imProc.psf.constructPSF(AI);
+
    
     arguments
         Obj AstroImage   % CatData must be populated
         Args.HalfSize                       = 8;
+        Args.ColFluxNorm                    = 'FLUX_APER_3';  % column of flux for normalization
+        
         Args.selectPsfStarsArgs cell        = {};
         Args.constructPSF_cutoutsArgs cell  = {};
         Args.ReCenter logical               = false;
        
+        
     end
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         % select PSF stars
-        [PsfXY] = imProc.psf.selectPsfStars(Obj(Iobj).CatData, Args.selectPsfStarsArgs{:});
-             
+        [PsfXY, ~, Flux] = imProc.psf.selectPsfStars(Obj(Iobj).CatData, Args.selectPsfStarsArgs{:});
         
-        [Mean, Var, Nim] = imProc.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
+        Nsrc = size(PsfXY,1);
+        
+        % get flux for normalization
+        Norm = 1./Flux;
+        
+        [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
+                                                           'Norm',Norm,...
                                                            'ReCenter',Args.ReCenter,...
                                                            'MomRadius',Args.HalfSize);
                                                        

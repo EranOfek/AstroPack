@@ -105,7 +105,7 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
     Xcen     = SizeCube(2).*0.5 + 0.5;
     Ycen     = SizeCube(1).*0.5 + 0.5;
     
-    ShiftXY  = [Xcen - M1.X, Ycen - M1.Y];
+    ShiftXY  = [Xcen - X, Ycen - Y];
     
     switch lower(Args.ShiftMethod)
         case 'lanczos'
