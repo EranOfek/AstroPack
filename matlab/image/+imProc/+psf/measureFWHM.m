@@ -3,6 +3,8 @@ function [FWHM, Nstars] = measureFWHM(Obj, Args)
     % Input  : - AN image. Either a matrix, a cell of matrices, or an
     %            AstroImage object.
     %          * list of ...,key,val,...
+    %            'CCDSEC' - CCDSEC [Xmin, Xmax, Ymin, Ymax] on which to run
+    %                   the code. If empty, use all. Dedault is [].
     %            'MinSN' - Minimum S/N to use. Default is 50.
     %            'Background' - A background image. Default is [].
     %            'Variance'   - A variance image. Default is [].

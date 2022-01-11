@@ -5,6 +5,8 @@ function Result = psfFitPhot(Obj, Args)
     arguments
         Obj AstroImage
         Args.XY                      = [];  % empty - find sources, or read from catalog
+        Args.PSF                     = [];  % PSF, or function_handle
+        Args.PSFArgs cell            = {};
         
         Args.ColX                    = Obj(1).DefNamesX;        
         Args.ColY                    = Obj(1).DefNamesY;        
@@ -16,6 +18,10 @@ function Result = psfFitPhot(Obj, Args)
     
     Result = Obj;
     
+    if isa(Args.PSF, 'function_handle')
+        Args.PSF = Args.PSF(Args.PSFArgs{:});
+    end
+        
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         if Args.CreateNewObj && isempty(Obj(Iobj).catData)
@@ -23,8 +29,12 @@ function Result = psfFitPhot(Obj, Args)
         end
        
         % get PSF
-        PSF = 
-        
+        if isempty(Args.PSF)
+            % try to read PSF from AstroPSF
+            PSF = Result(Iobj).PSFData.getPSF;
+        else
+            PSF = Args.PSF;
+        end
         
         if isempty(Args.XY)
             % get X/Y ccordinates from catalog
