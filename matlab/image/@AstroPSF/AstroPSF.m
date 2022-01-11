@@ -231,46 +231,14 @@ classdef AstroPSF < Component
         end
         
         
-        function [M1, M2, Aper] = moment2(Obj, Args)
+        function [varargout] = moment2(Obj, Args)
             % Calculate the moments and perture photometry of PSFs
             %   using the imUtil.image.moment2 function.
             % Input  : - An AstroPSF object in which all the PSFs have the
             %            same size.
             %          * Pairs of ...,key,val,... The following keywords are available:
-            %            'AperRadius' - Vector of aperture radii, in which to calculate
-            %                       aperture photometry.
-            %                       Default is [2 4 6].
-            %            'Annulus' - Vector of inner and outer radius of background
-            %                       annulus. Default is [8 12].
-            %            'BackFun' - Function handle to use for background estimation.
-            %                       In order to meaningful this function must ignore
-            %                       NaNs.
-            %                       Default is @tools.math.stat.nanmedian.
-            %            'MomRadius' - Radius around position in which to calculate the
-            %                       moments. Recomended ~1.7 FWHM. Default is 8.
-            %            'WeightFun' - The weight function to use for weighting the
-            %                       moments and the weighted photometry.
-            %                       This can be a scalar indicating the sigma of a
-            %                       circularly symmetric Gaussian,
-            %                       or a function handle that matrix of radii, and
-            %                       return a matrix of weights (e.g., @(r)
-            %                       exp(-r.^2./(2.*4))./(2.*pi.*4.^2); ).
-            %                       Default is 2.
-            %            'Circle' - A flag indicating if to extract the stamps with
-            %                       circular shape. Default is false.
-            %            'MaxIter' - Maximum number of 1st moment position iterations.
-            %                       0 will perform aingle 1st moment calculation.
-            %                       Default is 10.
-            %            'NoWeightFirstIter' - A flag indicating if not to apply weight
-            %                       on the first itearation. Default is true.
-            %            'PosConvergence' - Position convergence. Default is 1e-4.
-            %            'DynamicWindow' - Apply dynamic windowing. Default is true.
-            %            'WindowOnlyOnLastIter' -Default is false.
-            %            'FinalIterWithCorrectWin' - Apply an additional final
-            %                       iteration with the correct window.
-            %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
-            %                       imUtil.cut.find_within_radius_mat (false).
-            %                       Default is true.
+            %            'moment2Args' - A cell array of arguments to pass
+            %                   to imUtiul.image.moment2. Default is {}.
             % Output  : - First moment information.
             %             A structure with the following fields.
             %             .RoundX - Vector of roundex X position
@@ -306,20 +274,8 @@ classdef AstroPSF < Component
             
             arguments
                 Obj
-                Args.AperRadius   {mustBeNumeric(Args.AperRadius)} = [2 4 6];
-                Args.Annulus      {mustBeNumeric(Args.Annulus)}    = [8 12];
-                Args.BackFun                                       = @tools.math.stat.nanmedian;
-                Args.BackFunArgs cell                              = {};
-                Args.MomRadius    {mustBeNumeric(Args.MomRadius)}  = 8;    % recomended ~1.7 FWHM
-                Args.WeightFun                                     = 2;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
-                Args.Circle(1,1) logical                           = false;
-                Args.MaxIter      {mustBeNumeric(Args.MaxIter)}    = 10;
-                Args.NoWeightFirstIter(1,1) logical                = true;
-                Args.PosConvergence                                = 1e-4;
-                Args.DynamicWindow(1,1) logical                    = true;
-                Args.WindowOnlyOnLastIter(1,1) logical             = false;
-                Args.FinalIterWithCorrectWin(1,1) logical          = true;
-                Args.mexCutout(1,1) logical                        = true;
+                Args.moment2Args cell          = {};
+                
             end
             
             Cube     = images2cube(Obj);
@@ -327,8 +283,7 @@ classdef AstroPSF < Component
             X = (SizeCube(2)-1).*0.5;
             Y = (SizeCube(1)-1).*0.5;
             
-            KeyVal = namedargs2cell(Args);
-            [M1, M2, Aper] = imUtil.image.moment2(Cube, X, Y, KeyVal{:});
+            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:});
             
         end
         
