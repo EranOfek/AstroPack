@@ -5,11 +5,7 @@ from gcsbase import Component
 # GCS Data Types
 
 
-#============================================================================
-
-# GCS Observasion Plan Validator
-
-# Run IAI validator?
+# ===========================================================================
 
 class Database(Component):
 
@@ -32,18 +28,19 @@ class Database(Component):
 # ===========================================================================
 #
 # ===========================================================================
-#
+# Database Connection
 class DbConnetion:
 
-    def __init__(self):
-        self.con = psycopg2.connect(database="db1", user="postgres", password="pass", host="gauss", port="5432")
+    def __init__(self, host='gauss'):
+        self.con = psycopg2.connect(database='db1', user='postgres', password='pass', host='gauss', port='5432')
         print("Database opened successfully")
 
 
     def __del__(self):
         self.con.close()
 
-#
+
+# Database Query
 class DbQuery:
     def __init__(self, con=None):
         self.con = con
@@ -159,5 +156,3 @@ class Reports(Component):
 # ===========================================================================
 #
 # ===========================================================================
-
-

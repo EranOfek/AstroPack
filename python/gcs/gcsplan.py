@@ -1,4 +1,3 @@
-
 from gcsbase import Component
 
 # ===========================================================================
@@ -11,7 +10,9 @@ class SkyCoord:
 
     # Constructor
     def __init__(self):
-        self.interface_name = ''
+        self.ra = 0
+        self.dec = 0
+        self.roll = 0
 
 
 # Sky Time
@@ -19,7 +20,7 @@ class SkyTime:
 
     # Constructor
     def __init__(self):
-        self.jtime = 0
+        self.time = 0
 
 # ===========================================================================
 #

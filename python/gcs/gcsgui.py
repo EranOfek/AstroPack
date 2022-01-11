@@ -1,6 +1,13 @@
 import configparser
+from enum import Enum
 from gcsbase import Component
 from gcscom import FileProcessor
+
+
+# GUI Messages
+class GuiMsgType(Enum):
+    SendKeepAlive = 'send_keep_alive'
+
 
 
 # Simple message encoded as INI file section
@@ -10,6 +17,7 @@ class GuiMsg:
     def __init__(self):
         self.section = 'msg'
         self.params = {}
+        self.type = ''
 
     # Write params dictionary to INI file section
     def write(self, filename):
@@ -30,8 +38,11 @@ class GuiMsg:
         for (key, value) in config.items(self.section):
             self.params[key] = value
 
+        # Get common parameters
+        self.type = self.params['type']
 
-class GuiMsgHandler(Component):
+
+class GuiHandler(Component):
 
     # Constructor
     def __init__(self):

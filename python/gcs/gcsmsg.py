@@ -64,10 +64,10 @@ Every message created by the GCS will include the following parameters:
 class MsgBase:
 
     # Constructor
-    def __init__(self, type):
+    def __init__(self, msg_type=''):
         # Data included in the message
         self.msg_id = ''        # Unique ID for every message created by the GCS/SOC
-        self.msg_type = ''      # Message type
+        self.msg_type = msg_type# Message type
         self.source = ''        # Source of message: 'SOC' or 'GCS'
         self.msg_time = 0       # Date and Time of message creation
         self.task_id = ''       # SOC task ID: a unique ID for every task created by the SOC (if applicable)
@@ -81,17 +81,15 @@ class MsgBase:
         self.db_pk = ''         # Primary key in Message table
 
         # XML
-        self.encoding = 'UTF-8'
-        if type != '':
-            self.xml_root = ET.Element(type)
+        self.xml_filename = ''
+        self.xml_encoding = 'UTF-8'
+        self.xml_tree = None
+        if self.msg_type != '':
+            self.xml_root = ET.Element(self.msg_type)
+            #self.xml_doc = ET.SubElement(self.xml_root, "status", date='20210123')
         else:
             self.xml_root = None
 
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
 
     # Load from XML
     def read_xml(self):
@@ -102,11 +100,18 @@ class MsgBase:
         pass
 
     # Load from XML
+    # See https://towardsdatascience.com/processing-xml-in-python-elementtree-c8992941efd2
     def load_xml(self, filename):
-        pass
+        self.xml_filename = filename
+        self.xml_tree = ET.parse(filename)
+        self.xml_root = self.xml_tree.getroot()
+        self.msg_type = xml_root.tag
+
 
     # Save to XML
+    # See https://stackoverflow.com/questions/66651767/how-to-create-xml-file-using-python
     def save_xml(self, filename):
+        self.xml_filename = filename
         dom = xml.dom.minidom.parseString(ET.tostring(self.xml_root))
         xml_string = dom.toprettyxml()
         part1, part2 = xml_string.split('?>')
@@ -114,6 +119,35 @@ class MsgBase:
         with open(filename, 'w') as xml_file:
             xml_file.write(part1 + 'encoding=\"{}\"?>\n'.format(self.xml_encoding) + part2)
             xml_file.close()
+
+
+    # Save Header section
+    def save_xml_header(self):
+        # See https://roytuts.com/building-xml-using-python/
+        '''
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!-- edited with XMLSPY v5 rel. 4 U (http://www.xmlspy.com) by VladislavGavrielov (Altova) -->
+        <ACK>
+            <Header>
+                <TimeStamp>2001-12-17T09:30:47.0Z</TimeStamp>
+                <SOCMessageId>
+                    <Time>2018-02-28T00:00:00.0Z</Time>
+                    <CreatorName>SOC1</CreatorName>
+                    <MessageType>ImageRequest</MessageType>
+                </SOCMessageId>
+                <ExternalMessageId>WhateverYouDecide</ExternalMessageId>
+                <Source>SOC1</Source>
+                <SourceNetId>11.10.9.8</SourceNetId>
+                <Target>SCC1</Target>
+                <TargetNetId>8.9.10.11</TargetNetId>
+                <SchemaVersion>1</SchemaVersion>
+            </Header>
+        </ACK>
+        '''
+        doc = ET.SubElement(self.xml_root, "Header", date="20210123")
+        ET.SubElement(doc, 'TimeStamp').text = '2001-12-17T09:30:47.0Z'
+
+        ET.SubElement(doc, 'Source').text = '2001-12-17T09:30:47.0Z'
 
 
     # Convert to string
@@ -202,6 +236,10 @@ class MsgKeepAlive(MsgBase):
 #
 # ============================================================================
 
+
+# ============================================================================
+
+# ============================================================================
 '''
 4-2	Imaging Tasks Parameters
 Imaging tasks created at the SOC should include the following parameters 
@@ -219,9 +257,9 @@ Imaging tasks created at the SOC should include the following parameters
 
 class TargetCoordinates:
     def __init__(self):
-        self.RA = 0
-        self.Dec = 0
-        self.Roll = 0
+        self.RA = 0             #
+        self.Dec = 0            #
+        self.Roll = 0           #
 
 
 # GCS Message
@@ -233,10 +271,8 @@ class MsgImagingTask(MsgBase):
         self.target_count = 0   # Total number of scientific targets in task
         self.target_list = []   # For every scientific target: MsgImagingTaskTarget
 
-
+    # Target
     class MsgImagingTaskTarget:
-
-        # Constructor
         def __init__(self):
             self.start_time = 0                         # Start time of first exposure for current target
             self.target_coord = TargetCoordinates()     # Target coordinates (RA, Dec, Roll [optional])
@@ -266,7 +302,9 @@ class MsgImagingTask(MsgBase):
         pass
 
 
+# ============================================================================
 
+# ============================================================================
 '''   
 4-3	OBRD Tasks Parameters
 OBRD tasks created at the SOC should include the following parameters (in addition to the common parameters mentioned in ‎5-1):
@@ -310,6 +348,8 @@ class MsgObrdTask(MsgBase):
         # 4. For specific images download:
         self.image_count = 0            # a. Total number of images to download
         self.image_list = []            # b. List of all images to be downloaded
+
+        # @TBD: Full, H1, H2, H1+2
         self.image_part = ''            # c. Part of image to be downloaded: full image, first half only, second half only, first and second half
 
 
@@ -354,69 +394,6 @@ class MsgObrdTask(MsgBase):
 # ============================================================================
 
 # ============================================================================
-
-
-# OBRD Tasks Parameters
-# OBRD tasks created at the SOC should include the following parameters
-# (in addition to the common parameters mentioned in 4-1):
-class MsgObrdTask(MsgBase):
-
-    # Constructor
-    def __init__(self):
-
-        self.oper_start_time = 0        # 1. Start time of operation
-        self.obrd_task_type = ''        # 2. Type of OBRD task: download mode selection, specific images download,
-                                        #    deletion mode, images to keep in OBRD, images to delete from OBRD
-        self.download_mode = ''         # 3. For download mode selection, the options are:
-                                        #    a. Online (default mode)
-                                        #    b. Offline with priority to images being acquired at the moment
-                                        #    c. Offline with priority to images in the OBRD
-
-        # 4. For specific images download:
-        self.image_count = 0            # a. Total number of images to download
-        self.image_list = []            # b. List of all images to be downloaded
-        self.image_part = ''            # c. Part of image to be downloaded: full image, first half only, second half only, first and second half
-
-
-        self.deletion_mode = ''         # 5. For deletion mode selection, the options are:
-                                        #    a. Automatic (including inputs by SOC to delete specific images)
-                                        #    b. Fully manual
-
-        self.not_to_erase_list = []     #  6. For images to keep in OBRD:
-                                        #       a. List of images to be added to the "not to be erased" list.
-                                        #       This list shall contain up to 128 images
-        self.images_to_delete = []      #  7. For specific images to delete from OBRD:
-                                        #       a. List of images to be deleted.
-                                        #       One delete command shall contain up to 124 images to be deleted
-
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
-
-    # Convert to string
-    def to_str(self):
-        pass
-
-    # Convert from string
-    def from_str(self, text):
-        pass
-
-    # Convert to HTML (for debugging/logging)
-    def to_html(self):
-        pass
-
-
-
 '''
 4-7	Response to GCS maintenance activity request
 Response to GCS maintenance activity request should include the following parameters (in addition to the common parameters mentioned in ‎5-1):
