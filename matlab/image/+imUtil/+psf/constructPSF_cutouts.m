@@ -1,4 +1,4 @@
-function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
+function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     % Given a background-subtracted image and PSF star positions, construct a mean PSF stamp from cutouts
     % Input  : - A 2-D image, or a cube of cutouts around sources.
     %            If a cube then the image index must be in the 3rd
@@ -26,6 +26,23 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
     %                   normalization is by sum (true), or by peak (false).
     %            'PostNorm' - Post normalization value. If [], do not
     %                   perform post normalization. Default is 1.
+    %
+    %            'MedianCubeSumRange' - The code calculates the sum of each
+    %                   stamp. If the median of sum of stamps is not within the
+    %                   range specified by this argument, than the function will
+    %                   fail.
+    %                   Default is [0.95 1.05].
+    %            'CubeSumRange' - Stamps which their flux-nrmalized sum is not
+    %                   in this range are excluded from the summation.
+    %                   This may be useful in order to remove stamps which
+    %                   contains more than one source.
+    %                   Default is [0.8 1.2].
+    %            'SmoothWings' - A logical indicating if to smooth PSF wings
+    %                   using imUtil.psf.psf_zeroConvergeArgs.
+    %                   Default is true.
+    %            'psf_zeroConvergeArgs' - A cell array of additional
+    %                   arguments to pass to imUtil.psf.psf_zeroConvergeArgs.
+    %                   Default is {}.
     %
     %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
     %                   imUtil.cut.find_within_radius_mat (false).
@@ -61,6 +78,11 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
         Args.mean_sigclipArgs cell = {};
         Args.PostNormBySum logical = true;
         Args.PostNorm              = 1;
+        
+        Args.MedianCubeSumRange    = [0.95 1.05];
+        Args.CubeSumRange          = [0.8 1.2];
+        Args.SmoothWings logical   = true;
+        Args.psf_zeroConvergeArgs  = {};
         
         Args.mexCutout logical     = true;
         Args.Circle logical        = false;
@@ -136,35 +158,51 @@ function [Mean, Var, Nim] = constructPSF_cutouts(Image, XY, Args)
     ShiftedCube = ShiftedCube.*Args.Norm;
     
     % remove sources with non unity flux (maybe neighboors?)
-    hist(squeeze(sum(ShiftedCube,[1 2])),1000)
+    CubeSum = squeeze(sum(ShiftedCube,[1 2]));
+    % verify that median(CubeSum) is around 1
+    % otherwise there is excess flux somewhere
+    MedCubeSum = median(CubeSum);
+    if MedCubeSum<Args.MedianCubeSumRange(1) || MedCubeSum>Args.MedianCubeSumRange(2)
+        warning('Median of the flux normalized cube sum is not 1');
+        FlagSelected = [];
+        Mean         = [];
+        Var          = [];
+        FlagGood     = [];
+        GoodCounter  = 0;
+    else
+        % remove sources with MedianCubeSumRange different than ~1
+        FlagSelected = CubeSum>Args.CubeSumRange(1) & CubeSum<Args.CubeSumRange(2);
+        ShiftedCube  = ShiftedCube(:,:,FlagSelected);
+        
+        % cutout summation
+        switch lower(Args.SumMethod)
+            case 'sigclip'
+                [Mean,Var,FlagGood,GoodCounter] = imUtil.image.mean_sigclip(ShiftedCube, Dim, Args.mean_sigclipArgs{:});
+            case 'mean'
+                Mean = mean(ShiftedCube, Dim, 'omitnan');
+                Var  = var(ShiftedCube,1, Dim, 'omitnan');
+            case 'median'
+                Mean = median(ShiftedCube, Dim, 'omitnan');
+                Var  = var(ShiftedCube,1, Dim, 'omitnan');
+            otherwise
+                error('Unknown SumMethod option');
+        end
     
-    
-    % cutout summation
-    switch lower(Args.SumMethod)
-        case 'sigclip'
-            [Mean,Var,FlagGood,GoodCounter] = imUtil.image.mean_sigclip(ShiftedCube, Dim, Args.mean_sigclipArgs{:});
-        case 'mean'
-            Mean = mean(ShiftedCube, Dim, 'omitnan');
-            Var  = var(ShiftedCube,1, Dim, 'omitnan');
-        case 'median'
-            Mean = median(ShiftedCube, Dim, 'omitnan');
-            Var  = var(ShiftedCube,1, Dim, 'omitnan');
-        otherwise
-            error('Unknown SumMethod option');
-    end
-    
-    % smooth wings...
-    
-    if ~isempty(Args.PostNorm)
-        if Args.PostNormBySum
-            Norm = 1./(Args.PostNorm.*sum(Mean, 'all'));
-        else
-            % norm by peak
-            Norm = 1./(Args.PostNorm.*max(Mean,[],'all'));
+        % smooth wings...
+        if Args.SmoothWings
+            Mean = imUtil.psf.psf_zeroConverge(Mean, Args.psf_zeroConvergeArgs{:});
         end
 
-        Mean = Mean .* Norm;
-        Var  = Var  .* Norm;
+        if ~isempty(Args.PostNorm)
+            if Args.PostNormBySum
+                Norm = 1./(Args.PostNorm.*sum(Mean, 'all'));
+            else
+                % norm by peak
+                Norm = 1./(Args.PostNorm.*max(Mean,[],'all'));
+            end
+
+            Mean = Mean .* Norm;
+            Var  = Var  .* Norm;
+        end
     end
-        
 end
