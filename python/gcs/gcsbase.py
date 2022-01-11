@@ -1,3 +1,7 @@
+#
+# gcsbase.py - Base classes and definitions
+#
+
 import os, yaml
 
 

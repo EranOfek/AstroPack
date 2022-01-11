@@ -8,4 +8,12 @@
 		<Target>GCS</Target>
 		<OrgMsgId>6ce624da</OrgMsgId>
 	</Header>
+	
+	<Ack>
+		<Status>Ack</Status>
+		<Status>NAck</Status>
+		
+		<!-- NAck -->
+		<NAckDetails>Details text...</NAckDetails>
+	</Ack>
 </Msg>

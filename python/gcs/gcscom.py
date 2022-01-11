@@ -55,6 +55,9 @@ class GcsComm(Component):
 #   Delete or move the processed file to archive folder
 #   Clean archive folder after specified numberof days
 
+# All file transmission between the SOC and the GCS (and vice versa) shall be under FTP protocol
+# (TBD), or file insertion into a common file folder within the "Unsecured" part of the XML filter.
+
 class FileProcessor(Component):
 
     # Constructor
@@ -117,19 +120,4 @@ class FileProcessor(Component):
                 if ft < delete_before:
                     self.log('remove: ' + fname)
                     #os.remove(fname)
-
-
-# ===========================================================================
-
-# ===========================================================================
-
-# GCS Message
-class ImageProcessor(Component):
-
-    # Constructor
-    def __init__(self):
-        self.msg_id = ''
-        self.rcv_time = 0
-        self.send_time = 0
-        self.process_time = 0
 

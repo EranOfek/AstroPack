@@ -1,3 +1,7 @@
+#
+# gcsdb.py - Data structures and Database connectivity
+#
+
 import psycopg2
 import datetime
 from gcsbase import Component
@@ -12,18 +16,53 @@ class Database(Component):
     # Constructor
     def __init__(self):
         self.interface_name = ''
+        self.dbcon = DbConnetion()
 
     # Destructor
     def __del__(self):
         # Deleted
         pass
 
-    # Validate the specified task
-    def validate_task(self, task):
+    # -----------------------------------------------------------------------
+    #                                   Insert
+    # -----------------------------------------------------------------------
+    # Insert log record
+    def insert_log(self, data):
+        pass
+
+    # Insert new event record
+    def insert_event(self, data):
+        pass
+
+    # Insert incoming image
+    def insert_image(self, data):
+        pass
+
+    # Insert incoming image
+    def insert_telemetry(self, data):
+        pass
+
+    # -----------------------------------------------------------------------
+    #                                   Select
+    # -----------------------------------------------------------------------
+
+    #
+    def select_next_oper(self):
+        pass
+
+    #
+    def update_oper_status(self, oper):
+        pass
+
+    # Select
+    def select_pending_plan(self):
+        pass
+
+    #
+    def update_plan_status(self):
         pass
 
 
-    #
 
 # ===========================================================================
 #
@@ -86,6 +125,7 @@ class EventData:
     def __init__(self):
         self.uuid = ''
         self.time = 0
+        self.params = {}
 
     # Destructor
     def __del__(self):
@@ -93,6 +133,35 @@ class EventData:
         pass
 
 
+
+# ===========================================================================
+
+# ===========================================================================
+
+class ImageData:
+
+    def __init__(self):
+        self.uuid = ''
+        self.time = 0
+        self.size = 0
+        self.type = 0
+        self.filename = ''
+        self.params = {}
+
+
+# ===========================================================================
+
+# ===========================================================================
+
+class TelemetryData:
+
+    def __init__(self):
+        self.uuid = ''
+        self.time = 0
+        self.size = 0
+        self.type = 0
+        self.filename = ''
+        self.params = {}
 
 
 # ===========================================================================

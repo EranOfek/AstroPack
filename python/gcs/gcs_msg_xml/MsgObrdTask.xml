@@ -3,7 +3,7 @@
 	<Header>
 		<MsgId>1fcb0710</MsgId>
 		<MsgTime>2022-01-28T00:00:00.0Z</MsgTime>
-		<MsgType>ObrdTask</MsgType>
+		<MsgType>ObrdTaskParams</MsgType>
 		<Source>SOC</Source>		
 		<Target>GCS</Target>
 		<OrgMsgId></OrgMsgId>

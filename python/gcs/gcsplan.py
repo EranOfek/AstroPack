@@ -36,10 +36,6 @@ class ObservationPoint:
         self.start_time = SkyTime
         self.stop_time = SkyTime
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
 
     # Load from XML
     def load_from_xml(self):
@@ -68,10 +64,21 @@ class ObservationTask:
         self.point_list = []        # List of ObservationPoint
 
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
+
+
+# ===========================================================================
+#
+# ===========================================================================
+
+# Observation Task
+class ObservationPlan:
+
+    # Constructor
+    def __init__(self):
+        self.task_uuid = ''
+        self.point_list = []        # List of ObservationPoint
+
+
 
 # ===========================================================================
 #

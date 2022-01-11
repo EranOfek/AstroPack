@@ -1,37 +1,51 @@
+import os, time
+from datetime import datetime
+from enum import Enum
 import xml.etree.cElementTree as ET
 import xml.dom.minidom
 from gcsbase import Component
 
-'''
-m_encoding = 'UTF-8'
 
-root = ET.Element("data")
-doc = ET.SubElement(root, "status", date="20210123")
-ET.SubElement(doc, "name", name="john").text = "some value1"
-ET.SubElement(doc, "class", name="abc").text = "some vlaue2"
+# Each SOC message will be acknowledged via GCS reply ("message received") through the C&C link.
+# Each task or request from the SOC will be answered by a reply from the GCS through the C&C link.
 
-dom = xml.dom.minidom.parseString(ET.tostring(root))
-xml_string = dom.toprettyxml()
-part1, part2 = xml_string.split('?>')
-
-with open("FILE.xml", 'w') as xfile:
-    xfile.write(part1 + 'encoding=\"{}\"?>\n'.format(m_encoding) + part2)
-    xfile.close()
-'''
 # ============================================================================
 
-# Common Messages Types
-MSG_ACK_NACK = 'ACK'                    #
-MSG_KEEP_ALIVE = 'KALIVE'               #
+#
+class MsgType(Enum):
+    Ack                     = 'Ack'
+    NAck                    = 'NAck'
+    KeepAlive               = 'KeepAlive'
+    ImagingTaskParams       = 'ImagingTaskParams'
+    ImagingTaskResponse     = 'ImagingTaskResponse'
+    ObrdTaskParams          = 'ObrdTaskParams'
+    ObrdTaskResponse        = 'ObrdTaskResponse'
 
-# SOC -> GCS Message Types
-MSG_IMAGING_TASK_PARAMS = ''            #
-MSG_OBRD_TASK_PARAMS = ''               #
 
-# GCS -> SOC Message Types
-MSG_IMAGING_TASK_RESPONSE = ''          #
-MSG_OBRD_TASK_RESPONSE = ''             #
+class Source(Enum):
+    SOC = 'SOC'
+    GCS = 'GCS'
 
+#
+class DownloadMode(Enum):
+    Online = 'Online'
+    OfflineCurrent = 'OfflineCurrent'
+    OfflineStored = 'OfflineStored'
+
+
+class DeletionMode(Enum):
+    Automatic = 'Automatic'
+    FullyManual = 'FullyManual'
+
+
+class MaintenanceType(Enum):
+    Decontamination = 'Decontamination'
+    Focusing = 'Focusing'
+    DarkCurrentImaging = 'DarkCurrentImaging'
+    BiasImaging = 'BiasImaging'
+    OrbitManeuver = ''
+    RwaCalibration = ''
+    GroundEquipment = ''
 
 # ============================================================================
 #
@@ -557,6 +571,22 @@ class MsgObrdTaskResponse(MsgBase):
 # ============================================================================
 
 # ============================================================================
+'''
+4-4 GCS request for S/C, G/S or payload maintenance activity
+GCS maintenance activities requests should include the following parameters (in addition to the
+common parameters mentioned in 4-1):
+
+1. Maintenance activity name: for example, orbit maneuver, RWA calibration, telescope
+focusing, ground equipment maintenance, etc.
+2. Start time of allowable time slot in which the activity can be performed
+3. End time of time allowable slot in which the activity can be performed
+4. Preferred start time of activity
+5. Duration of activity
+6. It is / is not possible to continue scientific imaging
+If due to constrains, the maintenance activity has to be executed at a specific time, the start time
+of the window and the preferred time shall be the same, and the end time should be equal to the
+start time + the duration time.
+'''
 
 # GCS Message
 class MsgMaintenanceTask(MsgBase):

@@ -54,6 +54,10 @@ class GcsInterface(Component):
                 self.event_keep_alive()
 
 
+    # -----------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------
+
     def event_keep_alive(self):
         #self.make_event()
         pass
@@ -67,22 +71,26 @@ class GcsInterface(Component):
         self.handle_incoming_msg(msg)
         pass
 
-
+    # @Todo: Do we need to send Ack for GCS messages?
     def handle_incoming_msg(self, msg):
         pass
 
 
-
-    # Send message to GCS
-    def send_imaging_task_response(self, msg):
-        pass
-
-    #
     def send_keep_alive(self):
         pass
 
+    #------------------------------------------------------------------------
+
     # Send message to GCS
-    def send_obrd_task_response(self, msg):
+    def handle_imaging_task_response(self, msg):
+        pass
+
+    #
+    def handle_keep_alive(self):
+        pass
+
+    # Send message to GCS
+    def handle_obrd_task_response(self, msg):
         pass
 
     # Send Target-Of-Opertunity
@@ -96,6 +104,8 @@ class GcsInterface(Component):
     # Send task
     def send_task(self, task):
         pass
+
+    #------------------------------------------------------------------------
 
     # Handle incoming message from GCS
     def handle_msg(self, msg):
