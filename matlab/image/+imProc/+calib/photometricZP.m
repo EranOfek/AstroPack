@@ -113,7 +113,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.RadiusUnits              = 'arcsec';
         Args.Method                   = 'simple';
         Args.UseOnlyMainSeq logical   = false;
-        Args.MaxErr                   = 0.02;
+        Args.MaxErr                   = 0.01;
         Args.MaxSN                    = 1000;  % if empty, do not use
         
         Args.CatColNameMag            = 'MAG_APER_3'; %'MAG_CONV_3';
@@ -309,6 +309,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag + Par(1) + Par(2).*Color + Par(3).*Color.^2 + Par(4).*(Width-MedW);
                                 
                 Y     = RefMag - CatMag;
+                %Y     = RefMagBands(:,1) - CatMag;
                 ErrY  = sqrt(CatMagErr.^2 + sum(RefMagBandsErr.^2, 2));
                 Flag  = ~isnan(Y) & CatMagErr < Args.MaxErr & SN<Args.MaxSN;
                 
@@ -384,10 +385,10 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             semilogy(ResFit(Iobj).RefMag, abs(ResFit(Iobj).Resid),'.')
             hold on;
             semilogy(ResFit(Iobj).RefMag(ResFit(Iobj).Flag), abs(ResFit(Iobj).Resid(ResFit(Iobj).Flag)),'.')
-            H = xlabel('Mag');
+            H = xlabel('G [mag]');
             H.FontSize = 18;
             H.Interpreter = 'latex';
-            H = ylabel('$\vert$Resid$\vert$');
+            H = ylabel('$\vert$Resid$\vert$ [mag]');
             H.FontSize = 18;
             H.Interpreter = 'latex';
             

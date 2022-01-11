@@ -610,13 +610,14 @@ classdef ImagePath < Component
 
 
     methods % write product
-        function saveProduct(ObjIP, ObjProduct, Args) 
+        function Future = saveProduct(ObjIP, ObjProduct, Args) 
             % Save product to disk
 
             arguments
                 ObjIP
                 ObjProduct
                 Args.Save logical              = true;
+                Args.ParEval logical           = false;
                 Args.SaveFun function_handle   = @write1;
                 Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
                 Args.PropFromHeader logical    = true;
@@ -629,28 +630,71 @@ classdef ImagePath < Component
                 % create dir
                 % use parfeval
 
-                NsetProp = numel(Args.SetProp);
-                if (0.5.*NsetProp)~=floor(0.5.*NsetProp)
-                    % odd number of SetProp
-                    error('Number of elements in SetProp argument must be even (key,val)');
+                if Args.ParEval
+                    Future = parfeval(@ImagePath.saveProductBlocking, 0, ObjIP, ObjProduct, 'SaveFun',Args.SaveFun, 'SaveFunArgs',Args.SaveFunArgs, 'PropFromHeader',Args.PropFromHeader, 'SetProp',Args.SetProp);
+                else
+                    ImagePath.saveProductBlocking(ObjIP, ObjProduct, 'SaveFun',Args.SaveFun, 'SaveFunArgs',Args.SaveFunArgs, 'PropFromHeader',Args.PropFromHeader, 'SetProp',Args.SetProp);
+                    Future = [];
                 end
 
-                Nprod = numel(ObjProduct);
-                for Iprod=1:1:Nprod
-                    if Args.PropFromHeader
-                        ObjIP.readFromHeader(ObjProduct(Iprod));  
-                    end
-                    for Iset=1:2:NsetProp
-                        ObjIP.(Args.SetProp{Iset}) = Args.SetProp{Iset+1};
-                    end
-
-
-                    Args.SaveFun(ObjProduct(Iprod), ObjIP.genFull, Args.SaveFunArgs{:});
-                end
             end
         end
     end
             
+    methods (Static) % utilities
+        function saveProductBlocking(ObjIP, ObjProduct, Args)
+            % Save product to disk - utility blocking function
+            %   This function is for the internal use by
+            %   ImagePath/saveProduct
+            % Input  : - A single-element ImagePath object.
+            %          - Object product to save (e.g., an AstroImage)
+            %          * ...,key,val,...
+            %            'SaveFun' - Function handle for saving object
+            %                   Default is @write1
+            %            'SaveFunArgs' - A cell array of additional arguments to pass
+            %                   to the SaveFun function.
+            %                   Default is {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
+            %            'PropFromHeader' - A logical indicating if to
+            %                   populate ImagePath properties from image header.
+            %                   Default is true.
+            %            'SetProp' - A cell array of pairs of additional
+            %                   ImagePath properties to set (override
+            %                   header). These are ...Prop,val,...
+            %                   Default is  {'Product','Image'}
+            % Output : null
+            % Author : Eran Ofek (Jan 2022)
+            % Example: 
+
+            arguments
+                ObjIP(1,1) ImagePath
+                ObjProduct
+                Args.SaveFun function_handle   = @write1;
+                Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
+                Args.PropFromHeader logical    = true;
+                Args.SetProp cell              = {'Product','Image'};   % overide header
+            end
+
+            NsetProp = numel(Args.SetProp);
+            if (0.5.*NsetProp)~=floor(0.5.*NsetProp)
+                % odd number of SetProp
+                error('Number of elements in SetProp argument must be even (key,val)');
+            end
+
+            Nprod = numel(ObjProduct);
+            for Iprod=1:1:Nprod
+                if Args.PropFromHeader
+                    ObjIP.readFromHeader(ObjProduct(Iprod));  
+                end
+                for Iset=1:2:NsetProp
+                    ObjIP.(Args.SetProp{Iset}) = Args.SetProp{Iset+1};
+                end
+
+
+                Args.SaveFun(ObjProduct(Iprod), ObjIP.genFull, Args.SaveFunArgs{:});
+            end
+            
+        end
+    end
             
     %----------------------------------------------------------------------
     % Unit test

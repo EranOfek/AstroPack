@@ -1,7 +1,9 @@
-function Obj = constructPSF(Obj, Args)
+function Result = constructPSF(Obj, Args)
     % Select PSF stars and construct a PSF for an AstroImage
     % Input  : - An AstroImage object. The CatData must be popualted.
     %          * ...,key,val,...
+    %            'OutType' - Output type: 'AstroImage' | 'AstroPSF'.
+    %                   Default is 'AstroImage'.
     %            'HalfSize' - PSF stamp half size. Default is 8.
     %            'selectPsfStarsArgs' - A cell array of arguments to pass
     %                   to imProc.psf.selectPsfStars. Default is {}.
@@ -22,6 +24,7 @@ function Obj = constructPSF(Obj, Args)
    
     arguments
         Obj AstroImage   % CatData must be populated
+        Args.OutType                        = 'AstroImage'; % 'AstroImage' | 'AstroPSF'
         Args.HalfSize                       = 8;
         Args.ColFluxNorm                    = 'FLUX_APER_3';  % column of flux for normalization
         Args.ColBack                        = 'BACK_ANNULUS';
@@ -30,11 +33,22 @@ function Obj = constructPSF(Obj, Args)
         Args.selectPsfStarsArgs cell        = {};
         Args.constructPSF_cutoutsArgs cell  = {};
         Args.ReCenter logical               = false;
-       
         
     end
     
     Nobj = numel(Obj);
+    
+    switch lower(Args.OutType)
+        case 'astroimage'
+            Result = Obj;
+            OutIsImage = true;
+        case 'astropsf'
+            Result = AstroPSF;
+            OutIsImage = false;
+        otherwise
+            error('Unknown OutType option');
+    end
+    
     for Iobj=1:1:Nobj
         % select PSF stars
         [PsfXY, ~, Flux, Back] = imProc.psf.selectPsfStars(Obj(Iobj).CatData,...
@@ -46,10 +60,7 @@ function Obj = constructPSF(Obj, Args)
         
         % get flux for normalization
         Norm = 1./Flux;
-        
-        % remove sources with non unity flux (maybe neighboors?)
-        hist(squeeze(sum(ShiftedCube,[1 2])),1000)
-        
+                
         % constructPSF_cutouts
         Args.SumMethod = 'median';
         [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
@@ -61,7 +72,13 @@ function Obj = constructPSF(Obj, Args)
                     
         
         % populate the PSFData
-        Obj(Iobj).PSFData
+        if OutIsImage
+            Result(Iobj).PSFData.DataPSF = Mean;
+            Result(Iobj).PSFData.DataVar = Var;
+        else
+            Result(Iobj).DataPSF = Mean;
+            Result(Iobj).DataVar = Var;
+        end
         
     end
 end
