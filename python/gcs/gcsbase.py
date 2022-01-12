@@ -11,16 +11,16 @@
 #
 #
 
-import os, time, glob, uuid, yaml
+import os, sys, time, glob, uuid, yaml
+import xml.etree.ElementTree as ET
 from datetime import datetime
-from sys import platform
 
 # ===========================================================================
 #
 # ===========================================================================
 
 # Log message to file
-if platform == "win32":
+if sys.platform == "win32":
     LOG_PATH = 'c:/gcs/log/'
 else:
     LOG_PATH = '/tmp/gcs/log/'
@@ -215,3 +215,49 @@ class FileProcessor(Component):
 # ===========================================================================
 
 # ===========================================================================
+
+XML_NODE_CONTENT = '_xml_node_content'
+ATTR_COMMENT = '# Attribute'
+
+def yamlout(node, depth=0):
+    yml = ''
+    if not depth:
+        yml += '---\n'
+    # Nodes with both content AND nested nodes or attributes
+    # have no valid yaml mapping. Add  'content' node for that case
+    nodeattrs = node.attrib
+    children = list(node)
+    content = node.text.strip() if node.text else ''
+    if content:
+        if not (nodeattrs or children):
+            # Write as just a name value, nothing else nested
+            yml = yml + sys.stdout.write(
+                '{indent}{tag}: {text}\n'.format(
+                    indent=depth*'  ', tag=node.tag, text=content or ''))
+            return
+        else:
+            nodeattrs[XML_NODE_CONTENT] = node.text
+
+    yml = yml + '{indent}{tag}:\n'.format(indent=depth*'  ', tag=node.tag)
+
+    # Indicate difference node attributes and nested nodes
+    depth += 1
+    for n,v in nodeattrs.items():
+        yml = yml + \
+            '{indent}{n}: {v} {c}\n'.format(
+                indent=depth*'  ', n=n, v=v,
+                c=ATTR_COMMENT if n!=XML_NODE_CONTENT else '')
+
+    # Write nested nodes
+    for child in children:
+        yml = yml + yamlout(child, depth)
+
+
+# Convert XML file to YAML text
+def xml_to_yaml(filename):
+    with open(filename) as xmlf:
+        tree = ET.parse(xmlf)
+        yml = yamlout(tree.getroot())
+        return yml
+
+
