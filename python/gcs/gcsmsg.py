@@ -1,3 +1,28 @@
+# @Todo - Questions
+# ImageId - how is it generated, and how we get it? currently I assume that it is a string, but how do
+# I get the list of images
+
+#
+# Classes in this file:
+#
+#   MsgType
+#   MsgSource
+#   DownloadMode
+#   DeletionMode
+#   MaintenanceType
+#   MsgBase
+#   MsgAck
+#   MsgKeepAlive
+#   MsgImagingTask
+#   MsgObrdTask
+#   MsgMaintenanceTask
+#   MsgImagingTaskResponse
+#   MsgObrdTaskResponse
+#   MsgMaintenanceTaskResponse
+#
+#
+
+
 import os, time
 from datetime import datetime
 from enum import Enum
@@ -22,7 +47,7 @@ class MsgType(Enum):
     ObrdTaskResponse        = 'ObrdTaskResponse'
 
 
-class Source(Enum):
+class MsgSource(Enum):
     SOC = 'SOC'
     GCS = 'GCS'
 
@@ -269,12 +294,6 @@ Imaging tasks created at the SOC should include the following parameters
     f.	Camera tiles to be active: 1 and/or 2 and/or 3and/or 4 (default – all 4 tiles) (TBD)
 '''
 
-class TargetCoordinates:
-    def __init__(self):
-        self.RA = 0             #
-        self.Dec = 0            #
-        self.Roll = 0           #
-
 
 # GCS Message
 class MsgImagingTask(MsgBase):
@@ -285,11 +304,17 @@ class MsgImagingTask(MsgBase):
         self.target_count = 0   # Total number of scientific targets in task
         self.target_list = []   # For every scientific target: MsgImagingTaskTarget
 
+    class TargetCoordinates:
+        def __init__(self):
+            self.RA = 0  #
+            self.Dec = 0  #
+            self.Roll = 0  #
+
     # Target
     class MsgImagingTaskTarget:
         def __init__(self):
             self.start_time = 0                         # Start time of first exposure for current target
-            self.target_coord = TargetCoordinates()     # Target coordinates (RA, Dec, Roll [optional])
+            self.target_coord = self.TargetCoordinates()# Target coordinates (RA, Dec, Roll [optional])
             self.exp_duration = 0                       # Image exposure duration: default is 300 seconds
             self.num_exp = 0                            # Number of exposures (from 1 to unlimited) – TBD
             self.last_exp_time = 0                      # Start time of last exposure of current target - TBD
@@ -414,7 +439,7 @@ Response to GCS maintenance activity request should include the following parame
 1.	GCS maintenance activity request status: Approved / Not Approved
 2.	Approved maintenance activity start time
 '''
-class MsgMaintenanceActivityResponse(MsgBase):
+class MsgMaintenanceTaskResponse(MsgBase):
 
     # Constructor
     def __init__(self):
@@ -590,57 +615,6 @@ start time + the duration time.
 
 # GCS Message
 class MsgMaintenanceTask(MsgBase):
-
-    # Constructor
-    def __init__(self):
-        self.msg_id = ''
-        self.rcv_time = 0
-        self.send_time = 0
-        self.process_time = 0
-        self.source = ''
-        self.msg_type = ''
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
-
-    def to_str(self):
-        pass
-
-    def from_str(self):
-        pass
-
-    def to_html(selfself):
-        pass
-
-
-# ============================================================================
-
-# ============================================================================
-
-'''
-4-4	GCS request for S/C, G/S or payload maintenance activity
-GCS maintenance activities requests should include the following parameters (in addition to the common parameters mentioned in ‎5-1):
-1.	Maintenance activity name: for example, orbit maneuver, RWA calibration, telescope focusing, ground equipment maintenance, etc.
-2.	Start time of allowable time slot in which the activity can be performed
-3.	End time of time allowable slot in which the activity can be performed
-4.	Preferred start time of activity
-5.	Duration of activity
-6.	It is / is not possible to continue scientific imaging
-If due to constrains, the maintenance activity has to be executed at a specific time, the start time of the window and the preferred time shall be the same, and the end time should be equal to the start time + the duration time.
-'''
-
-# GCS Message
-class MsgMaintenanceActivityRequest(MsgBase):
 
     # Constructor
     def __init__(self):

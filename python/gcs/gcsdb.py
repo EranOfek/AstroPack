@@ -1,6 +1,17 @@
 #
 # gcsdb.py - Data structures and Database connectivity
 #
+#
+# Classes in this file:
+#
+#   DbConnetion
+#   DbQuery
+#   Database
+#   EventData
+#
+#   ImageData
+#   TelemetryData
+#
 
 import psycopg2
 import datetime
@@ -15,6 +26,7 @@ class Database(Component):
 
     # Constructor
     def __init__(self):
+        super().__init__()
         self.interface_name = ''
         self.dbcon = DbConnetion()
 
@@ -68,9 +80,10 @@ class Database(Component):
 #
 # ===========================================================================
 # Database Connection
-class DbConnetion:
+class DbConnetion(Component):
 
     def __init__(self, host='gauss'):
+        super().__init__()
         self.con = psycopg2.connect(database='db1', user='postgres', password='pass', host='gauss', port='5432')
         print("Database opened successfully")
 
@@ -104,21 +117,6 @@ class DbQuery:
 # ===========================================================================
 # GCS Event Data
 
-class EventBase:
-    # Constructor
-    def __init__(self):
-        self.uuid = ''
-        self.time = 0
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-
-# ===========================================================================
-#
-# ===========================================================================
 class EventData:
 
     # Constructor
@@ -127,16 +125,12 @@ class EventData:
         self.time = 0
         self.params = {}
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-
 
 # ===========================================================================
 
 # ===========================================================================
+
+
 
 class ImageData:
 
@@ -168,58 +162,12 @@ class TelemetryData:
 #
 # ===========================================================================
 
-class GcsInterface:
-
-    # Constructor
-    def __init__(self):
-        self.interface_name = ''
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-
-# ===========================================================================
-#
-# ===========================================================================
-
-class History(Component):
-
-    # Constructor
-    def __init__(self):
-        self.interface_name = ''
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-    # Validate the specified task
-    def validate_task(self, task):
-        pass
-
-# ===========================================================================
-#
-# ===========================================================================
-
+# Generate reports?
 class Reports(Component):
 
     # Constructor
     def __init__(self):
         self.interface_name = ''
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-    # Validate the specified task
-    def validate_task(self, task):
-        pass
-
-
-    #
 
 
 # ===========================================================================

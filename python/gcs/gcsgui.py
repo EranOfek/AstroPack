@@ -3,6 +3,14 @@ from enum import Enum
 from gcsbase import Component
 from gcscom import FileProcessor
 
+#
+# Classes in this file:
+#
+#   GuiMsgType
+#   GuiMsg
+#   GuiHandler
+#
+
 
 # GUI Messages
 class GuiMsgType(Enum):

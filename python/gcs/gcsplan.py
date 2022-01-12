@@ -1,5 +1,11 @@
 from gcsbase import Component
 
+# Classes in this file:
+#   SkyCoord    -
+#   SkyTime     -
+#   ImageId     -
+#   TaskId      -
+
 # ===========================================================================
 #
 # ===========================================================================
@@ -21,6 +27,29 @@ class SkyTime:
     # Constructor
     def __init__(self):
         self.time = 0
+
+
+# ImageId
+class ImageId:
+    def __init__(self):
+        self.format_str = 'IMG%05d'
+        self.num = 1
+
+    def get_id(self):
+        s = self.format_str % self.num
+        return s
+
+
+class TaskId:
+    def __init__(self):
+        self.format_str = 'TSK_%s%05d'
+        self.type = 'IMG'
+        self.num = 1
+
+    def get_id(self):
+        s = self.format_str % (self.type, self.num)
+        return s
+
 
 # ===========================================================================
 #
@@ -93,11 +122,11 @@ class ObservationManager:
         self.point_list = []        # List of ObservationPoint
 
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
+    def gen_image_id(self):
+        new_id = ''
+        return
 
 # ===========================================================================
 #
 # ===========================================================================
+
