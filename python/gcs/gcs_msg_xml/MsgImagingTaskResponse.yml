@@ -1,0 +1,48 @@
+Response :
+
+    TaskId          : 8f53a9b6
+    ResponseTime    : 2022-01-28T00:00:00.0Z
+    
+    
+<?xml version="1.0" encoding="UTF-8"?>
+<Msg>
+	<Header>
+		<MsgId>1fcb0710</MsgId>
+		<MsgTime>2022-01-28T00:00:00.0Z</MsgTime>
+		<MsgType>ImagingTaskResponse</MsgType>
+		<Source>GCS</Source>		
+		<Target>SOC</Target>
+		<OrgMsgId>6ce624da</OrgMsgId>
+		<TaskId>8f53a9b6</TaskId>
+	</Header>
+	
+	<Response>
+		<!-- Status -->
+		<Status>Approved</Status>
+		<Status>NotApproved</Status>
+		<Status>ApprovedWithWarnings</Status>
+		
+		<!-- NotApproved with Violation details -->
+		<NotApproved>
+			<Violation>
+				<Time></Time>
+				<Rule>Electricity</Rule>
+				<Params>@TBD</Params>
+			</Violation>
+		</NotApproved>
+		
+		<!-- ApprovedWithWarnings -->
+		<ApprovedWithWarnings>
+			<Count>1</Count>
+			
+			<!-- Warnings -->
+			<Warning>
+				<Time></Time>
+				<Duration></Duration>
+				<Type></Type>
+				<Details>@TBD</Details>
+			</Warning>		
+		</ApprovedWithWarnings>
+		
+	</Response>
+</Msg>

@@ -1,0 +1,21 @@
+Task:
+
+    Type        : ImagingTask
+    TaskId      : 8f53a9b6
+    CreateTime  : 2022-01-28T00:00:00.0Z
+
+    StartTime   : 2022-05-28T00:00:00.0Z
+    TargetCount : 2
+                
+    Targets:
+        - Target:        
+            StartTime       : 2022-05-28T00:00:00.0Z</StartTime>
+            CoordRA         : 111
+            CoordDec        : 222
+            CoordRoll       : 0
+            ExpDuration     : 300
+            ExpCount        : 1
+            Tiles           : 15
+            ImageIdFormat   : IMG%05d 
+            FirstImageNum   : 1
+

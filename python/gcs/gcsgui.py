@@ -1,7 +1,6 @@
 import configparser
 from enum import Enum
-from gcsbase import Component
-from gcscom import FileProcessor
+from gcsbase import Component, FileProcessor
 
 #
 # Classes in this file:

@@ -13,8 +13,10 @@
 #   TelemetryData
 #
 
+import os, time, pytz
+from datetime import datetime
 import psycopg2
-import datetime
+
 from gcsbase import Component
 
 # GCS Data Types
@@ -34,6 +36,10 @@ class Database(Component):
     def __del__(self):
         # Deleted
         pass
+
+    def new_query(self):
+        query = DbQuery()
+        return query
 
     # -----------------------------------------------------------------------
     #                                   Insert
@@ -75,6 +81,25 @@ class Database(Component):
         pass
 
 
+    # -----------------------------------------------------------------------
+    #                                   State
+    # -----------------------------------------------------------------------
+
+    #
+    def save_state(self, state):
+        pass
+
+    #
+    def load_state(self):
+        query = DbQuery()
+        result = query.query("SELECT * FROM gcs_state WHERE key='state'")
+        if len(result) > 0:
+            rec = result[0]
+            yml = rec['value']
+
+        pass
+
+
 
 # ===========================================================================
 #
@@ -84,7 +109,7 @@ class DbConnetion(Component):
 
     def __init__(self, host='gauss'):
         super().__init__()
-        self.con = psycopg2.connect(database='db1', user='postgres', password='pass', host='gauss', port='5432')
+        self.con = psycopg2.connect(database='unittest', user='postgres', password='pass', host='localhost', port='5432')
         print("Database opened successfully")
 
 
@@ -97,20 +122,39 @@ class DbQuery:
     def __init__(self, con=None):
         self.con = con
         self.cur = con.cursor()
+        self.columns = []
 
     def __del__(self):
         self.cur.close()
 
-    def exec(self, sql_text):
-        self.cur.execute(sql_text)
+    #
+    # cur.execute("INSERT INTO test (num, data) VALUES (%s,%s);", (74, u))
+    def exec(self, sql_text, vars=None):
+        self.cur.execute(sql_text, vars)
         self.con.commit()
-        #print("Record inserted successfully:", i)
+        result = True
+        return result
 
-    def query(self, sql_text):
-        self.cur.execute(sql_text)
-        # mobile_records = self.cur.fetchall()
-        #print("Record inserted successfully:", i)
+    #
+    # https://stackoverflow.com/questions/21158033/query-from-postgresql-using-python-as-dictionary
+    def query(self, sql_text, vars=None, fetch=True):
+        self.cur.execute(sql_text, vars)
+        self.columns = list(self.cur.description)
+        if fetch:
+            result = self.cur.fetchall()
 
+            # make dict
+            results = []
+            for row in result:
+                row_dict = {}
+                for i, col in enumerate(self.columns):
+                    row_dict[col.name] = row[i]
+                results.append(row_dict)
+
+            return results
+        else:
+            result = True
+            return result
 
 # ===========================================================================
 #

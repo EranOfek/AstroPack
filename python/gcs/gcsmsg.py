@@ -23,9 +23,10 @@
 #
 
 
-import os, time
+import os, time, pytz
 from datetime import datetime
 from enum import Enum
+import yaml
 import xml.etree.cElementTree as ET
 import xml.dom.minidom
 from gcsbase import Component
@@ -35,6 +36,27 @@ from gcsbase import Component
 # Each task or request from the SOC will be answered by a reply from the GCS through the C&C link.
 
 # ============================================================================
+
+# Current state
+class State:
+    def __init__(self):
+        self.download_mode = ''         # Current download mode
+        self.deletion_mode = ''         # Current deletion mode
+
+    # Save state to yaml text
+    def save_yaml(self):
+        data = {}
+        data['download_mode'] = self.download_mode
+        data['deletion_mode'] = self.deletion_mode
+        text = yaml.dump(data)
+        return text
+
+    # Load state from yaml text
+    def load_yaml(self, text):
+        data = yaml.safe_load(text)
+        self.download_mode = data['download_mode']
+        self.deletion_mode = data['deletion_mode']
+
 
 #
 class MsgType(Enum):
@@ -64,13 +86,13 @@ class DeletionMode(Enum):
 
 
 class MaintenanceType(Enum):
-    Decontamination = 'Decontamination'
-    Focusing = 'Focusing'
-    DarkCurrentImaging = 'DarkCurrentImaging'
-    BiasImaging = 'BiasImaging'
-    OrbitManeuver = ''
-    RwaCalibration = ''
-    GroundEquipment = ''
+    Decontamination     = 'Decontamination'
+    Focusing            = 'Focusing'
+    DarkCurrentImaging  = 'DarkCurrentImaging'
+    BiasImaging         = 'BiasImaging'
+    OrbitManeuver       = 'OrbitManeuver'
+    RwaCalibration      = 'RwaCalibration'
+    GroundEquipment     = 'GroundEquipment'
 
 # ============================================================================
 #
@@ -188,20 +210,6 @@ class MsgBase:
 
         ET.SubElement(doc, 'Source').text = '2001-12-17T09:30:47.0Z'
 
-
-    # Convert to string
-    def to_str(self):
-        pass
-
-    # Convert from string
-    def from_str(self):
-        pass
-
-    # Convert to HTML (for debugging/logging)
-    def to_html(self):
-        pass
-
-
 # ============================================================================
 # 4-8 Acknowledge response
 # All messages received at both sites shall be replied with an acknowledge message. This message
@@ -213,11 +221,6 @@ class MsgAck(MsgBase):
         self.ack = ''       # 'ACK', 'NACK'
         self.details = ''   # NACK Details
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
     # Load from XML
     def load_from_xml(self):
         pass
@@ -225,16 +228,6 @@ class MsgAck(MsgBase):
     # Save to XML
     def save_to_xml(self):
         pass
-
-    def to_str(self):
-        pass
-
-    def from_str(self):
-        pass
-
-    def to_html(selfself):
-        pass
-
 
 # ============================================================================
 # 4-9 Keep alive periodic message
@@ -246,26 +239,12 @@ class MsgKeepAlive(MsgBase):
     def __init__(self):
         self.msg_type = ''
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
     # Load from XML
     def load_from_xml(self):
         pass
 
     # Save to XML
     def save_to_xml(self):
-        pass
-
-    def to_str(self):
-        pass
-
-    def from_str(self):
-        pass
-
-    def to_html(selfself):
         pass
 
 
@@ -326,18 +305,6 @@ class MsgImagingTask(MsgBase):
 
     # Save to XML
     def save_to_xml(self):
-        pass
-
-    # Convert to string
-    def to_str(self):
-        pass
-
-    # Convert from string
-    def from_str(self, text):
-        pass
-
-    # Convert to HTML (for debugging/logging)
-    def to_html(self):
         pass
 
 
@@ -404,11 +371,6 @@ class MsgObrdTask(MsgBase):
                                         #       One delete command shall contain up to 124 images to be deleted
 
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
     # Load from XML
     def load_from_xml(self):
         pass
@@ -416,19 +378,6 @@ class MsgObrdTask(MsgBase):
     # Save to XML
     def save_to_xml(self):
         pass
-
-    # Convert to string
-    def to_str(self):
-        pass
-
-    # Convert from string
-    def from_str(self, text):
-        pass
-
-    # Convert to HTML (for debugging/logging)
-    def to_html(self):
-        pass
-
 
 # ============================================================================
 
@@ -453,15 +402,6 @@ class MsgMaintenanceTaskResponse(MsgBase):
 
     # Save to XML
     def save_to_xml(self):
-        pass
-
-    def to_str(self):
-        pass
-
-    def from_str(self):
-        pass
-
-    def to_html(selfself):
         pass
 
 
@@ -521,26 +461,12 @@ class MsgImagingTaskResponse(MsgBase):
                 self.warn_tbd = ''          # f. …
 
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
     # Load from XML
     def load_from_xml(self):
         pass
 
     # Save to XML
     def save_to_xml(self):
-        pass
-
-    def to_str(self):
-        pass
-
-    def from_str(self):
-        pass
-
-    def to_html(selfself):
         pass
 
 # ============================================================================
@@ -570,26 +496,12 @@ class MsgObrdTaskResponse(MsgBase):
         self.violation_params = ''  # c. Violation parameters: TBD
 
 
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
     # Load from XML
     def load_from_xml(self):
         pass
 
     # Save to XML
     def save_to_xml(self):
-        pass
-
-    def to_str(self):
-        pass
-
-    def from_str(self):
-        pass
-
-    def to_html(selfself):
         pass
 
 
@@ -637,14 +549,6 @@ class MsgMaintenanceTask(MsgBase):
     def save_to_xml(self):
         pass
 
-    def to_str(self):
-        pass
-
-    def from_str(self):
-        pass
-
-    def to_html(selfself):
-        pass
 
 # ============================================================================
 

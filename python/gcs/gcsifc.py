@@ -16,7 +16,9 @@
 #
 
 import time
-from gcsbase import Component
+from gcsbase import Component, Config, FileProcessor
+from gcsmsg import *
+from gcsdb import DbQuery, Database
 from gcsgui import GuiHandler, GuiMsg, GuiMsgType
 
 # ===========================================================================
@@ -32,6 +34,12 @@ class GcsInterface(Component):
         super().__init__()
         self.interface_name = ''
         self.terminated = False
+
+        # Load configuration
+        self.conf = Config()
+        self.conf.load()
+
+        #
         self.gui = GuiHandler()
 
         self.keep_alive_interval = 1*60
@@ -39,29 +47,48 @@ class GcsInterface(Component):
 
         # Download management
 
+        self.in_com = FileProcessor()
+        self.out_com = FileProcessor()
+
+        # Database
+        self.db = Database()
+
+        # Current state
+        self.state = State()
+
 
     #
     def run(self):
         self.setup()
+        self.log('run loop started')
         while not self.terminated:
             self.manage()
             time.sleep(0.01)
 
+        self.log('run loop done')
         self.shutdown()
-
-
 
     #
     def setup(self):
-        pass
+        self.log('setup')
 
     #
     def shutdown(self):
-        pass
+        self.log('shutdown')
+
+    # -----------------------------------------------------------------------
+    #                                   Manage
+    # -----------------------------------------------------------------------
 
     #
     def manage(self):
+
+        # Poll incoming messages
         self.handle_incoming_msgs()
+        self.handle_outgoing_msgs()
+        self.manage_imaging_tasks()
+        self.manage_image_downloads()
+        self.manage_keep_alive()
         self.handle_gui()
 
         t = time.time
@@ -74,16 +101,33 @@ class GcsInterface(Component):
 
 
     # -----------------------------------------------------------------------
-
+    #                          Send Messages to GCS
     # -----------------------------------------------------------------------
 
-    def event_keep_alive(self):
-        #self.make_event()
+    #
+    def handle_outgoing_msgs(self):
         pass
 
+    #
+    def send_msg(self, msg):
 
-    def make_event(self):
+        # Convert message to XML text
+        xml = msg.save_xml()
+
+        # Insert to table
+        query = self.db.new_query()
+        query.exec('INSERT INTO gcs_msgs () VALUES(), ', (, xml))
+
+        # Save file to outgoing messages folder
+
+
+    #
+    def send_ack(self, msg):
         pass
+
+    # -----------------------------------------------------------------------
+    #                   Handle Incoming Messages from GCS
+    # -----------------------------------------------------------------------
 
     #
     def handle_incoming_msgs(self):
@@ -95,22 +139,8 @@ class GcsInterface(Component):
         pass
 
 
-    def send_keep_alive(self):
-        pass
 
     #------------------------------------------------------------------------
-
-    # Send message to GCS
-    def handle_imaging_task_response(self, msg):
-        pass
-
-    #
-    def handle_keep_alive(self):
-        pass
-
-    # Send message to GCS
-    def handle_obrd_task_response(self, msg):
-        pass
 
     # Send Target-Of-Opertunity
     def send_target_oo(self, task):
@@ -124,9 +154,6 @@ class GcsInterface(Component):
     def send_task(self, task):
         pass
 
-    # Called when image has been received
-    def image_received(self, image_data):
-        pass
 
     # -----------------------------------------------------------------------
     # Save current state to database
@@ -144,14 +171,90 @@ class GcsInterface(Component):
 
     #------------------------------------------------------------------------
 
-    # Handle incoming message from GCS
-    def handle_msg(self, msg):
+
+
+    # -----------------------------------------------------------------------
+    #                               Keep Alive
+    # -----------------------------------------------------------------------
+
+    #
+    def send_keep_alive(self):
         pass
+
+    #
+    def handle_keep_alive(self):
+        pass
+
+
+    def event_keep_alive(self):
+        #self.make_event()
+        pass
+
+
+
+    # -----------------------------------------------------------------------
+    #                             Imaging Task
+    # -----------------------------------------------------------------------
+    # New imaging task:
+    #   - SOC write new imaging task to table 'gcs_tasks', with new_flag=1
+    #   - GIF polls gcs_tasks table for records with new_flag=1
+    #   - Task YAML is converted to MsgImagingTask
+
+    def manage_imaging_tasks(self):
+        # Poll database for pending tasks for approval
+        query = DbQuery()
+        records = query.query('SELECT * FROM gcs_tasks WHERE new_task = 1')
+        for row in records:
+            taskid = row['taskid']
+
+
+    def create_imaging_task_msg(self, ):
+        msg = MsgImagingTask
+
+
+    def send_imaging_task(self, msg):
+        pass
+
+    # Send message to GCS
+    def handle_imaging_task_response(self, msg):
+        pass
+
+    # Called when imaging task is approved
+    # Create images in images table
+    def imaging_task_approved(self, task):
+        pass
+
+
+
+
+    # -----------------------------------------------------------------------
+    #                       Image Download & OBRD
+    # -----------------------------------------------------------------------
+
+    def manage_image_downloads(self):
+        pass
+
+
+    # Called when image has been received
+    def image_received(self, image_data):
+        pass
+
+
+    # Send message to GCS
+    def handle_obrd_task_response(self, msg):
+        pass
+
+
+    # -----------------------------------------------------------------------
+    #                               Telemetry
+    # -----------------------------------------------------------------------
 
     def handle_telemetry(self):
         pass
 
-
+    # -----------------------------------------------------------------------
+    #                                 GUI
+    # -----------------------------------------------------------------------
     # Handle GUI message
     def handle_gui(self):
         if self.gui:
@@ -161,23 +264,14 @@ class GcsInterface(Component):
                     pass
 
 
+    # -----------------------------------------------------------------------
+    #                         Low Level Functions
+    # -----------------------------------------------------------------------
 
-# ===========================================================================
-#
-# ===========================================================================
 
-# GCS Observation Scheduler
-# @Todo - Should we develop
-class GcsScheduler:
-
-    # Constructor
-    def __init__(self):
-        self.interface_name = ''
-
-    # Destructor
-    def __del__(self):
-        # Deleted
+    def make_event(self):
         pass
+
 
 
 # ===========================================================================
