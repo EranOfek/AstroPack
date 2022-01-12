@@ -1,3 +1,20 @@
+#
+# gcsifc.py - Simulator Data structures and Database connectivity
+#
+#
+# Classes in this file:
+#
+#   GcsInterface            -
+#
+#   ImagingTaskValidator    - Validate imaging task before sending to GCS
+#
+#
+# Notes:
+#   - Interface communicate with GCS by two shared folders: 1. Messages, 2. Images & Telemetry files
+#   - Interface communicate with SOC by database tables, message format is YAML
+#   - Interface save its current state to database, it can be restarted at any moment
+#
+
 import time
 from gcsbase import Component
 from gcsgui import GuiHandler, GuiMsg, GuiMsgType
@@ -19,6 +36,8 @@ class GcsInterface(Component):
 
         self.keep_alive_interval = 1*60
         self.last_rcv_keep_alive_time = 0
+
+        # Download management
 
 
     #
@@ -105,6 +124,24 @@ class GcsInterface(Component):
     def send_task(self, task):
         pass
 
+    # Called when image has been received
+    def image_received(self, image_data):
+        pass
+
+    # -----------------------------------------------------------------------
+    # Save current state to database
+    def save_state(self):
+        pass
+
+    # Load current state from database
+    def load_state(self):
+        pass
+
+    # -----------------------------------------------------------------------
+
+
+
+
     #------------------------------------------------------------------------
 
     # Handle incoming message from GCS
@@ -125,15 +162,12 @@ class GcsInterface(Component):
 
 
 
-
-
-
 # ===========================================================================
 #
 # ===========================================================================
 
 # GCS Observation Scheduler
-
+# @Todo - Should we develop
 class GcsScheduler:
 
     # Constructor
@@ -146,61 +180,23 @@ class GcsScheduler:
         pass
 
 
-
-
-
-
 # ===========================================================================
 #
 # ===========================================================================
 
-class DownloadManager(Component):
+# Validate imaging task before sending to GCS
+class ImagingTaskValidator(Component):
 
     # Constructor
     def __init__(self):
+        super().__init__()
         self.interface_name = ''
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
-
-
-
-
-
-
-# ===========================================================================
-#
-# ===========================================================================
-
-# GCS Observasion Plan Validator
-
-# Run IAI validator?
-
-class PlanValidator(Component):
-
-    # Constructor
-    def __init__(self):
-        self.interface_name = ''
-
-    # Destructor
-    def __del__(self):
-        # Deleted
-        pass
 
     # Validate the specified task
     def validate_task(self, task):
         pass
 
 
-    #
-
-
-
-
 # ===========================================================================
 #
 # ===========================================================================
-
-

@@ -1,6 +1,22 @@
 #
 # gcssim.py - Simulator Data structures and Database connectivity
 #
+#
+# Classes in this file:
+#
+#   GcsSimulator            -
+#   SimImageGenerator       -
+#   SimTelemetryGenerator   -
+#   SimValidatorResult      -
+#   SimPlanValidator        -
+#   SimObrdEntry            -
+#   SimObrdData             -
+#   SimObrdImage            -
+#   SimObrdManager          -
+#   SimPlanManager          -
+#   SimMaintenanceManager   -
+#
+#
 
 import os, time
 from datetime import datetime
@@ -346,7 +362,7 @@ class SimObrdManager(Component):
 #
 # ===========================================================================
 # Simulate plan
-class SimPlanSimulator(Component):
+class SimPlanManager(Component):
 
     def __init__(self):
         self.cur_plan = None
