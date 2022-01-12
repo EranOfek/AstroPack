@@ -764,7 +764,7 @@ classdef FITS < handle
                 Args.Header cell              = {};
                 Args.DataType                 = 'single';
                 Args.Append(1,1) logical      = false;
-                 Args.OverWrite(1,1) logical  = false;
+                Args.OverWrite(1,1) logical  = false;
                 Args.WriteTime(1,1) logical   = false;
             end
             

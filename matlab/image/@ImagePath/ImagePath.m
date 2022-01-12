@@ -623,7 +623,7 @@ classdef ImagePath < Component
                 Args.PropFromHeader logical    = true;
                 Args.SetProp cell              = {'Product','Image'};   % overide header
             end
-            
+            Future = [];
             if Args.Save
 
                 % FFU:
@@ -634,7 +634,6 @@ classdef ImagePath < Component
                     Future = parfeval(@ImagePath.saveProductBlocking, 0, ObjIP, ObjProduct, 'SaveFun',Args.SaveFun, 'SaveFunArgs',Args.SaveFunArgs, 'PropFromHeader',Args.PropFromHeader, 'SetProp',Args.SetProp);
                 else
                     ImagePath.saveProductBlocking(ObjIP, ObjProduct, 'SaveFun',Args.SaveFun, 'SaveFunArgs',Args.SaveFunArgs, 'PropFromHeader',Args.PropFromHeader, 'SetProp',Args.SetProp);
-                    Future = [];
                 end
 
             end

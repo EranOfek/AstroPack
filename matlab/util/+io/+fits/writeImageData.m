@@ -6,7 +6,7 @@ function writeImageData(FID, Data, ForceClass)
     %          - Force data to class. If empty, use data class.
     % Output : null
     % Author : Eran Ofek (Jan 2022)
-    % Example: 
+    % Example: io.fits.writeImageData(FID, Data, ForceClass)
 
     arguments
         FID
@@ -25,9 +25,17 @@ function writeImageData(FID, Data, ForceClass)
     DataLen = numel(Data);
     Size    = ceil(DataLen./BYTE_PER_BLOCK);
 
-    DataVec = zeros(Size,1);
-    DataVec(1:DataLen) = reshape(Data.', DataLen);
+    %DataVec = zeros(Size, 1, ForceClass);
+    %DataVec(1:DataLen) = reshape(Data.', DataLen, 1);
 
-    fwrite(FID, DataVec, ForceClass, 0, 'b');
-
+    switch ForceClass
+        case {'double','int64','uint64'}
+            Order = 's';
+        otherwise
+            Order = 'b';
+    end
+    %fwrite(FID, DataVec, ForceClass, 0, Order);
+    fwrite(FID, Data.', ForceClass, 0, Order);
+    % pad with zeros to the end of the 2880 bytes block
+    fwrite(FID, zeros(Size-DataLen,1), ForceClass, 0, Order);
 end
