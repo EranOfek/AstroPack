@@ -1,0 +1,14 @@
+Msg:
+    Header:
+        MsgId:      1fcb0710
+        MsgTime:    2018-02-28T00:00:00.0Z
+        MsgType:    Ack
+        Source:     SOC
+        Target:     GCS
+        OrgMsgId:   6ce624da
+
+	
+    Ack:
+        Status: Ack
+        Status: NAck
+        NAckDetails: Details text...
