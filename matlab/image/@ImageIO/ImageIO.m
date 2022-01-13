@@ -280,6 +280,9 @@ classdef ImageIO < Component
             %            'ColUnits' - A cell arrat of table units names.
             %            'CCDSEC' - CCDSEC to save. If empty, save full
             %                   image. Default is [].
+            %            'IsSimpleFITS' - A logical indicating if to use
+            %                   io.fits.writeSimpleFITS (faster).
+            %                   Default is false.
             %            'Append' - Append image as a multi extension to an
             %                      existing FITS file. Default is false.
             %            'OverWrite'- Overwrite an existing image. Default
@@ -306,6 +309,7 @@ classdef ImageIO < Component
                 Args.ColUnits cell            = {};
                 Args.CCDSEC                   = [];      % only for 2D images
                 
+                Args.IsSimpleFITS logical     = false;
                 Args.Append(1,1) logical      = false;
                 Args.OverWrite(1,1) logical   = false;
                 Args.WriteTime(1,1) logical   = false;
@@ -372,11 +376,16 @@ classdef ImageIO < Component
                         error('Writing FITS binary tables is not supported yet');
                     else
                         % write FITS image
-                        FITS.write(Data, FileName, 'Header', Header,...
+                        if Args.IsSimpleFITS
+                            FITS.writeSimpleFITS(Data, FileName, 'Header', Header,...
+                                                   'DataType',DataType);
+                        else
+                            FITS.write(Data, FileName, 'Header', Header,...
                                                    'DataType',DataType,...
                                                    'Append',Args.Append,...
                                                    'OverWrite',Args.OverWrite,...
                                                    'WriteTime',Args.WriteTime);
+                        end
                     end
                         
                 case {'hdf5','h5z','h5','hd5'}
