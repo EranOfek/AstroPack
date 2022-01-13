@@ -17,6 +17,7 @@
 
 import time
 from gcsbase import Component, Config, FileProcessor
+from gcsbase import xml_to_yml
 from gcsmsg import *
 from gcsdb import DbQuery, Database
 from gcsgui import GuiHandler, GuiMsg, GuiMsgType
@@ -32,7 +33,7 @@ class GcsInterface(Component):
     # Constructor
     def __init__(self, args):
         super().__init__()
-        self.interface_name = ''
+        self.name = 'GcsInterface'
         self.terminated = False
 
         # Load configuration
@@ -48,6 +49,10 @@ class GcsInterface(Component):
         # Download management
 
         self.in_com = FileProcessor()
+        self.in_com.rcv_path = 'c:/gcs/incom'
+        self.in_com.input_file_mask = '*.xml'
+
+        #'c:/gcs/incom_processed'
         self.out_com = FileProcessor()
 
         # Database
@@ -85,19 +90,17 @@ class GcsInterface(Component):
 
         # Poll incoming messages
         self.handle_incoming_msgs()
-        self.handle_outgoing_msgs()
+
+        #self.handle_outgoing_msgs()
+
         self.manage_imaging_tasks()
-        self.manage_image_downloads()
+
+        #self.manage_image_downloads()
+
         self.manage_keep_alive()
-        self.handle_gui()
+        #self.handle_gui()
 
-        t = time.time
-
-        # Check for received KeepAlive
-        if self.keep_alive_interval > 0:
-            elapsed = t - self.last_rcv_keep_alive_time
-            if elapsed > 2*self.keep_alive_interval:
-                self.event_keep_alive()
+        t = time.time()
 
 
     # -----------------------------------------------------------------------
@@ -116,7 +119,7 @@ class GcsInterface(Component):
 
         # Insert to table
         query = self.db.new_query()
-        query.exec('INSERT INTO gcs_msgs () VALUES(), ', (, xml))
+        #query.exec('INSERT INTO gcs_msgs () VALUES(), ', (, xml))
 
         # Save file to outgoing messages folder
 
@@ -131,12 +134,44 @@ class GcsInterface(Component):
 
     #
     def handle_incoming_msgs(self):
-        self.handle_incoming_msg(msg)
-        pass
+        filename = self.in_com.poll_rcv()
+        if filename != '':
+
+            # XML file
+            if filename.lower().endswith('.xml'):
+                self.handle_incoming_msg(filename)
+
 
     # @Todo: Do we need to send Ack for GCS messages?
-    def handle_incoming_msg(self, msg):
-        pass
+    def handle_incoming_msg(self, filename):
+        xml_to_yml(filename, yml_filename = filename + '.yml')
+        yml = xml_to_yml(filename, yml_obj=True)
+        header = yml[MsgTag.Msg][MsgTag.Header]
+
+        #msg = MsgBase()
+        #msg.load_header(header)
+        #msg_type = msg.msg_type
+        msg_type = header[MsgTag.MsgType]
+        self.log('MsgType: %s' % msg_type)
+
+        #
+        if msg_type == MsgTag.KeepAlive:
+            self.handle_msg_keep_alive(yml)
+        else:
+            self.log('handle_incoming_msg: unknnown msg_type: %s' % msg_type)
+
+
+        '''
+        elif msg_type == MsgTag.Ack:
+            self.handle_msg_ack(yml)
+        elif msg_type == MsgTag.ImagingTaskResponse:
+            self.handle_msg_ack(yml)
+        elif msg_type == MsgTag.ObrdTaskResponse:
+            self.handle_msg_ack(yml)
+        elif msg_type == MsgTag.MaintenanceTask:
+            self.handle_msg_ack(yml)
+        '''
+
 
 
 
@@ -177,12 +212,23 @@ class GcsInterface(Component):
     #                               Keep Alive
     # -----------------------------------------------------------------------
 
+    def manage_keep_alive(self):
+        t = time.time()
+
+        # Check for received KeepAlive
+        if self.keep_alive_interval > 0:
+            last = self.last_rcv_keep_alive_time
+            elapsed = t - self.last_rcv_keep_alive_time
+            if elapsed > 2*self.keep_alive_interval:
+                self.event_keep_alive()
+
+
     #
     def send_keep_alive(self):
         pass
 
     #
-    def handle_keep_alive(self):
+    def handle_msg_keep_alive(self, msg):
         pass
 
 
@@ -202,8 +248,8 @@ class GcsInterface(Component):
 
     def manage_imaging_tasks(self):
         # Poll database for pending tasks for approval
-        query = DbQuery()
-        records = query.query('SELECT * FROM gcs_tasks WHERE new_task = 1')
+        query = self.db.new_query()
+        records = query.query('SELECT * FROM gcs_tasks WHERE new_flag = true')
         for row in records:
             taskid = row['taskid']
 

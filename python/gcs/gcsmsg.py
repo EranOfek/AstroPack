@@ -1,3 +1,4 @@
+# ===========================================================================
 # @Todo - Questions
 # ImageId - how is it generated, and how we get it? currently I assume that it is a string, but how do
 # I get the list of images
@@ -21,7 +22,7 @@
 #   MsgMaintenanceTaskResponse
 #
 #
-
+# ===========================================================================
 
 import os, time, pytz
 from datetime import datetime
@@ -59,7 +60,7 @@ class State:
 
 
 #
-class MsgType(Enum):
+class MsgType:
     Ack                     = 'Ack'
     NAck                    = 'NAck'
     KeepAlive               = 'KeepAlive'
@@ -69,23 +70,23 @@ class MsgType(Enum):
     ObrdTaskResponse        = 'ObrdTaskResponse'
 
 
-class MsgSource(Enum):
+class MsgSource:
     SOC = 'SOC'
     GCS = 'GCS'
 
 #
-class DownloadMode(Enum):
+class DownloadMode:
     Online = 'Online'
     OfflineCurrent = 'OfflineCurrent'
     OfflineStored = 'OfflineStored'
 
 
-class DeletionMode(Enum):
+class DeletionMode:
     Automatic = 'Automatic'
     FullyManual = 'FullyManual'
 
 
-class MaintenanceType(Enum):
+class MaintenanceType:
     Decontamination     = 'Decontamination'
     Focusing            = 'Focusing'
     DarkCurrentImaging  = 'DarkCurrentImaging'
@@ -93,6 +94,57 @@ class MaintenanceType(Enum):
     OrbitManeuver       = 'OrbitManeuver'
     RwaCalibration      = 'RwaCalibration'
     GroundEquipment     = 'GroundEquipment'
+
+
+class MsgTag:
+    Msg         = 'Msg'
+    Header      = 'Header'
+
+    # Header fields
+    MsgId       = 'MsgId'
+    MsgType     = 'MsgType'
+    MsgTime     = 'MsgTime'
+    Source      = 'Source'
+    Target      = 'Target'
+    SrcMsgId    = 'SrcMsgId'
+    OrgMsgId    = 'OrgMsgId'
+    TaskId      = 'TaskId'
+    TaskType    = 'TaskType'
+
+    # MsgType
+    Ack         = 'Ack'
+    NAckDetails = 'NAckDetails'
+    Details     = 'Details'
+
+    KeepAlive   = 'KeepAlive'
+
+    Response    = 'Response'
+    Status      = 'Status'
+    Approved    = 'Approved'
+    NotApproved = 'NotApproved'
+
+    Violation   = 'Violation'
+    Time        = 'Time'
+    StartTime   = 'StartTime'
+
+    Warning     = 'Warning'
+    Tasks       = 'Tasks'
+    Task        = 'Task'
+    TaskType    = 'TaskType'
+
+    Targets     = 'Targets'
+    Target      = 'Target'
+
+    DownloadMode    = 'DownloadMode'
+    DownloadImages  = 'DownloadImages'
+    DeletionMode    = 'DeletionMode'
+    ImagesToKeep    = 'ImagesToKeep'
+    ImagesToDelete  = 'ImagesToDelete'
+
+    Online          = 'Online'
+    OfflineCurrent  = 'OfflineCurrent'
+    OfflineStored   = 'OfflineStored'
+
 
 # ============================================================================
 #
@@ -152,6 +204,28 @@ class MsgBase:
             self.xml_root = None
 
 
+    def load_header(self, header):
+        self.msg_id     = header.get(MsgTag.MsgId, '')
+        self.msg_type   = header.get(MsgTag.MsgType, '')
+        self.source     = header.get(MsgTag.Source, '')
+        self.msg_time   = header.get(MsgTag.MsgTime, '')
+        self.task_id    = header.get(MsgTag.TaskId, '')
+        self.task_type  = header.get(MsgTag.MsgType, '')
+        self.src_msg_id = header.get(MsgTag.SrcMsgId, '')
+
+
+    def write_header(self, header):
+        header = {}
+        header[MsgTag.MsgId]      = self.msg_id
+        header[MsgTag.MsgType]    = self.msg_type
+        header[MsgTag.Source]     = self.source
+        header[MsgTag.MsgTime]    = self.msg_time
+        header[MsgTag.TaskId]     = self.task_id
+        header[MsgTag.MsgType]    = self.task_type
+        header[MsgTag.SrcMsgId]   = self.src_msg_id
+        return header
+
+
     # Load from XML
     def read_xml(self):
         pass
@@ -209,6 +283,8 @@ class MsgBase:
         ET.SubElement(doc, 'TimeStamp').text = '2001-12-17T09:30:47.0Z'
 
         ET.SubElement(doc, 'Source').text = '2001-12-17T09:30:47.0Z'
+
+
 
 # ============================================================================
 # 4-8 Acknowledge response

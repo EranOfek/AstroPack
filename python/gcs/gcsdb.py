@@ -29,7 +29,7 @@ class Database(Component):
     # Constructor
     def __init__(self):
         super().__init__()
-        self.interface_name = ''
+        self.name = 'Database'
         self.dbcon = DbConnetion()
 
     # Destructor
@@ -38,7 +38,7 @@ class Database(Component):
         pass
 
     def new_query(self):
-        query = DbQuery()
+        query = DbQuery(self.dbcon)
         return query
 
     # -----------------------------------------------------------------------
@@ -109,8 +109,10 @@ class DbConnetion(Component):
 
     def __init__(self, host='gauss'):
         super().__init__()
-        self.con = psycopg2.connect(database='unittest', user='postgres', password='pass', host='localhost', port='5432')
-        print("Database opened successfully")
+        self.name = 'DbConnetion'
+        self.con = psycopg2.connect(database='socgcs', user='postgres', password='PassRoot', host='gauss', port='5432')
+        #self.con = psycopg2.connect(database='socgcs', user='admin', password='Passw0rd', host='gauss', port='5432')
+        self.log('Database connected successfully')
 
 
     def __del__(self):
@@ -118,14 +120,17 @@ class DbConnetion(Component):
 
 
 # Database Query
-class DbQuery:
+class DbQuery(Component):
     def __init__(self, con=None):
-        self.con = con
-        self.cur = con.cursor()
+        super().__init__()
+        self.name = 'DbQuery'
+        self.dbcon = con
+        self.cur = self.dbcon.con.cursor()
         self.columns = []
 
     def __del__(self):
-        self.cur.close()
+        #self.cur.close()
+        pass
 
     #
     # cur.execute("INSERT INTO test (num, data) VALUES (%s,%s);", (74, u))

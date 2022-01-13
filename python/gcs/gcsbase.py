@@ -1,3 +1,4 @@
+# ===========================================================================
 #
 # gcsbase.py - Base classes and definitions
 #
@@ -10,8 +11,9 @@
 #   Logger
 #
 #
+# ===========================================================================
 
-import os, sys, time, glob, uuid, yaml, io, xmlplain
+import os, sys, shutil, time, glob, uuid, yaml, io, xmlplain
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
@@ -29,7 +31,8 @@ if not os.path.exists(LOG_PATH):
     os.makedirs(LOG_PATH)
 
 # ---------------------------------------------------------------------------
-logfile = open(os.path.join(LOG_PATH, 'gcs.log'), 'a')
+log_filename = os.path.join(LOG_PATH, 'gcs.log')
+logfile = open(log_filename, 'a')
 def msg_log(msg, dt = True):
     global logfile
     if msg == '': dt = False
@@ -115,8 +118,6 @@ class Component(Base):
             self.make_uuid()
         return self.uuid
 
-    def log(self, msg):
-        pass
 
 # ===========================================================================
 #
@@ -197,7 +198,7 @@ class FileProcessor(Component):
             # Move file to processed folder
             path, fn = os.path.split(fname)
             processed_fname = os.path.join(self.processed_path, fn)
-            shutil.move(fname, processed_fname)
+            #shutil.move(fname, processed_fname)
             return fname
 
 
@@ -222,11 +223,11 @@ def xml_to_yml(xml_filename, yml_filename='', yml_obj=False):
 
     # Read to plain object
     with open(xml_filename) as inf:
-       root = xmlplain.xml_to_obj(inf, strip_space = True, fold_dict = True)
+       root = xmlplain.xml_to_obj(inf, strip_space=True, fold_dict=True)
 
     # Output to file
     if yml_filename != '':
-        with open("example-1.yml", "w") as outf:
+        with open(yml_filename, 'w') as outf:
             xmlplain.obj_to_yaml(root, outf)
             return True
 
@@ -254,8 +255,8 @@ def yml_to_xml(yml, xml_filename):
     root = xmlplain.obj_from_yaml(yml)
 
     # Output back XML
-    with open(xml_filename, "w") as outf:
-       xmlplain.xml_from_obj(root, outf, pretty = True)
+    with open(xml_filename, 'w') as outf:
+       xmlplain.xml_from_obj(root, outf, pretty=True)
 
 
 def test_yaml():

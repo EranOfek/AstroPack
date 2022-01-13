@@ -54,6 +54,7 @@ class GuiHandler(Component):
     # Constructor
     def __init__(self):
         super().__init__()
+        self.name = 'GuiHandler'
         self.file_procssor = FileProcessor()
         self.path = ''
 

@@ -36,7 +36,7 @@ class GcsSimulator(Component):
     # Constructor
     def __init__(self, args):
         super().__init__()
-        self.interface_name = ''
+        self.name = 'GcsSimulator'
         self.image_gen = SimImageGenerator()
         self.tele_gen = SimTelemetryGenerator()
         self.obrd = SimObrdManager()
@@ -265,6 +265,7 @@ class SimPlanValidator(Component):
     # Constructor
     def __init__(self):
         super().__init__()
+        self.name = 'SimPlanValidator'
         self.msg_id = ''
 
     # Create new telemetry data, return file name
@@ -317,6 +318,7 @@ class SimObrdManager(Component):
     # Constructor
     def __init__(self):
         super().__init__()
+        self.name = 'SimObrdManager'
         self.msg_id = ''
         self.image_list = []        # List of SimObrdImage
         self.download_mode = ''

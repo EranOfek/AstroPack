@@ -1,3 +1,15 @@
+# ===========================================================================
+# gcsmain.py - Main file for GCS Interface and Simulator
+#
+# Usage:
+#
+#   python gcsmain.py
+#
+#
+# pip freeze > requirements.txt
+#
+# ===========================================================================
+
 import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
 from sys import platform
