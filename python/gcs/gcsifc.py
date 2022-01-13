@@ -269,6 +269,15 @@ class GcsInterface(Component):
     def manage_imaging_tasks(self):
         # Poll database for pending tasks for approval
         query = self.db.new_query()
+
+        d = {}
+        d['abc'] = 'aaa'
+        d['def'] = 'bbb'
+        d['x'] = 1
+        d['y'] = 2.0
+        query.insert('my_table', d)
+
+
         records = query.query('SELECT * FROM gcs_tasks WHERE new_flag = true')
         for row in records:
             taskid = row['taskid']

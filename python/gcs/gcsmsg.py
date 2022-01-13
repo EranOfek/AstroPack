@@ -146,6 +146,11 @@ class MsgTag:
     OfflineStored   = 'OfflineStored'
 
 
+class DbTables:
+    State   = 'gcs_state'
+    Tasks   = 'gcs_tasks'
+    Events  = 'gcs_events'
+
 # ============================================================================
 #
 #                               Common Messages

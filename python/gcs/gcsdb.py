@@ -16,6 +16,7 @@
 import os, time, pytz
 from datetime import datetime
 import psycopg2
+from psycopg2.extensions import AsIs
 
 from gcsbase import Component
 
@@ -161,6 +162,20 @@ class DbQuery(Component):
             result = True
             return result
 
+
+    #
+    def insert(self, table_name, fields_dict):
+
+        columns = fields_dict.keys()
+        values = [fields_dict[column] for column in columns]
+
+        sql_text = 'INSERT INTO ' + table_name + ' (%s) VALUES %s'
+
+        sql = self.cur.mogrify(sql_text, (AsIs(','.join(columns)), tuple(values)))
+
+        self.exec(sql)
+
+
 # ===========================================================================
 #
 # ===========================================================================
@@ -171,8 +186,21 @@ class EventData:
     # Constructor
     def __init__(self):
         self.uuid = ''
-        self.time = 0
+        self.start_time = 0
+        self.end_time = 0
+        self.ack_time = 0
+        self.reset_time = 0
+        self.object_name = ''
+        self.event_type = ''
+        self.description = ''
+        self.new_event = True
+
         self.params = {}
+
+        #event = EventData()
+        #event....
+        #fields = event.__dict__
+        #query.insert('gcs_events', fields)
 
 
 # ===========================================================================
