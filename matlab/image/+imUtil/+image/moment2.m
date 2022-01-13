@@ -49,7 +49,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %                       or a function handle that matrix of radii, and
 %                       return a matrix of weights (e.g., @(r)
 %                       exp(-r.^2./(2.*4))./(2.*pi.*4.^2); ).
-%                       Default is 2.
+%                       Default is 1.5.
 %            'Circle' - A flag indicating if to extract the stamps with
 %                       circular shape. Default is false.
 %            'MaxIter' - Maximum number of 1st moment position iterations.
@@ -121,7 +121,7 @@ arguments
     Args.BackFun                                       = @median
     Args.BackFunArgs cell                              = {[1 2],'omitnan'};
     Args.MomRadius                                     = 8;    % recomended ~1.7 FWHM
-    Args.WeightFun                                     = 2;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
+    Args.WeightFun                                     = 1.5;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
     Args.Circle(1,1) logical                           = false;
     Args.MaxIter                                       = 10;
     Args.NoWeightFirstIter(1,1) logical                = true; 
