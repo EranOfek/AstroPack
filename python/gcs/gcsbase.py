@@ -16,6 +16,25 @@
 import os, sys, shutil, time, glob, uuid, yaml, io, xmlplain
 import xml.etree.ElementTree as ET
 from datetime import datetime
+import json
+
+#
+class dict2obj_hook(object):
+    def __init__(self, dict_):
+        self.__dict__.update(dict_)
+
+#
+def dict2obj(d):
+    return json.loads(json.dumps(d), object_hook=dict2obj_hook)
+
+# ===========================================================================
+#
+# ===========================================================================
+
+#
+class ConfTag:
+    KeepAlive = 'KeepAlive'
+
 
 # ===========================================================================
 #
@@ -68,6 +87,8 @@ class Config(Base):
         self.name = 'Config'
         self.filename = ''
         self.data = None
+        self.obj = None
+        self.keep_alive = {}
 
     def load(self, filename='d:/ultrasat/astropack.git/python/gcs/gcs.yml'):
         self.filename = filename
@@ -75,6 +96,13 @@ class Config(Base):
         with open(filename, 'r') as stream:
             try:
                 self.data = yaml.safe_load(stream)
+
+                # Parse
+                self.keep_alive = self.data[ConfTag.KeepAlive]
+
+                self.obj = dict2obj(self.data)
+                print(self.obj.KeepAlive.Interval)
+
             except yaml.YAMLError as ex:
                 print(ex)
 

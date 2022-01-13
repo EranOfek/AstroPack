@@ -5,8 +5,11 @@
 
 Interface:
 
-    MsgFolder: c:/gcs/msg/
-    ImageFolder: c:/gcs/images/
+    InMsgFolder: c:/gcs/inmsg/
+    OutMsgFolder: c:/gcs/outmsg/
+    InImageFolder: c:/gcs/inimage/
+
+    InMsgProcessedFolder: c:/gcs/inmsg_processed/
 
     List1: [Item1, Item2, Item3]
 
@@ -33,6 +36,12 @@ Interface:
             MyKey1: MyValue1
 
 
+
+KeepAlive:
+    Interval: 60
+    Timeout: 120
+    
+    
 Params:                             # 1×3 cell array
 
 

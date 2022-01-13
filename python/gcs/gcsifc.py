@@ -15,7 +15,11 @@
 #   - Interface save its current state to database, it can be restarted at any moment
 #
 
-import time
+import os, sys, shutil, time, glob, uuid, yaml, io, xmlplain
+import xml.etree.ElementTree as ET
+from datetime import datetime
+import json
+
 from gcsbase import Component, Config, FileProcessor
 from gcsbase import xml_to_yml
 from gcsmsg import *
@@ -35,6 +39,7 @@ class GcsInterface(Component):
         super().__init__()
         self.name = 'GcsInterface'
         self.terminated = False
+        self.startup_time = time.time()
 
         # Load configuration
         self.conf = Config()
@@ -43,13 +48,12 @@ class GcsInterface(Component):
         #
         self.gui = GuiHandler()
 
-        self.keep_alive_interval = 1*60
         self.last_rcv_keep_alive_time = 0
 
         # Download management
 
         self.in_com = FileProcessor()
-        self.in_com.rcv_path = 'c:/gcs/incom'
+        self.in_com.rcv_path = self.conf.obj.Interface.InMsgFolder
         self.in_com.input_file_mask = '*.xml'
 
         #'c:/gcs/incom_processed'
@@ -114,6 +118,8 @@ class GcsInterface(Component):
     #
     def send_msg(self, msg):
 
+        # if issubclass(MsgBase)
+
         # Convert message to XML text
         xml = msg.save_xml()
 
@@ -135,7 +141,7 @@ class GcsInterface(Component):
     #
     def handle_incoming_msgs(self):
         filename = self.in_com.poll_rcv()
-        if filename != '':
+        if filename:
 
             # XML file
             if filename.lower().endswith('.xml'):
@@ -172,8 +178,13 @@ class GcsInterface(Component):
             self.handle_msg_ack(yml)
         '''
 
-
-
+        # Move message file to processed messages folder
+        path, fn = os.path.split(filename)
+        fname = os.path.join(self.conf.obj.Interface.InMsgProcessedFolder, fn)
+        try:
+            shutil.move(filename, fname)
+        except:
+            os.remove(filename, fname)
 
     #------------------------------------------------------------------------
 
@@ -216,10 +227,14 @@ class GcsInterface(Component):
         t = time.time()
 
         # Check for received KeepAlive
-        if self.keep_alive_interval > 0:
-            last = self.last_rcv_keep_alive_time
-            elapsed = t - self.last_rcv_keep_alive_time
-            if elapsed > 2*self.keep_alive_interval:
+        if self.conf.obj.KeepAlive.Interval > 0:
+            if self.last_rcv_keep_alive_time == 0:
+                last = self.startup_time
+            else:
+                last = self.last_rcv_keep_alive_time
+
+            elapsed = t - last
+            if elapsed > self.conf.obj.KeepAlive.Timeout:
                 self.event_keep_alive()
 
 
@@ -229,6 +244,11 @@ class GcsInterface(Component):
 
     #
     def handle_msg_keep_alive(self, msg):
+        t = time.time()
+        self.last_rcv_keep_alive_time = t
+
+        # Clear event
+
         pass
 
 

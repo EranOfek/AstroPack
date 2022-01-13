@@ -174,8 +174,10 @@ Every message created by the GCS will include the following parameters:
 5.	Type of message: response to task, maintenance activity schedule, etc
 '''
 
-class MsgBase:
+# Should I put the data in Header member? i.e. MsgAck.header ?
 
+#class MsgHeader:
+class MsgBase:
     # Constructor
     def __init__(self, msg_type=''):
         # Data included in the message
@@ -284,7 +286,12 @@ class MsgBase:
 
         ET.SubElement(doc, 'Source').text = '2001-12-17T09:30:47.0Z'
 
+'''
+class MsgBase:
 
+    def __init__(self):
+        self.header = MsgHeader()
+'''
 
 # ============================================================================
 # 4-8 Acknowledge response
@@ -294,6 +301,7 @@ class MsgAck(MsgBase):
 
     # Constructor
     def __init__(self):
+        super().__init__()
         self.ack = ''       # 'ACK', 'NACK'
         self.details = ''   # NACK Details
 
@@ -313,6 +321,7 @@ class MsgKeepAlive(MsgBase):
 
     # Constructor
     def __init__(self):
+        super().__init__()
         self.msg_type = ''
 
     # Load from XML
@@ -355,6 +364,7 @@ class MsgImagingTask(MsgBase):
 
     # Constructor
     def __init__(self):
+        super().__init__()
         self.start_time = 0     # Time for beginning of imaging plan: Immediate (in case of ToO) or UTC time
         self.target_count = 0   # Total number of scientific targets in task
         self.target_list = []   # For every scientific target: MsgImagingTaskTarget
@@ -418,7 +428,7 @@ class MsgObrdTask(MsgBase):
 
     # Constructor
     def __init__(self):
-
+        super().__init__()
         self.oper_start_time = 0        # 1. Start time of operation
         self.obrd_task_type = ''        # 2. Type of OBRD task: download mode selection, specific images download,
                                         #    deletion mode, images to keep in OBRD, images to delete from OBRD
@@ -517,6 +527,7 @@ class MsgImagingTaskResponse(MsgBase):
 
     # Constructor
     def __init__(self):
+        super().__init__()
         self.plan_status = ''       # Imaging plan status: Approved / Not Approved / Approved with warnings
 
         # 2. Details (in case of status is "Not Approved"):
@@ -564,6 +575,7 @@ class MsgObrdTaskResponse(MsgBase):
 
     # Constructor
     def __init__(self):
+        super().__init__()
         self.task_status = ''       # OBRD task status: Approved / Not Approved
 
         # Details (in case of status is "Not Approved"):
