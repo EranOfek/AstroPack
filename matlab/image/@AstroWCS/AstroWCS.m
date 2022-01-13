@@ -10,9 +10,9 @@
 % TODO: modify tran2wcs to work with arrays. update unittest to check header2wcs with arrays
 %
 % 
-% Note: ds9 wcs conversions are not precise.
-% We use the ds9 xy2coo\coo2xy to test the AstroWCS xy2sky\sky2xy. 
-% When comparing coordinates, we observe weird trails in the difference between the two methods,
+% Note: The ds9 wcs conversions are not precise. 
+% We compare the ds9 xy2coo\coo2xy with the AstroWCS xy2sky\sky2xy. 
+% The comparison shows weird trails in the difference between the two methods,
 % with differences in the order of a few mas.
 % The reason for that is the ds9 discontinuity (probably numeric). 
 % The same check for AstroWCS methods shows no discontinuity. 
