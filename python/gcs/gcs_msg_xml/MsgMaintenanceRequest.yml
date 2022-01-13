@@ -1,22 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Msg>
-	<Header>
-		<MsgId>1fcb0710</MsgId>
-		<MsgTime>2022-01-28T00:00:00.0Z</MsgTime>
-		<MsgType>MaintenanceActivity</MsgType>
-		<Source>SOC</Source>		
-		<Target>GCS</Target>
-		<OrgMsgId></OrgMsgId>
-		<TaskId>8f53a9b6</TaskId>
-	</Header>
-	
-	<Tasks>
-		<Task>
-			<Type>Focusing</Type>
-			<StartTime>2022-01-28T00:00:00.0Z</StartTime>
-			<EndTime>2022-01-28T00:00:00.0Z</EndTime>
-			<PrefStartTime>2022-01-28T00:00:00.0Z</PrefStartTime>
-			<Duration>3600</Duration>			
-		</Task>
-	</Tasks>
-</Msg>
+
+Tasks:
+
+    Task:
+        Type: Focusing
+        StartTime: 2022-01-28T00:00:00.0Z
+        EndTime: 2022-01-28T00:00:00.0Z
+        PrefStartTime: 2022-01-28T00:00:00.0Z
+        Duration: 3600
+    
+    

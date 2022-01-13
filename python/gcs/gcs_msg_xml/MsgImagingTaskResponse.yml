@@ -1,33 +1,23 @@
-Response :
+Response:
 
     TaskId          : 8f53a9b6
     ResponseTime    : 2022-01-28T00:00:00.0Z
     Status          : Approved
-	Status          : NotApproved
-	Status          : ApprovedWithWarnings
+    Status          : NotApproved
+    Status          : ApprovedWithWarnings
     
-		
-		<!-- NotApproved with Violation details -->
-		<NotApproved>
-			<Violation>
-				<Time></Time>
-				<Rule>Electricity</Rule>
-				<Params>@TBD</Params>
-			</Violation>
-		</NotApproved>
-		
-		<!-- ApprovedWithWarnings -->
-		<ApprovedWithWarnings>
-			<Count>1</Count>
-			
-			<!-- Warnings -->
-			<Warning>
-				<Time></Time>
-				<Duration></Duration>
-				<Type></Type>
-				<Details>@TBD</Details>
-			</Warning>		
-		</ApprovedWithWarnings>
-		
-	</Response>
-</Msg>
+    NotApproved:
+        Violation:
+                Time: 2022-01-28T00:00:00.0Z
+                Rule: Electricity
+                Params: @TBD
+        
+        ApprovedWithWarnings:
+            Count: 1
+            
+            - Warning:
+                Time:
+                Duration:
+                Type:
+                Details:
+

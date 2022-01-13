@@ -1,0 +1,56 @@
+
+Tasks:
+
+    Task:
+
+        StartTime: 2022-05-28T00:00:00.0Z
+       
+        #
+        TaskType: DownloadMode
+        TaskType: DownloadImages
+        TaskType: DeletionMode
+        TaskType: ImagesToKeep
+        TaskType: ImagesToDelete
+     
+        #
+        DownloadMode:
+            Mode: Online
+            Mode: OfflineCurrent
+            Mode: OfflineStored
+
+        #
+        DownloadImages:
+            Count: 1
+            Part: Full
+            Image:
+                # 
+                ImageType: Imm
+                ImageId: 00104
+                StartTime: 0000-00-00T00:00:00.0Z
+                Duration: 25000
+                Integration: 300
+                Angle1RA: 36.1
+                Angle2DEC: 37.3
+                Priority: 1
+        
+        #
+        DeletionMode:
+            Mode: Automatic
+            Mode: FullyManual
+        
+        #
+        ImagesToKeep:
+            Image:
+                # @TBD - How exactly we refere to each image?
+                ImageType: Imm
+                ImageId: 00104
+                StartTime: 0000-00-00T00:00:00.0Z
+        
+        #
+        ImagesToDelete:
+            Image:
+                # @TBD - How exactly we refere to each image?
+                ImageType: Imm
+                ImageId: 00104
+                StartTime: 0000-00-00T00:00:00.0Z
+            

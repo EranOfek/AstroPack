@@ -1,0 +1,11 @@
+
+Response:
+    Status: Approved
+    Status: NotApproved
+    
+    NotApproved:
+        Violation:
+            Time:
+            Rule: Electricity
+            Params: @TBD
+

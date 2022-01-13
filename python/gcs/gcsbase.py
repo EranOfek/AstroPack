@@ -11,7 +11,7 @@
 #
 #
 
-import os, sys, time, glob, uuid, yaml
+import os, sys, time, glob, uuid, yaml, io, xmlplain
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
@@ -216,48 +216,59 @@ class FileProcessor(Component):
 
 # ===========================================================================
 
-XML_NODE_CONTENT = '_xml_node_content'
-ATTR_COMMENT = '# Attribute'
+# Convert XML file to YAML file or text
+# https://guillon.github.io/xmlplain/
+def xml_to_yml(xml_filename, yml_filename='', yml_obj=False):
 
-def yamlout(node, depth=0):
-    yml = ''
-    if not depth:
-        yml += '---\n'
-    # Nodes with both content AND nested nodes or attributes
-    # have no valid yaml mapping. Add  'content' node for that case
-    nodeattrs = node.attrib
-    children = list(node)
-    content = node.text.strip() if node.text else ''
-    if content:
-        if not (nodeattrs or children):
-            # Write as just a name value, nothing else nested
-            yml = yml + sys.stdout.write(
-                '{indent}{tag}: {text}\n'.format(
-                    indent=depth*'  ', tag=node.tag, text=content or ''))
-            return
+    # Read to plain object
+    with open(xml_filename) as inf:
+       root = xmlplain.xml_to_obj(inf, strip_space = True, fold_dict = True)
+
+    # Output to file
+    if yml_filename != '':
+        with open("example-1.yml", "w") as outf:
+            xmlplain.obj_to_yaml(root, outf)
+            return True
+
+    # Output to text or object
+    else:
+        yml_text = xmlplain.obj_to_yaml(root)
+        if yml_obj:
+            obj = yaml.safe_load(yml_text)
+            return obj
         else:
-            nodeattrs[XML_NODE_CONTENT] = node.text
-
-    yml = yml + '{indent}{tag}:\n'.format(indent=depth*'  ', tag=node.tag)
-
-    # Indicate difference node attributes and nested nodes
-    depth += 1
-    for n,v in nodeattrs.items():
-        yml = yml + \
-            '{indent}{n}: {v} {c}\n'.format(
-                indent=depth*'  ', n=n, v=v,
-                c=ATTR_COMMENT if n!=XML_NODE_CONTENT else '')
-
-    # Write nested nodes
-    for child in children:
-        yml = yml + yamlout(child, depth)
+            return yml_text
 
 
-# Convert XML file to YAML text
-def xml_to_yaml(filename):
-    with open(filename) as xmlf:
-        tree = ET.parse(xmlf)
-        yml = yamlout(tree.getroot())
-        return yml
+# Convert YAML text to XML file
+# Args:
+# Returns:
+def yml_to_xml(yml, xml_filename):
+
+    # Read the YAML file
+    #with open("example-1.yml") as inf:
+    #   root = xmlplain.obj_from_yaml(inf)
+    if type(yml) != str:
+        yml = yaml.dump(yml)
+
+    root = xmlplain.obj_from_yaml(yml)
+
+    # Output back XML
+    with open(xml_filename, "w") as outf:
+       xmlplain.xml_from_obj(root, outf, pretty = True)
+
+
+def test_yaml():
+    filename = 'd:/ultrasat/astropack.git/python/gcs/gcs.yml'
+
+    with open(filename, 'r') as stream:
+        yml_obj = yaml.safe_load(stream)
+
+    f = yml_obj['Interface']['MsgFolder']
+    f = yml_obj['Interface']['List1']
+    f = yml_obj['Interface']['Dict11']
+
+    l = yml_obj['Interface']['NonUniqueKeys']
+    l[3]['SameKey']
 
 
