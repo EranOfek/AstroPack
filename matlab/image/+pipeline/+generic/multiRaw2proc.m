@@ -273,9 +273,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     SubDir = '9';
+    %BasePath='/last04/data1/archive';
     
     %%% MUST save AllSI before procMergeCoadd
     
+    tic;
     % Save individual proc images
     IP   = ImagePath;
     Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcIm,...
@@ -283,7 +285,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Image', 'SubDir',SubDir});
+                           'SetProp',{'Product','Image', 'SubDir',SubDir, 'BasePath',BasePath});
 
 
     % Save individual mask images
@@ -293,7 +295,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Mask', 'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Mask', 'SubDir',SubDir});
+                           'SetProp',{'Product','Mask', 'SubDir',SubDir, 'BasePath',BasePath});
     
                        
     % Save individual catalog of images
@@ -303,7 +305,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Cat', 'IsSimpleFITS',false, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Cat', 'SubDir',SubDir});
+                           'SetProp',{'Product','Cat', 'SubDir',SubDir, 'BasePath',BasePath});
 
 
     % Save MergedCat
@@ -316,7 +318,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'FileType','fits', 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',false,...
-                           'SetProp',{'Product','Cat', 'Level','merged', 'Counter',0, 'SubDir',SubDir});
+                           'SetProp',{'Product','Cat', 'Level','merged', 'Counter',0, 'SubDir',SubDir, 'BasePath',BasePath});
 
     % Save MatchedS  
     IP   = ImagePath;
@@ -328,7 +330,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'FileType','hdf5'},...
                            'PropFromHeader',false,...
-                           'SetProp',{'Product','MergedMat', 'Level','merged', 'Counter',0, 'SubDir',SubDir});
+                           'SetProp',{'Product','MergedMat', 'Level','merged', 'Counter',0, 'SubDir',SubDir, 'BasePath',BasePath});
                    
               
                        
@@ -341,7 +343,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Image', 'SubDir',SubDir});
+                           'SetProp',{'Product','Image', 'SubDir',SubDir, 'BasePath',BasePath});
                   
     % Save Coadd Mask images
     IP   = ImagePath;
@@ -352,9 +354,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Mask',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Mask', 'SubDir',SubDir});
+                           'SetProp',{'Product','Mask', 'SubDir',SubDir, 'BasePath',BasePath});
                               
-    % Save Coadd Cat 
+    % Save Coadd Cat   
     IP   = ImagePath;
     IP.Counter = 0;
     IP.PathLevel = 'proc';
@@ -363,11 +365,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Cat',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Cat', 'SubDir',SubDir});
+                           'SetProp',{'Product','Cat', 'SubDir',SubDir, 'BasePath',BasePath});
                                                  
-         
     
-    
+    toc
     
     
     % for testing:
