@@ -26,7 +26,7 @@ function Result = unitTest
 
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [CooType, Units] = getCooType(AC);   
-    if CooType ~= 1
+    if char(CooType(1)) ~= 'Sphere'
        error('AstroCatalog Coordinates not interpreted correctly'); 
     end
     
