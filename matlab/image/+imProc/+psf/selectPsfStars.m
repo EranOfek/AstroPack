@@ -38,7 +38,7 @@ function [PsfXY, Flag, Flux, Back] = selectPsfStars(Obj, Args)
         Args.MinDeltaSN        = 1;                 % (SN-SNdelta)>MinDeltaSN
         Args.ColMom2           = {'X2','Y2','XY'};
         Args.DeltaSigma        = 0.5;
-        Args.ColMom1           = {'X','Y'};
+        Args.ColMom1           = {'X1','Y1'};
         Args.ColFluxNorm       = 'FLUX_APER_3';  % column of flux for normalization
         Args.ColBack           = 'BACK_ANNULUS';
     end

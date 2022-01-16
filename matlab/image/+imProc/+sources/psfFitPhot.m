@@ -12,6 +12,7 @@ function Result = psfFitPhot(Obj, Args)
         Args.XY                      = [];  % empty - find sources, or read from catalog
         Args.PSF                     = [];  % PSF, or function_handle
         Args.PSFArgs cell            = {};
+        Args.UpdateCat logical       = true;
         
         Args.ColX                    = AstroCatalog.DefNamesX;        
         Args.ColY                    = AstroCatalog.DefNamesY;       
@@ -92,9 +93,10 @@ function Result = psfFitPhot(Obj, Args)
         % PSF fitting
         
         % something wrong with CubePsfSub...
+        % Cube is Background subtracted
         [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
                                                                 'Std',Std,...
-                                                                'Back',Back,...
+                                                                'Back',0,...
                                                                 'FitRadius',Args.FitRadius,...
                                                                 'backgroundCubeArgs',Args.backgroundCubeArgs,...
                                                                 Args.psfPhotCubeArgs{:});
@@ -102,10 +104,18 @@ function Result = psfFitPhot(Obj, Args)
         % source measured position is at:
         % RoundX + Result.DX
         
-        % second iteration
-        Image = imUtil.cut.cutouts2image(Cube, Image, X, Y)
+        % second iteration - need to round X/Y???
+        %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
         
-    
+        
+        % add sources to catalog
+        % calculate magnitude
+        if Args.UpdateCat
+            Obj(Iobj).CatData.insertCol(double([Result.DX+RoundX, Result.DY+RoundY, Result.Flux, Result.Mag, Result.Chi2./Result.Dof]),...
+                                    Inf,...
+                                    {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'},...
+                                    {'pix',    'pix',    '',          'mag',     ''});
+        end
     end
     
 end

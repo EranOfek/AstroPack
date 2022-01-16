@@ -44,6 +44,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   Default is 1.
     %            'ConvThresh' - Convergence threshold. Default is 1e-4.
     %            'MaxIter' - Max number of iterations. Default is 10.
+    %            'ZP' - ZP for magnitude calculations.
     % Output : - A structure with the following fields:
     %            .Chi2 - Vector of \chi^2 (element per stamp).
     %            .Dof - The number of degrees of freedom in the fit.
@@ -59,6 +60,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   indicating if the PSF fitting for the stamp
     %                   converged.
     %            .Niter - Number of iterations used.
+    %            .Mag   - Magnitude (luptitude).
     %          - The input cube, after subtracting the fitted PSF from each
     %            stamp. If the background is provided, then it is returned
     %            to the stamps.
@@ -86,6 +88,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.MaxStep    = 1;
         Args.ConvThresh = 1e-4;
         Args.MaxIter    = 10;
+        
+        Args.ZP         = 25; 
     end
     
     % background treatment
@@ -198,6 +202,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     end
     
     Result.Flux = squeeze(Flux);
+    Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
     Result.DX = DX(:);
     Result.DY = DY(:);
     Result.Xinit = Args.Xinit;
@@ -239,7 +244,7 @@ function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF,
         MatR2    = MatX.^2 + MatY.^2;
         Flag     = MatR2<FitRadius2;
         ResidStd = Flag.*Resid./Std;
-        Dof      = sum(Flag,[1 2]) - 3;
+        Dof      = squeeze(sum(Flag,[1 2]) - 3);
     end
     
     Chi2  = sum( ResidStd.^2, [1 2], 'omitnan');
