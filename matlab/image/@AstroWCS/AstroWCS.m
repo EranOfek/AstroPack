@@ -8,6 +8,17 @@
 % Currently not supporting WCSAXES>2. Support only the option to read first 2 axis for NAXIS>2
 %
 % TODO: modify tran2wcs to work with arrays. update unittest to check header2wcs with arrays
+%
+% 
+% Note: The ds9 wcs conversions are not precise. 
+% We compare the ds9 xy2coo\coo2xy with the AstroWCS xy2sky\sky2xy. 
+% The comparison shows weird trails in the difference between the two methods,
+% with differences in the order of a few mas.
+% The reason for that is the ds9 discontinuity (probably numeric). 
+% The same check for AstroWCS methods shows no discontinuity. 
+% 
+
+
 
 % #functions (autogen)
 % AstroWCS - Basic constructor for AstroWCS class. User should usually use AstroWCS.header2wcs or AstroWCS.tran2wcs
@@ -43,6 +54,7 @@
 % xy2sky - Convert pixel coordinates to celestial coordinates
 % #/functions (autogen)
 %
+
 
 classdef AstroWCS < Component
     % Component should contain:

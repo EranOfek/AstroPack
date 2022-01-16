@@ -194,7 +194,6 @@ classdef FITS < handle
             
         end
         
-        
         function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)
             % Read a single image from a FITS file
             % A static function of FITS class
@@ -237,7 +236,6 @@ classdef FITS < handle
             matlab.io.fits.closeFile(Fptr);
 
         end
-        
         
         function [Cube] = read2cube(List,HDUnum,Args)
             % Read a list of FITS images into a cube (multiple file names or multiple HDUs)
@@ -437,7 +435,6 @@ classdef FITS < handle
         
         end
 
-        
         function Col = getTableCol(Fptr, TableType)
             % Table type
             % Note that these function have different return values and order
@@ -494,7 +491,6 @@ classdef FITS < handle
             end           
             
         end
-        
         
         function Col = breakRepCol(Col)
             % Deal with repeating table columns            
@@ -609,7 +605,6 @@ classdef FITS < handle
             end
         end
         
-        
         function [KeysVal,KeysComment,Struct,List] = mget_keys(Images,Keys,HDUnum,Str)
             % Get header keywords value from multiple FITS
             % Package: @FITS (Static)
@@ -654,7 +649,6 @@ classdef FITS < handle
 
         end
         
-        
         function delete_keys(ImageName,Keywords)
             % Delete a lits of keywords from a list of FITS headers
             % Package: @FITS (Static)
@@ -687,7 +681,6 @@ classdef FITS < handle
                 matlab.io.fits.closeFile(Fptr);
             end
         end
-        
         
         function write_keys(ImageName,KeyCell)
             % Insert or update FITS header keywords
@@ -732,7 +725,6 @@ classdef FITS < handle
                 matlab.io.fits.closeFile(Fptr);
             end
         end
-        
         
         function Result = write(Image, FileName, Args)
             % Write or append an image into FITS file.
@@ -807,6 +799,31 @@ classdef FITS < handle
 
         end % write()
         
+        function writeSimpleFITS(Image, FileName, Args)
+            % Write a simple (single HDU) FITS file to disk
+            % using io.fits.writeSimpleFITS
+            %   This function is a few times faster compared with CFITSIO routines.
+            % Input  : - An image data (e.g., matrix).
+            %          - File name in which to write the FITS file.
+            %          * ...,key,val,...
+            %            'Header' - A 2 or 3 columns cell array containing the
+            %                   header.
+            %            'DataType' - Image data type. If empty, use image type.
+            %                   Default is [].
+            % Output : null
+            % Author : Eran Ofek (Jan 2022)
+            % Example: FITS.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
+
+            arguments
+                Image
+                FileName
+                Args.Header cell              = {};
+                Args.DataType                 = [];
+            end
+            
+            io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header, 'DataType',Args.DataType);
+            
+        end
         
         function DataType = getDataType(ArgDataType)
             % Get FITS DataType 
@@ -835,7 +852,6 @@ classdef FITS < handle
             end
         end
         
-    
         function Header = prepareHeader(ArgsHeader, HeaderField, Args)
             % Prepare header before write
             % Input  : - ArgsHeader  : HEAD or AstroHeader object
@@ -877,7 +893,6 @@ classdef FITS < handle
                                             'COMMENT', 'File created by MATLAB FITS.write.m written by E. Ofek', '');                                        
             end
         end
-        
         
         function Result = writeHeader(Fptr, Header, HeaderField)            
             % write Header            
@@ -941,7 +956,6 @@ classdef FITS < handle
             %fprintf('writeHeader time: %0.6f', time);
             Result = true;                        
         end
-        
         
         % read to SIM
         function Sim = read2sim(Images,Args)
@@ -1038,7 +1052,6 @@ classdef FITS < handle
             end
             
         end
-        
         
     end
     
