@@ -301,7 +301,7 @@ classdef ImageIO < Component
                 Args.Dir char                 = '';
                 Args.Header                   = {};
                 Args.HDU                      = 1;
-                Args.FileType char            = 'fits';   % 'matai'
+                Args.FileType char            = 'fits';   % 'mat'
                 Args.DataProp char            = 'Image';  % Data prop in AstroImage
                 Args.DataType                 = '';  % only for images - force data type
                 Args.IsTable(1,1) logical     = false;
@@ -374,6 +374,8 @@ classdef ImageIO < Component
                     if Args.IsTable
                         % write FITS binary table
                         error('Writing FITS binary tables is not supported yet');
+                      
+                        
                     else
                         % write FITS image
                         if Args.IsSimpleFITS

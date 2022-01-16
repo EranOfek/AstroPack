@@ -189,7 +189,7 @@ classdef MatchedSources < Component
     end
     
     methods % write
-        function Result = write(Obj, FileName, Args)
+        function Result = write1(Obj, FileName, Args)
             % Write a MatchedSources object to HDF5 or mat file
             % Input  : - A single element MatchedSources object.
             %          - FileName to write.

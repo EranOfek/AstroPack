@@ -778,6 +778,8 @@ classdef AstroImage < Component
             %          - Data property to write. Default is 'Image'.
             %          * ...,key,val,...
             %            'FileType' - Default is 'fits'.
+            %            'IsSimpleFITS' - If true, use FITS.writeSimpleFITS
+            %                       Default is false.
             %            'WriteHeader' - Default is true.
             %            'Append' - Append in a new HDU.
             %                   Default is false.
@@ -793,6 +795,7 @@ classdef AstroImage < Component
                 Name
                 DataProp                      = 'Image';
                 Args.FileType                 = 'fits';
+                Args.IsSimpleFITS logical     = false;
                 Args.WriteHeader logical      = true;
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
@@ -809,11 +812,16 @@ classdef AstroImage < Component
                 case 'fits'
                     switch DataProp
                         case {'Image','Back','Var','Mask'}
-                            FITS.write(Obj.(DataProp), Name, 'Header',HeaderData,...
+                            if Args.IsSimpleFITS
+                                FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderData,...
+                                                               'DataType',class(Obj.(DataProp)));
+                            else
+                                FITS.write(Obj.(DataProp), Name, 'Header',HeaderData,...
                                                                'DataType',class(Obj.(DataProp)),...
                                                                'Append',Args.Append,...
                                                                'OverWrite',Args.OverWrite,...
                                                                'WriteTime',Args.WriteTime);
+                            end
                         case {'Cat','CatData'}
                             FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
                                                                    'Append',Args.Append,...
