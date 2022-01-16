@@ -18,14 +18,18 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import json
 
-#
+# Helper function for dict2obj()
 class dict2obj_hook(object):
     def __init__(self, dict_):
         self.__dict__.update(dict_)
 
-#
+
+# Convert YAML object to Python object
 def dict2obj(d):
     return json.loads(json.dumps(d), object_hook=dict2obj_hook)
+
+
+# @Todo - Convert back from object o YAML (and then to XML)
 
 # ===========================================================================
 #

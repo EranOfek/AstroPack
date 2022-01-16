@@ -5,15 +5,14 @@
 		<MsgTime>2018-02-28T00:00:00.0Z</MsgTime>
 		<MsgType>Ack</MsgType>
 		<Source>SOC</Source>		
-		<Target>GCS</Target>
 		<OrgMsgId>6ce624da</OrgMsgId>
-	</Header>
-	
+		<TaskId></TaskId>
+	</Header>	
 	<Ack>
 		<Status>Ack</Status>
 		<Status>NAck</Status>
 		
-		<!-- NAck -->
+		<!-- When Status is NAck -->
 		<NAckDetails>Details text...</NAckDetails>
 	</Ack>
 </Msg>

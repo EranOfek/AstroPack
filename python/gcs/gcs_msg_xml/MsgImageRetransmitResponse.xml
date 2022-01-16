@@ -3,15 +3,23 @@
 	<Header>
 		<MsgId>1fcb0710</MsgId>
 		<MsgTime>2022-01-28T00:00:00.0Z</MsgTime>
-		<MsgType>MaintenanceActivity</MsgType>
-		<Source>SOC</Source>		
+		<MsgType>ImagingTask</MsgType>
+		<Source>SOC</Source>
 		<OrgMsgId></OrgMsgId>
 		<TaskId>8f53a9b6</TaskId>
 	</Header>
 	
 	<Response>
+	
+		<!-- Status -->
 		<Status>Approved</Status>
 		<Status>NotApproved</Status>
-		<ApprovedStartTime>2022-01-28T00:00:00.0Z</ApprovedStartTime>
+
+		<!-- Details when Status is NotApproved -->
+		<NotApproved>
+			<Details>Text...</Details>
+		</NotApproved>
+		
 	</Response>
+
 </Msg>

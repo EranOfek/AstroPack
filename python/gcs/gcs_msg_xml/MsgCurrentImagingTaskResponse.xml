@@ -8,6 +8,8 @@
 		<OrgMsgId></OrgMsgId>
 		<TaskId>8f53a9b6</TaskId>
 	</Header>
+	
+	<!-- From here, same structure as MsgImagingTask.xml -->
 	<Tasks>
 		<Task>
 
@@ -23,7 +25,7 @@
 					<CoordRoll>0</CoordRoll>
 					<ExposureDuration>300</ExposureDuration>
 					<ImageCount>1</ImageCount>					<!-- Expected number of images -->
-					<Tiles>15</Tiles>							<!-- Binary combination of 1,2,4,8 -->
+					<Tiles>15</Tiles>							<!-- Binary conbination of 1,2,4,8 -->
 					
 					<!-- ImageID Generation - TBD -->
 					<ImageIdFormat>IMG%05d</ImageIdFormat>	<!-- TBD -->
@@ -31,21 +33,7 @@
 				</Target>
 
 				<!-- Target... -->
-				<!-- One or more Target records -->
-				<Target>
-					<StartTime>2022-05-28T00:00:00.0Z</StartTime>
-					<CoordRA>11111</CoordRA>
-					<CoordDec>22222</CoordDec>
-					<CoordRoll>33</CoordRoll>
-					<ExposureDuration>300</ExposureDuration>
-					<ImageCount>1</ImageCount>					<!-- Expected number of images -->
-					<Tiles>15</Tiles>							<!-- Binary combination of 1,2,4,8 -->
-					
-					<!-- ImageID Generation - TBD -->
-					<ImageIdFormat>IMG%05d</ImageIdFormat>	<!-- TBD -->
-					<FirstImageNum>1</FirstImageNum>		<!-- TBD -->
-				</Target>
-				
+
 			</Targets>
 
 		</Task>

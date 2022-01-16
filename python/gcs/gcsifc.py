@@ -21,7 +21,7 @@ from datetime import datetime
 import json
 
 from gcsbase import Component, Config, FileProcessor
-from gcsbase import xml_to_yml
+from gcsbase import xml_to_yml, dict2obj
 from gcsmsg import *
 from gcsdb import DbQuery, Database
 from gcsgui import GuiHandler, GuiMsg, GuiMsgType
@@ -144,14 +144,21 @@ class GcsInterface(Component):
         if filename:
 
             # XML file
-            if filename.lower().endswith('.xml'):
+            if filename.lower().endswith(MsgFileExt.XmlMsg):
                 self.handle_incoming_msg(filename)
 
 
     # @Todo: Do we need to send Ack for GCS messages?
     def handle_incoming_msg(self, filename):
+
+        # Convert XML file to YML file (save as .YML file for debugging)
         xml_to_yml(filename, yml_filename = filename + '.yml')
+
+        # Load XML file as YAML object
         yml = xml_to_yml(filename, yml_obj=True)
+        msg = dict2obj(yml)
+
+
         header = yml[MsgTag.Msg][MsgTag.Header]
 
         #msg = MsgBase()
@@ -354,6 +361,8 @@ class GcsInterface(Component):
 # ===========================================================================
 
 # Validate imaging task before sending to GCS
+# This class run the Validator provided by MABAT as "black-box"
+# @TBD - Should we run it as external process with input/output files?
 class ImagingTaskValidator(Component):
 
     # Constructor

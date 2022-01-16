@@ -38,11 +38,13 @@ from gcsbase import Component
 
 # ============================================================================
 
-# Current state
+# Current system state
 class State:
     def __init__(self):
         self.download_mode = ''         # Current download mode
         self.deletion_mode = ''         # Current deletion mode
+        self.msg_com_ok = True          # Message channel
+        self.data_com_ok = True         # Data channel
 
     # Save state to yaml text
     def save_yaml(self):
@@ -61,13 +63,19 @@ class State:
 
 #
 class MsgType:
-    Ack                     = 'Ack'
-    NAck                    = 'NAck'
-    KeepAlive               = 'KeepAlive'
-    ImagingTaskParams       = 'ImagingTaskParams'
-    ImagingTaskResponse     = 'ImagingTaskResponse'
-    ObrdTaskParams          = 'ObrdTaskParams'
-    ObrdTaskResponse        = 'ObrdTaskResponse'
+    Ack                         = 'Ack'
+    KeepAlive                   = 'KeepAlive'
+    ImagingTaskParams           = 'ImagingTaskParams'
+    ImagingTaskResponse         = 'ImagingTaskResponse'
+    ObrdTaskParams              = 'ObrdTaskParams'
+    ObrdTaskResponse            = 'ObrdTaskResponse'
+    MaintenanceTask             = 'MaintenanceTask'
+    MaintenanceTaskResponse     = 'MaintenanceTaskResponse'
+
+    MsgImageRetransmit          = 'MsgImageRetransmit'
+    MsgImageRetransmitResponse  = 'MsgImageRetransmitResponse'
+    CurrentImagingTask          = 'CurrentImagingTask'
+    CurrentImagingTaskResponse  = 'CurrentImagingTaskResponse'
 
 
 class MsgSource:
@@ -76,9 +84,9 @@ class MsgSource:
 
 #
 class DownloadMode:
-    Online = 'Online'
-    OfflineCurrent = 'OfflineCurrent'
-    OfflineStored = 'OfflineStored'
+    Online          = 'Online'
+    OfflineCurrent  = 'OfflineCurrent'
+    OfflineStored   = 'OfflineStored'
 
 
 class DeletionMode:
@@ -96,6 +104,7 @@ class MaintenanceType:
     GroundEquipment     = 'GroundEquipment'
 
 
+# List of all tags in messages
 class MsgTag:
     Msg         = 'Msg'
     Header      = 'Header'
@@ -146,10 +155,24 @@ class MsgTag:
     OfflineStored   = 'OfflineStored'
 
 
+# File Extenssion
+
+class MsgFileExt:
+    XmlMsg          = '.xml'        # XML message
+
+    # @TBD
+    ImageData       = '.img'        # Image data
+    ImageMetadata   = '.imm'        # Image metadata
+    Telemetry       = '.tlm'        # Telemetry data
+
+
+# Database Tables
 class DbTables:
-    State   = 'gcs_state'
-    Tasks   = 'gcs_tasks'
-    Events  = 'gcs_events'
+    State   = 'gcs_state'           # System State
+    Msgs    = 'gcs_msgs'            # Messages
+    Tasks   = 'gcs_tasks'           # Tasks
+    Events  = 'gcs_events'          # Events
+
 
 # ============================================================================
 #
@@ -179,124 +202,32 @@ Every message created by the GCS will include the following parameters:
 5.	Type of message: response to task, maintenance activity schedule, etc
 '''
 
-# Should I put the data in Header member? i.e. MsgAck.header ?
+# Common header for all type of messages
+class MsgHeader:
 
-#class MsgHeader:
-class MsgBase:
     # Constructor
     def __init__(self, msg_type=''):
         # Data included in the message
         self.msg_id = ''        # Unique ID for every message created by the GCS/SOC
-        self.msg_type = msg_type# Message type
-        self.source = ''        # Source of message: 'SOC' or 'GCS'
         self.msg_time = 0       # Date and Time of message creation
+        self.msg_type = ''      # Message type: Imaging task, OBRD task, non-imaging activity request, etc.
+        self.source = ''        # Source of message: 'SOC' or 'GCS'
         self.task_id = ''       # SOC task ID: a unique ID for every task created by the SOC (if applicable)
-        self.task_type = ''     # Type of task: Imaging task, OBRD task, non-imaging activity request, etc.
         self.src_msg_id = ''    # To which GCS message ID this message is relevant (if applicable)
 
-        # Meta-data
-        self.rcv_time = 0       # Date and time when message was received
-        self.send_time = 0      # Date and time when message was sent
-        self.process_time = 0   # Date and time when message was processed
-        self.db_pk = ''         # Primary key in Message table
-
-        # XML
-        self.xml_filename = ''
-        self.xml_encoding = 'UTF-8'
-        self.xml_tree = None
-        if self.msg_type != '':
-            self.xml_root = ET.Element(self.msg_type)
-            #self.xml_doc = ET.SubElement(self.xml_root, "status", date='20210123')
-        else:
-            self.xml_root = None
+        self.MsgType = ''
 
 
-    def load_header(self, header):
-        self.msg_id     = header.get(MsgTag.MsgId, '')
-        self.msg_type   = header.get(MsgTag.MsgType, '')
-        self.source     = header.get(MsgTag.Source, '')
-        self.msg_time   = header.get(MsgTag.MsgTime, '')
-        self.task_id    = header.get(MsgTag.TaskId, '')
-        self.task_type  = header.get(MsgTag.MsgType, '')
-        self.src_msg_id = header.get(MsgTag.SrcMsgId, '')
+# ============================================================================
 
+# ============================================================================
 
-    def write_header(self, header):
-        header = {}
-        header[MsgTag.MsgId]      = self.msg_id
-        header[MsgTag.MsgType]    = self.msg_type
-        header[MsgTag.Source]     = self.source
-        header[MsgTag.MsgTime]    = self.msg_time
-        header[MsgTag.TaskId]     = self.task_id
-        header[MsgTag.MsgType]    = self.task_type
-        header[MsgTag.SrcMsgId]   = self.src_msg_id
-        return header
-
-
-    # Load from XML
-    def read_xml(self):
-        pass
-
-    # Save to XML
-    def write_xml(self):
-        pass
-
-    # Load from XML
-    # See https://towardsdatascience.com/processing-xml-in-python-elementtree-c8992941efd2
-    def load_xml(self, filename):
-        self.xml_filename = filename
-        self.xml_tree = ET.parse(filename)
-        self.xml_root = self.xml_tree.getroot()
-        self.msg_type = xml_root.tag
-
-
-    # Save to XML
-    # See https://stackoverflow.com/questions/66651767/how-to-create-xml-file-using-python
-    def save_xml(self, filename):
-        self.xml_filename = filename
-        dom = xml.dom.minidom.parseString(ET.tostring(self.xml_root))
-        xml_string = dom.toprettyxml()
-        part1, part2 = xml_string.split('?>')
-
-        with open(filename, 'w') as xml_file:
-            xml_file.write(part1 + 'encoding=\"{}\"?>\n'.format(self.xml_encoding) + part2)
-            xml_file.close()
-
-
-    # Save Header section
-    def save_xml_header(self):
-        # See https://roytuts.com/building-xml-using-python/
-        '''
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!-- edited with XMLSPY v5 rel. 4 U (http://www.xmlspy.com) by VladislavGavrielov (Altova) -->
-        <ACK>
-            <Header>
-                <TimeStamp>2001-12-17T09:30:47.0Z</TimeStamp>
-                <SOCMessageId>
-                    <Time>2018-02-28T00:00:00.0Z</Time>
-                    <CreatorName>SOC1</CreatorName>
-                    <MessageType>ImageRequest</MessageType>
-                </SOCMessageId>
-                <ExternalMessageId>WhateverYouDecide</ExternalMessageId>
-                <Source>SOC1</Source>
-                <SourceNetId>11.10.9.8</SourceNetId>
-                <Target>SCC1</Target>
-                <TargetNetId>8.9.10.11</TargetNetId>
-                <SchemaVersion>1</SchemaVersion>
-            </Header>
-        </ACK>
-        '''
-        doc = ET.SubElement(self.xml_root, "Header", date="20210123")
-        ET.SubElement(doc, 'TimeStamp').text = '2001-12-17T09:30:47.0Z'
-
-        ET.SubElement(doc, 'Source').text = '2001-12-17T09:30:47.0Z'
-
-'''
 class MsgBase:
 
-    def __init__(self):
-        self.header = MsgHeader()
-'''
+    def __init__(self, msg_type=''):
+        # Data included in the message
+        self.Header = MsgHeader()   # Header
+        self.Header.MsgType = msg_type
 
 # ============================================================================
 # 4-8 Acknowledge response
@@ -306,17 +237,10 @@ class MsgAck(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
+        super().__init__(msg_type=MsgType.Ack)
         self.ack = ''       # 'ACK', 'NACK'
         self.details = ''   # NACK Details
 
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
 
 # ============================================================================
 # 4-9 Keep alive periodic message
@@ -326,16 +250,7 @@ class MsgKeepAlive(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
-        self.msg_type = ''
-
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
+        super().__init__(msg_type=MsgType.KeepAlive)
 
 
 # ============================================================================
@@ -369,7 +284,7 @@ class MsgImagingTask(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
+        super().__init__(msg_type=MsgType.ImagingTaskParams)
         self.start_time = 0     # Time for beginning of imaging plan: Immediate (in case of ToO) or UTC time
         self.target_count = 0   # Total number of scientific targets in task
         self.target_list = []   # For every scientific target: MsgImagingTaskTarget
@@ -389,15 +304,6 @@ class MsgImagingTask(MsgBase):
             self.num_exp = 0                            # Number of exposures (from 1 to unlimited) – TBD
             self.last_exp_time = 0                      # Start time of last exposure of current target - TBD
             self.tiles = 0                              # Camera tiles to be active: 1 and/or 2 and/or 3and/or 4 (default – all 4 tiles) (TBD)
-
-    # Load from XML
-    def load_from_xml(self, xml):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
-
 
 # ============================================================================
 
@@ -433,7 +339,7 @@ class MsgObrdTask(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
+        super().__init__(msg_type=MsgType.ObrdTaskParams)
         self.oper_start_time = 0        # 1. Start time of operation
         self.obrd_task_type = ''        # 2. Type of OBRD task: download mode selection, specific images download,
                                         #    deletion mode, images to keep in OBRD, images to delete from OBRD
@@ -462,14 +368,6 @@ class MsgObrdTask(MsgBase):
                                         #       One delete command shall contain up to 124 images to be deleted
 
 
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
-
 # ============================================================================
 
 # ============================================================================
@@ -483,17 +381,9 @@ class MsgMaintenanceTaskResponse(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
+        super().__init__(msg_type=MsgType.MaintenanceTaskResponse)
         self.request_status = ''       # GCS maintenance activity request status: Approved / Not Approved
         self.approved_start_time = 0   # Approved maintenance activity start time
-
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
 
 
 # ============================================================================
@@ -532,7 +422,7 @@ class MsgImagingTaskResponse(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
+        super().__init__(msg_type=MsgType.ImagingTaskResponse)
         self.plan_status = ''       # Imaging plan status: Approved / Not Approved / Approved with warnings
 
         # 2. Details (in case of status is "Not Approved"):
@@ -553,14 +443,6 @@ class MsgImagingTaskResponse(MsgBase):
                 self.warn_tbd = ''          # f. …
 
 
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
-
 # ============================================================================
 
 # ============================================================================
@@ -580,22 +462,13 @@ class MsgObrdTaskResponse(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
+        super().__init__(msg_type=MsgType.ObrdTaskResponse)
         self.task_status = ''       # OBRD task status: Approved / Not Approved
 
         # Details (in case of status is "Not Approved"):
         self.violation_time = 0     # a. Time of mission rule violation (only the first violation will be logged)
         self.violation_rule = ''    # b. Mission rule violated (TBD)
         self.violation_params = ''  # c. Violation parameters: TBD
-
-
-    # Load from XML
-    def load_from_xml(self):
-        pass
-
-    # Save to XML
-    def save_to_xml(self):
-        pass
 
 
 # ============================================================================
@@ -623,7 +496,7 @@ class MsgMaintenanceTask(MsgBase):
 
     # Constructor
     def __init__(self):
-        super().__init__()
+        super().__init__(msg_type=MsgType.MaintenanceTask)
         self.activity_name = ''     # 1. Maintenance activity name: for example, orbit maneuver, RWA calibration, telescope focusing, ground equipment maintenance, etc.
         self.start_time = 0         # 2. Start time of allowable time slot in which the activity can be performed
         self.end_time = 0           # 3. End time of time allowable slot in which the activity can be performed
@@ -634,16 +507,97 @@ class MsgMaintenanceTask(MsgBase):
                                     # time, the start time of the window and the preferred time shall be the same, and the end time should be equal to the start time + the duration time.
 
 
+# ============================================================================
+
+# ============================================================================
+
+# Base class
+class MsgData:
+    # Constructor
+    def __init__(self, msg_type=''):
+        # Data included in the message
+        self.header = MsgHeader()   # Header
+        self.msg_type = msg_type    # Message type
+
+        # Meta-data
+        self.rcv_time = 0           # Date and time when message was received
+        self.send_time = 0          # Date and time when message was sent
+        self.process_time = 0       # Date and time when message was processed
+        self.db_pk = ''             # Primary key in Message table
+
+        self.try_num = 0
+        self.max_try = 3
+
+        # XML
+        self.xml_filename = ''
+        self.xml_encoding = 'UTF-8'
+        self.xml_tree = None
+        if self.msg_type != '':
+            self.xml_root = ET.Element(self.msg_type)
+            #self.xml_doc = ET.SubElement(self.xml_root, "status", date='20210123')
+        else:
+            self.xml_root = None
+
+
+    # Load header from dictionary
+    def load_header(self, header):
+        self.header.msg_id     = header.get(MsgTag.MsgId, '')
+        self.header.msg_time   = header.get(MsgTag.MsgTime, '')
+        self.header.msg_type   = header.get(MsgTag.MsgType, '')
+        self.header.source     = header.get(MsgTag.Source, '')
+        self.header.src_msg_id = header.get(MsgTag.SrcMsgId, '')
+        self.header.task_id    = header.get(MsgTag.TaskId, '')
+
+
+    # Write header to dictionary
+    def write_header(self, header):
+        header = {}
+        header[MsgTag.MsgId]      = self.header.msg_id
+        header[MsgTag.MsgTime]    = self.header.msg_time
+        header[MsgTag.MsgType]    = self.header.msg_type
+        header[MsgTag.Source]     = self.header.source
+        header[MsgTag.SrcMsgId]   = self.header.src_msg_id
+        header[MsgTag.TaskId]     = self.header.task_id
+        return header
+
+
+'''
     # Load from XML
-    def load_from_xml(self):
+    def read_xml(self):
         pass
 
     # Save to XML
-    def save_to_xml(self):
+    def write_xml(self):
         pass
 
+    # Load from XML
+    # See https://towardsdatascience.com/processing-xml-in-python-elementtree-c8992941efd2
+    def load_xml(self, filename):
+        self.xml_filename = filename
+        self.xml_tree = ET.parse(filename)
+        self.xml_root = self.xml_tree.getroot()
+        self.msg_type = xml_root.tag
 
-# ============================================================================
 
-# ============================================================================
+    # Save to XML
+    # See https://stackoverflow.com/questions/66651767/how-to-create-xml-file-using-python
+    def save_xml(self, filename):
+        self.xml_filename = filename
+        dom = xml.dom.minidom.parseString(ET.tostring(self.xml_root))
+        xml_string = dom.toprettyxml()
+        part1, part2 = xml_string.split('?>')
+
+        with open(filename, 'w') as xml_file:
+            xml_file.write(part1 + 'encoding=\"{}\"?>\n'.format(self.xml_encoding) + part2)
+            xml_file.close()
+
+
+    # Save Header section
+    def save_xml_header(self):
+        # See https://roytuts.com/building-xml-using-python/
+        doc = ET.SubElement(self.xml_root, "Header", date="20210123")
+        ET.SubElement(doc, 'TimeStamp').text = '2001-12-17T09:30:47.0Z'
+
+        ET.SubElement(doc, 'Source').text = '2001-12-17T09:30:47.0Z'
+'''
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Msg>
+	<Header>
+		<MsgId>1fcb0710</MsgId>
+		<MsgTime>2022-01-28T00:00:00.0Z</MsgTime>
+		<MsgType>ImagingTask</MsgType>
+		<Source>SOC</Source>
+		<OrgMsgId></OrgMsgId>
+		<TaskId>8f53a9b6</TaskId>
+	</Header>
+	
+	<Retransmit>
+	
+		<Count>1</Count>
+		<Images>
+			<ImageId>00104...@TBD</ImageId>
+			<ImageId>00105...@TBD</ImageId>
+		</Images>					
+
+	</Retransmit>
+</Msg>
