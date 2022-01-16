@@ -286,8 +286,6 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SetProp',{'Product','Image', 'SubDir',SubDir});
 
 
-
-
     % Save individual mask images
     IP   = ImagePath;
     Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcMask,...
@@ -297,6 +295,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'PropFromHeader',true,...
                            'SetProp',{'Product','Mask', 'SubDir',SubDir});
     
+                       
     % Save individual catalog of images
     IP   = ImagePath;
     Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcCat,...
@@ -344,72 +343,29 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'PropFromHeader',true,...
                            'SetProp',{'Product','Image', 'SubDir',SubDir});
                   
-            
-                       
-                       
-             
-    
-    if Args.SaveMatchSrc
-        Nim = numel(MatchedS);
-        for Iim=1:1:Nim
-            IP.Product  = 'MergedMat';
-            IP.Level    = 'merged';
-            IP.Counter  = 0;
-            IP.FileType = 'hdf5';
-            IP.SubDir   = SubDir;
-            IP.CropID   = Iim;
-            MatchedS(Iim).write(IP.genFull('PathLevel','proc'));
-        end
-    end
-    
-    if Args.SaveCoaddIm
-        Nim = numel(Coadd);
-        for Iim=1:1:Nim
-            IP.readFromHeader(Coadd(Iim));  
-            IP.Product = 'Image';
-            IP.Counter = 0;
-            IP.SubDir  = SubDir;
-            % Path need to be like for an individual image
-            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Image', 'FileType','fits',...
-                                                   'WriteHeader',true,...
-                                                   'Append',false,...
-                                                   'OverWrite',true,...
-                                                   'WriteTime',false);
-        end
-       
-    end
-    
-    if Args.SaveCoaddMask
-        Nim = numel(Coadd);
-        for Iim=1:1:Nim
-            IP.readFromHeader(Coadd(Iim));  
-            IP.Product = 'Mask';
-            IP.Counter = 0;
-            IP.SubDir  = SubDir;
-            % Path need to be like for an individual image
-            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Mask', 'FileType','fits',...
-                                                   'WriteHeader',true,...
-                                                   'Append',false,...
-                                                   'OverWrite',true,...
-                                                   'WriteTime',false);
-        end
-    end
-    
-    if Args.SaveCoaddCat
-        Nim = numel(Coadd);
-        for Iim=1:1:Nim
-            IP.readFromHeader(Coadd(Iim));  
-            IP.Product = 'Cat';
-            IP.Counter = 0;
-            IP.SubDir  = SubDir;
-            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
-                                                   'WriteHeader',true,...
-                                                   'Append',false,...
-                                                   'OverWrite',true,...
-                                                   'WriteTime',false);
-                                               
-        end
-    end
+    % Save Coadd Mask images
+    IP   = ImagePath;
+    IP.Counter = 0;
+    IP.PathLevel = 'proc';
+    Future = saveProduct(IP, Coadd, 'Save',Args.SaveCoaddIm,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Mask',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Mask', 'SubDir',SubDir});
+                              
+    % Save Coadd Cat 
+    IP   = ImagePath;
+    IP.Counter = 0;
+    IP.PathLevel = 'proc';
+    Future = saveProduct(IP, Coadd, 'Save',Args.SaveCoaddIm,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Cat',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Cat', 'SubDir',SubDir});
+                                                 
+         
     
     
     

@@ -165,7 +165,7 @@ classdef ImagePath < Component
             PostDate = '';
 
             % Check Level
-            switch Obj.Level
+            switch PathLevel
                 % /base/data/ref/<area>/version<#>/ - All sky reference/coadd image - images/masks/catalogs/PSF
                 case { 'ref', 'coadd' }
                     PostDate = sprintf('%s%s%s%s', PathLevel, filesep, Obj.Area, ...
