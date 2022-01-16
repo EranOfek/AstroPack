@@ -706,7 +706,17 @@ classdef ImagePath < Component
                     ObjIP.CropID = Iprod;
                 end
 
-                Args.SaveFun(ObjProduct(Iprod), ObjIP.genFull, Args.SaveFunArgs{:});
+                FullName = ObjIP.genFull;
+                if Iprod==1
+                    % create Dir
+                    Path = fileparts(FullName);
+                    if exist(Path,'dir')==0
+                        % create dir
+                        mkdir(Path);
+                    end
+                end
+                    
+                Args.SaveFun(ObjProduct(Iprod), FullName, Args.SaveFunArgs{:});
             end
             
         end
