@@ -275,7 +275,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     SubDir = '9';
     %BasePath='/last04/data1/archive';
     
-    %%% MUST save AllSI before procMergeCoadd
+    %%% MUST save AllSI before procMergeCoadd !!!
     
     tic;
     % Save individual proc images

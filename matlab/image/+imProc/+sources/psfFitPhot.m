@@ -92,7 +92,9 @@ function Result = psfFitPhot(Obj, Args)
         
         % PSF fitting
         
-        % something wrong with CubePsfSub...
+        
+        warning('results are somewhat differnt than APER + larger scatter...');
+        
         % Cube is Background subtracted
         [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
                                                                 'Std',Std,...
