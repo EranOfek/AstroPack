@@ -186,20 +186,85 @@ classdef Targets < Component
             
         end
         
-        function isVisible(Obj, Args)
+        function [Az, Alt] = azalt(Obj, JD)
+            % get Az/Alt for target
+            % Input  : - Target object.
+            %          - JD. Default is current time.
+            % Output : - Az [deg]
+            %          - Alt [deg]
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T.generateTargetList('last');
+            %          [Az, Alt] = T.azalt
+            
+            arguments
+                Obj
+                JD       = celestial.time.julday;
+            end
+            
+            RAD = 180./pi;
+                   
+            LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
+            HA      = LST - Obj.RA;
+            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Obj.Dec./RAD, Obj.GeoPos(2)./RAD);
+            Az  = Az.*RAD;
+            Alt = Alt.*RAD;
+        end
+            
+        function [HA, LST] = ha(Obj, JD)
+            % get HA and LST for target
+            % Input  : - Target object.
+            %          - JD. Default is current time.
+            % Output : - HA [deg]
+            %          - LST [deg]
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T.generateTargetList('last');
+            %          [HA, LST] = T.ha
+            
+            arguments
+                Obj
+                JD       = celestial.time.julday;
+            end
+            
+            RAD = 180./pi;
+                   
+            LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
+            HA      = LST - Obj.RA;
+            
+        end
+            
+        
+        function isVisible(Obj, JD, Args)
             %
             
             arguments
                 Obj
-                Args.JD     = celestial.time.julday;
+                JD     = celestial.time.julday;
+                
+                Args.CheckDec logical   = true;
+                Args.CheckAlt logical   = true;
+                Args.CheckAzAlt logical = true;
+                Args.CheckSun logical   = true;
+                Args.CheckMoon logical  = true;
             end
             
             RAD = 180./pi;
             
-            Flag.DecRange = Obj.Dec>=Obj.DecRange(1) & Obj.Dec<=Obj.DecRange(2);
+            if Args.CheckDec
+                Flag.DecRange = Obj.Dec>=Obj.DecRange(1) & Obj.Dec<=Obj.DecRange(2);
+            else
+                Flag.DecRange = true;
+            end
             
+            [HA, LST] = Obj.ha(JD);
+            [Az, Alt] = Obj.azalt(JD); 
             
+            if Args.CheckAlt
+                Flag.Alt     = Alt>Obj.AltLimit;
+            else
+                Flag.Alt     = true;
+            end
             
+            % got here...
             
             
         end
