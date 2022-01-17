@@ -6,27 +6,49 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, Buttons, Process;
+  StdCtrls, Buttons, ComCtrls, Process;
 
 type
 
   { TForm1 }
 
   TForm1 = class(TForm)
-    BtnRunMain: TBitBtn;
-    BtnStartup: TBitBtn;
     BtnCloseAll: TBitBtn;
     BtnLiveLeft: TBitBtn;
     BtnLiveRight: TBitBtn;
     BtnRecordLeft: TBitBtn;
     BtnRecordRight: TBitBtn;
+    BtnRunMain: TBitBtn;
     BtnSdCard: TBitBtn;
+    BtnStartup: TBitBtn;
+    Edit1: TEdit;
+    Edit2: TEdit;
     Image1: TImage;
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
+    Label4: TLabel;
+    MemoLog: TMemo;
+    MemoXml: TMemo;
+    MemoYml: TMemo;
+    PageControl1: TPageControl;
     Panel1: TPanel;
+    Panel10: TPanel;
     Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    Panel6: TPanel;
+    Panel7: TPanel;
+    Panel8: TPanel;
+    Panel9: TPanel;
+    PanelLog: TPanel;
+    PanelLog1: TPanel;
+    PanelLog2: TPanel;
+    Splitter1: TSplitter;
+    TabSheet1: TTabSheet;
+    TabSheetGcsInterface: TTabSheet;
+    TabSheetSimulator: TTabSheet;
     procedure BtnCloseAllClick(Sender: TObject);
     procedure BtnLiveLeftClick(Sender: TObject);
     procedure BtnLiveRightClick(Sender: TObject);
@@ -108,7 +130,6 @@ procedure TForm1.BtnStartupClick(Sender: TObject);
 begin
   RunScript('startup.sh');
 end;
-
 
 end.
 
