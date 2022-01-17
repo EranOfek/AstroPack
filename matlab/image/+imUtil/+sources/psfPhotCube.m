@@ -227,9 +227,27 @@ end
 function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
     % Return Chi2 for specific PSF and Cube
     % shift PSF
-            
+    
+    
+    
+    FluxMethod = 'medall';
+    
+    % Shifting PSF is safer, because of the fft on a smooth function is
+    % more reliable.
     ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
-    WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
+    
+    switch FluxMethod
+        case 'wsumall'
+            WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
+        case 'meanall'
+            WeightedFlux = mean(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;
+        case 'medall'
+            WeightedFlux = median(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;    
+        case 'med'
+            
+        otherwise
+            error('Unknown FluxMethod option');
+    end
     Resid = Cube - WeightedFlux.*ShiftedPSF;
     
     % FFU: search / remove outliers
