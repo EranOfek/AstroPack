@@ -62,6 +62,7 @@ type
     TabSheet1: TTabSheet;
     TabSheetGcsInterface: TTabSheet;
     TabSheetSimulator: TTabSheet;
+    procedure BtnCloseAll1Click(Sender: TObject);
     procedure BtnLiveLeft1Click(Sender: TObject);
     procedure ComboBoxXmlFileNameChange(Sender: TObject);
     procedure ComboBoxYmlFileNameChange(Sender: TObject);
@@ -69,6 +70,7 @@ type
 
   public
 
+    procedure SendGuiMsg(AText: String);
   end;
 
 var
@@ -119,6 +121,40 @@ begin
   end;
 end;
 
+const
+  LineBreak: String = Char(#10);
+
+
+function NewFileName: String;
+var
+  Path: String;
+  FileName: String;
+begin
+  Path := 'c:\gcs\gui\';
+  FileName := Path + FormatDateTime('YYYY_MM_DD__HH_MM_SS_zzz', Now);
+  Result := FileName;
+end;
+
+procedure TForm1.SendGuiMsg(AText: String);
+var
+   FileName: String;
+   Lines: TStringList;
+begin
+  FileName := NewFileName();
+
+  MemoXml.Lines.SaveToFile(FileName + '.xml');
+  MemoYml.Lines.SaveToFile(FileName + '.yml');
+
+  Lines := TStringList.Create;
+  try
+    Lines.Text := AText;
+    Lines.SaveToFile(FileName + '.msg.yml');
+  finally
+    Lines.Free;
+  end;
+end;
+
+
 procedure TForm1.BtnLiveLeft1Click(Sender: TObject);
 var
   Path: String;
@@ -126,6 +162,17 @@ begin
   Path := 'D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
   LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
   LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
+end;
+
+procedure TForm1.BtnCloseAll1Click(Sender: TObject);
+var
+  Yml: String;
+begin
+  Yml :=
+     'Msg:'                                + LineBreak +
+     '  Cmd: SendFile'                     + LineBreak +
+     LineBreak;
+  SendGuiMsg(Yml);
 end;
 
 procedure TForm1.ComboBoxXmlFileNameChange(Sender: TObject);

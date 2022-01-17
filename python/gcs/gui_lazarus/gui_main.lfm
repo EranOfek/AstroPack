@@ -11255,6 +11255,7 @@ object Form1: TForm1
               Top = 328
               Width = 222
               Caption = 'Close All'
+              OnClick = BtnCloseAll1Click
               TabOrder = 6
             end
             object BtnSdCard1: TBitBtn
