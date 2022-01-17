@@ -10,7 +10,7 @@ classdef Targets < Component
         IsManual logical           = false;
         RA
         Dec
-                
+        
         LastJD
         GlobalCounter
         NightCounter
@@ -92,7 +92,15 @@ classdef Targets < Component
     
     methods % visibility
         function [Sun] = sunCoo(Obj, JD)
-            %
+            % Return Sun RA/Dec and geometric Az/Alt
+            % Input  : - Targets object.
+            %          - JD. Default is current time.
+            % Output : - A structure with Sun:
+            %            .RA [deg]
+            %            .Dec [deg]
+            %            .Az [deg]
+            %            .Alt [deg]
+            % Author : Eran Ofek (Jan 2022)
             % Example: T.generateTargetList('last');
             %          [Sun] = T.sunCoo
             
@@ -112,7 +120,71 @@ classdef Targets < Component
             Sun.Az  = Az.*RAD;
             Sun.Alt = Alt.*RAD;
         end
+        
+        function Moon = moonCoo(Obj, JD)
+            % Return Moon phase/RA/Dec and geometric Az/Alt
+            % Input  : - Targets Sunobject.
+            %          - JD. Default is current time.
+            % Output : - A structure with Moon:
+            %            .RA [deg]
+            %            .Dec [deg]
+            %            .Az [deg]
+            %            .Alt [deg]
+            %            .Illum  - illumination fraction.
+            %            .Phase [deg]
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T.generateTargetList('last');
+            %          [Moon] = T.moonCoo
             
+            arguments
+                Obj
+                JD       = celestial.time.julday;
+            end
+            
+            RAD = 180./pi;
+                        
+            [RA, Dec] = celestial.SolarSys.mooncool(JD, Obj.GeoPos(1:2), 'b');
+            Moon.RA  = RA.*RAD;
+            Moon.Dec = Dec.*RAD;
+            LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
+            HA      = LST - RA;
+            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Moon.Dec./RAD, Obj.GeoPos(2)./RAD);
+            Moon.Az  = Az.*RAD;
+            Moon.Alt = Alt.*RAD;
+            
+            % Moon phase/illumination
+            [Moon.Illum, Moon.Phase] = celestial.SolarSys.moon_illum(JD);
+            Moon.Phase = Moon.Phase.*RAD;
+            
+        end
+        
+        function [MoonDist, Moon] = moonDist(Obj, JD)
+            % Calculate Moon distance for all targets 
+            % Input  : - Targets Sunobject.
+            %          - JD. Default is current time.
+            % Output : - Vector of Moon distance [deg] per target.
+            %          - A structure with Moon:
+            %            .RA [deg]
+            %            .Dec [deg]
+            %            .Az [deg]
+            %            .Alt [deg]
+            %            .Illum  - illumination fraction.
+            %            .Phase [deg]
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T.generateTargetList('last');
+            %          [MD, Moon] = T.moonDist
+            arguments
+                Obj
+                JD                 = celestial.time.julday;
+            end
+            RAD = 180./pi;
+            
+            Moon = moonCoo(Obj, JD);
+            
+            MoonDist = celestial.coo.sphere_dist_fast(Obj.RA./RAD, Obj.Dec./RAD, Moon.RA./RAD, Moon.Dec./RAD);
+            MoonDist = MoonDist.*RAD;
+            
+        end
         
         function isVisible(Obj, Args)
             %
@@ -135,14 +207,25 @@ classdef Targets < Component
     end
     
     methods (Static)  % static utilities
-        function TargetName = radec2name(RA,Dec)
+        function TargetName = radec2name(RA,Dec, Fun)
             % given RA/Dec [deg] generate names in cell array %03d+%02d
             
+            arguments
+                RA
+                Dec
+                Fun = @round;
+            end
+            
             Ntarget      = numel(RA);
-             TargetName  = cell(Ntarget,1);
-             for Itarget=1:1:Ntarget
-                TargetName{Itarget} = sprintf('%03d%+02d', RA(Itarget), Dec(Itarget));
-             end
+            TargetName  = cell(Ntarget,1);
+            Sign = sign(Dec);
+            for Itarget=1:1:Ntarget
+                if Sign(Itarget)>0 
+                    TargetName{Itarget} = sprintf('%03d+%02d', Fun(RA(Itarget)), Fun(abs(Dec(Itarget))));
+                else
+                    TargetName{Itarget} = sprintf('%03d-%02d', Fun(RA(Itarget)), Fun(abs(Dec(Itarget))));
+                end
+            end
         end
     end
 
