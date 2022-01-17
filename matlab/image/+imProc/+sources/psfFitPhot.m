@@ -90,6 +90,7 @@ function Result = psfFitPhot(Obj, Args)
         % get Cube of stamps around sources
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
         
+        
         % PSF fitting
         
         
@@ -105,6 +106,11 @@ function Result = psfFitPhot(Obj, Args)
                                                                 
         % source measured position is at:
         % RoundX + Result.DX
+        Result.RoundX = RoundX;
+        Result.RoundY = RoundY;
+        Result.X = Result.RoundX + Result.DX;
+        Result.Y = Result.RoundY + Result.DY;
+        
         
         % second iteration - need to round X/Y???
         %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
@@ -113,7 +119,7 @@ function Result = psfFitPhot(Obj, Args)
         % add sources to catalog
         % calculate magnitude
         if Args.UpdateCat
-            Obj(Iobj).CatData.insertCol(double([Result.DX+RoundX, Result.DY+RoundY, Result.Flux, Result.Mag, Result.Chi2./Result.Dof]),...
+            Obj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.Chi2./Result.Dof]),...
                                     Inf,...
                                     {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'},...
                                     {'pix',    'pix',    '',          'mag',     ''});
