@@ -62,15 +62,18 @@ type
     TabSheet1: TTabSheet;
     TabSheetGcsInterface: TTabSheet;
     TabSheetSimulator: TTabSheet;
+    TimerPollGuiMsg: TTimer;
     procedure BtnCloseAll1Click(Sender: TObject);
     procedure BtnLiveLeft1Click(Sender: TObject);
     procedure ComboBoxXmlFileNameChange(Sender: TObject);
     procedure ComboBoxYmlFileNameChange(Sender: TObject);
+    procedure TimerPollGuiMsgTimer(Sender: TObject);
   private
 
   public
 
     procedure SendGuiMsg(AText: String);
+    procedure ProcessGuiFile(FileName: String);
   end;
 
 var
@@ -189,6 +192,68 @@ var
 begin
   FileName := ComboBoxXmlFileName.Items[ComboBoxYmlFileName.ItemIndex];
   MemoYml.Lines.LoadFromFile(FileName);
+end;
+
+//function GetKey(Lines: TStrings:
+
+
+function ExtractBetween(const Value, A, B: string): string;
+var
+  aPos, bPos: Integer;
+begin
+  result := '';
+  aPos := Pos(A, Value);
+  if aPos > 0 then begin
+    aPos := aPos + Length(A);
+    bPos := Pos(B, Value, aPos);
+    if bPos > 0 then begin
+      Result := Trim(Copy(Value, aPos, bPos - aPos));
+    end;
+  end;
+end;
+
+
+
+procedure TForm1.ProcessGuiFile(FileName: String);
+var
+  Lines: TStringList;
+begin
+  Lines := TStringList.Create;
+  try
+    Lines.LoadFromFile(FileName);
+
+
+  finally
+    Lines.Free;
+  end;
+end;
+
+
+
+procedure TForm1.TimerPollGuiMsgTimer(Sender: TObject);
+var
+  Path: String;
+  FileName: String;
+  FileList: TStringList;
+begin
+  TimerPollGuiMsg.Enabled := false;
+
+  Path := 'c:\gcs\gui_in';
+  FileList := TStringList.Create;
+  try
+    LoadFilesList(Path, '*.yml', FileList);
+    FileList.Sort;
+    if FileList.Count > 0 then
+    begin
+        FileName := FileList.Strings[0];
+        ProcessGuiFile(FileName);
+    end;
+
+  finally
+    FileList.Free;
+  end;
+
+  TimerPollGuiMsg.Enabled := true;
 end;
 
 end.

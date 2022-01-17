@@ -108,12 +108,45 @@ class GcsInterface(Component):
 
 
     # -----------------------------------------------------------------------
-    #                          Send Messages to GCS
+    #                   Send Messages to GCS & send_msg_...()
     # -----------------------------------------------------------------------
 
     #
     def handle_outgoing_msgs(self):
         pass
+
+
+    # -----------------------------------------------------------------------
+
+    #
+    def send_msg_ack(self, msg):
+        pass
+
+    #
+    def send_msg_keep_alive(self):
+        pass
+
+
+    def send_msg_imaging_task(self, msg):
+        pass
+
+
+    def send_msg_obrd_task(self):
+        pass
+
+
+    def send_msg_maintenance_task_response(self):
+        pass
+
+
+    def send_msg_current_imaging_task(self):
+        pass
+
+
+    def send_msg_retransmit_images(self):
+        pass
+
+    # -----------------------------------------------------------------------
 
     #
     def send_msg(self, msg):
@@ -130,9 +163,6 @@ class GcsInterface(Component):
         # Save file to outgoing messages folder
 
 
-    #
-    def send_ack(self, msg):
-        pass
 
     # -----------------------------------------------------------------------
     #                   Handle Incoming Messages from GCS
@@ -170,20 +200,16 @@ class GcsInterface(Component):
         #
         if msg_type == MsgTag.KeepAlive:
             self.handle_msg_keep_alive(yml)
-        else:
-            self.log('handle_incoming_msg: unknnown msg_type: %s' % msg_type)
-
-
-        '''
         elif msg_type == MsgTag.Ack:
             self.handle_msg_ack(yml)
         elif msg_type == MsgTag.ImagingTaskResponse:
-            self.handle_msg_ack(yml)
+            self.handle_msg_imaging_task_response(yml)
         elif msg_type == MsgTag.ObrdTaskResponse:
-            self.handle_msg_ack(yml)
+            self.handle_msg_obrd_task_response(yml)
         elif msg_type == MsgTag.MaintenanceTask:
-            self.handle_msg_ack(yml)
-        '''
+            self.handle_msg_maintenance_task(yml)
+        else:
+            self.log('handle_incoming_msg: unknnown msg_type: %s' % msg_type)
 
         # Move message file to processed messages folder
         path, fn = os.path.split(filename)
@@ -245,9 +271,6 @@ class GcsInterface(Component):
                 self.event_keep_alive()
 
 
-    #
-    def send_keep_alive(self):
-        pass
 
     #
     def handle_msg_keep_alive(self, msg):
@@ -294,8 +317,6 @@ class GcsInterface(Component):
         msg = MsgImagingTask
 
 
-    def send_imaging_task(self, msg):
-        pass
 
     # Send message to GCS
     def handle_imaging_task_response(self, msg):
@@ -313,6 +334,7 @@ class GcsInterface(Component):
     #                       Image Download & OBRD
     # -----------------------------------------------------------------------
 
+
     def manage_image_downloads(self):
         pass
 
@@ -325,6 +347,18 @@ class GcsInterface(Component):
     # Send message to GCS
     def handle_obrd_task_response(self, msg):
         pass
+
+
+    # -----------------------------------------------------------------------
+    #                       Image Download & OBRD
+    # -----------------------------------------------------------------------
+
+
+    # -----------------------------------------------------------------------
+    #                       Image Download & OBRD
+    # -----------------------------------------------------------------------
+
+
 
 
     # -----------------------------------------------------------------------

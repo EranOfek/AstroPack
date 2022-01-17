@@ -215,7 +215,18 @@ class MsgHeader:
         self.task_id = ''       # SOC task ID: a unique ID for every task created by the SOC (if applicable)
         self.src_msg_id = ''    # To which GCS message ID this message is relevant (if applicable)
 
-        self.MsgType = ''
+
+class MsgHeader2:
+
+    # Constructor
+    def __init__(self, msg_type=''):
+        # Data included in the message
+        self.MsgId = ''         # Unique ID for every message created by the GCS/SOC
+        self.MsgTime = 0        # Date and Time of message creation
+        self.MsgType = ''       # Message type: Imaging task, OBRD task, non-imaging activity request, etc.
+        self.Source = ''        # Source of message: 'SOC' or 'GCS'
+        self.TaskId = ''        # SOC task ID: a unique ID for every task created by the SOC (if applicable)
+        self.OrgMsgId = ''      # To which GCS message ID this message is relevant (if applicable)
 
 
 # ============================================================================

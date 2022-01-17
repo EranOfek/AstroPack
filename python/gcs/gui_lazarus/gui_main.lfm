@@ -11745,4 +11745,10 @@ object Form1: TForm1
       ParentColor = False
     end
   end
+  object TimerPollGuiMsg: TTimer
+    Interval = 100
+    OnTimer = TimerPollGuiMsgTimer
+    Left = 297
+    Top = 127
+  end
 end

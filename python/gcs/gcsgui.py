@@ -16,6 +16,7 @@ class GuiMsgType(Enum):
     SendKeepAlive = 'send_keep_alive'
 
 
+# ---------------------------------------------------------------------------
 
 # Simple message encoded as INI file section
 class GuiMsg:
@@ -49,6 +50,8 @@ class GuiMsg:
         self.type = self.params['type']
 
 
+# ---------------------------------------------------------------------------
+
 class GuiHandler(Component):
 
     # Constructor
@@ -63,6 +66,18 @@ class GuiHandler(Component):
         # Deleted
         pass
 
+
+    # -----------------------------------------------------------------------
+    # Display log
+    def send_log(self, text):
+        msg = ( \
+            'Msg:\n' +
+            '  Cmd: Log\n' +
+            '  Param: ' + text + '\n')
+
+        self.send(msg)
+
+    # -----------------------------------------------------------------------
     def process_msg(self, msg):
         pass
 

@@ -54,11 +54,11 @@ GEN_FIREBIRD    = False         # FirebirdSQL v2.5,3
 GEN_SQLITE      = True          # SQLite v3
 
 # Languages
-GEN_PYTHON      = False         # Python v3
+GEN_PYTHON      = True          # Python v3
 GEN_MATLAB      = False         # MATLAB 2020b
 GEN_CPP         = False         # C++ 0x03
-GEN_DELPHI  = False             # Delphi/Lazarus
-GEN_DART    = False             # Flutter
+GEN_DELPHI      = False         # Delphi/Lazarus
+GEN_DART        = False         # Flutter
 
 # Generate code for functions
 GEN_DESTRUCTOR = False      # Generate destructor code
