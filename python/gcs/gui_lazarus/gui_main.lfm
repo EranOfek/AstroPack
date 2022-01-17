@@ -1,29 +1,29 @@
 object Form1: TForm1
-  Left = 29
-  Height = 828
-  Top = 24
-  Width = 1211
+  Left = 12
+  Height = 800
+  Top = 14
+  Width = 1093
   Align = alTop
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'ULTRASAT GCS Interface / Simulator'
-  ClientHeight = 828
-  ClientWidth = 1211
+  ClientHeight = 800
+  ClientWidth = 1093
   LCLVersion = '2.0.12.0'
   object Panel1: TPanel
     Left = 0
     Height = 64
     Top = 0
-    Width = 1211
+    Width = 1093
     Align = alTop
     ClientHeight = 64
-    ClientWidth = 1211
+    ClientWidth = 1093
     TabOrder = 0
     object Image1: TImage
       Left = 1
       Height = 62
       Top = 1
-      Width = 1209
+      Width = 1091
       Align = alClient
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963FD6B050089504E47
@@ -11153,286 +11153,26 @@ object Form1: TForm1
   end
   object Panel2: TPanel
     Left = 0
-    Height = 764
+    Height = 736
     Top = 64
-    Width = 1211
+    Width = 1093
     Align = alClient
-    ClientHeight = 764
-    ClientWidth = 1211
+    ClientHeight = 736
+    ClientWidth = 1093
     TabOrder = 1
-    object Panel3: TPanel
-      Left = 440
-      Height = 704
-      Top = 24
-      Width = 730
-      BorderWidth = 4
-      Caption = 'Panel3'
-      ClientHeight = 704
-      ClientWidth = 730
-      TabOrder = 0
-      object Panel10: TPanel
-        Left = 26
-        Height = 669
-        Top = 19
-        Width = 462
-        BorderWidth = 8
-        Caption = 'Panel10'
-        ClientHeight = 669
-        ClientWidth = 462
-        Color = clOlive
-        ParentColor = False
-        TabOrder = 0
-        object PanelLog2: TPanel
-          Left = 9
-          Height = 359
-          Top = 9
-          Width = 444
-          Align = alClient
-          BorderWidth = 4
-          Caption = 'PanelLog2'
-          ClientHeight = 359
-          ClientWidth = 444
-          TabOrder = 0
-          object MemoYml: TMemo
-            Left = 5
-            Height = 288
-            Top = 66
-            Width = 434
-            Align = alClient
-            Lines.Strings = (
-              'Msg:'
-              '  Header:'
-              '    MsgId: 1fcb0710'
-              '    MsgTime: ''2022-01-28T00:00:00.0Z'''
-              '    MsgType: ImagingTask'
-              '    Source: SOC'
-              '    OrgMsgId: '''''
-              '    TaskId: 8f53a9b6'
-              '  Tasks:'
-              '    Task:'
-              '      StartTime: ''2022-05-28T00:00:00.0Z'''
-              '      TargetCount: ''2'''
-              '      Targets:'
-              '      - Target:'
-              '          StartTime: ''2022-05-28T00:00:00.0Z'''
-              '          CoordRA: ''111'''
-              '          CoordDec: ''222'''
-              '          CoordRoll: ''0'''
-              '          ExposureDuration: ''300'''
-              '          ImageCount: ''1'''
-              '          Tiles: ''15'''
-              '          ImageIdFormat: IMG%05d'
-              '          FirstImageNum: ''1'''
-              '      - Target:'
-              '          StartTime: ''2022-05-28T00:00:00.0Z'''
-              '          CoordRA: ''11111'''
-              '          CoordDec: ''22222'''
-              '          CoordRoll: ''33'''
-              '          ExposureDuration: ''300'''
-              '          ImageCount: ''1'''
-              '          Tiles: ''15'''
-              '          ImageIdFormat: IMG%05d'
-              '          FirstImageNum: ''1'''
-            )
-            TabOrder = 0
-          end
-          object Panel6: TPanel
-            Left = 5
-            Height = 24
-            Top = 5
-            Width = 434
-            Align = alTop
-            Caption = 'YAML'
-            Color = clYellow
-            Font.CharSet = ANSI_CHARSET
-            Font.Color = clBlack
-            Font.Height = -12
-            Font.Name = 'Segoe UI'
-            Font.Pitch = fpVariable
-            Font.Quality = fqDraft
-            Font.Style = [fsBold]
-            ParentColor = False
-            ParentFont = False
-            TabOrder = 1
-          end
-          object Panel8: TPanel
-            Left = 5
-            Height = 37
-            Top = 29
-            Width = 434
-            Align = alTop
-            ClientHeight = 37
-            ClientWidth = 434
-            Color = clMoneyGreen
-            Font.CharSet = ANSI_CHARSET
-            Font.Color = clBlack
-            Font.Height = -12
-            Font.Name = 'Segoe UI'
-            Font.Pitch = fpVariable
-            Font.Quality = fqDraft
-            Font.Style = [fsBold]
-            ParentColor = False
-            ParentFont = False
-            TabOrder = 2
-            object Edit2: TEdit
-              Left = 8
-              Height = 23
-              Top = 8
-              Width = 192
-              TabOrder = 0
-              Text = 'Edit1'
-            end
-          end
-        end
-        object PanelLog1: TPanel
-          Left = 9
-          Height = 284
-          Top = 376
-          Width = 444
-          Align = alBottom
-          BorderWidth = 4
-          Caption = 'PanelLog1'
-          ClientHeight = 284
-          ClientWidth = 444
-          TabOrder = 1
-          object MemoXml: TMemo
-            Left = 5
-            Height = 213
-            Top = 66
-            Width = 434
-            Align = alClient
-            Lines.Strings = (
-              '<?xml version="1.0" encoding="UTF-8"?>'
-              '<Msg>'
-              #9'<Header>'
-              #9#9'<MsgId>1fcb0710</MsgId>'
-              #9#9'<MsgTime>2022-01-28T00:00:00.0Z</MsgTime>'
-              #9#9'<MsgType>ImagingTask</MsgType>'
-              #9#9'<Source>SOC</Source>'
-              #9#9'<OrgMsgId></OrgMsgId>'
-              #9#9'<TaskId>8f53a9b6</TaskId>'
-              #9'</Header>'
-              #9'<Tasks>'
-              #9#9'<Task>'
-              ''
-              #9#9#9'<StartTime>2022-05-28T00:00:00.0Z</StartTime>'
-              #9#9#9'<TargetCount>2</TargetCount>'
-              #9#9#9'<Targets>'
-              ''
-              #9#9#9#9'<!-- One or more Target records -->'
-              #9#9#9#9'<Target>'
-              #9#9#9#9#9'<StartTime>2022-05-28T00:00:00.0Z</StartTime>'
-              #9#9#9#9#9'<CoordRA>111</CoordRA>'
-              #9#9#9#9#9'<CoordDec>222</CoordDec>'
-              #9#9#9#9#9'<CoordRoll>0</CoordRoll>'
-              #9#9#9#9#9'<ExposureDuration>300</ExposureDuration>'
-              #9#9#9#9#9'<ImageCount>1</ImageCount>'#9#9#9#9#9'<!-- Expected number of images -->'
-              #9#9#9#9#9'<Tiles>15</Tiles>'#9#9#9#9#9#9#9'<!-- Binary combination of 1,2,4,8 -->'
-              #9#9#9#9#9
-              #9#9#9#9#9'<!-- ImageID Generation - TBD -->'
-              #9#9#9#9#9'<ImageIdFormat>IMG%05d</ImageIdFormat>'#9'<!-- TBD -->'
-              #9#9#9#9#9'<FirstImageNum>1</FirstImageNum>'#9#9'<!-- TBD -->'
-              #9#9#9#9'</Target>'
-              ''
-              #9#9#9#9'<!-- Target... -->'
-              #9#9#9#9'<!-- One or more Target records -->'
-              #9#9#9#9'<Target>'
-              #9#9#9#9#9'<StartTime>2022-05-28T00:00:00.0Z</StartTime>'
-              #9#9#9#9#9'<CoordRA>11111</CoordRA>'
-              #9#9#9#9#9'<CoordDec>22222</CoordDec>'
-              #9#9#9#9#9'<CoordRoll>33</CoordRoll>'
-              #9#9#9#9#9'<ExposureDuration>300</ExposureDuration>'
-              #9#9#9#9#9'<ImageCount>1</ImageCount>'#9#9#9#9#9'<!-- Expected number of images -->'
-              #9#9#9#9#9'<Tiles>15</Tiles>'#9#9#9#9#9#9#9'<!-- Binary combination of 1,2,4,8 -->'
-              #9#9#9#9#9
-              #9#9#9#9#9'<!-- ImageID Generation - TBD -->'
-              #9#9#9#9#9'<ImageIdFormat>IMG%05d</ImageIdFormat>'#9'<!-- TBD -->'
-              #9#9#9#9#9'<FirstImageNum>1</FirstImageNum>'#9#9'<!-- TBD -->'
-              #9#9#9#9'</Target>'
-              #9#9#9#9
-              #9#9#9'</Targets>'
-              ''
-              #9#9'</Task>'
-              ''
-              ''
-              #9'</Tasks>'
-              '</Msg>'
-            )
-            TabOrder = 0
-          end
-          object Panel5: TPanel
-            Left = 5
-            Height = 24
-            Top = 5
-            Width = 434
-            Align = alTop
-            Caption = 'XML'
-            Color = clYellow
-            Font.CharSet = ANSI_CHARSET
-            Font.Color = clBlack
-            Font.Height = -12
-            Font.Name = 'Segoe UI'
-            Font.Pitch = fpVariable
-            Font.Quality = fqDraft
-            Font.Style = [fsBold]
-            ParentColor = False
-            ParentFont = False
-            TabOrder = 1
-          end
-          object Panel7: TPanel
-            Left = 5
-            Height = 37
-            Top = 29
-            Width = 434
-            Align = alTop
-            ClientHeight = 37
-            ClientWidth = 434
-            Color = clMoneyGreen
-            Font.CharSet = ANSI_CHARSET
-            Font.Color = clBlack
-            Font.Height = -12
-            Font.Name = 'Segoe UI'
-            Font.Pitch = fpVariable
-            Font.Quality = fqDraft
-            Font.Style = [fsBold]
-            ParentColor = False
-            ParentFont = False
-            TabOrder = 2
-            object Edit1: TEdit
-              Left = 8
-              Height = 23
-              Top = 8
-              Width = 192
-              TabOrder = 0
-              Text = 'Edit1'
-            end
-          end
-        end
-        object Splitter1: TSplitter
-          Cursor = crVSplit
-          Left = 9
-          Height = 8
-          Top = 368
-          Width = 444
-          Align = alBottom
-          Color = clSkyBlue
-          ParentColor = False
-          ResizeAnchor = akBottom
-        end
-      end
-    end
     object Panel9: TPanel
-      Left = 8
-      Height = 712
-      Top = 24
+      Left = 1
+      Height = 734
+      Top = 1
       Width = 426
+      Align = alLeft
       BorderWidth = 8
       Caption = 'Panel9'
-      ClientHeight = 712
+      ClientHeight = 734
       ClientWidth = 426
       Color = clAqua
       ParentColor = False
-      TabOrder = 1
+      TabOrder = 0
       object PageControl1: TPageControl
         Left = 9
         Height = 483
@@ -11444,6 +11184,123 @@ object Form1: TForm1
         TabOrder = 0
         object TabSheetGcsInterface: TTabSheet
           Caption = 'GCS Interface'
+          ClientHeight = 455
+          ClientWidth = 400
+          object Panel11: TPanel
+            Left = 1
+            Height = 408
+            Top = 16
+            Width = 242
+            Caption = 'Panel11'
+            ClientHeight = 408
+            ClientWidth = 242
+            Color = 16756479
+            ParentColor = False
+            TabOrder = 0
+            object BtnRunMain1: TBitBtn
+              Left = 7
+              Height = 56
+              Top = 8
+              Width = 223
+              Caption = 'Run GcsInterface'
+              Font.Color = clGreen
+              Font.Style = [fsBold]
+              ParentFont = False
+              TabOrder = 0
+            end
+            object BtnSendYml: TBitBtn
+              Left = 8
+              Height = 56
+              Top = 72
+              Width = 108
+              Caption = 'Send YML'
+              TabOrder = 1
+            end
+            object BtnLiveLeft1: TBitBtn
+              Left = 7
+              Height = 40
+              Top = 232
+              Width = 110
+              Caption = 'Preview - Left'
+              OnClick = BtnLiveLeft1Click
+              TabOrder = 2
+            end
+            object BtnLiveRight1: TBitBtn
+              Left = 120
+              Height = 40
+              Top = 232
+              Width = 110
+              Caption = 'Preview - Right'
+              TabOrder = 3
+            end
+            object BtnRecordLeft1: TBitBtn
+              Left = 8
+              Height = 40
+              Top = 280
+              Width = 110
+              Caption = 'Record - Left'
+              TabOrder = 4
+            end
+            object BtnRecordRight1: TBitBtn
+              Left = 120
+              Height = 40
+              Top = 280
+              Width = 110
+              Caption = 'Record - Right'
+              TabOrder = 5
+            end
+            object BtnCloseAll1: TBitBtn
+              Left = 8
+              Height = 56
+              Top = 328
+              Width = 222
+              Caption = 'Close All'
+              TabOrder = 6
+            end
+            object BtnSdCard1: TBitBtn
+              Left = 122
+              Height = 56
+              Top = 72
+              Width = 108
+              Caption = 'Send XML'
+              TabOrder = 7
+            end
+            object Label5: TLabel
+              Left = 8
+              Height = 15
+              Top = 136
+              Width = 111
+              Caption = 'Enter password ''user'''
+              Font.Color = clBlue
+              ParentColor = False
+              ParentFont = False
+            end
+            object Label6: TLabel
+              Left = 16
+              Height = 17
+              Top = 208
+              Width = 214
+              Alignment = taCenter
+              AutoSize = False
+              Caption = 'Preview'
+              Color = clSkyBlue
+              Font.Color = clBlue
+              ParentColor = False
+              ParentFont = False
+              Transparent = False
+            end
+            object Label7: TLabel
+              Left = 8
+              Height = 15
+              Top = 160
+              Width = 201
+              Caption = 'Open File Manager to mount SDCARD'
+              Font.Color = clPurple
+              Font.Height = -12
+              ParentColor = False
+              ParentFont = False
+            end
+          end
         end
         object TabSheetSimulator: TTabSheet
           Caption = 'Simulator'
@@ -11451,11 +11308,11 @@ object Form1: TForm1
         object TabSheet1: TTabSheet
           Caption = 'TabSheet1'
           ClientHeight = 455
-          ClientWidth = 384
+          ClientWidth = 400
           object Panel4: TPanel
             Left = 1
             Height = 408
-            Top = 47
+            Top = 48
             Width = 242
             Caption = 'Panel4'
             ClientHeight = 408
@@ -11469,7 +11326,6 @@ object Form1: TForm1
               Caption = 'Run Main'
               Font.Color = clGreen
               Font.Style = [fsBold]
-              OnClick = BtnRunMainClick
               ParentFont = False
               TabOrder = 0
             end
@@ -11479,7 +11335,6 @@ object Form1: TForm1
               Top = 72
               Width = 108
               Caption = 'Startup'
-              OnClick = BtnStartupClick
               TabOrder = 1
             end
             object BtnLiveLeft: TBitBtn
@@ -11488,7 +11343,6 @@ object Form1: TForm1
               Top = 232
               Width = 110
               Caption = 'Preview - Left'
-              OnClick = BtnLiveLeftClick
               TabOrder = 2
             end
             object BtnLiveRight: TBitBtn
@@ -11497,7 +11351,6 @@ object Form1: TForm1
               Top = 232
               Width = 110
               Caption = 'Preview - Right'
-              OnClick = BtnLiveRightClick
               TabOrder = 3
             end
             object BtnRecordLeft: TBitBtn
@@ -11506,7 +11359,6 @@ object Form1: TForm1
               Top = 280
               Width = 110
               Caption = 'Record - Left'
-              OnClick = BtnRecordLeftClick
               TabOrder = 4
             end
             object BtnRecordRight: TBitBtn
@@ -11515,7 +11367,6 @@ object Form1: TForm1
               Top = 280
               Width = 110
               Caption = 'Record - Right'
-              OnClick = BtnRecordRightClick
               TabOrder = 5
             end
             object BtnCloseAll: TBitBtn
@@ -11524,7 +11375,6 @@ object Form1: TForm1
               Top = 328
               Width = 222
               Caption = 'Close All'
-              OnClick = BtnCloseAllClick
               TabOrder = 6
             end
             object BtnSdCard: TBitBtn
@@ -11575,18 +11425,18 @@ object Form1: TForm1
       end
       object PanelLog: TPanel
         Left = 9
-        Height = 211
-        Top = 492
+        Height = 225
+        Top = 500
         Width = 408
         Align = alClient
         BorderWidth = 4
         Caption = 'PanelLog'
-        ClientHeight = 211
+        ClientHeight = 225
         ClientWidth = 408
         TabOrder = 1
         object MemoLog: TMemo
           Left = 5
-          Height = 201
+          Height = 215
           Top = 5
           Width = 398
           Align = alClient
@@ -11597,6 +11447,301 @@ object Form1: TForm1
           TabOrder = 0
         end
       end
+      object Splitter2: TSplitter
+        Cursor = crVSplit
+        Left = 9
+        Height = 8
+        Top = 492
+        Width = 408
+        Align = alTop
+        Color = clSkyBlue
+        ParentColor = False
+        ResizeAnchor = akTop
+      end
+    end
+    object Panel10: TPanel
+      Left = 435
+      Height = 734
+      Top = 1
+      Width = 657
+      Align = alClient
+      BorderWidth = 8
+      Caption = 'Panel10'
+      ClientHeight = 734
+      ClientWidth = 657
+      Color = clOlive
+      ParentColor = False
+      TabOrder = 1
+      object PanelLog2: TPanel
+        Left = 9
+        Height = 424
+        Top = 9
+        Width = 639
+        Align = alClient
+        BorderWidth = 4
+        Caption = 'PanelLog2'
+        ClientHeight = 424
+        ClientWidth = 639
+        TabOrder = 0
+        object MemoYml: TMemo
+          Left = 5
+          Height = 350
+          Top = 69
+          Width = 629
+          Align = alClient
+          Color = 16250871
+          Font.CharSet = HEBREW_CHARSET
+          Font.Height = -13
+          Font.Name = 'Terminal'
+          Font.Pitch = fpFixed
+          Lines.Strings = (
+            'Msg:'
+            '  Header:'
+            '    MsgId: 1fcb0710'
+            '    MsgTime: ''2022-01-28T00:00:00.0Z'''
+            '    MsgType: ImagingTask'
+            '    Source: SOC'
+            '    OrgMsgId: '''''
+            '    TaskId: 8f53a9b6'
+            '  Tasks:'
+            '    Task:'
+            '      StartTime: ''2022-05-28T00:00:00.0Z'''
+            '      TargetCount: ''2'''
+            '      Targets:'
+            '      - Target:'
+            '          StartTime: ''2022-05-28T00:00:00.0Z'''
+            '          CoordRA: ''111'''
+            '          CoordDec: ''222'''
+            '          CoordRoll: ''0'''
+            '          ExposureDuration: ''300'''
+            '          ImageCount: ''1'''
+            '          Tiles: ''15'''
+            '          ImageIdFormat: IMG%05d'
+            '          FirstImageNum: ''1'''
+            '      - Target:'
+            '          StartTime: ''2022-05-28T00:00:00.0Z'''
+            '          CoordRA: ''11111'''
+            '          CoordDec: ''22222'''
+            '          CoordRoll: ''33'''
+            '          ExposureDuration: ''300'''
+            '          ImageCount: ''1'''
+            '          Tiles: ''15'''
+            '          ImageIdFormat: IMG%05d'
+            '          FirstImageNum: ''1'''
+          )
+          ParentFont = False
+          ScrollBars = ssAutoBoth
+          TabOrder = 0
+          WordWrap = False
+        end
+        object Panel6: TPanel
+          Left = 5
+          Height = 24
+          Top = 5
+          Width = 629
+          Align = alTop
+          Caption = 'YAML'
+          Color = clYellow
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          Font.Pitch = fpVariable
+          Font.Quality = fqDraft
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+          TabOrder = 1
+        end
+        object Panel8: TPanel
+          Left = 5
+          Height = 40
+          Top = 29
+          Width = 629
+          Align = alTop
+          BorderWidth = 8
+          ClientHeight = 40
+          ClientWidth = 629
+          Color = clMoneyGreen
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          Font.Pitch = fpVariable
+          Font.Quality = fqDraft
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+          TabOrder = 2
+          object ComboBoxYmlFileName: TComboBox
+            Left = 9
+            Height = 23
+            Top = 9
+            Width = 611
+            Align = alClient
+            ItemHeight = 15
+            OnChange = ComboBoxYmlFileNameChange
+            TabOrder = 0
+            Text = 'ComboBoxYmlFileName'
+          end
+        end
+      end
+      object PanelLog1: TPanel
+        Left = 9
+        Height = 284
+        Top = 441
+        Width = 639
+        Align = alBottom
+        BorderWidth = 4
+        Caption = 'PanelLog1'
+        ClientHeight = 284
+        ClientWidth = 639
+        TabOrder = 1
+        object MemoXml: TMemo
+          Left = 5
+          Height = 210
+          Top = 69
+          Width = 629
+          Align = alClient
+          Color = 15790320
+          Font.CharSet = HEBREW_CHARSET
+          Font.Color = clBlack
+          Font.Height = -13
+          Font.Name = 'Terminal'
+          Font.Pitch = fpFixed
+          Lines.Strings = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Msg>'
+            '    <Header>'
+            '        <MsgId>1fcb0710</MsgId>'
+            '        <MsgTime>2022-01-28T00:00:00.0Z</MsgTime>'
+            '        <MsgType>ImagingTask</MsgType>'
+            '        <Source>SOC</Source>'
+            '        <OrgMsgId></OrgMsgId>'
+            '        <TaskId>8f53a9b6</TaskId>'
+            '    </Header>'
+            '    <Tasks>'
+            '        <Task>'
+            ''
+            '            <StartTime>2022-05-28T00:00:00.0Z</StartTime>'
+            '            <TargetCount>2</TargetCount>'
+            '            <Targets>'
+            ''
+            '                <!-- One or more Target records -->'
+            '                <Target>'
+            '                    <StartTime>2022-05-28T00:00:00.0Z</StartTime>'
+            '                    <CoordRA>111</CoordRA>'
+            '                    <CoordDec>222</CoordDec>'
+            '                    <CoordRoll>0</CoordRoll>'
+            '                    <ExposureDuration>300</ExposureDuration>'
+            '                    <ImageCount>1</ImageCount>                  <!-- Expected number of images -->'
+            '                    <Tiles>15</Tiles>                           <!-- Binary combination of 1,2,4,8 -->'
+            '                    '
+            '                    <!-- ImageID Generation - TBD -->'
+            '                    <ImageIdFormat>IMG%05d</ImageIdFormat>  <!-- TBD -->'
+            '                    <FirstImageNum>1</FirstImageNum>        <!-- TBD -->'
+            '                </Target>'
+            ''
+            '                <!-- Target... -->'
+            '                <!-- One or more Target records -->'
+            '                <Target>'
+            '                    <StartTime>2022-05-28T00:00:00.0Z</StartTime>'
+            '                    <CoordRA>11111</CoordRA>'
+            '                    <CoordDec>22222</CoordDec>'
+            '                    <CoordRoll>33</CoordRoll>'
+            '                    <ExposureDuration>300</ExposureDuration>'
+            '                    <ImageCount>1</ImageCount>                  <!-- Expected number of images -->'
+            '                    <Tiles>15</Tiles>                           <!-- Binary combination of 1,2,4,8 -->'
+            '                    '
+            '                    <!-- ImageID Generation - TBD -->'
+            '                    <ImageIdFormat>IMG%05d</ImageIdFormat>  <!-- TBD -->'
+            '                    <FirstImageNum>1</FirstImageNum>        <!-- TBD -->'
+            '                </Target>'
+            '                '
+            '            </Targets>'
+            ''
+            '        </Task>'
+            ''
+            ''
+            '    </Tasks>'
+            '</Msg>'
+          )
+          ParentFont = False
+          ScrollBars = ssAutoBoth
+          TabOrder = 0
+          WordWrap = False
+        end
+        object Panel5: TPanel
+          Left = 5
+          Height = 24
+          Top = 5
+          Width = 629
+          Align = alTop
+          Caption = 'XML'
+          Color = clYellow
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          Font.Pitch = fpVariable
+          Font.Quality = fqDraft
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+          TabOrder = 1
+        end
+        object Panel7: TPanel
+          Left = 5
+          Height = 40
+          Top = 29
+          Width = 629
+          Align = alTop
+          BorderWidth = 8
+          ClientHeight = 40
+          ClientWidth = 629
+          Color = clMoneyGreen
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          Font.Pitch = fpVariable
+          Font.Quality = fqDraft
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+          TabOrder = 2
+          object ComboBoxXmlFileName: TComboBox
+            Left = 9
+            Height = 23
+            Top = 9
+            Width = 611
+            Align = alClient
+            ItemHeight = 15
+            OnChange = ComboBoxXmlFileNameChange
+            TabOrder = 0
+            Text = 'ComboBoxXmlFileName'
+          end
+        end
+      end
+      object Splitter1: TSplitter
+        Cursor = crVSplit
+        Left = 9
+        Height = 8
+        Top = 433
+        Width = 639
+        Align = alBottom
+        Color = clSkyBlue
+        ParentColor = False
+        ResizeAnchor = akBottom
+      end
+    end
+    object Splitter3: TSplitter
+      Left = 427
+      Height = 734
+      Top = 1
+      Width = 8
+      Color = clSkyBlue
+      ParentColor = False
     end
   end
 end

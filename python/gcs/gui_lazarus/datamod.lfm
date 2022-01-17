@@ -2,7 +2,7 @@ object DataModule1: TDataModule1
   OldCreateOrder = False
   Height = 407
   HorizontalOffset = 327
-  VerticalOffset = 263
+  VerticalOffset = 329
   Width = 497
   object PQConnection: TPQConnection
     Connected = False

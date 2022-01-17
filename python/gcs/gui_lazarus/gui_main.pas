@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, Buttons, ComCtrls, Process;
+  StdCtrls, Buttons, ComCtrls, ComboEx, Process;
 
 type
 
@@ -14,28 +14,39 @@ type
 
   TForm1 = class(TForm)
     BtnCloseAll: TBitBtn;
+    BtnCloseAll1: TBitBtn;
     BtnLiveLeft: TBitBtn;
+    BtnLiveLeft1: TBitBtn;
     BtnLiveRight: TBitBtn;
+    BtnLiveRight1: TBitBtn;
     BtnRecordLeft: TBitBtn;
+    BtnRecordLeft1: TBitBtn;
     BtnRecordRight: TBitBtn;
+    BtnRecordRight1: TBitBtn;
     BtnRunMain: TBitBtn;
+    BtnRunMain1: TBitBtn;
     BtnSdCard: TBitBtn;
+    BtnSdCard1: TBitBtn;
     BtnStartup: TBitBtn;
-    Edit1: TEdit;
-    Edit2: TEdit;
+    BtnSendYml: TBitBtn;
+    ComboBoxXmlFileName: TComboBox;
+    ComboBoxYmlFileName: TComboBox;
     Image1: TImage;
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
     Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
     MemoLog: TMemo;
     MemoXml: TMemo;
     MemoYml: TMemo;
     PageControl1: TPageControl;
     Panel1: TPanel;
     Panel10: TPanel;
+    Panel11: TPanel;
     Panel2: TPanel;
-    Panel3: TPanel;
     Panel4: TPanel;
     Panel5: TPanel;
     Panel6: TPanel;
@@ -46,16 +57,14 @@ type
     PanelLog1: TPanel;
     PanelLog2: TPanel;
     Splitter1: TSplitter;
+    Splitter2: TSplitter;
+    Splitter3: TSplitter;
     TabSheet1: TTabSheet;
     TabSheetGcsInterface: TTabSheet;
     TabSheetSimulator: TTabSheet;
-    procedure BtnCloseAllClick(Sender: TObject);
-    procedure BtnLiveLeftClick(Sender: TObject);
-    procedure BtnLiveRightClick(Sender: TObject);
-    procedure BtnRecordLeftClick(Sender: TObject);
-    procedure BtnRecordRightClick(Sender: TObject);
-    procedure BtnRunMainClick(Sender: TObject);
-    procedure BtnStartupClick(Sender: TObject);
+    procedure BtnLiveLeft1Click(Sender: TObject);
+    procedure ComboBoxXmlFileNameChange(Sender: TObject);
+    procedure ComboBoxYmlFileNameChange(Sender: TObject);
   private
 
   public
@@ -96,39 +105,43 @@ begin
 
 end;
 
-procedure TForm1.BtnLiveLeftClick(Sender: TObject);
+
+procedure LoadFilesList(Path: String;  Mask: String;  List: TStrings);
+var
+  ListOfFiles: TStringList;
 begin
-  RunScript('pre1.sh');
+  ListOfFiles := TStringList.Create;
+  try
+    FileUtil.FindAllFiles(ListOfFiles, Path, Mask, False);
+    List.Assign(ListOfFiles);
+  finally
+    ListOfFiles.Free;
+  end;
 end;
 
-procedure TForm1.BtnCloseAllClick(Sender: TObject);
+procedure TForm1.BtnLiveLeft1Click(Sender: TObject);
+var
+  Path: String;
 begin
-  RunScript('kill_all.sh');
+  Path := 'D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
+  LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
+  LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
 end;
 
-procedure TForm1.BtnLiveRightClick(Sender: TObject);
+procedure TForm1.ComboBoxXmlFileNameChange(Sender: TObject);
+var
+  FileName: String;
 begin
-  RunScript('pre2.sh');
+  FileName := ComboBoxXmlFileName.Items[ComboBoxXmlFileName.ItemIndex];
+  MemoXml.Lines.LoadFromFile(FileName);
 end;
 
-procedure TForm1.BtnRecordLeftClick(Sender: TObject);
+procedure TForm1.ComboBoxYmlFileNameChange(Sender: TObject);
+var
+  FileName: String;
 begin
-  RunScript('rec1.sh');
-end;
-
-procedure TForm1.BtnRecordRightClick(Sender: TObject);
-begin
-  RunScript('rec2.sh');
-end;
-
-procedure TForm1.BtnRunMainClick(Sender: TObject);
-begin
-  RunScript('run.sh');
-end;
-
-procedure TForm1.BtnStartupClick(Sender: TObject);
-begin
-  RunScript('startup.sh');
+  FileName := ComboBoxXmlFileName.Items[ComboBoxYmlFileName.ItemIndex];
+  MemoYml.Lines.LoadFromFile(FileName);
 end;
 
 end.
