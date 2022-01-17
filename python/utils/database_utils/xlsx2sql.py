@@ -44,41 +44,48 @@ import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
 from sys import platform
 
+# True for debug-mode
 DEBUG = False
 
+# ---------------------------------------------------- Generator Flags
 # SQL
-GEN_POSTGRES = True         # PostgreSQL v13
-GEN_FIREBIRD = False        # FirebirdSQL v2.5,3
-GEN_SQLITE = False          # SQLite v3
+GEN_POSTGRES    = True          # PostgreSQL v13
+GEN_FIREBIRD    = False         # FirebirdSQL v2.5,3
+GEN_SQLITE      = True          # SQLite v3
 
 # Languages
-GEN_PYTHON = False          # Python v3
-GEN_MATLAB = False          # MATLAB 2020b
-GEN_CPP = False             # C++ 0x03
-GEN_DELPHI = False          # Delphi/Lazarus
-GEN_DART = False            # Flutter
+GEN_PYTHON      = False         # Python v3
+GEN_MATLAB      = False         # MATLAB 2020b
+GEN_CPP         = False         # C++ 0x03
+GEN_DELPHI  = False             # Delphi/Lazarus
+GEN_DART    = False             # Flutter
 
 # Generate code for functions
 GEN_DESTRUCTOR = False      # Generate destructor code
 GEN_DB_FUNCS = False        # Generate database function: read, write
+# ----------------------------------------------------
 
-#
+# Output folder
 OUTPUT_PATH = ''
 
-#
+# Current XLSX file name
+XLSX_FILENAME = ''
+
+# Last SQL file name
+last_sql_fname = ''
+
+# In debug-mode, activate all generators
 if DEBUG:
     GEN_POSTGRES, GEN_FIREBIRD, GEN_SQLITE, GEN_PYTHON, GEN_MATLAB, GEN_CPP, GEN_DELPHI, GEN_DART = True, True, True, True, True, True, True, True
 
+# ---------------------------------------------------------------------------
 # Log message to file
 if platform == "win32":
     LOG_PATH = 'c:/temp/'
 else:
     LOG_PATH = '/tmp/'
 
-#
-last_sql_fname = ''
 
-# ---------------------------------------------------------------------------
 logfile = open(os.path.join(LOG_PATH, 'convert_csv_to_sql_db.log'), 'a')
 def log(msg, dt = False):
     global logfile
@@ -100,11 +107,26 @@ def write_md(line):
         mdfile.flush()
 
 
-XLSX_FILENAME = ''
 # ---------------------------------------------------------------------------
+# Field types mapping, per generator type
+#
+# SQL Databases:
+#   Postgres
+#   Firebird
+#   SQLite
+#
+# Programing Languages:
+#   Python
+#   C++
+#   Delphi / Lazarus
+#   MATLAB
+#   DART (Flutter)
+#
 
 # Field types
 field_lang_dict = { \
+
+    # Integer (32-bit)
     'int': {
         'postgres': 'INTEGER',
         'firebird': 'INTEGER',
@@ -116,6 +138,7 @@ field_lang_dict = { \
         'dart': 'int',
     },
 
+    # Unsigned Integer (32-bit)
     'uint': {
         'postgres': 'INTEGER',
         'firebird': 'INTEGER',
@@ -127,6 +150,7 @@ field_lang_dict = { \
         'dart': 'int',
     },
 
+    # Big Integer (64-bit)
     'bigint': {
         'postgres': 'BIGINT',
         'firebird': 'BIGINT',
@@ -138,6 +162,7 @@ field_lang_dict = { \
         'dart': 'int',
     },
 
+    # Single (32-bit)
     'single': {
         'postgres': 'DOUBLE PRECISION',
         'firebird': 'FLOAT',
@@ -149,6 +174,7 @@ field_lang_dict = { \
         'dart': 'double',
     },
 
+    # Double (64-bit)
     'double': {
         'postgres': 'DOUBLE PRECISION',
         'firebird': 'DOUBLE PRECISION',
@@ -160,6 +186,7 @@ field_lang_dict = { \
         'dart': 'double',
     },
 
+    # Boolean
     'bool': {
         'postgres': 'BOOLEAN',
         'firebird': 'BOOLEAN',
@@ -171,6 +198,7 @@ field_lang_dict = { \
         'dart': 'double',
     },
 
+    # String/text
     'string': {
         'postgres': 'VARCHAR',
         'firebird': 'VARCHAR(256)',
@@ -182,6 +210,7 @@ field_lang_dict = { \
         'dart': 'String',
     },
 
+    # UUID = String
     'uuid': {
         'postgres': 'VARCHAR',
         'firebird': 'VARCHAR',
@@ -193,6 +222,7 @@ field_lang_dict = { \
         'dart': 'String',
     },
 
+    # Timestamp (usually 64-bit double)
     'timestamp': {
         'postgres': 'TIMESTAMP',
         'firebird': 'TIMESTAMP',
@@ -204,6 +234,7 @@ field_lang_dict = { \
         'dart': 'double',
     },
 
+    # BLOB (Binary without encoding)
     # @Todo
     'blob': {
         'postgres': 'BLOB',
@@ -216,6 +247,7 @@ field_lang_dict = { \
         'dart': '?',
     },
 
+    # Comment
     '#comment': {
         'postgres': '--',
         'firebird': '--',
@@ -698,18 +730,18 @@ class DatabaseDef:
                 primary_key.append(field.field_name)
                 field_def += ' NOT NULL'
 
-            if i < len(self.field_list)-1:
+            #
+            if i < len(self.field_list)-1  or len(primary_key) > 0:
                 field_def += ','
 
             self.write('{}{} {}\n'.format(prefix, field.field_name, field_def))
 
-        self.write(');\n\n')
-
         # Primary key
         if len(primary_key) > 0:
             log('primary key: ' + str(primary_key))
-            self.write('\nALTER TABLE {} ADD PRIMARY KEY({});\n'.format(self.table_name + '_pkey', ', '.join(primary_key)))
+            self.write('\nPRIMARY KEY({})\n'.format(', '.join(primary_key)))
 
+        self.write(');\n\n')
 
         # Index
         for field in self.field_list:
