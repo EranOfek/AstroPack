@@ -205,7 +205,7 @@ begin
   aPos := Pos(A, Value);
   if aPos > 0 then begin
     aPos := aPos + Length(A);
-    bPos := Pos(B, Value, aPos);
+    bPos := Pos(B, Value);  //@Todo @Chen , aPos);
     if bPos > 0 then begin
       Result := Trim(Copy(Value, aPos, bPos - aPos));
     end;

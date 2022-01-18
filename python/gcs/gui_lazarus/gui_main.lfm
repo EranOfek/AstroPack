@@ -1,15 +1,13 @@
 object Form1: TForm1
-  Left = 12
-  Height = 800
-  Top = 14
+  Left = 67
+  Height = 525
+  Top = 110
   Width = 1093
   Align = alTop
-  BorderIcons = [biSystemMenu]
-  BorderStyle = bsDialog
   Caption = 'ULTRASAT GCS Interface / Simulator'
-  ClientHeight = 800
+  ClientHeight = 525
   ClientWidth = 1093
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '1.8.2.0'
   object Panel1: TPanel
     Left = 0
     Height = 64
@@ -11136,9 +11134,9 @@ object Form1: TForm1
     end
     object Label4: TLabel
       Left = 16
-      Height = 32
+      Height = 29
       Top = 16
-      Width = 417
+      Width = 480
       Caption = 'ULTRASAT GCS Interface / Simulator'
       Font.CharSet = ANSI_CHARSET
       Font.Color = clWhite
@@ -11153,22 +11151,22 @@ object Form1: TForm1
   end
   object Panel2: TPanel
     Left = 0
-    Height = 736
+    Height = 461
     Top = 64
     Width = 1093
     Align = alClient
-    ClientHeight = 736
+    ClientHeight = 461
     ClientWidth = 1093
     TabOrder = 1
     object Panel9: TPanel
       Left = 1
-      Height = 734
+      Height = 459
       Top = 1
       Width = 426
       Align = alLeft
       BorderWidth = 8
       Caption = 'Panel9'
-      ClientHeight = 734
+      ClientHeight = 459
       ClientWidth = 426
       Color = clAqua
       ParentColor = False
@@ -11184,8 +11182,8 @@ object Form1: TForm1
         TabOrder = 0
         object TabSheetGcsInterface: TTabSheet
           Caption = 'GCS Interface'
-          ClientHeight = 455
-          ClientWidth = 400
+          ClientHeight = 452
+          ClientWidth = 404
           object Panel11: TPanel
             Left = 1
             Height = 408
@@ -11268,9 +11266,9 @@ object Form1: TForm1
             end
             object Label5: TLabel
               Left = 8
-              Height = 15
+              Height = 17
               Top = 136
-              Width = 111
+              Width = 145
               Caption = 'Enter password ''user'''
               Font.Color = clBlue
               ParentColor = False
@@ -11294,7 +11292,7 @@ object Form1: TForm1
               Left = 8
               Height = 15
               Top = 160
-              Width = 201
+              Width = 207
               Caption = 'Open File Manager to mount SDCARD'
               Font.Color = clPurple
               Font.Height = -12
@@ -11308,8 +11306,8 @@ object Form1: TForm1
         end
         object TabSheet1: TTabSheet
           Caption = 'TabSheet1'
-          ClientHeight = 455
-          ClientWidth = 400
+          ClientHeight = 452
+          ClientWidth = 404
           object Panel4: TPanel
             Left = 1
             Height = 408
@@ -11426,19 +11424,19 @@ object Form1: TForm1
       end
       object PanelLog: TPanel
         Left = 9
-        Height = 225
-        Top = 500
+        Height = 1
+        Top = 450
         Width = 408
         Align = alClient
         BorderWidth = 4
         Caption = 'PanelLog'
-        ClientHeight = 225
+        ClientHeight = 1
         ClientWidth = 408
         TabOrder = 1
         object MemoLog: TMemo
           Left = 5
-          Height = 215
-          Top = 5
+          Height = 33
+          Top = 0
           Width = 398
           Align = alClient
           Color = 14745340
@@ -11452,7 +11450,7 @@ object Form1: TForm1
         Cursor = crVSplit
         Left = 9
         Height = 8
-        Top = 492
+        Top = 450
         Width = 408
         Align = alTop
         Color = clSkyBlue
@@ -11462,31 +11460,31 @@ object Form1: TForm1
     end
     object Panel10: TPanel
       Left = 435
-      Height = 734
+      Height = 459
       Top = 1
       Width = 657
       Align = alClient
       BorderWidth = 8
       Caption = 'Panel10'
-      ClientHeight = 734
+      ClientHeight = 459
       ClientWidth = 657
       Color = clOlive
       ParentColor = False
       TabOrder = 1
       object PanelLog2: TPanel
         Left = 9
-        Height = 424
+        Height = 149
         Top = 9
         Width = 639
         Align = alClient
         BorderWidth = 4
         Caption = 'PanelLog2'
-        ClientHeight = 424
+        ClientHeight = 149
         ClientWidth = 639
         TabOrder = 0
         object MemoYml: TMemo
           Left = 5
-          Height = 350
+          Height = 75
           Top = 69
           Width = 629
           Align = alClient
@@ -11576,11 +11574,11 @@ object Form1: TForm1
           TabOrder = 2
           object ComboBoxYmlFileName: TComboBox
             Left = 9
-            Height = 23
+            Height = 22
             Top = 9
             Width = 611
             Align = alClient
-            ItemHeight = 15
+            ItemHeight = 0
             OnChange = ComboBoxYmlFileNameChange
             TabOrder = 0
             Text = 'ComboBoxYmlFileName'
@@ -11590,7 +11588,7 @@ object Form1: TForm1
       object PanelLog1: TPanel
         Left = 9
         Height = 284
-        Top = 441
+        Top = 166
         Width = 639
         Align = alBottom
         BorderWidth = 4
@@ -11713,11 +11711,11 @@ object Form1: TForm1
           TabOrder = 2
           object ComboBoxXmlFileName: TComboBox
             Left = 9
-            Height = 23
+            Height = 22
             Top = 9
             Width = 611
             Align = alClient
-            ItemHeight = 15
+            ItemHeight = 0
             OnChange = ComboBoxXmlFileNameChange
             TabOrder = 0
             Text = 'ComboBoxXmlFileName'
@@ -11728,7 +11726,7 @@ object Form1: TForm1
         Cursor = crVSplit
         Left = 9
         Height = 8
-        Top = 433
+        Top = 158
         Width = 639
         Align = alBottom
         Color = clSkyBlue
@@ -11738,7 +11736,7 @@ object Form1: TForm1
     end
     object Splitter3: TSplitter
       Left = 427
-      Height = 734
+      Height = 459
       Top = 1
       Width = 8
       Color = clSkyBlue
@@ -11748,7 +11746,7 @@ object Form1: TForm1
   object TimerPollGuiMsg: TTimer
     Interval = 100
     OnTimer = TimerPollGuiMsgTimer
-    Left = 297
-    Top = 127
+    left = 297
+    top = 127
   end
 end
