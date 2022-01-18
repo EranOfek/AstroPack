@@ -12,7 +12,8 @@ classdef Targets < Component
         Dec
         
         Priority                                % baseline priority that multiplies the base priority
-        PriorityArgs               = [
+        PriorityArgs               = [1 40./1440];   % ...
+        MinNightlyVisibility       = 2./24;   % [day]
         
         LastJD
         GlobalCounter
@@ -404,7 +405,7 @@ classdef Targets < Component
     end
     
     methods % weights and priority
-        function calcPriority(Obj, Method, Args)
+        function P = calcPriority(Obj, Method, Args)
             %
             
             arguments
@@ -412,6 +413,9 @@ classdef Targets < Component
                 Method        = 'cadence';
                 Args
             end
+            
+            
+            
             
             
         end
