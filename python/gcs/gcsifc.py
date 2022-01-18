@@ -102,7 +102,7 @@ class GcsInterface(Component):
         #self.manage_image_downloads()
 
         self.manage_keep_alive()
-        #self.handle_gui()
+        self.handle_gui()
 
         t = time.time()
 
@@ -116,35 +116,59 @@ class GcsInterface(Component):
         pass
 
 
-    # -----------------------------------------------------------------------
+    def prepare_msg(self, req_msg):
+        pass
 
-    #
+
+    # =======================================================================
+    #                               send_msg_...
+    # =======================================================================
+    # Send ACK message
     def send_msg_ack(self, msg):
-        pass
+        msg = MsgAck()
+        self.prepare_msg(msg)
+        return self.send_msg(msg)
 
-    #
+
+    # Send keep-alive message
     def send_msg_keep_alive(self):
-        pass
+        msg = MsgKeepAlive()
+        self.prepare_msg(msg)
+        return self.send_msg(msg)
 
 
+    # Send imaging task
     def send_msg_imaging_task(self, msg):
-        pass
+        msg = MsgImagingTask()
+        self.prepare_msg(msg)
+        return self.send_msg(msg)
 
 
+    # Send OBRD task
     def send_msg_obrd_task(self):
-        pass
+        msg = MsgObrdTask()
+        self.prepare_msg(msg)
+        return self.send_msg(msg)
 
 
+    # Send response to maintenance task request
     def send_msg_maintenance_task_response(self):
-        pass
+        msg = MsgMaintenanceTaskResponse()
+        self.prepare_msg(msg)
+        return self.send_msg(msg)
 
 
+    # Send request to get current imaging task
     def send_msg_current_imaging_task(self):
-        pass
+        msg = Msg
+        self.prepare_msg(msg)
+        return self.send_msg(msg)
 
 
+    # Send retransmit request of images stores in GCS
     def send_msg_retransmit_images(self):
-        pass
+        self.prepare_msg(msg)
+        return self.send_msg(msg)
 
     # -----------------------------------------------------------------------
 
@@ -198,16 +222,27 @@ class GcsInterface(Component):
         self.log('MsgType: %s' % msg_type)
 
         #
-        if msg_type == MsgTag.KeepAlive:
+        if msg_type == MsgType.KeepAlive:
             self.handle_msg_keep_alive(yml)
-        elif msg_type == MsgTag.Ack:
+
+        elif msg_type == MsgType.Ack:
             self.handle_msg_ack(yml)
-        elif msg_type == MsgTag.ImagingTaskResponse:
+
+        elif msg_type == MsgType.ImagingTaskResponse:
             self.handle_msg_imaging_task_response(yml)
-        elif msg_type == MsgTag.ObrdTaskResponse:
+
+        elif msg_type == MsgType.ObrdTaskResponse:
             self.handle_msg_obrd_task_response(yml)
-        elif msg_type == MsgTag.MaintenanceTask:
+
+        elif msg_type == MsgType.MaintenanceTask:
             self.handle_msg_maintenance_task(yml)
+
+        elif msg_type == MsgType.CurrentImagingTaskResponse:
+            self.handle_msg_maintenance_task(yml)
+
+        elif msg_type == MsgType.ImageRetransmitResponse:
+            self.handle_msg_maintenance_task(yml)
+
         else:
             self.log('handle_incoming_msg: unknnown msg_type: %s' % msg_type)
 
@@ -300,6 +335,8 @@ class GcsInterface(Component):
         # Poll database for pending tasks for approval
         query = self.db.new_query()
 
+        # Test only
+        '''
         d = {}
         d['abc'] = 'aaa'
         d['def'] = 'bbb'
@@ -311,7 +348,7 @@ class GcsInterface(Component):
         records = query.query('SELECT * FROM gcs_tasks WHERE new_flag = true')
         for row in records:
             taskid = row['taskid']
-
+        '''
 
     def create_imaging_task_msg(self, ):
         msg = MsgImagingTask
@@ -319,8 +356,15 @@ class GcsInterface(Component):
 
 
     # Send message to GCS
-    def handle_imaging_task_response(self, msg):
+    def handle_msg_imaging_task_response(self, msg):
         pass
+
+
+    # Send message to GCS
+    def handle_msg_obrd_task_response(self, msg):
+        pass
+
+
 
     # Called when imaging task is approved
     # Create images in images table
@@ -344,9 +388,7 @@ class GcsInterface(Component):
         pass
 
 
-    # Send message to GCS
-    def handle_obrd_task_response(self, msg):
-        pass
+
 
 
     # -----------------------------------------------------------------------
@@ -376,8 +418,13 @@ class GcsInterface(Component):
         if self.gui:
             gui_msg = self.gui.rcv()
             if gui_msg:
-                if gui_msg.type == GuiMsgType.SendKeepAlive:
-                    pass
+                self.handle_gui_msg(gui_msg)
+
+
+    # Handle GUI message
+    def handle_gui_msg(self, gui_msg):
+        if gui_msg.type == GuiMsgType.SendKeepAlive:
+            pass
 
 
     # -----------------------------------------------------------------------

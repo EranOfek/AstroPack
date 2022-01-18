@@ -105,38 +105,51 @@ class GcsSimulator(Component):
         pass
 
     #------------------------------------------------------------------------
-    #
-    def send_ack(self, msg):
+
+    def prepare_msg(self, req_msg):
+        pass
+
+
+    def send_msg(self, msg):
         pass
 
     #
-    def send_nack(self, msg):
+    def send_msg_ack(self, msg):
         pass
 
     #
-    def send_keep_alive(self, msg):
+    def send_msg_nack(self, msg):
         pass
+
 
     # Send message to GCS
-    def send_imaging_task_response(self, msg):
+    def send_msg_imaging_task_response(self, msg):
         pass
 
 
     # Send message to GCS
-    def send_obrd_task_response(self, msg):
+    def send_msg_obrd_task_response(self, msg):
         pass
+
+
+    # Send message to GCS
+    def send_msg_current_imaging_task_response(self, msg):
+        pass
+
+
+    # Send message to GCS
+    def send_msg_current_image_retransmit_response(self, msg):
+        pass
+
 
     # Send Target-Of-Opertunity
     def send_target_oo(self, task):
         pass
 
-    # Send task for validatation
+    # Send task for validation
     def send_task_validation(self, task):
         pass
 
-    # Send task
-    def send_task(self, task):
-        pass
 
     #------------------------------------------------------------------------
 
@@ -148,16 +161,29 @@ class GcsSimulator(Component):
 
     #------------------------------------------------------------------------
 
-    def handle_ack(self, msg):
+    #
+    def handle_msg_ack(self, msg):
         pass
 
-    def handle_keep_alive(self, msg):
+    #
+    def handle_msg_keep_alive(self, msg):
         pass
 
-    def handle_imaging_task_params(self, msg):
+    #
+    def handle_msg_imaging_task_params(self, msg):
         pass
 
-    def handle_obrd_task_params(self, msg):
+    #
+    def handle_msg_obrd_task_params(self, msg):
+        pass
+
+    #
+    def handle_msg_current_imaging_task(self, msg):
+        pass
+
+
+    #
+    def handle_msg_image_retransmit(self, msg):
         pass
 
     #------------------------------------------------------------------------
@@ -390,3 +416,4 @@ class SimMaintenanceManager:
 
     def manage(self):
         pass
+

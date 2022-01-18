@@ -72,8 +72,8 @@ class MsgType:
     MaintenanceTask             = 'MaintenanceTask'
     MaintenanceTaskResponse     = 'MaintenanceTaskResponse'
 
-    MsgImageRetransmit          = 'MsgImageRetransmit'
-    MsgImageRetransmitResponse  = 'MsgImageRetransmitResponse'
+    ImageRetransmit             = 'ImageRetransmit'
+    ImageRetransmitResponse     = 'ImageRetransmitResponse'
     CurrentImagingTask          = 'CurrentImagingTask'
     CurrentImagingTaskResponse  = 'CurrentImagingTaskResponse'
 
@@ -397,6 +397,34 @@ class MsgMaintenanceTaskResponse(MsgBase):
         self.approved_start_time = 0   # Approved maintenance activity start time
 
 
+
+# ============================================================================
+
+# ============================================================================
+'''
+
+'''
+class MsgCurrentImagingTask(MsgBase):
+
+    # Constructor
+    def __init__(self):
+        super().__init__(msg_type=MsgType.CurrentImagingTask)
+
+
+# ============================================================================
+
+# ============================================================================
+'''
+
+'''
+class MsgRetransmitImages(MsgBase):
+
+    # Constructor
+    def __init__(self):
+        super().__init__(msg_type=MsgType.MsgImageRetransmit)
+        self.image_list = []
+
+
 # ============================================================================
 #
 #                               GCS to SOC Messages
@@ -516,6 +544,39 @@ class MsgMaintenanceTask(MsgBase):
                                     # 6. It is / is not possible to continue scientific imaging
                                     # If due to constrains, the maintenance activity has to be executed at a specific
                                     # time, the start time of the window and the preferred time shall be the same, and the end time should be equal to the start time + the duration time.
+
+
+
+
+# ============================================================================
+
+# ============================================================================
+'''
+
+'''
+class MsgCurrentImagingTaskResponse(MsgBase):
+
+    # Constructor
+    def __init__(self):
+        super().__init__(msg_type=MsgType.CurrentImagingTaskResponse)
+
+        # @Todo
+
+
+# ============================================================================
+
+# ============================================================================
+'''
+
+'''
+class MsgRetransmitImages(MsgBase):
+
+    # Constructor
+    def __init__(self):
+        super().__init__(msg_type=MsgType.MsgImageRetransmitResponse)
+
+        # @Todo
+        self.image_list = []
 
 
 # ============================================================================

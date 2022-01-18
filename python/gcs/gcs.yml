@@ -96,3 +96,15 @@ Simulator:
         names       : [ "one", "two", "three", "four" ]
         names2      : [ 'one', 'two' ]
 
+
+GuiWin:
+
+    InMsgFolder: c:\gcs\gui_inmsg\
+    OutMsgFolder: c:\gcs\gui_outmsg\
+    EndOfSection: $
+
+GuiLinux:
+
+    InMsgFolder: /tmp/gcs/gui_inmsg
+    OutMsgFolder: /tmp/gcs/gui_outmsg
+    EndOfSection: $

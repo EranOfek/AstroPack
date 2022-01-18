@@ -17,6 +17,8 @@ import os, sys, shutil, time, glob, uuid, yaml, io, xmlplain
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import json
+import configparser
+
 
 # Helper function for dict2obj()
 class dict2obj_hook(object):
@@ -118,6 +120,39 @@ class Config(Base):
             config_ = Config()
         return config_
 
+
+# ===========================================================================
+#
+# ===========================================================================
+
+class IniFile(Base):
+
+    def __init__(self, filename=''):
+        self.filename = ''
+        self.ini = None
+
+        if filename != '':
+            self.load(filename)
+
+    #
+    def load(self, filename):
+        self.filename = filename
+        self.ini = configparser.ConfigParser()
+        self.ini.read(self.filename)
+
+        #print(config['DEFAULT']['path'])  # -> "/path/name/"
+        #config['DEFAULT']['path'] = '/var/shared/'  # update
+        #config['DEFAULT']['default_message'] = 'Hey! help me!!'  # create
+
+    #
+    def save(self):
+        with open(self.filename, 'w') as f:    # save
+            self.ini.write(f)
+
+
+# ===========================================================================
+#
+# ===========================================================================
 
 # Parent class for all components
 class Component(Base):
