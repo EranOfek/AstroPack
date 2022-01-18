@@ -373,7 +373,7 @@ classdef ImagePath < Component
     end
     
    
-    methods % Read/Write from Header and Struct
+    methods % Read/Write from Header
         
         function Obj = readFromHeader(Obj, Input, DataProp)
             % Read ImagePath parameters from header.
@@ -428,7 +428,6 @@ classdef ImagePath < Component
 
         end
         
-        
         function Result = writeToHeader(Obj, Header)
             % Write data to AstroHeader, DictKeyNames is used to get the
             % correct key names            
@@ -457,7 +456,6 @@ classdef ImagePath < Component
             Result = true;
         end        
         
-        
         function Result = readFromDb(Obj, Query)
             % Read data from database table, current record of Query.ResultSet
             % Fields are defined in Google Sheet "common_image_path"
@@ -474,7 +472,7 @@ classdef ImagePath < Component
     end
     
     
-    methods % Additional
+    methods % raed/write from stuct
         function Result = readFromStruct(Obj, st)
             % Read data from struct or DbRecord (common_image_path table)
             % Struct field names should match database fields
@@ -496,7 +494,6 @@ classdef ImagePath < Component
             Obj.FileType        = st.filetype;
             Result = true;
         end
-        
         
         function st = writeToStruct(Obj)
             % Write data fields to struct (common_image_path table)            
@@ -607,15 +604,46 @@ classdef ImagePath < Component
     end
     
     
-    methods % Parsers
+    methods (Static) % Parsers
               
-        function Result = parsePath(path)
+        function Result = parsePath(Obj, Path)
             % Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
         end
         
         
-        function Result = parseFileName(fname)
-            % Convert a file name string to a structure with all available information
+        function Obj = parseFileName(FileName)
+            % Populate ImagePath object from file name.
+            % Input  : - A file name
+            % Output : - A populated ImagePath object based on the file
+            %            name only.
+            % Author : Eran Ofek (Jan 2022)
+            % Example:
+            % IP=ImagePath.parseFileName('LAST_20220118.193339.010_clear_____sci_raw_Image_1.fits')
+            
+            Obj = ImagePath;
+            [~, File, Ext]  = fileparts(FileName);
+            Obj.FileType = Ext(2:end);
+            Parts = split(File,'_');
+            % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+            Obj.ProjName = Parts{1};
+            VecTime = datevec(Parts{2}, 'yyyymmdd.HHMMSS.FFF');
+            Obj.Time     = celestial.time.julday(VecTime([3 2 1 4 5 6]));
+            Obj.Filter   = Parts{3};
+            Obj.FieldID  = Parts{4};
+            Obj.Counter  = Parts{5};
+            Obj.CCDID    = Parts{6};
+            Obj.CropID   = Parts{7};
+            Obj.Type     = Parts{8};
+            PartsLevel   = split(Parts{9}, '.');
+            Obj.Level    = PartsLevel{1};
+            if numel(PartsLevel)>1
+                Obj.SubLevel = PartsLevel{2};
+            else
+                Obj.SubLevel = '';
+            end
+            Obj.Product  = Parts{10};
+            Obj.Version  = Parts{11};
+            
         end
         
     end
