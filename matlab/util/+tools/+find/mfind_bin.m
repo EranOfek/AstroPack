@@ -13,7 +13,7 @@ function Im=mfind_bin(X,Vals)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: X=sort(rand(1e6,1)); Vals=rand(1,1e5);
 %          Im=tools.find.mfind_bin(X,Vals)
-% Reference: cite Ofe (2014; ascl:1407.005)
+% Reference: cite Ofek (2014; ascl:1407.005)
 % Reliable: 2
 %--------------------------------------------------------------------------
 

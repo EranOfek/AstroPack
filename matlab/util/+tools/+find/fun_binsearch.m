@@ -18,7 +18,7 @@ function Mid=fun_binsearch(Fun,Y,Range,Tol,varargin)
 % Notes: Previously called: binsear_f.m
 % Reliable: 1
 %--------------------------------------------------------------------------
-if (nargin==3),
+if (nargin==3)
    Tol = 1e-3;
 else
    % do nothing
@@ -29,7 +29,7 @@ Y1  = feval(Fun,Range(1),varargin{:});
 Y2  = feval(Fun,Range(2),varargin{:});
 Ym  = feval(Fun,Mid,varargin{:});
 
-if (Y2>Y1),
+if (Y2>Y1)
    % ascending function
    Type = 'a';
 else
@@ -38,16 +38,16 @@ else
 end
 
 
-while (diff(Range)>(Mid.*Tol)),
+while (diff(Range)>(Mid.*Tol))
    switch Type
     case 'a'
-       if (Y>Ym),
+       if (Y>Ym)
           Range = [Mid, Range(2)];
        else
           Range = [Range(1), Mid];
        end
     case 'd'
-       if (Y>Ym),
+       if (Y>Ym)
           Range = [Range(1), Mid];
        else
           Range = [Mid, Range(2)];
