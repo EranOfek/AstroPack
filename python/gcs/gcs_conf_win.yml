@@ -1,0 +1,71 @@
+# GCS Interface Configuration File
+
+# Notes:
+#
+
+#============================================================================
+#
+#============================================================================
+
+Interface:
+
+    # Message folders - Windows
+    MsgFromGcsPath: c:\gcs\msg_from_gcs
+    MsgToGcsPath: c:\gcs\msg_to_gcs
+
+    DataFromGcsPath: c:\gcs\data_from_gcs
+
+    InImageFolder: c:/gcs/inimage/
+
+    InMsgProcessedFolder: c:/gcs/inmsg_processed/
+
+    List1: [Item1, Item2, Item3]
+    Dict1: { thing1: huey, thing2: louie, thing3: dewey, thing3: again }
+
+    NonUniqueKeys:
+        - key: 1
+        - key: 2
+
+    Header2:
+        KeyValueComment:
+
+            MyKey1: MyValue1
+
+
+
+KeepAlive:
+    Interval: 60
+    Timeout: 120
+    
+    
+Params:                             # 1×3 cell array
+
+
+    - name: 'args.copycss'
+      value: 'yes'
+      comment: Comment1
+
+    - name: 'args.css'
+      value: 'dita-ot-doc.css'
+      comment: Comment2
+
+    - name: 'args.csspath'
+      value: 'css'
+      comment: Comment3
+
+#============================================================================
+#
+#============================================================================
+
+Simulator:
+
+
+#============================================================================
+#                               GUI Interface
+#============================================================================
+
+Gui:
+
+    FromGuiPath: c:\gcs\msg_from_gui
+    ToGuiPath: c:\gcs\msg_to_gui
+

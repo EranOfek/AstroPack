@@ -20,10 +20,10 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import json
 
-from gcsbase import Component, Config, FileProcessor
-from gcsbase import xml_to_yml, dict2obj
+from gcsbase import Component, Config, FileComm
+from gcsbase import xml_to_yml, dict2obj, yml_to_obj
 from gcsmsg import *
-from gcsdb import DbQuery, Database
+from gcsdb import DbQuery, Database, DbConfig
 
 # ===========================================================================
 
@@ -45,23 +45,32 @@ class GcsInterface(Component):
         self.conf.load()
 
         #
-        self.gui_com = FileProcessor()
-        self.gui_com.rcv_path = self.conf.obj.Interface.InMsgFolder
-        self.gui_com.input_file_mask = '*.xml'
+        self.gui_com = FileComm()
+        self.gui_com.init(
+            input_path=self.conf.obj.Gui.FromGuiPath,
+            output_path=self.conf.obj.Gui.ToGuiPath,
+            input_ext='yml', output_ext='yml')
 
         self.last_rcv_keep_alive_time = 0
 
         # Download management
 
-        self.msg_com = FileProcessor()
-        self.msg_com.rcv_path = self.conf.obj.Interface.InMsgFolder
-        self.msg_com.input_file_ext = 'xml'
+        self.msg_com = FileComm()
+        self.msg_com.init(
+            input_path = self.conf.obj.Interface.MsgFromGcsPath,
+            output_path = self.conf.obj.Interface.MsgToGcsPath,
+            input_ext = 'xml', output_ext = 'xml')
+
+        #self.msg_com.rcv_path = self.conf.obj.Interface.InMsgFolder
+        #self.msg_com.input_file_ext = 'xml'
         #self.msg_com.out_path = ...
         # self.msg_com.out_ext = ...
 
 
         # Database
-        self.db = Database()
+        db_conf = DbConfig()
+        db_conf.set_postgres()
+        self.db = Database(conf=db_conf)
 
         # Current state
         self.state = State()
@@ -187,7 +196,7 @@ class GcsInterface(Component):
         #query.exec('INSERT INTO gcs_msgs () VALUES(), ', (, xml))
 
         # Save file to outgoing messages folder
-        filename = self.msg_com.get_send_filename()
+        filename = self.msg_com.new_output_filename()
         #msg...
 
 
@@ -198,8 +207,8 @@ class GcsInterface(Component):
 
     #
     def handle_incoming_msgs(self):
-        filename = self.msg_com.poll_rcv()
-        if filename:
+        filename = self.msg_com.poll_input()
+        if filename != '':
 
             # XML file
             if filename.lower().endswith(MsgFileExt.XmlMsg):
@@ -214,10 +223,12 @@ class GcsInterface(Component):
 
         # Load XML file as YAML object
         yml = xml_to_yml(filename, yml_obj=True)
-        msg = dict2obj(yml)
+        msg = yml_to_obj(yml)
 
 
         header = yml[MsgTag.Msg][MsgTag.Header]
+
+        Header = msg.Msg.Header
 
         #msg = MsgBase()
         #msg.load_header(header)
@@ -430,18 +441,25 @@ class GcsInterface(Component):
     # Handle GUI message
     def handle_gui(self):
         if self.gui_com:
-            filename = self.in_com.poll_rcv()
+            filename = self.gui_com.poll_input()
+            if filename != '':
+                try:
+                    with open(filename, 'r') as f:
+                        yml = yaml.safe_load(f)
 
-            gui_msg = self.gui.rcv()
-            if gui_msg:
-                self.handle_gui_msg(gui_msg)
+                    msg = yml_to_obj(yml)
+                    cmd = msg.Msg.Cmd
+                    if cmd == 'ConvertXmlToYml':
+                        pass
 
+                    if cmd == 'ConvertYmlToXml':
+                        pass
 
-    # Handle GUI message
-    def handle_gui_msg(self, gui_msg):
-        if gui_msg.type == ''
-            pass
+                except:
+                    pass
 
+                os.rename(filename, filename + '._txt')
+                #os.remove(filename)
 
     # -----------------------------------------------------------------------
     #                         Low Level Functions

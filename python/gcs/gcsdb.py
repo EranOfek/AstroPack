@@ -15,23 +15,56 @@
 
 import os, time, pytz
 from datetime import datetime
-import psycopg2
+import psycopg2, sqlite3
 from psycopg2.extensions import AsIs
 
 from gcsbase import Component
 
 # GCS Data Types
 
+POSTGRES = 'postgres'
+SQLITE = 'sqlite'
 
 # ===========================================================================
+
+class DbConfig:
+
+    def __init__(self):
+        self.dbtype = ''
+        self.host = ''
+        self.port = ''
+        self.database = ''
+        self.user = ''
+        self.password = ''
+        self.set_postgres()
+
+
+    # Setup for Postgres
+    def set_postgres(self):
+        self.dbtype = POSTGRES
+        self.host = 'gauss'
+        self.port = '5432'
+        self.database = 'socgcs'
+        self.user = 'postgres'          # 'admin'
+        self.password = 'PassRoot'      # 'Passw0rd'
+
+    # Setup for SQLite
+    def set_sqlite(self):
+        self.dbtype = SQLITE
+        self.host = ''
+        self.port = ''
+        self.database = 'socgcs.sqlite'
+        self.user = ''
+        self.password = ''
+
 
 class Database(Component):
 
     # Constructor
-    def __init__(self):
+    def __init__(self, conf=DbConfig()):
         super().__init__()
         self.name = 'Database'
-        self.dbcon = DbConnetion()
+        self.dbcon = DbConnection(conf=conf)
 
     # Destructor
     def __del__(self):
@@ -101,23 +134,31 @@ class Database(Component):
         pass
 
 
-
 # ===========================================================================
 #
 # ===========================================================================
 # Database Connection
-class DbConnetion(Component):
+class DbConnection(Component):
 
-    def __init__(self, host='gauss'):
+    def __init__(self, conf):
         super().__init__()
         self.name = 'DbConnetion'
-        self.con = psycopg2.connect(database='socgcs', user='postgres', password='PassRoot', host='gauss', port='5432')
-        #self.con = psycopg2.connect(database='socgcs', user='admin', password='Passw0rd', host='gauss', port='5432')
-        self.log('Database connected successfully')
+        self.conf = conf
+        if self.conf.dbtype != '':
+            self.open()
 
 
     def __del__(self):
         self.con.close()
+
+
+    def open(self):
+        if self.conf.dbtype == POSTGRES:
+            self.con = psycopg2.connect(database=self.conf.database, user=self.conf.user, password=self.conf.password, host=self.conf.host, port=self.conf.port)
+            self.log('POSTGRES: Database connected successfully')
+        elif self.conf.dbtype == SQLITE:
+            self.con = sqlite3.connect(self.conf.database)
+            self.log('SQLITE: Database connected successfully')
 
 
 # Database Query

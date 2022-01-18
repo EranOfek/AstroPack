@@ -22,8 +22,6 @@ import os, time
 from datetime import datetime
 from gcsbase import Component
 from gcsmsg import *
-from gcsgui import GuiHandler, GuiMsg
-
 
 # ===========================================================================
 
@@ -41,7 +39,7 @@ class GcsSimulator(Component):
         self.tele_gen = SimTelemetryGenerator()
         self.obrd = SimObrdManager()
         self.maint = SimMaintenanceManager()
-        self.gui = GuiHandler()
+        #self.gui = GuiHandler()
         self.terminated = False
         self.last_image_time = 0
         self.new_image_interval = 10

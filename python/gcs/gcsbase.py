@@ -30,6 +30,10 @@ class dict2obj_hook(object):
 def dict2obj(d):
     return json.loads(json.dumps(d), object_hook=dict2obj_hook)
 
+# Convert YAML object to Python object
+def yml_to_obj(yml):
+    return dict2obj(yml)
+
 
 # @Todo - Convert back from object o YAML (and then to XML)
 
@@ -96,7 +100,14 @@ class Config(Base):
         self.obj = None
         self.keep_alive = {}
 
-    def load(self, filename='d:/ultrasat/astropack.git/python/gcs/gcs.yml'):
+    def load(self, filename=''):
+
+        if filename == '':
+            if sys.platform == "win32":
+                filename = 'd:/ultrasat/astropack.git/python/gcs/gcs_conf_win.yml'
+            else:
+                filename = 'd:/ultrasat/astropack.git/python/gcs/gcs_conf.yml'
+
         self.filename = filename
         self.log('')
         with open(filename, 'r') as stream:
@@ -216,16 +227,18 @@ class Logger(Base):
 # All file transmission between the SOC and the GCS (and vice versa) shall be under FTP protocol
 # (TBD), or file insertion into a common file folder within the "Unsecured" part of the XML filter.
 
-class FileProcessor(Component):
+class FileComm(Component):
 
     # Constructor
     def __init__(self):
         super().__init__()
-        self.rcv_path = ''             # Input files folder
+        self.input_path = ''            # Input files folder
+        self.output_path = ''           # Output folder  (response/result of input files)
+        self.input_ext = 'xml'          #
+        self.output_ext = 'xml'         #
+
+        # Advanced
         self.processed_path = ''       # Optional archived input files folder
-        self.send_path = ''            # Optional output folder  (response/result of input files)
-        self.input_file_ext = 'xml'    #
-        self.send_ext = 'xml'
         self.KeepProcessedFiles = True   # true to keep the processed files in ProcessedPath, otherwise deleted after processing
         self.KeepOutputFiles = True      #
         self.process_files_max_age = 7      # Number of days to keep processed files in Processed Path
@@ -234,51 +247,60 @@ class FileProcessor(Component):
 
 
     # Initialize with default settings
-    def init(self, rcv_path, send_path):
-        self.rcv_path = rcv_path
-        self.send_path = send_path
+    def init(self, input_path, output_path, input_ext, output_ext):
+        self.input_path = input_path
+        self.input_ext = input_ext
+        self.output_path = output_path
+        self.output_ext = output_ext
 
-        if self.rcv_path != '' and not os.path.isdir(self.rcv_path):
-            os.mkdir(self.rcv_path)
+        # Create folders
+        if self.input_path != '' and not os.path.isdir(self.input_path):
+            os.mkdir(self.input_path)
 
-        if self.send_path != '' and not os.path.isdir(self.send_path):
-            os.mkdir(self.send_path)
+        if self.output_path != '' and not os.path.isdir(self.output_path):
+            os.mkdir(self.output_path)
+
 
     # Get file name for new outgoing message
-    def get_send_filename(self, ext=''):
-        fn = datetime.now().strftime('%y_%m_%d_%H_%M_%S_%f') + ext
-        return os.path.join(self.send_path, fn)
+    def new_output_filename(self, ext=''):
+        if ext == '':
+            ext = self.output_ext
 
-    #
+        fn = datetime.now().strftime('%y_%m_%d_%H_%M_%S_%f') + ext
+        return os.path.join(self.output_path, fn)
+
+    # Send message as YML
     def send_yml_cmd(self, cmd, params_dict):
         msg = 'Msg:\n  Cmd:' + cmd + '\n'
 
         for key in params_dict:
             msg = msg + '  ' + key + ':' + params_dict[key] + '\n'
 
-        filename = self.get_send_filename(self.send_ext)
+        filename = self.new_output_filename(ext=self.send_ext)
         with open(filename, 'w') as f:
             f.write(msg)
 
 
     # Poll input folder with specified delay, perform single step in DelayMS == -1
-    def poll_rcv(self):
+    def poll_input(self):
 
-        flist = glob.glob(os.path.join(self.rcv_path, '*.' + self.input_file_ext), recursive=False)
+        flist = glob.glob(os.path.join(self.input_path, '*.' + self.input_ext), recursive=False)
         flist.sort()
 
-        for fname in flist:
+        for filename in flist:
             try:
                 if self.process_file_callback:
-                    self.process_file_callback(fname)
+                    self.process_file_callback(filename)
             except:
                 self.log('error')
 
             # Move file to processed folder
-            path, fn = os.path.split(fname)
-            processed_fname = os.path.join(self.processed_path, fn)
+            #path, fn = os.path.split(filename)
+            #processed_fname = os.path.join(self.processed_path, fn)
             #shutil.move(fname, processed_fname)
-            return fname
+            return filename
+
+        return ''
 
 
         # Delete files before specified date

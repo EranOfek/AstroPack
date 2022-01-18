@@ -88,6 +88,8 @@ type
   public
     ConfigIni: TMemIniFile;
     XmlFilePath: String;
+    InMsgPath: String;
+    OutMsgPath: String;
   end;
 
 var
@@ -95,12 +97,9 @@ var
 
 const
   {$IFDEF Linux}
-  ConfigFileName : String = '../gcs.yml';
-  IniSection : String = 'GuiLinux';
+  ConfigFileName : String = '../gcs_conf.yml';
   {$ELSE}
-  ConfigFileName : String = '..\gcs.yml';
-  IniSection : String = 'GuiWin';
-  GuiSection : String = 'GuiWin';
+  ConfigFileName : String = '..\gcs_conf_win.yml';
   {$ENDIF}
 
   GuiInPath : String = 'InMsgFolder';
@@ -136,7 +135,7 @@ begin
   //LoadYmlConfig(ConfigFileName, IniSection, Config);
   //Log(Config.Values['InMsgFolder']);
 
-  Path := ConfigIni.ReadString(IniSection, 'InMsgFolder', '');
+  Path := ConfigIni.ReadString('Gui', 'InMsgFolder', '');
   ForceDirectories(Path);
 
   XmlFilePath := '..' + DirectorySeparator + 'gcs_msg_xml';
@@ -145,6 +144,13 @@ begin
 
   //
   LoadFiles();
+
+
+  InMsgPath := ConfigIni.ReadString('Gui', 'ToGuiPath', '');
+  OutMsgPath := ConfigIni.ReadString('Gui', 'FromGuiPath', '');
+
+  ForceDirectories(InMsgPath);
+  ForceDirectories(OutMsgPath);
 end;
 
 
@@ -153,7 +159,7 @@ var
    FileName: String;
    Lines: TStringList;
 begin
-  FileName := AppDataModule.GetNewFileName(ConfigIni.ReadString(GuiSection, GuiInPath, ''), '');
+  FileName := AppDataModule.GetNewFileName(ConfigIni.ReadString('Gui', GuiInPath, ''), '');
 
   MemoXml.Lines.SaveToFile(FileName + '.xml');
   MemoYml.Lines.SaveToFile(FileName + '.yml');
