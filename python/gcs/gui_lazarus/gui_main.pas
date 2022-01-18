@@ -1,3 +1,9 @@
+// Lazarus 2.2.0
+// Windows installer: lazarus-2.2.0-fpc-3.2.2-win64.exe
+//
+// Install Lazarus on Ubutnu
+// https://ubuntuhandbook.org/index.php/2021/11/install-lazarus-ide-ubuntu/
+
 unit gui_main;
 
 {$mode objfpc}{$H+}
@@ -6,48 +12,40 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, Buttons, ComCtrls, ComboEx, Process;
+  StdCtrls, Buttons, ComCtrls, Menus, Process,
+  gcs_about;
+
 
 type
 
-  { TForm1 }
+  { TMainForm }
 
-  TForm1 = class(TForm)
-    BtnCloseAll: TBitBtn;
+  TMainForm = class(TForm)
     BtnCloseAll1: TBitBtn;
-    BtnLiveLeft: TBitBtn;
-    BtnLiveLeft1: TBitBtn;
-    BtnLiveRight: TBitBtn;
-    BtnLiveRight1: TBitBtn;
-    BtnRecordLeft: TBitBtn;
+    BtnLoadFiles: TBitBtn;
     BtnRecordLeft1: TBitBtn;
-    BtnRecordRight: TBitBtn;
-    BtnRecordRight1: TBitBtn;
-    BtnRunMain: TBitBtn;
     BtnRunMain1: TBitBtn;
-    BtnSdCard: TBitBtn;
-    BtnSdCard1: TBitBtn;
-    BtnStartup: TBitBtn;
+    BtnSendXml: TBitBtn;
     BtnSendYml: TBitBtn;
     ComboBoxXmlFileName: TComboBox;
     ComboBoxYmlFileName: TComboBox;
     Image1: TImage;
-    Label1: TLabel;
-    Label2: TLabel;
-    Label3: TLabel;
     Label4: TLabel;
-    Label5: TLabel;
     Label6: TLabel;
-    Label7: TLabel;
+    MainMenu: TMainMenu;
     MemoLog: TMemo;
     MemoXml: TMemo;
     MemoYml: TMemo;
+    MIAbout: TMenuItem;
+    MIHelp: TMenuItem;
+    MINewWindow: TMenuItem;
+    MIExit: TMenuItem;
+    MIFile: TMenuItem;
     PageControl1: TPageControl;
     Panel1: TPanel;
     Panel10: TPanel;
     Panel11: TPanel;
     Panel2: TPanel;
-    Panel4: TPanel;
     Panel5: TPanel;
     Panel6: TPanel;
     Panel7: TPanel;
@@ -64,9 +62,15 @@ type
     TabSheetSimulator: TTabSheet;
     TimerPollGuiMsg: TTimer;
     procedure BtnCloseAll1Click(Sender: TObject);
-    procedure BtnLiveLeft1Click(Sender: TObject);
+    procedure BtnLoadFilesClick(Sender: TObject);
+    procedure BtnRunMain1Click(Sender: TObject);
+    procedure BtnSendXmlClick(Sender: TObject);
+    procedure BtnSendYmlClick(Sender: TObject);
     procedure ComboBoxXmlFileNameChange(Sender: TObject);
     procedure ComboBoxYmlFileNameChange(Sender: TObject);
+    procedure MIAboutClick(Sender: TObject);
+    procedure MIExitClick(Sender: TObject);
+    procedure MINewWindowClick(Sender: TObject);
     procedure TimerPollGuiMsgTimer(Sender: TObject);
   private
 
@@ -77,7 +81,7 @@ type
   end;
 
 var
-  Form1: TForm1;
+  MainForm: TMainForm;
 
 const
   ScriptPath = '/home/user/dev/opsci.git/src/scripts/';
@@ -87,12 +91,12 @@ implementation
 
 {$R *.lfm}
 
-{ TForm1 }
+{ TMainForm }
 
 procedure RunScript(Script: AnsiString);
 var
   AProcess: TProcess;
-  Cmd, s: ansistring;
+  Cmd: ansistring;
 begin
   Script := ScriptPath + '/' + Script;
   Cmd := Script + ';sleep 2';
@@ -111,6 +115,8 @@ begin
 end;
 
 
+
+
 procedure LoadFilesList(Path: String;  Mask: String;  List: TStrings);
 var
   ListOfFiles: TStringList;
@@ -123,6 +129,58 @@ begin
     ListOfFiles.Free;
   end;
 end;
+
+
+
+procedure LoadYmlConfig(YmlLines: TStrings;  Config: TStrings);
+var
+  i, p: Integer;
+  FirstList: Integer;
+  Line: String;
+  Section: String;
+begin
+  {$IFDEF Linux}
+  Section := 'GuiLinux:';
+  {$ELSE}
+  Section := 'GuiWin:';
+  {$ENDIF}
+
+  // Search Section
+  FirstList := -1;
+  for i:= 0 to YmlLines.Count-1 do
+  begin
+    Line := YmlLines[i];
+    p := Pos(Line, Section);
+    if p = 1 then
+    begin
+      FirstList := i;
+      break;
+    end
+  end;
+
+  if FirstList > -1 then
+  begin
+
+    // Replace first ':' with '='
+    for i:= FirstList+1 to YmlLines.Count-1 do
+    begin
+      Line := YmlLines[i];
+      p := Pos(Line, ':');
+      if p > 0 then
+      begin
+        Line[p] := '=';
+        Config.Add(Trim(Line));
+      end;
+    end;
+  end;
+
+end;
+
+
+
+
+{ TMainForm }
+
 
 const
   LineBreak: String = Char(#10);
@@ -138,7 +196,7 @@ begin
   Result := FileName;
 end;
 
-procedure TForm1.SendGuiMsg(AText: String);
+procedure TMainForm.SendGuiMsg(AText: String);
 var
    FileName: String;
    Lines: TStringList;
@@ -158,7 +216,7 @@ begin
 end;
 
 
-procedure TForm1.BtnLiveLeft1Click(Sender: TObject);
+procedure TMainForm.BtnLoadFilesClick(Sender: TObject);
 var
   Path: String;
 begin
@@ -167,18 +225,33 @@ begin
   LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
 end;
 
-procedure TForm1.BtnCloseAll1Click(Sender: TObject);
+procedure TMainForm.BtnRunMain1Click(Sender: TObject);
+begin
+  //
+end;
+
+procedure TMainForm.BtnSendXmlClick(Sender: TObject);
+begin
+  //
+end;
+
+procedure TMainForm.BtnSendYmlClick(Sender: TObject);
 var
   Yml: String;
 begin
-  Yml :=
+    Yml :=
      'Msg:'                                + LineBreak +
      '  Cmd: SendFile'                     + LineBreak +
      LineBreak;
   SendGuiMsg(Yml);
 end;
 
-procedure TForm1.ComboBoxXmlFileNameChange(Sender: TObject);
+procedure TMainForm.BtnCloseAll1Click(Sender: TObject);
+begin
+  //
+end;
+
+procedure TMainForm.ComboBoxXmlFileNameChange(Sender: TObject);
 var
   FileName: String;
 begin
@@ -186,12 +259,32 @@ begin
   MemoXml.Lines.LoadFromFile(FileName);
 end;
 
-procedure TForm1.ComboBoxYmlFileNameChange(Sender: TObject);
+procedure TMainForm.ComboBoxYmlFileNameChange(Sender: TObject);
 var
   FileName: String;
 begin
   FileName := ComboBoxXmlFileName.Items[ComboBoxYmlFileName.ItemIndex];
   MemoYml.Lines.LoadFromFile(FileName);
+end;
+
+procedure TMainForm.MIAboutClick(Sender: TObject);
+begin
+  //
+  AboutForm.Show();
+end;
+
+procedure TMainForm.MIExitClick(Sender: TObject);
+begin
+  //
+  Application.Terminate();
+end;
+
+procedure TMainForm.MINewWindowClick(Sender: TObject);
+var
+  Form: TMainForm;
+begin
+  Form := TMainForm.Create(Application);
+  Form.Show();
 end;
 
 //function GetKey(Lines: TStrings:
@@ -214,7 +307,8 @@ end;
 
 
 
-procedure TForm1.ProcessGuiFile(FileName: String);
+
+procedure TMainForm.ProcessGuiFile(FileName: String);
 var
   Lines: TStringList;
 begin
@@ -230,7 +324,7 @@ end;
 
 
 
-procedure TForm1.TimerPollGuiMsgTimer(Sender: TObject);
+procedure TMainForm.TimerPollGuiMsgTimer(Sender: TObject);
 var
   Path: String;
   FileName: String;

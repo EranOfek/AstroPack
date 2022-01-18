@@ -1,13 +1,14 @@
-object Form1: TForm1
-  Left = 67
-  Height = 525
-  Top = 110
+object MainForm: TMainForm
+  Left = 55
+  Height = 706
+  Top = 79
   Width = 1093
   Align = alTop
   Caption = 'ULTRASAT GCS Interface / Simulator'
-  ClientHeight = 525
+  ClientHeight = 686
   ClientWidth = 1093
-  LCLVersion = '1.8.2.0'
+  Menu = MainMenu
+  LCLVersion = '2.2.0.4'
   object Panel1: TPanel
     Left = 0
     Height = 64
@@ -11134,9 +11135,9 @@ object Form1: TForm1
     end
     object Label4: TLabel
       Left = 16
-      Height = 29
+      Height = 32
       Top = 16
-      Width = 480
+      Width = 417
       Caption = 'ULTRASAT GCS Interface / Simulator'
       Font.CharSet = ANSI_CHARSET
       Font.Color = clWhite
@@ -11145,28 +11146,27 @@ object Form1: TForm1
       Font.Pitch = fpVariable
       Font.Quality = fqDraft
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
   end
   object Panel2: TPanel
     Left = 0
-    Height = 461
+    Height = 622
     Top = 64
     Width = 1093
     Align = alClient
-    ClientHeight = 461
+    ClientHeight = 622
     ClientWidth = 1093
     TabOrder = 1
     object Panel9: TPanel
       Left = 1
-      Height = 459
+      Height = 620
       Top = 1
       Width = 426
       Align = alLeft
       BorderWidth = 8
       Caption = 'Panel9'
-      ClientHeight = 459
+      ClientHeight = 620
       ClientWidth = 426
       Color = clAqua
       ParentColor = False
@@ -11182,14 +11182,13 @@ object Form1: TForm1
         TabOrder = 0
         object TabSheetGcsInterface: TTabSheet
           Caption = 'GCS Interface'
-          ClientHeight = 452
-          ClientWidth = 404
+          ClientHeight = 455
+          ClientWidth = 400
           object Panel11: TPanel
             Left = 1
             Height = 408
             Top = 16
             Width = 242
-            Caption = 'Panel11'
             ClientHeight = 408
             ClientWidth = 242
             Color = 16756479
@@ -11203,6 +11202,7 @@ object Form1: TForm1
               Caption = 'Run GcsInterface'
               Font.Color = clGreen
               Font.Style = [fsBold]
+              OnClick = BtnRunMain1Click
               ParentFont = False
               TabOrder = 0
             end
@@ -11212,67 +11212,43 @@ object Form1: TForm1
               Top = 72
               Width = 108
               Caption = 'Send YML'
+              OnClick = BtnSendYmlClick
               TabOrder = 1
             end
-            object BtnLiveLeft1: TBitBtn
+            object BtnLoadFiles: TBitBtn
               Left = 7
               Height = 40
               Top = 232
               Width = 110
-              Caption = 'Preview - Left'
-              OnClick = BtnLiveLeft1Click
+              Caption = 'Load Files'
+              OnClick = BtnLoadFilesClick
               TabOrder = 2
-            end
-            object BtnLiveRight1: TBitBtn
-              Left = 120
-              Height = 40
-              Top = 232
-              Width = 110
-              Caption = 'Preview - Right'
-              TabOrder = 3
             end
             object BtnRecordLeft1: TBitBtn
               Left = 8
               Height = 40
               Top = 280
               Width = 110
-              Caption = 'Record - Left'
-              TabOrder = 4
-            end
-            object BtnRecordRight1: TBitBtn
-              Left = 120
-              Height = 40
-              Top = 280
-              Width = 110
-              Caption = 'Record - Right'
-              TabOrder = 5
+              Caption = '???'
+              TabOrder = 3
             end
             object BtnCloseAll1: TBitBtn
               Left = 8
               Height = 56
               Top = 328
               Width = 222
-              Caption = 'Close All'
+              Caption = '???'
               OnClick = BtnCloseAll1Click
-              TabOrder = 6
+              TabOrder = 4
             end
-            object BtnSdCard1: TBitBtn
+            object BtnSendXml: TBitBtn
               Left = 122
               Height = 56
               Top = 72
               Width = 108
               Caption = 'Send XML'
-              TabOrder = 7
-            end
-            object Label5: TLabel
-              Left = 8
-              Height = 17
-              Top = 136
-              Width = 145
-              Caption = 'Enter password ''user'''
-              Font.Color = clBlue
-              ParentColor = False
-              ParentFont = False
+              OnClick = BtnSendXmlClick
+              TabOrder = 5
             end
             object Label6: TLabel
               Left = 16
@@ -11284,20 +11260,8 @@ object Form1: TForm1
               Caption = 'Preview'
               Color = clSkyBlue
               Font.Color = clBlue
-              ParentColor = False
               ParentFont = False
               Transparent = False
-            end
-            object Label7: TLabel
-              Left = 8
-              Height = 15
-              Top = 160
-              Width = 207
-              Caption = 'Open File Manager to mount SDCARD'
-              Font.Color = clPurple
-              Font.Height = -12
-              ParentColor = False
-              ParentFont = False
             end
           end
         end
@@ -11306,137 +11270,23 @@ object Form1: TForm1
         end
         object TabSheet1: TTabSheet
           Caption = 'TabSheet1'
-          ClientHeight = 452
-          ClientWidth = 404
-          object Panel4: TPanel
-            Left = 1
-            Height = 408
-            Top = 48
-            Width = 242
-            Caption = 'Panel4'
-            ClientHeight = 408
-            ClientWidth = 242
-            TabOrder = 0
-            object BtnRunMain: TBitBtn
-              Left = 7
-              Height = 56
-              Top = 8
-              Width = 223
-              Caption = 'Run Main'
-              Font.Color = clGreen
-              Font.Style = [fsBold]
-              ParentFont = False
-              TabOrder = 0
-            end
-            object BtnStartup: TBitBtn
-              Left = 8
-              Height = 56
-              Top = 72
-              Width = 108
-              Caption = 'Startup'
-              TabOrder = 1
-            end
-            object BtnLiveLeft: TBitBtn
-              Left = 7
-              Height = 40
-              Top = 232
-              Width = 110
-              Caption = 'Preview - Left'
-              TabOrder = 2
-            end
-            object BtnLiveRight: TBitBtn
-              Left = 120
-              Height = 40
-              Top = 232
-              Width = 110
-              Caption = 'Preview - Right'
-              TabOrder = 3
-            end
-            object BtnRecordLeft: TBitBtn
-              Left = 8
-              Height = 40
-              Top = 280
-              Width = 110
-              Caption = 'Record - Left'
-              TabOrder = 4
-            end
-            object BtnRecordRight: TBitBtn
-              Left = 120
-              Height = 40
-              Top = 280
-              Width = 110
-              Caption = 'Record - Right'
-              TabOrder = 5
-            end
-            object BtnCloseAll: TBitBtn
-              Left = 8
-              Height = 56
-              Top = 328
-              Width = 222
-              Caption = 'Close All'
-              TabOrder = 6
-            end
-            object BtnSdCard: TBitBtn
-              Left = 122
-              Height = 56
-              Top = 72
-              Width = 108
-              Caption = 'SD Card'
-              TabOrder = 7
-            end
-            object Label1: TLabel
-              Left = 8
-              Height = 15
-              Top = 136
-              Width = 111
-              Caption = 'Enter password ''user'''
-              Font.Color = clBlue
-              ParentColor = False
-              ParentFont = False
-            end
-            object Label2: TLabel
-              Left = 16
-              Height = 17
-              Top = 208
-              Width = 214
-              Alignment = taCenter
-              AutoSize = False
-              Caption = 'Preview'
-              Color = clSkyBlue
-              Font.Color = clBlue
-              ParentColor = False
-              ParentFont = False
-              Transparent = False
-            end
-            object Label3: TLabel
-              Left = 8
-              Height = 15
-              Top = 160
-              Width = 201
-              Caption = 'Open File Manager to mount SDCARD'
-              Font.Color = clPurple
-              Font.Height = -12
-              ParentColor = False
-              ParentFont = False
-            end
-          end
         end
       end
       object PanelLog: TPanel
         Left = 9
-        Height = 1
-        Top = 450
+        Height = 111
+        Top = 500
         Width = 408
         Align = alClient
         BorderWidth = 4
         Caption = 'PanelLog'
-        ClientHeight = 1
+        ClientHeight = 111
         ClientWidth = 408
         TabOrder = 1
         object MemoLog: TMemo
           Left = 5
-          Height = 33
-          Top = 0
+          Height = 101
+          Top = 5
           Width = 398
           Align = alClient
           Color = 14745340
@@ -11450,7 +11300,7 @@ object Form1: TForm1
         Cursor = crVSplit
         Left = 9
         Height = 8
-        Top = 450
+        Top = 492
         Width = 408
         Align = alTop
         Color = clSkyBlue
@@ -11460,31 +11310,31 @@ object Form1: TForm1
     end
     object Panel10: TPanel
       Left = 435
-      Height = 459
+      Height = 620
       Top = 1
       Width = 657
       Align = alClient
       BorderWidth = 8
       Caption = 'Panel10'
-      ClientHeight = 459
+      ClientHeight = 620
       ClientWidth = 657
       Color = clOlive
       ParentColor = False
       TabOrder = 1
       object PanelLog2: TPanel
         Left = 9
-        Height = 149
+        Height = 310
         Top = 9
         Width = 639
         Align = alClient
         BorderWidth = 4
         Caption = 'PanelLog2'
-        ClientHeight = 149
+        ClientHeight = 310
         ClientWidth = 639
         TabOrder = 0
         object MemoYml: TMemo
           Left = 5
-          Height = 75
+          Height = 236
           Top = 69
           Width = 629
           Align = alClient
@@ -11574,11 +11424,11 @@ object Form1: TForm1
           TabOrder = 2
           object ComboBoxYmlFileName: TComboBox
             Left = 9
-            Height = 22
+            Height = 23
             Top = 9
             Width = 611
             Align = alClient
-            ItemHeight = 0
+            ItemHeight = 15
             OnChange = ComboBoxYmlFileNameChange
             TabOrder = 0
             Text = 'ComboBoxYmlFileName'
@@ -11588,7 +11438,7 @@ object Form1: TForm1
       object PanelLog1: TPanel
         Left = 9
         Height = 284
-        Top = 166
+        Top = 327
         Width = 639
         Align = alBottom
         BorderWidth = 4
@@ -11711,11 +11561,11 @@ object Form1: TForm1
           TabOrder = 2
           object ComboBoxXmlFileName: TComboBox
             Left = 9
-            Height = 22
+            Height = 23
             Top = 9
             Width = 611
             Align = alClient
-            ItemHeight = 0
+            ItemHeight = 15
             OnChange = ComboBoxXmlFileNameChange
             TabOrder = 0
             Text = 'ComboBoxXmlFileName'
@@ -11726,7 +11576,7 @@ object Form1: TForm1
         Cursor = crVSplit
         Left = 9
         Height = 8
-        Top = 158
+        Top = 319
         Width = 639
         Align = alBottom
         Color = clSkyBlue
@@ -11736,7 +11586,7 @@ object Form1: TForm1
     end
     object Splitter3: TSplitter
       Left = 427
-      Height = 459
+      Height = 620
       Top = 1
       Width = 8
       Color = clSkyBlue
@@ -11746,7 +11596,29 @@ object Form1: TForm1
   object TimerPollGuiMsg: TTimer
     Interval = 100
     OnTimer = TimerPollGuiMsgTimer
-    left = 297
-    top = 127
+    Left = 297
+    Top = 127
+  end
+  object MainMenu: TMainMenu
+    Left = 304
+    Top = 200
+    object MIFile: TMenuItem
+      Caption = 'File'
+      object MINewWindow: TMenuItem
+        Caption = 'New Window'
+        OnClick = MINewWindowClick
+      end
+      object MIExit: TMenuItem
+        Caption = 'Exit'
+        OnClick = MIExitClick
+      end
+    end
+    object MIHelp: TMenuItem
+      Caption = 'Help'
+      object MIAbout: TMenuItem
+        Caption = 'About'
+        OnClick = MIAboutClick
+      end
+    end
   end
 end

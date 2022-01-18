@@ -1,5 +1,22 @@
 # File: lazarus/.gitignore
 
+*/*
+!*/*.pas
+!*/*.lfm
+!*/*.lpi
+!*/*.lpr
+!*/*.lps
+!*/*.ico
+!*/*.res
+!*/*.txt
+!*/*.md
+!*/*.sql
+!*/*.py
+!*/*.bat
+!*/*.sh
+!.gitignore
+ 
+ 
 # Compilation output files
 *.o
 *.obj
@@ -26,3 +43,4 @@
 
 # Temporary files
 **/__history/*
+
