@@ -224,7 +224,8 @@ class FileProcessor(Component):
         self.rcv_path = ''             # Input files folder
         self.processed_path = ''       # Optional archived input files folder
         self.send_path = ''            # Optional output folder  (response/result of input files)
-        self.input_file_mask = '*.*'   #
+        self.input_file_ext = 'xml'    #
+        self.send_ext = 'xml'
         self.KeepProcessedFiles = True   # true to keep the processed files in ProcessedPath, otherwise deleted after processing
         self.KeepOutputFiles = True      #
         self.process_files_max_age = 7      # Number of days to keep processed files in Processed Path
@@ -248,11 +249,22 @@ class FileProcessor(Component):
         fn = datetime.now().strftime('%y_%m_%d_%H_%M_%S_%f') + ext
         return os.path.join(self.send_path, fn)
 
+    #
+    def send_yml_cmd(self, cmd, params_dict):
+        msg = 'Msg:\n  Cmd:' + cmd + '\n'
+
+        for key in params_dict:
+            msg = msg + '  ' + key + ':' + params_dict[key] + '\n'
+
+        filename = self.get_send_filename(self.send_ext)
+        with open(filename, 'w') as f:
+            f.write(msg)
+
 
     # Poll input folder with specified delay, perform single step in DelayMS == -1
     def poll_rcv(self):
 
-        flist = glob.glob(os.path.join(self.rcv_path, self.input_file_mask), recursive=False)
+        flist = glob.glob(os.path.join(self.rcv_path, '*.' + self.input_file_ext), recursive=False)
         flist.sort()
 
         for fname in flist:

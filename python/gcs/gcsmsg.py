@@ -30,6 +30,7 @@ from enum import Enum
 import yaml
 import xml.etree.cElementTree as ET
 import xml.dom.minidom
+import configparser
 from gcsbase import Component
 
 
@@ -672,4 +673,42 @@ class MsgData:
 
         ET.SubElement(doc, 'Source').text = '2001-12-17T09:30:47.0Z'
 '''
+
+# ============================================================================
+
+# ============================================================================
+
+
+# Simple message encoded as INI file section
+class GuiMsg:
+
+    # Constructor
+    def __init__(self):
+        self.section = 'msg'
+        self.params = {}
+        self.type = ''
+
+    # Write params dictionary to INI file section
+    def write(self, filename):
+        config = configparser.ConfigParser()
+        config.add_section(self.section)
+        for key in self.params:
+            config.set(self.section, key, self.params[key])
+
+        # Write the new structure to the new file
+        with open(filename, 'w') as configfile:
+            config.write(configfile)
+
+    # Read params dictionary from INI file section
+    def read(self, filename):
+        config = configparser.ConfigParser()
+        config.read(filename)
+
+        for (key, value) in config.items(self.section):
+            self.params[key] = value
+
+        # Get common parameters
+        self.type = self.params['type']
+
+
 

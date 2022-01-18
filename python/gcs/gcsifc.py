@@ -24,7 +24,6 @@ from gcsbase import Component, Config, FileProcessor
 from gcsbase import xml_to_yml, dict2obj
 from gcsmsg import *
 from gcsdb import DbQuery, Database
-from gcsgui import GuiHandler, GuiMsg, GuiMsgType
 
 # ===========================================================================
 
@@ -46,18 +45,20 @@ class GcsInterface(Component):
         self.conf.load()
 
         #
-        self.gui = GuiHandler()
+        self.gui_com = FileProcessor()
+        self.gui_com.rcv_path = self.conf.obj.Interface.InMsgFolder
+        self.gui_com.input_file_mask = '*.xml'
 
         self.last_rcv_keep_alive_time = 0
 
         # Download management
 
-        self.in_com = FileProcessor()
-        self.in_com.rcv_path = self.conf.obj.Interface.InMsgFolder
-        self.in_com.input_file_mask = '*.xml'
+        self.msg_com = FileProcessor()
+        self.msg_com.rcv_path = self.conf.obj.Interface.InMsgFolder
+        self.msg_com.input_file_ext = 'xml'
+        #self.msg_com.out_path = ...
+        # self.msg_com.out_ext = ...
 
-        #'c:/gcs/incom_processed'
-        self.out_com = FileProcessor()
 
         # Database
         self.db = Database()
@@ -160,13 +161,14 @@ class GcsInterface(Component):
 
     # Send request to get current imaging task
     def send_msg_current_imaging_task(self):
-        msg = Msg
+        msg = MsgAck()
         self.prepare_msg(msg)
         return self.send_msg(msg)
 
 
     # Send retransmit request of images stores in GCS
     def send_msg_retransmit_images(self):
+        msg = MsgAck()
         self.prepare_msg(msg)
         return self.send_msg(msg)
 
@@ -185,6 +187,8 @@ class GcsInterface(Component):
         #query.exec('INSERT INTO gcs_msgs () VALUES(), ', (, xml))
 
         # Save file to outgoing messages folder
+        filename = self.msg_com.get_send_filename()
+        #msg...
 
 
 
@@ -194,7 +198,7 @@ class GcsInterface(Component):
 
     #
     def handle_incoming_msgs(self):
-        filename = self.in_com.poll_rcv()
+        filename = self.msg_com.poll_rcv()
         if filename:
 
             # XML file
@@ -413,9 +417,21 @@ class GcsInterface(Component):
     # -----------------------------------------------------------------------
     #                                 GUI
     # -----------------------------------------------------------------------
+
+    def send_gui(self, cmd, params_dict):
+        self.gui_com.send_yml_cmd(cmd, params_dict)
+
+    # Display log
+    def gui_log(self, cmd, text):
+        params = { 'Text': text }
+        self.send_gui('Log', params)
+
+
     # Handle GUI message
     def handle_gui(self):
-        if self.gui:
+        if self.gui_com:
+            filename = self.in_com.poll_rcv()
+
             gui_msg = self.gui.rcv()
             if gui_msg:
                 self.handle_gui_msg(gui_msg)
@@ -423,7 +439,7 @@ class GcsInterface(Component):
 
     # Handle GUI message
     def handle_gui_msg(self, gui_msg):
-        if gui_msg.type == GuiMsgType.SendKeepAlive:
+        if gui_msg.type == ''
             pass
 
 

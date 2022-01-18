@@ -1,7 +1,7 @@
 object MainForm: TMainForm
   Left = 55
   Height = 706
-  Top = 79
+  Top = 99
   Width = 1093
   Align = alTop
   Caption = 'ULTRASAT GCS Interface / Simulator'

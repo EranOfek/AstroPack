@@ -3,10 +3,21 @@
 # Notes:
 #
 
+#============================================================================
+#
+#============================================================================
+
 Interface:
 
+    # Message folders - Windows
+    InMsgFolderWin: c:/gcs/inmsg/
+    OutMsgFolderWin: c:/gcs/outmsg/
+    
+    # Message folders - Linux    
     InMsgFolder: c:/gcs/inmsg/
     OutMsgFolder: c:/gcs/outmsg/
+
+    
     InImageFolder: c:/gcs/inimage/
 
     InMsgProcessedFolder: c:/gcs/inmsg_processed/
@@ -97,14 +108,22 @@ Simulator:
         names2      : [ 'one', 'two' ]
 
 
+#============================================================================
+#                               GUI Interface
+#============================================================================
+
+# Windows
 GuiWin:
 
     InMsgFolder: c:\gcs\gui_inmsg\
     OutMsgFolder: c:\gcs\gui_outmsg\
     EndOfSection: $
 
+
+# Linux
 GuiLinux:
 
     InMsgFolder: /tmp/gcs/gui_inmsg
     OutMsgFolder: /tmp/gcs/gui_outmsg
     EndOfSection: $
+

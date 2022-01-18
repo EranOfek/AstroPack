@@ -11,7 +11,7 @@
         <WindowIndex Value="-1"/>
         <TopLine Value="-1"/>
         <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="25"/>
+        <UsageCount Value="30"/>
       </Unit0>
       <Unit1>
         <Filename Value="gui_main.pas"/>
@@ -20,39 +20,42 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="305"/>
-        <CursorPos X="20" Y="320"/>
-        <UsageCount Value="25"/>
+        <TopLine Value="199"/>
+        <CursorPos X="50" Y="208"/>
+        <UsageCount Value="30"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="datamod.pas"/>
+        <Filename Value="gcs_datamod.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="DataModule1"/>
+        <ComponentName Value="AppDataModule"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="DataModule"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="21" Y="14"/>
-        <UsageCount Value="22"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="53"/>
+        <CursorPos Y="75"/>
+        <UsageCount Value="27"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit2>
       <Unit3>
         <Filename Value="C:/Bin/Lazarus/lcl/interfaces/win32/win32listsl.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="138"/>
         <CursorPos X="29" Y="153"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="9"/>
       </Unit3>
       <Unit4>
         <Filename Value="../../../lazarus/packages/yaml/libpasyaml/source/libpasyaml.pas"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="9"/>
       </Unit4>
       <Unit5>
         <Filename Value="../../../lazarus/packages/yaml/libpasyaml/source/pasyaml.pas"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="31" Y="18"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="9"/>
       </Unit5>
       <Unit6>
         <Filename Value="gcs_about.pas"/>
@@ -62,128 +65,128 @@
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="76" Y="6"/>
-        <UsageCount Value="21"/>
+        <UsageCount Value="26"/>
       </Unit6>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="gui_main.pas"/>
-        <Caret Line="174" TopLine="161"/>
+        <Filename Value="gcs_datamod.pas"/>
+        <Caret Line="33" Column="94" TopLine="17"/>
       </Position1>
       <Position2>
-        <Filename Value="gui_main.pas"/>
-        <Caret Line="178" TopLine="161"/>
+        <Filename Value="gcs_datamod.pas"/>
+        <Caret Line="189" TopLine="175"/>
       </Position2>
       <Position3>
-        <Filename Value="gui_main.pas"/>
-        <Caret Line="180" TopLine="161"/>
+        <Filename Value="gcs_datamod.pas"/>
+        <Caret Line="168" TopLine="154"/>
       </Position3>
       <Position4>
-        <Filename Value="gui_main.pas"/>
-        <Caret Line="181" TopLine="161"/>
+        <Filename Value="gcs_datamod.pas"/>
+        <Caret Line="189" TopLine="175"/>
       </Position4>
       <Position5>
-        <Filename Value="gui_main.pas"/>
-        <Caret Line="182" TopLine="161"/>
+        <Filename Value="gcs_datamod.pas"/>
+        <Caret Line="197" TopLine="175"/>
       </Position5>
       <Position6>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="178" TopLine="161"/>
+        <Caret Line="221" Column="38" TopLine="202"/>
       </Position6>
       <Position7>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="180" TopLine="161"/>
+        <Caret Line="92" Column="62" TopLine="81"/>
       </Position7>
       <Position8>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="181" TopLine="161"/>
+        <Caret Line="221" Column="37" TopLine="207"/>
       </Position8>
       <Position9>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="182" TopLine="161"/>
+        <Caret Line="104" Column="31" TopLine="87"/>
       </Position9>
       <Position10>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="178" TopLine="161"/>
+        <Caret Line="215" Column="39" TopLine="204"/>
       </Position10>
       <Position11>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="180" TopLine="161"/>
+        <Caret Line="313" TopLine="284"/>
       </Position11>
       <Position12>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="181" Column="25" TopLine="161"/>
+        <Caret Line="328" TopLine="299"/>
       </Position12>
       <Position13>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="307" TopLine="292"/>
+        <Caret Line="158" TopLine="144"/>
       </Position13>
       <Position14>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="169" TopLine="154"/>
+        <Caret Line="226" Column="9" TopLine="207"/>
       </Position14>
       <Position15>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="184" TopLine="164"/>
+        <Caret Line="83" Column="27" TopLine="69"/>
       </Position15>
       <Position16>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="185" TopLine="164"/>
+        <Caret Line="332" TopLine="303"/>
       </Position16>
       <Position17>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="178" TopLine="164"/>
       </Position17>
       <Position18>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="180" TopLine="164"/>
+        <Caret Line="209" TopLine="200"/>
       </Position18>
       <Position19>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="181" TopLine="164"/>
+        <Caret Line="148" TopLine="119"/>
       </Position19>
       <Position20>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="182" TopLine="164"/>
+        <Caret Line="183" TopLine="170"/>
       </Position20>
       <Position21>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="184" TopLine="164"/>
+        <Caret Line="52" Column="45" TopLine="33"/>
       </Position21>
       <Position22>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="186" Column="74" TopLine="170"/>
+        <Caret Line="143" Column="3" TopLine="128"/>
       </Position22>
       <Position23>
-        <Filename Value="gui_main.pas"/>
-        <Caret Line="184" Column="10" TopLine="170"/>
+        <Filename Value="gcs_datamod.pas"/>
+        <Caret Line="72" Column="52" TopLine="66"/>
       </Position23>
       <Position24>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="185" TopLine="170"/>
+        <Caret Line="188" Column="29" TopLine="185"/>
       </Position24>
       <Position25>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="154" Column="25" TopLine="148"/>
+        <Caret Line="93" Column="49" TopLine="115"/>
       </Position25>
       <Position26>
         <Filename Value="gui_main.pas"/>
+        <Caret Line="209" Column="7" TopLine="195"/>
       </Position26>
       <Position27>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="154" Column="25" TopLine="130"/>
+        <Caret Line="206" TopLine="195"/>
       </Position27>
       <Position28>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="213" Column="36" TopLine="199"/>
+        <Caret Line="207" TopLine="195"/>
       </Position28>
       <Position29>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="214" TopLine="198"/>
+        <Caret Line="208" TopLine="195"/>
       </Position29>
       <Position30>
         <Filename Value="gui_main.pas"/>
-        <Caret Line="318" Column="19" TopLine="297"/>
+        <Caret Line="211" TopLine="195"/>
       </Position30>
     </JumpHistory>
     <RunParams>

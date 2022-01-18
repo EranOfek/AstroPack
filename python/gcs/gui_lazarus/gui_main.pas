@@ -12,8 +12,8 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, Buttons, ComCtrls, Menus, Process,
-  gcs_about;
+  StdCtrls, Buttons, ComCtrls, Menus, Process, IniFiles,
+  gcs_datamod, gcs_about;
 
 
 type
@@ -86,7 +86,8 @@ type
     procedure Log(Line: String);
 
   public
-    Config: TStringList;
+    ConfigIni: TMemIniFile;
+    XmlFilePath: String;
   end;
 
 var
@@ -95,11 +96,14 @@ var
 const
   {$IFDEF Linux}
   ConfigFileName : String = '../gcs.yml';
-  IniSection : String = 'GuiLinux:';
+  IniSection : String = 'GuiLinux';
   {$ELSE}
   ConfigFileName : String = '..\gcs.yml';
-  IniSection : String = 'GuiWin:';
+  IniSection : String = 'GuiWin';
+  GuiSection : String = 'GuiWin';
   {$ENDIF}
+
+  GuiInPath : String = 'InMsgFolder';
 
 const
   ScriptPath = '/home/user/dev/opsci.git/src/scripts/';
@@ -112,108 +116,7 @@ implementation
 
 { TMainForm }
 
-procedure RunScript(Script: AnsiString);
-var
-  AProcess: TProcess;
-  Cmd: ansistring;
-begin
-  Script := ScriptPath + '/' + Script;
-  Cmd := Script + ';sleep 2';
-  AProcess := TProcess.Create(nil);
-  AProcess.Executable := '/usr/bin/xterm';  //Cmd;  //'/bin/bash';
-  AProcess.Parameters.Add('-e');
-  AProcess.Parameters.Add(Cmd);
-  //AProcess.Options := AProcess.Options + [poWaitOnExit];
-  AProcess.Execute;
-  //AProcess.Free;
 
-  //if RunCommand('/bin/bash',['-c',Script], s, [{poUsePipes}{, poWaitOnExit}]) then
-  //   writeln(s);
-
-
-end;
-
-
-
-
-procedure LoadFilesList(Path: String;  Mask: String;  List: TStrings);
-var
-  ListOfFiles: TStringList;
-begin
-  ListOfFiles := TStringList.Create;
-  try
-    FileUtil.FindAllFiles(ListOfFiles, Path, Mask, False);
-    List.Assign(ListOfFiles);
-  finally
-    ListOfFiles.Free;
-  end;
-end;
-
-
-
-procedure LoadYmlSection(YmlLines: TStrings;  Section: String;  Config: TStrings);
-var
-  i, p: Integer;
-  FirstList: Integer;
-  Line: String;
-begin
-
-  // Search Section
-  FirstList := -1;
-  for i:= 0 to YmlLines.Count-1 do
-  begin
-    Line := YmlLines[i];
-    p := Pos(Line, Section);
-    if p = 1 then
-    begin
-      FirstList := i;
-      break;
-    end
-  end;
-
-  if FirstList > -1 then
-  begin
-
-    // Replace first ':' with '='
-    for i:= FirstList+1 to YmlLines.Count-1 do
-    begin
-      Line := YmlLines[i];
-
-      // Break on end of section
-      p := Pos('EndOfSection', Line);
-      if p > 0 then
-      begin
-        break;
-      end;
-
-      p := Pos(':', Line);
-      if p > 0 then
-      begin
-        Line := Trim(Copy(Line, 1, p-1)) + '=' + Trim(Copy(Line, p+1, Length(Line)));
-        Config.Add(Line);
-      end;
-    end;
-  end;
-
-end;
-
-
-procedure LoadYmlConfig(FileName: String;  Section: String;  Config: TStrings);
-var
-  Lines: TStringList;
-begin
-  MainForm.Log('LoadYmlConfig: ' + FileName);
-  try
-    Lines:= TStringList.Create;
-    Lines.LoadFromFile(FileName);
-    LoadYmlSection(Lines, Section, Config);
-  finally
-    Lines.Free;
-  end;
-  MainForm.MemoLog.Lines.AddStrings(Config);
-
-
-end;
 
 
 { TMainForm }
@@ -223,22 +126,34 @@ const
   LineBreak: String = Char(#10);
 
 
-function NewFileName: String;
+procedure TMainForm.FormCreate(Sender: TObject);
 var
   Path: String;
-  FileName: String;
 begin
-  Path := 'c:\gcs\gui\';
-  FileName := Path + FormatDateTime('YYYY_MM_DD__HH_MM_SS_zzz', Now);
-  Result := FileName;
+  //
+  ConfigIni := TMemIniFile.Create('');
+  AppDataModule.LoadYmlToIni(ConfigFileName, ConfigIni);
+  //LoadYmlConfig(ConfigFileName, IniSection, Config);
+  //Log(Config.Values['InMsgFolder']);
+
+  Path := ConfigIni.ReadString(IniSection, 'InMsgFolder', '');
+  ForceDirectories(Path);
+
+  XmlFilePath := '..' + DirectorySeparator + 'gcs_msg_xml';
+
+  //D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
+
+  //
+  LoadFiles();
 end;
+
 
 procedure TMainForm.SendGuiMsg(AText: String);
 var
    FileName: String;
    Lines: TStringList;
 begin
-  FileName := NewFileName();
+  FileName := AppDataModule.GetNewFileName(ConfigIni.ReadString(GuiSection, GuiInPath, ''), '');
 
   MemoXml.Lines.SaveToFile(FileName + '.xml');
   MemoYml.Lines.SaveToFile(FileName + '.yml');
@@ -246,7 +161,7 @@ begin
   Lines := TStringList.Create;
   try
     Lines.Text := AText;
-    Lines.SaveToFile(FileName + '.msg.yml');
+    Lines.SaveToFile(FileName + '.yml');
   finally
     Lines.Free;
   end;
@@ -262,14 +177,49 @@ procedure TMainForm.LoadFiles();
 var
   Path: String;
 begin
-  Path := 'D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
-  LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
-  LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
+  Path := XmlFilePath;  //'D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
+  AppDataModule.LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
+  AppDataModule.LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
 end;
 
 procedure TMainForm.BtnRunMain1Click(Sender: TObject);
+var
+  AProcess: TProcess;
+  Cmd: AnsiString;
 begin
   //
+  begin
+    {$IFDEF Linux}
+    Script := Path + '/' + Script;
+    Cmd := Script + ';sleep 2';
+    AProcess := TProcess.Create(nil);
+    AProcess.Executable := '/usr/bin/xterm';  //Cmd;  //'/bin/bash';
+    AProcess.Parameters.Add('-e');
+    AProcess.Parameters.Add(Cmd);
+    //AProcess.Options := AProcess.Options + [poWaitOnExit];
+    AProcess.Execute;
+    //AProcess.Free;
+
+    //if RunCommand('/bin/bash',['-c',Script], s, [{poUsePipes}{, poWaitOnExit}]) then
+    //   writeln(s);
+    {$ELSE}
+    AProcess := TProcess.Create(nil);
+    AProcess.Executable := 'cmd.exe';  //Cmd;  //'/bin/bash';
+    AProcess.Parameters.Add('start cmd /k python ..\gcsmain.py');
+    //AProcess.Parameters.Add(Cmd);
+    //AProcess.Options := AProcess.Options + [poWaitOnExit];
+    AProcess.Execute;
+    //AProcess.Free;
+
+    //if RunCommand('/bin/bash',['-c',Script], s, [{poUsePipes}{, poWaitOnExit}]) then
+    //   writeln(s);
+
+
+    {$ENDIF}
+  end;
+
+
+  //AppDataModule.RunScript();
 end;
 
 procedure TMainForm.BtnSendXmlClick(Sender: TObject);
@@ -312,16 +262,7 @@ begin
   MemoYml.Lines.LoadFromFile(FileName);
 end;
 
-procedure TMainForm.FormCreate(Sender: TObject);
-begin
-  //
-  Config := TStringList.Create();
-  LoadYmlConfig(ConfigFileName, IniSection, Config);
-  Log(Config.Values['InMsgFolder']);
 
-  //
-  LoadFiles();
-end;
 
 procedure TMainForm.MIAboutClick(Sender: TObject);
 begin
@@ -348,26 +289,6 @@ begin
   Form.Show();
 end;
 
-//function GetKey(Lines: TStrings:
-
-
-function ExtractBetween(const Value, A, B: string): string;
-var
-  aPos, bPos: Integer;
-begin
-  result := '';
-  aPos := Pos(A, Value);
-  if aPos > 0 then begin
-    aPos := aPos + Length(A);
-    bPos := Pos(B, Value);  //@Todo @Chen , aPos);
-    if bPos > 0 then begin
-      Result := Trim(Copy(Value, aPos, bPos - aPos));
-    end;
-  end;
-end;
-
-
-
 
 procedure TMainForm.ProcessGuiFile(FileName: String);
 var
@@ -393,7 +314,7 @@ begin
   Path := 'c:\gcs\gui_in';
   FileList := TStringList.Create;
   try
-    LoadFilesList(Path, '*.yml', FileList);
+    AppDataModule.LoadFilesList(Path, '*.yml', FileList);
     FileList.Sort;
     if FileList.Count > 0 then
     begin
