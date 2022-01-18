@@ -11,7 +11,8 @@ classdef Targets < Component
         RA
         Dec
         
-        Priority
+        Priority                                % baseline priority that multiplies the base priority
+        PriorityArgs               = [
         
         LastJD
         GlobalCounter
@@ -284,7 +285,6 @@ classdef Targets < Component
                 for Ijd=1:1:Njd
                     [FlagAll] = isVisible(Obj, VecJD(Ijd));
                     VisibilityStatus  = VisibilityStatus & FlagAll;
-                    sum(VisibilityStatus)
                     VisibilityCounter = VisibilityCounter + FlagAll.*VisibilityStatus;
                 end
                 VisibilityTime = VisibilityCounter .* Args.TimeRes;
@@ -401,6 +401,20 @@ classdef Targets < Component
             
         end
         
+    end
+    
+    methods % weights and priority
+        function calcPriority(Obj, Method, Args)
+            %
+            
+            arguments
+                Obj
+                Method        = 'cadence';
+                Args
+            end
+            
+            
+        end
     end
     
     methods (Static)  % static utilities
