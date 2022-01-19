@@ -11,6 +11,7 @@ classdef Targets < Component
         RA
         Dec
         
+        CadenceMethod                           % 'periodic' | 'continues' | 'west2east'
         Priority                                % baseline priority that multiplies the base priority
         PriorityArgs               = [1 40./1440];   % ...
         MinNightlyVisibility       = 2./24;   % [day]
@@ -30,14 +31,45 @@ classdef Targets < Component
         HALimit                    = 120;
         SunAltLimit                = -11.5;    % deg
         MoonDistLimit              = [0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30];  % or scalar
+        
+        FileName                   = [];
     end
     
     methods % constructor
-        
+        function Obj = Targets(FileName)
+            % Constructor for Targets
+            % Input  : - If not given and the FileName property is empty
+            %            then will return an empty Targets
+            %            object. Otherwise, this, or the FileName property,
+            %            is the file name to load.
+            %            The file may contain a matlab Targets object.
+            % Output : - A Targets object.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets
+            %           
+            %          T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          T.write('try1.mat')
+            %          T=celestial.scheduling.Targets('try1.mat');
+            %          !rm try1.mat
+            
+            arguments
+                FileName = [];
+            end
+            
+            if ~isempty(FileName)
+                Obj.FileName = FileName;
+            end
+            
+            if isempty(FileName)
+                % return empty object
+                
+            else
+                Obj = io.files.load2(Obj.FileName);
+            end
+            
+        end
     end
-    
-    
-    
     
     methods % read/write        
         function Obj = generateTargetList(Obj, List, Args)
@@ -109,7 +141,18 @@ classdef Targets < Component
             end
         end
         
-
+        function write(Obj, FileName)
+            % save the Targets object as a MAT file.
+            % Input  : - A Targets object.
+            %          - File name.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          T.write('try1.mat')
+            
+            save('-v7.3', FileName, 'Obj');
+        end
+        
     end
     
     methods
@@ -247,12 +290,14 @@ classdef Targets < Component
             
         end
         
-        function [Az, Alt] = azalt(Obj, JD)
+        function [Az, Alt, dAz, dAlt] = azalt(Obj, JD)
             % get Az/Alt for target
             % Input  : - Target object.
             %          - JD. Default is current time.
             % Output : - Az [deg]
             %          - Alt [deg]
+            %          - dAz/dt [deg/s]
+            %          - dAlt/dt [deg/s]
             % Author : Eran Ofek (Jan 2022)
             % Example: T.generateTargetList('last');
             %          [Az, Alt] = T.azalt
@@ -261,14 +306,25 @@ classdef Targets < Component
                 Obj
                 JD       = celestial.time.julday;
             end
-            
-            RAD = 180./pi;
+            SEC_IN_DAY = 86400;
+            RAD        = 180./pi;
                    
             LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
             HA      = LST - Obj.RA;
             [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Obj.Dec./RAD, Obj.GeoPos(2)./RAD);
             Az  = Az.*RAD;
             Alt = Alt.*RAD;
+            
+            if nargout>2
+                JD1     = JD + 1./SEC_IN_DAY;
+                LST     = celestial.time.lst(JD1, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
+                HA      = LST - Obj.RA;
+                [Az1,Alt1]= celestial.coo.hadec2azalt(HA./RAD, Obj.Dec./RAD, Obj.GeoPos(2)./RAD);
+                Az1  = Az1.*RAD;
+                Alt1 = Alt1.*RAD;
+                dAz  = Az1 - Az;
+                dAlt = Alt1 - Alt;
+            end
         end
             
         function [HA, LST] = ha(Obj, JD)
@@ -482,20 +538,42 @@ classdef Targets < Component
     end
     
     methods % weights and priority
-%         function P = calcPriority(Obj, Method, Args)
-%             %
-%             
-%             arguments
-%                 Obj
-%                 Method        = 'cadence';
-%                 Args
-%             end
-%             
-%             
-%             
-%             
-%             
-%         end
+        function P = calcPriority(Obj, JD, Method, Args)
+            %
+            
+            arguments
+                Obj
+                JD                   = celestial.time.julday;
+                CadenceMethod        = [];
+                Args
+            end
+            
+            if ~isempty(CadenceMethod)
+                Obj.CadenceMethod = CadenceMethod;
+            end
+            
+            if isempty(Obj.CadenceMethod)
+                error('CadenceMethod must be provided either as an argument or as Targets property');
+            end
+            
+            switch lower(Obj.CadenceMethod)
+                case 'periodic'
+                    
+                case 'continues'
+                    
+                case 'west2east'
+                    VisibilityTime = leftVisibilityTime(Obj, JD);
+                    % for all above min visibility time, sort by lowest to
+                    % highest
+                    
+                
+                otherwise
+                    error('Unknown CadenceMethod option');
+            end
+            
+            
+            
+        end
     end
     
     methods (Static)  % static utilities
@@ -520,12 +598,14 @@ classdef Targets < Component
             end
         end
         
-        function [Alt, Az] = sunAlt(JD, GeoPos)
+        function [Alt, Az, dAlt, dAz] = sunAlt(JD, GeoPos)
             % Return Sun geometric Alt and Az [no refraction] (Static)
             % Input  : - Vector of JD
             %          - Geo pos [Lon, Lat] in deg.
             % Output : - Sun Alt [deg].
             %          - Sun Az [deg]
+            %          - Sun dAlt/dt [deg/sec]
+            %          - Sun dAz/dt [deg/sec]
             % Author : Eran Ofek (Jan 2022)
             % Example: [Alt, Az] = celestial.scheduling.Targets.sunAlt(2451545, [1 1])
             
@@ -539,6 +619,20 @@ classdef Targets < Component
             [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
             Az  = Az.*RAD;
             Alt = Alt.*RAD;
+            
+            if nargout>2
+                JD1 = JD + 1./86400;
+                [RA, Dec] = celestial.SolarSys.suncoo(JD1, 'a');
+                RA  = RA.*RAD;
+                Dec = Dec.*RAD;
+                LST     = celestial.time.lst(JD1, GeoPos(1)./RAD, 'a').*360;  % [deg]
+                HA      = LST - RA;
+                [Az1,Alt1] = celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
+                Az1  = Az1.*RAD;
+                Alt1 = Alt1.*RAD;
+                dAlt = Alt1 - Alt;
+                dAz  = Az1 - Az;
+            end
             
         end
         
