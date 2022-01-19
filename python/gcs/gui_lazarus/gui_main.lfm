@@ -1,11 +1,11 @@
 object MainForm: TMainForm
-  Left = 55
-  Height = 706
-  Top = 99
+  Left = 56
+  Height = 690
+  Top = 0
   Width = 1093
   Align = alTop
   Caption = 'ULTRASAT GCS Interface / Simulator'
-  ClientHeight = 686
+  ClientHeight = 670
   ClientWidth = 1093
   Menu = MainMenu
   OnCreate = FormCreate
@@ -11152,22 +11152,22 @@ object MainForm: TMainForm
   end
   object Panel2: TPanel
     Left = 0
-    Height = 622
+    Height = 606
     Top = 64
     Width = 1093
     Align = alClient
-    ClientHeight = 622
+    ClientHeight = 606
     ClientWidth = 1093
     TabOrder = 1
     object Panel9: TPanel
       Left = 1
-      Height = 620
+      Height = 604
       Top = 1
       Width = 426
       Align = alLeft
       BorderWidth = 8
       Caption = 'Panel9'
-      ClientHeight = 620
+      ClientHeight = 604
       ClientWidth = 426
       Color = clAqua
       ParentColor = False
@@ -11195,7 +11195,7 @@ object MainForm: TMainForm
             Color = 16756479
             ParentColor = False
             TabOrder = 0
-            object BtnRunMain1: TBitBtn
+            object BtnRunScript: TBitBtn
               Left = 7
               Height = 56
               Top = 8
@@ -11203,7 +11203,7 @@ object MainForm: TMainForm
               Caption = 'Run GcsInterface'
               Font.Color = clGreen
               Font.Style = [fsBold]
-              OnClick = BtnRunMain1Click
+              OnClick = BtnRunScriptClick
               ParentFont = False
               TabOrder = 0
             end
@@ -11275,18 +11275,18 @@ object MainForm: TMainForm
       end
       object PanelLog: TPanel
         Left = 9
-        Height = 111
+        Height = 95
         Top = 500
         Width = 408
         Align = alClient
         BorderWidth = 4
         Caption = 'PanelLog'
-        ClientHeight = 111
+        ClientHeight = 95
         ClientWidth = 408
         TabOrder = 1
         object MemoLog: TMemo
           Left = 5
-          Height = 101
+          Height = 85
           Top = 5
           Width = 398
           Align = alClient
@@ -11311,31 +11311,31 @@ object MainForm: TMainForm
     end
     object Panel10: TPanel
       Left = 435
-      Height = 620
+      Height = 604
       Top = 1
       Width = 657
       Align = alClient
       BorderWidth = 8
       Caption = 'Panel10'
-      ClientHeight = 620
+      ClientHeight = 604
       ClientWidth = 657
       Color = clOlive
       ParentColor = False
       TabOrder = 1
       object PanelLog2: TPanel
         Left = 9
-        Height = 310
+        Height = 294
         Top = 9
         Width = 639
         Align = alClient
         BorderWidth = 4
         Caption = 'PanelLog2'
-        ClientHeight = 310
+        ClientHeight = 294
         ClientWidth = 639
         TabOrder = 0
         object MemoYml: TMemo
           Left = 5
-          Height = 236
+          Height = 220
           Top = 69
           Width = 629
           Align = alClient
@@ -11439,7 +11439,7 @@ object MainForm: TMainForm
       object PanelLog1: TPanel
         Left = 9
         Height = 284
-        Top = 327
+        Top = 311
         Width = 639
         Align = alBottom
         BorderWidth = 4
@@ -11577,7 +11577,7 @@ object MainForm: TMainForm
         Cursor = crVSplit
         Left = 9
         Height = 8
-        Top = 319
+        Top = 303
         Width = 639
         Align = alBottom
         Color = clSkyBlue
@@ -11587,7 +11587,7 @@ object MainForm: TMainForm
     end
     object Splitter3: TSplitter
       Left = 427
-      Height = 620
+      Height = 604
       Top = 1
       Width = 8
       Color = clSkyBlue

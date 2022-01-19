@@ -24,7 +24,7 @@ type
     BtnCloseAll1: TBitBtn;
     BtnLoadFiles: TBitBtn;
     BtnRecordLeft1: TBitBtn;
-    BtnRunMain1: TBitBtn;
+    BtnRunScript: TBitBtn;
     BtnSendXml: TBitBtn;
     BtnSendYml: TBitBtn;
     ComboBoxXmlFileName: TComboBox;
@@ -63,7 +63,7 @@ type
     TimerPollGuiMsg: TTimer;
     procedure BtnCloseAll1Click(Sender: TObject);
     procedure BtnLoadFilesClick(Sender: TObject);
-    procedure BtnRunMain1Click(Sender: TObject);
+    procedure BtnRunScriptClick(Sender: TObject);
     procedure BtnSendXmlClick(Sender: TObject);
     procedure BtnSendYmlClick(Sender: TObject);
     procedure ComboBoxXmlFileNameChange(Sender: TObject);
@@ -75,25 +75,49 @@ type
     procedure TimerPollGuiMsgTimer(Sender: TObject);
   private
 
+  //=========================================================================
+
+  //=========================================================================
   public
 
+    //
+    procedure Init();
+
+    //
     procedure SendGuiMsg(AText: String);
+
+    //
     procedure ProcessGuiFile(FileName: String);
 
+    //
+    procedure RunScript();
+
+    // Load XML and YML file lists
     procedure LoadFiles();
+
+    //
     procedure PollGuiMsg();
 
+    //
     procedure Log(Line: String);
 
+  //=========================================================================
   public
-    ConfigIni: TMemIniFile;
-    XmlFilePath: String;
-    InMsgPath: String;
-    OutMsgPath: String;
+    ConfigIni           : TMemIniFile;
+    XmlFilePath         : String;
+
+    MsgFromGcsPath      : String;
+    MsgToGcsPath        : String;
+    FromGuiPath         : String;
+    ToGuiPath           : String;
   end;
 
+//===========================================================================
+//
+//===========================================================================
 var
   MainForm: TMainForm;
+  FormCount: Integer = 1;
 
 const
   {$IFDEF Linux}
@@ -104,10 +128,9 @@ const
 
   GuiInPath : String = 'InMsgFolder';
 
-const
   ScriptPath = '/home/user/dev/opsci.git/src/scripts/';
 
-
+  LineBreak: String = Char(#10);
 
 implementation
 
@@ -115,19 +138,7 @@ implementation
 
 { TMainForm }
 
-
-
-
-{ TMainForm }
-
-
-const
-  LineBreak: String = Char(#10);
-
-
-procedure TMainForm.FormCreate(Sender: TObject);
-var
-  Path: String;
+procedure TMainForm.Init();
 begin
   //
   ConfigIni := TMemIniFile.Create('');
@@ -135,60 +146,36 @@ begin
   //LoadYmlConfig(ConfigFileName, IniSection, Config);
   //Log(Config.Values['InMsgFolder']);
 
-  Path := ConfigIni.ReadString('Gui', 'InMsgFolder', '');
-  ForceDirectories(Path);
-
+  //
   XmlFilePath := '..' + DirectorySeparator + 'gcs_msg_xml';
-
   //D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
+
+  MsgFromGcsPath := ConfigIni.ReadString('Interface', 'MsgFromGcsPath', '');
+  MsgToGcsPath := ConfigIni.ReadString('Interface', 'MsgToGcsPath', '');
+
+
+  ToGuiPath := ConfigIni.ReadString('Gui', 'ToGuiPath', '');
+  FromGuiPath := ConfigIni.ReadString('Gui', 'FromGuiPath', '');
+
+  ForceDirectories(ToGuiPath);
+  ForceDirectories(FromGuiPath);
 
   //
   LoadFiles();
 
-
-  InMsgPath := ConfigIni.ReadString('Gui', 'ToGuiPath', '');
-  OutMsgPath := ConfigIni.ReadString('Gui', 'FromGuiPath', '');
-
-  ForceDirectories(InMsgPath);
-  ForceDirectories(OutMsgPath);
 end;
 
-
-procedure TMainForm.SendGuiMsg(AText: String);
-var
-   FileName: String;
-   Lines: TStringList;
-begin
-  FileName := AppDataModule.GetNewFileName(ConfigIni.ReadString('Gui', GuiInPath, ''), '');
-
-  MemoXml.Lines.SaveToFile(FileName + '.xml');
-  MemoYml.Lines.SaveToFile(FileName + '.yml');
-
-  Lines := TStringList.Create;
-  try
-    Lines.Text := AText;
-    Lines.SaveToFile(FileName + '.yml');
-  finally
-    Lines.Free;
-  end;
-end;
-
-
-procedure TMainForm.BtnLoadFilesClick(Sender: TObject);
-begin
-  LoadFiles();
-end;
 
 procedure TMainForm.LoadFiles();
 var
   Path: String;
 begin
-  Path := XmlFilePath;  //'D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
+  Path := XmlFilePath;
   AppDataModule.LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
   AppDataModule.LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
 end;
 
-procedure TMainForm.BtnRunMain1Click(Sender: TObject);
+procedure TMainForm.RunScript();
 var
   AProcess: TProcess;
   Cmd: AnsiString;
@@ -228,72 +215,26 @@ begin
   //AppDataModule.RunScript();
 end;
 
-procedure TMainForm.BtnSendXmlClick(Sender: TObject);
-begin
-  Log('SendYml');
 
-end;
-
-procedure TMainForm.BtnSendYmlClick(Sender: TObject);
+procedure TMainForm.SendGuiMsg(AText: String);
 var
-  Yml: String;
+   FileName: String;
+   Lines: TStringList;
 begin
-  Log('SendYml');
+  FileName := AppDataModule.GetNewFileName(ConfigIni.ReadString('Gui', GuiInPath, ''), '');
 
-    Yml :=
-     'Msg:'                                + LineBreak +
-     '  Cmd: SendFile'                     + LineBreak +
-     LineBreak;
-  SendGuiMsg(Yml);
+  MemoXml.Lines.SaveToFile(FileName + '.xml');
+  MemoYml.Lines.SaveToFile(FileName + '.yml');
+
+  Lines := TStringList.Create;
+  try
+    Lines.Text := AText;
+    Lines.SaveToFile(FileName + '.yml');
+  finally
+    Lines.Free;
+  end;
 end;
 
-procedure TMainForm.BtnCloseAll1Click(Sender: TObject);
-begin
-  //
-end;
-
-procedure TMainForm.ComboBoxXmlFileNameChange(Sender: TObject);
-var
-  FileName: String;
-begin
-  FileName := ComboBoxXmlFileName.Items[ComboBoxXmlFileName.ItemIndex];
-  MemoXml.Lines.LoadFromFile(FileName);
-end;
-
-procedure TMainForm.ComboBoxYmlFileNameChange(Sender: TObject);
-var
-  FileName: String;
-begin
-  FileName := ComboBoxXmlFileName.Items[ComboBoxYmlFileName.ItemIndex];
-  MemoYml.Lines.LoadFromFile(FileName);
-end;
-
-
-
-procedure TMainForm.MIAboutClick(Sender: TObject);
-begin
-  //
-  AboutForm.Show();
-end;
-
-procedure TMainForm.MIExitClick(Sender: TObject);
-begin
-  //
-  Application.Terminate();
-end;
-
-var
-  FormCount: Integer = 1;
-
-procedure TMainForm.MINewWindowClick(Sender: TObject);
-var
-  Form: TMainForm;
-begin
-  Form := TMainForm.Create(Application);
-  Inc(FormCount);
-  Form.Caption := Form.Caption + ' #' + IntToStr(FormCount);
-  Form.Show();
-end;
 
 
 procedure TMainForm.ProcessGuiFile(FileName: String);
@@ -334,6 +275,104 @@ begin
 
 end;
 
+
+procedure TMainForm.Log(Line: String);
+begin
+  MemoLog.Lines.Add(Line);
+
+end;
+
+//===========================================================================
+//                                 VCL Events
+//===========================================================================
+procedure TMainForm.FormCreate(Sender: TObject);
+begin
+  Init();
+end;
+
+
+procedure TMainForm.BtnLoadFilesClick(Sender: TObject);
+begin
+  LoadFiles();
+end;
+
+
+procedure TMainForm.BtnRunScriptClick(Sender: TObject);
+begin
+  RunScript();
+end;
+
+
+procedure TMainForm.BtnSendXmlClick(Sender: TObject);
+begin
+  Log('SendYml');
+
+end;
+
+
+procedure TMainForm.BtnSendYmlClick(Sender: TObject);
+var
+  Yml: String;
+begin
+  Log('SendYml');
+
+    Yml :=
+     'Msg:'                                + LineBreak +
+     '  Cmd: SendFile'                     + LineBreak +
+     LineBreak;
+  SendGuiMsg(Yml);
+end;
+
+
+procedure TMainForm.BtnCloseAll1Click(Sender: TObject);
+begin
+  //
+end;
+
+
+procedure TMainForm.ComboBoxXmlFileNameChange(Sender: TObject);
+var
+  FileName: String;
+begin
+  FileName := ComboBoxXmlFileName.Items[ComboBoxXmlFileName.ItemIndex];
+  MemoXml.Lines.LoadFromFile(FileName);
+end;
+
+
+procedure TMainForm.ComboBoxYmlFileNameChange(Sender: TObject);
+var
+  FileName: String;
+begin
+  FileName := ComboBoxXmlFileName.Items[ComboBoxYmlFileName.ItemIndex];
+  MemoYml.Lines.LoadFromFile(FileName);
+end;
+
+
+procedure TMainForm.MIAboutClick(Sender: TObject);
+begin
+  //
+  AboutForm.Show();
+end;
+
+
+procedure TMainForm.MIExitClick(Sender: TObject);
+begin
+  //
+  Application.Terminate();
+end;
+
+
+procedure TMainForm.MINewWindowClick(Sender: TObject);
+var
+  Form: TMainForm;
+begin
+  Form := TMainForm.Create(Application);
+  Inc(FormCount);
+  Form.Caption := Form.Caption + ' #' + IntToStr(FormCount);
+  Form.Show();
+end;
+
+
 procedure TMainForm.TimerPollGuiMsgTimer(Sender: TObject);
 begin
   TimerPollGuiMsg.Enabled := false;
@@ -344,13 +383,6 @@ begin
   TimerPollGuiMsg.Enabled := true;
 end;
 
-
-
-procedure TMainForm.Log(Line: String);
-begin
-  MemoLog.Lines.Add(Line);
-
-end;
 
 end.
 
