@@ -110,6 +110,45 @@ classdef Targets < Component
 
     end
     
+    methods
+        function [Lon, Lat] = ecliptic(Obj)
+            % Return ecliptic coordinates for targets.
+            % Input  : - A Targets object.
+            % Output : - Ecliptic longitude [deg].
+            %          - Ecliptic latitude [deg].
+            % AUthor : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          [Lon, Lat] = T.ecliptic;
+            
+            RAD = 180./pi;
+            
+            [Lon, Lat] = celestial.coo.convert_coo(Obj.RA./RAD, Obj.Dec./RAD, 'J2000.0', 'e');
+            Lon        = Lon.*RAD;
+            Lat        = Lat.*RAD;
+            
+        end
+        
+        function [Lon, Lat] = galactic(Obj)
+            % Return galactic coordinates for targets.
+            % Input  : - A Targets object.
+            % Output : - Galactic longitude [deg].
+            %          - Galactic latitude [deg].
+            % AUthor : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          [Lon, Lat] = T.galactic;
+            
+            RAD = 180./pi;
+            
+            [Lon, Lat] = celestial.coo.convert_coo(Obj.RA./RAD, Obj.Dec./RAD, 'J2000.0', 'g');
+            Lon        = Lon.*RAD;
+            Lat        = Lat.*RAD;
+            
+        end
+        
+    end
+    
     methods % visibility
         function [Sun] = sunCoo(Obj, JD)
             % Return Sun RA/Dec and geometric Az/Alt
@@ -402,23 +441,24 @@ classdef Targets < Component
             
         end
         
+        
     end
     
     methods % weights and priority
-        function P = calcPriority(Obj, Method, Args)
-            %
-            
-            arguments
-                Obj
-                Method        = 'cadence';
-                Args
-            end
-            
-            
-            
-            
-            
-        end
+%         function P = calcPriority(Obj, Method, Args)
+%             %
+%             
+%             arguments
+%                 Obj
+%                 Method        = 'cadence';
+%                 Args
+%             end
+%             
+%             
+%             
+%             
+%             
+%         end
     end
     
     methods (Static)  % static utilities
@@ -510,6 +550,39 @@ classdef Targets < Component
             Time = tools.find.fun_binsearch(@celestial.scheduling.Targets.sunAlt, Args.AltThreshold, Range, 0.1./1440, GeoPos);
             
         end
+        
+        function [RA, Dec] = earthShadow(JD, Dist, Args)
+            % Calculate the J2000.0 equatorial coordinates of the Earth shadow at a given height
+            % Input  : - JD (UT1 time scale).
+            %          - Topocentric distance to point in shadow for which to
+            %            calculate the position. Default is 42164 km.
+            %            If empty, use default.
+            %          * ...,key,val,...
+            %            'DistUnits' - Default is 'km'.
+            %            'GeoPos' - [Lon, Lat, Height] must be in [rad, rad, m].
+            %                   Default is [35 32 0]./(180./pi);  % [rad rad m]
+            %            'RefEllipsoid' - Default is 'WGS84'.
+            %            'OutUnitsDeg' - Output is in degrees. Default is true.
+            % Output : - J2000.0 RA of shadow point.
+            %          - J2000.0 Dec of shadow point.
+            %          - J2000.0 RA of anti Sun direction.
+            %          - J2000.0 Dec of anti Sun direction.
+            % Author : Eran Ofek (Jan 2022)
+            % Example:
+            % [RA,Dec]=celestial.scheduling.Targets.earthShadow(2451545 +(0:0.1:365)');
+
+            arguments
+                JD
+                Dist                      = 42164;
+                Args.DistUnits            = 'km';
+                Args.GeoPos               = [35 32 0]./(180./pi);  % [rad rad m]
+                Args.RefEllipsoid         = 'WGS84';
+                Args.OutUnitsDeg logical  = true;
+            end
+            Cell = namedargs2cell(Args);
+            [RA, Dec] = celestial.SolarSys.earthShadowCoo(JD, Dist, Cell{:});
+        end
+        
     end
 
 end
