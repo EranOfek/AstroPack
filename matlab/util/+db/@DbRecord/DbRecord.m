@@ -49,7 +49,7 @@ classdef DbRecord < Base
             end
             
             if ischar(Args.ColNames)
-                Args.ColNames = strsplit(Args.ColNames, ',');
+                Args.ColNames = strip(strsplit(Args.ColNames, ','));
             end
             
             % Load data
@@ -233,10 +233,30 @@ classdef DbRecord < Base
             end
         end
            
-
+        
+        function Result = convert2AstroHeader(Obj)
+            % Convert record(s) to AstroCatalog
+            % Input:   -
+            % Output:  AstroCatalog object
+            % Example: AC = Obj.convert2AstroCatalog()
+            if ~isempty(Obj.Data)
+                for n=1:numel(Obj.Data)
+                    Result(n) = AstroHeader();
+                    for i=1:numel(Obj.ColNames)
+                        Comment = '';
+                        Result.insertKey({ Obj.ColNames{i}, Obj.Data(n).(Obj.ColNames{i}), Comment}, 'end-1');
+                    end
+                end
+            else
+                Result = [];
+            end
+        end
+        
+        
         function Result = convert2(Obj, OutType)
             % Convert Obj.Data struct array to given OutType
-            % Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog'
+            % Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog',
+            %           'astroheader'
             % Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog
             % Example: Mat = Obj.conevrt2('mat')
             OutType = lower(OutType);
@@ -250,6 +270,8 @@ classdef DbRecord < Base
                 Result = Obj.convert2AstroTable();
             elseif strcmp(OutType, 'astrocatalog')
                 Result = Obj.convert2AstroCatalog();
+            elseif strcmp(OutType, 'astroheader')
+                Result = Obj.convert2AstroHeader();                
             else
                 error('convert2: unknown output type: %s', OutType);
             end

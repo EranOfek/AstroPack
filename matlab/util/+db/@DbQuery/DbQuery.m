@@ -185,7 +185,9 @@ classdef DbQuery < Component
             %            'Order'     - Order by clause  (excluding ORDER BY keyword)
             %            'Limit'     - Maximum number of records (LIMIT)
             %            'Load'      - true to load entire result set
-            %            'OutType'   - Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
+            %            'OutType'   - Optional conversion, otherwise DbRecord is
+            %                           returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog',
+            %                           'AstroHeader'
             %            'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
             %            'TempName'  - @Todo
             %            'CsvFileName' - @Todo
@@ -1588,7 +1590,7 @@ classdef DbQuery < Component
             if Obj.ColCount == 1
                 Result = Obj.getColumn('version');
             end
-            Valid = contains(Result, 'PostgreSQL') && contains(Result, 'build');
+            Valid = contains(Result, 'PostgreSQL');
             if ~Valid
                 Obj.msgLog(LogLevel.Warning, 'getDbVersion: Invalid result: %s', Result);
             end
