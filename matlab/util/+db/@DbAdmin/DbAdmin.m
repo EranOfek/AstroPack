@@ -409,8 +409,12 @@ classdef DbAdmin < Component
             % Output:  true on sucess
             % Example: db.DbAdmin.addUser('robert', 'pass123')
             % Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
+            %          https://stackoverflow.com/questions/760210/how-do-you-create-a-read-only-user-in-postgresql
             % SQL:     CREATE USER user user_name WITH ENCRYPED PASSWORD 'mypassword';
             %          GRANT ALL PRIVILEGES ON DATABASE sample_db TO user_name;
+            % 
+            % @Todo - need to research and learn more about creating read-only users
+            %
             arguments
                 Obj                     %
                 UserName                %
@@ -436,10 +440,17 @@ classdef DbAdmin < Component
             % Create read-only user on specified database
             % https://ubiq.co/database-blog/how-to-create-read-only-user-in-postgresql/
             if ~isempty(Args.DatabaseName) && strcmp(Args.Permission, 'read')
+                
+                % Assign permission to this read only user
                 SqlText = sprintf('GRANT USAGE ON SCHEMA public TO %s', UserName);
                 Result = Obj.exec(SqlText);
                 
+                % Assign permission to this read only user
                 SqlText = sprintf('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', UserName);
+                Result = Obj.exec(SqlText);
+                
+                % Assign permissions to read all newly tables created in the future
+                SqlText = sprintf('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s', UserName);
                 Result = Obj.exec(SqlText);
             end
         end

@@ -1,9 +1,13 @@
 
 function Result = examples()
     % DbQuery examples
+    %
+    % Install Postgres v14
+    % Install pgAdmin4 (version 6.3) as administration tool    
+    %
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
     % On Linux, use DataGrip by JetBrains 
-
+    %
     % You need to have configuration file with database user and password:
     % config/local/Database.DbConnections.UnitTest.yml
     
