@@ -1,18 +1,22 @@
-function cd(Args)
+function runPipeLAST(DataNumber, Args)
     % Script for running the LAST pipeline
-    % Input  : * ...,key,val,...
+    % Input  : - data disk number from which to extract the new images.
+    %            DEfault is 1.
+    %          * ...,key,val,...
     %            See code
     % Author : Eran Ofek (Jan 2022)
     % Example: 
     
     arguments
+        DataNumber                    = 1;
         Args.GeoPos                   = [35 30 400];
         Args.MinNdark                 = 10;
         Args.MinNflat                 = 5;
         Args.multiRaw2procArgs cell   = {};
         
-        Args.NewFilesDir              = '/last01e/data1/archive/new';
-        Args.DarkFlatDir              = '/last01e/data1/archive/calib';
+        Args.NewFilesDir              = []; %'/last01e/data1/archive/new';
+        Args.DarkFlatDir              = []; %'/last01e/data1/archive/calib';
+        
         
         Args.SearchStr                = '*.fits'; 
         Args.DarkSearchStr            = '*_dark_proc_*Image_*.fits';
@@ -23,8 +27,19 @@ function cd(Args)
    
     RAD = 180./pi;
     
-    StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, 'stop');
+    if isempty(Args.NewFilesDir)
+        % generate NewFilesDir
+        HostName = tools.os.get_computer;
+        Args.NewFilesDir = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,'new');
+    end
+    if isempty(Args.DarkFlatDir)
+        % generate DarkFlatDir
+        HostName = tools.os.get_computer;
+        Args.DarkFlatDir = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,'calib');
+    end
     
+    
+    StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, 'stop');
     
     %<ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
     MostRecentDarkImage = '';
