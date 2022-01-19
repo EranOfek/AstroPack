@@ -1,3 +1,7 @@
+% celestial.scheduling.Targets class
+%       Containers for astronomical targets.
+%       Including visibility and scheduling
+%       
 
 
 
@@ -538,14 +542,18 @@ classdef Targets < Component
     end
     
     methods % weights and priority
-        function P = calcPriority(Obj, JD, Method, Args)
+        function [Obj, P] = calcPriority(Obj, JD, CadenceMethod)
             %
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          [T, P] = calcPriority(T, 2451545.5, 'west2east')
+            
             
             arguments
                 Obj
                 JD                   = celestial.time.julday;
                 CadenceMethod        = [];
-                Args
+                %Args
             end
             
             if ~isempty(CadenceMethod)
@@ -556,22 +564,34 @@ classdef Targets < Component
                 error('CadenceMethod must be provided either as an argument or as Targets property');
             end
             
+            Ntarget = numel(Obj.RA);
+            
             switch lower(Obj.CadenceMethod)
                 case 'periodic'
                     
                 case 'continues'
                     
                 case 'west2east'
+                    % priortize targets by the left visibility time,
+                    % where the highest priority target is the one with the
+                    % shortest visibility time above the Obj.MinNightlyVisibility
+                    %
                     VisibilityTime = leftVisibilityTime(Obj, JD);
                     % for all above min visibility time, sort by lowest to
                     % highest
+                    Npr = 200;
+                    Obj.Priority = zeros(Ntarget,1);
+                    Obj.Priority(VisibilityTime > Obj.MinNightlyVisibility) = 1;
                     
-                
+                    [~,SI] = sort(VisibilityTime);
+                    Iv     = find(VisibilityTime > Obj.MinNightlyVisibility, Npr, 'first');
+                    Nv     = numel(Iv);
+                    Obj.Priority(SI(Iv)) = 2 - ((1:1:Nv)' - 1)./(Npr+1);
+                    
                 otherwise
                     error('Unknown CadenceMethod option');
             end
-            
-            
+            P = Obj.Priority;
             
         end
     end
