@@ -20,10 +20,12 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import json
 
+import gcsbase
 from gcsbase import Component, Config, FileComm
-from gcsbase import xml_to_yml, dict2obj, yml_to_obj
 from gcsmsg import *
 from gcsdb import DbQuery, Database, DbConfig
+
+HAVE_POSTGRES = False
 
 # ===========================================================================
 
@@ -69,7 +71,10 @@ class GcsInterface(Component):
 
         # Database
         db_conf = DbConfig()
-        db_conf.set_postgres()
+        if HAVE_POSTGRES:
+            db_conf.set_postgres()
+        else:
+            db_conf.set_sqlite()
         self.db = Database(conf=db_conf)
 
         # Current state
@@ -219,15 +224,15 @@ class GcsInterface(Component):
     def handle_incoming_msg(self, filename):
 
         # Convert XML file to YML file (save as .YML file for debugging)
-        xml_to_yml(filename, yml_filename = filename + '.yml')
+        gcsbase.xml_file_to_yml_file(filename, filename + '.yml')
 
         # Load XML file as YAML object
-        yml = xml_to_yml(filename, yml_obj=True)
-        msg = yml_to_obj(yml)
-
+        yml = gcsbase.xml_file_to_yml(filename, yml_obj=True)
+        msg = gcsbase.yml_to_obj(yml)
 
         header = yml[MsgTag.Msg][MsgTag.Header]
 
+        # Header.__dict__.keys()
         Header = msg.Msg.Header
 
         #msg = MsgBase()

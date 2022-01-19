@@ -27,8 +27,23 @@ class dict2obj_hook(object):
 
 
 # Convert YAML object to Python object
+# json.dumps() function converts a Python object into a json string.
+#
+# json.loads() method can be used to parse a valid JSON string and convert it
+# into a Python Dictionary. It is mainly used for deserializing native string,
+# byte, or byte array which consists of JSON data into Python Dictionary.
+#
+# object_hook is an optional function that will be called with the result of
+# any object literal decoded (a dict). The return value of object_hook will be
+# used instead of the dict. This feature can be used to implement custom
+# decoders (e.g. JSON-RPC class hinting).
+#
 def dict2obj(d):
-    return json.loads(json.dumps(d), object_hook=dict2obj_hook)
+    json_obj = json.dumps(d)
+    python_obj = json.loads(json_obj, object_hook=dict2obj_hook)
+    return python_obj
+    #return json.loads(json.dumps(d), object_hook=dict2obj_hook)
+
 
 # Convert YAML object to Python object
 def yml_to_obj(yml):
@@ -96,32 +111,22 @@ class Config(Base):
         super().__init__()
         self.name = 'Config'
         self.filename = ''
-        self.data = None
+        self.yml = None
         self.obj = None
-        self.keep_alive = {}
+
 
     def load(self, filename=''):
 
         if filename == '':
+            path = 'd:/ultrasat/astropack.git/python/gcs/'
             if sys.platform == "win32":
-                filename = 'd:/ultrasat/astropack.git/python/gcs/gcs_conf_win.yml'
+                filename = os.path.join(path, 'gcs_conf_win.yml')
             else:
-                filename = 'd:/ultrasat/astropack.git/python/gcs/gcs_conf.yml'
+                filename = os.path.join(path, 'gcs_conf.yml')
 
-        self.filename = filename
-        self.log('')
-        with open(filename, 'r') as stream:
-            try:
-                self.data = yaml.safe_load(stream)
+            self.filename = filename
+            self.obj = yml_file_to_obj(filename)
 
-                # Parse
-                self.keep_alive = self.data[ConfTag.KeepAlive]
-
-                self.obj = dict2obj(self.data)
-                print(self.obj.KeepAlive.Interval)
-
-            except yaml.YAMLError as ex:
-                print(ex)
 
     # Singleton
     config_ = None
@@ -318,38 +323,63 @@ class FileComm(Component):
 
 # ===========================================================================
 
-# Convert XML file to YAML file or text
-# https://guillon.github.io/xmlplain/
-def xml_to_yml(xml_filename, yml_filename='', yml_obj=False):
+# Convert XML file to YAML file or text (using xmlplain package)
+# Params:
+#   xml_filename - Input XML file to load
+#   yml_filename - Output YML file to write
+#   yml_obj - True to return object
+#
+# See: https://guillon.github.io/xmlplain/
+
+def xml_file_to_yml(xml_filename, yml_obj=False):
+
+    # Read to plain object
+    with open(xml_filename) as inf:
+       root = xmlplain.xml_to_obj(inf, strip_space=True, fold_dict=True)
+
+    # Output to text or object
+    yml_text = xmlplain.obj_to_yaml(root)
+    if yml_obj:
+        obj = yaml.safe_load(yml_text)
+        return obj
+    else:
+        return yml_text
+
+# ---------------------------------------------------------------------------
+
+def xml_file_to_yml_file(xml_filename, yml_filename):
 
     # Read to plain object
     with open(xml_filename) as inf:
        root = xmlplain.xml_to_obj(inf, strip_space=True, fold_dict=True)
 
     # Output to file
-    if yml_filename != '':
-        with open(yml_filename, 'w') as outf:
-            xmlplain.obj_to_yaml(root, outf)
-            return True
+    with open(yml_filename, 'w') as outf:
+        xmlplain.obj_to_yaml(root, outf)
+        return True
 
-    # Output to text or object
-    else:
-        yml_text = xmlplain.obj_to_yaml(root)
-        if yml_obj:
-            obj = yaml.safe_load(yml_text)
-            return obj
-        else:
-            return yml_text
+
+# ---------------------------------------------------------------------------
+# Convert YAML text to XML file
+# Args:
+# Returns:
+def yml_file_to_xml_file(yml_filename, xml_filename):
+
+    # Read the YAML file
+    with open("example-1.yml") as inf:
+       root = xmlplain.obj_from_yaml(inf)
+
+    # Output back XML
+    with open(xml_filename, 'w') as outf:
+       xmlplain.xml_from_obj(root, outf, pretty=True)
 
 
 # Convert YAML text to XML file
 # Args:
 # Returns:
-def yml_to_xml(yml, xml_filename):
+def yml_to_xml_file(yml, xml_filename):
 
-    # Read the YAML file
-    #with open("example-1.yml") as inf:
-    #   root = xmlplain.obj_from_yaml(inf)
+    # Convert yml object to text
     if type(yml) != str:
         yml = yaml.dump(yml)
 
@@ -358,6 +388,19 @@ def yml_to_xml(yml, xml_filename):
     # Output back XML
     with open(xml_filename, 'w') as outf:
        xmlplain.xml_from_obj(root, outf, pretty=True)
+
+
+def yml_file_to_obj(yml_filename):
+    obj = {}
+    with open(yml_filename, 'r') as f:
+        try:
+            yml = yaml.safe_load(f)
+            obj = dict2obj(yml)
+            return obj
+        except yaml.YAMLError as ex:
+            print(ex)
+
+    return obj
 
 
 def test_yaml():
@@ -372,5 +415,3 @@ def test_yaml():
 
     l = yml_obj['Interface']['NonUniqueKeys']
     l[3]['SameKey']
-
-
