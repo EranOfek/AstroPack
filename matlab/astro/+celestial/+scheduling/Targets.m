@@ -22,6 +22,8 @@ classdef Targets < Component
         GeoPos                     = [35.041201 30.053014 400];  %
        
         DecRange                   = [-90 90];
+        EclipticRange              = [-90 90]; % multiple lines for mlti range
+        GalacticRange              = [-90 90]; % multiple lines for mlti range
         AltLimit                   = 30;
         AMLimit                    = 2;
         AzAltLimit                 = [0 30; 90 30; 180 30; 270 30; 360 30];
@@ -91,7 +93,7 @@ classdef Targets < Component
                 % List is table of [RA(deg), Dec(deg), [Name]]
                
                 Obj.RA  = table2array(List(:,1));
-                Obj.Dec  = table2array(List(:,2));
+                Obj.Dec = table2array(List(:,2));
                 Ntarget = numel(Obj.RA);
                         
                 Obj.Index = (1:1:Ntarget).';
@@ -323,7 +325,7 @@ classdef Targets < Component
                 VisibilityCounter = zeros(Ntarget,1);
                 VisibilityStatus  = true(Ntarget,1);  % become false after source is not visible for the first time
                 for Ijd=1:1:Njd
-                    [FlagAll] = isVisible(Obj, VecJD(Ijd));
+                    [FlagAll] = isVisible(Obj, VecJD(Ijd), 'CheckVisibility',false);
                     VisibilityStatus  = VisibilityStatus & FlagAll;
                     VisibilityCounter = VisibilityCounter + FlagAll.*VisibilityStatus;
                 end
@@ -360,13 +362,18 @@ classdef Targets < Component
                 Obj
                 JD     = celestial.time.julday;
                 
-                Args.CheckDec logical   = true;
-                Args.CheckAlt logical   = true;
-                Args.CheckAM logical    = true;
-                Args.CheckAzAlt logical = true;
-                Args.CheckSun logical   = true;
-                Args.CheckMoon logical  = true;
-                Args.CheckHA logical    = true;
+                Args.MinVisibilityTime       = 1./24;  % [day]
+                
+                Args.CheckDec logical        = true;
+                Args.CheckAlt logical        = true;
+                Args.CheckAM logical         = true;
+                Args.CheckAzAlt logical      = true;
+                Args.CheckSun logical        = true;
+                Args.CheckMoon logical       = true;
+                Args.CheckHA logical         = true;
+                Args.CheckEcl logical        = true;
+                Args.CheckGal logical        = true;
+                Args.CheckVisibility logical = true;
             end
             
             if isempty(JD)
@@ -431,6 +438,36 @@ classdef Targets < Component
             else
                 Flag.Moon    = true;
             end
+            
+            if Args.CheckEcl
+                [~, EclLat]   = Obj.ecliptic;
+                Nr = size(Obj.EclipticRange,1);
+                Flag.Ecliptic = true(Ntarget,1);
+                for Ir=1:1:Nr
+                    Flag.Ecliptic = Flag.Ecliptic & (EclLat>Obj.EclipticRange(Ir,1) & EclLat<Obj.EclipticRange(Ir,2));
+                end
+            else
+                Flag.Ecliptic = true;
+            end
+                
+            if Args.CheckGal 
+                [~, GalLat]   = Obj.galactic;
+                Nr = size(Obj.GalacticRange,1);
+                Flag.Galactic = true(Ntarget,1);
+                for Ir=1:1:Nr
+                    Flag.Galactic = Flag.Galactic & (GalLat>Obj.GalacticRange(Ir,1) & GalLat<Obj.GalacticRange(Ir,2));
+                end
+            else
+                Flag.Galactic = true;
+            end
+            
+            if Args.CheckVisibility
+                VisibilityTime  = leftVisibilityTime(Obj, JD);
+                Flag.Visibility = VisibilityTime > Args.MinVisibilityTime;
+            else
+                Flag.Visibility = true;
+            end
+                
             
             FlagFN = fieldnames(Flag);
             FlagAll = true(Ntarget,1);
