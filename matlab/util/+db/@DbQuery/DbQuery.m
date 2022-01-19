@@ -1609,5 +1609,7 @@ classdef DbQuery < Component
             % Stress Test - run continuous operations that create large
             % amount of data
 
+        Result = examples()
+            % Examples                      
     end
 end

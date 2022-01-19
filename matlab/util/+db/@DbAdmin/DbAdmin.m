@@ -424,7 +424,7 @@ classdef DbAdmin < Component
             Result = Obj.exec(SqlText);
             
             % 2. Grant the CONNECT access
-            SqlText = sprintf('GRANT CONNECT ON DATABASE %s TO %s', DatabaseName, UserName);
+            SqlText = sprintf('GRANT CONNECT ON DATABASE %s TO %s', Args.DatabaseName, UserName);
             Result = Obj.exec(SqlText);
             
             % 3. Grant full access
@@ -435,7 +435,7 @@ classdef DbAdmin < Component
             
             % Create read-only user on specified database
             % https://ubiq.co/database-blog/how-to-create-read-only-user-in-postgresql/
-            if strcmp(Args.Permission, 'read')
+            if ~isempty(Args.DatabaseName) && strcmp(Args.Permission, 'read')
                 SqlText = sprintf('GRANT USAGE ON SCHEMA public TO %s', UserName);
                 Result = Obj.exec(SqlText);
                 
@@ -645,5 +645,7 @@ classdef DbAdmin < Component
         Result = unitTest()
             % Unit-Test
 
+        Result = examples()
+            % Examples          
     end
 end
