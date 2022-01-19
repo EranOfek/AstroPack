@@ -1,6 +1,6 @@
 --
 -- Automatic generated file by xlsx2sql.py
--- Origin file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5.xlsx
+-- Origin file: /home/chent/dev/AstroPack.git/database/xlsx/unittest5.xlsx
 --
 
 -- To create the database, run from command line:
@@ -55,7 +55,7 @@ SET default_table_access_method = heap;
 
 
 
--- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5\csv\unittest5 - details_table.csv
+-- Source file: /home/chent/dev/AstroPack.git/database/xlsx/unittest5/csv/unittest5 - details_table.csv
 CREATE TABLE public.details_table (
 RecID VARCHAR NOT NULL,
 InsertTime TIMESTAMP,
@@ -182,7 +182,7 @@ CREATE INDEX details_table_idx_dstring2 ON public.details_table
 CREATE INDEX details_table_idx_dstring3 ON public.details_table
   USING btree (dstring3);
 
--- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5\csv\unittest5 - master_table.csv
+-- Source file: /home/chent/dev/AstroPack.git/database/xlsx/unittest5/csv/unittest5 - master_table.csv
 CREATE TABLE public.master_table (
 RecID VARCHAR NOT NULL,
 InsertTime TIMESTAMP,

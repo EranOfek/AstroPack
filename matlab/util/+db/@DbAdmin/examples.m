@@ -22,7 +22,8 @@ function Result = examples()
     fprintf('Config file created: %s\n', ConfigFileName);
         
     % Create database from XLSX file (Google Sheets)
-    Admin.createDatabase('XlsFileName', 'D:\Ultrasat\AstroPack.git\database\xlsx\unittest5.xlsx');
+    xlsx = fullfile(tools.os.getAstroPackPath(), 'database/xlsx/unittest5.xlsx');
+    Admin.createDatabase('XlsFileName', xlsx);
    
     % Get list of databases
     DbList = Admin.getDbList();
@@ -33,8 +34,8 @@ function Result = examples()
     disp(UserList);
       
     % Add user
-    Admin.addUser('Test1', 'Password1', 'DatabaseName', 'unittest5', 'Permission', 'full');
-    Admin.addUser('Test1r', 'Password1', 'DatabaseName', 'unittest5', 'Permission', 'read');    
+    Admin.addUser('test1', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'full');
+    Admin.addUser('test1r', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'read');    
 
     % Remove user
     % Admin.removeUser('Test1');
