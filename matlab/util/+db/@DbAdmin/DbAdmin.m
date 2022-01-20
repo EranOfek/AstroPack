@@ -47,6 +47,7 @@ classdef DbAdmin < Component
         UserName        = ''        %
         Password        = ''        %
         TableName       = ''        %
+        Shell           = ''        % 'tcsh', 'bash', empty for auto detect by $SHELL
     end
 
     %----------------------------------------------------------------------
@@ -201,11 +202,11 @@ classdef DbAdmin < Component
                 Args.DriverName      = 'postgres'        % Driver name
                 Args.UserName        = ''                % Login user
                 Args.Password        = ''                % Login password
-                Args.ServerSharePath = '' %              % Path to shared folder on the server, for COPY statements
-                Args.MountSharePath  = ''
-                Args.WinMountSharePath  = ''
+                Args.ServerSharePath = '/var/samba/pgshare'   % Path to shared folder on the server, for COPY statements
+                Args.MountSharePath  = '/media/gauss_pgshare' %
+                Args.WinMountSharePath  = 'S:\'               %
             end
-                                  
+            
             % Prepare file name if not specified
             Result = [];
             if isempty(Args.FileName)
@@ -217,7 +218,7 @@ classdef DbAdmin < Component
             Fid = fopen(Args.FileName, 'wt');
             if Fid > -1
                 fprintf(Fid, '# %s\n\n',                        Args.FileName);
-                fprintf(Fid, 'DatabaseName    : ''%s\n',        Args.DatabaseName);
+                fprintf(Fid, 'DatabaseName    : ''%s''\n',      Args.DatabaseName);
                 fprintf(Fid, 'Host            : ''%s''\n',      Args.Host);
                 fprintf(Fid, 'Port            : %d\n',          Args.Port);
                 fprintf(Fid, 'DriverName      : ''postgres''\n');
@@ -634,11 +635,22 @@ classdef DbAdmin < Component
                         
                     % Linux - use 'export'
                     else
-                        Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
+                        
+                        % Check which shell we use
+                        if isempty(Obj.Shell)
+                            Obj.Shell = getenv('SHELL');
+                        end
+                        
+                        % bash / tcsh
+                        if contains(Obj.Shell, 'tcsh')
+                            Cmd = sprintf('setenv PGPASSWORD ''%s'' ; %s', Args.Password, Cmd);
+                        else
+                            Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
+                        end                                              
                     end
                 end
                 
-                io.msgLog(LogLevel.Info, 'psql: %s', Cmd);
+                io.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
                 [Status, Output] = system(Cmd);
                 io.msgLog(LogLevel.Info, 'psql: %d', Status);
                 io.msgLog(LogLevel.Info, 'psql: %s', Output);

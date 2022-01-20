@@ -20,8 +20,8 @@ function [OutLong,OutLat,TotRot]=convert_coo(Long,Lat,InCooType,OutCooType,JD,Ob
 %            Like input. Default is 'g'.
 %          - JD (for horizontal coordinates). Default is now.
 %          - Observatory [Long,Lat] [rad] (for horizontal coordinates).
-% Output : - Matrix of output longitude.
-%          - Matrix of output latitude.
+% Output : - Matrix of output longitude [rad].
+%          - Matrix of output latitude [rad].
 %          - Total rotation matrix.
 % Tested : Matlab 2019b                    Feb 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/

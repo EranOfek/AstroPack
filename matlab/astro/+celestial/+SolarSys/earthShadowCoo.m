@@ -3,6 +3,7 @@ function [RA, Dec, RAantiSun, DecantiSun] = earthShadowCoo(JD, Dist, Args)
     % Input  : - JD (UT1 time scale).
     %          - Topocentric distance to point in shadow for which to
     %            calculate the position. Default is 42164 km.
+    %            If empty, use default.
     %          * ...,key,val,...
     %            'DistUnits' - Default is 'km'.
     %            'GeoPos' - [Lon, Lat, Height] must be in [rad, rad, m].
@@ -27,6 +28,10 @@ function [RA, Dec, RAantiSun, DecantiSun] = earthShadowCoo(JD, Dist, Args)
         Args.OutUnitsDeg logical  = true;
     end
     RAD = 180./pi;
+    
+    if isempty(Dist)
+        Dist = 42164;
+    end
     
     DistAU = convert.length(Args.DistUnits,'au',Dist);
         

@@ -10,19 +10,29 @@ function Result = examples()
     % config/local/Database.DbConnections.UnitTest.yml
     
     % From command line (term), connect to server:
-    % psql -h gauss -U admin -d unittest -W
-       
+    % psql -h gauss -U admin -d unittest -W 
+    %
+    % postgressql_v14.md
+    % share_linux_folder.md
+    %
+    % ServerSharePath : '/var/samba/pgshare'
+    % MountSharePath  : '/media/gauss_pgshare' 
+    
+    
     % Create DbAdmin from arguments
     % Postgres always have a database called 'postgres' that you can connect
     % to with full permissions
     Admin = db.DbAdmin('Host', 'gauss', 'Port', 5432, 'UserName', 'postgres', 'Password', 'PassRoot', 'DatabaseName', 'postgres');
     
     % Create configuration file
-    ConfigFileName = Admin.createConnectionConfig('DatabaseName', 'unittest5', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+    ConfigFileName = Admin.createConnectionConfig('DatabaseName', 'unittest6', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
     fprintf('Config file created: %s\n', ConfigFileName);
         
     % Create database from XLSX file (Google Sheets)
-    xlsx = fullfile(tools.os.getAstroPackPath(), 'database/xlsx/unittest5.xlsx');
+    % NOTE: If the system() call fails, copy and paste the command in new
+    % 'term' window. Note that bash uses 'export var=...' and tcsh uses
+    % 'setenv var ...'
+    xlsx = fullfile(tools.os.getAstroPackPath(), 'database/xlsx/unittest6.xlsx');
     Admin.createDatabase('XlsFileName', xlsx);
    
     % Get list of databases
@@ -32,7 +42,7 @@ function Result = examples()
     % Get list of users (roles)
     UserList = Admin.getUserList();
     disp(UserList);
-      
+    
     % Add user
     Admin.addUser('test1', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'full');
     Admin.addUser('test1r', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'read');    

@@ -1,3 +1,7 @@
+% celestial.scheduling.Targets class
+%       Containers for astronomical targets.
+%       Including visibility and scheduling
+%       
 
 
 
@@ -11,31 +15,69 @@ classdef Targets < Component
         RA
         Dec
         
+        CadenceMethod                           % 'periodic' | 'continues' | 'west2east'
         Priority                                % baseline priority that multiplies the base priority
-        PriorityArgs               = [1 40./1440];   % ...
-        MinNightlyVisibility       = 2./24;   % [day]
-        
+        PriorityArgs               = struct('MaxNobs',Inf,...
+                                            'InterNightCadence',40./1440,...
+                                            'CadenceFun',@celestial.scheduling.fermiexp,...  
+                                            'CadeneFunArgs',[1.4, 1, 0.03, 1, 0.5]);  %t0,Decay,Soft,BaseW,ExtraW)
+                                                    
         LastJD
         GlobalCounter
         NightCounter
         
         GeoPos                     = [35.041201 30.053014 400];  %
        
-        DecRange                   = [-90 90];
-        AltLimit                   = 30;
-        AMLimit                    = 2;
-        AzAltLimit                 = [0 30; 90 30; 180 30; 270 30; 360 30];
-        HALimit                    = 120;
-        SunAltLimit                = -11.5;    % deg
-        MoonDistLimit              = [0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30];  % or scalar
+        VisibilityArgs             = struct('DecRange',[-90 90],...
+                                            'EclipticRange',[-90 90],...
+                                            'GalacticRange',[-90 90],...
+                                            'AltLimit',30,...
+                                            'AMLimit',2,...
+                                            'AzAltLimit',[0 30; 90 30; 180 30; 270 30; 360 30],...
+                                            'HALimit',120,...
+                                            'MinNightlyVisibility',2./24,...
+                                            'SunAltLimit',-11.5,...
+                                            'MoonDistLimit',[0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30]);
+                                        
+
+        FileName                   = [];
     end
     
     methods % constructor
-        
+        function Obj = Targets(FileName)
+            % Constructor for Targets
+            % Input  : - If not given and the FileName property is empty
+            %            then will return an empty Targets
+            %            object. Otherwise, this, or the FileName property,
+            %            is the file name to load.
+            %            The file may contain a matlab Targets object.
+            % Output : - A Targets object.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets
+            %           
+            %          T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          T.write('try1.mat')
+            %          T=celestial.scheduling.Targets('try1.mat');
+            %          !rm try1.mat
+            
+            arguments
+                FileName = [];
+            end
+            
+            if ~isempty(FileName)
+                Obj.FileName = FileName;
+            end
+            
+            if isempty(FileName)
+                % return empty object
+                
+            else
+                Obj = io.files.load2(Obj.FileName);
+            end
+            
+        end
     end
-    
-    
-    
     
     methods % read/write        
         function Obj = generateTargetList(Obj, List, Args)
@@ -69,7 +111,7 @@ classdef Targets < Component
                 
                 switch lower(List)
                     case 'last'
-                        Obj.DecRange        = [-90 90];
+                        Obj.VisibilityArgs.DecRange        = [-90 90];
                         
                         [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
                         Obj.RA  = TileList(:,1).*RAD;
@@ -91,7 +133,7 @@ classdef Targets < Component
                 % List is table of [RA(deg), Dec(deg), [Name]]
                
                 Obj.RA  = table2array(List(:,1));
-                Obj.Dec  = table2array(List(:,2));
+                Obj.Dec = table2array(List(:,2));
                 Ntarget = numel(Obj.RA);
                         
                 Obj.Index = (1:1:Ntarget).';
@@ -107,7 +149,57 @@ classdef Targets < Component
             end
         end
         
-
+        function write(Obj, FileName)
+            % save the Targets object as a MAT file.
+            % Input  : - A Targets object.
+            %          - File name.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          T.write('try1.mat')
+            
+            save('-v7.3', FileName, 'Obj');
+        end
+        
+    end
+    
+    methods
+        function [Lon, Lat] = ecliptic(Obj)
+            % Return ecliptic coordinates for targets.
+            % Input  : - A Targets object.
+            % Output : - Ecliptic longitude [deg].
+            %          - Ecliptic latitude [deg].
+            % AUthor : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          [Lon, Lat] = T.ecliptic;
+            
+            RAD = 180./pi;
+            
+            [Lon, Lat] = celestial.coo.convert_coo(Obj.RA./RAD, Obj.Dec./RAD, 'J2000.0', 'e');
+            Lon        = Lon.*RAD;
+            Lat        = Lat.*RAD;
+            
+        end
+        
+        function [Lon, Lat] = galactic(Obj)
+            % Return galactic coordinates for targets.
+            % Input  : - A Targets object.
+            % Output : - Galactic longitude [deg].
+            %          - Galactic latitude [deg].
+            % AUthor : Eran Ofek (Jan 2022)
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          [Lon, Lat] = T.galactic;
+            
+            RAD = 180./pi;
+            
+            [Lon, Lat] = celestial.coo.convert_coo(Obj.RA./RAD, Obj.Dec./RAD, 'J2000.0', 'g');
+            Lon        = Lon.*RAD;
+            Lat        = Lat.*RAD;
+            
+        end
+        
     end
     
     methods % visibility
@@ -206,12 +298,14 @@ classdef Targets < Component
             
         end
         
-        function [Az, Alt] = azalt(Obj, JD)
+        function [Az, Alt, dAz, dAlt] = azalt(Obj, JD)
             % get Az/Alt for target
             % Input  : - Target object.
             %          - JD. Default is current time.
             % Output : - Az [deg]
             %          - Alt [deg]
+            %          - dAz/dt [deg/s]
+            %          - dAlt/dt [deg/s]
             % Author : Eran Ofek (Jan 2022)
             % Example: T.generateTargetList('last');
             %          [Az, Alt] = T.azalt
@@ -220,14 +314,25 @@ classdef Targets < Component
                 Obj
                 JD       = celestial.time.julday;
             end
-            
-            RAD = 180./pi;
+            SEC_IN_DAY = 86400;
+            RAD        = 180./pi;
                    
             LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
             HA      = LST - Obj.RA;
             [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Obj.Dec./RAD, Obj.GeoPos(2)./RAD);
             Az  = Az.*RAD;
             Alt = Alt.*RAD;
+            
+            if nargout>2
+                JD1     = JD + 1./SEC_IN_DAY;
+                LST     = celestial.time.lst(JD1, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
+                HA      = LST - Obj.RA;
+                [Az1,Alt1]= celestial.coo.hadec2azalt(HA./RAD, Obj.Dec./RAD, Obj.GeoPos(2)./RAD);
+                Az1  = Az1.*RAD;
+                Alt1 = Alt1.*RAD;
+                dAz  = Az1 - Az;
+                dAlt = Alt1 - Alt;
+            end
         end
             
         function [HA, LST] = ha(Obj, JD)
@@ -273,7 +378,7 @@ classdef Targets < Component
                 JD     = celestial.time.julday;
             end
                         
-            [SunSetJD, IsRise] = celestial.scheduling.Targets.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.SunAltLimit);
+            [SunSetJD, IsRise] = celestial.scheduling.Targets.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.VisibilityArgs.SunAltLimit);
             
             Ntarget = numel(Obj.RA);
             
@@ -284,7 +389,7 @@ classdef Targets < Component
                 VisibilityCounter = zeros(Ntarget,1);
                 VisibilityStatus  = true(Ntarget,1);  % become false after source is not visible for the first time
                 for Ijd=1:1:Njd
-                    [FlagAll] = isVisible(Obj, VecJD(Ijd));
+                    [FlagAll] = isVisible(Obj, VecJD(Ijd), 'CheckVisibility',false);
                     VisibilityStatus  = VisibilityStatus & FlagAll;
                     VisibilityCounter = VisibilityCounter + FlagAll.*VisibilityStatus;
                 end
@@ -321,13 +426,18 @@ classdef Targets < Component
                 Obj
                 JD     = celestial.time.julday;
                 
-                Args.CheckDec logical   = true;
-                Args.CheckAlt logical   = true;
-                Args.CheckAM logical    = true;
-                Args.CheckAzAlt logical = true;
-                Args.CheckSun logical   = true;
-                Args.CheckMoon logical  = true;
-                Args.CheckHA logical    = true;
+                Args.MinVisibilityTime       = 1./24;  % [day]
+                
+                Args.CheckDec logical        = true;
+                Args.CheckAlt logical        = true;
+                Args.CheckAM logical         = true;
+                Args.CheckAzAlt logical      = true;
+                Args.CheckSun logical        = true;
+                Args.CheckMoon logical       = true;
+                Args.CheckHA logical         = true;
+                Args.CheckEcl logical        = true;
+                Args.CheckGal logical        = true;
+                Args.CheckVisibility logical = true;
             end
             
             if isempty(JD)
@@ -339,7 +449,7 @@ classdef Targets < Component
             Ntarget = numel(Obj.RA);
             
             if Args.CheckDec
-                Flag.DecRange = Obj.Dec>=Obj.DecRange(1) & Obj.Dec<=Obj.DecRange(2);
+                Flag.DecRange = Obj.Dec>=Obj.VisibilityArgs.DecRange(1) & Obj.Dec<=Obj.VisibilityArgs.DecRange(2);
             else
                 Flag.DecRange = true;
             end
@@ -348,26 +458,26 @@ classdef Targets < Component
             [Az, Alt] = Obj.azalt(JD); 
             
             if Args.CheckHA
-                Flag.HA      = abs(HA) < Obj.HALimit;
+                Flag.HA      = abs(HA) < Obj.VisibilityArgs.HALimit;
             else
                 Flag.HA      = true;
             end
             
             if Args.CheckAlt
-                Flag.Alt     = Alt>Obj.AltLimit;
+                Flag.Alt     = Alt>Obj.VisibilityArgs.AltLimit;
             else
                 Flag.Alt     = true;
             end
             
             if Args.CheckAM
                 AM           = celestial.coo.hardie((90-Alt)./RAD);
-                Flag.AM      = AM < Obj.AMLimit;
+                Flag.AM      = AM < Obj.VisibilityArgs.AMLimit;
             else
                 Flag.AM      = true;
             end
             
             if Args.CheckAzAlt
-                AltLimitOfAz = interp1(Obj.AzAltLimit(:,1),Obj.AzAltLimit(:,2), Az);
+                AltLimitOfAz = interp1(Obj.VisibilityArgs.AzAltLimit(:,1),Obj.VisibilityArgs.AzAltLimit(:,2), Az);
                 Flag.AzAlt   = Alt>AltLimitOfAz;
             else
                 Flag.AzAlt   = true;
@@ -375,7 +485,7 @@ classdef Targets < Component
             
             if Args.CheckSun
                 Sun          = sunCoo(Obj, JD);
-                Flag.Sun     = Sun.Alt<Obj.SunAltLimit;
+                Flag.Sun     = Sun.Alt<Obj.VisibilityArgs.SunAltLimit;
             else
                 Flag.Sun     = true;
             end
@@ -383,15 +493,45 @@ classdef Targets < Component
             if Args.CheckMoon
                 [MoonDist, Moon] = moonDist(Obj, JD);
                 
-                if numel(Obj.MoonDistLimit)==1
-                    Flag.Moon = MoonDist > Obj.MoonDistLimit;
+                if numel(Obj.VisibilityArgs.MoonDistLimit)==1
+                    Flag.Moon = MoonDist > Obj.VisibilityArgs.MoonDistLimit;
                 else
-                    DistLimitOfIllum = interp1(Obj.MoonDistLimit(:,1), Obj.MoonDistLimit(:,2), abs(Moon.Illum));
+                    DistLimitOfIllum = interp1(Obj.VisibilityArgs.MoonDistLimit(:,1), Obj.VisibilityArgs.MoonDistLimit(:,2), abs(Moon.Illum));
                     Flag.Moon = MoonDist > DistLimitOfIllum;
                 end
             else
                 Flag.Moon    = true;
             end
+            
+            if Args.CheckEcl
+                [~, EclLat]   = Obj.ecliptic;
+                Nr = size(Obj.VisibilityArgs.EclipticRange,1);
+                Flag.Ecliptic = true(Ntarget,1);
+                for Ir=1:1:Nr
+                    Flag.Ecliptic = Flag.Ecliptic & (EclLat>Obj.VisibilityArgs.EclipticRange(Ir,1) & EclLat<Obj.VisibilityArgs.EclipticRange(Ir,2));
+                end
+            else
+                Flag.Ecliptic = true;
+            end
+                
+            if Args.CheckGal 
+                [~, GalLat]   = Obj.galactic;
+                Nr = size(Obj.VisibilityArgs.GalacticRange,1);
+                Flag.Galactic = true(Ntarget,1);
+                for Ir=1:1:Nr
+                    Flag.Galactic = Flag.Galactic & (GalLat>Obj.VisibilityArgs.GalacticRange(Ir,1) & GalLat<Obj.VisibilityArgs.GalacticRange(Ir,2));
+                end
+            else
+                Flag.Galactic = true;
+            end
+            
+            if Args.CheckVisibility
+                VisibilityTime  = leftVisibilityTime(Obj, JD);
+                Flag.Visibility = VisibilityTime > Args.MinVisibilityTime;
+            else
+                Flag.Visibility = true;
+            end
+                
             
             FlagFN = fieldnames(Flag);
             FlagAll = true(Ntarget,1);
@@ -405,18 +545,62 @@ classdef Targets < Component
     end
     
     methods % weights and priority
-        function P = calcPriority(Obj, Method, Args)
+        function [Obj, P] = calcPriority(Obj, JD, CadenceMethod)
             %
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          [T, P] = calcPriority(T, 2451545.5, 'west2east')
+            
             
             arguments
                 Obj
-                Method        = 'cadence';
-                Args
+                JD                   = celestial.time.julday;
+                CadenceMethod        = [];
+                %Args
             end
             
+            if ~isempty(CadenceMethod)
+                Obj.CadenceMethod = CadenceMethod;
+            end
             
+            if isempty(Obj.CadenceMethod)
+                error('CadenceMethod must be provided either as an argument or as Targets property');
+            end
             
+            Ntarget = numel(Obj.RA);
             
+            switch lower(Obj.CadenceMethod)
+                case 'periodic'
+                    
+                case 'continues'
+                    
+                case 'predefined'
+                    
+                case 'west2east'
+                    % priortize targets by the left visibility time,
+                    % where the highest priority target is the one with the
+                    % shortest visibility time above the Obj.MinNightlyVisibility
+                    %
+                    VisibilityTime = leftVisibilityTime(Obj, JD);
+                    % for all above min visibility time, sort by lowest to
+                    % highest
+                    Npr = 200;
+                    Obj.Priority = zeros(Ntarget,1);
+                    Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
+                                        
+                    VisibilityTime(Obj.GlobalCounter > Obj.PriorityArgs.MaxNobs) = 0;
+                    
+                    [~,SI] = sort(VisibilityTime);
+                    Iv     = find(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility, Npr, 'first');
+                    Nv     = numel(Iv);
+                    Obj.Priority(SI(Iv)) = 2 - ((1:1:Nv)' - 1)./(Npr+1);
+                    
+                    Obj.Priority(Obj.GlobalCounter > Obj.PriorityArgs.MaxNobs) = 0;
+                    
+                otherwise
+                    error('Unknown CadenceMethod option');
+            end
+            P = Obj.Priority;
             
         end
     end
@@ -443,12 +627,14 @@ classdef Targets < Component
             end
         end
         
-        function [Alt, Az] = sunAlt(JD, GeoPos)
+        function [Alt, Az, dAlt, dAz] = sunAlt(JD, GeoPos)
             % Return Sun geometric Alt and Az [no refraction] (Static)
             % Input  : - Vector of JD
             %          - Geo pos [Lon, Lat] in deg.
             % Output : - Sun Alt [deg].
             %          - Sun Az [deg]
+            %          - Sun dAlt/dt [deg/sec]
+            %          - Sun dAz/dt [deg/sec]
             % Author : Eran Ofek (Jan 2022)
             % Example: [Alt, Az] = celestial.scheduling.Targets.sunAlt(2451545, [1 1])
             
@@ -462,6 +648,20 @@ classdef Targets < Component
             [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
             Az  = Az.*RAD;
             Alt = Alt.*RAD;
+            
+            if nargout>2
+                JD1 = JD + 1./86400;
+                [RA, Dec] = celestial.SolarSys.suncoo(JD1, 'a');
+                RA  = RA.*RAD;
+                Dec = Dec.*RAD;
+                LST     = celestial.time.lst(JD1, GeoPos(1)./RAD, 'a').*360;  % [deg]
+                HA      = LST - RA;
+                [Az1,Alt1] = celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
+                Az1  = Az1.*RAD;
+                Alt1 = Alt1.*RAD;
+                dAlt = Alt1 - Alt;
+                dAz  = Az1 - Az;
+            end
             
         end
         
@@ -510,7 +710,44 @@ classdef Targets < Component
             Time = tools.find.fun_binsearch(@celestial.scheduling.Targets.sunAlt, Args.AltThreshold, Range, 0.1./1440, GeoPos);
             
         end
+        
+        function [RA, Dec] = earthShadow(JD, Dist, Args)
+            % Calculate the J2000.0 equatorial coordinates of the Earth shadow at a given height
+            % Input  : - JD (UT1 time scale).
+            %          - Topocentric distance to point in shadow for which to
+            %            calculate the position. Default is 42164 km.
+            %            If empty, use default.
+            %          * ...,key,val,...
+            %            'DistUnits' - Default is 'km'.
+            %            'GeoPos' - [Lon, Lat, Height] must be in [rad, rad, m].
+            %                   Default is [35 32 0]./(180./pi);  % [rad rad m]
+            %            'RefEllipsoid' - Default is 'WGS84'.
+            %            'OutUnitsDeg' - Output is in degrees. Default is true.
+            % Output : - J2000.0 RA of shadow point.
+            %          - J2000.0 Dec of shadow point.
+            %          - J2000.0 RA of anti Sun direction.
+            %          - J2000.0 Dec of anti Sun direction.
+            % Author : Eran Ofek (Jan 2022)
+            % Example:
+            % [RA,Dec]=celestial.scheduling.Targets.earthShadow(2451545 +(0:0.1:365)');
+
+            arguments
+                JD
+                Dist                      = 42164;
+                Args.DistUnits            = 'km';
+                Args.GeoPos               = [35 32 0]./(180./pi);  % [rad rad m]
+                Args.RefEllipsoid         = 'WGS84';
+                Args.OutUnitsDeg logical  = true;
+            end
+            Cell = namedargs2cell(Args);
+            [RA, Dec] = celestial.SolarSys.earthShadowCoo(JD, Dist, Cell{:});
+        end
+        
     end
+    
+    methods (Static)  % in other files / unitTest
+        Result = unitTest
+    end 
 
 end
     

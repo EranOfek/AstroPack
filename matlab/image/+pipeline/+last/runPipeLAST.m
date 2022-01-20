@@ -1,7 +1,7 @@
 function runPipeLAST(DataNumber, Args)
     % Script for running the LAST pipeline
     % Input  : - data disk number from which to extract the new images.
-    %            DEfault is 1.
+    %            Default is 1.
     %          * ...,key,val,...
     %            See code
     % Author : Eran Ofek (Jan 2022)
