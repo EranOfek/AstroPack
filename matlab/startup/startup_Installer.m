@@ -4,9 +4,8 @@ function startup_Installer
     % 
 
     I = Installer;
-    tic;
     I.install('VSOPE87');
-    I.install('GAIA_SpecTemplate');
+    %I.install('GAIA_SpecTemplate');
     I.install('CALSPEC');
     I.install('Atmosphere');
     
@@ -14,5 +13,4 @@ function startup_Installer
     I.install('Time');
     I.install('MinorPlanets');
     
-    toc
 end
