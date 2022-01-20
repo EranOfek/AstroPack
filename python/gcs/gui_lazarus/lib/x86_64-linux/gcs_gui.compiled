@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="/usr/bin/fpc" Date="1625802185"/>
+  <Params Value=" -MObjFPC -Scghi -Cg -O1 -g -gl -l -vewnhibq -Fi/home/eran/matlab/AstroPack/python/gcs/gui_lazarus/lib/x86_64-linux -Fu/usr/share/lazarus/2.2.0/lcl/units/x86_64-linux/gtk2 -Fu/usr/share/lazarus/2.2.0/lcl/units/x86_64-linux -Fu/usr/share/lazarus/2.2.0/components/freetype/lib/x86_64-linux -Fu/usr/share/lazarus/2.2.0/components/lazutils/lib/x86_64-linux -Fu/usr/share/lazarus/2.2.0/packager/units/x86_64-linux -Fu/home/eran/matlab/AstroPack/python/gcs/gui_lazarus/ -FU/home/eran/matlab/AstroPack/python/gcs/gui_lazarus/lib/x86_64-linux/ -FE/home/eran/matlab/AstroPack/python/gcs/gui_lazarus/ -o/home/eran/matlab/AstroPack/python/gcs/gui_lazarus/gcs_gui -dLCL -dLCLgtk2 gcs_gui.lpr"/>
+</CONFIG>

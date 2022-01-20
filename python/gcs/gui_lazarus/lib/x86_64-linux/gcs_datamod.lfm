@@ -1,0 +1,39 @@
+object AppDataModule: TAppDataModule
+  OnCreate = DataModuleCreate
+  OnDestroy = DataModuleDestroy
+  OldCreateOrder = False
+  Height = 407
+  HorizontalOffset = 328
+  VerticalOffset = 433
+  Width = 497
+  object PQConnection: TPQConnection
+    Connected = False
+    LoginPrompt = False
+    DatabaseName = 'unittest'
+    KeepConnection = False
+    Password = 'Passw0rd'
+    UserName = 'admin'
+    CharSet = 'UTF-8'
+    HostName = 'gauss'
+    Left = 40
+    Top = 32
+  end
+  object SQLite3Connection: TSQLite3Connection
+    Connected = False
+    LoginPrompt = False
+    DatabaseName = 'C:\gcs\db\gcsdb.db'
+    KeepConnection = False
+    CharSet = 'UTF-8'
+    HostName = 'localhost'
+    AlwaysUseBigint = False
+    Left = 168
+    Top = 32
+  end
+  object SQLQuery1: TSQLQuery
+    FieldDefs = <>
+    Params = <>
+    Macros = <>
+    Left = 43
+    Top = 168
+  end
+end
