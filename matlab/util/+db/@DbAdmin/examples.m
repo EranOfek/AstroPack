@@ -25,14 +25,14 @@ function Result = examples()
     Admin = db.DbAdmin('Host', 'gauss', 'Port', 5432, 'UserName', 'postgres', 'Password', 'PassRoot', 'DatabaseName', 'postgres');
     
     % Create configuration file
-    ConfigFileName = Admin.createConnectionConfig('DatabaseName', 'unittest5', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+    ConfigFileName = Admin.createConnectionConfig('DatabaseName', 'unittest6', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
     fprintf('Config file created: %s\n', ConfigFileName);
         
     % Create database from XLSX file (Google Sheets)
     % NOTE: If the system() call fails, copy and paste the command in new
     % 'term' window. Note that bash uses 'export var=...' and tcsh uses
     % 'setenv var ...'
-    xlsx = fullfile(tools.os.getAstroPackPath(), 'database/xlsx/unittest5.xlsx');
+    xlsx = fullfile(tools.os.getAstroPackPath(), 'database/xlsx/unittest6.xlsx');
     Admin.createDatabase('XlsFileName', xlsx);
    
     % Get list of databases
@@ -42,7 +42,7 @@ function Result = examples()
     % Get list of users (roles)
     UserList = Admin.getUserList();
     disp(UserList);
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+    
     % Add user
     Admin.addUser('test1', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'full');
     Admin.addUser('test1r', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'read');    
