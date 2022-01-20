@@ -2,6 +2,9 @@
 
 Serevr host name: gauss
 
+    ServerSharePath : '/var/samba/pgshare'
+    MountSharePath  : '/media/gauss_pgshare'
+
 
 ## Server - Shared Linux Folder using SAMBA
 
@@ -23,15 +26,14 @@ On server:
 
 Add at the end of smb.conf
 
-    [pgshare]
-    path = /var/samba/pgshare
-    available = yes
-    read only = yes
-    browsable = yes
-    public = yes
-    writable = yes
-    guest ok = yes
-    #valid users = odroid
+[pgshare]
+path = /var/samba/pgshare
+available = yes
+read only = yes
+browsable = yes
+public = yes
+writable = yes
+guest ok = yes
 
 
 Type

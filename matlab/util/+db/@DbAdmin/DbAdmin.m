@@ -47,6 +47,7 @@ classdef DbAdmin < Component
         UserName        = ''        %
         Password        = ''        %
         TableName       = ''        %
+        Shell           = 'tcsh'    % 'tcsh', 'bash'
     end
 
     %----------------------------------------------------------------------
@@ -201,11 +202,11 @@ classdef DbAdmin < Component
                 Args.DriverName      = 'postgres'        % Driver name
                 Args.UserName        = ''                % Login user
                 Args.Password        = ''                % Login password
-                Args.ServerSharePath = '' %              % Path to shared folder on the server, for COPY statements
-                Args.MountSharePath  = ''
-                Args.WinMountSharePath  = ''
+                Args.ServerSharePath = '/var/samba/pgshare'   % Path to shared folder on the server, for COPY statements
+                Args.MountSharePath  = '/media/gauss_pgshare' %
+                Args.WinMountSharePath  = 'S:\'               %
             end
-                                  
+            
             % Prepare file name if not specified
             Result = [];
             if isempty(Args.FileName)
@@ -634,11 +635,16 @@ classdef DbAdmin < Component
                         
                     % Linux - use 'export'
                     else
-                        Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
+                        % bash / tcsh @Todo - How do we know? Config?
+                        if strcmp(Obj.Shell, 'tcsh')
+                            Cmd = sprintf('setenv PGPASSWORD ''%s'' ; %s', Args.Password, Cmd);
+                        else
+                            Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
+                        end                                              
                     end
                 end
                 
-                io.msgLog(LogLevel.Info, 'psql: %s', Cmd);
+                io.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
                 [Status, Output] = system(Cmd);
                 io.msgLog(LogLevel.Info, 'psql: %d', Status);
                 io.msgLog(LogLevel.Info, 'psql: %s', Output);

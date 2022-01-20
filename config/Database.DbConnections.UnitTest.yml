@@ -1,11 +1,13 @@
 # Database.DbConnections.UnitTest
 # Edit this file and save it in config/local/
+# You may need to delete the copy in config/ if local/ is not loaded correctly
 
 DatabaseName       : 'unittest'        # Database name
 Host               : 'gauss'           # Host name or IP address
 DriverName         : 'postgres'        # Driver name
 Port               : 5432              # Port number
-UserName           : '?'               # Login user - Replace ? with username
-Password           : '?'               # Login password - Replace ? with password
-ServerSharePath    : ''                # Linux
-WinServerSharePath : 'S:/'             # Windows (run: net use S: \\gauss\pgshare)
+UserName           : '???'             # Login user - Replace ? with username
+Password           : '???'             # Login password - Replace ? with password
+ServerSharePath    : '/var/samba/pgshare'   # Linux
+MountSharePath     : '/media/gauss_pgshare' # Linux
+WinServerSharePath : 'S:/'                  # Windows (run: net use S: \\gauss\pgshare)

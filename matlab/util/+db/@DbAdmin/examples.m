@@ -10,8 +10,15 @@ function Result = examples()
     % config/local/Database.DbConnections.UnitTest.yml
     
     % From command line (term), connect to server:
-    % psql -h gauss -U admin -d unittest -W
-       
+    % psql -h gauss -U admin -d unittest -W 
+    %
+    % postgressql_v14.md
+    % share_linux_folder.md
+    %
+    % ServerSharePath : '/var/samba/pgshare'
+    % MountSharePath  : '/media/gauss_pgshare' 
+    
+    
     % Create DbAdmin from arguments
     % Postgres always have a database called 'postgres' that you can connect
     % to with full permissions
@@ -22,6 +29,9 @@ function Result = examples()
     fprintf('Config file created: %s\n', ConfigFileName);
         
     % Create database from XLSX file (Google Sheets)
+    % NOTE: If the system() call fails, copy and paste the command in new
+    % 'term' window. Note that bash uses 'export var=...' and tcsh uses
+    % 'setenv var ...'
     xlsx = fullfile(tools.os.getAstroPackPath(), 'database/xlsx/unittest5.xlsx');
     Admin.createDatabase('XlsFileName', xlsx);
    
