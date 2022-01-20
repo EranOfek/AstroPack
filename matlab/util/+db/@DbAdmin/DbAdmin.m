@@ -47,7 +47,7 @@ classdef DbAdmin < Component
         UserName        = ''        %
         Password        = ''        %
         TableName       = ''        %
-        Shell           = 'tcsh'    % 'tcsh', 'bash'
+        Shell           = ''        % 'tcsh', 'bash', empty for auto detect by $SHELL
     end
 
     %----------------------------------------------------------------------
@@ -635,8 +635,14 @@ classdef DbAdmin < Component
                         
                     % Linux - use 'export'
                     else
-                        % bash / tcsh @Todo - How do we know? Config?
-                        if strcmp(Obj.Shell, 'tcsh')
+                        
+                        % Check which shell we use
+                        if isempty(Obj.Shell)
+                            Obj.Shell = getenv('SHELL');
+                        end
+                        
+                        % bash / tcsh
+                        if contains(Obj.Shell, 'tcsh')
                             Cmd = sprintf('setenv PGPASSWORD ''%s'' ; %s', Args.Password, Cmd);
                         else
                             Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
