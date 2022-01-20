@@ -42,7 +42,7 @@ function Result = examples()
     % Get list of users (roles)
     UserList = Admin.getUserList();
     disp(UserList);
-      
+      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH
     % Add user
     Admin.addUser('test1', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'full');
     Admin.addUser('test1r', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'read');    

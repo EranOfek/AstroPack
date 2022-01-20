@@ -218,7 +218,7 @@ classdef DbAdmin < Component
             Fid = fopen(Args.FileName, 'wt');
             if Fid > -1
                 fprintf(Fid, '# %s\n\n',                        Args.FileName);
-                fprintf(Fid, 'DatabaseName    : ''%s\n',        Args.DatabaseName);
+                fprintf(Fid, 'DatabaseName    : ''%s''\n',      Args.DatabaseName);
                 fprintf(Fid, 'Host            : ''%s''\n',      Args.Host);
                 fprintf(Fid, 'Port            : %d\n',          Args.Port);
                 fprintf(Fid, 'DriverName      : ''postgres''\n');
