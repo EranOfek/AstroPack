@@ -22,14 +22,44 @@ type
 
   public
 
+    //
+    procedure Init();
+
+    //
     procedure RunScript(Path: AnsiString;  Script: AnsiString);
+
+    //
     procedure LoadFilesList(Path: String;  Mask: String;  List: TStrings);
+
+    //
     procedure LoadYmlSection(YmlLines: TStrings;  Section: String;  Config: TStrings);
+
+    //
     procedure LoadYmlConfig(FileName: String;  Section: String;  Config: TStrings);
 
+    //
     procedure LoadYmlToIni(FileName: String;  IniFile: TMemIniFile;  TrimValues: Boolean = true);
 
+    //
     function GetNewFileName(Path: String;  Ext: String) : String;
+
+    //procedure SendGuiMsg(AText: String);
+
+  public
+
+    ConfigIni           : TMemIniFile;
+    ConfigFileName      : String;
+
+    XmlFilePath         : String;
+
+    MsgFromGcsPath      : String;
+    MsgToGcsPath        : String;
+    FromGuiPath         : String;
+    ToGuiPath           : String;
+
+    GuiInPath           : String;
+    ScriptPath          : String;
+
   end;
 
 var
@@ -51,14 +81,52 @@ begin
 end;
 
 
+procedure TAppDataModule.Init();
+begin
+
+  {$IFDEF Linux}
+  ConfigFileName := '../gcs_conf.yml';
+  {$ELSE}
+  ConfigFileName := '..\gcs_conf_win.yml';
+  {$ENDIF}
+
+  GuiInPath := 'InMsgFolder';
+
+  ScriptPath := '/home/user/dev/opsci.git/src/scripts/';
+
+  //
+  ConfigIni := TMemIniFile.Create('');
+  LoadYmlToIni(ConfigFileName, ConfigIni);
+  //LoadYmlConfig(ConfigFileName, IniSection, Config);
+  //Log(Config.Values['InMsgFolder']);
+
+  //
+  XmlFilePath := '..' + DirectorySeparator + 'gcs_msg_xml';
+  //D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
+
+  MsgFromGcsPath := ConfigIni.ReadString('Interface', 'MsgFromGcsPath', '');
+  MsgToGcsPath := ConfigIni.ReadString('Interface', 'MsgToGcsPath', '');
+
+
+  ToGuiPath := ConfigIni.ReadString('Gui', 'ToGuiPath', '');
+  FromGuiPath := ConfigIni.ReadString('Gui', 'FromGuiPath', '');
+
+  ForceDirectories(ToGuiPath);
+  ForceDirectories(FromGuiPath);
+
+  //
+  //LoadFiles();
+
+end;
+
 procedure TAppDataModule.RunScript(Path: AnsiString;  Script: AnsiString);
 var
   AProcess: TProcess;
   Cmd: AnsiString;
 begin
   {$IFDEF Linux}
-  Script := Path + '/' + Script;
-  Cmd := Script + ';sleep 2';
+  //Script := Path + '/' + Script;
+  //Cmd := Script + ';sleep 2';
   AProcess := TProcess.Create(nil);
   AProcess.Executable := '/usr/bin/xterm';  //Cmd;  //'/bin/bash';
   AProcess.Parameters.Add('-e');
@@ -209,6 +277,8 @@ begin
   FileName := IncludeTrailingPathDelimiter(Path) + FormatDateTime('YYYY_MM_DD__HH_MM_SS_zzz', Now) + Ext;
   Result := FileName;
 end;
+
+
 
 
 end.

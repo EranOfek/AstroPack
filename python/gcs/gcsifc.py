@@ -449,10 +449,9 @@ class GcsInterface(Component):
             filename = self.gui_com.poll_input()
             if filename != '':
                 try:
-                    with open(filename, 'r') as f:
-                        yml = yaml.safe_load(f)
 
-                    msg = yml_to_obj(yml)
+                    msg = gcsbase.yml_file_to_obj(filename)
+
                     cmd = msg.Msg.Cmd
                     if cmd == 'ConvertXmlToYml':
                         pass

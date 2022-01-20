@@ -84,13 +84,8 @@ type
     procedure Init();
 
     //
-    procedure SendGuiMsg(AText: String);
-
-    //
     procedure ProcessGuiFile(FileName: String);
 
-    //
-    procedure RunScript();
 
     // Load XML and YML file lists
     procedure LoadFiles();
@@ -98,18 +93,13 @@ type
     //
     procedure PollGuiMsg();
 
+    procedure SendGuiMsg(AText: String);
+
     //
     procedure Log(Line: String);
 
   //=========================================================================
   public
-    ConfigIni           : TMemIniFile;
-    XmlFilePath         : String;
-
-    MsgFromGcsPath      : String;
-    MsgToGcsPath        : String;
-    FromGuiPath         : String;
-    ToGuiPath           : String;
   end;
 
 //===========================================================================
@@ -120,15 +110,6 @@ var
   FormCount: Integer = 1;
 
 const
-  {$IFDEF Linux}
-  ConfigFileName : String = '../gcs_conf.yml';
-  {$ELSE}
-  ConfigFileName : String = '..\gcs_conf_win.yml';
-  {$ENDIF}
-
-  GuiInPath : String = 'InMsgFolder';
-
-  ScriptPath = '/home/user/dev/opsci.git/src/scripts/';
 
   LineBreak: String = Char(#10);
 
@@ -141,24 +122,7 @@ implementation
 procedure TMainForm.Init();
 begin
   //
-  ConfigIni := TMemIniFile.Create('');
-  AppDataModule.LoadYmlToIni(ConfigFileName, ConfigIni);
-  //LoadYmlConfig(ConfigFileName, IniSection, Config);
-  //Log(Config.Values['InMsgFolder']);
-
-  //
-  XmlFilePath := '..' + DirectorySeparator + 'gcs_msg_xml';
-  //D:\Ultrasat\AstroPack.git\python\gcs\gcs_msg_xml';
-
-  MsgFromGcsPath := ConfigIni.ReadString('Interface', 'MsgFromGcsPath', '');
-  MsgToGcsPath := ConfigIni.ReadString('Interface', 'MsgToGcsPath', '');
-
-
-  ToGuiPath := ConfigIni.ReadString('Gui', 'ToGuiPath', '');
-  FromGuiPath := ConfigIni.ReadString('Gui', 'FromGuiPath', '');
-
-  ForceDirectories(ToGuiPath);
-  ForceDirectories(FromGuiPath);
+  AppDataModule.Init();
 
   //
   LoadFiles();
@@ -170,71 +134,10 @@ procedure TMainForm.LoadFiles();
 var
   Path: String;
 begin
-  Path := XmlFilePath;
+  Path := AppDataModule.XmlFilePath;
   AppDataModule.LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
   AppDataModule.LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
 end;
-
-procedure TMainForm.RunScript();
-var
-  AProcess: TProcess;
-  Cmd: AnsiString;
-begin
-  //
-  begin
-    {$IFDEF Linux}
-    Script := Path + '/' + Script;
-    Cmd := Script + ';sleep 2';
-    AProcess := TProcess.Create(nil);
-    AProcess.Executable := '/usr/bin/xterm';  //Cmd;  //'/bin/bash';
-    AProcess.Parameters.Add('-e');
-    AProcess.Parameters.Add(Cmd);
-    //AProcess.Options := AProcess.Options + [poWaitOnExit];
-    AProcess.Execute;
-    //AProcess.Free;
-
-    //if RunCommand('/bin/bash',['-c',Script], s, [{poUsePipes}{, poWaitOnExit}]) then
-    //   writeln(s);
-    {$ELSE}
-    AProcess := TProcess.Create(nil);
-    AProcess.Executable := 'cmd.exe';  //Cmd;  //'/bin/bash';
-    AProcess.Parameters.Add('start cmd /k python ..\gcsmain.py');
-    //AProcess.Parameters.Add(Cmd);
-    //AProcess.Options := AProcess.Options + [poWaitOnExit];
-    AProcess.Execute;
-    //AProcess.Free;
-
-    //if RunCommand('/bin/bash',['-c',Script], s, [{poUsePipes}{, poWaitOnExit}]) then
-    //   writeln(s);
-
-
-    {$ENDIF}
-  end;
-
-
-  //AppDataModule.RunScript();
-end;
-
-
-procedure TMainForm.SendGuiMsg(AText: String);
-var
-   FileName: String;
-   Lines: TStringList;
-begin
-  FileName := AppDataModule.GetNewFileName(ConfigIni.ReadString('Gui', GuiInPath, ''), '');
-
-  MemoXml.Lines.SaveToFile(FileName + '.xml');
-  MemoYml.Lines.SaveToFile(FileName + '.yml');
-
-  Lines := TStringList.Create;
-  try
-    Lines.Text := AText;
-    Lines.SaveToFile(FileName + '.yml');
-  finally
-    Lines.Free;
-  end;
-end;
-
 
 
 procedure TMainForm.ProcessGuiFile(FileName: String);
@@ -276,6 +179,27 @@ begin
 end;
 
 
+procedure TMainForm.SendGuiMsg(AText: String);
+var
+   FileName: String;
+   Lines: TStringList;
+begin
+  FileName := AppDataModule.GetNewFileName(AppDataModule.ConfigIni.ReadString('Gui', AppDataModule.GuiInPath, ''), '');
+
+  MemoXml.Lines.SaveToFile(FileName + '.xml');
+  MemoYml.Lines.SaveToFile(FileName + '.yml');
+
+  Lines := TStringList.Create;
+  try
+    Lines.Text := AText;
+    Lines.SaveToFile(FileName + '.yml');
+  finally
+    Lines.Free;
+  end;
+end;
+
+
+
 procedure TMainForm.Log(Line: String);
 begin
   MemoLog.Lines.Add(Line);
@@ -299,7 +223,7 @@ end;
 
 procedure TMainForm.BtnRunScriptClick(Sender: TObject);
 begin
-  RunScript();
+  //AppDataModule.RunScript();
 end;
 
 
