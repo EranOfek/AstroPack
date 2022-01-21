@@ -25,14 +25,26 @@ function Result = unitTest()
     % Get Metadata    
     % Get tables list
     TablesList = Q.getTablesList();
+    assert(~isempty(TablesList));
     ColumnList = Q.getTableColumnList('master_table');
+    assert(~isempty(ColumnList));
+    
+    Q = db.DbQuery('unittest:master_table');
+    Q.select('*', 'TableName', 'master_table');
+    ColNames = Q.getColumnNamesOfType('Double');
+    assert(~isempty(ColNames));
+    assert(strcmp(Q.getColumnType(ColNames(1)),'Double'));
+%     assert(Q.isColumn(ColNames(1)));
+    first_col = ColNames(1);
+    assert(strcmp(Q.columnName2matlab(first_col{1}),'fdouble'));
     
     % Get list of fields composing the primary key
     PkList = Q.getTablePrimaryKey('master_table');
+    assert(~isempty(PkList));
     
     % Get list of index NAMES (not the fields)
     IndexList = Q.getTableIndexList('master_table');
-    
+    assert(~isempty(IndexList));
     
     % Convert AstroHeader to DbRecord
     H = AstroHeader();
@@ -50,7 +62,7 @@ function Result = unitTest()
     Q = db.DbQuery('unittest', 'TableName', 'master_table');
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
     
-    testUpdate(Q);
+    %testUpdate(Q);
     %testDelete(Q);
     
     %testInsert(Q);
@@ -84,7 +96,9 @@ function Result = unitTest()
     % Compare performance of SELECT vs COPY TO
     for Iter=1:5
         TempFile = 'C:/temp/__tmp1.csv';
-        delete(TempFile);
+        if isfile(TempFile)
+            delete(TempFile);
+        end
 
         t = tic();
         RecSelect = Q.select(Columns,  'Limit', Limit);
@@ -117,14 +131,18 @@ function Result = unitTest()
     % Call tests using 'UnitTest' database    
     TestAll = true;
     if TestAll
-        testSelect(Q);        
+        
+        % Deleting all records
+        Q.deleteRecord();
+        
         testInsertRaw(Q);
         testInsert(Q);
+        testSelect(Q);
         
         % @Todo - Not fully implemented yet
-        %testUpdate(Q);
-        %testDelete(Q);
-        %testCopy(Q);
+        testUpdate(Q);
+        testDelete(Q);
+        testCopy(Q);
         
     end
         
@@ -169,7 +187,12 @@ function Result = testSelect(Q)
     %----------------------------------------------------- Simple select & convert
     Limit = 100;
     R = Q.select('*', 'TableName', 'master_table', 'Limit', Limit);
-    assert(isa(R, 'db.DbRecord'));       
+    assert(isa(R, 'db.DbRecord'));
+    
+    Q.select('*', 'TableName', 'master_table', 'Limit', Limit, 'CSVFileName', 'C:/Temp/CSVFileNameTemp.csv');
+    csvtemp = readtable('C:/Temp/CSVFileNameTemp.csv', 'ReadVariableNames', false);
+%     assert(~isempty(csvtemp));
+%     assert(height(csvtemp) == length(R.Data));
     
     % Table
     Tab = R.convert2table();
@@ -449,7 +472,8 @@ function Result = testUpdate(Q)
         R.Data(i).fint = 0;
         R.Data(i).fdouble = 0;            
         R.Data(i).fstring = sprintf('MyStr_%03d', i);        
-    end    
+    end
+    Q.InsertRecFunc = '';
     Q.insert(R);
     
     % Update all records with recid that starts with Uuid_
@@ -495,6 +519,30 @@ end
 %==========================================================================
 
 function Result = testCopy(Q)
+    if isfile('c:\temp\a1.csv')
+       delete('c:\temp\a1.csv'); 
+    end
+    if isfile('c:\temp\a2.csv')
+       delete('c:\temp\a2.csv'); 
+    end
+    
+    count1 = Q.selectCount('TableName', 'master_table');
+    Q.copyTo('master_table', 'c:\temp\a1.csv');
+    
+    csvtemp = readtable('c:\temp\a1.csv', 'ReadVariableNames', false);
+    count2 = height(csvtemp);
+    
+    Q.deleteRecord();
+    Q.copyFrom('master_table', 'c:\temp\a1.csv');
+    count3 = Q.selectCount('TableName', 'master_table');
+    
+    assert(count1 == count2 && count1 == count3);
+    
+    Q.copyTo('master_table', 'c:\temp\a2.csv', 'Columns', 'fint');
+    Q.copyFrom('master_table', 'c:\temp\a2.csv');
+    count4 = Q.selectCount('TableName', 'master_table');
+    
+    assert(count4 == count1*2);
     
     Result = true;
     return;
@@ -508,11 +556,6 @@ function Result = testCopy(Q)
     % \dt
     % \d master_table
     % \COPY master_table TO 'c:\temp\aa1.csv' DELIMITER ',' CSV HEADER
-
-    Q.copyFrom('master_table', 'c:\temp\aa1c.csv');
-    Q.copyFrom('master_table', 'c:\\temp\\aa1c.csv', 'Columns', 'recid,fint');
-    Q.copyTo('master_table', 'c:\\temp\\a1.csv');           
-    Q.copyTo('master_table', 'c:\\temp\\a2.csv', 'Columns', 'recid,fint');
 
     % Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
 
