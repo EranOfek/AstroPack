@@ -1,5 +1,5 @@
 function [Result, Fit]=image_quality(Image, Args)
-    % Mesaure the image quality as a function of position in image.
+    % Measure the image quality as a function of position in image.
     % Input  : - An image in matrix format
     %          * ...,key,val,...
     %            'BlockSize' - Block size of sub images division.
