@@ -375,6 +375,19 @@ classdef AstroPSF < Component
 
     end
     
+    methods % plotting
+        function surface(Obj)
+            % plot PSF using surface
+            % Input  : - A single element AstroPSF object
+            % Author : Eran Ofek (Jan 2022)
+            % Example: AI.PSFData.surface
+            
+            Data = Obj.getPSF;
+            surface(Data);
+            colorbar;
+        end
+        
+    end
 
     methods (Static) % UnitTest
         Result = unitTest()

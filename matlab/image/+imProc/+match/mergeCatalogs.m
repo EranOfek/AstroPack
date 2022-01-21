@@ -46,7 +46,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %                   input AstroCatalog which to propagate into the
     %                   MatchedSources object.
     %                   Default is
-    %                   {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+    %                   {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
     %            'ColNameFlags' - A char array of the column name
     %                   containing a flags (propagated from the bit mask)
     %                   information. Default is 'FLAGS'.
@@ -119,10 +119,10 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.FitPM logical           = true;
         Args.fitMotionArgs cell      = {'Prob',1e-5};
         
-        Args.MatchedColums           = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','MAG_APER_2','MAG_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
+        Args.MatchedColums           = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','MAG_APER_2','MAG_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
         
         Args.ColNameFlags            = 'FLAGS';
-        Args.ColNamesStat            = {'RA','Dec','X','Y','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
+        Args.ColNamesStat            = {'RA','Dec','X1','Y1','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
         Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8], [1:8], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3], [1 3]};
         
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};

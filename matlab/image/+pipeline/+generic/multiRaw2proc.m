@@ -65,7 +65,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         % source finding
         Args.Threshold                        = 5;
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
-                                                 'X', 'Y',...
+                                                 'X1', 'Y1',...
                                                  'X2','Y2','XY',...
                                                  'SN','BACK_IM','VAR_IM',...  
                                                  'BACK_ANNULUS', 'STD_ANNULUS', ...
@@ -257,7 +257,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Args.SaveProcMask   = true;
     Args.SaveProcCat    = true;
     Args.SaveMatchCat   = true;
-    Args.SaveMatchSrc   = true;
+    Args.SaveMatchMat   = true;
     Args.SaveCoaddIm    = true;
     Args.SaveCoaddMask  = true;
     Args.SaveCoaddCat   = true;
@@ -266,131 +266,109 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Args.SaveProcMask   = false;
     Args.SaveProcCat    = false;
     Args.SaveMatchCat   = false;
-    Args.SaveMatchSrc   = false;
+    Args.SaveMatchMat   = false;
     Args.SaveCoaddIm    = false;
     Args.SaveCoaddMask  = false;
     Args.SaveCoaddCat   = false;
     
     
     SubDir = '9';
+    %BasePath='/last04/data1/archive';
     
-    %%% MUST save AllSI before procMergeCoadd
+    %%% MUST save AllSI before procMergeCoadd !!!
     
+    tic;
     % Save individual proc images
     IP   = ImagePath;
     Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcIm,...
                            'ParEval',false,...
                            'SaveFun',@write1,...
-                           'SaveFunArgs',{'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Image', 'SubDir',SubDir});
+                           'SetProp',{'Product','Image', 'SubDir',SubDir, 'BasePath',BasePath});
+
 
     % Save individual mask images
     IP   = ImagePath;
     Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcMask,...
                            'ParEval',false,...
                            'SaveFun',@write1,...
-                           'SaveFunArgs',{'Mask',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'SaveFunArgs',{'Mask', 'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Mask', 'SubDir',SubDir});
-
+                           'SetProp',{'Product','Mask', 'SubDir',SubDir, 'BasePath',BasePath});
     
+                       
     % Save individual catalog of images
     IP   = ImagePath;
     Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcCat,...
                            'ParEval',false,...
                            'SaveFun',@write1,...
-                           'SaveFunArgs',{'Cat',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'SaveFunArgs',{'Cat', 'IsSimpleFITS',false, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Cat', 'SubDir',SubDir});
+                           'SetProp',{'Product','Cat', 'SubDir',SubDir, 'BasePath',BasePath});
 
 
+    % Save MergedCat
+    IP   = ImagePath;
+    IP.readFromHeader(Coadd(1));
+    MergedJD = 0.5.*(min(MatchedS(1).JD) + max(MatchedS(1).JD));
+    IP.Time  = MergedJD;
+    Future = saveProduct(IP, MergedCat, 'Save',Args.SaveMatchCat,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'FileType','fits', 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',false,...
+                           'SetProp',{'Product','Cat', 'Level','merged', 'Counter',0, 'SubDir',SubDir, 'BasePath',BasePath});
 
+    % Save MatchedS  
+    IP   = ImagePath;
+    IP.readFromHeader(Coadd(1));
+    MergedJD = 0.5.*(min(MatchedS(1).JD) + max(MatchedS(1).JD));
+    IP.Time  = MergedJD;
+    Future = saveProduct(IP, MergedCat, 'Save',Args.SaveMatchMat,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'FileType','hdf5'},...
+                           'PropFromHeader',false,...
+                           'SetProp',{'Product','MergedMat', 'Level','merged', 'Counter',0, 'SubDir',SubDir, 'BasePath',BasePath});
+                   
+              
+                       
+    % Save Coadd images
+    IP   = ImagePath;
+    IP.Counter = 0;
+    IP.PathLevel = 'proc';
+    Future = saveProduct(IP, Coadd, 'Save',Args.SaveCoaddIm,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Image', 'SubDir',SubDir, 'BasePath',BasePath});
+                  
+    % Save Coadd Mask images
+    IP   = ImagePath;
+    IP.Counter = 0;
+    IP.PathLevel = 'proc';
+    Future = saveProduct(IP, Coadd, 'Save',Args.SaveCoaddIm,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Mask',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Mask', 'SubDir',SubDir, 'BasePath',BasePath});
+                              
+    % Save Coadd Cat   
+    IP   = ImagePath;
+    IP.Counter = 0;
+    IP.PathLevel = 'proc';
+    Future = saveProduct(IP, Coadd, 'Save',Args.SaveCoaddIm,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Cat',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Cat', 'SubDir',SubDir, 'BasePath',BasePath});
+                                                 
     
-    
-    
-    if Args.SaveMatchCat
-        % save MergedCat
-        Nim = numel(MergedCat);
-        for Iim=1:1:Nim
-            % use the Coadd header 
-            IP.readFromHeader(Coadd(Iim));       %MergedCat(Iim));  
-            IP.Product = 'Cat';
-            IP.Level   = 'merged';
-            IP.Counter = 0;
-            IP.SubDir  = SubDir;
-            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
-                                                   'WriteHeader',true,...
-                                                   'Append',false,...
-                                                   'OverWrite',true,...
-                                                   'WriteTime',false);
-        end
-        
-    end
-    
-    if Args.SaveMatchSrc
-        Nim = numel(MatchedS);
-        for Iim=1:1:Nim
-            IP.Product  = 'MergedMat';
-            IP.Level    = 'merged';
-            IP.Counter  = 0;
-            IP.FileType = 'hdf5';
-            IP.SubDir   = SubDir;
-            IP.CropID   = Iim;
-            MatchedS(Iim).write(IP.genFull('PathLevel','proc'));
-        end
-    end
-    
-    if Args.SaveCoaddIm
-        Nim = numel(Coadd);
-        for Iim=1:1:Nim
-            IP.readFromHeader(Coadd(Iim));  
-            IP.Product = 'Image';
-            IP.Counter = 0;
-            IP.SubDir  = SubDir;
-            % Path need to be like for an individual image
-            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Image', 'FileType','fits',...
-                                                   'WriteHeader',true,...
-                                                   'Append',false,...
-                                                   'OverWrite',true,...
-                                                   'WriteTime',false);
-        end
-       
-    end
-    
-    if Args.SaveCoaddMask
-        Nim = numel(Coadd);
-        for Iim=1:1:Nim
-            IP.readFromHeader(Coadd(Iim));  
-            IP.Product = 'Mask';
-            IP.Counter = 0;
-            IP.SubDir  = SubDir;
-            % Path need to be like for an individual image
-            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Mask', 'FileType','fits',...
-                                                   'WriteHeader',true,...
-                                                   'Append',false,...
-                                                   'OverWrite',true,...
-                                                   'WriteTime',false);
-        end
-    end
-    
-    if Args.SaveCoaddCat
-        Nim = numel(Coadd);
-        for Iim=1:1:Nim
-            IP.readFromHeader(Coadd(Iim));  
-            IP.Product = 'Cat';
-            IP.Counter = 0;
-            IP.SubDir  = SubDir;
-            Coadd(Iim).write1(IP.genFull('PathLevel','proc'), 'Cat', 'FileType','fits',...
-                                                   'WriteHeader',true,...
-                                                   'Append',false,...
-                                                   'OverWrite',true,...
-                                                   'WriteTime',false);
-                                               
-        end
-    end
-    
-    
+    toc
     
     
     % for testing:

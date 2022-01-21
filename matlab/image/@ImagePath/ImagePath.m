@@ -23,6 +23,7 @@ classdef ImagePath < Component
         CropID          = '';           % Used with sub-images
         Type            = 'sci';        % [lower] sci, bias, dark, domeflat, twflat, skyflat, fringe, focus,...
         Level           = 'raw';        % [lower] log, raw, proc, stack, coadd, merged, ref.
+        PathLevel       = [];           % Level for path: If empty use Level
         SubLevel        = '';           % Sublevel, see below:
             % SubLevel: n - normal, s - proper subtraction S, sp - proper subtraction S tag, d - proper subtraction D, t - Translient, r - proper coaddition R, m - matched filter with unspecified filter
             % SubLevel: Single capital letter prefix may be added to this name: F - Fourier Transform, R - Radon Transform, L - Laplacian, G - x gradient, H - y gradient. 
@@ -136,12 +137,18 @@ classdef ImagePath < Component
                 Args.Time           % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
 %      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}
                 Args.TimeZone       % Hours
-                Args.Level          % Also in file name
+                Args.PathLevel      % Also in file name
                 Args.Area
             end
             
             % Set properties from arguments, only properties that exist in Args are set
             Obj.setProps(Args);
+            
+            if isempty(Obj.PathLevel)
+                PathLevel = Obj.Level;
+            else
+                PathLevel = Obj.PathLevel;
+            end
                         
             % Convert Time to JD and TimeStr
             Obj.setTime();
@@ -158,21 +165,25 @@ classdef ImagePath < Component
             PostDate = '';
 
             % Check Level
-            switch Obj.Level
+            switch PathLevel
                 % /base/data/ref/<area>/version<#>/ - All sky reference/coadd image - images/masks/catalogs/PSF
                 case { 'ref', 'coadd' }
-                    PostDate = sprintf('%s%s%s%s', Obj.Level, filesep, Obj.Area, ...
+                    PostDate = sprintf('%s%s%s%s', PathLevel, filesep, Obj.Area, ...
                         filesep, Obj.Version);
+                case 'merged'
+                    UseYMD = true;                     
+                    PostDate = 'proc'; %Obj.Level; 
+                    
                         
                 case { 'raw', 'log', 'proc', 'stacked' }
                     UseYMD = true;                     
-                    PostDate = Obj.Level;                    
+                    PostDate = PathLevel;                    
                 
                 case { 'calib' }
-                    PostDate = sprintf('%s%s%s', Obj.Level, filesep, Obj.SubLevel);
+                    PostDate = sprintf('%s%s%s', PathLevel, filesep, Obj.SubLevel);
             
                 otherwise
-                    error('Unknown path Level: %s', Obj.Level);
+                    error('Unknown path Level: %s', PathLevel);
                     
             end
 
@@ -337,6 +348,7 @@ classdef ImagePath < Component
                 Obj
                 Args.PathLevel  = [];  % [] - don't touch 
             end
+                            
         
             File = Obj.genFile;
             
@@ -361,7 +373,7 @@ classdef ImagePath < Component
     end
     
    
-    methods % Read/Write from Header and Struct
+    methods % Read/Write from Header
         
         function Obj = readFromHeader(Obj, Input, DataProp)
             % Read ImagePath parameters from header.
@@ -416,7 +428,6 @@ classdef ImagePath < Component
 
         end
         
-        
         function Result = writeToHeader(Obj, Header)
             % Write data to AstroHeader, DictKeyNames is used to get the
             % correct key names            
@@ -445,7 +456,6 @@ classdef ImagePath < Component
             Result = true;
         end        
         
-        
         function Result = readFromDb(Obj, Query)
             % Read data from database table, current record of Query.ResultSet
             % Fields are defined in Google Sheet "common_image_path"
@@ -462,7 +472,7 @@ classdef ImagePath < Component
     end
     
     
-    methods % Additional
+    methods % raed/write from stuct
         function Result = readFromStruct(Obj, st)
             % Read data from struct or DbRecord (common_image_path table)
             % Struct field names should match database fields
@@ -484,7 +494,6 @@ classdef ImagePath < Component
             Obj.FileType        = st.filetype;
             Result = true;
         end
-        
         
         function st = writeToStruct(Obj)
             % Write data fields to struct (common_image_path table)            
@@ -595,15 +604,46 @@ classdef ImagePath < Component
     end
     
     
-    methods % Parsers
+    methods (Static) % Parsers
               
-        function Result = parsePath(path)
+        function Result = parsePath(Obj, Path)
             % Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
         end
         
         
-        function Result = parseFileName(fname)
-            % Convert a file name string to a structure with all available information
+        function Obj = parseFileName(FileName)
+            % Populate ImagePath object from file name.
+            % Input  : - A file name
+            % Output : - A populated ImagePath object based on the file
+            %            name only.
+            % Author : Eran Ofek (Jan 2022)
+            % Example:
+            % IP=ImagePath.parseFileName('LAST_20220118.193339.010_clear_____sci_raw_Image_1.fits')
+            
+            Obj = ImagePath;
+            [~, File, Ext]  = fileparts(FileName);
+            Obj.FileType = Ext(2:end);
+            Parts = split(File,'_');
+            % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+            Obj.ProjName = Parts{1};
+            VecTime = datevec(Parts{2}, 'yyyymmdd.HHMMSS.FFF');
+            Obj.Time     = celestial.time.julday(VecTime([3 2 1 4 5 6]));
+            Obj.Filter   = Parts{3};
+            Obj.FieldID  = Parts{4};
+            Obj.Counter  = Parts{5};
+            Obj.CCDID    = Parts{6};
+            Obj.CropID   = Parts{7};
+            Obj.Type     = Parts{8};
+            PartsLevel   = split(Parts{9}, '.');
+            Obj.Level    = PartsLevel{1};
+            if numel(PartsLevel)>1
+                Obj.SubLevel = PartsLevel{2};
+            else
+                Obj.SubLevel = '';
+            end
+            Obj.Product  = Parts{10};
+            Obj.Version  = Parts{11};
+            
         end
         
     end
@@ -656,6 +696,8 @@ classdef ImagePath < Component
             %            'PropFromHeader' - A logical indicating if to
             %                   populate ImagePath properties from image header.
             %                   Default is true.
+            %            'CropID_FromInd' - If true, then CropID is taken
+            %                   from object element index. Default is true.
             %            'SetProp' - A cell array of pairs of additional
             %                   ImagePath properties to set (override
             %                   header). These are ...Prop,val,...
@@ -670,6 +712,7 @@ classdef ImagePath < Component
                 Args.SaveFun function_handle   = @write1;
                 Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
                 Args.PropFromHeader logical    = true;
+                Args.CropID_FromInd logical    = true;
                 Args.SetProp cell              = {'Product','Image'};   % overide header
             end
 
@@ -687,9 +730,21 @@ classdef ImagePath < Component
                 for Iset=1:2:NsetProp
                     ObjIP.(Args.SetProp{Iset}) = Args.SetProp{Iset+1};
                 end
+                if Args.CropID_FromInd
+                    ObjIP.CropID = Iprod;
+                end
 
-
-                Args.SaveFun(ObjProduct(Iprod), ObjIP.genFull, Args.SaveFunArgs{:});
+                FullName = ObjIP.genFull;
+                if Iprod==1
+                    % create Dir
+                    Path = fileparts(FullName);
+                    if exist(Path,'dir')==0
+                        % create dir
+                        mkdir(Path);
+                    end
+                end
+                    
+                Args.SaveFun(ObjProduct(Iprod), FullName, Args.SaveFunArgs{:});
             end
             
         end

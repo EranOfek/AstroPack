@@ -1,4 +1,4 @@
-function Result = constructPSF(Obj, Args)
+function [Result, Summary] = constructPSF(Obj, Args)
     % Select PSF stars and construct a PSF for an AstroImage
     % Input  : - An AstroImage object. The CatData must be popualted.
     %          * ...,key,val,...
@@ -15,6 +15,8 @@ function Result = constructPSF(Obj, Args)
     %                   enough).
     % Output : - The input AstroImage object in which the PSFData is
     %            populated with the measured pixelated PSF.
+    %          - A structure array, with:
+    %            .Nsrc - number of sources.
     % Author : Eran Ofek (Jan 2022)
     % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
     %          AI=imProc.background.background(AI);
@@ -32,6 +34,7 @@ function Result = constructPSF(Obj, Args)
         
         Args.selectPsfStarsArgs cell        = {};
         Args.constructPSF_cutoutsArgs cell  = {};
+        Args.SmoothWings logical            = true;
         Args.ReCenter logical               = false;
         
     end
@@ -57,6 +60,7 @@ function Result = constructPSF(Obj, Args)
                                                      'ColBack',Args.ColBack);
         
         Nsrc = size(PsfXY,1);
+        Summary(Iobj).Nsrc = Nsrc;
         
         % get flux for normalization
         Norm = 1./Flux;
@@ -66,6 +70,7 @@ function Result = constructPSF(Obj, Args)
         [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
                                                            'Norm',Norm,...
                                                            'Back',Back,...
+                                                           'SmoothWings',Args.SmoothWings,...
                                                            'SumMethod',Args.SumMethod,...
                                                            'ReCenter',Args.ReCenter,...
                                                            'MomRadius',Args.HalfSize);

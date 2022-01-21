@@ -61,7 +61,7 @@ function [Result, Flag] = cleanSources(Obj, Args)
         Args.ColNameBackAnn            = 'BACK_ANNULUS';
         Args.ColNameBackIm             = 'BACK_IM';
         Args.ColNameVarIm              = 'VAR_IM';
-        Args.ColNamePos                = {'X','Y','XPEAK','YPEAK'};
+        Args.ColNamePos                = {'X1','Y1','XPEAK','YPEAK'};
         
         Args.ThresholdSN               = 5;
         

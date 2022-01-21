@@ -31,7 +31,8 @@ function JD=julday(Date,Output)
 %--------------------------------------------------------------------------
 
 if (nargin==0)
-   Date = clock;
+   %Date = clock;
+   Date = datevec(datetime('now', 'TimeZone', 'UTC'));
    Date = Date(:,[3 2 1 4 5 6]);
 end
 if (isempty(Date))

@@ -118,7 +118,7 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
         Args.MomPar cell                   = {};
         Args.OutType                       = 'AstroCatalog';   % 'mat', 'table', 'catcl', 'struct'
         Args.ColCell cell                  = {'XPEAK','YPEAK','TEMP_ID','SN','FLUX_CONV','BACK_IM','VAR_IM',...           
-                                                'X', 'Y',...
+                                                'X1', 'Y1',...
                                                 'X2','Y2','XY',...
                                                 'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS', ...
                                                 'FLUXERR_APER',...
@@ -137,7 +137,7 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     
     ZP_Flux = 10.^(0.4.*Args.ZP);
 
-    Mom1Cell   = {'X', 'Y'};
+    Mom1Cell   = {'X1', 'Y1'};
     Mom2Cell   = {'X2','Y2','XY'};
     Mom3Cell   = {'FLUX_APER', 'APER_AREA', 'FLUX_BOX','BACK_ANNULUS', 'STD_ANNULUS', 'FLUX_WAPER', 'FLUXERR_APER', 'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS'};
 
@@ -285,9 +285,9 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
                 Cat(:,K) = Src.BACK_IM;
             case 'var_im'
                 Cat(:,K) = Src.VAR_IM;
-            case 'x'
+            case 'x1'
                 Cat(:,K) = M1.X;
-            case 'y'
+            case 'y1'
                 Cat(:,K) = M1.Y;
             case 'x2'
                 Cat(:,K) = M2.X2;

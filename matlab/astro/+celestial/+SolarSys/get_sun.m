@@ -17,17 +17,24 @@ function Sun=get_sun(JD,GeodCoo)
 % Example: Sun=celestial.SolarSys.get_sun(2451545,[1 1]);
 % Reliable: 1
 %--------------------------------------------------------------------------
-DT = 1./86400;   % 1 s [days]
-if (size(JD,2)==1)
-   % already in JD
-else
-  JD = celestial.time.julday(JD).';
+
+
+arguments
+    JD        = celestial.time.julday;
+    GeodCoo   = [35 30]./(180./pi); 
 end
+
+if isempty(JD)
+    JD        = celestial.time.julday;
+end
+
+DT = 1./86400;   % 1 s [days]
+
 
 [Sun.RA, Sun.Dec]   = celestial.SolarSys.suncoo(JD,'a');
 [SunN.RA, SunN.Dec] = celestial.SolarSys.suncoo(JD+DT,'a');
 I = find(Sun.RA<0);
-if (isempty(I)==1),
+if (isempty(I)==1)
    % do nothing
 else
    Sun.RA(I) = 2.*pi + Sun.RA(I);

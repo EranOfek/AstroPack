@@ -47,6 +47,7 @@ classdef DbAdmin < Component
         UserName        = ''        %
         Password        = ''        %
         TableName       = ''        %
+        Shell           = ''        % 'tcsh', 'bash', empty for auto detect by $SHELL
     end
 
     %----------------------------------------------------------------------
@@ -201,11 +202,11 @@ classdef DbAdmin < Component
                 Args.DriverName      = 'postgres'        % Driver name
                 Args.UserName        = ''                % Login user
                 Args.Password        = ''                % Login password
-                Args.ServerSharePath = '' %              % Path to shared folder on the server, for COPY statements
-                Args.MountSharePath  = ''
-                Args.WinMountSharePath  = ''
+                Args.ServerSharePath = '/var/samba/pgshare'   % Path to shared folder on the server, for COPY statements
+                Args.MountSharePath  = '/media/gauss_pgshare' %
+                Args.WinMountSharePath  = 'S:\'               %
             end
-                                  
+            
             % Prepare file name if not specified
             Result = [];
             if isempty(Args.FileName)
@@ -217,7 +218,7 @@ classdef DbAdmin < Component
             Fid = fopen(Args.FileName, 'wt');
             if Fid > -1
                 fprintf(Fid, '# %s\n\n',                        Args.FileName);
-                fprintf(Fid, 'DatabaseName    : ''%s\n',        Args.DatabaseName);
+                fprintf(Fid, 'DatabaseName    : ''%s''\n',      Args.DatabaseName);
                 fprintf(Fid, 'Host            : ''%s''\n',      Args.Host);
                 fprintf(Fid, 'Port            : %d\n',          Args.Port);
                 fprintf(Fid, 'DriverName      : ''postgres''\n');
@@ -409,8 +410,12 @@ classdef DbAdmin < Component
             % Output:  true on sucess
             % Example: db.DbAdmin.addUser('robert', 'pass123')
             % Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
+            %          https://stackoverflow.com/questions/760210/how-do-you-create-a-read-only-user-in-postgresql
             % SQL:     CREATE USER user user_name WITH ENCRYPED PASSWORD 'mypassword';
             %          GRANT ALL PRIVILEGES ON DATABASE sample_db TO user_name;
+            % 
+            % @Todo - need to research and learn more about creating read-only users
+            %
             arguments
                 Obj                     %
                 UserName                %
@@ -424,7 +429,7 @@ classdef DbAdmin < Component
             Result = Obj.exec(SqlText);
             
             % 2. Grant the CONNECT access
-            SqlText = sprintf('GRANT CONNECT ON DATABASE %s TO %s', DatabaseName, UserName);
+            SqlText = sprintf('GRANT CONNECT ON DATABASE %s TO %s', Args.DatabaseName, UserName);
             Result = Obj.exec(SqlText);
             
             % 3. Grant full access
@@ -435,11 +440,18 @@ classdef DbAdmin < Component
             
             % Create read-only user on specified database
             % https://ubiq.co/database-blog/how-to-create-read-only-user-in-postgresql/
-            if strcmp(Args.Permission, 'read')
+            if ~isempty(Args.DatabaseName) && strcmp(Args.Permission, 'read')
+                
+                % Assign permission to this read only user
                 SqlText = sprintf('GRANT USAGE ON SCHEMA public TO %s', UserName);
                 Result = Obj.exec(SqlText);
                 
+                % Assign permission to this read only user
                 SqlText = sprintf('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', UserName);
+                Result = Obj.exec(SqlText);
+                
+                % Assign permissions to read all newly tables created in the future
+                SqlText = sprintf('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s', UserName);
                 Result = Obj.exec(SqlText);
             end
         end
@@ -623,11 +635,22 @@ classdef DbAdmin < Component
                         
                     % Linux - use 'export'
                     else
-                        Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
+                        
+                        % Check which shell we use
+                        if isempty(Obj.Shell)
+                            Obj.Shell = getenv('SHELL');
+                        end
+                        
+                        % bash / tcsh
+                        if contains(Obj.Shell, 'tcsh')
+                            Cmd = sprintf('setenv PGPASSWORD ''%s'' ; %s', Args.Password, Cmd);
+                        else
+                            Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
+                        end                                              
                     end
                 end
                 
-                io.msgLog(LogLevel.Info, 'psql: %s', Cmd);
+                io.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
                 [Status, Output] = system(Cmd);
                 io.msgLog(LogLevel.Info, 'psql: %d', Status);
                 io.msgLog(LogLevel.Info, 'psql: %s', Output);
@@ -645,5 +668,7 @@ classdef DbAdmin < Component
         Result = unitTest()
             % Unit-Test
 
+        Result = examples()
+            % Examples          
     end
 end

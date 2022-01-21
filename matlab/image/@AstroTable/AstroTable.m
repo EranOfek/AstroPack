@@ -1775,6 +1775,53 @@ classdef AstroTable < Component
             Result = true;
         end
         
+        function write1(Obj, FileName, Args)
+            % Write an AstroTable to a FITS/HDF5 file.
+            % Input  : - An AstroTable/AstroCatalog object.
+            %          - File name to save.
+            %          * ...,key,val,...
+            %            'FileType' - - File type to save:
+            %                   'fits'
+            %                   {'hdf5','h5z','h5','hd5'}
+            %                   'matflat' - save Data and Header in flat
+            %                           mat file.
+            %                   'matstruct' - save structure with data and
+            %                           Header fields.
+            %                   {'jpg','tif','tiff','gif','png','bmp','hdf','jp2','jpx','jpeg','pcx','pgm'}
+            %                           Use imwrite.m
+            %            'Header' -  A 3 columns cell array with header.
+            %                       Default is {}.
+            %            'Append' - Append image as a multi extension to an
+            %                      existing FITS file. Default is false.
+            %            'OverWrite'- Overwrite an existing image. Default
+            %                       is false.
+            %            'WriteTime'- Add creation time to image header.
+            %                       Default is false.
+            % Output : null
+            % Author : Eran Ofek (Jan 2022)
+            % Example: 
+            
+            arguments
+                Obj(1,1)
+                FileName
+                Args.FileType                 = 'fits';
+                Args.Header                   = {};
+                Args.HDU                      = 1;
+                Args.Append logical           = false;
+                Args.OverWrite logical        = false;
+                Args.WriteTime logical        = false;
+            end
+            
+            FITS.writeTable1(Obj, FileName, 'Header',Args.Header,...
+                                               'ColNames',Obj.ColNames,...
+                                               'ColUnits',Obj.ColUnits,...
+                                               'HDU',Args.HDU,...
+                                               'Append',Args.Append,...
+                                               'OverWrite',Args.OverWrite,...
+                                               'WriteTime',Args.WriteTime);
+                                                                                
+        end
+        
         function Result = toTable(Obj)
             % Convert a single element AstroTable into a matlab table object
             % Input  : - A single element AstroTable/AstroCatalog

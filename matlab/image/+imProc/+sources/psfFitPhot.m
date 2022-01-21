@@ -12,6 +12,7 @@ function Result = psfFitPhot(Obj, Args)
         Args.XY                      = [];  % empty - find sources, or read from catalog
         Args.PSF                     = [];  % PSF, or function_handle
         Args.PSFArgs cell            = {};
+        Args.UpdateCat logical       = true;
         
         Args.ColX                    = AstroCatalog.DefNamesX;        
         Args.ColY                    = AstroCatalog.DefNamesY;       
@@ -89,23 +90,40 @@ function Result = psfFitPhot(Obj, Args)
         % get Cube of stamps around sources
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
         
+        
         % PSF fitting
         
-        % something wrong with CubePsfSub...
+        
+        warning('results are somewhat differnt than APER + larger scatter...');
+        
+        % Cube is Background subtracted
         [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
                                                                 'Std',Std,...
-                                                                'Back',Back,...
+                                                                'Back',0,...
                                                                 'FitRadius',Args.FitRadius,...
                                                                 'backgroundCubeArgs',Args.backgroundCubeArgs,...
                                                                 Args.psfPhotCubeArgs{:});
                                                                 
         % source measured position is at:
         % RoundX + Result.DX
+        Result.RoundX = RoundX;
+        Result.RoundY = RoundY;
+        Result.X = Result.RoundX + Result.DX;
+        Result.Y = Result.RoundY + Result.DY;
         
-        % second iteration
-        Image = imUtil.cut.cutouts2image(Cube, Image, X, Y)
         
-    
+        % second iteration - need to round X/Y???
+        %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
+        
+        
+        % add sources to catalog
+        % calculate magnitude
+        if Args.UpdateCat
+            Obj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.Chi2./Result.Dof]),...
+                                    Inf,...
+                                    {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'},...
+                                    {'pix',    'pix',    '',          'mag',     ''});
+        end
     end
     
 end

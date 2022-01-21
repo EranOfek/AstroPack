@@ -189,7 +189,7 @@ classdef MatchedSources < Component
     end
     
     methods % write
-        function Result = write(Obj, FileName, Args)
+        function Result = write1(Obj, FileName, Args)
             % Write a MatchedSources object to HDF5 or mat file
             % Input  : - A single element MatchedSources object.
             %          - FileName to write.
@@ -498,7 +498,7 @@ classdef MatchedSources < Component
             %                   additional arguments to pass to imProc.match.unifiedSourcesCatalog
             %            'MatchedColums' - A cell arry of columns to insert
             %                   into the the MatchedSources object.
-            %                   Default is {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+            %                   Default is {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
             %            'CreateNewObj' - A logical indicating if to
             %                   generate a new copy of the MatchedSources object.
             %                   Default is false.
@@ -515,7 +515,7 @@ classdef MatchedSources < Component
                 Args.Radius                          = 3;
                 Args.RadiusUnits                     = 'arcsec';
                 Args.unifiedSourcesCatalogArgs cell  = {};
-                Args.MatchedColums cell              = {'RA','Dec','X','Y','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+                Args.MatchedColums cell              = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
                 
                 Args.CreateNewObj logical            = false;
             end
