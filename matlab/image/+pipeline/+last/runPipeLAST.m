@@ -21,7 +21,7 @@ function runPipeLAST(DataNumber, Args)
         Args.SearchStr                = '*.fits'; 
         Args.DarkSearchStr            = '*_dark_proc_*Image_*.fits';
         Args.FlatSearchStr            = '*_flat_proc_*Image_*.fits';
-        Args.ScienceSearchStr         = '*_*_clear_*_20_*_science_raw*Image*.fits';
+        Args.ScienceSearchStr         = '*_*_clear_*_science_raw*Image*.fits';
         Args.NinBatch                 = 20;
     end
    
@@ -80,18 +80,21 @@ function runPipeLAST(DataNumber, Args)
             end
         end
           
-        % search for the last image (counter=20) in a sequence of images
-        [FoundScience, RecentScienceImage] = io.files.searchNewFilesInDir(Args.NewFilesDir, Args.ScienceSearchStr);
-        IP = ImagePath.parseFileName(RecentScienceImage);
-        Path = IP.genPath;
+        % get all files waiting for processing
+        SciFiles = dir(Args.NewFilesDir);
+        % convert file names to ImagePath 
+        IP       = ImagePath.parseFileName({SciFiles.name});
+        % find the latest image
+        IndLatest = findFirstLast(IP, true, 'Image');
         
-        if FoundScience
-            ListImages = cell(1,Args.NinBatch);
-            for Iim=1:1:Args.NinBatch
-                IP.Counter = Iim;
-                ListImages{Iim} = IP.genFile;
-            end
-           
+        IP.sortByJD;
+        ModCounter = mod([IP.Counter], Args.NinBatch);
+        Ind        = find(ModCounter == 0, Args.NinBatch, 'last');
+        
+        if ~isempty(Ind)
+            IP(Ind).genFile;
+            ListImages = {IP(Ind).FileName};
+            
             % execute the pipeline
             pipeline.generic.multiRaw2proc(ListImages, 'CalibImages',CI, Args.multiRaw2procArgs{:});
             

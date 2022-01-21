@@ -1,5 +1,9 @@
+% ImagePath - A class for generating and storing image/path names
+%       for ULTRASAT and LAST.
+%
 
-classdef ImagePath < Component
+
+classdef ImagePath < Base %Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
     % For storage and database, we should implement ImagePathDb class
     % The file path is described in the LAST/ULTRASAT file naming convension document.
@@ -32,7 +36,9 @@ classdef ImagePath < Component
         FileType        = 'fits';       % fits / hdf5 / fits.gz          
         Area            = '';           % Used by genPath()
         SubDir          = '';           % This is the area/location directory below the coadd/ref directory
-        
+    end
+    
+    properties (Hidden)
         % Fields formatting
         FormatFieldID   = '%06d';       % Used with FieldID
         FormatCounter   = '%03d';       % Used with Counter        
@@ -45,7 +51,7 @@ classdef ImagePath < Component
         DataDir         = 'LAST';           % Loaded from Config
     end
 
-    properties(Hidden, SetAccess=protected, GetAccess=public)
+    properties (Hidden, SetAccess=protected, GetAccess=public)
         % Generated from Obj.Time
         JD              = [];           % UTC start of exposure
         TimeStr         = '';           % Time as appears in file name (YYYYMMDD.HHMMSS.FFF)       
@@ -62,20 +68,55 @@ classdef ImagePath < Component
     
     methods % Constructor
        
-        function Obj = ImagePath(varargin)
-            % Constructor
+        function Obj = ImagePath(Pars)
+            % Constructor for ImagePath
+            % Input  : - Either a:
+            %            1. Scalar indicting the number of elements in the
+            %            empty ImagePath object that will be created.
+            %            2. A cell array of file nsmaes that will be
+            %            parsed.
+            %            3. A structure from which all the relevant fields
+            %            will be copied to the ImageObject properties.
+            % Output : - An ImagePath object.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: IP = ImagePath(2);
+            %          IP = ImagePath({'LAST_20220118.193339.010_clear_____sci_raw_Image_1.fits'});
+            
+            arguments
+                Pars = 1;
+            end
+            
+            if iscell(Pars)
+                % Pars is a list of image names
+                Obj = ImagePath.parseFileName(Pars);
+                
+            elseif isnumeric(Pars)
+                % length of ImagePath object
+                N = Pars;
+                for I=1:1:N
+                    Obj(I).FileName = '';
+                end
+                
+            elseif isstruct(Pars)
+                % populate from a struct according to field names
+                Obj = setProps(Obj, Pars);
+                
+            else
+                error('Unknown option');
+            end
+            
             
             % Load defaults from configuration
             % i.e.
-            Obj.BasePath = Obj.Config.Data.System.ImagePath.BasePath;
-            Obj.DataDir  = Obj.Config.Data.System.ImagePath.DataDir;
-            Obj.TimeZone = Obj.Config.Data.System.Time.TimeZone;
+            %Obj.BasePath = Obj.Config.Data.System.ImagePath.BasePath;
+            %Obj.DataDir  = Obj.Config.Data.System.ImagePath.DataDir;
+            %Obj.TimeZone = Obj.Config.Data.System.Time.TimeZone;
             
             % Load header key names mapping from configuation
-            Obj.DictKeyNames = Dictionary.getDict('Header.ImagePath.KeyNames');
+            %Obj.DictKeyNames = Dictionary.getDict('Header.ImagePath.KeyNames');
+            
         end
-        
-        
+             
         function [ResultPath, ResultFileName] = setTestData(Obj)
             % Set data for unit-test and debugging, return expected result
             
@@ -105,6 +146,19 @@ classdef ImagePath < Component
         end
     end
     
+    methods % setter/getters
+        function Result = get.Counter(Obj)
+            % getter for Counter
+            % convert to numeric
+           
+            if ischar(Obj.Counter)
+                Result = str2double(Obj.Counter);
+            else
+                Result = Obj.Counter;
+            end
+                
+        end
+    end
       
     methods % Generate Path & FileName
         
@@ -112,107 +166,113 @@ classdef ImagePath < Component
             % Construct image/catalog file path based on the LAST/ULTRASAT standard
             % Options are:
             %
-            % Form 1:
-            % /data/YYYY/MM/DD/raw/     - contains all the science raw data
-            % /data/YYYY/MM/DD/log/     - contains all the log files
-            % /data/YYYY/MM/DD/proc/    - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
-            % /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
+            %   Form 1:
+            %       /data/YYYY/MM/DD/raw/     - contains all the science raw data
+            %       /data/YYYY/MM/DD/log/     - contains all the log files
+            %       /data/YYYY/MM/DD/proc/    - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
+            %       /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
             %            
-            % Form 2: 
-            % /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
+            %   Form 2: 
+            %       /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
             %
-            % Form 3: 
-            % /data/coadd/area/          - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
+            %   Form 3: 
+            %       /data/coadd/area/          - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
             %
-            % Form 4:
-            % /data/YYYY/MM/DD/calib/   - contains all the processed calibration images/variance/masks/catalogs            
-            %
-            % Example: Path=imUtil.util.file.genPath('Level','ref','SubDir','x')
-            %
+            %   Form 4:
+            %       /data/YYYY/MM/DD/calib/   - contains all the processed calibration images/variance/masks/catalogs            
+            % Input  : - An ImagePath object.
+            %          * ...,key,val,...
+            %            can be used to set the following ImagePath
+            %            properties:
+            %            'BasePath', 'DataDir', 'SubDir', 'Time',
+            %            'TimeZone', 'PathLevel', 'Area'.
+            % Output : - The path is updated in the Path property.
+            %            The path of the last element of ImagePath is
+            %            returned.
+            % Example: IP = ImagePath;
+            %          Path = IP.genPath('PathLevel','ref','SubDir','x')
+            
             arguments
                 Obj
                 Args.BasePath       % See constructor
                 Args.DataDir        % See constructor
                 Args.SubDir         %
                 Args.Time           % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
-%      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}
+                                    %      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}
                 Args.TimeZone       % Hours
                 Args.PathLevel      % Also in file name
                 Args.Area
             end
             
-            % Set properties from arguments, only properties that exist in Args are set
-            Obj.setProps(Args);
-            
-            if isempty(Obj.PathLevel)
-                PathLevel = Obj.Level;
-            else
-                PathLevel = Obj.PathLevel;
-            end
-                        
-            % Convert Time to JD and TimeStr
-            Obj.setTime();
-            
-            % Fix field values
-            Obj.fixFields();
-            
-            % Generate YMD based on JD and TimeZone
-            [Year, Month, Day] = imUtil.util.file.date_directory(Obj.JD, Obj.TimeZone);
-            YMD = sprintf('%04d%s%02d%s%02d', Year, filesep, Month, filesep, Day);
-                       
-            UseYMD = false;
-            PreDate = '';
-            PostDate = '';
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % Set properties from arguments, only properties that exist in Args are set
+                Obj(Iobj).setProps(Args);
 
-            % Check Level
-            switch PathLevel
-                % /base/data/ref/<area>/version<#>/ - All sky reference/coadd image - images/masks/catalogs/PSF
-                case { 'ref', 'coadd' }
-                    PostDate = sprintf('%s%s%s%s', PathLevel, filesep, Obj.Area, ...
-                        filesep, Obj.Version);
-                case 'merged'
-                    UseYMD = true;                     
-                    PostDate = 'proc'; %Obj.Level; 
-                    
-                        
-                case { 'raw', 'log', 'proc', 'stacked' }
-                    UseYMD = true;                     
-                    PostDate = PathLevel;                    
-                
-                case { 'calib' }
-                    PostDate = sprintf('%s%s%s', PathLevel, filesep, Obj.SubLevel);
-            
-                otherwise
-                    error('Unknown path Level: %s', PathLevel);
-                    
-            end
+                if isempty(Obj(Iobj).PathLevel)
+                    PathLevel = Obj(Iobj).Level;
+                else
+                    PathLevel = Obj(Iobj).PathLevel;
+                end
 
-            %
-            if UseYMD
-                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
-                   Obj.DataDir, filesep, PreDate, filesep, YMD, filesep, PostDate, ...
-                   filesep, Obj.SubDir, filesep);
-            else
-                FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj.BasePath, filesep, ...
-                   Obj.DataDir, filesep, PostDate, filesep, filesep, Obj.SubDir, filesep);
-                
-            end                      
-   
-            % Clean path from multiple /
-            FPath = strrep(FPath, '\', '/');            
-            FPath = regexprep(FPath, sprintf('%s{2,5}', '/'), '/');
-            
-            %Obj.msgLog(LogLevel.Debug, 'Path: %s', FPath);
-            Result = FPath;            
+                % Convert Time to JD and TimeStr
+                Obj(Iobj).setTime();
+
+                % Fix field values
+                Obj(Iobj).fixFields();
+
+                % Generate YMD based on JD and TimeZone
+                [Year, Month, Day] = imUtil.util.file.date_directory(Obj(Iobj).JD, Obj(Iobj).TimeZone);
+                YMD = sprintf('%04d%s%02d%s%02d', Year, filesep, Month, filesep, Day);
+
+                UseYMD   = false;
+                PreDate  = '';
+                PostDate = '';
+
+                % Check Level
+                switch PathLevel
+                    % /base/data/ref/<area>/version<#>/ - All sky reference/coadd image - images/masks/catalogs/PSF
+                    case { 'ref', 'coadd' }
+                        PostDate = sprintf('%s%s%s%s', PathLevel, filesep, Obj(Iobj).Area, ...
+                            filesep, Obj(Iobj).Version);
+                    case 'merged'
+                        UseYMD = true;                     
+                        PostDate = 'proc'; %Obj.Level; 
+                    case { 'raw', 'log', 'proc', 'stacked' }
+                        UseYMD = true;                     
+                        PostDate = PathLevel;                    
+                    case { 'calib' }
+                        PostDate = sprintf('%s%s%s', PathLevel, filesep, Obj(Iobj).SubLevel);
+                    otherwise
+                        error('Unknown path Level: %s', PathLevel);
+                end
+
+                %
+                if UseYMD
+                    FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj(Iobj).BasePath, filesep, ...
+                       Obj(Iobj).DataDir, filesep, PreDate, filesep, YMD, filesep, PostDate, ...
+                       filesep, Obj(Iobj).SubDir, filesep);
+                else
+                    FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj(Iobj).BasePath, filesep, ...
+                       Obj(Iobj).DataDir, filesep, PostDate, filesep, filesep, Obj(Iobj).SubDir, filesep);
+                end                      
+
+                % Clean path from multiple /
+                FPath = strrep(FPath, '\', '/');            
+                FPath = regexprep(FPath, sprintf('%s{2,5}', '/'), '/');
+
+                Result = FPath; 
+                Obj(Iobj).Path = FPath;
+            end
         end
-        
         
         function Result = genFile(Obj, Args)
             % Construct image/catalog file name based on the LAST/ULTRASAT standard
             % Description: Return data product file name and path according to the
             %              LAST/ULTRASAT standard.
             %              <ProjName>.<TelescopeID>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<type>_<level>.<sub level>_<Product>_<version>.<FileType>
-            % Input  : * Pairs of ..., key,val, ... Possible keywords include:
+            % Input  : - An ImagePath object.
+            %          * Pairs of ..., key,val, ... Possible keywords include:
             %            'ProjName' - Default is 'LAST.0.1'.
             %            'Time' - If empty, then will use current computer time, and
             %                   will assume the time is in UTC.
@@ -251,11 +311,11 @@ classdef ImagePath < Component
             %
             %            'FormatFieldID' - Formatting of FieldID if is given as number. Default is '%06d'.            
             %            'FormatVersion' - Formatting of Version if is given as number.            
-            % Output : File name or path and file name (if Args.FullPath is true)
-            % Example: FileName=imUtil.util.file.construct_filename
-            %          [FileName,Path]=imUtil.util.file.construct_filename('FieldID',100)            
-            % Returns: string containing image name 
-            % Returns: string containing image path (if nargout>1, call constructPath)
+            % Output : File name or path and file name (if Args.FullPath is
+            %          true). Only the last file name is returned, while
+            %          the FileName property in the object is also updated.
+            % Example: IP = ImagePath(2);
+            %          FileName = IP.genFile;
             
             arguments
                 Obj
@@ -282,55 +342,57 @@ classdef ImagePath < Component
                 Args.FormatVersion      %
             end
             
-            % Set properties from arguments, only properties that exist in Args are set
-            Obj.setProps(Args);            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
             
-            % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-            % USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits
-            
-            % Set JD and TimeStr
-            Obj.setTime();
-            
-            % Format numeric fields
-            Obj.FieldID  = Obj.formatNumeric(Obj.FieldID, Obj.FormatFieldID);                   
-            Obj.Counter  = Obj.formatNumeric(Obj.Counter, Obj.FormatCounter);            
-            Obj.CCDID    = Obj.formatNumeric(Obj.CCDID, Obj.FormatCCDID);
-            Obj.CropID   = Obj.formatNumeric(Obj.CropID, Obj.FormatCropID);
-            Obj.Version  = Obj.formatNumeric(Obj.Version, Obj.FormatVersion);
-            
-            % Fix and validate field values
-            Obj.fixFields();
-            Obj.valiadateFields();
-                       
-            % Level / Level.SubLevel
-            if isempty(Obj.SubLevel)
-                MergedLevel = Obj.Level;
-            else
-                MergedLevel = sprintf('%s.%s', Obj.Level, Obj.SubLevel);    
+                % Set properties from arguments, only properties that exist in Args are set
+                Obj(Iobj).setProps(Args);            
+
+                % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+                % USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits
+
+                % Set JD and TimeStr
+                Obj(Iobj).setTime();
+
+                % Format numeric fields
+                StrFieldID  = Obj(Iobj).formatNumeric(Obj(Iobj).FieldID, Obj(Iobj).FormatFieldID);                   
+                StrCounter  = Obj(Iobj).formatNumeric(Obj(Iobj).Counter, Obj(Iobj).FormatCounter);            
+                StrCCDID    = Obj(Iobj).formatNumeric(Obj(Iobj).CCDID, Obj(Iobj).FormatCCDID);
+                StrCropID   = Obj(Iobj).formatNumeric(Obj(Iobj).CropID, Obj(Iobj).FormatCropID);
+                StrVersion  = Obj(Iobj).formatNumeric(Obj(Iobj).Version, Obj(Iobj).FormatVersion);
+
+                % Fix and validate field values
+                Obj(Iobj).fixFields();
+                Obj(Iobj).valiadateFields();
+
+                % Level / Level.SubLevel
+                if isempty(Obj(Iobj).SubLevel)
+                    MergedLevel = Obj(Iobj).Level;
+                else
+                    MergedLevel = sprintf('%s.%s', Obj(Iobj).Level, Obj(Iobj).SubLevel);    
+                end
+
+                % Prepare the final result
+                % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+                Obj(Iobj).FileName = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s', Obj(Iobj).ProjName, ...
+                               Obj(Iobj).TimeStr, Obj(Iobj).Filter, StrFieldID, StrCounter, StrCCDID, ...
+                               StrCropID, Obj(Iobj).Type, MergedLevel, Obj(Iobj).Product, StrVersion, Obj(Iobj).FileType);
+
+
+                % Get path
+                Obj(Iobj).Path = ''; 
+                if Args.FullPath
+                    Obj(Iobj).Path     = Obj(Iobj).genPath('Time', Obj(Iobj).Time);
+                    Obj(Iobj).FileName = fullfile(Obj(Iobj).Path, Obj(Iobj).FileName);
+                end
+
+                % Clean path from multiple /
+                Obj(Iobj).FileName = strrep(Obj(Iobj).FileName, '\', '/');            
+                Obj(Iobj).FileName = regexprep(Obj(Iobj).FileName, sprintf('%s{2,5}', '/'), '/');
+
+                Result = Obj.FileName;
             end
-
-            % Prepare the final result
-            % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-            Obj.FileName = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s', Obj.ProjName, ...
-                           Obj.TimeStr, Obj.Filter, Obj.FieldID, Obj.Counter, Obj.CCDID, ...
-                           Obj.CropID, Obj.Type, MergedLevel, Obj.Product, Obj.Version, Obj.FileType);
-
-       
-            % Get path
-            Obj.Path = ''; 
-            if Args.FullPath
-                Obj.Path = Obj.genPath('Time', Obj.Time);
-                Obj.FileName = fullfile(Obj.Path, Obj.FileName);
-            end
-
-            % Clean path from multiple /
-            Obj.FileName = strrep(Obj.FileName, '\', '/');            
-            Obj.FileName = regexprep(Obj.FileName, sprintf('%s{2,5}', '/'), '/');
             
-            % Done
-            %Obj.msgLog(LogLevel.Debug, 'FileName: %s', Obj.FileName);
-            Result = Obj.FileName;
-
         end
         
         function Result = genFull(Obj, Args)
@@ -340,34 +402,33 @@ classdef ImagePath < Component
             %           'PathLevel' - Level value for the path only.
             %                   If empty do nothing. Use this to modify the
             %                   path only. Default is [].
-            % Output : - A full path + file name.
+            % Output : - A full path + file name. Only the last full path
+            %            is returned. All the rest are populated in the
+            %            FullName property.
             % Author : Eran Ofek (Nov 2021)
-            % Example: IP.genFull
+            % Example: IP = ImagePath(2);
+            %          IP.genFull
             
             arguments
                 Obj
                 Args.PathLevel  = [];  % [] - don't touch 
             end
                             
-        
-            File = Obj.genFile;
-            
-            Level = Obj.Level;
-            if ~isempty(Args.PathLevel)
-                Obj.Level = Args.PathLevel;
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                File = Obj(Iobj).genFile;
+
+                Level = Obj(Iobj).Level;
+                if ~isempty(Args.PathLevel)
+                    Obj(Iobj).Level = Args.PathLevel;
+                end
+                Path = Obj(Iobj).genPath;
+                Obj(Iobj).Level = Level;  % return lebel to original value
+
+                Result = sprintf('%s%s',Path,File);
+                Obj(Iobj).FullName = Result;
             end
-            Path = Obj.genPath;
-            Obj.Level = Level;  % return lebel to original value
             
-            Result = sprintf('%s%s',Path,File);
-            
-        end
-        
-        
-        function Result = genFromDbQuery(Obj, Query)
-            % Generate ImagePath current record of Query.ResultSet
-            % @Todo
-                
         end
         
     end
@@ -472,6 +533,48 @@ classdef ImagePath < Component
     end
     
     
+    methods % search and utilities
+        function I = findFirstLast(Obj, IsLast, ProductName)
+            % find image, of some product type, with latest/earliest JD
+            % Input  : - An ImagePath object.
+            %          - Search for last (true), first (false) image name.
+            %          - Select only products of this type.
+            %            Default is 'Image'.
+            % Output : - The index of the selected ImagePath element.
+            %            Empty if no JD, or no images.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: IP = ImagePath(2);
+            %          I = findFirstLast(IP);
+            
+            arguments
+                Obj
+                IsLast logical    = true;
+                ProductName       = 'Image';
+            end
+            
+            Ind = strcmp({Obj.Product}, ProductName);
+            
+            if IsLast
+                [~,I] = max([Obj(Ind).JD]);
+            else
+                [~,I] = min([Obj(Ind).JD]);
+            end
+            I = Ind(I);
+        end
+        
+        function [Obj, SI] = sortByJD(Obj)
+            % Sort ImagePath object by JD
+            % Input  : - An ImagePath object.
+            % Output : - An ImagePath object, where the elements are sorted
+            %            by JD.
+            %          - sorted indices.
+            % Author : Eran Ofek (Jan 2022)
+            
+            [~,SI] = sort([Obj.JD]);
+            Obj    = Obj(SI);
+        end        
+    end
+    
     methods % raed/write from stuct
         function Result = readFromStruct(Obj, st)
             % Read data from struct or DbRecord (common_image_path table)
@@ -553,7 +656,7 @@ classdef ImagePath < Component
             
         function Result = fixFields(Obj)
             % Fix field values: type, level, sublevel, product
-            Obj.Type = lower(Obj.Type);
+            Obj.Type  = lower(Obj.Type);
             Obj.Level = lower(Obj.Level);
             Result = true;
         end
@@ -592,58 +695,89 @@ classdef ImagePath < Component
             
         end
         
-        
         function Result = formatNumeric(Obj, Value, Format)
+            % connvert numeric to string
+            
             if isnumeric(Value) && ~isempty(Format)
-                Result = sprintf(Format, Value);
+                if isnan(Value)
+                    Result = '';
+                else
+                    Result = sprintf(Format, Value);
+                end
             else
-                Result = Value;
+                if strcmpi(Value,'nan')
+                    Result = '';
+                else
+                    Result = Value;
+                end
             end
 
         end
-    end
-    
+    end    
     
     methods (Static) % Parsers
               
-        function Result = parsePath(Obj, Path)
-            % Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
-        end
+        %function Result = parsePath(Obj, Path)
+        %    % Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
+        %end
         
         
         function Obj = parseFileName(FileName)
             % Populate ImagePath object from file name.
-            % Input  : - A file name
+            % Input  : - A file name, or a cell array of file names.
             % Output : - A populated ImagePath object based on the file
             %            name only.
             % Author : Eran Ofek (Jan 2022)
             % Example:
             % IP=ImagePath.parseFileName('LAST_20220118.193339.010_clear_____sci_raw_Image_1.fits')
             
-            Obj = ImagePath;
-            [~, File, Ext]  = fileparts(FileName);
-            Obj.FileType = Ext(2:end);
-            Parts = split(File,'_');
-            % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-            Obj.ProjName = Parts{1};
-            VecTime = datevec(Parts{2}, 'yyyymmdd.HHMMSS.FFF');
-            Obj.Time     = celestial.time.julday(VecTime([3 2 1 4 5 6]));
-            Obj.Filter   = Parts{3};
-            Obj.FieldID  = Parts{4};
-            Obj.Counter  = Parts{5};
-            Obj.CCDID    = Parts{6};
-            Obj.CropID   = Parts{7};
-            Obj.Type     = Parts{8};
-            PartsLevel   = split(Parts{9}, '.');
-            Obj.Level    = PartsLevel{1};
-            if numel(PartsLevel)>1
-                Obj.SubLevel = PartsLevel{2};
-            else
-                Obj.SubLevel = '';
+            if ischar(FileName)
+                FileName = {FileName};
             end
-            Obj.Product  = Parts{10};
-            Obj.Version  = Parts{11};
+            Nf = numel(FileName);
             
+            Obj = ImagePath(Nf);
+            for If=1:1:Nf
+                [Path, File, Ext]  = fileparts(FileName{If});
+                Obj(If).FileName = File;
+                Obj(If).FullName = FileName{If};
+                Obj(If).Path     = Path;
+                
+                Obj(If).FileType = Ext(2:end);
+                Parts = split(File,'_');
+                % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+                Obj(If).ProjName = Parts{1};
+                if numel(Parts)>1
+                    VecTime = datevec(Parts{2}, 'yyyymmdd.HHMMSS.FFF');
+                    Obj(If).Time     = celestial.time.julday(VecTime([3 2 1 4 5 6]));
+                else
+                    Obj(If).Time     = [];
+                end
+                if isempty(Parts{3})
+                    Obj(If).Filter = '';
+                else
+                    Obj(If).Filter   = Parts{3};
+                end
+                if isempty(Parts{4})
+                    Obj(If).FieldID = '';
+                else
+                    Obj(If).FieldID  = Parts{4};
+                end
+                Obj(If).Counter  = str2double(Parts{5});
+                Obj(If).CCDID    = Parts{6};
+                Obj(If).CropID   = Parts{7};
+                Obj(If).Type     = Parts{8};
+                PartsLevel   = split(Parts{9}, '.');
+                Obj(If).Level    = PartsLevel{1};
+                if numel(PartsLevel)>1
+                    Obj(If).SubLevel = PartsLevel{2};
+                else
+                    Obj(If).SubLevel = '';
+                end
+                Obj(If).Product  = Parts{10};
+                Obj(If).Version  = Parts{11};
+                
+            end
         end
         
     end
@@ -652,7 +786,29 @@ classdef ImagePath < Component
     methods % write product
         function Future = saveProduct(ObjIP, ObjProduct, Args) 
             % Save product to disk
-
+            % Input  : - An ImagePath object
+            %          - An object to save (e.g., AstroImage)
+            %          * ...,key,val,...
+            %            'Save' - A logical indicating if to save the
+            %                   pdoducts. Default is true.
+            %            'ParEval' - Use parfeval. Default is false.
+            %            'SaveFun' - A function handle which is a method of
+            %                   the the object product used to save products.
+            %                   Default is @write1.
+            %            'SaveFunArgs' - A cell array of additional
+            %                   arguments to pass to the 'SaveFun'.
+            %                   Default is {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false}
+            %            'PropFromHeader' - Attempt to populate the
+            %                   ImagePath properties from the Header.
+            %                   Default is true.
+            %            'SetProp' - Pairs of additional ImagePath properties to
+            %                   populated (key,val). This is overriding the
+            %                   Header properties.
+            %                   Default is {'Product','Image'}.
+            % Output : - A future object (for parfeval).
+            % Author : Eran Ofek (Jan 2022)
+            
+            
             arguments
                 ObjIP
                 ObjProduct
