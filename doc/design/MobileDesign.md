@@ -1,2 +1,0 @@
-# Mobile User Interface Design 
-
