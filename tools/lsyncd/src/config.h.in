@@ -1,6 +1,0 @@
-/* Lsyncd Version */
-#define PACKAGE_VERSION "@LSYNCD_VERSION@"
-
-/* File event notification mechanims available */
-#cmakedefine WITH_INOTIFY 1
-#cmakedefine WITH_FSEVENTS 1
