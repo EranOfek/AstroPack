@@ -1,7 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<BorlandProject>
-	<Transactions>
-    <Transaction>2021/05/18 17:53:54.000.059,D:\Ultrasat\AstroPack.git\delphi\mobile\usat\HeaderFooterApplication.dproj=D:\Ultrasat\AstroPack.git\delphi\mobile\usat\UsatTechApp.dproj</Transaction>
-    <Transaction>2021/05/18 17:55:50.757,D:\Ultrasat\AstroPack.git\delphi\mobile\PubApp\UsatPublicApp.dproj=D:\Ultrasat\AstroPack.git\delphi\mobile\PubApp\UsatTechApp.dproj</Transaction>
-  </Transactions>
-</BorlandProject>
