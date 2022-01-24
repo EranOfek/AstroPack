@@ -47,10 +47,118 @@ classdef Gcs < Component
         end
         
     end
-
-        
+    
+    %======================================================================    
+    
+    %======================================================================    
     methods
         
+        function header = newMsgHeader(Obj)
+            % Create new message header
+            % Input  : - 
+            %          -
+            %          -
+            % Output : Header struct
+            % Example: header = newMsgHeader()
+            
+            header = struct;
+            header.msg_id = 'id';               % Unique ID for every message created by the GCS/SOC
+            header.msg_time = 0;                % Date and Time of message creation
+            header.msg_type = 'ImagingTask';    % Message type: Imaging task, OBRD task, non-imaging activity request, etc.
+            header.source = 'SOC';              % Source of message: 'SOC' or 'GCS'
+            header.task_id = 'id';              % SOC task ID: a unique ID for every task created by the SOC (if applicable)
+            header.org_msg_id = 'org';          % To which GCS message ID this message is relevant (if applicable)
+        end
+        
+        
+        function msg = newImagingTaskMsg(Obj)
+            % 
+            % Input  : - 
+            %          -
+            %          -
+            % Output :
+            % Example:
+            msg = struct;
+            msg.header = Obj.newMsgHeader();
+            msg.tasks = struct;
+            msg.tasks.task(1) = Obj.newImagingTask();
+            msg.tasks.task(2) = Obj.newImagingTask();
+        end
+        
+    
+        function task = newImagingTask(Obj)
+            % Create new imaging task
+            % Input  : - 
+            %          -
+            %          -
+            % Output :
+            % Example:            
+            task = struct;
+            task.start_time = 0;
+            task.target_count = int32(3);
+            task.targets = struct;
+            task.targets.target(1) = Obj.newImagingTaskTarget();
+            task.targets.target(2) = Obj.newImagingTaskTarget();
+            task.targets.target(3) = Obj.newImagingTaskTarget();
+        end
+        
+        
+        function target = newImagingTaskTarget(Obj)
+            % Create new imaging task target
+            % Input  : - 
+            %          -
+            %          -
+            % Output :
+            % Example:            
+            target = struct;
+            target.start_time = 0;
+            target.coord_ra = 0;
+            target.coord_dec = 0;
+            target.coord_roll = 0;
+            target.exposure_duration = 0;
+            target.image_count = int32(0);
+            target.tiles = int32(0);
+            target.image_id_format = 'fmt';
+            target.first_image_num = int32(1);
+        end
+              
+    end
+
+    %======================================================================
+    
+    %======================================================================
+
+    methods
+        function Result = insertImagingTaskMsg(Obj, Msg)
+            
+            % 
+            TempPath = '';
+            TempFileName = tempname(TempPath);
+            
+            %
+            msg = struct;
+            msg.msg = Msg;
+            yaml.WriteYaml(TempFileName, msg);
+            Text = fileread(TempFileName);
+            delete(TempFileName);
+            
+            Row = struct;
+            Row.yml_text = Text;
+            
+            Rec = db.DbRecord(Row);
+
+            
+            Query = db.DbQuery();
+            Query.insert('gcs_tasks', Rec);
+        end
+        
+    end
+    
+    
+    %======================================================================
+    
+    %======================================================================
+    methods
         function Result = runGui(Obj, Args)
             %
             % Input:
@@ -119,5 +227,21 @@ classdef Gcs < Component
         Result = unitTest()
             % Unit-Test
 
+            
+        function Result = testImagingTaskMsg()
+            % soc.Gcs.testImagingTaskMsg()
+            % https://jsonformatter.org/yaml-to-xml
+            
+            G = soc.Gcs();
+            msg = struct;
+            msg.msg = G.newImagingTaskMsg();
+            FileName = 'c:/temp/___yml1.yml';
+            yaml.WriteYaml(FileName, msg);
+            
+            %G.insertImagingTaskMsg(msg.msg);
+            
+            Result = true;
+        end
+            
     end
 end
