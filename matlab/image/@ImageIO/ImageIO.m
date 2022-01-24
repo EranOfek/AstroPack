@@ -187,6 +187,10 @@ classdef ImageIO < Component
                 Args.readTableArgs cell      = {};
             end
             
+            if isempty(Args.HDU)
+                Args.HDU = 1;
+            end
+            
             Data = [];
             Header = cell(0,3);
             

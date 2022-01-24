@@ -49,6 +49,7 @@ function runPipeLAST(DataNumber, Args)
     
     % wait for new images
     Cont = true;
+    Counter = 0;
     while Cont
         % check if there is a new Dark/Flat
         [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
@@ -96,7 +97,8 @@ function runPipeLAST(DataNumber, Args)
             ListImages = {IP(Ind).FileName};
             
             % execute the pipeline
-            pipeline.generic.multiRaw2proc(ListImages, 'CalibImages',CI, Args.multiRaw2procArgs{:});
+            Counter = Counter + 1;
+            pipeline.generic.multiRaw2proc(ListImages, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',Counter);
             
             % move images to path
             for Iim=1:1:Args.NinBatch
