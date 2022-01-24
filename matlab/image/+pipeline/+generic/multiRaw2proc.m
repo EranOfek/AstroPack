@@ -226,6 +226,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     Args.ReturnRegisteredAllSI = false;
+    % procMergeCoadd:
+    % coadd the sub images of each field
+    % generate a mask and a catalog for each coadd image
+    % generate a PSF for each field.
     [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = pipeline.generic.procMergeCoadd(AllSI,...
                                                                                              'mergeCatalogsArgs',Args.mergeCatalogsArgs,...
                                                                                              'MergedMatchMergedCat',Args.MergedMatchMergedCat,...
