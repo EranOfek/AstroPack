@@ -79,7 +79,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.PostNormBySum logical = true;
         Args.PostNorm              = 1;
         
-        Args.MedianCubeSumRange    = [0.95 1.05];
+        Args.MedianCubeSumRange    = [0.9 1.1];
         Args.CubeSumRange          = [0.8 1.2];
         Args.SmoothWings logical   = true;
         Args.psf_zeroConvergeArgs  = {};

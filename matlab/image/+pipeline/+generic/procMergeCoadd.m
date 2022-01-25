@@ -58,6 +58,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.DeleteBackBeforeCoadd logical    = false;
         Args.DeleteVarBeforeCoadd logical     = false;
 
+        Args.constructPSFArgs                 = {};
+        
     end
     
     % get JD
@@ -180,6 +182,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         
         
     end
+    
+    % Estimate PSF
+    [Coadd, Summary] = imProc.psf.constructPSF(Coadd, Args.constructPSFArgs{:});
+    % add PSF FWHM to header
+    imProc.psf.fwhm(Coadd);
     
     % plot for LAST pipeline paper
     % semilogy(ResultCoadd(1).AstrometricFit.ResFit.RefMag, ResultCoadd(1).AstrometricFit.ResFit.Resid.*3600,'k.')

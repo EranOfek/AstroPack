@@ -147,8 +147,13 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.match2solarSystemArgs            = {};
         Args.GeoPos                           = [];
         
+        Args.AddPSF logical                   = false;
+        Args.constructPSFArgs cell            = {};
+        
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
+        
+        
     end
     
     % Get Image
@@ -370,6 +375,14 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
         end
 
+        % Estimate PSF
+        if Args.AddPSF
+            [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
+            % add PSF FWHM to header
+            imProc.psf.fwhm(SI);
+        end
+        
+        
         % match known solar system objects
         if ~isempty(Args.OrbEl)
             % NOTE TIME SHOULD be in TT scale

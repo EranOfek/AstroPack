@@ -96,6 +96,22 @@ classdef AstroPSF < Component
         
     end
     
+    methods % utilities (e.g., isempty)
+        function Result = isemptyPSF(Obj)
+            % Check if PSFData is empty.
+            % Input  : - An AstroPSF object.
+            % Output : - An array of logical indicating if each element in
+            %            the AstroPSF is empty.
+            % Author : Eran Ofek (Jan 2022)
+            
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isempty(Obj(Iobj).Data);
+            end
+        end
+    end
+    
     methods % generating PSF
         function Result = getPSF(Obj, DataPSF, FunPSF, StampSize, ArgVals, ArgNames)
             % get PSF from AstroPSF object
@@ -295,8 +311,8 @@ classdef AstroPSF < Component
             %          * ...,key,vall,...
             %            'curvePars' - A cell array of key,val arguments to
             %                   pass to curve_of_growth. Default is {}.
-            % Output : - The FWHM calculated from the half cumsum.
-            %          - The FWHM calculated from the half peak flux
+            % Output : - The FWHM calculated from the half cumsum [pix]
+            %          - The FWHM calculated from the half peak flux [pix]
             %            radius.
             % Author : Eran Ofek (May 2021)
             % Example: [FWHM_CumSum, FWHM_Flux] = fwhm(AP);
