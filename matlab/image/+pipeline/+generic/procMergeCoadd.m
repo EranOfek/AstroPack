@@ -58,9 +58,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.DeleteBackBeforeCoadd logical    = false;
         Args.DeleteVarBeforeCoadd logical     = false;
 
-        Args.constructPSFArgs                 = {};
+        Args.AddGlobalMotion logical          = true;
+        Args.constructPSFArgs cell            = {};
         
     end
+    SEC_DAY = 86400;
     
     % get JD
     JD = julday(AllSI(:,1));
@@ -143,7 +145,6 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                                                              'StackMethod',Args.StackMethod);
         
         
-        
         % Background
         Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
                                                                       'SubSizeXY',Args.BackSubSizeXY);
@@ -179,7 +180,25 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     Args.photometricZPArgs{:});
         
-        
+        % Add GlobalMotion information to header
+        % calculate tracking rate information
+        if Args.AddGlobalMotion
+            RelTimeDay            = JD-mean(JD);
+            Par                   = polyfit(RelTimeDay, ShiftXY(:,1),1);
+            GlobalMotion.ResidX   = ShiftXY(:,1) - polyval(Par, RelTimeDay);
+            GlobalMotion.StdX     = std(GlobalMotion.ResidX);
+            GlobalMotion.RateX    = Par(1)./SEC_DAY;
+            Par                   = polyfit(RelTimeDay, ShiftXY(:,2),1);
+            GlobalMotion.ResidY   = ShiftXY(:,2) - polyval(Par, RelTimeDay);
+            GlobalMotion.StdY     = std(GlobalMotion.ResidY);
+            GlobalMotion.RateY    = Par(1)./SEC_DAY;
+
+            Coadd(Ifields).HeaderData.insertKey({'GM_RATEX',GlobalMotion.RateX,''});
+            Coadd(Ifields).HeaderData.insertKey({'GM_STDX',GlobalMotion.StdX,''});
+            Coadd(Ifields).HeaderData.insertKey({'GM_RATEY',GlobalMotion.RateY,''});
+            Coadd(Ifields).HeaderData.insertKey({'GM_STDY',GlobalMotion.StdY,''});
+        end
+
         
     end
     
