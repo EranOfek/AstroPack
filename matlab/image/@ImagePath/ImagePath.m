@@ -164,7 +164,7 @@ classdef ImagePath < Base %Component
             if isempty(Obj.JD)
                 Obj = setTime(Obj);
             end
-            %Result = Obj.JD;
+            Result = Obj.JD;
         end
         
     end
@@ -638,27 +638,32 @@ classdef ImagePath < Base %Component
             % @Todo: Convert to static? or move to convert.time?
             
             % Empty: use current time
-            if isempty(Obj.Time)
-                Obj.Time = celestial.time.julday;
-            end
             
-            % Convert number to string, set JD, TimeStr (assume JD)
-            if isnumeric(Obj.Time)                
-                StrDate = convert.time(Obj.Time, 'JD', 'StrDate');
-                Obj.TimeStr = StrDate{1};
-                Obj.JD = Obj.Time;
-            elseif ischar(Obj.Time)
-                Obj.TimeStr = Obj.Time;
-                Obj.JD = convert.time(Obj.Time, 'StrDate', 'JD');
-            elseif iscellstr(Obj.Time)
-                Obj.TimeStr = Obj.Time{1};
-                Obj.JD = convert.time(Obj.Time, 'StrDate', 'JD');
-            end
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                
+                if isempty(Obj(Iobj).Time)
+                    Obj(Iobj).Time = celestial.time.julday;
+                end
 
-            % Remove '-' and ':' from date (StrDate: 'YYYY-MM-DDTHH:MM:SS.FFF')
-            Obj.TimeStr = strrep(Obj.TimeStr, '-', '');
-            Obj.TimeStr = strrep(Obj.TimeStr, 'T', '.');
-            Obj.TimeStr = strrep(Obj.TimeStr, ':', '');
+                % Convert number to string, set JD, TimeStr (assume JD)
+                if isnumeric(Obj(Iobj).Time)                
+                    StrDate = convert.time(Obj(Iobj).Time, 'JD', 'StrDate');
+                    Obj(Iobj).TimeStr = StrDate{1};
+                    Obj(Iobj).JD = Obj(Iobj).Time;
+                elseif ischar(Obj(Iobj).Time)
+                    Obj(Iobj).TimeStr = Obj(Iobj).Time;
+                    Obj(Iobj).JD = convert.time(Obj(Iobj).Time, 'StrDate', 'JD');
+                elseif iscellstr(Obj(Iobj).Time)
+                    Obj(Iobj).TimeStr = Obj(Iobj).Time{1};
+                    Obj(Iobj).JD = convert.time(Obj(Iobj).Time, 'StrDate', 'JD');
+                end
+
+                % Remove '-' and ':' from date (StrDate: 'YYYY-MM-DDTHH:MM:SS.FFF')
+                Obj(Iobj).TimeStr = strrep(Obj(Iobj).TimeStr, '-', '');
+                Obj(Iobj).TimeStr = strrep(Obj(Iobj).TimeStr, 'T', '.');
+                Obj(Iobj).TimeStr = strrep(Obj(Iobj).TimeStr, ':', '');
+            end
             
             Result = true;
         end
