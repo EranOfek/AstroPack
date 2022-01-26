@@ -5,7 +5,7 @@ function runPipeLAST(DataNumber, Args)
     %          * ...,key,val,...
     %            See code
     % Author : Eran Ofek (Jan 2022)
-    % Example: 
+    % Example: pipeline.last.runPipeLAST(1)
     
     arguments
         DataNumber                    = 1;
