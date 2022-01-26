@@ -164,7 +164,7 @@ classdef ImagePath < Base %Component
             if isempty(Obj.JD)
                 Obj = setTime(Obj);
             end
-            Result = Obj.JD;
+            %Result = Obj.JD;
         end
         
     end
