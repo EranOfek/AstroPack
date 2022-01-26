@@ -83,14 +83,17 @@ function runPipeLAST(DataNumber, Args)
           
         % get all files waiting for processing
         SciFiles = dir(Args.NewFilesDir);
+        SciFiles = SciFiles(~[SciFiles.isdir]);
         % convert file names to ImagePath 
         IP       = ImagePath.parseFileName({SciFiles.name});
         % find the latest image
+        IP.setTime;   % make sure JD is populated
         IndLatest = findFirstLast(IP, true, 'Image');
         
         IP.sortByJD;
         ModCounter = mod([IP.Counter], Args.NinBatch);
         Ind        = find(ModCounter == 0, Args.NinBatch, 'last');
+        
         
         if ~isempty(Ind)
             IP(Ind).genFile;
