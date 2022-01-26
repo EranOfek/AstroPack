@@ -561,7 +561,7 @@ classdef ImagePath < Base %Component
                 ProductName       = 'Image';
             end
             
-            Ind = strcmp({Obj.Product}, ProductName);
+            Ind = find(strcmp({Obj.Product}, ProductName));
             
             if IsLast
                 [~,I] = max([Obj(Ind).JD]);
