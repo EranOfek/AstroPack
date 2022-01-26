@@ -91,8 +91,8 @@ function runPipeLAST(DataNumber, Args)
         IP.sortByJD;
         IndLatest = findFirstLast(IP, true, 'Image');
         
-        ModCounter = mod([IP.Counter], Args.NinBatch);
-        Ind        = find(ModCounter == 0, Args.NinBatch, 'last');
+        ModCounter = mod([IP.Counter], Args.NinBatch) + 1;
+        Ind        = find(ModCounter == 20, Args.NinBatch, 'last');
         
         
         if ~isempty(Ind)
