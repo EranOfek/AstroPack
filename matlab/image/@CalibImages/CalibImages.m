@@ -245,9 +245,9 @@ classdef CalibImages < Component
             end
             
             Obj      = CalibImages;
-            Obj.Bias = AstroImage(Bias, 'Mask',Args.BiasMask, 'Var',Args.BiasVar);
-            Obj.Dark = AstroImage(Dark, 'Mask',Args.DarkMask, 'Var',Args.DarkVar);
-            Obj.Flat = AstroImage(Flat, 'Mask',Args.FlatMask, 'Var',Args.FlatVar);
+            Obj.Bias = AstroImage(Args.Bias, 'Mask',Args.BiasMask, 'Var',Args.BiasVar);
+            Obj.Dark = AstroImage(Args.Dark, 'Mask',Args.DarkMask, 'Var',Args.DarkVar);
+            Obj.Flat = AstroImage(Args.Flat, 'Mask',Args.FlatMask, 'Var',Args.FlatVar);
             
         end
     end
