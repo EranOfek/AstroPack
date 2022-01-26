@@ -583,15 +583,76 @@ classdef ImagePath < Base %Component
             Obj    = Obj(SI);
         end     
         
-        function getAllProductsFromImageName(Obj, FileName)
-            %
-           
+        function Ind = getAllProductsFromImageName(Obj, FileName)
+            % Given an ImagePath and an image name (or index), return all the corresponding products 
+            % Input  : - An ImagePath object.
+            %          - A file name or an ImagePath element index.
+            % Output : - The indices in the ImagePath object of elements for
+            %            which the image name, with the exception of the
+            %            Product name, is identical to the input FileName.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: IP = ImagePath;
+            %          FN  = IP.genFile;
+            %          FN1 = strrep(FN, '_Image_', '_Mask_');
+            %          IP.Filter = 'AA'; FN2 = IP.genFile;
+            %          F   = {FN, FN1, FN2};
+            %          IP  = ImagePath.parseFileName(F);
+            %          Ind = getAllProductsFromImageName(IP, FN)
             
+            if ischar(FileName)
+                Ind = find(strcmp({Obj.FileName}, FileName));
+            else
+                % FileName is already an image index
+                if isinf(FileName)
+                    Ind = numel(Obj);
+                else
+                    Ind = FileName;
+                end
+            end
+            
+            Obj.genFile;
+            AllNames    = {Obj.FileName};
+            Splitted    = split(AllNames{Ind}, '_');
+            % Replace the Product name with '\w*'
+            Splitted{10} = '\w*';
+            Template     = tools.string.unsplit(Splitted, '_');
+            
+            Match = regexp(AllNames, Template, 'match');
+            Ind = find(~cellfun(@isempty, Match));
             
         end
         
-        function getAllInCounterSeries(Obj, FileName)
-            %
+        function Ind = getAllInCounterSeries(Obj, FileName, ModNumber)
+            % Return indices of a series of images beloning to the same counter series (sorted by JD).
+            % Given an ImagePath and a file name or an index of an element
+            %   in ImagePath:
+            %   sort by JD,
+            %   search for the indices (in the sorted list) of all the
+            %   images that belongs to the same counter series.
+            %   For example, given a set of images with counter = [19    20     1     2     3     4] 
+            %   and the last counter is an ancor, will return 3:6.
+            % Input  : - An ImagePath object.
+            %          - Either a file name, or an index of the image in
+            %            the ImagePath object.
+            %            If Inf then will set the index to the last element
+            %            in ImagePath.
+            %          - A scalar. For the calculations the counter will be
+            %            replace by the mod(Counter, This_Number).
+            %            Default is Inf.
+            % Output : - Indices of all the elements in the sorted
+            %            ImagePath that belong to the series that contains
+            %            the input image name. The input image name is
+            %            always the last element in the series.
+            %            NOTE that the ImagePath object will be sorted by
+            %            JD.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: 
+            
+            arguments
+                Obj
+                FileName
+                ModNumber = Inf;
+            end
             
             [~,SI] = Obj.sortByJD;
             if ischar(FileName)
@@ -606,13 +667,11 @@ classdef ImagePath < Base %Component
                 end
             end
             
-            Obj(Ind).Counter
+            AllCounter = mod([Obj(1:Ind).Counter], ModNumber);
             
-            AllCounter = [Obj(1:Ind).Counter];
-            %diff(
-            
-            
-            
+            AllCounter = [AllCounter, 0];
+            I = find(diff(AllCounter)<0, 2, 'last');
+            Ind = (I(1)+1:I(2));
         end
         
     end
@@ -827,6 +886,7 @@ classdef ImagePath < Base %Component
             end
         end
         
+       
     end
 
 
