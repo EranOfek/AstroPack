@@ -158,14 +158,14 @@ classdef ImagePath < Base %Component
             end
         end
         
-        function Result = get.JD(Obj)
-            % Getter for JD, including populating JD from Time if needed
-            
-            if isempty(Obj.JD)
-                Obj = setTime(Obj);
-            end
-            Result = Obj.JD;
-        end
+%         function Result = get.JD(Obj)
+%             % Getter for JD, including populating JD from Time if needed
+%             
+%             if isempty(Obj.JD)
+%                 Obj = setTime(Obj);
+%             end
+%             Result = Obj.JD;
+%         end
         
     end
       
