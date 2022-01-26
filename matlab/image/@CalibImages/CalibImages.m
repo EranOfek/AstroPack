@@ -219,6 +219,39 @@ classdef CalibImages < Component
         end
     end
     
+    methods (Static)  % read/write
+        function Obj = read(Args)
+            % Read FITS files into a CalibImages object (Static)
+            % Input  : * ...,key,val,...
+            %            'Bias', 'BiasVar', 'BiasMask', 'Dark', 'DarkVar',
+            %            'DarkMask', 'Flat', 'FlatVar', 'FlatMask' -
+            %                   These are the file names containing these
+            %                   specific components.
+            % Output : - A CalibImages object with the calibration images.
+            % Author : Eran Ofek (Jan 2022)
+            % Example:
+            % CI = CalibImages.read('Bias','LAST.2.1.2_20200821.060000_clear___1_0_dark_proc_Image_1.fits','BiasMask','LAST.2.1.2_20200821.060000_clear___1_0_dark_proc_Mask_1.fits','Flat','LAST.2.1.2_20200821.060000_clear___1_0_flat_proc_Image_1.fits','FlatMask','LAST.2.1.2_20200821.060000_clear___1_0_flat_proc_Mask_1.fits');
+            
+            arguments
+                Args.Bias      = [];
+                Args.BiasVar   = [];
+                Args.BiasMask  = [];
+                Args.Dark      = [];
+                Args.DarkVar   = [];
+                Args.DarkMask  = [];
+                Args.Flat      = [];
+                Args.FlatVar   = [];
+                Args.FlatMask  = [];
+            end
+            
+            Obj      = CalibImages;
+            Obj.Bias = AstroImage(Bias, 'Mask',Args.BiasMask, 'Var',Args.BiasVar);
+            Obj.Dark = AstroImage(Dark, 'Mask',Args.DarkMask, 'Var',Args.DarkVar);
+            Obj.Flat = AstroImage(Flat, 'Mask',Args.FlatMask, 'Var',Args.FlatVar);
+            
+        end
+    end
+    
     methods % calibration functions
         function Obj = createBias(Obj, ImObj, Args)
             % Create master bias using imProc.dark.bias and store in CalibImages object.
