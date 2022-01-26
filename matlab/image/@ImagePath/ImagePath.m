@@ -581,7 +581,40 @@ classdef ImagePath < Base %Component
             
             [~,SI] = sort([Obj.JD]);
             Obj    = Obj(SI);
-        end        
+        end     
+        
+        function getAllProductsFromImageName(Obj, FileName)
+            %
+           
+            
+            
+        end
+        
+        function getAllInCounterSeries(Obj, FileName)
+            %
+            
+            [~,SI] = Obj.sortByJD;
+            if ischar(FileName)
+                Ind = find(strcmp({Obj.FileName}, FileName));
+            else
+                % FileName is already an image index
+                if isinf(FileName)
+                    Ind = numel(Obj);
+                else
+                    %Ind = FileName;
+                    Ind = SI(FileName);
+                end
+            end
+            
+            Obj(Ind).Counter
+            
+            AllCounter = [Obj(1:Ind).Counter];
+            %diff(
+            
+            
+            
+        end
+        
     end
     
     methods % raed/write from stuct
