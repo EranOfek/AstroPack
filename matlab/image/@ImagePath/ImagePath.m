@@ -156,8 +156,17 @@ classdef ImagePath < Base %Component
             else
                 Result = Obj.Counter;
             end
-                
         end
+        
+        function Result = get.JD(Obj)
+            % Getter for JD, including populating JD from Time if needed
+            
+            if isempty(Obj.JD)
+                Obj = setTime(Obj);
+            end
+            Result = Obj.JD;
+        end
+        
     end
       
     methods % Generate Path & FileName
