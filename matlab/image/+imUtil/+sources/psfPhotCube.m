@@ -67,7 +67,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     % Author : Eran Ofek (Dec 2021)
     % Example: P=imUtil.kernel2.gauss;
     %          Ps=imUtil.trans.shift_fft(P,0.4,0.7);
-    %          imUtil.sources.psfPhotCube(Ps, 'PSF',P)
+    %          [R,S]=imUtil.sources.psfPhotCube(Ps, 'PSF',P)
     %          P=imUtil.kernel2.gauss(1.5.*ones(4,1));
     %          Ps=imUtil.trans.shift_fft(P,[0.4;0.7;-1.1;3.6],[0.7;-0.2;-0.9;-2.6]);
     %          Ps = Ps.*permute([100 110 200 300],[1 3 2]) + randn(15,15);
@@ -84,13 +84,15 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.Xinit      = [];
         Args.Yinit      = [];
         
-        Args.SmallStep  = 1e-4;
+        Args.SmallStep  = 1e-3;
         Args.MaxStep    = 1;
         Args.ConvThresh = 1e-4;
         Args.MaxIter    = 10;
         
         Args.ZP         = 25; 
     end
+    
+    warning('BUG: convergence is not very good - need a better algorithm')
     
     % background treatment
     % 1. do nothing
@@ -159,7 +161,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX,                   DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
         Chi2_Dx  = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep,    DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
         Chi2_Dx2 = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep.*2, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-        
+                
         %ParX     = polyfit(VecD, [Chi2, Chi2_Dx, Chi2_Dx2], 2);
         ParX     = H\[Chi2.'; Chi2_Dx.'; Chi2_Dx2.'];
         
@@ -230,7 +232,7 @@ function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF,
     
     
     
-    FluxMethod = 'medall';
+    FluxMethod = 'wsumall'; %'medall';
     
     % Shifting PSF is safer, because of the fft on a smooth function is
     % more reliable.
