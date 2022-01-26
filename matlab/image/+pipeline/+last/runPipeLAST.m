@@ -88,9 +88,9 @@ function runPipeLAST(DataNumber, Args)
         IP       = ImagePath.parseFileName({SciFiles.name});
         % find the latest image
         IP.setTime;   % make sure JD is populated
+        IP.sortByJD;
         IndLatest = findFirstLast(IP, true, 'Image');
         
-        IP.sortByJD;
         ModCounter = mod([IP.Counter], Args.NinBatch);
         Ind        = find(ModCounter == 0, Args.NinBatch, 'last');
         
