@@ -53,7 +53,7 @@ function runPipeLAST(DataNumber, Args)
     while Cont
         % check if there is a new Dark/Flat
         [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
-        [FoundFlat, RecentFlatImage, RecentFlatMask] = io.files.searchNewFilesInDir(Args.FlatFlatDir, Args.FlatSearchStr, '_Image_',{'_Mask_'});
+        [FoundFlat, RecentFlatImage, RecentFlatMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.FlatSearchStr, '_Image_',{'_Mask_'});
         
         if (~FoundDark || ~FoundFlat)
             % may be a probelm - Dark | Flat master images are not found on
