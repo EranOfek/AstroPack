@@ -146,7 +146,7 @@ function runPipeLAST(DataNumber, Args)
             tic;
             pipeline.generic.multiRaw2proc(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',sprintf('%d',Counter), 'BasePath', Args.BasePath);
             toc
-            
+                        
             % move images to path
             for Iim=1:1:Args.NinBatch
                 Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, ListImages{Iim});
@@ -156,6 +156,8 @@ function runPipeLAST(DataNumber, Args)
                 % move file
                 movefile(Source, Destination);
             end
+            
+            % FFU: write log file
         
         else
             % wait for image
