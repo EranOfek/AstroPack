@@ -281,6 +281,21 @@ classdef AstroImage < Component
                                                                             'Scale',Args.(ListScale{Ilist}),...
                                                                             'ReadHeader',false,...
                                                                             'DataProp',ListData{Ilist});
+                                % treat integers in case of Mask
+                                switch ListProp{Ilist}
+                                    case 'Mask'
+                                        switch class(Obj.(ListProp{Ilist}))
+                                            case 'int8'
+                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint8');
+                                            case 'int16'
+                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint16');
+                                            case 'int32'
+                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint32');
+                                            case 'int64'
+                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint64');
+                                        end
+                                end
+                                        
                             end
                         end
                             

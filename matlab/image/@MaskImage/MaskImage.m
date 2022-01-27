@@ -39,7 +39,6 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     end
   
     methods % Setters/Getters
-
         
     end
     
