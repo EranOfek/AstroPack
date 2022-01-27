@@ -110,7 +110,9 @@ function runPipeLAST(DataNumber, Args)
             
             % execute the pipeline
             Counter = Counter + 1;
+            tic;
             pipeline.generic.multiRaw2proc(ListImages, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',Counter);
+            toc
             
             % move images to path
             for Iim=1:1:Args.NinBatch
