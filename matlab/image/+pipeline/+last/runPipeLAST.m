@@ -123,7 +123,7 @@ function runPipeLAST(DataNumber, Args)
         IP       = ImagePath.parseFileName({SciFiles.name});
         IP.setAllVal('BasePath', Args.BasePath);
         IP.setAllVal('DataDir',  Args.DataDir);
-        IP.setAllVal('ProjName',  Args.ProjName);
+        IP.setAllVal('ProjName', Args.ProjName);
         
         % find the latest image
         IP.setTime;   % make sure JD is populated
@@ -137,13 +137,14 @@ function runPipeLAST(DataNumber, Args)
             
             IP.setAllVal('FormatCounter', '%d');
             IP(Ind).genFile;
-            ListImages = {IP(Ind).FileName};
-            ListImages = io.files.addPathToFiles(ListImages, Args.NewFilesDir);
+            Path           = IP(1).genPath;
+            ListImages     = {IP(Ind).FileName};
+            ListImagesFull = io.files.addPathToFiles(ListImages, Args.NewFilesDir);
             
             % execute the pipeline
             Counter = Counter + 1;
             tic;
-            pipeline.generic.multiRaw2proc(ListImages, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',Counter);
+            pipeline.generic.multiRaw2proc(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',Counter);
             toc
             
             % move images to path
