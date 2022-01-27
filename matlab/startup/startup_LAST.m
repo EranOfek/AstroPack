@@ -26,7 +26,7 @@ function startup_LAST(AddLast, AddAstroPath)
     
     if AddAstroPath
         PWD = pwd;
-        AstroPathStartup = [Home, filesep, 'matlab', filesep, 'AstroPack', 'matlab', filesep, 'startup'];
+        AstroPathStartup = [Home, filesep, 'matlab', filesep, 'AstroPack', filesep, 'matlab', filesep, 'startup'];
         cd(AstroPathStartup);
         AstroPack_CatsHTMPath = [filesep, Computer, filesep, data', filesep, catsHTM];
         startup('AstroPack_CatsHTMPath',AstroPack_CatsHTMPath);
