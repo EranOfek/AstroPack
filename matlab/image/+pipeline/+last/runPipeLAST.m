@@ -123,7 +123,7 @@ function runPipeLAST(DataNumber, Args)
         IP       = ImagePath.parseFileName({SciFiles.name});
         IP.setAllVal('BasePath', Args.BasePath);
         IP.setAllVal('DataDir',  Args.DataDir);
-        IP.setAllVal('ProjName',  ProjName);
+        IP.setAllVal('ProjName',  Args.ProjName);
         
         % find the latest image
         IP.setTime;   % make sure JD is populated
