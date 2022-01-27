@@ -923,6 +923,8 @@ classdef ImagePath < Base %Component
             %            'PropFromHeader' - Attempt to populate the
             %                   ImagePath properties from the Header.
             %                   Default is true.
+            %            'CropID_FromInd' - If true, then CropID is taken
+            %                   from object element index. Default is false.
             %            'SetProp' - Pairs of additional ImagePath properties to
             %                   populated (key,val). This is overriding the
             %                   Header properties.
@@ -939,6 +941,7 @@ classdef ImagePath < Base %Component
                 Args.SaveFun function_handle   = @write1;
                 Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
                 Args.PropFromHeader logical    = true;
+                Args.CropID_FromInd logical    = false;
                 Args.SetProp cell              = {'Product','Image'};   % overide header
             end
             Future = [];
