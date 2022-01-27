@@ -96,10 +96,43 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         
         Args.SubDir = '';  % no sub dir
-        Args.BasePath = '/euler/archive'
+        Args.BasePath = '/euler/archive';
+        
+        
+        % save products
+        Args.SaveAll               = [];  % empty - check individuals
+        Args.SaveProcIm logical    = true;
+        Args.SaveProcMask logical  = true;
+        Args.SaveProcCat logical   = true;
+        Args.SaveMatchCat logical  = true;
+        Args.SaveMatchMat logical  = true;
+        Args.SaveCoaddIm logical   = true;
+        Args.SaveCoaddMask logical = true;
+        Args.SaveCoaddCat logical  = true;
+
     end
     
-    
+    if ~isempty(Args.SaveAll)
+        if Args.SaveAll
+            Args.SaveProcIm     = true;
+            Args.SaveProcMask   = true;
+            Args.SaveProcCat    = true;
+            Args.SaveMatchCat   = true;
+            Args.SaveMatchMat   = true;
+            Args.SaveCoaddIm    = true;
+            Args.SaveCoaddMask  = true;
+            Args.SaveCoaddCat   = true;
+        else
+            Args.SaveProcIm     = false;
+            Args.SaveProcMask   = false;
+            Args.SaveProcCat    = false;
+            Args.SaveMatchCat   = false;
+            Args.SaveMatchMat   = false;
+            Args.SaveCoaddIm    = false;
+            Args.SaveCoaddMask  = false;
+            Args.SaveCoaddCat   = false;
+        end
+    end
     
     
     
@@ -227,6 +260,38 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         AllSI.deleteProp('Var');
     end
     
+    
+    % Save individual proc images
+    IP   = ImagePath;
+    Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcIm,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+
+
+    % Save individual mask images
+    IP   = ImagePath;
+    Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcMask,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Mask', 'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Mask', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+    
+                       
+    % Save individual catalog of images
+    IP   = ImagePath;
+    Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcCat,...
+                           'ParEval',false,...
+                           'SaveFun',@write1,...
+                           'SaveFunArgs',{'Cat', 'IsSimpleFITS',false, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
+                           'PropFromHeader',true,...
+                           'SetProp',{'Product','Cat', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+
+    
+    
     Args.ReturnRegisteredAllSI = false;
     % procMergeCoadd:
     % coadd the sub images of each field
@@ -261,24 +326,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 
 
     
-    % save products
-    Args.SaveProcIm     = true;
-    Args.SaveProcMask   = true;
-    Args.SaveProcCat    = true;
-    Args.SaveMatchCat   = true;
-    Args.SaveMatchMat   = true;
-    Args.SaveCoaddIm    = true;
-    Args.SaveCoaddMask  = true;
-    Args.SaveCoaddCat   = true;
     
-    Args.SaveProcIm     = false;
-    Args.SaveProcMask   = false;
-    Args.SaveProcCat    = false;
-    Args.SaveMatchCat   = false;
-    Args.SaveMatchMat   = false;
-    Args.SaveCoaddIm    = false;
-    Args.SaveCoaddMask  = false;
-    Args.SaveCoaddCat   = false;
     
     
     if isnumeric(Args.SubDir)
@@ -291,35 +339,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %%% MUST save AllSI before procMergeCoadd !!!
     
     %tic;
-    % Save individual proc images
-    IP   = ImagePath;
-    Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcIm,...
-                           'ParEval',false,...
-                           'SaveFun',@write1,...
-                           'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
-                           'PropFromHeader',true,...
-                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
-
-
-    % Save individual mask images
-    IP   = ImagePath;
-    Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcMask,...
-                           'ParEval',false,...
-                           'SaveFun',@write1,...
-                           'SaveFunArgs',{'Mask', 'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
-                           'PropFromHeader',true,...
-                           'SetProp',{'Product','Mask', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
-    
-                       
-    % Save individual catalog of images
-    IP   = ImagePath;
-    Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcCat,...
-                           'ParEval',false,...
-                           'SaveFun',@write1,...
-                           'SaveFunArgs',{'Cat', 'IsSimpleFITS',false, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
-                           'PropFromHeader',true,...
-                           'SetProp',{'Product','Cat', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
-
+ 
 
     % Save MergedCat
     IP   = ImagePath;
