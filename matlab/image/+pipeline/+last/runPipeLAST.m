@@ -89,7 +89,8 @@ function runPipeLAST(DataNumber, Args)
         % find the latest image
         IP.setTime;   % make sure JD is populated
         IP.sortByJD;
-        IndLatest = findFirstLast(IP, true, 'Image');
+        %IndLatest = findFirstLast(IP, true, 'Image');
+        IndLatest = find([IP.Counter]==Args.NinBatch, 1, 'last');
         Ind = getAllInCounterSeries(IP, IndLatest, Args.NinBatch);
         
         
