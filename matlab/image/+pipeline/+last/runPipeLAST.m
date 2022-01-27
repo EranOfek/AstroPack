@@ -9,11 +9,15 @@ function runPipeLAST(DataNumber, Args)
     
     arguments
         DataNumber                    = 1;
+        Args.ProjName                 = 'LAST';
+        Args.NodeNumber               = 1;
         Args.GeoPos                   = [35 30 400];
         Args.MinNdark                 = 10;
         Args.MinNflat                 = 5;
         Args.multiRaw2procArgs cell   = {};
         
+        Args.BasePath                 = []; % '/last01e/data1/archive/LAST.1.1.1';
+        Args.DataDir                  = ''; % 
         Args.NewFilesDir              = []; %'/last01e/data1/archive/new';
         Args.DarkFlatDir              = []; %'/last01e/data1/archive/calib';
         
@@ -26,17 +30,34 @@ function runPipeLAST(DataNumber, Args)
     end
    
     RAD = 180./pi;
+    HostName = tools.os.get_computer;
     
     if isempty(Args.NewFilesDir)
         % generate NewFilesDir
-        HostName = tools.os.get_computer;
         Args.NewFilesDir = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,'new');
     end
     if isempty(Args.DarkFlatDir)
         % generate DarkFlatDir
-        HostName = tools.os.get_computer;
         Args.DarkFlatDir = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,'calib');
     end
+    
+    if isempty(Args.BasePath)
+        % generate default BasePath - e.g., '/last01e/data1/archive'
+        switch HostName(end)
+            case 'e'
+                % East computer controls cameras 1 & 2
+                CameraNumber = DataNumber + 0;
+            case 'w'
+                % East computer controls cameras 3 & 4
+                CameraNumber = DataNumber + 2;
+            otherwise
+                error('Unknown host name template')
+        end
+        MountNumber = HostName(5:6);
+        ProjName = sprintf('%s.%d.%s.%d',Args.ProjName, Args.NodeNumber, MountNumber, CameraNumber);
+        Args.BasePath = sprintf('%s%s%s%s%d%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive');
+    end
+    
     
     
     StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, 'stop');
@@ -94,6 +115,8 @@ function runPipeLAST(DataNumber, Args)
         SciFiles = SciFiles(~[SciFiles.isdir]);
         % convert file names to ImagePath 
         IP       = ImagePath.parseFileName({SciFiles.name});
+        IP.setAllVal('BasePath', Args.BasePath);
+        IP.setAllVal('DataDir',  Args.DataDir);
         % find the latest image
         IP.setTime;   % make sure JD is populated
         IP.sortByJD;
