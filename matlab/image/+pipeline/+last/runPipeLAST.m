@@ -19,8 +19,8 @@ function runPipeLAST(DataNumber, Args)
         
         
         Args.SearchStr                = '*.fits'; 
-        Args.DarkSearchStr            = '*_dark_proc_*_Image_*.fits';
-        Args.FlatSearchStr            = '*_flat_proc_*_Image_*.fits';
+        Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits';
+        Args.FlatSearchStr            = '*_flat_proc*_Image_*.fits';
         Args.ScienceSearchStr         = '*_*_clear_*_science_raw*Image*.fits';
         Args.NinBatch                 = 20;
     end
