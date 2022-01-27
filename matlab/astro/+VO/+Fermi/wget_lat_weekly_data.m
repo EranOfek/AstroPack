@@ -5,7 +5,7 @@ function List=wget_lat_weekly_data(WeekNumber,Get,pwgetPar)
 %              from the HEASARC FTP site in FITS format.
 %              The function can get the list of files and their URLs,
 %              retrieve all files or retrieve specific files.
-% Input  : - A vector of files to retrieve.
+% Input  : - A vector (of week index) of files to retrieve.
 %            If Inf then get all files. Default is Inf.
 %          - Get files: true|false. Default is true.
 %          - A cell array of additional arguments to pass to www.pwget.
