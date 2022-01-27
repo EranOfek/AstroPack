@@ -7,7 +7,8 @@
 
 
 function Result = unitTest()
-    % Package Unit-Test   
+    % 
+    
 	io.msgStyle(LogLevel.Test, '@start', 'test started');
     RAD = 180/pi;
     % Check conversion for altitude to hour angle, and the inverse.
