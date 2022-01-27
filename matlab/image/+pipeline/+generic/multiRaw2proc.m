@@ -96,6 +96,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         
         Args.SubDir = '';  % no sub dir
+        Args.BasePath = '/euler/archive'
     end
     
     
@@ -284,8 +285,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SubDir = str2double(Args.SubDir);
     end
     
-    Args.SubDir = '9';
-    BasePath='/euler/archive'; %'/last04/data1/archive';
+    %Args.SubDir = '9';
+    BasePath = Args.BasePath; %'/euler/archive'; %'/last04/data1/archive';
     
     %%% MUST save AllSI before procMergeCoadd !!!
     

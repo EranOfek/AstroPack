@@ -144,13 +144,16 @@ function runPipeLAST(DataNumber, Args)
             % execute the pipeline
             Counter = Counter + 1;
             tic;
-            pipeline.generic.multiRaw2proc(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',Counter);
+            pipeline.generic.multiRaw2proc(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',Counter, 'BasePath', Path);
             toc
             
             % move images to path
             for Iim=1:1:Args.NinBatch
                 Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, ListImages{Iim});
                 Destination = sprintf('%s%s%s', Path, filesep, ListImages{Iim});
+                % make sure diirectory exist
+                mkdir(Path);
+                % move file
                 movefile(Source, Destination);
             end
         
