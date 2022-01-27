@@ -17,7 +17,7 @@ function Result = unitTest
     Ref      = Ref.*Flip;
     Result = imProc.trans.fitPattern(Cat,Ref);
     
-    if ~(Result.Sol.SN>30 && all(Result.Sol.Flip==Flip) && abs(Result.Sol.ShiftX-220)<3 && abs(Result.Sol.ShiftY-130)<3)
+    if ~(Result.Sol.SN>10 && all(Result.Sol.Flip==Flip) && abs(Result.Sol.ShiftX-220)<3 && abs(Result.Sol.ShiftY-130)<3)
         error('Problem with matchPattern');
     end
     
@@ -91,11 +91,11 @@ function Result = unitTest
     Cat  = rand(100,2);
     Tran = [1 1];
     Result = imProc.trans.tranAffine(Cat, Tran, true);
-    if ~all(Results.Catalog-Cat==Tran)
+    if ~all(abs((Result.Catalog-Cat)-Tran)<1e-15, 'all')
         error('Problem with tranAffine');
     end
     Result = imProc.trans.tranAffine(Cat, Tran, false);
-    if ~all(Results.Catalog-Cat==[0 0])
+    if ~all(abs((Result.Catalog-Cat))<1e-15, 'all')
         error('Problem with tranAffine');
     end
     
