@@ -13,6 +13,6 @@ function Cell = addPathToFiles(Cell, Path)
     
     Ncell = numel(Cell);
     for Icell=1:1:Ncell
-        Cell{Icell} = sprintf('%s%s%s',Cell{Icell}, filesep, Path);
+        Cell{Icell} = sprintf('%s%s%s',Path, filesep, Cell{Icell});
     end
 end
