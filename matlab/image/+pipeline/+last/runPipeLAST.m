@@ -107,6 +107,7 @@ function runPipeLAST(DataNumber, Args)
             IP.setAllVal('FormatCounter', '%d');
             IP(Ind).genFile;
             ListImages = {IP(Ind).FileName};
+            ListImages = io.files.addPathToFiles(ListImages, Args.NewFilesDir);
             
             % execute the pipeline
             Counter = Counter + 1;
