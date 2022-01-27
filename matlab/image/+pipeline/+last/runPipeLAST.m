@@ -144,7 +144,7 @@ function runPipeLAST(DataNumber, Args)
             % execute the pipeline
             Counter = Counter + 1;
             tic;
-            pipeline.generic.multiRaw2proc(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',Counter, 'BasePath', Args.BasePath);
+            pipeline.generic.multiRaw2proc(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',sprintf('%d',Counter), 'BasePath', Args.BasePath);
             toc
             
             % move images to path
