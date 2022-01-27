@@ -57,7 +57,10 @@ function runPipeLAST(DataNumber, Args)
         
         % add full path
         RecentDarkImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkImage);
+        RecentDarkMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkMask{1});
+        
         RecentFlatImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatImage);
+        RecentFlatMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatMask{1});
         
         
         if (~FoundDark || ~FoundFlat)
@@ -75,14 +78,14 @@ function runPipeLAST(DataNumber, Args)
                 % most recent dark is already loaded
             else
                 % load dark image
-                CI.Bias = AstroImage(RecentDarkImage, 'Mask',RecentDarkMask{1});
+                CI.Bias = AstroImage(RecentDarkImage, 'Mask',RecentDarkMask);
             end
             
             if strcmp(MostRecentFlatImage, RecentFlatImage)
                 % most recent flat is already loaded
             else
                 % load flat image
-                CI.Flat = AstroImage(RecentFlatImage, 'Mask',RecentFlatMask{1});
+                CI.Flat = AstroImage(RecentFlatImage, 'Mask',RecentFlatMask);
             end
         end
           
