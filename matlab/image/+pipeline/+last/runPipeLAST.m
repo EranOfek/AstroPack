@@ -28,6 +28,8 @@ function runPipeLAST(DataNumber, Args)
         Args.FlatSearchStr            = '*_flat_proc*_Image_*.fits';
         Args.ScienceSearchStr         = '*_*_clear_*_science_raw*Image*.fits';
         Args.NinBatch                 = 20;
+        Args.DefBaseProjName          = 'LAST';
+        
     end
    
     RAD = 180./pi;
@@ -46,7 +48,7 @@ function runPipeLAST(DataNumber, Args)
                 error('Unknown host name template')
         end
         MountNumber = HostName(5:6);
-        Args.ProjName = sprintf('%s.%d.%s.%d',Args.ProjName, Args.NodeNumber, MountNumber, CameraNumber);
+        Args.ProjName = sprintf('%s.%d.%s.%d', Args.DefBaseProjName, Args.NodeNumber, MountNumber, CameraNumber);
     end
     
     BasePathDefault =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', Args.ProjName);
