@@ -128,7 +128,6 @@ classdef Installer < Component
             io.msgLog(LogLevel.Info, 'install: done');
         end
                 
-        
         function installSingle(Obj, DataStruct, Args)
             % Install single DataName (utility function for install)
             % Input  : - A structure with the DataName, SubDir, URL,
@@ -222,7 +221,6 @@ classdef Installer < Component
             
         end
         
-        
         function Result = seeAvailableData(Obj)
             % print a table of available data sets
             % Example: I = Installer; I.seeAvailableData
@@ -265,8 +263,7 @@ classdef Installer < Component
 %                    {Obj.URL}'], 'VariableNames',{'DataName', 'SubDir', 'Size [MB]', 'Description', 'URL'});
             
         end
-        
-        
+            
         function Dir = getDataDir(Obj, Item)
             % Get data directory name
             % DataName of data directory as appear in Insataller/seeAvailableData
@@ -290,8 +287,7 @@ classdef Installer < Component
                 Dir = '';
             end
         end
-
-        
+   
         function [Files, Dir] = getFilesInDataDir(Obj, Name)
             % Return all file names in directory associated with DataName
             % Input  : - Installer object.
@@ -398,8 +394,7 @@ classdef Installer < Component
             cd(PWD);
             
         end
-        
-        
+                
         function [T1, T2, T3] = readIERS_EOP(FileInd)
             % Read all IERS Earth Orientation File 'finals2000A.data.csv'
             %   documentation: http://hpiers.obspm.fr/eoppc/bul/bulb/explanatory.html
@@ -464,8 +459,7 @@ classdef Installer < Component
                 T3 = [];
             end
         end
-
-        
+     
         function prep_cats(Args)
             % Prepare interface functions for the catalogs in the data directory
             % Package: VO.search
@@ -540,6 +534,38 @@ classdef Installer < Component
         end
     end
   	
+    methods (Static)  % compile mex files
+        function compileAllMex
+            % Compile all the *.c and *.cpp in the AstroPack/matlab toolbox (Static)
+            % Author : Eran Ofek (Jan 2022)
+            % Example: Installer.compileAllMex
+            
+            Path = mfilename('fullpath');
+            Splitted = split(Path, filesep);
+            Path = tools.string.unsplit(Splitted(1:end-3), filesep);
+            
+            PWD = pwd;
+            cd(Path)
+            
+            List.C   = io.files.rdir('*.c'); 
+            List.CPP = io.files.rdir('*.cpp');
+            
+            Fields  = fieldnames(List);
+            Nfields = numel(Fields);
+            for Ifield=1:1:Nfields
+                Nc = numel(List.(Fields{Ifield}));
+                for Ic=1:1:Nc
+                    Folder = List.(Fields{Ifield})(Ic).folder;
+                    Name   = List.(Fields{Ifield})(Ic).name;
+                    cd(Folder);
+                    %Name
+                    mex('-O', Name);
+                end
+            end
+           
+            cd(PWD);
+        end
+    end
     
     methods(Static) % unitTest
         Result = unitTest(Obj)
