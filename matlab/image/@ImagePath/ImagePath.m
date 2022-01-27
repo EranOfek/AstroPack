@@ -1,6 +1,7 @@
 % ImagePath - A class for generating and storing image/path names
 %       for ULTRASAT and LAST.
 %
+% File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
 
 
 classdef ImagePath < Base %Component
@@ -974,7 +975,7 @@ classdef ImagePath < Base %Component
             %                   populate ImagePath properties from image header.
             %                   Default is true.
             %            'CropID_FromInd' - If true, then CropID is taken
-            %                   from object element index. Default is true.
+            %                   from object element index. Default is false.
             %            'SetProp' - A cell array of pairs of additional
             %                   ImagePath properties to set (override
             %                   header). These are ...Prop,val,...
@@ -989,7 +990,7 @@ classdef ImagePath < Base %Component
                 Args.SaveFun function_handle   = @write1;
                 Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
                 Args.PropFromHeader logical    = true;
-                Args.CropID_FromInd logical    = true;
+                Args.CropID_FromInd logical    = false;
                 Args.SetProp cell              = {'Product','Image'};   % overide header
             end
 
