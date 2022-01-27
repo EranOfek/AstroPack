@@ -268,7 +268,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
 
 
     % Save individual mask images
@@ -278,7 +278,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Mask', 'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Mask', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','Mask', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
     
                        
     % Save individual catalog of images
@@ -288,7 +288,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Cat', 'IsSimpleFITS',false, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Cat', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','Cat', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
 
     
     
@@ -334,7 +334,6 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     %Args.SubDir = '9';
-    BasePath = Args.BasePath; %'/euler/archive'; %'/last04/data1/archive';
     
     %%% MUST save AllSI before procMergeCoadd !!!
     
@@ -351,7 +350,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'FileType','fits', 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',false,...
-                           'SetProp',{'Product','Cat', 'Level','merged', 'Counter',0, 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','Cat', 'Level','merged', 'Counter',0, 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
 
     % Save MatchedS  
     IP   = ImagePath;
@@ -363,7 +362,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'FileType','hdf5'},...
                            'PropFromHeader',false,...
-                           'SetProp',{'Product','MergedMat', 'Level','merged', 'Counter',0, 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','MergedMat', 'Level','merged', 'Counter',0, 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
                    
               
                        
@@ -376,7 +375,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Image',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
                   
     % Save Coadd Mask images
     IP   = ImagePath;
@@ -387,7 +386,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Mask',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Mask', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','Mask', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
                               
     % Save Coadd Cat   
     IP   = ImagePath;
@@ -398,7 +397,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                            'SaveFun',@write1,...
                            'SaveFunArgs',{'Cat',  'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false},...
                            'PropFromHeader',true,...
-                           'SetProp',{'Product','Cat', 'SubDir',Args.SubDir, 'BasePath',BasePath, 'DataDir',''});
+                           'SetProp',{'Product','Cat', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
                                                  
     
     %toc
