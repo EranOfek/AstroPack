@@ -252,6 +252,41 @@ classdef CalibImages < Component
         end
     end
     
+    methods % utility functions
+        function varargout = isemptyProp(Obj, Prop, ImageProp)
+            % Check if some properties (e.g., 'Bias') images are empty
+            %   For each requested CalibImages property, check if any of
+            %   the images fields are empty.
+            % Input  : - A single element CalibImages object.
+            %          - A cell array of properties to check in the
+            %            CalibImages (e.g., {'Bias','Flat'}).
+            %          - Property in the AstroImage to check if empty.
+            %            Default is 'Image'.
+            % Output : * The number of output arguments equal to the number
+            %            of requested properties (second input argument).
+            %            IN each output, return an array of logicals
+            %            indicating if any of the calib images are empty.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: [R1, R2] = isemptyProp(Obj, {'Bias','Flat'}, 'Image')
+            
+            arguments
+                Obj(1,1)
+                Prop
+                ImageProp    = 'Image';
+            end
+            
+            if ischar(Prop)
+                Prop = {Prop};
+            end
+            Nprop = numel(Prop);
+            varargout = cell(1:1:Nprop);
+            for Iprop=1:1:Nprop
+                varargout{Iprop} = any(isemptyImage(Obj.(Prop{Iprop}), ImageProp));
+            end
+            
+        end
+    end
+    
     methods % calibration functions
         function Obj = createBias(Obj, ImObj, Args)
             % Create master bias using imProc.dark.bias and store in CalibImages object.

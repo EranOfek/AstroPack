@@ -101,6 +101,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     
+    
     if isa(FilesList, 'AstroImage')
         % FileList is an AstroImage
         AI = FilesList;
