@@ -2,7 +2,14 @@ function Result = unitTest
     % unitTest for +imProc.match
     % Example: imProc.match.unitTest
 
+    
+    DataSampleDir = tools.os.getTestDataDir;
+    PWD = pwd;
+    cd(DataSampleDir);
+
+    
     % coneSearch
+    
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [NC, Flag, Dist] = imProc.match.coneSearch(AC,[1 1],'Radius',3600);
     [NC, Flag, Dist] = imProc.match.coneSearch(AC,[1 1; 0 0],'Radius',3600);  % search around two positions (merged results).
@@ -51,6 +58,7 @@ function Result = unitTest
     AC(1).Catalog = [AC(1).Catalog; AC(3).Catalog(1:5,:); AC(2).Catalog(1:2,:)];
     Result = imProc.match.unifiedSourcesCatalog(AC, 'CooType','sphere');
     
+    cd(PWD);
     
     Result = true;
 end

@@ -40,7 +40,7 @@ function Result = unitTest()
     
     %ecliptic to galactic 
     Long =(0:0.2:2*pi)';
-    Lat= linspace(-80,80,numel(RA))'/RAD; 
+    Lat= linspace(-80,80,numel(Long))'/RAD; 
     JD = celestial.time.julday;
     [Long_ge,Lat_ge]= celestial.coo.convert_coo(Long,Lat,'g','e',JD);
     [Long_ge_inv,Lat_ge_inv]= celestial.coo.convert_coo(Long_ge,Lat_ge,'e','g',JD);
@@ -56,13 +56,13 @@ function Result = unitTest()
     [Long_jh_inv,Lat_jh_inv]= celestial.coo.convert_coo(Long_jh,Lat_jh,'h','j2000.0',JD,NeotCoo );
     
     
-    assert(all(abs(Long_jh_inv-Long)<1e-13))
-    assert(all(abs(Lat_jh_inv-Lat)<1e-13))
+    assert(all(abs(Long_jh_inv-Long)<1e-12))
+    assert(all(abs(Lat_jh_inv-Lat)<1e-12))
 
     
     % Check coo2cosined
     Long =(0:0.2:2*pi)';
-    Lat= linspace(-80,80,numel(RA))'/RAD; 
+    Lat= linspace(-80,80,numel(Long))'/RAD; 
     
     [CD1,CD2,CD3]=celestial.coo.coo2cosined(Long,Lat);
     [Long_cos_inv,Lat_cos_inv]=celestial.coo.cosined2coo(CD1,CD2,CD3);

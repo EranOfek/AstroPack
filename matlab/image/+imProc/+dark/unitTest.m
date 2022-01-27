@@ -69,7 +69,7 @@ function Result = unitTest()
     [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[91 100 1 200]);
     [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[91 100 1 200],'Method','medmedfilt');
     [y,x] = sizeImage(Result);
-    if ~(y==90 && x==200)
+    if ~(x==90 && y==200)
         error('Problem with overscan subtraction');
     end
     
