@@ -165,7 +165,7 @@ function runPipeLAST(DataNumber, Args)
                 pause(60);
             else
                 % night time
-                pasue(2);
+                pause(2);
             end
         end
         
