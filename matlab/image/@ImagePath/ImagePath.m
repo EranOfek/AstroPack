@@ -637,6 +637,8 @@ classdef ImagePath < Base %Component
             %            the ImagePath object.
             %            If Inf then will set the index to the last element
             %            in ImagePath.
+            %            If this is empty, then the output index will be
+            %            empty.
             %          - A scalar. For the calculations the counter will be
             %            replace by the mod(Counter, This_Number).
             %            Default is Inf.
@@ -668,11 +670,13 @@ classdef ImagePath < Base %Component
                 end
             end
             
-            AllCounter = mod([Obj(1:Ind).Counter], ModNumber+1);
-            
-            AllCounter = [Inf, AllCounter, 0];
-            I = find(diff(AllCounter)<0, 2, 'last');
-            Ind = (I(1):I(2)-1);
+            if ~isempty(Ind)
+                AllCounter = mod([Obj(1:Ind).Counter], ModNumber+1);
+
+                AllCounter = [Inf, AllCounter, 0];
+                I = find(diff(AllCounter)<0, 2, 'last');
+                Ind = (I(1):I(2)-1);
+            end
         end
         
         function Obj = setAllVal(Obj, Prop, Val)
