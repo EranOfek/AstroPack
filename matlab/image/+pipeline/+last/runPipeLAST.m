@@ -90,7 +90,7 @@ function runPipeLAST(DataNumber, Args)
         IP.setTime;   % make sure JD is populated
         IP.sortByJD;
         IndLatest = findFirstLast(IP, true, 'Image');
-        Ind = getAllInCounterSeries(Obj, IndLatest, Args.NinBatch);
+        Ind = getAllInCounterSeries(IP, IndLatest, Args.NinBatch);
         
         
         if ~isempty(Ind)
