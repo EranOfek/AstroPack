@@ -674,6 +674,20 @@ classdef ImagePath < Base %Component
             Ind = (I(1)+1:I(2));
         end
         
+        function Obj = setAllVal(Obj, Prop, Val)
+            % Set the value of one of the properties in all the elements.
+            % Input  : - An ImagePath object.
+            %          - Property name.
+            %          - Value to set.
+            % Output : - The updated ImagePath object.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: Obj = setAllVal(Obj, 'FormatCounter', '%d');
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).(Prop) = Val;
+            end
+        end
     end
     
     methods % raed/write from stuct

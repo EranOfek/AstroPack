@@ -95,6 +95,8 @@ function runPipeLAST(DataNumber, Args)
         
         
         if ~isempty(Ind)
+            
+            IP.setAllVal(Obj, 'FormatCounter', '%d');
             IP(Ind).genFile;
             ListImages = {IP(Ind).FileName};
             
