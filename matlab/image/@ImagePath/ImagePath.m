@@ -671,7 +671,7 @@ classdef ImagePath < Base %Component
             
             AllCounter = [AllCounter, 0];
             I = find(diff(AllCounter)<0, 2, 'last');
-            Ind = (I(1)+1:I(2));
+            Ind = (I(1)+2:I(2));
         end
         
     end
