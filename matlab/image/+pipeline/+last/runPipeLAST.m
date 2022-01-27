@@ -9,8 +9,9 @@ function runPipeLAST(DataNumber, Args)
     
     arguments
         DataNumber                    = 1;
-        Args.ProjName                 = 'LAST';
+        Args.ProjName                 = [];  %'LAST.1.12.3';
         Args.NodeNumber               = 1;
+        
         Args.GeoPos                   = [35 30 400];
         Args.MinNdark                 = 10;
         Args.MinNflat                 = 5;
@@ -32,17 +33,8 @@ function runPipeLAST(DataNumber, Args)
     RAD = 180./pi;
     HostName = tools.os.get_computer;
     
-    if isempty(Args.NewFilesDir)
-        % generate NewFilesDir
-        Args.NewFilesDir = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,'new');
-    end
-    if isempty(Args.DarkFlatDir)
-        % generate DarkFlatDir
-        Args.DarkFlatDir = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,'calib');
-    end
-    
-    if isempty(Args.BasePath)
-        % generate default BasePath - e.g., '/last01e/data1/archive'
+    if isempty(Args.ProjName)
+        % ProjName is empty - construct the default LAST camera address:
         switch HostName(end)
             case 'e'
                 % East computer controls cameras 1 & 2
@@ -54,11 +46,23 @@ function runPipeLAST(DataNumber, Args)
                 error('Unknown host name template')
         end
         MountNumber = HostName(5:6);
-        ProjName = sprintf('%s.%d.%s.%d',Args.ProjName, Args.NodeNumber, MountNumber, CameraNumber);
-        Args.BasePath = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,ProjName);
+        Args.ProjName = sprintf('%s.%d.%s.%d',Args.ProjName, Args.NodeNumber, MountNumber, CameraNumber);
     end
     
+    BasePathDefault =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', Args.ProjName);
+    if isempty(Args.NewFilesDir)
+        % generate NewFilesDir
+        Args.NewFilesDir = fullfile(BasePathDefault, filesep, 'new');
+    end
+    if isempty(Args.DarkFlatDir)
+        % generate DarkFlatDir
+        Args.DarkFlatDir = fullfile(BasePathDefault, filesep, 'calib');
+    end
     
+    if isempty(Args.BasePath)
+        % generate default BasePath - e.g., '/last01e/data1/archive/LAST.1.12.3'
+        Args.BasePath = BasePathDefault;
+    end
     
     StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, 'stop');
     
