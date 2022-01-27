@@ -55,7 +55,7 @@ function runPipeLAST(DataNumber, Args)
         end
         MountNumber = HostName(5:6);
         ProjName = sprintf('%s.%d.%s.%d',Args.ProjName, Args.NodeNumber, MountNumber, CameraNumber);
-        Args.BasePath = sprintf('%s%s%s%s%d%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive');
+        Args.BasePath = sprintf('%s%s%s%s%d%s%s%s%s',filesep, HostName, filesep, 'data', DataNumber, filesep, 'archive',filesep,ProjName);
     end
     
     
@@ -117,6 +117,8 @@ function runPipeLAST(DataNumber, Args)
         IP       = ImagePath.parseFileName({SciFiles.name});
         IP.setAllVal('BasePath', Args.BasePath);
         IP.setAllVal('DataDir',  Args.DataDir);
+        IP.setAllVal('ProjName',  ProjName);
+        
         % find the latest image
         IP.setTime;   % make sure JD is populated
         IP.sortByJD;
