@@ -194,7 +194,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     Args.PM_Radius   = convert.angular(Args.PM_RadiusUnits, 'deg', Args.PM_Radius); % deg
     LinkingRadiusRad = convert.angular(Args.LinkingRadiusUnits, 'rad', Args.LinkingRadius);  % rad
     
-    
+    AstrCrop = [];
     
     %[MergedCat, MatchedS, Result] = pipeline.generic.mergeCatalogs(AllSI)
     
