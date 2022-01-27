@@ -669,9 +669,9 @@ classdef ImagePath < Base %Component
             
             AllCounter = mod([Obj(1:Ind).Counter], ModNumber+1);
             
-            AllCounter = [AllCounter, 0];
+            AllCounter = [Inf, AllCounter, 0];
             I = find(diff(AllCounter)<0, 2, 'last');
-            Ind = (I(1)+1:I(2));
+            Ind = (I(1):I(2)-1);
         end
         
         function Obj = setAllVal(Obj, Prop, Val)
