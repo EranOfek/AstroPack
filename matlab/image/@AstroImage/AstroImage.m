@@ -250,6 +250,11 @@ classdef AstroImage < Component
                         
                     else
                         % ImageData
+                        if ischar(FileNames)
+                            FN = {FileNames};
+                        else
+                            FN = FileNames;
+                        end
                         Obj = AstroImage.readImages2AstroImage(FileNames,'HDU',Args.HDU,...
                                                                         'Obj',[],...
                                                                         'CCDSEC',Args.CCDSEC,...
@@ -257,7 +262,8 @@ classdef AstroImage < Component
                                                                         'UseRegExp',Args.UseRegExp,...
                                                                         'Scale',Args.Scale,...
                                                                         'ReadHeader',Args.ReadHeader,...
-                                                                        'DataProp','ImageData');
+                                                                        'DataProp','ImageData',...
+                                                                        'FileNames',FN);
                                                                         
                         % Other data properties
                         ListProp  = {'Back','Var','Mask'};
@@ -320,21 +326,29 @@ classdef AstroImage < Component
     end
 
     methods (Static) % utilities
-        function Obj = imageIO2AstroImage(ImIO, DataProp, Scale, CopyHeader, Obj)
+        function Obj = imageIO2AstroImage(ImIO, DataProp, Scale, FileNames, CopyHeader, Obj)
             % Convert an ImageIO object into an AstroImage object
             % Input  : - An ImageIO object.
             %          - data property in which to store the image.
             %          - Scale of the image.
+            %          - A cell array of file names to write to the
+            %            ImageComponent.FileName property.
+            %            Default is {}.
             %          - A logical indicating if to copy the header.
+            %            Default is true.
             %          - An AstroImage object in which to put the data.
             %            If empty, create a new object. Default is empty.
             % Output : - An AstroImage object.
             % Author : Eran Ofek (Apr 2021)
             % Example: AI=AstroImage.imageIO2AstroImage(ImIO, 'ImageData', [], true)
        
-            if nargin<5
-                % create new Obj
-                Obj = [];
+            arguments
+                ImIO
+                DataProp
+                Scale
+                FileNames            = {};
+                CopyHeader logical   = true;
+                Obj                  = [];
             end
             
             if isempty(Obj)
@@ -354,6 +368,10 @@ classdef AstroImage < Component
             for Iobj=1:1:Nobj
                 Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
                 Obj(Iobj).(DataProp).Scale = Scale;
+                if ~isempty(FileNames)
+                    Obj(Iobj).(DataProp).FileName = FileNames{Iobj};
+                end
+                
                 if CopyHeader
                     Obj(Iobj).HeaderData.Data = ImIO(Iobj).Header;
                 end
@@ -387,6 +405,9 @@ classdef AstroImage < Component
             %            'DataProp' - AstroImage data property in wjich to
             %                   store the data. Default is 'ImageData'.
             %            'ReadHeader' - Default is true.
+            %            'FileNames' - A cell array of file names to write
+            %                   in the ImageComponent.FileName property.
+            %                   Default is {}.
             % Outout : - An AstroImage object with the images stored in the
             %            requested field.
             % Author : Eran Ofek (Apr 2021)
@@ -410,6 +431,7 @@ classdef AstroImage < Component
                 Args.Scale                  = [];
                 Args.DataProp               = 'ImageData';
                 Args.ReadHeader             = true;
+                Args.FileNames cell         = {};
             end
             
                 
@@ -430,7 +452,7 @@ classdef AstroImage < Component
                 otherwise
                     error('DataProp %s is not supported',Args.DataProp);
             end
-            Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.ReadHeader, Args.Obj);
+            Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
             
             
         end
