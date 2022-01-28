@@ -26,6 +26,11 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
     %                   subtraction (will be used both on the bias
     %                   and target images). If empty, use the
     %                   entire image. Default is [].
+    %            'BiasFileNameInHeader' - A logical indicating if to add
+    %                   the bias name to the resulted image header.
+    %                   Default is true.
+    %            'KeyBias' - Keyword name in which to store the bias image
+    %                   name. Default is 'BIAS_IM'.
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
@@ -46,12 +51,14 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
 
     arguments
         ImObj AstroImage
-        Bias                            = [];  % A bias (AstroImage) image 
-        Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
-        Args.IsBias                     = @imProc.dark.isBias;  % @isBias, @isDark, vector of logical or [] - use all.                
-        Args.BiasArgs cell              = {};
-        Args.CCDSEC                     = [];
-        Args.CreateNewObj               = [];
+        Bias                              = [];  % A bias (AstroImage) image 
+        Args.BitDictinaryName             = 'BitMask.Image.Default';  % char array or BitDictionary
+        Args.IsBias                       = @imProc.dark.isBias;  % @isBias, @isDark, vector of logical or [] - use all.                
+        Args.BiasArgs cell                = {};
+        Args.CCDSEC                       = [];
+        Args.BiasFileNameInHeader logical = true;
+        Args.KeyBias                      = 'BIAS_IM';
+        Args.CreateNewObj                 = [];
     end
 
     if isempty(Args.CreateNewObj)
@@ -97,5 +104,9 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
                                                 'UseOrForMask',true,...
                                                 'CreateNewObj',false,...
                                                 'Result',Result);
-
+                                            
+    % write the original bias name to header
+    if Args.BiasFileNameInHeader
+        Result.funHeader(Args.KeyBias, Bias.ImageData.FileName);
+    end
 end

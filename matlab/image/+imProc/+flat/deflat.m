@@ -29,6 +29,11 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
     %                   subtraction (will be used both on the bias
     %                   and target images). If empty, use the
     %                   entire image. Default is [].
+    %            'FlatFileNameInHeader' - A logical indicating if to add
+    %                   the flat name to the resulted image header.
+    %                   Default is true.
+    %            'KeyFlat' - Keyword name in which to store the flat image
+    %                   name. Default is 'FLAT_IM'.
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
@@ -56,12 +61,14 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
 
     arguments
         ImObj AstroImage
-        Flat                            = [];  % A flat (AstroImage) image 
-        Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
-        Args.IsFlat                     = @imProc.flat.isFlat;  % @isBias, @isDark, vector of logical or [] - use all.                
-        Args.FlatArgs cell              = {};
-        Args.CCDSEC                     = [];
-        Args.CreateNewObj               = [];
+        Flat                              = [];  % A flat (AstroImage) image 
+        Args.BitDictinaryName             = 'BitMask.Image.Default';  % char array or BitDictionary
+        Args.IsFlat                       = @imProc.flat.isFlat;  % @isBias, @isDark, vector of logical or [] - use all.                
+        Args.FlatArgs cell                = {};
+        Args.CCDSEC                       = [];
+        Args.FlatFileNameInHeader logical = true;
+        Args.KeyFlat                      = 'FLAT_IM';
+        Args.CreateNewObj                 = [];
     end
 
     if isempty(Args.CreateNewObj)
@@ -107,5 +114,8 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
                                                 'UseOrForMask',true,...
                                                 'CreateNewObj',false,...
                                                 'Result',Result);
-
+    % write the original flat name to header
+    if Args.FlatFileNameInHeader
+        Result.funHeader(Args.KeyFlat, Flat.ImageData.FileName);
+    end
 end
