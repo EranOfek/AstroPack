@@ -1,5 +1,5 @@
 %--------------------------------------------------------------------------
-% DS9 class                                                          class
+% ds9 class                                                          class
 % Description: A static class for intearction with the ds9 display.
 %              This include functions to load images, change their
 %              properties, create and plot region files, printing, image
@@ -115,6 +115,7 @@ classdef ds9 < handle
             %            5. A cube (display a cube).
             %            6. Cell array of matrices.
             %            7. A SIM object.
+            %            8. An AstroImage object.
             %          * A vector of frames (see 'Frame') in which to load
             %            the images into followed by ...,key,val,... pairs,
             %            or just the ...,key,val,... pairs.
@@ -139,8 +140,12 @@ classdef ds9 < handle
 
             % O.S. added test for ds9 working window
             
-            ds9.disp(Image,varargin{:});
-            clear Obj; % Output Object Not Assigned, therefore need to clear it
+            if nargin==0
+                ds9.open;
+            else
+                ds9.disp(Image,varargin{:});
+                clear Obj; % Output Object Not Assigned, therefore need to clear it
+            end
         end
         
     end
@@ -284,12 +289,11 @@ classdef ds9 < handle
             % Example: ds9.open
             % Reliable: 2
             Wait = 3;  % s
-            IsOpen = ds9.isopen;
-            if (IsOpen)
+            if ds9.isopen
                 % do nothing - already open
                 fprintf('ds9 is already open\n');
             else
-                Status = system('ds9&');
+                [Status, Res] = system('ds9&');
                 if (Status~=0)
                     warning('Can not open ds9');
                 else
@@ -1061,19 +1065,19 @@ classdef ds9 < handle
             %                         object then the first exitsing column
             %                         name will be used.
             %                         Default is
-            %                         {'XWIN_IMAGE','X','X_IMAGE'}.
+            %                         {'X','X1','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK','x'};
             %             'ColNameY'- Like 'ColNameX', but for the Y
             %                         coordinate.
             %                         Default is
-            %                         {'YWIN_IMAGE','Y','Y_IMAGE'}.
+            %                         {'Y','Y1','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK','y'}
             %             'ColNameRA'-Like 'ColNameX', but for the RA
             %                         coordinate.
             %                         Default is
-            %                         {'ALPHAWIN_IMAGE','RA'}.
+            %                         {'RA','Mean_RA','Median_RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
             %             'ColNameDec'-Like 'ColNameX', but for the Dec
             %                         coordinate.
             %                         Default is
-            %                         {'DELTAWIN_IMAGE','DEC'}.
+            %                         {'Dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
             % Output : - Region file name.
             % See also: ds9.plot
             % Example: FileName=write_region(Cat);
@@ -1094,10 +1098,10 @@ classdef ds9 < handle
                 Args.Font            = 'helvetica';  %'helvetica 16 normal'
                 Args.FontSize        = 16;
                 Args.FontStyle       = 'normal';
-                Args.ColNameX        = {'XWIN_IMAGE','X','X_IMAGE'};
-                Args.ColNameY        = {'YWIN_IMAGE','Y','Y_IMAGE'};
-                Args.ColNameRA       = {'ALPHAWIN_J2000','RA'};
-                Args.ColNameDec      = {'DELTAWIN_J2000','Dec'};
+                Args.ColNameX        = AstroCatalog.DefNamesX; %{'X','X1','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK','x'};
+                Args.ColNameY        = AstroCatalog.DefNamesY;
+                Args.ColNameRA       = AstroCatalog.DefNamesRA;
+                Args.ColNameDec      = AstroCatalog.DefNamesDec;
             end
             
             % check if region file exist
@@ -1134,6 +1138,14 @@ classdef ds9 < handle
                 
                 X = col_get(Cat,ColNameX);
                 Y = col_get(Cat,ColNameY);
+            elseif isa(Cat, 'AstroCatalog')
+               if IsXY
+                   [X, Y] = getXY(Cat, 'ColX', Args.ColNameX, 'ColY', Args.ColNameY);
+               else
+                   [X, Y] = getLonLat(Cat, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
+                   Args.Units = 'deg';
+               end
+                
             else
                 % Assume Cat is a two column matrix [X,Y]
                 X = Cat(:,1);
@@ -1319,7 +1331,7 @@ classdef ds9 < handle
         end
         
         function plotc(varargin)
-            % Generate and plot a region file from a list of celestial coordinates
+            % Generate and plot a region file from a list of celestial coordinates [RA, Dec]
             % Package: @ds9
             % Input  : * see ds9.plot(...,'Coo','fk5')
             
