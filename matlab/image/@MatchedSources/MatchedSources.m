@@ -13,7 +13,7 @@
 %   DimSrc   - Dim of sources (constant) = 2
 % Methods:
 %   read (static) - Read a mat/hdf5 into MatchedSources
-%   write - Write a MatchedSources into mat/hdf5 file.
+%   write1 - Write a MatchedSources into mat/hdf5 file.
 %   addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data.
 %   getMatrix - Get matrix using field name.
 %   summary   - Summary of a specific field matrix in MatchedSources.
@@ -132,7 +132,7 @@ classdef MatchedSources < Component
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
-            %          MS.write('try.hdf5')
+            %          MS.write1('try.hdf5')
             %          clear MS;
             %          MS = MatchedSources.read('try.hdf5');
             %          MS1 = MatchedSources.read('try.hdf5','Fields','FLUX');
@@ -204,7 +204,7 @@ classdef MatchedSources < Component
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
-            %          MS.write('try.hdf5')
+            %          MS.write1('try.hdf5')
             
             arguments
                 Obj(1,1)

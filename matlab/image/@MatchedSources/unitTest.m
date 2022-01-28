@@ -4,16 +4,16 @@ function Result = unitTest()
 	% write
 	io.msgLog(LogLevel.Test, 'testing MatchedSources write');
 	MS = MatchedSources;
-	MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
-	MS.write('try.hdf5')
+	MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'});
+	MS.write1('try.hdf5')
 	delete('try.hdf5');
 	
 	% read
 	io.msgLog(LogLevel.Test, 'testing MatchedSources read');
 	clear MS
 	MS = MatchedSources;
-	MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'})
-	MS.write('try.hdf5')
+	MS.addMatrix({rand(100,200),rand(100,200)},{'FLUX','MAG'});
+	MS.write1('try.hdf5');
 	clear MS;
 	% read all Fields
 	MS = MatchedSources.read('try.hdf5');
@@ -24,7 +24,7 @@ function Result = unitTest()
 	% addMatrix
 	io.msgLog(LogLevel.Test, 'testing MatchedSources addMatrix');
 	MS = MatchedSources;
-	MS.addMatrix(rand(100,200),'FLUX')
+	MS.addMatrix(rand(100,200),'FLUX');
 	MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
 	
 	St.X2=rand(100,200);
@@ -71,7 +71,7 @@ function Result = unitTest()
 	io.msgLog(LogLevel.Test, 'testing MatchedSources designMatrix');
 	clear MS
 	MS = MatchedSources;
-	MS.addMatrix(rand(100,200),'FLUX')
+	MS.addMatrix(rand(100,200),'FLUX');
 	MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
 	St.X2=rand(100,200);
 	MS.addMatrix(St);
@@ -82,7 +82,7 @@ function Result = unitTest()
 	% notNanSources
 	io.msgLog(LogLevel.Test, 'testing MatchedSources notNanSources');
 	MS = MatchedSources;
-	MS.addMatrix(rand(100,200),'FLUX')
+	MS.addMatrix(rand(100,200),'FLUX');
 	MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
 	St.X2=rand(100,200);
 	MS.addMatrix(St);
