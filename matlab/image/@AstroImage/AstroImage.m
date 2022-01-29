@@ -53,6 +53,7 @@
 % Functionality (Static):
 %       imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
 %       readImages2AstroImage - Create AstroImage object and read images into a specific property.
+%       help - show mlx manual
 %       unitTest - unitTest for AstroImage
 
 % #functions (autogen)
@@ -2666,6 +2667,11 @@ classdef AstroImage < Component
     %----------------------------------------------------------------------
         
     methods (Static)
+        function help
+            % show mlx manual for AstroImage
+            open manuals.classes.AstroImage
+        end
+        
         Result = unitTest()
             % Unit-Test
             
