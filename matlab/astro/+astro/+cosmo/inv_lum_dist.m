@@ -62,7 +62,7 @@ Ndm     = length(DM);
 
 Z       = zeros(Ndm,1);
 for Idm=1:1:Ndm
-   Z(Idm) = Util.find.fun_binsearch(@astro.cosmo.lum_dist,LumDist(Idm),[1e-15 100],1e-3,CosmoPars);
+   Z(Idm) = tools.find.fun_binsearch(@astro.cosmo.lum_dist,LumDist(Idm),[1e-15 100],1e-3,CosmoPars);
 end
 
 
