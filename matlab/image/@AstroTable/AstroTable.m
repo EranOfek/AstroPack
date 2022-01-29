@@ -1939,7 +1939,7 @@ classdef AstroTable < Component
         function help
             % show help in manuals.AstroTable
             
-            open manuals.AstroTable
+            open manuals.classes.AstroTable
         end
     end
 
