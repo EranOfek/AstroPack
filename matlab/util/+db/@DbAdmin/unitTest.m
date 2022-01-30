@@ -15,78 +15,76 @@ function Result = unitTest()
     Q = db.DbQuery('unittest');
     Admin = db.DbAdmin('DbQuery', Q);
     
-    % Add column to table
-    Admin.addColumn('master_table', {'MyColA'}, {'INTEGER'}, {'DEFAULT 0'});
-    
-    
-    
     % Create DbAdmin without connection, use it to create Config file
     Admin = db.DbAdmin();    
-    ConfigFileName = Admin.createConnectionConfig('DatabaseName', 'unittest5', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+    ConfigFileName = Admin.createConnectionConfig('DatabaseName', 'admin_db', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
     assert(~strcmp(ConfigFileName, ''));
-    
-    %Admin.createDatabase('SqlFileName', 'D:\Ultrasat\AstroPack.git\database\xlsx\unittest\unittest3a.sql');
+
     
     % Create DbAdmin from arguments
-    Admin = db.DbAdmin('Host', 'gauss', 'Port', 5432, 'UserName', 'postgres', 'Password', 'PassRoot', 'DatabaseName', 'postgres');
-    %Admin.createDatabase('XlsFileName', 'D:\Ultrasat\AstroPack.git\database\xlsx\unittest5.xlsx');
-    
-    % Create table with specified SQL text
-    SqlText = [...
-        'CREATE TABLE public.table4aa '...
-        'RecID VARCHAR NOT NULL,'...
-        'FDouble1 DOUBLE PRECISION DEFAULT 0,'...
-        'FInt1 INTEGER DEFAULT 0,'...
-        'FString1 VARCHAR,'...
-        'CONSTRAINT table3_pkey PRIMARY KEY(RecID)'...
-        ');' ];
-
-    Admin.createTable('SqlText', SqlText);
-
+    Admin = db.DbAdmin('Host', 'localhost', 'Port', 5432, 'UserName', 'Admin', 'Password', 'Passw0rd', 'DatabaseName', 'unittest');    
     
     
     % Get list of databases
-    DbList = Admin.getDbList();
+    DbList1 = Admin.getDbList();
     
-    % Get list of users (roles)
-    UserList = Admin.getUserList();
-
-
-    %Admin = db.DbAdmin('Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+    % Create DB from sqlfile
+    Admin.createDatabase('SqlFileName', 'unitTest_createDatabase.sql');
     
-    %Admin.xls2sql('D:\Ultrasat\AstroPack.git\database\xlsx\unittest4.xlsx');
+    % Create DB from xls
+    %Admin.createDatabase('XlsFileName', 'unitTest_createDatabase.xlsx');
     
-    Admin.createDatabase('SqlFileName', 'D:\Ultrasat\AstroPack.git\database\xlsx\unittest\unittest2.sql');
+    % Create DB with args - no support yet
     
     
-    %Admin.createTable('SqlFileName', 'D:\Ultrasat\AstroPack.git\database\xlsx\unittest\unittest_table3.sql');
     
     % Create table with specified SQL text
     SqlText = [...
-        'CREATE TABLE public.table4aa '...
+        'DROP TABLE IF EXISTS newtable_1; '...
+        'CREATE TABLE newtable_1 ('...
         'RecID VARCHAR NOT NULL,'...
         'FDouble1 DOUBLE PRECISION DEFAULT 0,'...
         'FInt1 INTEGER DEFAULT 0,'...
         'FString1 VARCHAR,'...
-        'CONSTRAINT table3_pkey PRIMARY KEY(RecID)'...
+        'CONSTRAINT table1_pkey PRIMARY KEY(RecID)'...
         ');' ];
 
     Admin.createTable('SqlText', SqlText);
+    
+    % Create table with args
+    Admin.createTable('TableName', 'newtable_2', 'PrimaryKeyDef', 'new_Pkey int');
+    
+    % Create table with sql file
+    Admin.createTable('SqlFileName', 'unitTest_createTable.sql');
+    
+    
+    % Add column to table
+    Admin.addColumn('newtable_1', {'MyColA'}, {'INTEGER'}, {'DEFAULT 0'});
+    
 
     % Add index to table
-    %IndexList1 = Q.getTableIndexList('master_table');
-    %Admin.addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
-    %IndexList2 = Q.getTableIndexList('master_table');
-        
+    index_added = 0;
+    IndexList1 = Q.getTableIndexList('newtable_1');
+    index_added = Admin.addIndex('newtable_1', 'newtable_1_idx_FDouble5', 'USING btree (FDouble1)');
+    IndexList2 = Q.getTableIndexList('newtable_1');
+    assert((index_added == 1) && (length(IndexList2) == length(IndexList1)+1));
 
 
     % Users:
+    % Get list of users (roles)
+    UserList1 = Admin.getUserList();    
     
     % Add user
-    %Admin.addUser('Test1', 'Password1');
+    Admin.addUser('Test1', 'Password1');
+    UserList2 = Admin.getUserList();
+    
+    assert(length(UserList2) == length(UserList1)+1);
 
     % Remove user
-    %Admin.removeUser('Test1');
+    Admin.removeUser('Test1');
+    UserList3 = Admin.getUserList();
+    
+    assert(length(UserList3) == length(UserList1));
     
     io.msgStyle(LogLevel.Test, '@passed', 'DbAdmin test passed');
     Result = true;
