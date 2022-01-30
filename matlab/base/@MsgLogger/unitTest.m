@@ -61,7 +61,7 @@ function Result = unitTest()
     try
         throw(MException('MyFunc:MyExType', 'This is my message'));
     catch Ex
-        M.msgLogEx(LogLevel.Error, Ex, 'elapsed time: %f', toc);
+        M.msgLogEx(LogLevel.Error, Ex, 'Catched exception');
     end
     
     % Create another logger, besides the singleton one.

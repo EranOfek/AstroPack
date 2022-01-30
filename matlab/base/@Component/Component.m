@@ -209,6 +209,20 @@ classdef Component < Base
                 Obj(i).Log.msgStyle(Level, Style, vararg{:});
             end
         end
+        
+        
+        function msgLogEx(Obj, Level, Ex, varargin)
+            % Log MException message to console/file according to current LogLevel settings
+            % Input:   Level    - LogLevel enumeration, see LogLevel.m
+            %          Ex       - MException object
+            %          varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
+            
+            m = MsgLogger.getSingleton();
+            m.msgLogEx(Level, Ex, varargin{:});            
+        end
+        
     end
 
 

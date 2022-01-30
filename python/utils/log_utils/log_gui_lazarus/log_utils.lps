@@ -7,10 +7,9 @@
       <Unit0>
         <Filename Value="log_utils.lpr"/>
         <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="-1"/>
         <CursorPos X="49" Y="20"/>
         <UsageCount Value="220"/>
-        <Loaded Value="True"/>
       </Unit0>
       <Unit1>
         <Filename Value="util_datamod.pas"/>
@@ -18,6 +17,7 @@
         <ComponentName Value="AppDataModule"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="DataModule"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="41" Y="18"/>
         <UsageCount Value="217"/>
@@ -37,6 +37,7 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="-1"/>
+        <CursorPos X="6" Y="14"/>
         <UsageCount Value="20"/>
       </Unit3>
       <Unit4>
@@ -86,6 +87,9 @@
         <UsageCount Value="25"/>
       </Unit8>
     </Units>
+    <General>
+      <ActiveWindowIndexAtStart Value="-1"/>
+    </General>
     <JumpHistory HistoryIndex="-1"/>
     <RunParams>
       <FormatVersion Value="2"/>

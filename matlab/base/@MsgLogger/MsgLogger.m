@@ -21,18 +21,38 @@ classdef MsgLogger < handle
 
     % Properties
     properties (SetAccess = public)
-        Enabled logical         % True to enable logging
         CurFileLevel LogLevel   % Current level for log file
         CurDispLevel LogLevel   % Current level for display
         Console                 % True to print messages to console
-        LogF LogFile            % Log file
+        Enabled logical         % True to enable logging        
+        LogF LogFile            % Log file, used internally
         UserData                % Optional
     end
 
     %--------------------------------------------------------
     methods % Constructor
         function Obj = MsgLogger(Args)
-            % Usage with a singleton logger:
+            % Construct Logger to file & console
+            % Note that the file is never truncated or erased, by aware of
+            % large log files. @Todo - improve this, add automatic cyclic.
+            
+            % There are two options to use MsgLogger, one with the singleton
+            % instance, and the other by creating an object.
+            %
+            % 1. Usage with a singleton logger:
+            %
+            %   You can get the singleton instance by calling MsgLogger.getSingleton()
+            %   or by using io.msgLog():
+            %
+            %       M = MsgLogger.getSingleton('FileName', fullfile(Path, 'UnitTestLogger'), 'UseTimestamp', true);
+            %       M = MsgLogger.getSingleton()
+            %       M.msgLog(LogLevel.Debug, 'My message');
+            %       io.msgLog(LogLevel.Debug, 'My message');
+            %
+            %       Note that each class derived from Component has log functions
+            %       that use its 'Log' property (Log MsgLogger) which is set
+            %       by Component's constructor to the singleton:
+            %       i.e. Obj.Log = MsgLogger.getSingleton();
             %
             %   Call first to create the singleton with the file name.
             %   Must be called before creating Configuration object which
@@ -60,7 +80,16 @@ classdef MsgLogger < handle
             %
             %   io.msgLog(LogLevel.Info, 'This should go to file only');              
             %   io.msgLog(LogLevel.Warning, 'This should go to file and display');
-            %            
+            %
+            % 2. Usage with user instnace, it allows having many loggers in the system:
+            %
+            %   MyLog = MsgLogger('FileName', fullfile(Path, 'OtherLogFile'), 'UseTimestamp', true);
+            %   MyLog.setLogLevel(LogLevel.Info, 'type', 'file');            
+            %   MyLog.setLogLevel(LogLevel.Warning, 'type', 'disp');                
+            %   MyLog.msgLog(LogLevel.Test,    'Test: %d', uint32(LogLevel.Test));
+            %   MyLog.msgLog(LogLevel.Debug,   'Test: %d', uint32(LogLevel.Debug));
+            %   MyLog.msgLog(LogLevel.Info,    'Test: %d', uint32(LogLevel.Info));
+            %
             arguments
                 Args.FileName = 'AstroPackLog'  % Log file name, if empty it uses the singleton object
                 Args.UseTimestamp = false       % True to add timestamp to file name
@@ -80,9 +109,9 @@ classdef MsgLogger < handle
             
             %
             persistent ConfigLoaded;
+            persistent AddPath;                            
             if Args.LoadConfig && isempty(ConfigLoaded)
                 ConfigLoaded = true;
-                persistent AddPath;
                 if isempty(AddPath)
                     AddPath = true;
                     MyFileName = mfilename('fullpath');
@@ -286,6 +315,8 @@ classdef MsgLogger < handle
                     s = 'PRF';
 				case LogLevel.Test
 					s = 'TST';                    
+				case LogLevel.All
+					s = 'ALL';
 				otherwise
 					error('Unknown LogLevel');
             end

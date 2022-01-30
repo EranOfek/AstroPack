@@ -1,3 +1,21 @@
+% NOTE: Remember to set environment variable ASTROPACK_PATH to AstroPack root folder
+%
+% The default matlab startup script for AstroPack
+%
+% Open with: edit(fullfile(userpath,'startup.m'))
+%
+% startup.m folder:
+%
+% Linux:   
+%   Eran    - /home/eran/Documents/MATLAB/startup.m (Check)
+%   Yossi   - /home/yossi/Documents/MATLAB/startup.m (Check)
+%   Chen VM - /home/chent/Documents/MATLAB/startup.m
+%
+% Windows: 
+%   Chen Desktop - C:\Users\chen\Documents\MATLAB\startup.m
+%   Chen Laptop  - C:\Users\chent\OneDrive\Documents\MATLAB\startup.m
+%
+
 function startup(Args)
     % Startup file for AstroPack
     % Input  : ...,key,val,...
@@ -31,9 +49,6 @@ function startup(Args)
     % Author : Eran Ofek (Jan 2022)
     % Example: startup,
     %          startup('AstroPack_CatsHTMPath','/last01/data/catsHTM','AstroPack_BasePath',  '/home/last01/ocs/matlab/LAST/AstroPack', 'AstroPack_ConfigPath','/home/last01/ocs/matlab/LAST/AstroPack/config', 'AstroPack_DataPath','/home/last01/ocs/matlab/data');
-    
-    
-    
     
     arguments
         Args.setGraphics logical         = true;
@@ -126,18 +141,17 @@ function startup(Args)
         Ndir = numel(Tmp);
         for Idir=1:1:Ndir
             FullPath = sprintf('%s%s%s%s%s%s%s',fullfile(Tmp{Idir}{:}));
-            % fprintf('AstroPack doStartup() addpath: %s\n', FullPath);
+            % fprintf('AstroPack startup addpath: %s\n', FullPath);
             if exist(FullPath,'dir')
                 addpath(FullPath);
                 PathCount = PathCount + 1;
             end
         end
     end
-    fprintf('AstroPack startup() addpath count: %d\n', PathCount);
-
-    fprintf('AstroPack startup() done: %s\n', mfilename('fullpath'));
-  
+    fprintf('AstroPack startup addpath count: %d\n', PathCount);
+    fprintf('AstroPack startup done: %s\n', mfilename('fullpath'));
 end
+
 
 function setGraphics
     % define graphics defaults

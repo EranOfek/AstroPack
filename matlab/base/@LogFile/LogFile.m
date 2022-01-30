@@ -20,12 +20,13 @@
 classdef LogFile < handle
     % Properties
     properties (SetAccess = public)
-        FileName            % File name
-        Fid = []            % File handle
-        UserData            % Optional user data
-        LogPath = ''        % 'C:\\_Ultrasat\\log'
-        Timestamp = ''      % Timestamp when log file created
-        UseFlush = true     % DO NOT CHANGE - It does not work without calling close() (Chen, 13/06/2021)
+        FileName                % File name
+        Fid = []                % File handle
+        UserData                % Optional user data
+        LogPath = ''            % 'C:\\_Ultrasat\\log'
+        Timestamp = ''          % Timestamp when log file created
+        MaxFileSize = 10000000  % Limit file size automatic switching, will be renamed to '.old', default is 10MB
+        UseFlush = true         % Due to issue with fflush(), fclose() is called on each write (Chen, 13/06/2021), @Todo
     end
 
     %--------------------------------------------------------
@@ -134,8 +135,31 @@ classdef LogFile < handle
             fprintf(Obj.Fid, varargin{:});
             fprintf(Obj.Fid, '\n');
 
+            % Check file size and switch
+            if Obj.MaxFileSize > 0
+                FileSize = ftell(Obj.Fid);
+                if FileSize >= Obj.MaxFileSize
+                    fprintf('LogFile: Switching file, current size: %d, MaxFileSize: %d - %s\n', FileSize, Obj.MaxFileSize, Obj.FileName);
+                    
+                    % Close file
+                    fprintf(Obj.Fid, '%s > Switching file, current size: %d, MaxFileSize: %d\n', Obj.getTimestamp(), FileSize, Obj.MaxFileSize);
+                    fclose(Obj.Fid);
+                    Obj.Fid = [];
+                    
+                    % Rename file, delete existing .old if exists
+                    [TmpPath, TmpFileName, TmpExt] = fileparts(Obj.FileName);
+                    OldName = fullfile(TmpPath, strcat(TmpFileName, '.old'));
+                    if isfile(OldName)
+                        delete(OldName);
+                    end
+                    movefile(Obj.FileName, OldName);                    
+                end
+            end
+            
             % Close file, NOTE: fflush() does not work well (why?)
-            if Obj.UseFlush
+            % @Todo - Fix to work with fflush() and not with fclose()
+            %if Obj.UseFlush
+            if ~isempty(Obj.Fid)
                 fclose(Obj.Fid);
                 Obj.Fid = [];
             end
