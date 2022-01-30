@@ -41,10 +41,12 @@ classdef LogFile < handle
             arguments
                 FileName = ''               % File name
                 Args.UseTimestamp = false   % True to add timestamp to file name, 
+                Args.MaxFileSize = 10000000 % Maximum file size before switching to '.old'
             end
 
             % Make timestamp
             Obj.Timestamp = Obj.getFileNameTimestamp();            
+            Obj.MaxFileSize = Args.MaxFileSize;
             
             % Empty file name, use default
             if isempty(FileName)
