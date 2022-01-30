@@ -32,27 +32,46 @@ classdef MsgLogger < handle
     %--------------------------------------------------------
     methods % Constructor
         function Obj = MsgLogger(Args)
-            % Construct Logger to file & console
-            % Note that the file is never truncated or erased, by aware of
-            % large log files. @Todo - improve this, add automatic cyclic.
-            
+            % Construct Logger (file and console)
+            % Input:   'FileName'       - File name, if empty is the singleton LogFile instance
+            %          'UseTimestamp'   - true - 
+            %          'MaxFileSize'    - > 0, switch file to '.old' when reaches file size
+            %          'Console'        - true to log also to console using fprintf()
+            %          'LoadConfig'     - 
+            %
+            % Example: 
+            %   M = MsgLogger.getSingleton()
+            %   M.msgLog(LogLevel.Debug, 'My message');
+            %
+            % From any object:            
+            %   Obj.msgLog(LogLevel.Debug, 'My message');
+            %
+            % 
+            %   MyLog = MsgLogger('FileName', '/tmp/my_log_file');
+            %   MyLog.msgLog(LogLevel.Debug,  'My log message');
+            %
+
+            %
             % There are two options to use MsgLogger, one with the singleton
-            % instance, and the other by creating an object.
+            % instance, and the other by creating an object instance.
+            % This allows having multiple log files in the system.
             %
             % 1. Usage with a singleton logger:
             %
             %   You can get the singleton instance by calling MsgLogger.getSingleton()
             %   or by using io.msgLog():
             %
-            %       M = MsgLogger.getSingleton('FileName', fullfile(Path, 'UnitTestLogger'), 'UseTimestamp', true);
             %       M = MsgLogger.getSingleton()
             %       M.msgLog(LogLevel.Debug, 'My message');
+            %
+            %   is equvalent to
+            %
             %       io.msgLog(LogLevel.Debug, 'My message');
             %
-            %       Note that each class derived from Component has log functions
-            %       that use its 'Log' property (Log MsgLogger) which is set
-            %       by Component's constructor to the singleton:
-            %       i.e. Obj.Log = MsgLogger.getSingleton();
+            %   Note that each class derived from Component has log functions
+            %   that use its 'Log' property (Log MsgLogger) which is set
+            %   by Component's constructor to the singleton,
+            %   i.e. Obj.Log = MsgLogger.getSingleton()
             %
             %   Call first to create the singleton with the file name.
             %   Must be called before creating Configuration object which
@@ -90,11 +109,13 @@ classdef MsgLogger < handle
             %   MyLog.msgLog(LogLevel.Debug,   'Test: %d', uint32(LogLevel.Debug));
             %   MyLog.msgLog(LogLevel.Info,    'Test: %d', uint32(LogLevel.Info));
             %
+            %
             arguments
                 Args.FileName = 'AstroPackLog'  % Log file name, if empty it uses the singleton object
                 Args.UseTimestamp = false       % True to add timestamp to file name
+                Args.MaxFileSize = 10000000     % Maximum file size, used when 'FileName' is not empty
                 Args.Console = true             % True to print messages to console
-                Args.LoadConfig = true;         % True to load configuration settings
+                Args.LoadConfig = true;         % True to load configuration settings from config/MsgLogger.yml
             end
             Obj.Enabled = true;
             Obj.CurFileLevel = LogLevel.All;
@@ -104,7 +125,8 @@ classdef MsgLogger < handle
             if isempty(Args.FileName)
                 Obj.LogF = LogFile.getSingleton();
             else
-                Obj.LogF = LogFile(Args.FileName, 'UseTimestamp', Args.UseTimestamp);
+                Obj.LogF = LogFile(Args.FileName, 'UseTimestamp', Args.UseTimestamp, ...
+                    'MaxFileSize', Args.MaxFileSize);
             end
             
             %
@@ -119,15 +141,23 @@ classdef MsgLogger < handle
                     ExternalPath = fullfile(MyPath, '..', '..', 'external');
                     addpath(ExternalPath);                
                 end
-            
+
+                % Load config file from config/local/ or from config/
                 Path = Configuration.getSysConfigPath();
-                FileName = fullfile(Path, 'MsgLogger.yml');
-                Conf = yaml.ReadYaml(string(FileName).char);
+                FileName = fullfile(Path, 'local', 'MsgLogger.yml');
+                if ~isfile(FileName)
+                    FileName = fullfile(Path, 'MsgLogger.yml');
+                end
                 
+                % Load settings
+                Conf = yaml.ReadYaml(string(FileName).char);                
                 if ~isempty(Conf)
                     Obj.CurFileLevel = eval(Conf.MsgLogger.FileLevel);
                     Obj.CurDispLevel = eval(Conf.MsgLogger.DispLevel);
                     Obj.Console = Conf.MsgLogger.Console;
+                    
+                    % 
+                    Obj.LogF.MaxFileSize = Conf.MsgLogger.MaxFileSize;
                 end            
             end
         end
@@ -287,11 +317,9 @@ classdef MsgLogger < handle
         
         function Result = getLevelStr(Obj, Level)
             % Convert Level enumeation to string
-            % Input:  
-            % Output: 
-            % Example: 
-            % Convert enum to string
-			s = '';
+            % Input:   Level - LogLevel enumeration (in file LogLeve.m)
+            % Output:  char array
+            % Example: getLevelStr(LogLevel.Error)
             switch Level
 				case LogLevel.None
 					s = 'NON';

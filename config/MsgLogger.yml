@@ -20,4 +20,6 @@ MsgLogger:
     FileLevel: LogLevel.All
     DispLevel: LogLevel.Info
     Console: true
+    MaxFileSize: 10000000
+
 
