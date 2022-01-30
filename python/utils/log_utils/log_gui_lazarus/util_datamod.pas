@@ -13,13 +13,7 @@ type
   { TAppDataModule }
 
   TAppDataModule = class(TDataModule)
-    PQConnection: TPQConnection;
     Process1: TProcess;
-    SQLite3Connection: TSQLite3Connection;
-    SQLQueryMsgs: TSQLQuery;
-    SQLQueryTasks: TSQLQuery;
-    SQLTransactionSQLite: TSQLTransaction;
-    SQLTransactionPG: TSQLTransaction;
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
   private
@@ -152,27 +146,6 @@ begin
   ForceDirectories(GuiToPyPath);
 
   NewFileNameCounter := 0;
-
-  // Setup database
-  if UseSQLite then
-  begin
-    DatabaseName := ConfigIni.ReadString('Database', 'SQLiteDatabase', '');
-    SQLite3Connection.Connected := false;
-    SQLite3Connection.DatabaseName := DatabaseName;
-    //SQLite3Connection.Connected := true;
-
-    //SQLQueryMsgs.Active := true;
-  end
-  else
-  begin
-    Host := ConfigIni.ReadString('Database', 'PostgresHost', '');
-    PQConnection.Connected := false;
-    PQConnection.HostName := Host;
-    PQConnection.Connected := true;
-  end;
-
-  //
-  //LoadFiles();
 
 end;
 

@@ -34,7 +34,7 @@ object AboutForm: TAboutForm
       Width = 360
       Alignment = taCenter
       AutoSize = False
-      Caption = 'Database Utils'
+      Caption = 'Log Utils'
       Font.CharSet = ANSI_CHARSET
       Font.Color = clBlack
       Font.Height = -16

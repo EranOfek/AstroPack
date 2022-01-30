@@ -2,10 +2,69 @@ object AppDataModule: TAppDataModule
   OnCreate = DataModuleCreate
   OnDestroy = DataModuleDestroy
   OldCreateOrder = False
-  Height = 290
-  HorizontalOffset = 504
-  VerticalOffset = 329
-  Width = 396
+  Height = 407
+  HorizontalOffset = 876
+  VerticalOffset = 483
+  Width = 520
+  object PQConnection: TPQConnection
+    Connected = False
+    LoginPrompt = False
+    DatabaseName = 'unittest'
+    KeepConnection = False
+    Password = 'Passw0rd'
+    Transaction = SQLTransactionPG
+    UserName = 'admin'
+    CharSet = 'UTF-8'
+    HostName = 'gauss'
+    Left = 312
+    Top = 24
+  end
+  object SQLite3Connection: TSQLite3Connection
+    Connected = False
+    LoginPrompt = False
+    DatabaseName = 'C:\gcs\db\gcsdb.sqlite'
+    KeepConnection = True
+    Transaction = SQLTransactionSQLite
+    CharSet = 'UTF-8'
+    OpenFlags = [sofReadOnly]
+    AlwaysUseBigint = False
+    Left = 40
+    Top = 24
+  end
+  object SQLQueryMsgs: TSQLQuery
+    MaxIndexesCount = 4
+    FieldDefs = <    
+      item
+        Name = 'msg_time'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'msg_id'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'msg_type'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'source'
+        DataType = ftMemo
+        Precision = -1
+      end>
+    Database = SQLite3Connection
+    Transaction = SQLTransactionSQLite
+    ReadOnly = True
+    SQL.Strings = (
+      'select msg_time,msg_id,msg_type,source from gcs_msgs order by send_time desc limit 100'
+    )
+    Params = <>
+    Macros = <>
+    Left = 40
+    Top = 128
+  end
   object Process1: TProcess
     Active = False
     Options = []
@@ -19,7 +78,27 @@ object AppDataModule: TAppDataModule
     WindowTop = 0
     WindowWidth = 0
     FillAttribute = 0
-    Left = 40
-    Top = 40
+    Left = 104
+    Top = 240
+  end
+  object SQLQueryTasks: TSQLQuery
+    FieldDefs = <>
+    Params = <>
+    Macros = <>
+    Left = 272
+    Top = 128
+  end
+  object SQLTransactionSQLite: TSQLTransaction
+    Active = False
+    Action = caNone
+    Database = SQLite3Connection
+    Left = 176
+    Top = 24
+  end
+  object SQLTransactionPG: TSQLTransaction
+    Active = False
+    Database = PQConnection
+    Left = 424
+    Top = 24
   end
 end

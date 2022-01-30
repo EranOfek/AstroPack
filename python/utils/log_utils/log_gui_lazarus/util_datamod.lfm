@@ -1,0 +1,25 @@
+object AppDataModule: TAppDataModule
+  OnCreate = DataModuleCreate
+  OnDestroy = DataModuleDestroy
+  OldCreateOrder = False
+  Height = 290
+  HorizontalOffset = 504
+  VerticalOffset = 329
+  Width = 396
+  object Process1: TProcess
+    Active = False
+    Options = []
+    Priority = ppNormal
+    StartupOptions = []
+    ShowWindow = swoNone
+    WindowColumns = 0
+    WindowHeight = 0
+    WindowLeft = 0
+    WindowRows = 0
+    WindowTop = 0
+    WindowWidth = 0
+    FillAttribute = 0
+    Left = 40
+    Top = 40
+  end
+end
