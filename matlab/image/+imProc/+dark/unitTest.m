@@ -61,7 +61,7 @@ function Result = unitTest()
     Bias = imProc.dark.bias(AI);
 
     % debias
-    AI = imProc.dark.debias(AI);
+    %AI = imProc.dark.debias(AI);
 
     % overscan
     AI = AstroImage({rand(200,100)});

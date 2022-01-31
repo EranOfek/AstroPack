@@ -34,7 +34,7 @@ function Files=pwget(Links,Extra,MaxGet,BaseURL,UseFun)
 %          MaxGet=20 runs in 6 seconds
 % Example: tic;www.pwget(Links,'',10);toc
 %          % sometime wget will do nothing because the URL is untruste - in this case use:
-%          www.pwget(Links,'--no-check-certificate',10);
+%          www.pwget(Links,'--no-check-certificate -U Mozilla',10);
 % Reliable: 2
 %--------------------------------------------------------------------------
 UseFun = 'wget';
