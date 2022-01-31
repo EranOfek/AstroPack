@@ -17,15 +17,12 @@ function List=wget_lat_weekly_data(WeekNumber,Get,pwgetPar)
 % To read files use: T=FITS.readTable1('lat_photon_weekly_w433_p305_v001.fits','BreakRepCol',0);
 % Reliable: 2
 
-if (nargin<3)
-    pwgetPar = {};
-    if (nargin<2)
-        Get = true;
-        if (nargin<1)
-            WeekNumber = Inf;
-        end
-    end
+arguments
+    WeekNumber    = Inf;
+    Get logical   = true;
+    pwgetPar      = {'--no-check-certificate -U Mozilla',10};
 end
+
 
 BaseURL = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/photon/';
 
