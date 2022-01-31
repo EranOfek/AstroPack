@@ -54,7 +54,7 @@ classdef LogFile < handle
             end
             
             % Extension is not specified, use default
-            [Path, Fn, Ext] = fileparts(FileName);
+            [~, ~, Ext] = fileparts(FileName);
             if isempty(Ext)
                 FileName = [FileName, '.log'];
             end
@@ -75,7 +75,7 @@ classdef LogFile < handle
             Obj.FileName = FileName;
 
             % Create folder
-            [Path, FileName, Ext] = fileparts(FileName);
+            [Path, ~, ~] = fileparts(FileName);
             if ~isfolder(Path)
                 fprintf('LogFile: Creating folder: %s\n', Path);
                 mkdir(Path);
@@ -149,7 +149,7 @@ classdef LogFile < handle
                     Obj.Fid = [];
                     
                     % Rename file, delete existing .old if exists
-                    [TmpPath, TmpFileName, TmpExt] = fileparts(Obj.FileName);
+                    [TmpPath, TmpFileName, ~] = fileparts(Obj.FileName);
                     OldName = fullfile(TmpPath, strcat(TmpFileName, '.old'));
                     if isfile(OldName)
                         delete(OldName);
