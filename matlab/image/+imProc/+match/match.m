@@ -136,7 +136,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     % select CooType
     if isempty(Args.CooType)
         % attempt to select automatically
-        [~, ~, CommonCooType] = getCommomCooType(Obj1, Obj2);
+        [~, ~, CommonCooType] = getCommonCooType(Obj1, Obj2);
     else
         [CommonCooType{1:Nmax}] = deal(Args.CooType);
     end

@@ -34,7 +34,7 @@ function Result = unitTest
     [ColX, ColY] = getColCooForCooType(AC, 'sphere')
 
     AC=AstroCatalog({'asu.fit'},'HDU',2);
-    [IsSphereBoth, IsPixBoth, CooType] = getCommomCooType(AC, AC);
+    [IsSphereBoth, IsPixBoth, CooType] = getCommonCooType(AC, AC);
 
     io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
     AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);

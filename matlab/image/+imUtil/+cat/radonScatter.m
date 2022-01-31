@@ -100,7 +100,7 @@ function Cand = radonScatter(Time,X,Y,Args)
 % OLD: slow
 %     for Ipairs=1:1:Npairs
 %         %Ipairs
-%         % FFU: compute directly instead of \
+%         % FFU: compute directly instead of 
 %         H(:,2) = Time(IndAllPairs(:,Ipairs));
 %         ParX   = H\X(IndAllPairs(:,Ipairs));
 %         ParY   = H\Y(IndAllPairs(:,Ipairs));

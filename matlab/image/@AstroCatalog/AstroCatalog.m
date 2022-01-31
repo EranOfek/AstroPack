@@ -7,7 +7,7 @@
 % convertCooUnits - convert all spherical coordinates Units for multiple element object
 % cropXY - crop AstroCatalog object by X/Y coordinates. Including updateing the X/Y coordinates. The function may operate on multiple AstroCatalog and/or multiple sections. For example, it can produce multiple crops of a single
 % getColCooForCooType - Get the X/RA and Y/Dec column indices for a specific CooType
-% getCommomCooType - get common CooType for two AstroCatalog objects.
+% getCommonCooType - get common CooType for two AstroCatalog objects.
 % getCooType - Return the Coordinate type of an AstroCatalog
 % getLonLat - Get Lon/Lat columns from AstroCatalog.
 % getRADecPM - get RA/Dec/PM/Plx/RV from astrometric catalog
@@ -263,7 +263,7 @@ classdef AstroCatalog < AstroTable
             ColY(IsSphere) = ColDec(IsSphere);
         end
         
-        function [IsSphereBoth, IsPixBoth, CooType] = getCommomCooType(Obj1, Obj2)
+        function [IsSphereBoth, IsPixBoth, CooType] = getCommonCooType(Obj1, Obj2)
             % get common CooType for two AstroCatalog objects.
             % Input  : - The first AstroCatalog object (multi elements
             %            supported).
@@ -281,7 +281,7 @@ classdef AstroCatalog < AstroTable
             %            and empty otherwise.
             % Author : Eran Ofek (Aug 2021)
             % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-            %          [IsSphereBoth, IsPixBoth, CooType] = getCommomCooType(AC, AC)
+            %          [IsSphereBoth, IsPixBoth, CooType] = getCommonCooType(AC, AC)
            
             Nobj1 = numel(Obj1);
             Nobj2 = numel(Obj2);
