@@ -52,7 +52,7 @@ classdef Component < Base
         MapKey      = []                % Used with ComponentMap class
         DebugMode   = true              % DebugMode
         Config Configuration            % Configuration, deafult is system configuration
-        Log MsgLogger                   % Logger, default is system logger
+        Logger MsgLogger                % Logger, default is system logger
     end
 
     %--------------------------------------------------------
@@ -71,7 +71,7 @@ classdef Component < Base
             end
 
             % Use default log and configuration
-            Obj.Log = MsgLogger.getSingleton();
+            Obj.Logger = MsgLogger.getSingleton();
             Obj.Config = Configuration.getSingleton();
             
             % Validate configuration of derived classes
@@ -154,8 +154,8 @@ classdef Component < Base
             % Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
 
             % Do nothing if both display and file logs are disabled
-            if ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurDispLevel) && ...
-                ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurFileLevel)
+            if ~Obj(1).Logger.shouldLog(Level, Obj(1).Logger.CurDispLevel) && ...
+                ~Obj(1).Logger.shouldLog(Level, Obj(1).Logger.CurFileLevel)
                 return
             end
 
@@ -174,7 +174,7 @@ classdef Component < Base
                     vararg{1} = [Obj.Name, Index, ': ' , varargin{1}];
                 end
 
-                Obj(i).Log.msgLog(Level, vararg{:});
+                Obj(i).Logger.msgLog(Level, vararg{:});
             end
         end
 
@@ -186,8 +186,8 @@ classdef Component < Base
             % Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
 
             % Do nothing if both display and file logs are disabled
-            if ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurDispLevel) && ...
-                ~Obj(1).Log.shouldLog(Level, Obj(1).Log.CurFileLevel)
+            if ~Obj(1).Logger.shouldLog(Level, Obj(1).Logger.CurDispLevel) && ...
+                ~Obj(1).Logger.shouldLog(Level, Obj(1).Logger.CurFileLevel)
                 return
             end
 
@@ -206,9 +206,23 @@ classdef Component < Base
                     vararg{1} = [Obj.Name, Index, ': ' , varargin{1}];
                 end
 
-                Obj(i).Log.msgStyle(Level, Style, vararg{:});
+                Obj(i).Logger.msgStyle(Level, Style, vararg{:});
             end
         end
+        
+        
+        function msgLogEx(Obj, Level, Ex, varargin)
+            % Log MException message to console/file according to current LogLevel settings
+            % Input:   Level    - LogLevel enumeration, see LogLevel.m
+            %          Ex       - MException object
+            %          varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
+            
+            m = MsgLogger.getSingleton();
+            m.msgLogEx(Level, Ex, varargin{:});            
+        end
+        
     end
 
 

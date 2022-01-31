@@ -117,9 +117,9 @@ classdef UnitTester < handle
             Obj.msgLog(LogLevel.Test, 'Started\n');
             try
                 Result = Obj.testAll();
-            catch
+            catch Ex
                 Result = false;
-                Obj.msgStyle(LogLevel.Error, '@error', 'unitTest: Exception');
+                io.msgLogEx(LogLevel.Error, Ex, 'unitTest: Exception');
             end
             Obj.report();
             Obj.msgLog(LogLevel.Test, 'Done\n');
@@ -373,8 +373,8 @@ classdef UnitTester < handle
                 % Call function
                 Obj.msgStyle(LogLevel.Info, 'blue', 'runTest: %s', Func);
                 Result = eval(Func);
-            catch
-                Obj.msgStyle(LogLevel.Error, '@error', 'runTest exception: ');
+            catch Ex
+                io.msgLogEx(LogLevel.Error, Ex, 'runTest exception: ');
             end
 
             % Update lists

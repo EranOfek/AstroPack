@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <Version Value="12"/>
+    <BuildModes Active="Default"/>
+    <Units Count="9">
+      <Unit0>
+        <Filename Value="matlab_utils.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="49" Y="20"/>
+        <UsageCount Value="220"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="util_datamod.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="AppDataModule"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="DataModule"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="41" Y="18"/>
+        <UsageCount Value="217"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="LogPanel.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="168"/>
+        <CursorPos X="27" Y="99"/>
+        <UsageCount Value="24"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="about.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="AboutForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="20"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="main.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="MainForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="344"/>
+        <CursorPos X="40" Y="353"/>
+        <UsageCount Value="20"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="gui_main.pas"/>
+        <ComponentName Value="MainForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="110"/>
+        <CursorPos X="79" Y="134"/>
+        <UsageCount Value="220"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="gcs_about.pas"/>
+        <ComponentName Value="AboutForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="76" Y="6"/>
+        <UsageCount Value="216"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="../../../../../Bin/Lazarus/lcl/interfaces/win32/win32memostrings.inc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="35"/>
+        <CursorPos Y="50"/>
+        <UsageCount Value="25"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="../../../../../Bin/Lazarus/lcl/interfaces/win32/win32proc.pp"/>
+        <UnitName Value="Win32Proc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="1056"/>
+        <CursorPos Y="1072"/>
+        <UsageCount Value="25"/>
+      </Unit8>
+    </Units>
+    <General>
+      <ActiveWindowIndexAtStart Value="-1"/>
+    </General>
+    <JumpHistory HistoryIndex="-1"/>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode="default"/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>

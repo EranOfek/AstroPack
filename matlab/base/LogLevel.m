@@ -15,8 +15,10 @@
 classdef LogLevel < uint32
     % Log levels, used with MsgLogger class, msgLog(), etc.
     % Values should continuous and incremental
+    % Note that Fatal, Error, Assert are logged even when the current log
+    % level set by setLogLevel() disabled them.
 	enumeration
-        None(0)         % Not set
+        None(0)         % Log disabled, use it with setLogLevel()
         Fatal(1)        % Fatal error, must terminate
         Error(2)        % Error
         Assert(3)       % Assert error
@@ -27,7 +29,7 @@ classdef LogLevel < uint32
         DebugEx(8)      % Very detailed debug
         Perf(9)         % Performance timing
         Test(10)        % Unit-Test
-        All(11)         % All
+        All(11)         % All, use it with setLogLevel()
     end
     
     
