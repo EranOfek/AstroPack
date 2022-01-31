@@ -4,19 +4,18 @@
 % Authors: Chen Tishler & Eran Ofek (Apr 2021)
 %
 % Functionality:
-%   copyProp - Copy specific properyies from one object to another
-%--------------------------------------------------------------------------
-
 % #functions (autogen)
 % Base - Constructor
-% copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
+% copy - Create a deep copy of the object (and any object that inherits
+%       from Base).
 % copyProp - Copy the content of properties from Obj into Target.
+% setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied
+%
+% copyElement - (Internal) Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
 % createNewObj - A utility function for creation of an object new copy based on nargout
 % openMLX - added by O.S., opens the MLX of the class, Run by using: classname.empty.openMLX
-% setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied
 % #/functions (autogen)
 %
-
 %
 % Making a DEEP Copy: Copy each property value and assign it to the new
 % (copied) property. Recursively copy property values that reference handle
@@ -83,7 +82,6 @@ classdef Base < matlab.mixin.Copyable
                 end
             end
         end
-
 
         function [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout, MinNargout)
             % A utility function for creation of an object new copy based
