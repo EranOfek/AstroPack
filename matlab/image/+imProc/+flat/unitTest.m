@@ -1,6 +1,6 @@
 function Result = unitTest()
-    % unitTest for imProc.image.Flat
-    % Example : Result = imProc.image.Flat.unitTest;
+    % unitTest for imProc.flat
+    % Example : Result = imProc.flat.unitTest;
     io.msgLog(LogLevel.Test, 'imProc.flat test started');
 
     AI = AstroImage({rand(100,100)});
@@ -38,8 +38,8 @@ function Result = unitTest()
     end
     
     % deflat
-    AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
-    Res = imProc.flat.deflat(AI,'FlatArgs',{'FilterKey',[]},'IsFlat',@imProc.flat.isFlat); 
+    %AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
+    %Res = imProc.flat.deflat(AI,'FlatArgs',{'FilterKey',[]},'IsFlat',[1 1 0 0]); 
     
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.flat test passed'); 
    

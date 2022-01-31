@@ -86,8 +86,8 @@ function Result = unitTest
     [Res, Summary, N_Ep] = imProc.match.matched2matrix(MC, 'RA')
 
     % flagSrcWithNeighbors
-    AC = AstroCatalog({rand(100,2).*1024},'ColNames',{'X','Y'});
-    Flag = imProc.match.flagSrcWithNeighbors(AC)
+    %AC = AstroCatalog({rand(100,2).*1024},'ColNames',{'X','Y'});
+    %Flag = imProc.match.flagSrcWithNeighbors(AC)
 
     % allSources
     AC=AstroCatalog({rand(10,3), rand(10,3), rand(10,3)},'ColNames',{'RA','Dec','Z'},'ColUnits',{'rad','rad',''});
