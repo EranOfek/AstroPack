@@ -26,7 +26,7 @@ function [SN,Flux,FiltImage,FiltImageVar,Info]=filter2_snBank(Image,Background,V
 %            to calculate the robust variance.
 %          - Template bank (no assumption on normalization / will be
 %            normalized to have unity sum).
-%            Templatemay be a single matrix, or a cube in which the third
+%            Template may be a single matrix, or a cube in which the third
 %            dimension is the template index.
 %            Alternativel, this can be a function handle that returns a
 %            matrix or cube of templates.
