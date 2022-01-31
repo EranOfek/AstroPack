@@ -72,19 +72,23 @@ function Result = unitTest
 
     % matched2matrix
     AC = AstroCatalog;
-    AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
+    AC.Catalog  = [2 0; 3 0; 4 0; 2.6 0 ; 2 0; 2.01 0];
     AC.ColNames = {'RA','Dec'};
     AC.ColUnits = {'rad','rad'};
     AC.getCooType;
+    
+    randPos = ([rand(100,1),rand(100,1)] - 0.5)*2;
+
     AC2 = AstroCatalog;
-    AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0];
+    %AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0];
+    AC2.Catalog = randPos ;
     AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
     AC2.getCooType;
     [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
     [MC,UM,TUM] = imProc.match.match([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
 
-    [Res, Summary, N_Ep] = imProc.match.matched2matrix(MC, 'RA')
-
+    [Res, Summary, N_Ep] = imProc.match.matched2matrix(MC, 'RA');
+    
     % flagSrcWithNeighbors
     AC = AstroCatalog({rand(100,2).*1024},'ColNames',{'X','Y'});
     Flag = imProc.match.flagSrcWithNeighbors(AC)
