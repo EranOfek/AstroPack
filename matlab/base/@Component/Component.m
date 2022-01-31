@@ -19,7 +19,7 @@
 %       data2array(Obj, DataProp) -
 %               Convert scalar data property in an object into an array
 %--------------------------------------------------------------------------
-
+%
 % #functions (autogen)
 % Component - Constructor By default use system log and configuration NewComp = Component() NewComp = Component(Owner)
 % convert2class - Convert a class that henhirts from Component to another class Uses eval, so in some cases maybe slow. Creates a new copy.
