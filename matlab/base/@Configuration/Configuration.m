@@ -4,7 +4,7 @@
 % Each yml file is loaded as struct under the Data property of the object.
 %
 % Author: Chen Tishler (Apr 2021)
-
+%
 % There is a singleton configuration object which loads the system configuration.
 % Note: Since Configuration.getSingleton() uses persistant object,
 %       in order to load fresh configuration you need to do 'clear all'
@@ -58,13 +58,13 @@
 % Reload entire system configuration into singelton:
 %
 %       Configuration.reloadSysConfig()
-
+%
 %--------------------------------------------------------------------------
 % Working with user defined Configuration instances
 % (i.e. not using the global singleton object):
 %
 % Private configuration file, load directly to Data
-
+%
 % ### Example: Load unittest.yml to Data.unittest:
 %     MyConf = Configuration;
 %     MyConf.loadFile('c:/temp/unittest.yml');
@@ -76,7 +76,7 @@
 %     disp(MyConf.Data.Key1)
 %
 % ### Load entire folder 
-
+%
 % Suppose you have two files, 'c:/temp/myconfig/unittest.yml'
 % and 'c:/temp/myconfig/anothertest.yml':
 %
@@ -90,7 +90,7 @@
 %    http://www.yamllint.com/ (Use the GO button...)
 %
 %--------------------------------------------------------------------------
-
+%
 % #functions (autogen)
 % Configuration -
 % expandFolder - Expand Path with macros from Configuration.System.EnvFolders This functions assume that we already loaded a configuration file called System.yml which has EnvFolders section.
@@ -128,11 +128,11 @@ classdef Configuration < handle
     methods % Constructor
         function Obj = Configuration(Args)
             % Constructor
-            % Intput:  'Name'   - Optionall name for the configuration object
-            %          'File'   - YML file name to load
-            %          'Folder' - Folder to load
-            % Output:  -
-            % Example: Conf = Configuration.getSingleton()
+            % Intput: * ...,key,val,...
+            %           'Name'   - Optionall name for the configuration object
+            %            'File'   - YML file name to load
+            %            'Folder' - Folder to load
+            % Output:  - A non-singelton configuration object.
             % Example: Conf = Configuration('File', '~/conf/conf.yml')
             arguments
                 Args.Name = '';         %
@@ -170,7 +170,9 @@ classdef Configuration < handle
             if ~isempty(Args.File)
                 Obj.loadFile(Args.File);
             elseif ~isempty(Args.Folder)
-                    Obj.loadFolder(Args.Folder);
+                Obj.loadFolder(Args.Folder);
+            else
+                % do nothing
             end
         end
     end
@@ -185,11 +187,13 @@ classdef Configuration < handle
             % Use this function when working with user Confguuration
             % object, or when you want to explictly load/reload specific
             % file.
-            % Input:  FileName - YML file name to load
-            %         'Field'  - true: field with the file name is created instide Obj.Data
-            %                    i.e., when loading 'MyConf.yml', it will be loaded to
-            %                    Obj.Data.MyConf...
-            %                    false: it will be loaded to Obj.Data...
+            % Input: - A Configuration object.
+            %        - FileName - YML file name to load
+            %        * ...,key,val,...
+            %          'Field'  - true: field with the file name is created instide Obj.Data
+            %               i.e., when loading 'MyConf.yml', it will be loaded to
+            %               Obj.Data.MyConf...
+            %               false: it will be loaded to Obj.Data...
             % Output: true on success
             % Example:
             % 	 MyConfig = Configuration();
@@ -241,8 +245,11 @@ classdef Configuration < handle
         function loadFolder(Obj, Path, Args)
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
-            % Input:   Path - folder name to look for *.yml files
-            %          'Recurse' - true: Load files in sub-folders
+            % Input: - A Configuration object.
+            %        - Path - folder name to look for *.yml files
+            %        * ...,key,val,...
+            %          'Recurse' - true: Load files in sub-folders.
+            %               Default is false.
             % Example:
             % 	 MyConfig = Configuration();
             % 	 MyConfig.loadFile('C:/Temp/MyConfigFolder');
@@ -271,12 +278,13 @@ classdef Configuration < handle
 
         function reloadFile(Obj, YamlStructOrFileName)
             % Reload specified configuration object (file name)
-            % Call this function with the
-            % Input:   YamlStructOrFileName - if char, it specified the file name 
+            % Input: - A Configuration objeect.
+            %        - YamlStructOrFileName - if char, it specified the file name 
             %          to be loaded, otherwise it is assumed to be struct that contains
             %          also FileName field, and this file is reloaded
             % Output:  Obj.Data... is afected
             % Example: MyConfig.reloadFile(MyConfig.Data.unittest)
+            
             if isa(YamlStructOrFileName, 'char')
                 Obj.loadFile(YamlStructOrFileName);
             else
@@ -293,6 +301,7 @@ classdef Configuration < handle
             % to loadFolder(), if Obj.Path is empty, it reloads existing
             % structs by the stored FileName field
             % Example: MyConfig.reloadFolder()
+            
             if ~isempty(Obj.Path)
                 loadFolder(Obj, Obj.Path);
             else
@@ -447,7 +456,6 @@ classdef Configuration < handle
             end
         end
 
-
         function NewYamlStruct = internal_reloadYaml(YamlStruct)
             % Reload configuration file, YamlStruct.FileName property must exist
             % FileName is created by Configuration.loadYaml() on loading.
@@ -461,8 +469,7 @@ classdef Configuration < handle
                 NewYamlStruct = YamlStruct;
             end
         end
-        
-        
+            
         function Result = internal_convertStruct(Struct)
             % Recursive scan and replace data in struct:
             % '@FuncName' -> Function handle
