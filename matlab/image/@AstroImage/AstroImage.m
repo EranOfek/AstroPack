@@ -49,6 +49,7 @@
 %       rdivide - Apply the rdivide operator between AstroImage objects.
 %       conv - Convolve images with their PSF, or another PSF
 %       filter - Filter images with their PSF, or another PSF
+%       fft - fft2 on all images
 %
 % Functionality (Static):
 %       imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
@@ -2640,6 +2641,49 @@ classdef AstroImage < Component
                 
             end
             
+        end
+        
+        function Result = fft(Obj, Args)
+            % Return the fft2 of images data in an AstroImage object.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            %            'DataProp' - A cell array of data properties on
+            %                   which to calculate fft2.
+            %                   Default is {'Image'}.
+            %            'NrowsNcols' - A cell array of {NROWS, NCOLS}
+            %                   padding argument to pass to fft2.
+            %                   Default is {}.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is false.
+            % Output : - An AstroImage object in which the images data
+            %            contains the fft.
+            % Example: AI = AstroImage({rand(100,100)});
+            %          R  = fft(AI)
+            
+            arguments
+                Obj
+                Args.DataProp               = {'Image'}; %,'Back','Var'};
+                Args.NrowsNcols             = {};
+                Args.CreateNewObj logical   = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            if ischar(Args.DataProp)
+                Args.DataProp = {Args.DataProp};
+            end
+            
+            Nprop = numel(Args.DataProp);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                for Iprop=1:1:Nprop
+                    Result(Iobj).(Args.DataProp{Iprop}) = fft2(Obj(Iobj).(Args.DataProp{Iprop}), Args.NrowsNcols{:});
+                end
+            end
         end
     end
        
