@@ -15,7 +15,8 @@ function Result = readNoiseFromBias(Obj, Args)
     %                   section on which to estimate the read noise.
     %            Parameters for the 'block' method:
     %            'BlockSize' - Block size in which to calc readnoise.
-    %                   Default is [32 32].
+    %                   Default is [64 64].
+    %            'OverlapXY' - Overlap in sub images. Default is [0 0].
     %            'BlockStdFun' - Function handle for calculating the std in
     %                   the blck. Default is @imProc.stat.rstd.
     %            'BlockMeanFun' - Function handle for calculating the global
@@ -32,6 +33,7 @@ function Result = readNoiseFromBias(Obj, Args)
     % Output : - A structure array of results. The returned fields depands
     %            on the method. For the 'block' method return an element
     %            per image with the following fields:
+    %               'AllStd' - Std as measured in each block.
     %               'ReadNoise' - Estimated read noise in each single image.
     %               'ReadNoiseRMS' - Std of estimated read noise per image.
     %               'ReadNoiseErr' - Error of estimated read noise per image.
@@ -50,7 +52,8 @@ function Result = readNoiseFromBias(Obj, Args)
         Args.CCDSEC                          = [];
         
         % Block method args:
-        Args.BlockSize                       = [32 32];
+        Args.BlockSize                       = [64 64];
+        Args.OverlapXY                       = [0 0];
         Args.BlockStdFun function_handle     = @imProc.stat.rstd;  % Std = Fun(AstroImage)
         Args.BlockMeanFun function_handle    = @tools.math.stat.nanmedian;
         Args.BlockMeanStdFun function_handle = @imUtil.background.rstd;
@@ -68,9 +71,10 @@ function Result = readNoiseFromBias(Obj, Args)
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 % for each image
-                SubImages = imProc.image.image2subimages(Obj(Iobj), Args.BlockSize, 'CCDSEC',Args.CCDSEC);
+                SubImages = imProc.image.image2subimages(Obj(Iobj), Args.BlockSize, 'CCDSEC',Args.CCDSEC, 'OverlapXY',Args.OverlapXY);
                 StdBlock  = Args.BlockStdFun(SubImages);
                 % calc RN
+                Result(Iobj).AllStd       = StdBlock;
                 Result(Iobj).ReadNoise    = Args.BlockMeanFun(StdBlock(:));
                 Result(Iobj).ReanNoiseRMS = Args.BlockMeanStdFun(StdBlock(:));
                 Result(Iobj).ReanNoiseErr = Result(Iobj).ReanNoiseRMS./sqrt(numel(SubImages));

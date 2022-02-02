@@ -1,7 +1,8 @@
 function Result = linearity(Obj, Args)
     % Estimate the non-linearity of a detector
     %   using the imUtil.calib.pixel_flat_response function
-    % Input  : - An AstroImage object.
+    % Input  : - An AstroImage object containing multiple flat images with
+    %            different illumination intensity.
     %          * ...,key,val,...
     %            'Method' - Options are:
     %                   ['constFlux'] - Estimate the non-linearity of each
