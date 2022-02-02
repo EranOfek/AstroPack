@@ -218,9 +218,8 @@ classdef MsgLogger < handle
             end
         end
 
-
 		function msgStyle(Obj, Level, Style, varargin)
-            % Log message to console/file according to current LogLevel settings
+            % Change style of log message.
             % Input:   Level    - LogLevel enumeration, see LogLevel.m
             %          Style    - 'red', 'blue', etc., see cprintf.m
             %          varargin - Any fprintf arguments
@@ -257,7 +256,6 @@ classdef MsgLogger < handle
             end
         end
 
-
 		function msgLogEx(Obj, Level, Ex, varargin)
             % Log MException message to console/file according to current LogLevel settings
             % Input:   Level    - LogLevel enumeration, see LogLevel.m
@@ -272,8 +270,7 @@ classdef MsgLogger < handle
                 Msg = sprintf('Exception: %s - %s - %s', Ex.identifier, Ex.message, MsgReport);
             end
             Obj.msgStyle(Level, 'red', Msg);
-        end
-        
+        end        
         
 		function Result = shouldLog(Obj, Level, CurLevel)
             % Return true if specified Level should be logged according
@@ -304,7 +301,6 @@ classdef MsgLogger < handle
             end
         end
 
-
         function Result = mustLog(Obj, Level)
             % Return true if specified Level should be logged according
             % Input:   Level - 
@@ -316,7 +312,6 @@ classdef MsgLogger < handle
                 Result = true;
             end
         end
-                
         
         function Result = getLevelStr(Obj, Level)
             % Convert Level enumeation to string
@@ -353,7 +348,6 @@ classdef MsgLogger < handle
             end
             Result = s;
         end
-
 
 		function msgStack(Obj, Level, varargin)
             % Log stack trace, @Todo - NOT fully tested yet!
@@ -408,7 +402,6 @@ classdef MsgLogger < handle
             end
             Result = PersObj;
         end
-
 
         function setLogLevel(Level, Args)
             % Set current log level, Args.type is 'all', 'file', 'disp'
