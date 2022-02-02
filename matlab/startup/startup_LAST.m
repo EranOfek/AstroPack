@@ -1,5 +1,5 @@
-function startup_LAST(AddLast, AddAstroPath)
-    % startup for LAST directories
+function startup(AddLast, AddAstroPath)
+    % startup for LAST directories - This is a template - the function name is startup
 
     arguments
         AddLast logical       = true;
