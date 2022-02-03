@@ -1,4 +1,6 @@
 % A FileManager class
+%   For additional help - see static function FileManager.help
+%
 %   Specifically designed for managing multiple log files, but can be used
 %   for other applications.
 %
@@ -23,6 +25,8 @@
 %
 %   Static functions:
 %       getTimestamp - Return current date/time as sortable string with milliseconds
+%       unitTest - unitTest for FileManager
+%       help - An mlx help for FileManager.
 %
 % Examples:
 %          FM = FileManager; FM.FileName = 'try1'; FM.isOpen
@@ -39,7 +43,19 @@ classdef FileManager < handle
         NameID char
         FullName                    = '';
         FileName                    = '';
-        Path                        = '';
+        Path                        = '';FM = FileManager;
+    FM.FileName = 'try1';
+    FM.isOpen;
+    FM.open;
+    if ~FM.isOpen
+        error('Problem with opening file');
+    end
+    FM.writeLine('bla bla bla');
+    FM.writeLine('bla bla bla','LevelStr','[DBG]');
+    FM.writeLine('bla bla bla','LineFormat','%20s');
+    FM.close;         
+    FM.deleteFiles;
+   
         ExtName                     = 'log';
         FileTimeStamp
         AddDateToFileName logical   = true;
@@ -56,11 +72,11 @@ classdef FileManager < handle
         MachineFormat                = 'native';
         Encoding                     = '';
         TimeStampFormat              = '.yyyymmdd';
+        DateChangeFracDay            = 0;    % fraction of day in which to change date
     end
     
     properties (Hidden, SetAccess=private)
         FileTime     % time corresponding to time stamp
-        DateChangeFracDay            = 0;    % fraction of day in which to change date
         DateChanged logical          = false;
         FullNamePopulated logical    = false;
     end
@@ -78,21 +94,26 @@ classdef FileManager < handle
 %     end
 
     methods % Constructor
-        function Obj = FileManager(N)
+        function Obj = FileManager(N, Args)
             % Constructor for FileManager
             % Input  : - Number of elements in FileManager array.
             %            Default is 1.
+            %          * ...,key,val,...
+            %            'FileName' - A cell array of file bames.
             % Output : - A FileManager object.
             % Author : Eran Ofek (Jan 2022)
             % Example: FM = FileManager
             %          FM = FileManager(2);  % array of 2 objects
-           
+            %          FM = FileManager(2, 'FileName',{'a','b'});
             arguments
                 N = 1;
+                Args.FileName = '';
             end
             
             for I=1:1:N
-                Obj(I).FileName = '';
+                if ~isempty(Args.FileName)
+                    Obj(I).FileName = Args.FileName{I};
+                end
                 %Obj(I)    = Obj(I).defaultPath;
                 
                 if ~isunix
@@ -530,8 +551,14 @@ classdef FileManager < handle
 
     end
     
-           
-    methods(Static) 
+    methods (Static) % help
+        function help
+            % mlx help for FileManager
+            edit manuals.classes.FileManager
+        end
+    end
+    
+    methods (Static) 
         Result = unitTest()
             % Unit test
     end
