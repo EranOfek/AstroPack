@@ -1,2 +1,0 @@
-# Python astropy package testing
-

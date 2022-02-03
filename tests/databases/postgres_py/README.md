@@ -1,2 +1,0 @@
-# Python Postgresql access testing
-
