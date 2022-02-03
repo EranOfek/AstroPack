@@ -188,9 +188,9 @@ classdef LogFile < handle
             % Use system folder if not set
             if isempty(Path)
                 if ~isunix
-                    Path = 'C:/AstroPack/log';
+                    Path = 'C:/log';
                 else
-                    Path = '~/AstroPack/log';
+                    Path = '~/log';
                 end                
             end
             Result = Path;
