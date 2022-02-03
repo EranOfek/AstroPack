@@ -44,18 +44,6 @@ classdef FileManager < handle
         FullName                    = '';
         FileName                    = '';
         Path                        = '';FM = FileManager;
-    FM.FileName = 'try1';
-    FM.isOpen;
-    FM.open;
-    if ~FM.isOpen
-        error('Problem with opening file');
-    end
-    FM.writeLine('bla bla bla');
-    FM.writeLine('bla bla bla','LevelStr','[DBG]');
-    FM.writeLine('bla bla bla','LineFormat','%20s');
-    FM.close;         
-    FM.deleteFiles;
-   
         ExtName                     = 'log';
         FileTimeStamp
         AddDateToFileName logical   = true;
