@@ -18,7 +18,7 @@
 %   getMatrix - Get matrix using field name.
 %   summary   - Summary of a specific field matrix in MatchedSources.
 %   plotRMS   - plot rms of mag vs. mag
-
+%
 % #functions (autogen)
 % addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data Obj = addMatrix(Obj, Matrix, FieldName)
 % deleteMatrix - remove matrix and field name from an MatchedSources object
