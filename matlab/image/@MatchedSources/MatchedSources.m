@@ -1419,7 +1419,7 @@ classdef MatchedSources < Component
             
         end
         
-        function [Resul] = matchedFilter(Obj, Args)
+        function [Result] = matchedFilter(Obj, Args)
             % Matched filtering with template bank for equally spaced time series.
             % Input  : - A Matched sources object.
             %          * ...,key,val,...
@@ -1439,7 +1439,8 @@ classdef MatchedSources < Component
             % Example: MS = MatchedSources;
             %          MS.addMatrix(randn(100,200).*10,'MAG')
             %          T = [0 1 2 3 2 1 0].';
-            %          [Resul] = matchedFilter(MS, 'Templates', [T, T, T])
+            %          MS.Data.MAG(1:numel(T),2) = T;
+            %          [Result] = matchedFilter(MS, 'Templates', [T, T, T])
             
             
             arguments
@@ -1450,11 +1451,13 @@ classdef MatchedSources < Component
                 Args.rmsMagArgs   = {};
             end
             
+            
+            
             [TempLen, Ntemp] = size(Args.Templates);
-                        
+            NhalfTemp        = floor(Ntemp.*0.5);
+            
             Norm2Template    = sqrt(sum(Args.Templates.^2, 1));
             %TemplatesFFTconj = conj(fft(Args.Templates, 1));
-            
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
@@ -1478,22 +1481,24 @@ classdef MatchedSources < Component
                     error('Template is longer than time series');
                 end
                 Templates = padarray(Args.Templates, [PadLen 0], 0, 'post');
+                % circshift Templates such that the template center is at
+                % thed edge, so no shift will be applied
+                Templates = circshift(Templates, -NhalfTemp, 1);
                 TemplatesFFTconj = conj(fft(Templates, [], 1));
                 
-                Result(Iobj).S = zeros(Nep, NsrcSel);
                 for Itemp=1:1:Ntemp
                     
                     NormStd  = ResRMS.EstimatedStdPar./Norm2Template(Itemp);
                     % Detection statistics for all LC, for a given template Itemp
                     StatTemp = ifft(fft(Matrix,1).*TemplatesFFTconj(:,Itemp), [], 1)./NormStd;
-                    [Max, MaxInd] = max(StatTemp);
-                    [Min, MinInd] = min(StatTemp);
+                    Result(Iobj).Template(Itemp).S = StatTemp;
+                    [Max, MaxInd] = max(StatTemp,[],1);
+                    [Min, MinInd] = min(StatTemp,[],1);
                     
-                    
-                    Result(Iobj).MaxS(Itemp) = Max;
-                    Result(Iobj).MaxI(Itemp) = MaxInd;
-                    Result(Iobj).MinS(Itemp) = Min;
-                    Result(Iobj).MinI(Itemp) = MinInd;
+                    Result(Iobj).Template(Itemp).MaxS = Max;
+                    Result(Iobj).Template(Itemp).MaxI = MaxInd;
+                    Result(Iobj).Template(Itemp).MinS = Min;
+                    Result(Iobj).Template(Itemp).MinI = MinInd;
                     
                 end
             end
