@@ -1451,7 +1451,7 @@ classdef MatchedSources < Component
                 Args.rmsMagArgs   = {};
             end
             
-            
+            error('use tools.math.filter.filter1');
             
             [TempLen, Ntemp] = size(Args.Templates);
             NhalfTemp        = floor(Ntemp.*0.5);
