@@ -833,7 +833,7 @@ classdef DbQuery < Component
 
         
         function Result = writeResultSetCsv(Obj, CsvFileName)
-            %
+            % Write resultset to CSV file using Java CSVWriter obejct - still have some issues - @Todo
             % Input:   CsvFileName
             % Output:  true on sucess
             % Example: Obj.writeResultSetCsv('/tmp/test1.csv');
@@ -1163,6 +1163,8 @@ classdef DbQuery < Component
         
         function Result = copyFrom(Obj, TableName, FileName, Args)
             % Helper function for insert() - Import records from file to table
+            % using COPY FROM statement.
+            %
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
             % Input:   TableName - Table name
@@ -1199,7 +1201,8 @@ classdef DbQuery < Component
 
 
         function Result = copyTo(Obj, TableName, FileName, Args)
-            % Helper function for select() - Export records from table to file
+            % Helper function for select() - Export records from table to file 
+            % using COPY TO statemet.            
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
             % Input:   TableName
