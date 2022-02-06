@@ -7,9 +7,10 @@
       <Unit0>
         <Filename Value="log_utils.lpr"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="49" Y="20"/>
+        <IsVisibleTab Value="True"/>
+        <CursorPos X="70" Y="6"/>
         <UsageCount Value="220"/>
+        <Loaded Value="True"/>
       </Unit0>
       <Unit1>
         <Filename Value="util_datamod.pas"/>
@@ -17,18 +18,18 @@
         <ComponentName Value="AppDataModule"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="DataModule"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="41" Y="18"/>
+        <EditorIndex Value="1"/>
+        <CursorPos X="3" Y="4"/>
         <UsageCount Value="217"/>
+        <Loaded Value="True"/>
       </Unit1>
       <Unit2>
         <Filename Value="LogPanel.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="168"/>
-        <CursorPos X="27" Y="99"/>
+        <EditorIndex Value="2"/>
+        <CursorPos X="19" Y="2"/>
         <UsageCount Value="24"/>
+        <Loaded Value="True"/>
       </Unit2>
       <Unit3>
         <Filename Value="about.pas"/>
@@ -36,9 +37,10 @@
         <ComponentName Value="AboutForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="6" Y="14"/>
+        <EditorIndex Value="3"/>
+        <CursorPos X="3" Y="4"/>
         <UsageCount Value="20"/>
+        <Loaded Value="True"/>
       </Unit3>
       <Unit4>
         <Filename Value="main.pas"/>
@@ -46,11 +48,10 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="344"/>
-        <CursorPos X="40" Y="353"/>
+        <EditorIndex Value="4"/>
+        <CursorPos Y="5"/>
         <UsageCount Value="20"/>
+        <Loaded Value="True"/>
       </Unit4>
       <Unit5>
         <Filename Value="gui_main.pas"/>
@@ -87,10 +88,20 @@
         <UsageCount Value="25"/>
       </Unit8>
     </Units>
-    <General>
-      <ActiveWindowIndexAtStart Value="-1"/>
-    </General>
-    <JumpHistory HistoryIndex="-1"/>
+    <JumpHistory Count="3" HistoryIndex="2">
+      <Position1>
+        <Filename Value="LogPanel.pas"/>
+        <Caret Line="170" Column="49" TopLine="168"/>
+      </Position1>
+      <Position2>
+        <Filename Value="about.pas"/>
+        <Caret Line="14" Column="6"/>
+      </Position2>
+      <Position3>
+        <Filename Value="main.pas"/>
+        <Caret Line="353" Column="40" TopLine="344"/>
+      </Position3>
+    </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>
       <Modes ActiveMode="default"/>

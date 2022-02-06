@@ -1,3 +1,7 @@
+// GCS Interface/Simulator GUI
+//
+// Author: Chen Tishler, 01/2022
+//
 unit about;
 
 {$mode objfpc}{$H+}

@@ -1,5 +1,5 @@
 //
-// TLogPanel, by Chen Tishler, 1998-2022
+// TLogPanel, (C) by Chen Tishler, 1998-2022
 //
 
 unit LogPanel;

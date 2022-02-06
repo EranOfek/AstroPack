@@ -1,3 +1,8 @@
+// GCS Interface/Simulator GUI
+//
+// Author: Chen Tishler, 01/2022
+//
+
 // Lazarus 2.2.0
 // Windows installer: lazarus-2.2.0-fpc-3.2.2-win64.exe
 //
