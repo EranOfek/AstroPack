@@ -14,7 +14,7 @@ type
 
   TAppDataModule = class(TDataModule)
     PQConnection: TPQConnection;
-    Process1: TProcess;
+    Process: TProcess;
     SQLite3Connection: TSQLite3Connection;
     SQLQueryMsgs: TSQLQuery;
     SQLQueryTasks: TSQLQuery;
@@ -108,6 +108,7 @@ begin
      exit;
 
   Initialized := true;
+  exit;
 
   UsePostgres := false;
   UseSQLite := true;

@@ -3,8 +3,8 @@ object AppDataModule: TAppDataModule
   OnDestroy = DataModuleDestroy
   OldCreateOrder = False
   Height = 407
-  HorizontalOffset = 876
-  VerticalOffset = 483
+  HorizontalOffset = 368
+  VerticalOffset = 143
   Width = 520
   object PQConnection: TPQConnection
     Connected = False
@@ -28,7 +28,7 @@ object AppDataModule: TAppDataModule
     CharSet = 'UTF-8'
     OpenFlags = [sofReadOnly]
     AlwaysUseBigint = False
-    Left = 40
+    Left = 48
     Top = 24
   end
   object SQLQueryMsgs: TSQLQuery
@@ -65,7 +65,7 @@ object AppDataModule: TAppDataModule
     Left = 40
     Top = 128
   end
-  object Process1: TProcess
+  object Process: TProcess
     Active = False
     Options = []
     Priority = ppNormal
@@ -78,8 +78,8 @@ object AppDataModule: TAppDataModule
     WindowTop = 0
     WindowWidth = 0
     FillAttribute = 0
-    Left = 104
-    Top = 240
+    Left = 48
+    Top = 216
   end
   object SQLQueryTasks: TSQLQuery
     FieldDefs = <>

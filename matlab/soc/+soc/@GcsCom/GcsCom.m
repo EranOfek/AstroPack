@@ -1,4 +1,12 @@
-% Gcs -
+%--------------------------------------------------------------------------
+% File:    GcsCom.m
+% Class:   GcsCom
+% Title:   GCS communication & messages
+% Author:  Chen Tishler
+% Created: Jan. 2022
+%--------------------------------------------------------------------------
+% Description:
+
 
 %--------------------------------------------------------------------------
 
@@ -6,7 +14,7 @@
 % #/functions (autogen)
 %
 
-classdef Gcs < Component
+classdef GcsCom < Component
 
     % Properties
     properties (SetAccess = public)
@@ -29,11 +37,11 @@ classdef Gcs < Component
             %
             %
             arguments
-                Args.DbCon         = []        % DbConnection object
+
             end
 
             % Setup component
-            Obj.setName('DbAdmin');
+            Obj.setName('Gcs');
             Obj.needUuid();
             Obj.DebugMode = true;
             %Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);

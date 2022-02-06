@@ -1,9 +1,10 @@
-% DbAdmin - PostgresSQL Database Administrator Class
-%
-% Basic usage:
-%
-%
-%
+%--------------------------------------------------------------------------
+% File:    DbAdmin.m
+% Class:   DbAdmin
+% Title:   Database administrator utils for PostgreSQL, based on DbQuery.
+% Author:  Chen Tishler
+% Created: December 2021
+%--------------------------------------------------------------------------
 % PostgreSQL V14 - Installation instructions for Linux:
 %
 %     https://techviewleo.com/how-to-install-postgresql-database-on-ubuntu/
@@ -535,8 +536,8 @@ classdef DbAdmin < Component
                 
                 [Path, FName] = fileparts(XlsFileName);
                 cd(Path);
-                PyScript = fullfile('python', 'utils', 'database_utils', 'xlsx2sql.py');
-                Py = fullfile(tools.os.getAstroPackPath, PyScript);
+                PyScript = fullfile('python', 'utils', 'matlab_utils', 'xlsx2sql.py');
+                Py = fullfile(tools.os.getAstroPackPath(), PyScript);
                 if ~isfile(Py)
                     return;
                 end
@@ -567,7 +568,7 @@ classdef DbAdmin < Component
         
         
         function Result = runPsql(Obj, Args)
-            %
+            % Run 'psql' external utility with command line parameters.
             % Input:   XlsFileName
             % Output:
             % Example: db.DbAdmin.runPsql(
@@ -663,6 +664,41 @@ classdef DbAdmin < Component
     end
 
 
+    methods(Static)
+        
+        function Result = startGui()
+            % Run gui utility
+            % Input:   
+            % Output:
+            % Example: db.DbAdmin.startGui(
+            arguments
+            end
+
+            Result = false;
+            try
+                                
+                % Prepare command line
+                Path = fullfile(tools.os.getAstroPackPath(), 'python', 'utils', 'gui_lazarus');
+                if tools.os.islinux
+                    Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui');
+                else
+                    Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui.exe');
+                end
+ 
+                
+                io.msgLog(LogLevel.Info, 'startGui: system( %s )', Cmd);
+                [Status, Output] = system(Cmd);
+                io.msgLog(LogLevel.Info, 'startGui: %d', Status);
+                io.msgLog(LogLevel.Info, 'startGui: %s', Output);
+                Result = true;
+            catch Ex
+                io.msgLogEx(LogLevel.Info, Ex, 'startGui');
+            end
+        end
+        
+    end
+    
+    
     methods(Static) % Unit-Tests
 
         Result = unitTest()

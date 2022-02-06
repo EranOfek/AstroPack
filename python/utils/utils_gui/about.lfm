@@ -25,7 +25,7 @@ object AboutForm: TAboutForm
       Width = 360
       Alignment = taCenter
       AutoSize = False
-      Caption = 'Version 1.00, 30/01/2022'
+      Caption = 'Version 1.00, 06/02/2022'
     end
     object LabelTitle: TLabel
       Left = 8
@@ -34,7 +34,7 @@ object AboutForm: TAboutForm
       Width = 360
       Alignment = taCenter
       AutoSize = False
-      Caption = 'Log Utils'
+      Caption = 'MATLAB && Database Utils'
       Font.CharSet = ANSI_CHARSET
       Font.Color = clBlack
       Font.Height = -16

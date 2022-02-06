@@ -1,8 +1,17 @@
+%--------------------------------------------------------------------------
+% File:    DbRecord.m
+% Class:   DbRecord
+% Title:   Data container that holds struct array of database table rows.
+% Author:  Chen Tishler
+% Created: July 2021
+%--------------------------------------------------------------------------
+% Description:
+%
 % DbRecord - Data container that holds struct array of database table data.
 % Used with DbQuery.insert(), select(), etc.
+% Construct DbRecord before calling DbQuery.insert(), 
 %
-% Author: Chen Tishler (Aug 2021)
-%
+%--------------------------------------------------------------------------
 % #functions (autogen)
 % DbRecord - Constructor Input:   Data          - struct array, table, cell array, matrix,                          AstroTable, AstroCatalog, AstroHeader          Args.ColNames - char comma separated, or cell array Example: MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
 % convert2 - Convert Obj.Data struct array to given OutType Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog' Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog Example: Mat = Obj.conevrt2('mat')

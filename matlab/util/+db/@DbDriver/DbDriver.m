@@ -1,3 +1,12 @@
+%--------------------------------------------------------------------------
+% File:    DbDriver.m
+% Class:   DbDriver
+% Title:   Internaly used by DbConnection to load JDBC driver.
+% Author:  Chen Tishler
+% Created: July 2021
+%--------------------------------------------------------------------------
+% Description:
+%
 % Database Driver Class, currently supports PostgreSQL
 % DbDriver is used **internally** by DbConnection, and SHOULD NOT be
 % accessed by the user.
@@ -16,8 +25,6 @@
 % For example, when working with Postgress, we need only one DbDriver for
 % it. We hold a persistent ComponentMap of all created DbDriver objects with
 % the database type (i.e. 'postgres') as the key.
-%
-% Author: Chen Tishler (July 2021)
 %
 % Usage:
 %   Drv = DbDriver.getDbDriver('postgres');

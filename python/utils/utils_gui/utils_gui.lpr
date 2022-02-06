@@ -1,4 +1,4 @@
-program db_utils;
+program utils_gui;
 
 {$mode objfpc}{$H+}
 

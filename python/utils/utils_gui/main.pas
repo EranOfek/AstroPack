@@ -11,11 +11,9 @@ unit main;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, SynHighlighterXML, SynEdit, Forms, Controls,
-  Graphics, Dialogs, ExtCtrls, StdCtrls, Buttons, ComCtrls, Menus, DBGrids,
-  Process, IniFiles, DB,
-  LogPanel,
-  util_datamod, about;
+  Classes, SysUtils, FileUtil, SynHighlighterXML, SynEdit, SynHighlighterSQL,
+  Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls, Buttons, ComCtrls,
+  Menus, DBGrids, Process, IniFiles, DB, LogPanel, util_datamod, about;
 
 
 type
@@ -23,33 +21,37 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
-    BtnLoadFiles: TBitBtn;
-    BtnRunScript: TBitBtn;
-    BtnSendKeepAlive: TBitBtn;
+    BtnRunScript1: TBitBtn;
     BtnSendXml: TBitBtn;
-    CheckBoxAutoProcessIncomingMsgs: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs1: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs13: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs14: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs15: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs17: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs2: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs3: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs4: TCheckBox;
-    CheckBoxAutoProcessIncomingMsgs8: TCheckBox;
-    CheckBoxAutoSendRandomMsg: TCheckBox;
-    ComboBoxXmlFileName: TComboBox;
-    ComboBoxYmlFileName: TComboBox;
+    CheckBoxXlsSqlFile: TCheckBox;
+    CheckBoxXlsSqlFolder: TCheckBox;
+    CheckBoxXlsSqlPostgre: TCheckBox;
+    CheckBoxXlsSqlSQLite: TCheckBox;
+    CheckBoxXlsSqlFirebird: TCheckBox;
+    CheckBoxXlsSqlMatlab: TCheckBox;
+    CheckBoxXlsSqlPython: TCheckBox;
+    CheckBoxXlsSqlCpp: TCheckBox;
+    CheckBoxXlsSqlDelphi: TCheckBox;
+    CheckBoxXlsSqlDart: TCheckBox;
+
+    CheckBoxDocSubdirs: TCheckBox;
+    CheckBoxDocTxt: TCheckBox;
+    CheckBoxDocMlx: TCheckBox;
+    CheckBoxDocTrim: TCheckBox;
+    CheckBoxDocFuncList: TCheckBox;
+
+    EditXlsFileName: TEdit;
+    EditGenDorFolder: TEdit;
+    EditXlsFolderName: TEdit;
     GroupBox1: TGroupBox;
     GroupBox2: TGroupBox;
+    GroupBox3: TGroupBox;
+    GroupBox4: TGroupBox;
+    GroupBox5: TGroupBox;
     Image1: TImage;
-    Label8: TLabel;
     LabelTitle: TLabel;
-    ListBox1: TListBox;
     MainMenu: TMainMenu;
-    MemoLog: TMemo;
     MemoXml: TMemo;
-    MemoYml: TMemo;
     MISimulatorWindow: TMenuItem;
     MIAbout: TMenuItem;
     MIHelp: TMenuItem;
@@ -58,46 +60,35 @@ type
     MIFile: TMenuItem;
     PageControlMain: TPageControl;
     Panel1: TPanel;
-    Panel10: TPanel;
     Panel11: TPanel;
     Panel13: TPanel;
-    Panel15: TPanel;
     Panel17: TPanel;
-    Panel19: TPanel;
+    Panel18: TPanel;
     Panel2: TPanel;
-    Panel3: TPanel;
     Panel4: TPanel;
     Panel5: TPanel;
     Panel6: TPanel;
-    Panel7: TPanel;
-    Panel8: TPanel;
     Panel9: TPanel;
     PanelLog: TPanel;
+    PanelLog1: TPanel;
     PanelXml: TPanel;
-    Splitter1: TSplitter;
-    Splitter3: TSplitter;
+    Process: TProcess;
     Splitter4: TSplitter;
-    SynEditXml: TSynEdit;
-    SynXMLSyn: TSynXMLSyn;
-    TabSheetMain: TTabSheet;
-    TabSheetTemp: TTabSheet;
-    TabSheetYaml: TTabSheet;
-    TimerUpdateStatus: TTimer;
-    TimerAutoSend: TTimer;
-    TimerPollGuiMsg: TTimer;
+    Splitter5: TSplitter;
+    SynEditSQL: TSynEdit;
+    SynSQLSyn: TSynSQLSyn;
+    TabSheetXls2sql: TTabSheet;
+    TabSheetDocGen: TTabSheet;
+    TimerUpdateProcessOutput: TTimer;
     procedure BtnLoadFilesClick(Sender: TObject);
     procedure BtnSendKeepAliveClick(Sender: TObject);
     procedure BtnRunScriptClick(Sender: TObject);
     procedure BtnSendXmlClick(Sender: TObject);
-    procedure ComboBoxXmlFileNameChange(Sender: TObject);
-    procedure ComboBoxYmlFileNameChange(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure MIAboutClick(Sender: TObject);
     procedure MIExitClick(Sender: TObject);
-    procedure TimerAutoSendTimer(Sender: TObject);
-    procedure TimerPollGuiMsgTimer(Sender: TObject);
-    procedure TimerUpdateStatusTimer(Sender: TObject);
+    procedure TimerUpdateProcessOutputTimer(Sender: TObject);
   private
 
   //=========================================================================
@@ -107,9 +98,6 @@ type
 
     //
     procedure Init();
-
-    // Set SOC / GCS
-    procedure SetWindowType(WinType: String);
 
     //
     procedure ProcessGuiFile(FileName: String);
@@ -125,12 +113,15 @@ type
     procedure SendGuiMsg(AText: String;  ATitle: String = '');
 
     //
+    procedure RunPy(Cmd: String;  Params: TStrings);
+
+    //
     procedure Log(Line: String;  AColor: TColor = clBlack;  BColor: TColor = clWhite);
 
   //=========================================================================
   public
     LogPanel: TLogPanel;
-    IsSim: Boolean;
+
   end;
 
 //===========================================================================
@@ -153,42 +144,20 @@ implementation
 procedure TMainForm.Init();
 begin
   //
-  IsSim := false;
+
   AppDataModule.Init();
 
   //
-  LoadFiles();
+  //LoadFiles();
 end;
 
-
-procedure TMainForm.SetWindowType(WinType: String);
-begin
-  if WinType = 'SOC' then
-  begin
-    IsSim := false;
-    Caption := 'ULTRASAT SOC';
-    LabelTitle.Caption := 'ULTRASAT SOC';
-  end
-  else
-  begin
-    IsSim := true;
-    Caption := 'GCS SIMULATOR';
-    LabelTitle.Caption := 'GCS SIMULATOR';
-  end;
-  LoadFiles();
-end;
 
 procedure TMainForm.LoadFiles();
 var
   Path: String;
 begin
-  if IsSim then
-    Path := AppDataModule.SimXmlFilePath
-  else
-    Path := AppDataModule.IfcXmlFilePath;
-
-  Log('LoadFiles: ' + Path);
-  AppDataModule.LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
+  //Log('LoadFiles: ' + Path);
+  //AppDataModule.LoadFilesList(Path, '*.xml', ComboBoxXmlFileName.Items);
   //AppDataModule.LoadFilesList(Path, '*.yml', ComboBoxYmlFileName.Items);
 end;
 
@@ -223,10 +192,7 @@ procedure TMainForm.PollGuiMsg();
 var
   Prefix, FileName: String;
 begin
-  if IsSim then
-     Prefix := 'sim'
-  else
-    Prefix := 'ifc';
+  Prefix := 'ifc';
 
   FileName := AppDataModule.PollGuiMsg(Prefix);
   if FileName <> '' then
@@ -243,34 +209,26 @@ procedure TMainForm.SendGuiMsg(AText: String;  ATitle: String);
 var
   Prefix: String;
 begin
-  if IsSim then
-     Prefix := 'sim_'
-  else
-    Prefix := 'ifc_';
+  Prefix := 'ifc_';
 
   Log('SendGuiMsg: ' + ATitle, clBlue);
-  AppDataModule.SendGuiMsg(AText, SynEditXml.Lines.Text, Prefix);
+  AppDataModule.SendGuiMsg(AText, SynEditSQL.Lines.Text, Prefix);
   //AppDataModule.SendGuiMsg(AText, MemoXml.Lines.Text, Prefix);
 end;
 
+
+procedure TMainForm.RunPy(Cmd: String;  Params: TStrings);
+begin
+  Process.Executable := 'python3.exe';
+  Process.Parameters.Assign(Params);
+  Process.Options := [poUsePipes];
+  Process.Execute();
+end;
 
 procedure TMainForm.Log(Line: String;  AColor: TColor;  BColor: TColor);
 begin
   //
   LogPanel.Add(Line, AColor, BColor);
-
-  with MemoLog do
-  begin
-    //Lines.Add(Line);
-    //SetRangeColor(Length(Lines.Text) - Length(Lines[Lines.Count - 1]) - Lines.Count - 1,
-    //  Length(Lines[Lines.Count - 1]), AColor);
-  end;
-
-  if IsSim then
-    Line := '[SIM] ' + Line
-  else
-    Line := '[IFC] ' + Line;
-
   AppDataModule.Log(Line);
 end;
 
@@ -307,46 +265,88 @@ end;
 
 
 procedure TMainForm.BtnRunScriptClick(Sender: TObject);
+var
+  Cmd: String;
+  Params: TStringList;
 begin
-  //AppDataModule.RunScript();
+  Params := TStringList.Create();
+
+  Cmd := '..' + DirectorySeparator + 'matlab_docgen.py ';
+
+  Cmd := Cmd + ' -d ' + EditGenDorFolder.Text;
+
+  if CheckBoxDocSubdirs.Checked then
+    Cmd := Cmd + '-subdirs';
+
+  if CheckBoxDocTxt.Checked then
+    Cmd := Cmd + '-txt';
+
+  if CheckBoxDocMlx.Checked then
+    Cmd := Cmd + '-mlx';
+
+  if CheckBoxDocTrim.Checked then
+    Cmd := Cmd + '-trim';
+
+  if CheckBoxDocFuncList.Checked then
+    Cmd := Cmd + '-funclist';
+
+  RunPy(Cmd, Params);
+  Params.Free();
 end;
 
 
 procedure TMainForm.BtnSendXmlClick(Sender: TObject);
 var
-  Yml: String;
+  Cmd: String;
+  Params: TStringList;
 begin
-  // Prepare
-  Yml :=
-   'Msg:'                  + LineBreak +
-   '  Cmd: SendXmlFile'    + LineBreak +
-   LineBreak;
+  Params := TStringList.Create();
 
-  SendGuiMsg(Yml, 'SendXmlFile');
+  Cmd := '..' + DirectorySeparator + 'xls2sql.py ';
+
+  if CheckBoxXlsSqlFile.Checked then
+  begin
+     Params.Add('-f');
+     Params.Add(EditXlsFileName.Text);
+  end
+  else if CheckBoxXlsSqlFolder.Checked then
+  begin
+    Params.Add('-d');
+    Params.Add(EditXlsFolderName.Text);
+  end;
+
+  if CheckBoxXlsSqlPostgre.Checked then
+    Params.Add('-postgres');
+
+  if CheckBoxXlsSqlSQLite.Checked then
+    Params.Add('-sqlite');
+
+  if CheckBoxXlsSqlFirebird.Checked then
+    Params.Add('-firebird');
+
+  if CheckBoxXlsSqlMatlab.Checked then
+    Params.Add('-matlab');
+
+  if CheckBoxXlsSqlPython.Checked then
+    Params.Add('-python');
+
+  if CheckBoxXlsSqlCpp.Checked then
+    Params.Add('-cpp');
+
+  if CheckBoxXlsSqlDelphi.Checked then
+    Params.Add('-delphi');
+
+  if CheckBoxXlsSqlDart.Checked then
+    Params.Add('-dart');
+
+  RunPy(Cmd, Params);
+  Params.Free();
 end;
 
-
-procedure TMainForm.ComboBoxXmlFileNameChange(Sender: TObject);
-var
-  FileName: String;
-begin
-  FileName := ComboBoxXmlFileName.Items[ComboBoxXmlFileName.ItemIndex];
-  SynEditXml.Lines.LoadFromFile(FileName);
-  //MemoXml.Lines.LoadFromFile(FileName);
-end;
-
-
-procedure TMainForm.ComboBoxYmlFileNameChange(Sender: TObject);
-var
-  FileName: String;
-begin
-  FileName := ComboBoxXmlFileName.Items[ComboBoxYmlFileName.ItemIndex];
-  MemoYml.Lines.LoadFromFile(FileName);
-end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  CanClose := false;
+  CanClose := true;  // false;
 end;
 
 
@@ -363,42 +363,14 @@ begin
   Application.Terminate();
 end;
 
-
-procedure TMainForm.TimerAutoSendTimer(Sender: TObject);
+procedure TMainForm.TimerUpdateProcessOutputTimer(Sender: TObject);
 begin
-  TimerAutoSend.Enabled := false;
-  try
-    if CheckBoxAutoSendRandomMsg.Checked then
-    begin
-      ComboBoxXmlFileName.ItemIndex := Random(ComboBoxXmlFileName.Items.Count);
-      ComboBoxXmlFileNameChange(Sender);
-      BtnSendXmlClick(Sender);
-    end;
-  finally
-  end;
-  TimerAutoSend.Enabled := true;
-end;
-
-
-procedure TMainForm.TimerPollGuiMsgTimer(Sender: TObject);
-begin
-  TimerPollGuiMsg.Enabled := false;
-  try
-    PollGuiMsg();
-  finally
-  end;
-  TimerPollGuiMsg.Enabled := true;
-end;
-
-procedure TMainForm.TimerUpdateStatusTimer(Sender: TObject);
-begin
-  TimerUpdateStatus.Enabled := false;
+  TimerUpdateProcessOutput.Enabled := false;
   try
   finally
   end;
-  TimerUpdateStatus.Enabled := true;
+  TimerUpdateProcessOutput.Enabled := true;
 end;
-
 
 end.
 

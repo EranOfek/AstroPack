@@ -1,18 +1,23 @@
-% DbConnection Class, connection to database
-% Impleented as wrapper for Java Connection class
-% Sample connection string: 'jdbc:postgresql://localhost:5432/pipeline'
-% Used internally by DbQuery
+%--------------------------------------------------------------------------
+% File:    DbConnection.m
+% Class:   DbConnection
+% Title:   Internal class used by DbQuery for database connection (using Java 'Connection' class)
+% Author:  Chen Tishler
+% Created: July 2021
+%--------------------------------------------------------------------------
+% Usage:
 %
-% Author: Chen Tishler (July 2021)
-%
-% Usual usage:
-%
+% This class is intenally used by DbQuery.
 % Use the static function getDbConnection() to get or create DbConnection
-% object, settings will be loaded from configuration.
+% object, settings will be loaded from configuration. See detailed 
+% documentation in DbQuery documentation.
 %
+% Example:
 %   DbConn = db.DbConnection.getDbConnection('unittest');
 %
-%
+% Sample connection string: 
+%   'jdbc:postgresql://localhost:5432/pipeline'
+%--------------------------------------------------------------------------
 
 % #functions (autogen)
 % DbConnection - Constructor Input:       'DriverName'      - Currently only 'postgres' is supported       'Host'            - Network host name or IP address       'DatabaseName'    - Database name, i.e. 'unittest'

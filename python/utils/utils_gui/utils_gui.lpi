@@ -7,7 +7,7 @@
         <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="db_utils"/>
+      <Title Value="utils_gui"/>
       <ResourceType Value="res"/>
       <UseXPManifest Value="True"/>
       <Icon Value="0"/>
@@ -37,7 +37,7 @@
     </RequiredPackages>
     <Units Count="5">
       <Unit0>
-        <Filename Value="db_utils.lpr"/>
+        <Filename Value="utils_gui.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
@@ -70,7 +70,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="db_utils"/>
+      <Filename Value="utils_gui"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>

@@ -1,3 +1,12 @@
+%--------------------------------------------------------------------------
+% File:    DbRecord.m
+% Class:   DbRecord
+% Title:   Data container that holds struct array of database table rows.
+% Author:  Chen Tishler
+% Created: July 2021
+%--------------------------------------------------------------------------
+% Description:
+%
 % DbQuery - SQL Database query
 %
 % Basic usage:

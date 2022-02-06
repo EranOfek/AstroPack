@@ -5,7 +5,7 @@
 #
 # Running/debugging from PyChart: Run -> Edit Configurations:
 #
-#     Script path:        D:\Ultrasat\AstroPack.git\python\utils\matlab_utils\get_matlab_functions.py
+#     Script path:        D:\Ultrasat\AstroPack.git\python\utils\matlab_utils\matlab_docgen.py
 #     Parameters:         (none)
 #     Working directory:  D:\Ultrasat\AstroPack.git\python\utils\matlab_utils
 #
@@ -57,12 +57,15 @@ import xml.sax.saxutils
 # the #functions comment block on top of file. This results in wide modifications
 # to the repository, so use with care, and let the other team members know about it.
 UPDATE_M = True
-#----------------------------------------------------------------------------
 
 # --- Global flags ---
+UPDATE_FUNCLIST = True              # True to update '#functions' block at top of file
 UPDATE_M_OUT_FILE = False           # True to write updated output to '$out' file instead of modifying the original file
 BACKUP_M_FILE = False               # True to copy original files to $bkp.m
 TRIM_TRAILING_SPACES = True         # True to clear trailing spaces from all processd files
+GENERATE_TXT = True                 # True to generate TXT files
+GENERATE_MLX = True                 # True to generate MLX files
+#----------------------------------------------------------------------------
 
 # Get path to repository root folder
 ASTROPACK_PATH = os.getenv('ASTROPACK_PATH')
@@ -89,7 +92,7 @@ MARK_INCLUDE = '#include'                       # Include comment file
 
 # Log message to file
 LOG_PATH = 'c:/temp/'
-logfile = open(os.path.join(LOG_PATH, 'get_matlab_functions.log'), 'a')
+logfile = open(os.path.join(LOG_PATH, 'matlab_codegen.log'), 'a')
 def log(msg, dt = False):
     global logfile
     if msg == '': dt = False
@@ -1191,17 +1194,20 @@ class MatlabProcessor:
 
         # Read source file
         lines = self.read_file(fname)
-        lines, start_idx = self.remove_autogen_funclist(lines)
 
-        # Insert functions list at to of file
-        lines.insert(start_idx+0, FUNC_BLOCK_BEGIN)  # (auto-generated list python script)
-        for i, func in enumerate(func_list_lines):
-            line = '% ' + func
-            lines.insert(start_idx+i+1, line)
+        if UPDATE_FUNCLIST:
+            lines, start_idx = self.remove_autogen_funclist(lines)
 
-        lines.insert(start_idx + 1 + len(func_list_lines), FUNC_BLOCK_END)
-        lines.insert(start_idx + 2 + len(func_list_lines), '%')
-        lines.insert(start_idx + 3 + len(func_list_lines), '')
+            # Insert functions list at to of file
+
+            lines.insert(start_idx+0, FUNC_BLOCK_BEGIN)  # (auto-generated list python script)
+            for i, func in enumerate(func_list_lines):
+                line = '% ' + func
+                lines.insert(start_idx+i+1, line)
+
+            lines.insert(start_idx + 1 + len(func_list_lines), FUNC_BLOCK_END)
+            lines.insert(start_idx + 2 + len(func_list_lines), '%')
+            lines.insert(start_idx + 3 + len(func_list_lines), '')
 
         self.write_m_file(fname, lines)
 
@@ -1717,11 +1723,11 @@ class MatlabProcessor:
         return process
     # -----------------------------------------------------------------------
     # Process folder with recursion
-    def process_tree(self, path):
+    def process_tree(self, path, recurse=True):
 
         # Get list of folders under path
         path = path.replace('\\', '/')
-        folders = glob.glob(os.path.join(path, '**/'), recursive=True)
+        folders = glob.glob(os.path.join(path, '**/'), recursive=recurse)
         log('process_tree: {}, folders found: {}'.format(path, len(folders)))
 
         for folder in folders:
@@ -2105,7 +2111,7 @@ class MatlabProcessor:
 
     # -----------------------------------------------------------------------
     # Main function
-    def process(self, path):
+    def process(self, path, recurse=True):
 
         self.package_list_filename = os.path.join(AUTOGEN_PATH, 'package_list.txt')
         self.class_list_filename = os.path.join(AUTOGEN_PATH, 'class_list.txt')
@@ -2122,13 +2128,16 @@ class MatlabProcessor:
             self.get_class(cls)
 
         # Process folders tree
-        self.process_tree(path)
+        self.process_tree(path, recurse)
 
         # Generate documentation
-        self.generate_packages_txt_md(generate_all=False)
-        self.generate_classes_txt_md(generate_all=False)
-        self.generate_classes_mlx()
-        self.generate_packages_mlx()
+        if GENERATE_TXT:
+            self.generate_packages_txt_md(generate_all=False)
+            self.generate_classes_txt_md(generate_all=False)
+
+        if GENERATE_MLX:
+            self.generate_classes_mlx()
+            self.generate_packages_mlx()
 
 
 # ---------------------------------------------------------------------------
@@ -2138,16 +2147,40 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-d', dest='dir',         default=None,                           help='parent source folder')
-    parser.add_argument('-s', dest='subdirs',     action='store_true',    default=True,   help='Process files in subfolders')
-    parser.add_argument('-o', dest='outdir',      default=None,                           help='Output folder')
+    parser.add_argument('-d', dest='dir',           default=None,                           help='parent source folder')
+    parser.add_argument('-o', dest='outdir',        default=None,                           help='Output folder')
+
+    # Options
+    parser.add_argument('-subdirs',  dest='subdirs',  action='store_true',    default=True,   help='Process files in subfolders')
+    parser.add_argument('-funclist', dest='update_m', action='store_true',    default=True,   help='Update #functions block in .m files')
+    parser.add_argument('-update',   dest='update_m', action='store_true',    default=False,  help='Update MATLAB .m files')
+    parser.add_argument('-update',   dest='trim',     action='store_true',    default=False,  help='Trim trailing spaces')
+    parser.add_argument('-backup',   dest='backup',   action='store_true',    default=False,  help='Backup .m files')
+    parser.add_argument('-txt',      dest='txt',      action='store_true',    default=True,   help='Generate TXT files')
+    parser.add_argument('-mlx',      dest='mlx',      action='store_true',    default=True,   help='Generate MLX files')
+
     args = parser.parse_args()
+
+    # to the repository, so use with care, and let the other team members know about it.
+    global UPDATE_FUNCLIST, UPDATE_M, UPDATE_M_OUT_FILE, BACKUP_M_FILE, TRIM_TRAILING_SPACES
+    global GENERATE_TXT, GENERATE_MLX
+
+    UPDATE_FUNCLIST = args.funclist
+    UPDATE_M = args.update_m
+    #UPDATE_M_OUT_FILE = args.
+    BACKUP_M_FILE = args.backup_m
+    TRIM_TRAILING_SPACES = args.trim
+    GENERATE_TXT = args.gentxt
+    GENERATE_MLX = args.genmlx
 
     # Create processor
     proc = MatlabProcessor()
 
+    dir = args.dir
+    proc.process(dir, args.subdir)
+
     #
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db')
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db', args.subdir)
 
     # Test for package
     # proc.process('D:/Ultrasat/AstroPack.git/matlab/astro/+celestial')

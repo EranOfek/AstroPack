@@ -97,7 +97,7 @@ else:
     LOG_PATH = '/tmp/'
 
 
-logfile = open(os.path.join(LOG_PATH, 'convert_csv_to_sql_db.log'), 'a')
+logfile = open(os.path.join(LOG_PATH, 'xls2sql.log'), 'a')
 def log(msg, dt = False):
     global logfile
     if msg == '': dt = False
@@ -109,7 +109,7 @@ def log(msg, dt = False):
         logfile.flush()
 
 
-mdfile = None #open(os.path.join(LOG_PATH, 'convert_csv_to_sql_db.log'), 'a')
+mdfile = None #open(os.path.join(LOG_PATH, 'xls2sql.log.md'), 'a')
 def write_md(line):
     global mdfile
     if mdfile:
@@ -1424,9 +1424,33 @@ def main():
     # Arguments
     parser.add_argument('-f', dest='xlsx',      default='unittest.xlsx', help='input xlsx file')
     parser.add_argument('-d', dest='dir',       default=None,            help='input folder, all .xlsx files will be processed')
-    parser.add_argument('-s', dest='subdirs',   action='store_true',     default=False,   help='Process xlsx files in subfolders')
+
+    # Generator options
+    parser.add_argument('-subdirs',     dest='subdirs',    action='store_true', default=False,   help='Process xlsx files in subfolders')
+    parser.add_argument('-postgres',    dest='postgres',   action='store_true', default=True,    help='Generate PostgreSQL script')
+    parser.add_argument('-firebird',    dest='firebird',   action='store_true', default=False,   help='Generate FirebirdSQL script')
+    parser.add_argument('-sqlite',      dest='sqlite',     action='store_true', default=True,    help='Generate SQLite script')
+    parser.add_argument('-python',      dest='python',     action='store_true', default=False,   help='Generate Python code')
+    parser.add_argument('-matlab',      dest='matlab',     action='store_true', default=False,   help='Generate MATLAB code')
+    parser.add_argument('-cpp',         dest='cpp',        action='store_true', default=False,   help='Generate C++ code')
+    parser.add_argument('-dehphi',      dest='delphi',     action='store_true', default=False,   help='Generate Delphi code')
+    parser.add_argument('-dart',        dest='dart',       action='store_true', default=False,   help='Generate Dart code')
+
     args = parser.parse_args()
 
+    # Set generator options
+    global GEN_POSTGRES, GEN_FIREBIRD, GEN_SQLITE
+    global GEN_PYTHON, GEN_MATLAB, GEN_CPP, GEN_DELPHI, GEN_DART
+    GEN_POSTGRES = args.postgres
+    GEN_FIREBIRD = args.firebird
+    GEN_SQLITE = args.sqlite
+    GEN_PYTHON = args.python
+    GEN_MATLAB = args.matlab
+    GEN_CPP = args.cpp
+    GEN_DELPHI = args.delphi
+    GEN_DART = args.dart
+
+    #
     astro_path = os.getenv('ASTROPACK_PATH')
     if args.dir:
         process_folder(args.dir, ['.xlsx'], args.subdirs)
