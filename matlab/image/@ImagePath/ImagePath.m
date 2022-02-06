@@ -623,8 +623,8 @@ classdef ImagePath < Base %Component
             
         end
         
-        function Ind = getAllInCounterSeries(Obj, FileName, ModNumber)
-            % Return indices of a series of images beloning to the same counter series (sorted by JD).
+        function [Ind, IndCounter] = getAllInCounterSeries(Obj, FileName, ModNumber)
+            % Return indices of a series of images belonging to the same counter series (sorted by JD).
             % Given an ImagePath and a file name or an index of an element
             %   in ImagePath:
             %   sort by JD,
@@ -648,6 +648,7 @@ classdef ImagePath < Base %Component
             %            always the last element in the series.
             %            NOTE that the ImagePath object will be sorted by
             %            JD.
+            %          - Vector of image counters.
             % Author : Eran Ofek (Jan 2022)
             % Example: 
             
@@ -676,6 +677,8 @@ classdef ImagePath < Base %Component
                 AllCounter = [Inf, AllCounter, 0];
                 I = find(diff(AllCounter)<0, 2, 'last');
                 Ind = (I(1):I(2)-1);
+                
+                IndCounter = [Obj(Ind).Counter];
             end
         end
         
