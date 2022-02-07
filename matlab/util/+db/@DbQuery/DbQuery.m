@@ -108,7 +108,7 @@ classdef DbQuery < Component
         ColumnMap        = [];      % struct - @Todo
         InsertRecFunc   = [];       % function(DbQuery, DbRecord, First, Last)
         InsertBatchSize = 100;      %
-        InsertUseCopy   = 5000;     % Above this number of records, insert() uses copyFrom()
+        InsertUseCopyThreshold = 5000;     % Above this number of records, insert() uses copyFrom()
 
         % Metadata from last select
         ColCount        = 0;        % Number of columns
@@ -220,13 +220,13 @@ classdef DbQuery < Component
             Result = [];
 
             % Use speified TableName or Obj.TableName
-            if ~isempty(Args.TableName)
-                Obj.TableName = Args.TableName;
+            if isempty(Args.TableName)
+                Args.TableName = Obj.TableName;
             end
-            assert(~isempty(Obj.TableName));
+            assert(~isempty(Args.TableName));
 
             % Prepare Select
-            Obj.SqlText = sprintf('SELECT %s FROM %s', Columns, Obj.TableName);
+            Obj.SqlText = sprintf('SELECT %s FROM %s', Columns, Args.TableName);
 
             % Where
             % @Todo: Support Where with external values
@@ -262,7 +262,6 @@ classdef DbQuery < Component
                 Obj.ClientShareFileName = sprintf('%s/%s', Obj.Conn.MountSharePath, Args.TempName);
                 
                 Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Obj.ServerShareFileName, ''' CSV HEADER'];
-                %Obj.msgLog(LogLevel.Debug, 'insert: UseCopy is not implemented yet, using INSERT');
 
                 Res = Obj.exec();
                 if Res
@@ -303,15 +302,19 @@ classdef DbQuery < Component
         function Result = insert(Obj, Rec, Args)
             % Simple insert, all arguments are char
             % Insert new record to table, Keys and Values are celarray
-            % Input:   Rec             -
+            % Input:   Rec             - Data to insert
             %          'TableName'     - Table name, if not specified, Obj.TableName is used
+            %          'CsvFileName'   - When non-empty, use copyFrom and insert data from this file instead of Rec
+            %
+            %          These arguments are used only when CsvFileName is
+            %          empty and Rec is used as data source
             %          'ColNames'      - Comma-separated field names (i.e. 'recid,fint')
             %          'ColumnMap'     - Optional field map
             %          'ExColumns'     - Additional fields as struct
             %          'BatchSize'     - Number of records per operation
             %          'InsertRecFunc' - Called to generate primary key if required
             %          'InsertRecArgs' - Arguments to InsertRecFunc
-            %          'UseCopy'       - When number of records is above this value, copyFrom() is used
+            %          'UseCopyThreshold' - When number of records is above this value, copyFrom() is used
             %
             % Output:  DbRecord
             % Example: -
@@ -328,7 +331,7 @@ classdef DbQuery < Component
                 Args.BatchSize = []         % Number of records per operation
                 Args.InsertRecFunc = []     % Called to generate primary key if required
                 Args.InsertRecArgs = {}     % Arguments to InsertRecFunc
-                Args.UseCopy = 0            % When number of records is above this value, copyFrom() is used
+                Args.UseCopyThreshold = []  % When number of records is above this value, copyFrom() is used
                 Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
             end
 
@@ -342,6 +345,15 @@ classdef DbQuery < Component
             end
             assert(~isempty(Args.TableName));
 
+            % Data is specified in Csv file, not in Rec
+            if ischar(Rec)
+                CsvFileName = sprintf('%s.csv', tempname);
+                Obj.msgLog(LogLevel.Warning, 'insert: UseCopy is not implemented yet, using INSERT');
+
+                Result = Obj.copyFrom(Args.TableName, CsvFileName);
+                return;                
+            end
+            
             if isempty(Args.BatchSize)
                 Args.BatchSize = Obj.InsertBatchSize;
             end
@@ -363,8 +375,9 @@ classdef DbQuery < Component
                 Args.InsertRecFunc(Obj, Rec, 1, numel(Rec.Data), Args.InsertRecArgs{:});
             end
 
-            if isempty(Args.UseCopy)
-                Args.UseCopy = Obj.InsertUseCopy;
+            % When not specified, use class's default
+            if isempty(Args.UseCopyThreshold)
+                Args.UseCopyThreshold = Obj.InsertUseCopyThreshold;
             end
 
             % Need connection, clear current query
@@ -388,16 +401,15 @@ classdef DbQuery < Component
             [SqlColumns, SqlValues] = Obj.makeInsertColumnsText(ColumnNames, 'ColumnMap', Args.ColumnMap, 'TableColumnList', TableColumnList);
             
             % Use COPY FROM
-            if Args.UseCopy > 0 && RecordCount > Args.UseCopy
+            if Args.UseCopyThreshold > 0 && RecordCount > Args.UseCopyThreshold
                 CsvFileName = sprintf('%s.csv', tempname);
                 Obj.msgLog(LogLevel.Warning, 'insert: UseCopy is not implemented yet, using INSERT');
-
-                %
-                %Rec.writeCsv(CsvFileName, Rec.Data, 'Header', Rec.Data);
-
-                %
-                %Result = Obj.copyFrom(Args.TableName, FileName);
-                %return;
+              
+                % Not working yet, to be checked @Todo
+                Rec.writeCsv(CsvFileName, Rec.Data, 'Header', Rec.Data);
+                
+                Result = Obj.copyFrom(Args.TableName, CsvFileName);
+                return;
             end
 
 
@@ -833,7 +845,10 @@ classdef DbQuery < Component
 
         
         function Result = writeResultSetCsv(Obj, CsvFileName)
-            % Write resultset to CSV file using Java CSVWriter obejct - still have some issues - @Todo
+            % NOT WORKING YET, Cannot call the Java object - @Todo
+            % Write Obj.JavaResultSet returned by select() to CSV file using 
+            % Java CSVWriter obejct - still have some issues - @Todo
+            
             % Input:   CsvFileName
             % Output:  true on sucess
             % Example: Obj.writeResultSetCsv('/tmp/test1.csv');
@@ -862,7 +877,10 @@ classdef DbQuery < Component
             end
                         
             try
+                % Create file string
                 File = java.io.FileWriter(CsvFileName);
+                
+                % @Todo - Write CSV file using java CSVWriter object
                 Writer = CSVWriter(File, ',');
                 Writer.writeAll(Obj.JavaResultSet, true);
                 Writer.close();
@@ -972,7 +990,7 @@ classdef DbQuery < Component
             else
                 try
                     if ~isempty(Obj.JavaMetadata)
-                        Index = getColumnIndex(ColumnName);
+                        Index = Obj.getColumnIndex(ColumnName);
                         Result = (Index > 0);
                     else
                         Result = Obj.JavaResultSet.getString(ColumnName);
@@ -1163,7 +1181,7 @@ classdef DbQuery < Component
         
         function Result = copyFrom(Obj, TableName, FileName, Args)
             % Helper function for insert() - Import records from file to table
-            % using COPY FROM statement.
+            % using COPY FROM statement. Currently for INTERNAL USE.
             %
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
@@ -1202,7 +1220,7 @@ classdef DbQuery < Component
 
         function Result = copyTo(Obj, TableName, FileName, Args)
             % Helper function for select() - Export records from table to file 
-            % using COPY TO statemet.            
+            % using COPY TO statemet. Currently for INTERNAL USE.
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
             % Input:   TableName
