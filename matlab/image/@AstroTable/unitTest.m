@@ -36,6 +36,10 @@ function Result = unitTest()
     % merge two AstroTable (all columns)
     io.msgLog(LogLevel.Test, 'testing AstroTable 2/2')
     MAC = merge([AC,AC]);
+    if length(AC.Catalog)*2 ~= length(MAC.Catalog)
+        error('Merge error: Bad row count');
+    end    
+    
 
     % Sort by second column
     io.msgLog(LogLevel.Test, 'testing AstroTable sortrows')
@@ -121,7 +125,10 @@ function Result = unitTest()
 
     % compareColNames
     io.msgLog(LogLevel.Test, 'testing AstroTable compareColNames')
-    AstroTable.compareColNames({'a','b'},{'a','b'});
+    compcols = AstroTable.compareColNames({'a','b'},{'a','b'});
+    if ~all(compcols) 
+        error('Problem with compareColNames');
+    end
 
     % insertColumn
     io.msgLog(LogLevel.Test, 'testing AstroTable insertColumn')
@@ -257,7 +264,65 @@ function Result = unitTest()
     AC=AstroTable; 
     AC.Catalog = rand(100,3); 
     flipud(AC);
+    
+    % selectLines
+    ATable = (1:1:5).'; 
+    ATable = [ATable, rand(size(ATable))];
+    Result = AstroTable.selectLines(ATable, [1;2]);
+    
+    % insertLines
+    Table = (1:1:5).'; Table = [Table, rand(size(Table))];
+    Table2 = (1:1:4).'; Table2 = [Table2, rand(size(Table2,1),2)];
+    Result = AstroTable.insertLines(Table, Table2(3:4,:), [1 2]);
+    Result = AstroTable.insertLines(Table, Table2(3:4,:), [1 2],'FillNaN',false);
+    
+    % getColUnits
+    AC = AstroTable({rand(10,2),rand(10,2)},'ColNames',{'RA','Dec'},'ColUnits',{'rad','rad'});
+    Result = getColUnits(AC(1), 'RA');
+    
+    % Col2struct
+    AT = AstroTable({rand(1000,2)},'ColNames',{'a','b'});
+    S  = getCol2struct(AT, {'a'});
+    
+    % getColDic
+    [Result, Units, Ind, ColName] = getColDic(AT,{'c','d','b'});
+    
+    % insertRows
+    Table = (1:1:5).'; 
+    Table = [Table, rand(size(Table))];
+    AT = AstroTable({Table});
+    Table2 = (1:1:4).'; 
+    Table2 = [Table2, rand(size(Table2,1),2)];
+    AT2 = AstroTable({Table2});
+    Result = insertRows(AT, AT2, [1 2 3 4 5],[4 3 2 1 1]);
+    Result = insertRows(AT, AT2, [1 2 3 4 ],[4 3 2 1 ]);    
+    
+    % selectRows
+    Table = (1:1:5).'; 
+    Table = [Table, rand(size(Table))];
+    AT = AstroTable({Table});
+    Result = selectRows(AT, [1;2]);
+    Result = selectRows(AT, [2 3 2]);
+    Result = selectRows(AT, [true, true, false, true, false]);
+    Result = selectRows(AT, [2 3 2 NaN],'IgnoreNaN',true);
+    Result = selectRows(AT, [2 3 NaN 2 NaN],'IgnoreNaN',false);
+    
+    % queryFun    
+    AT = AstroTable({rand(10,2)},'ColNames',{'X','Y'});
+    T = queryFun(AT, {'X', @(x) x>0.5, 'Y', @(x) x>0.5}, 'CreateNewObj',true);
 
+    % csvWrite
+    csvWrite(AT, 'AT_unittest_test.csv');
+    delete('AT_unittest_test.csv');
+
+    %toTable
+    AT = AstroTable({rand(10,2)},'ColNames',{'a','b'});
+    T  = AT.toTable;
+    
+    % write1
+    write1(AT, 'AT_unittest_test.fits');
+    delete('AT_unittest_test.fits');
+    
     cd(PWD);
     io.msgStyle(LogLevel.Test, '@passed', 'AstroTable test passed');
     Result = true;

@@ -18,23 +18,47 @@ function Result = unitTest
        error('AstroCatalog with no X/Y coordinates reported as having X/Y coordinates'); 
     end
 
-    AC=AstroCatalog({'asu.fit'},'HDU',2);
+%     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [Result, Units] = isCooSphere(AC);
     if ~Result
-       error('AstroCatalog with spherical coordinates reported as having no spherical coordinates'); 
+       error('AstroCatalog with spherical coordinates reported as having none'); 
     end    
+    
+    AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});    
+    [Result] = isCooSphere(AC);
+    if Result
+       error('AstroCatalog with X/Y coordinates reported as having spherical coordinates'); 
+    end
 
+%     AC=AstroCatalog({'asu.fit'},'HDU',2);
+    [Result, Units] = isCooPix(AC);
+    if ~Result
+       error('AstroCatalog with X/Y coordinates reported as having none'); 
+    end
+    
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [CooType, Units] = getCooType(AC);   
     if char(CooType(1)) ~= 'Sphere'
        error('AstroCatalog Coordinates not interpreted correctly'); 
     end
     
+    AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});    
+    [CooType, Units] = getCooType(AC);   
+    if char(CooType(1)) ~= 'pix'
+       error('AstroCatalog Coordinates not interpreted correctly'); 
+    end
+    
     AC=AstroCatalog({'asu.fit'},'HDU',2);
-    [ColX, ColY] = getColCooForCooType(AC, 'sphere')
+    [ColX, ColY] = getColCooForCooType(AC, 'sphere');
+    AC2=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});  
+    [ColX, ColY] = getColCooForCooType(AC2, 'pix');
 
     AC=AstroCatalog({'asu.fit'},'HDU',2);
-    [IsSphereBoth, IsPixBoth, CooType] = getCommonCooType(AC, AC);
+    AC2=AstroCatalog({rand(100,6)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE','RAJ2000','DEJ2000','mag1','mag2'});  
+    [IsSphereBoth, IsPixBoth, CooType] = getCommonCooType(AC, AC2);
+    if ~IsSphereBoth || IsPixBoth || ~strcmp(CooType,'sphere')
+        error('AstroCatalog Coordinates not interpreted correctly'); 
+    end
 
     io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
     AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
@@ -84,6 +108,11 @@ function Result = unitTest
     Result = cropXY(AC, [81 100 41 70],'AddX',{'Flux'});
     Result = cropXY(AC, [81 100 41 70; 1 50 1 50]); % multiple crops of a single catalog
 
+    % cropLonLatlnPoly
+    io.msgLog(LogLevel.Test, 'testing AstroCatalog cropLatInPoly');
+    AC=AstroCatalog({'asu.fit'},'HDU',2);
+%     Result = cropLonLatInPoly(AC, [0.03 0.04], [30 40]);
+    
     % getLonLat
     io.msgLog(LogLevel.Test, 'testing AstroCatalog getLonLat');
     AC=AstroCatalog({'asu.fit'},'HDU',2);
@@ -97,7 +126,7 @@ function Result = unitTest
 
     % insertFlagColFromMask
     io.msgLog(LogLevel.Test, 'testing AstroCatalog insertFlagColFromMask');
-    AC = AstroCatalog({rand(100,2).*1024}, 'ColNames',{'X','Y'});
+    AC = AstroCatalog({rand(100,2).*1023}, 'ColNames',{'X','Y'});
     MI = MaskImage({uint32(ones(1024,1024).*5)});
     insertFlagColFromMask(AC, MI);
 
@@ -141,6 +170,10 @@ function Result = unitTest
     %AC.getCooTypeAuto;
     io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
     AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
+    
+    % plotSources
+    AT = AstroCatalog({rand(100,3)},'ColNames',{'X','Y','Mag'});
+    AT.plotSources;   
 
     % convertCooUnits
     io.msgLog(LogLevel.Test, 'testing AstroCatalog convertCooUnits');
