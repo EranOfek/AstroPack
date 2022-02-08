@@ -1433,7 +1433,7 @@ def main():
     parser.add_argument('-python',      dest='python',     action='store_true', default=False,   help='Generate Python code')
     parser.add_argument('-matlab',      dest='matlab',     action='store_true', default=False,   help='Generate MATLAB code')
     parser.add_argument('-cpp',         dest='cpp',        action='store_true', default=False,   help='Generate C++ code')
-    parser.add_argument('-dehphi',      dest='delphi',     action='store_true', default=False,   help='Generate Delphi code')
+    parser.add_argument('-delphi',      dest='delphi',     action='store_true', default=False,   help='Generate Delphi code')
     parser.add_argument('-dart',        dest='dart',       action='store_true', default=False,   help='Generate Dart code')
 
     args = parser.parse_args()

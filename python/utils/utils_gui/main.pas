@@ -79,7 +79,6 @@ type
     Panel6: TPanel;
     Panel9: TPanel;
     PanelLog: TPanel;
-    PanelLog1: TPanel;
     PanelXml: TPanel;
     Process: TProcess;
     Splitter4: TSplitter;
@@ -290,7 +289,16 @@ begin
 
   Params.Add('..' + DirectorySeparator + 'matlab_utils' + DirectorySeparator + 'matlab_docgen.py');
 
-  Params.Add('-d ' + EditDocGenFolder.Text);
+  if CheckBoxDocMarkdownToMlx.Checked then
+  begin
+     Params.Add('-md');
+     Params.Add(StringReplace(EditDocGenMarkdown.Text, '\', '/', [rfReplaceAll]))
+  end
+  else
+  begin
+    Params.Add('-d');
+    Params.Add(EditDocGenFolder.Text);
+  end;
 
   if CheckBoxDocSubdirs.Checked then
     Params.Add('-subdirs');
