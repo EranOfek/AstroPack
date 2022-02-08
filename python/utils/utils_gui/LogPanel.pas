@@ -47,6 +47,8 @@ type
     FHScrollBar : TScrollBar;
     FVScrollBar : TScrollBar;
     FUpdateTimer : TTimer;
+    FLineBuf: String;
+    FTimePrompt: Boolean;
 
   protected
     procedure ClearList;
@@ -69,6 +71,11 @@ type
       // Add message to log
       procedure Add(MsgText: String; TextColor: TColor = $7FFFFFFF;
         BackColor: TColor = $7FFFFFFF);
+
+      // Add message to log
+      procedure AddLn(MsgText: String; TextColor: TColor = $7FFFFFFF;
+        BackColor: TColor = $7FFFFFFF);
+
       procedure Clear;
 
 
@@ -84,6 +91,7 @@ type
     property TimeTickCount: Boolean read FTimeTickCount write FTimeTickCount;
     property TimeDiff: Boolean read FTimeDiff write FTimeDiff;
     property Paused: Boolean read FPaused write FPaused;
+    property TimePrompt: Boolean read FTimePrompt write FTimePrompt;
   end;
 
 
@@ -120,6 +128,7 @@ begin
   TimeTickCount   := false;
   TimeDiff        := false;
   Paused          := false;
+  TimePrompt      := true;
 
   FLastTickCount  := 0;
   FScrollLines    := 0;
@@ -179,7 +188,9 @@ var
 
 begin
   try
-    Prompt := TimeStr;
+    if FTimePrompt then
+      Prompt := TimeStr;
+
     AText   := Prompt + MsgText;
 
     if (FMaxLength < Length(AText)) then
@@ -244,6 +255,31 @@ begin
   finally
   end;
 
+end;
+
+
+procedure TLogPanel.AddLn(MsgText: String; TextColor: TColor = $7FFFFFFF;
+    BackColor: TColor = $7FFFFFFF);
+var
+  p: Integer;
+begin
+  MsgText := StringReplace(MsgText, #13, '', [rfReplaceAll]);
+  while Length(MsgText) > 0 do
+  begin
+    p:= Pos(#10, MsgText);
+    if p > 0 then
+    begin
+      FLineBuf := FLineBuf + Copy(MsgText, 1, p-1);
+      Add(FLineBuf, TextColor, BackColor);
+      FLineBuf := '';
+      MsgText := Copy(MsgText, p+1, Length(MsgText) - p);
+    end
+    else
+    begin
+      FLineBuf := FLineBuf + MsgText;
+      break;
+    end;
+  end;
 end;
 
 

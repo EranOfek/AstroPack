@@ -4,7 +4,7 @@ object AppDataModule: TAppDataModule
   OldCreateOrder = False
   Height = 407
   HorizontalOffset = 368
-  VerticalOffset = 143
+  VerticalOffset = 224
   Width = 520
   object PQConnection: TPQConnection
     Connected = False
@@ -64,22 +64,6 @@ object AppDataModule: TAppDataModule
     Macros = <>
     Left = 40
     Top = 128
-  end
-  object Process: TProcess
-    Active = False
-    Options = []
-    Priority = ppNormal
-    StartupOptions = []
-    ShowWindow = swoNone
-    WindowColumns = 0
-    WindowHeight = 0
-    WindowLeft = 0
-    WindowRows = 0
-    WindowTop = 0
-    WindowWidth = 0
-    FillAttribute = 0
-    Left = 48
-    Top = 216
   end
   object SQLQueryTasks: TSQLQuery
     FieldDefs = <>

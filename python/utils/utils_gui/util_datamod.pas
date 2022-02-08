@@ -5,7 +5,8 @@ unit util_datamod;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Process, IniFiles, PQConnection, SQLite3Conn, SQLDB;
+  Classes, Graphics, SysUtils, FileUtil, Process, IniFiles, PQConnection, SQLite3Conn, SQLDB,
+  LogPanel;
 
 
 type
@@ -14,7 +15,6 @@ type
 
   TAppDataModule = class(TDataModule)
     PQConnection: TPQConnection;
-    Process: TProcess;
     SQLite3Connection: TSQLite3Connection;
     SQLQueryMsgs: TSQLQuery;
     SQLQueryTasks: TSQLQuery;
@@ -55,6 +55,13 @@ type
 
     //
     procedure Log(AText: String);
+
+    //
+    function RunPy(Params: TStrings;  ALogPanel: TLogPanel;  var AProcess: TProcess) : Boolean;
+
+    //
+    procedure LogProcessOutput(AProcess: TProcess;  ALogPanel: TLogPanel;  AColor: TColor = clBlack);
+
 
   public
     Initialized         : Boolean;
@@ -411,6 +418,8 @@ begin
   end;
 
 end;
+
+
 procedure TAppDataModule.Log(AText: String);
 var
   F: Text;
@@ -425,6 +434,50 @@ begin
 
     Writeln(F, AText);
     Close(F);
+  end;
+end;
+
+
+function TAppDataModule.RunPy(Params: TStrings;  ALogPanel: TLogPanel;  var AProcess: TProcess) : Boolean;
+var
+  S: String;
+  OutputString: String;
+  ReadCount, i: Integer;
+  CharBuffer: array [0..511] of char;
+
+begin
+  AProcess:= TProcess.Create(self);
+  AProcess.Executable := 'python3.exe';
+  AProcess.Parameters.Assign(Params);
+  AProcess.Options := [poUsePipes, poStderrToOutPut];
+
+  S := AProcess.Executable;
+  for i:= 1 to AProcess.Parameters.Count do
+    S:= S + ' ' + AProcess.Parameters[i-1];
+
+  if ALogPanel <> nil then
+    ALogPanel.Add('RunPy: ' + S);
+
+  AProcess.Execute();
+end;
+
+
+procedure TAppDataModule.LogProcessOutput(AProcess: TProcess;  ALogPanel: TLogPanel;  AColor: TColor);
+var
+  OutputString: String;
+  ReadCount: Integer;
+  CharBuffer: array [0..8191] of char;
+begin
+  while AProcess.Output.NumBytesAvailable > 0 do
+  begin
+    ReadCount := AProcess.Output.NumBytesAvailable;
+    if ReadCount > Length(CharBuffer) then
+      ReadCount:= Length(CharBuffer);
+
+    AProcess.Output.Read(CharBuffer, ReadCount);
+    OutputString += Copy(CharBuffer, 0, ReadCount);
+    ALogPanel.AddLn(OutputString, AColor);
+    OutputString := '';
   end;
 end;
 

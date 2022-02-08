@@ -21,8 +21,13 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
-    BtnRunScript1: TBitBtn;
-    BtnSendXml: TBitBtn;
+    BtnDocGenOpen1: TButton;
+    BtnXlsOpenFile: TButton;
+    BtnXlsOpenFolder: TButton;
+    BtnDocGen: TBitBtn;
+    BtnXlsToSql: TBitBtn;
+    BtnDocGenOpen: TButton;
+    CheckBoxDocMarkdownToMlx: TCheckBox;
     CheckBoxXlsSqlFile: TCheckBox;
     CheckBoxXlsSqlFolder: TCheckBox;
     CheckBoxXlsSqlPostgre: TCheckBox;
@@ -39,9 +44,10 @@ type
     CheckBoxDocMlx: TCheckBox;
     CheckBoxDocTrim: TCheckBox;
     CheckBoxDocFuncList: TCheckBox;
+    EditDocGenMarkdown: TEdit;
 
     EditXlsFileName: TEdit;
-    EditGenDorFolder: TEdit;
+    EditDocGenFolder: TEdit;
     EditXlsFolderName: TEdit;
     GroupBox1: TGroupBox;
     GroupBox2: TGroupBox;
@@ -52,12 +58,15 @@ type
     LabelTitle: TLabel;
     MainMenu: TMainMenu;
     MemoXml: TMemo;
+    MIView: TMenuItem;
+    MIClearLog: TMenuItem;
     MISimulatorWindow: TMenuItem;
     MIAbout: TMenuItem;
     MIHelp: TMenuItem;
     MIInterfaceWindow: TMenuItem;
     MIExit: TMenuItem;
     MIFile: TMenuItem;
+    OpenDialogXls: TOpenDialog;
     PageControlMain: TPageControl;
     Panel1: TPanel;
     Panel11: TPanel;
@@ -80,13 +89,17 @@ type
     TabSheetXls2sql: TTabSheet;
     TabSheetDocGen: TTabSheet;
     TimerUpdateProcessOutput: TTimer;
+    procedure BtnDocGenOpenClick(Sender: TObject);
     procedure BtnLoadFilesClick(Sender: TObject);
     procedure BtnSendKeepAliveClick(Sender: TObject);
-    procedure BtnRunScriptClick(Sender: TObject);
-    procedure BtnSendXmlClick(Sender: TObject);
+    procedure BtnRunDocGenClick(Sender: TObject);
+    procedure BtnXlsToSqlClick(Sender: TObject);
+    procedure BtnXlsOpenFileClick(Sender: TObject);
+    procedure BtnXlsOpenFolderClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure MIAboutClick(Sender: TObject);
+    procedure MIClearLogClick(Sender: TObject);
     procedure MIExitClick(Sender: TObject);
     procedure TimerUpdateProcessOutputTimer(Sender: TObject);
   private
@@ -113,15 +126,12 @@ type
     procedure SendGuiMsg(AText: String;  ATitle: String = '');
 
     //
-    procedure RunPy(Cmd: String;  Params: TStrings);
-
-    //
     procedure Log(Line: String;  AColor: TColor = clBlack;  BColor: TColor = clWhite);
 
   //=========================================================================
   public
     LogPanel: TLogPanel;
-
+    PyProcess: TProcess;
   end;
 
 //===========================================================================
@@ -146,6 +156,8 @@ begin
   //
 
   AppDataModule.Init();
+
+  PyProcess := nil;
 
   //
   //LoadFiles();
@@ -217,14 +229,6 @@ begin
 end;
 
 
-procedure TMainForm.RunPy(Cmd: String;  Params: TStrings);
-begin
-  Process.Executable := 'python3.exe';
-  Process.Parameters.Assign(Params);
-  Process.Options := [poUsePipes];
-  Process.Execute();
-end;
-
 procedure TMainForm.Log(Line: String;  AColor: TColor;  BColor: TColor);
 begin
   //
@@ -241,6 +245,7 @@ begin
   LogPanel := TLogPanel.Create(self);
   PanelLog.InsertControl(LogPanel);
   LogPanel.Align := alClient;
+  LogPanel.TimePrompt := false;
 
   Init();
 end;
@@ -248,6 +253,19 @@ end;
 procedure TMainForm.BtnLoadFilesClick(Sender: TObject);
 begin
   LoadFiles();
+end;
+
+procedure TMainForm.BtnDocGenOpenClick(Sender: TObject);
+begin
+  //
+  if OpenDialogXls.Execute then
+  begin
+    if fileExists(OpenDialogXls.Filename) then
+    begin
+
+    end;
+
+  end;
 end;
 
 procedure TMainForm.BtnSendKeepAliveClick(Sender: TObject);
@@ -264,45 +282,43 @@ begin
 end;
 
 
-procedure TMainForm.BtnRunScriptClick(Sender: TObject);
+procedure TMainForm.BtnRunDocGenClick(Sender: TObject);
 var
-  Cmd: String;
   Params: TStringList;
 begin
   Params := TStringList.Create();
 
-  Cmd := '..' + DirectorySeparator + 'matlab_docgen.py ';
+  Params.Add('..' + DirectorySeparator + 'matlab_utils' + DirectorySeparator + 'matlab_docgen.py');
 
-  Cmd := Cmd + ' -d ' + EditGenDorFolder.Text;
+  Params.Add('-d ' + EditDocGenFolder.Text);
 
   if CheckBoxDocSubdirs.Checked then
-    Cmd := Cmd + '-subdirs';
+    Params.Add('-subdirs');
 
   if CheckBoxDocTxt.Checked then
-    Cmd := Cmd + '-txt';
+    Params.Add('-txt');
 
   if CheckBoxDocMlx.Checked then
-    Cmd := Cmd + '-mlx';
+    Params.Add('-mlx');
 
   if CheckBoxDocTrim.Checked then
-    Cmd := Cmd + '-trim';
+    Params.Add('-trim');
 
   if CheckBoxDocFuncList.Checked then
-    Cmd := Cmd + '-funclist';
+    Params.Add('-funclist');
 
-  RunPy(Cmd, Params);
+  AppDataModule.RunPy(Params, LogPanel, PyProcess);
   Params.Free();
 end;
 
 
-procedure TMainForm.BtnSendXmlClick(Sender: TObject);
+procedure TMainForm.BtnXlsToSqlClick(Sender: TObject);
 var
-  Cmd: String;
   Params: TStringList;
 begin
   Params := TStringList.Create();
 
-  Cmd := '..' + DirectorySeparator + 'xls2sql.py ';
+  Params.Add('..' + DirectorySeparator + 'matlab_utils' + DirectorySeparator + 'xlsx2sql.py');
 
   if CheckBoxXlsSqlFile.Checked then
   begin
@@ -339,8 +355,18 @@ begin
   if CheckBoxXlsSqlDart.Checked then
     Params.Add('-dart');
 
-  RunPy(Cmd, Params);
+  AppDataModule.RunPy(Params, LogPanel, PyProcess);
   Params.Free();
+end;
+
+procedure TMainForm.BtnXlsOpenFileClick(Sender: TObject);
+begin
+  //
+end;
+
+procedure TMainForm.BtnXlsOpenFolderClick(Sender: TObject);
+begin
+  //
 end;
 
 
@@ -356,6 +382,11 @@ begin
   AboutForm.Show();
 end;
 
+procedure TMainForm.MIClearLogClick(Sender: TObject);
+begin
+  LogPanel.Clear();
+end;
+
 
 procedure TMainForm.MIExitClick(Sender: TObject);
 begin
@@ -367,10 +398,13 @@ procedure TMainForm.TimerUpdateProcessOutputTimer(Sender: TObject);
 begin
   TimerUpdateProcessOutput.Enabled := false;
   try
+     if PyProcess <> nil then
+       AppDataModule.LogProcessOutput(PyProcess, LogPanel, clFuchsia);
   finally
   end;
   TimerUpdateProcessOutput.Enabled := true;
 end;
+
 
 end.
 
