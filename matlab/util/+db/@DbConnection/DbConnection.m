@@ -249,6 +249,20 @@ classdef DbConnection < Component
             % Example : Q = Obj.newQuery()
             Result = db.DbQuery(Obj);
         end
+        
+        
+        function Result = isSharedPathAvail(Obj)
+            % Check if shared folder is available between server and client
+            %
+            Result = false;
+            if ~isempty(Obj.ServerSharePath) && ~isempty(Obj.MountSharePath)
+                if isfolder(Obj.MountSharePath)
+                    Result = true;
+                end
+            end
+            
+        end
+        
     end
     
     %----------------------------------------------------------------------

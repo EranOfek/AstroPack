@@ -111,15 +111,20 @@ classdef DbDriver < Component
             if strcmp(Obj.DatabaseType, 'postgres')
                 
                 % Copy driver .jar file from source folder to target folder
-                if Obj.copyDriverFile(Obj.PostgresJar)
-                                
-                    % Create Java driver object
-                    try
-                        Obj.JavaDriver = org.postgresql.Driver;
-                        Obj.IsLoaded = true;
-                    catch
-                        Obj.msgLog(LogLevel.Error, 'open: Failed to get org.postgresql.Driver');
-                    end
+                Obj.SourceJarFile = fullfile(tools.os.getAstroPackExternalPath(), 'postgresql', Obj.PostgresJar);
+                Obj.TargetJarFile = fullfile(tools.os.getTempDir(), Obj.PostgresJar);
+                Obj.msgLog(LogLevel.Info, 'copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
+                if ~copyfile(Obj.SourceJarFile, Obj.TargetJarFile)
+                    Obj.msgLog(LogLevel.Warning, '(already running? ignore this warning) cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
+                end
+                javaaddpath(Obj.TargetJarFile);
+
+                % Create Java driver object
+                try
+                    Obj.JavaDriver = org.postgresql.Driver;
+                    Obj.IsLoaded = true;
+                catch
+                    Obj.msgLog(LogLevel.Error, 'open: Failed to get org.postgresql.Driver');
                 end
                 
             % Other type, currently not supported
@@ -149,47 +154,7 @@ classdef DbDriver < Component
             Result = true;
         end
         
-        
-        function Result = copyDriverFile(Obj, FileName)
-            % Copy driver file from source folder to target path
-            % This is requried to call javaclasspath()
-            % Input:   FileName - Jar file name
-            % Output:  true on success
-            % Example: Obj.copyDriverFile(Obj.PostgresJar)
-            
-            Result = false;
-            
-            % Get full path and name of the file in which the call occurs
-            MyFileName = mfilename('fullpath');
-            [MyPath, ~, ~] = fileparts(MyFileName);
-            Obj.SourceJarFile = fullfile(MyPath, FileName);
-                        
-            % Target is system temporary folder
-            % On Linux we use /tmp, on Windows we assume
-            % that we can use C:\Temp
-            if tools.os.iswindows()
-                Obj.TargetJarFile = fullfile('C:\Temp', FileName);
-            else
-                Obj.TargetJarFile = fullfile('/tmp', FileName);
-            end
-            
-            Obj.msgLog(LogLevel.Info, 'copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
-            if copyfile(Obj.SourceJarFile, Obj.TargetJarFile)
-            else
-                Obj.msgLog(LogLevel.Warning, '(already running? ignore this warning) cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
-            end
-            
-            % Add jar file to javaclasspath (ensure it is present in your current dir)
-            try
-                javaclasspath(Obj.TargetJarFile);
-                Obj.msgLog(LogLevel.Info, 'driver OK');
-                Result = true;
-            catch
-                Obj.msgLog(LogLevel.Error, 'javaclasspath failed: %s', Obj.TargetJarFile);
-            end
-        end
                 
-        
         % @Todo:
         function Result = validateConfig(Obj)
             % NOT IMPLEMENTED YET

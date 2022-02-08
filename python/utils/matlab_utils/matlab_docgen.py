@@ -46,7 +46,7 @@
 # For each .m file - txt file with function list
 #
 
-import os, glob, argparse, shutil, zipfile
+import os, sys, glob, argparse, shutil, zipfile
 from datetime import datetime
 from random import randint
 import xml.sax.saxutils
@@ -90,8 +90,13 @@ MARK_INCLUDE = '#include'                       # Include comment file
 
 # ===========================================================================
 
+if sys.platform == "win32":
+    TEMP_PATH = 'c:/temp'
+else:
+    TEMP_PATH = '/tmp'
+
 # Log message to file
-LOG_PATH = 'c:/temp/'
+LOG_PATH = TEMP_PATH
 logfile = open(os.path.join(LOG_PATH, 'matlab_codegen.log'), 'a')
 def log(msg, dt = False):
     global logfile
@@ -253,7 +258,7 @@ class MlxWriter:
         self.output_type = output_type
         self.doc_text = ''
         self.fname = fname
-        self.temp_path = 'c:/_mlx/temp'
+        self.temp_path = TEMP_PATH
         self.template_fname = os.path.join(MLX_ELEMENTS_PATH, 'empty.mlx')
         self.align = 'left'
         self.with_toc = False
@@ -431,8 +436,8 @@ class MlxWriter:
     def markdown(self, markdown_text):
 
         # Debug
-        with open('c:/temp/_md1.md', 'wt') as f:
-            f.write(markdown_text)
+        #with open(os.path.join(TEMP_PATH, '_md1.md', 'wt') as f:
+        #    f.write(markdown_text)
 
 
         markdown_lines = markdown_text.split('\n')
@@ -811,7 +816,7 @@ class FunctionData:
         self.name = ''
         self.filename = ''
         self.line_num = -1          # Line number of 'function' line
-        self.type = ''              # Static
+        self.type = ''              # Static/hidden
         self.params = ''
         self.comment = ''
         self.long_comment = ''
@@ -1187,10 +1192,6 @@ class MatlabProcessor:
         cls = self.class_dict[self.cur_class]
         func_list = list(cls.func_dict.keys())
         func_list.sort()
-        for func_name in func_list:
-            func = cls.func_dict[func_name]
-            line = func.name + ' - ' + func.comment
-            func_list_lines.append(line)
 
         # Read source file
         lines = self.read_file(fname)
@@ -1201,13 +1202,29 @@ class MatlabProcessor:
             # Insert functions list at to of file
 
             lines.insert(start_idx+0, FUNC_BLOCK_BEGIN)  # (auto-generated list python script)
-            for i, func in enumerate(func_list_lines):
-                line = '% ' + func
-                lines.insert(start_idx+i+1, line)
+            line_num = start_idx + 1
+            for ftype in ['', 'Static', 'Hidden']:
+                count = 0
+                for func_name in func_list:
+                    func = cls.func_dict[func_name]
+                    if ftype == func.type:
+                        count = count+1
 
-            lines.insert(start_idx + 1 + len(func_list_lines), FUNC_BLOCK_END)
-            lines.insert(start_idx + 2 + len(func_list_lines), '%')
-            lines.insert(start_idx + 3 + len(func_list_lines), '')
+                if count > 0:
+                    if ftype != '':
+                        line = '%' + ftype
+                        lines.insert(line_num, line)
+                        line_num = line_num + 1
+
+                    for func_name in func_list:
+                        func = cls.func_dict[func_name]
+                        line = '%' + func.name + ' - ' + func.comment
+                        lines.insert(line_num, line)
+                        line_num = line_num + 1
+
+            lines.insert(line_num+1, FUNC_BLOCK_END)
+            lines.insert(line_num+2, '%')
+            lines.insert(line_num+1, '')
 
         self.write_m_file(fname, lines)
 
@@ -1494,6 +1511,8 @@ class MatlabProcessor:
                     new_prop_type = ''
                     if 'Static' in tokens:
                         new_prop_type = 'Static'
+                    elif 'Hidden' in tokens:
+                        new_prop_type = 'Hidden'
 
                     # swtiched type
                     if new_prop_type != prop_type:
@@ -1524,6 +1543,8 @@ class MatlabProcessor:
                     new_methods_type = ''
                     if 'Static' in tokens:
                         new_methods_type = 'Static'
+                    if 'Hidden' in tokens:
+                        new_methods_type = 'Hidden'
 
                     # swtiched type
                     if new_methods_type != methods_type:
@@ -2147,17 +2168,18 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-d', dest='dir',           default=None,                           help='parent source folder')
-    parser.add_argument('-o', dest='outdir',        default=None,                           help='Output folder')
+    parser.add_argument('-d',  dest='dir',           default=None,                           help='parent source folder')
+    parser.add_argument('-o',  dest='outdir',        default=None,                           help='Output folder')
+    parser.add_argument('-md', dest='mdfile',        default=None,                           help='Convert markdown to MLX')
 
     # Options
     parser.add_argument('-subdirs',  dest='subdirs',  action='store_true',    default=True,   help='Process files in subfolders')
-    parser.add_argument('-funclist', dest='update_m', action='store_true',    default=True,   help='Update #functions block in .m files')
+    parser.add_argument('-funclist', dest='funclist', action='store_true',    default=True,   help='Update #functions block in .m files')
     parser.add_argument('-update',   dest='update_m', action='store_true',    default=False,  help='Update MATLAB .m files')
-    parser.add_argument('-update',   dest='trim',     action='store_true',    default=False,  help='Trim trailing spaces')
+    parser.add_argument('-trim',     dest='trim',     action='store_true',    default=False,  help='Trim trailing spaces')
     parser.add_argument('-backup',   dest='backup',   action='store_true',    default=False,  help='Backup .m files')
-    parser.add_argument('-txt',      dest='txt',      action='store_true',    default=True,   help='Generate TXT files')
-    parser.add_argument('-mlx',      dest='mlx',      action='store_true',    default=True,   help='Generate MLX files')
+    parser.add_argument('-txt',      dest='gentxt',   action='store_true',    default=True,   help='Generate TXT files')
+    parser.add_argument('-mlx',      dest='genmlx',   action='store_true',    default=True,   help='Generate MLX files')
 
     args = parser.parse_args()
 
@@ -2168,7 +2190,7 @@ def main():
     UPDATE_FUNCLIST = args.funclist
     UPDATE_M = args.update_m
     #UPDATE_M_OUT_FILE = args.
-    BACKUP_M_FILE = args.backup_m
+    BACKUP_M_FILE = args.backup
     TRIM_TRAILING_SPACES = args.trim
     GENERATE_TXT = args.gentxt
     GENERATE_MLX = args.genmlx
@@ -2177,10 +2199,17 @@ def main():
     proc = MatlabProcessor()
 
     dir = args.dir
-    proc.process(dir, args.subdir)
+    #proc.process(dir, args.subdir)
+
+    if args.mdfile and args.mdfile != '':
+        md = MarkdownReader(args.mdfile)
+        mlx = MlxWriter(args.mdfile + '.mlx')
+        mlx.markdown('\n'.join(md.lines))
+        mlx.close()
+        return
 
     #
-    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db', args.subdir)
+    proc.process('D:/Ultrasat/AstroPack.git/matlab/util/+db/@DbQuery', args.subdirs)
 
     # Test for package
     # proc.process('D:/Ultrasat/AstroPack.git/matlab/astro/+celestial')

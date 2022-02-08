@@ -287,32 +287,34 @@ classdef DbRecord < Base
         end
                     
                         
-        function Result = writeCsv(Obj, FileName, Args)
-            % Write Obj.Data struct array to CSV file, using mex optimization
-            % @Todo - to be tested
-            % Input:   FileName     -
-            %          Args.Header  -
+        function Result = writeCsv(Obj, FileName)
+            % Write Obj.Data struct array to CSV file
+            % @Todo - Use MEX optimized version, (to be complted)
+            % Input:   FileName     - CSV output fle name
             % Output:  true on sucess
-            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)
-            arguments
-                Obj
-                FileName            % File name
-                Args.Header         % Header, @TBD
+            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)           
+            if ~isempty(Obj.Data)
+                Table = struct2table(Obj.Data);
+            else
+                Table = table;
             end
+            writetable(Table, FileName);
+            Result = true;
             
             % Use MEX version which is x30 faster than MATLAB version
-            mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Args.Header, Obj.Data);
-            Result = true;
+            %mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Args.Header, Obj.Data);           
         end
         
         
         function Result = readCsv(Obj, FileName)
             % Read from CSV file to Obj.Data struct-array
-            % @Todo - Not implemented yet
-            % Input:   - FileName - CSV file name
-            % Output:  - @TBD
-            % Example: - CsvData = Obj.readCsv('/tmp/data1.csv')
-            Result = [];
+            % @Todo - Use MEX optimized version? (need to develop)
+            % Input:   - FileName - CSV input file name
+            % Output:  - true on success, data will be loaded to Obj.Data
+            % Example: - Rec.readCsv('/tmp/data1.csv')
+            Table = readtable(FileName);
+            Obj.Data = table2struct(Table);
+            Result = true;
         end
         
         

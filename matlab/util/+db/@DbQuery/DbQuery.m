@@ -199,8 +199,9 @@ classdef DbQuery < Component
             %                           'AstroHeader'
             %            'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
             %            'TempName'  - @Todo
-            %            'CsvFileName' - @Todo
-            % Output:  -
+            %            'CsvFileName' - Select to specified output CSV file, instead of
+            %                            result-set (using COPY TO)
+            % Output:  true on sucess
             % Example: -
             % Obj.select('Column1', 'Table', 'Where', '...', 'Order', '...')
             arguments
@@ -212,12 +213,11 @@ classdef DbQuery < Component
                 Args.Limit = -1         % Maximum number of records (LIMIT)
                 Args.Load = true        % true to load entire result set
                 Args.OutType = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
-                Args.UseCopy = false    % @Todo (not implemented yet): True to use copyTo() instead of SELECT
-                Args.TempName = ''      % @Todo
-                Args.CsvFileName = ''   % @Todo
+                Args.UseCopy = false    % True to use COPY TO
+                Args.CsvFileName = ''   % Select to CSV file instead of result-set
             end
 
-            Result = [];
+            Result = false;
 
             % Use speified TableName or Obj.TableName
             if isempty(Args.TableName)
@@ -244,6 +244,35 @@ classdef DbQuery < Component
                 Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
             end
 
+            % Now Obj.SqlText is ready
+            
+            if ~isempty(Args.CsvFileName)
+                % Shared folder is available, use it and then move the result to our target
+                if ~Obj.Conn.isSharedPathAvail()
+                    [ServerFileName, ClientFileName] = Obj.getSharedFileName(Args.CsvFileName);
+                    Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', ServerFileName, ''' CSV HEADER'];
+                    Res = Obj.exec();
+                    if Res
+                        if ~strcmpi(ClientFileName, Args.CsvFileName)
+                            if isfile(Args.CsvFileName)
+                                delete(Args.CsvFileName);
+                            end
+                            movefile(ClientFileName, Args.CsvFileName);
+                        end
+                        Result = true;                        
+                    end
+                    
+                % Shared folder is not avilable, use select and write the results
+                else
+                    Res = Obj.query();
+                    if Res
+                        Obj.writeResultSetToCsvFile(Args.CsvFileName);
+                    end
+                end
+            	return;
+            end
+            
+            
             % Use COPY TO statement to temporary csv file, and read file
             if Args.UseCopy
                 
@@ -266,7 +295,7 @@ classdef DbQuery < Component
                 Res = Obj.exec();
                 if Res
                     if ~isempty(Args.CsvFileName)
-                        Obj.writeResultSetCsv(Args.CsvFileName);
+                        Obj.writeResultSetToCsvFile(Args.CsvFileName);
                     elseif Args.Load
                         tic();
                         Result = db.DbRecord(Args.TempName);
@@ -297,7 +326,7 @@ classdef DbQuery < Component
                 end
             end
         end
-
+        %------------------------------------------------------------------
 
         function Result = insert(Obj, Rec, Args)
             % Simple insert, all arguments are char
@@ -489,7 +518,7 @@ classdef DbQuery < Component
 
             Result = Obj.ExecOk;
         end
-
+        %------------------------------------------------------------------
 
         function Result = update(Obj, SetColumns, Args)
             % Update record
@@ -844,50 +873,48 @@ classdef DbQuery < Component
         end
 
         
-        function Result = writeResultSetCsv(Obj, CsvFileName)
-            % NOT WORKING YET, Cannot call the Java object - @Todo
+        function Result = writeResultSetToCsvFile(Obj, CsvFileName)
             % Write Obj.JavaResultSet returned by select() to CSV file using 
-            % Java CSVWriter obejct - still have some issues - @Todo
-            
+            % Java CSVWriter obejct            
             % Input:   CsvFileName
             % Output:  true on sucess
-            % Example: Obj.writeResultSetCsv('/tmp/test1.csv');
+            % Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
             % See: https://stackoverflow.com/questions/60756995/write-a-sql-resultset-to-a-csv-file
             
             Result = false;
+            
+            % First time, initialize 
             persistent Init;
             if isempty(Init)
                 Init = true;
-                Path = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv');
-                Jar = fullfile(Path, 'opencsv-5.5.2.jar');
-                
-                try
-                    import('com.opencsv.*');
-                    javaObject('CSVWriter');
-                catch
-                    dp = Jar;  %[pth filesep 'external' filesep 'snakeyaml-1.9.jar'];
-                    if not(ismember(dp, javaclasspath ('-dynamic')))
-                        javaaddpath(dp); % javaaddpath clears global variables!?
-                    end
-                    import('com.opencsv.*');
-                end;
-    
-                %javaclasspath(Jar);
-                %javaaddpath(Path, '-end');
+                Jar = 'opencsv-5.5.2.jar';
+                SourceJar = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv', Jar);
+                TargetJar = fullfile(tools.os.getTempDir(), Jar);         
+                if ~copyfile(SourceJar, TargetJar)
+                    Obj.msgLog(LogLevel.Warning, '(already running? ignore this warning) cannot copy file %s to %s', SourceJar, TargetJar);
+                end
+                javaaddpath(TargetJar);                
             end
                         
             try
                 % Create file string
                 File = java.io.FileWriter(CsvFileName);
                 
-                % @Todo - Write CSV file using java CSVWriter object
-                Writer = CSVWriter(File, ',');
+                % Write CSV file using java CSVWriter object
+                % https://github.com/jlawrie/opencsv/blob/master/src/au/com/bytecode/opencsv/CSVWriter.java
+                % http://opencsv.sourceforge.net/apidocs/com/opencsv/CSVWriter.html
+                % CSVWriter(Writer writer,
+                %   char separator,
+                %   char quotechar,
+                %   char escapechar,
+                %   String lineEnd)
+                Writer = com.opencsv.CSVWriter(File, unicode2native(',')
                 Writer.writeAll(Obj.JavaResultSet, true);
                 Writer.close();
                 File.close();
                 Result = true;
             catch Ex
-                
+                Obj.msgLogEx(Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
             end
                     
         end
@@ -1180,7 +1207,7 @@ classdef DbQuery < Component
         
         
         function Result = copyFrom(Obj, TableName, FileName, Args)
-            % Helper function for insert() - Import records from file to table
+            % Helper function for insert() - Import records FROM FILE to table
             % using COPY FROM statement. Currently for INTERNAL USE.
             %
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
@@ -1208,6 +1235,27 @@ classdef DbQuery < Component
                 AColumns = [' (', Args.Columns, ') '];
             end
 
+            
+                % Generate UUID.csv or make sure that we only take the filename part
+                if isempty(Args.TempName)
+                    Args.TempName = sprintf('%s.csv', Component.newUuid());
+                else
+                    [filepath, FName, ext] = fileparts(Args.TempName);
+                    Args.TempName = strcat(FName, '.csv');
+                end
+                
+                % Prepare path, use ServerShareFileName in the COPY statement
+                % so the file name will be local on the server, we will be able
+                % to access over the network using ClientShareFileName
+                Obj.ServerShareFileName = sprintf('%s/%s', Obj.Conn.ServerSharePath, Args.TempName);
+                Obj.ClientShareFileName = sprintf('%s/%s', Obj.Conn.MountSharePath, Args.TempName);
+                
+                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Obj.ServerShareFileName, ''' CSV HEADER'];
+
+                Res = Obj.exec();
+                
+                
+                
             % Prepare SQL:
             % COPY tablename field1, field2 FROM 'filename' DELIMITER ',' CSV HEADER
             ASql = ['COPY ', string(TableName).char, string(AColumns).char, ' FROM ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER;'];
@@ -1219,7 +1267,7 @@ classdef DbQuery < Component
 
 
         function Result = copyTo(Obj, TableName, FileName, Args)
-            % Helper function for select() - Export records from table to file 
+            % Helper function for select() - Export records from table TO FILE
             % using COPY TO statemet. Currently for INTERNAL USE.
             % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
             % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
@@ -1235,7 +1283,7 @@ classdef DbQuery < Component
                 TableName           % Table name
                 FileName            % Output file name
                 Args.Columns = ''   % Fields list, if empty all fileds are exported
-                Args.Csv = true     % true to use CSV format
+                Args.Csv = true     % true to use CSV format, this is the only format that we currently support
             end
 
             Obj.msgLog(LogLevel.Debug, 'DbQuery: copyTo');
@@ -1245,15 +1293,59 @@ classdef DbQuery < Component
                 AColumns = [' (', Args.Columns, ') '];
             end
 
+            
+                % Generate UUID.csv or make sure that we only take the filename part
+                if isempty(Args.TempName)
+                    Args.TempName = sprintf('%s.csv', Component.newUuid());
+                else
+                    [filepath, FName, ext] = fileparts(Args.TempName);
+                    Args.TempName = strcat(FName, '.csv');
+                end
+                
+                % Prepare path, use ServerShareFileName in the COPY statement
+                % so the file name will be local on the server, we will be able
+                % to access over the network using ClientShareFileName
+                Obj.ServerShareFileName = sprintf('%s/%s', Obj.Conn.ServerSharePath, Args.TempName);
+                Obj.ClientShareFileName = sprintf('%s/%s', Obj.Conn.MountSharePath, Args.TempName);
+                
+                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Obj.ServerShareFileName, ''' CSV HEADER'];
+
+                Res = Obj.exec();
+                
+                
+                
             % Prepare SQL
             ASql = ['COPY ', string(TableName).char, string(AColumns).char, ' TO ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER'];
 
             Result = Obj.exec(ASql);
+            
+            
+            
+            
             Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);
             Result = Obj.ExecOk;
         end
 
 
+        function [ServerFileName, ClientFileName] = getSharedFileName(Obj, FileName)
+            % Prepare file names for server and client
+            % Input:  FileName -
+            % Output: ServerFileName -
+            %         ClientFileName -
+            % Exampe: -
+
+            % Prepare path, use ServerShareFileName in the COPY statement
+            % so the file name will be local on the server, we will be able
+            % to access over the network using ClientShareFileName
+            % Note that our server should be Linux
+            
+            [~, FName, Ext] = fileparts(FileName);                   
+            ServerFileName = sprintf('%s%s%s%s', Obj.Conn.ServerSharePath, '/', FName, Ext);
+            ClientFileName = fullfile(Obj.Conn.MountSharePath, strcat(FName, Ext));
+            %ClientFileName = sprintf('%s%s%s%s', Obj.Conn.MountSharePath, filesep, FName, Ext);
+        end
+        
+        
         function Result = clear(Obj)
             % Clear current statement and ResultSet
             % Input:   -
