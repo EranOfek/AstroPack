@@ -1,6 +1,10 @@
 # MATLAB Utillities
 
-- get_matlab_functions.py
+### xlsx2sql.py
 
-- mlx_template.mlx
+Generate SQL scripts from Google Sheets tables.
+
+### matlab_codegen.py
+
+Documentation generator from MATLAB source code, convert Markdown to MLX.
 

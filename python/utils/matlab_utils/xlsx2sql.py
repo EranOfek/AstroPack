@@ -1422,8 +1422,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-f', dest='xlsx',      default='unittest.xlsx', help='input xlsx file')
-    parser.add_argument('-d', dest='dir',       default=None,            help='input folder, all .xlsx files will be processed')
+    parser.add_argument('-f', dest='xlsx',      default='unittest.xlsx', help='Specify input .xlsx file name')
+    parser.add_argument('-d', dest='dir',       default=None,            help='Specify input folder, all .xlsx files will be processed')
 
     # Generator options
     parser.add_argument('-subdirs',     dest='subdirs',    action='store_true', default=False,   help='Process xlsx files in subfolders')
@@ -1434,7 +1434,7 @@ def main():
     parser.add_argument('-matlab',      dest='matlab',     action='store_true', default=False,   help='Generate MATLAB code')
     parser.add_argument('-cpp',         dest='cpp',        action='store_true', default=False,   help='Generate C++ code')
     parser.add_argument('-delphi',      dest='delphi',     action='store_true', default=False,   help='Generate Delphi code')
-    parser.add_argument('-dart',        dest='dart',       action='store_true', default=False,   help='Generate Dart code')
+    parser.add_argument('-dart',        dest='dart',       action='store_true', default=False,   help='Generate Dart (Flutter) code')
 
     args = parser.parse_args()
 

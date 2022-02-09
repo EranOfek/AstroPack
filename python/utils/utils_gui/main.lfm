@@ -1,11 +1,11 @@
 object MainForm: TMainForm
-  Left = 65
-  Height = 793
-  Top = 20
+  Left = 66
+  Height = 690
+  Top = 0
   Width = 996
   Align = alTop
   Caption = 'AstroPack MATLAB & Database Utils'
-  ClientHeight = 773
+  ClientHeight = 670
   ClientWidth = 996
   Menu = MainMenu
   OnCloseQuery = FormCloseQuery
@@ -11153,29 +11153,29 @@ object MainForm: TMainForm
   end
   object Panel2: TPanel
     Left = 0
-    Height = 709
+    Height = 606
     Top = 64
     Width = 996
     Align = alClient
-    ClientHeight = 709
+    ClientHeight = 606
     ClientWidth = 996
     TabOrder = 1
     object Panel9: TPanel
       Left = 1
-      Height = 707
+      Height = 604
       Top = 1
       Width = 994
       Align = alClient
       BorderWidth = 8
       Caption = 'Panel9'
-      ClientHeight = 707
+      ClientHeight = 604
       ClientWidth = 994
       Color = clOlive
       ParentColor = False
       TabOrder = 0
       object PageControlMain: TPageControl
         Left = 9
-        Height = 507
+        Height = 404
         Top = 9
         Width = 976
         ActivePage = TabSheetXls2sql
@@ -11184,30 +11184,30 @@ object MainForm: TMainForm
         TabOrder = 0
         object TabSheetXls2sql: TTabSheet
           Caption = 'xls2sql'
-          ClientHeight = 479
+          ClientHeight = 376
           ClientWidth = 968
           object Panel4: TPanel
             Left = 0
-            Height = 479
+            Height = 376
             Top = 0
             Width = 968
             Align = alClient
             BorderWidth = 8
             Caption = 'Panel4'
-            ClientHeight = 479
+            ClientHeight = 376
             ClientWidth = 968
             Color = clSilver
             ParentColor = False
             TabOrder = 0
             object PanelXml: TPanel
               Left = 9
-              Height = 239
+              Height = 136
               Top = 223
               Width = 950
               Align = alClient
               BorderWidth = 4
               Caption = 'PanelXml'
-              ClientHeight = 239
+              ClientHeight = 136
               ClientWidth = 950
               TabOrder = 0
               object MemoXml: TMemo
@@ -11248,7 +11248,7 @@ object MainForm: TMainForm
               end
               inline SynEditSQL: TSynEdit
                 Left = 5
-                Height = 205
+                Height = 102
                 Top = 29
                 Width = 940
                 Align = alClient
@@ -11963,7 +11963,7 @@ object MainForm: TMainForm
               Cursor = crVSplit
               Left = 9
               Height = 8
-              Top = 462
+              Top = 359
               Width = 950
               Align = alBottom
               Color = clSkyBlue
@@ -11974,17 +11974,17 @@ object MainForm: TMainForm
         end
         object TabSheetDocGen: TTabSheet
           Caption = 'MATLAB DocGen'
-          ClientHeight = 479
+          ClientHeight = 376
           ClientWidth = 968
           object Panel6: TPanel
             Left = 0
-            Height = 479
+            Height = 376
             Top = 0
             Width = 968
             Align = alClient
             BorderWidth = 8
             Caption = 'Panel6'
-            ClientHeight = 479
+            ClientHeight = 376
             ClientWidth = 968
             Color = clSilver
             ParentColor = False
@@ -12147,7 +12147,7 @@ object MainForm: TMainForm
               Cursor = crVSplit
               Left = 9
               Height = 8
-              Top = 462
+              Top = 359
               Width = 950
               Align = alBottom
               Color = clSkyBlue
@@ -12160,7 +12160,7 @@ object MainForm: TMainForm
       object PanelLog: TPanel
         Left = 9
         Height = 182
-        Top = 516
+        Top = 413
         Width = 976
         Align = alBottom
         BorderWidth = 4

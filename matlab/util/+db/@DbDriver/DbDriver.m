@@ -56,8 +56,6 @@ classdef DbDriver < Component
         
         % We copy the jar file from its original loation in the repository
         % to a target folder that is added by javaclasspath()
-        SourceJarFile = ''          % Full path of source jar file to be copied
-        TargetJarFile = ''          % Full path of target jar file
         IsLoaded = false            % True when driver is open
         
         % Java objects
@@ -111,13 +109,7 @@ classdef DbDriver < Component
             if strcmp(Obj.DatabaseType, 'postgres')
                 
                 % Copy driver .jar file from source folder to target folder
-                Obj.SourceJarFile = fullfile(tools.os.getAstroPackExternalPath(), 'postgresql', Obj.PostgresJar);
-                Obj.TargetJarFile = fullfile(tools.os.getTempDir(), Obj.PostgresJar);
-                Obj.msgLog(LogLevel.Info, 'copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
-                if ~copyfile(Obj.SourceJarFile, Obj.TargetJarFile)
-                    Obj.msgLog(LogLevel.Warning, '(already running? ignore this warning) cannot copy file %s to %s', Obj.SourceJarFile, Obj.TargetJarFile);
-                end
-                javaaddpath(Obj.TargetJarFile);
+                tools.os.copyJavaJarToTempDir(fullfile(tools.os.getAstroPackExternalPath(), 'postgresql', Obj.PostgresJar));
 
                 % Create Java driver object
                 try

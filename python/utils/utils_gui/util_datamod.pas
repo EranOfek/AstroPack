@@ -26,65 +26,64 @@ type
 
   public
 
-    //
+    // Initialize the Data Module
     procedure Init();
 
-    //
+    // Run script @Todo
     procedure RunScript(Path: AnsiString;  Script: AnsiString);
 
-    //
+    // Load files list from folder with mask
     procedure LoadFilesList(Path: String;  Mask: String;  List: TStrings);
 
-    //
+    // Load specified sectoin from YAML file
     procedure LoadYmlSection(YmlLines: TStrings;  Section: String;  Config: TStrings);
 
-    //
+    // Load specified section from YAML file to
     procedure LoadYmlConfig(FileName: String;  Section: String;  Config: TStrings);
 
-    //
+    // Load YAML file as INI file
     procedure LoadYmlToIni(FileName: String;  IniFile: TMemIniFile;  TrimValues: Boolean = true);
 
-    //
+    // Generate new file name, used to send messages in files between processes
     function GetNewFileName(Path: String;  Prefix: String;  Ext: String) : String;
 
-    //
+    // Send GUI message as YAML file
     procedure SendGuiMsg(AText: String;  Xml: String;  Prefix: String);
 
-    //
+    // Poll folder for incoming message, return file name of next message to process
     function PollGuiMsg(Prefix: String) : String;
 
-    //
+    // Log to file
     procedure Log(AText: String);
 
-    //
+    // Run Python script
     function RunPy(Params: TStrings;  ALogPanel: TLogPanel;  var AProcess: TProcess) : Boolean;
 
-    //
+    // Log output of Python script to specified LogPanel
     procedure LogProcessOutput(AProcess: TProcess;  ALogPanel: TLogPanel;  AColor: TColor = clBlack);
 
 
   public
-    Initialized         : Boolean;
-    LogPath             : String;
-    LogFileName         : String;
+    Initialized         : Boolean;       //
+    LogPath             : String;        //
+    LogFileName         : String;        //
 
-    ConfigIni           : TMemIniFile;
-    ConfigFileName      : String;
+    ConfigIni           : TMemIniFile;   //
+    ConfigFileName      : String;        //
 
-    IfcXmlFilePath      : String;
-    SimXmlFilePath      : String;
+    IfcXmlFilePath      : String;        //
+    SimXmlFilePath      : String;        //
 
-    MsgGcsToSocPath     : String;
-    MsgSocToGcsPath     : String;
-    GuiToPyPath         : String;
-    PyToGuiPath         : String;
+    MsgGcsToSocPath     : String;        //
+    MsgSocToGcsPath     : String;        //
+    GuiToPyPath         : String;        //
+    PyToGuiPath         : String;        //
+    GuiInPath           : String;        //
+    ScriptPath          : String;        //
+    NewFileNameCounter  : Integer;       //
 
-    GuiInPath           : String;
-    ScriptPath          : String;
-    NewFileNameCounter  : Integer;
-
-    UsePostgres         : Boolean;
-    UseSQLite           : Boolean;
+    UsePostgres         : Boolean;       //
+    UseSQLite           : Boolean;       //
   end;
 
 var
@@ -94,12 +93,12 @@ implementation
 
 {$R *.lfm}
 
-
 procedure TAppDataModule.DataModuleCreate(Sender: TObject);
 begin
   // ..
   Initialized := false;
 end;
+
 
 procedure TAppDataModule.DataModuleDestroy(Sender: TObject);
 begin
@@ -183,6 +182,7 @@ begin
   //LoadFiles();
 
 end;
+
 
 procedure TAppDataModule.RunScript(Path: AnsiString;  Script: AnsiString);
 var

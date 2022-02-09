@@ -3,8 +3,8 @@ object AppDataModule: TAppDataModule
   OnDestroy = DataModuleDestroy
   OldCreateOrder = False
   Height = 407
-  HorizontalOffset = 368
-  VerticalOffset = 224
+  HorizontalOffset = 369
+  VerticalOffset = 355
   Width = 520
   object PQConnection: TPQConnection
     Connected = False

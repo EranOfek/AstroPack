@@ -2168,16 +2168,16 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
-    parser.add_argument('-d',  dest='dir',           default=None,                           help='parent source folder')
-    parser.add_argument('-o',  dest='outdir',        default=None,                           help='Output folder')
-    parser.add_argument('-md', dest='mdfile',        default=None,                           help='Convert markdown to MLX')
+    parser.add_argument('-d',  dest='dir',           default=None,   help='Specify parent folder of .m source code files')
+    parser.add_argument('-o',  dest='outdir',        default=None,   help='Specify Output folder')
+    parser.add_argument('-md', dest='mdfile',        default=None,   help='Convert markdown to MLX')
 
     # Options
-    parser.add_argument('-subdirs',  dest='subdirs',  action='store_true',    default=True,   help='Process files in subfolders')
+    parser.add_argument('-subdirs',  dest='subdirs',  action='store_true',    default=True,   help='Process subfolders')
     parser.add_argument('-funclist', dest='funclist', action='store_true',    default=True,   help='Update #functions block in .m files')
     parser.add_argument('-update',   dest='update_m', action='store_true',    default=False,  help='Update MATLAB .m files')
     parser.add_argument('-trim',     dest='trim',     action='store_true',    default=False,  help='Trim trailing spaces')
-    parser.add_argument('-backup',   dest='backup',   action='store_true',    default=False,  help='Backup .m files')
+    parser.add_argument('-backup',   dest='backup',   action='store_true',    default=False,  help='Create backups for .m files')
     parser.add_argument('-txt',      dest='gentxt',   action='store_true',    default=True,   help='Generate TXT files')
     parser.add_argument('-mlx',      dest='genmlx',   action='store_true',    default=True,   help='Generate MLX files')
 

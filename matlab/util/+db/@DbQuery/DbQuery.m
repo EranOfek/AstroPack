@@ -244,7 +244,9 @@ classdef DbQuery < Component
                 Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
             end
 
+            %
             % Now Obj.SqlText is ready
+            %
             
             if ~isempty(Args.CsvFileName)
                 % Shared folder is available, use it and then move the result to our target
@@ -883,20 +885,14 @@ classdef DbQuery < Component
             
             Result = false;
             
-            % First time, initialize 
+            % Copy jar file only once
             persistent Init;
             if isempty(Init)
                 Init = true;
-                Jar = 'opencsv-5.5.2.jar';
-                SourceJar = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv', Jar);
-                TargetJar = fullfile(tools.os.getTempDir(), Jar);         
-                if ~copyfile(SourceJar, TargetJar)
-                    Obj.msgLog(LogLevel.Warning, '(already running? ignore this warning) cannot copy file %s to %s', SourceJar, TargetJar);
-                end
-                javaaddpath(TargetJar);                
+                tools.os.copyJavaJarToTempDir(fullfile(tools.os.getAstroPackExternalPath(), 'opencsv', 'opencsv-5.5.2.jar'));
             end
                         
-            try
+            %try
                 % Create file string
                 File = java.io.FileWriter(CsvFileName);
                 
@@ -908,14 +904,19 @@ classdef DbQuery < Component
                 %   char quotechar,
                 %   char escapechar,
                 %   String lineEnd)
-                Writer = com.opencsv.CSVWriter(File, unicode2native(',')
+                
+                % When creating with CSVWriter(File), the default quotechar is '"'
+                % which result in busy lines like:
+                % "a","","","10","0","","1.0","","N","0.0","0.0"
+                % So we send empty quotechar (see NO_QUOTE_CHARACTER in CSVWriter.java)
+                Writer = com.opencsv.CSVWriter(File, ',', char(0), char(0), newline);
                 Writer.writeAll(Obj.JavaResultSet, true);
                 Writer.close();
                 File.close();
                 Result = true;
-            catch Ex
-                Obj.msgLogEx(Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
-            end
+            %catch Ex
+             %   Obj.msgLogEx(Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
+            %end
                     
         end
         
