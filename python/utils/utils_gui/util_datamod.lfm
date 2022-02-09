@@ -4,7 +4,7 @@ object AppDataModule: TAppDataModule
   OldCreateOrder = False
   Height = 407
   HorizontalOffset = 369
-  VerticalOffset = 355
+  VerticalOffset = 444
   Width = 520
   object PQConnection: TPQConnection
     Connected = False

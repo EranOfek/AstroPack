@@ -1,7 +1,7 @@
 object MainForm: TMainForm
-  Left = 66
+  Left = 93
   Height = 690
-  Top = 0
+  Top = 135
   Width = 996
   Align = alTop
   Caption = 'AstroPack MATLAB & Database Utils'
@@ -11689,26 +11689,6 @@ object MainForm: TMainForm
                 MouseActions = <>
                 MouseTextActions = <>
                 MouseSelActions = <>
-                Lines.Strings = (
-                  '<?xml version="1.0" encoding="UTF-8"?>'
-                  '<msg>'
-                  #9'<header>'
-                  #9#9'<msg_id>1fcb0710</msg_id>'
-                  #9#9'<msg_time>2018-02-28T00:00:00.0Z</msg_time>'
-                  #9#9'<msg_type>Ack</msg_type>'
-                  #9#9'<source>SOC</source>'
-                  #9#9'<org_msg_id>6ce624da</org_msg_id>'
-                  #9#9'<task_id></task_id>'
-                  #9'</header>'
-                  #9'<ack>'
-                  #9#9'<status>Ack</status>'
-                  #9#9'<status>NAck</status>'
-                  #9#9
-                  #9#9'<!-- When Status is NAck -->'
-                  #9#9'<nack_details>Details text...</nack_details>'
-                  #9'</ack>'
-                  '</msg>'
-                )
                 VisibleSpecialChars = [vscSpace, vscTabAtLast]
                 ReadOnly = True
                 SelectedColor.BackPriority = 50

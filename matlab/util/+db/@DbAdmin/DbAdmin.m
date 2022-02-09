@@ -15,24 +15,31 @@
 %
 %--------------------------------------------------------------------------
 
-% #functions (autogen)
-% DbAdmin - Create new DbAdmin obeject Input:    'DbCon'     -    'Host'      -    'Database'  -
-% addColumn - Add single or multiple columns to table Input: Output: Example: Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0') Refs:    https://www.postgresqltutorial.com/postgresql-add-column/
-% addIndex - Add single index to table, may include one or multiple fields Input:   TableName - Table name to be altered          IndexName - Unique index name, usually composed as
-% addUser - Add database user Input:   UserName       - User name          Password       - Pasword string          'DatabaseName' - If specified user will be granted only for this database          'Permission'   - 'read', 'write', 'full'
-% createConnectionConfig - Create database connection in config/local/Database.DbConnections.UnitTest.yml Input:    'FileName'        = ''                %    'DatabaseName'    = ''                %    'Host'            = 'localhost'       % Host name or IP address
-% createDatabase - Create database Input:    'XlsFileName' - When specified, 'DatabaseName'  -
-% createTable - Create database table, @Todo Input: Output: Example: db.DbAdmin.createTable('unittest', ) Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
-% delete -
-% exec - Execute SQL statement, by calling Obj.Query.exec() Input:   SqlText - Statement text Output:  true on success Example: Obj.exec('DROP USER IF EXISTS user1')
-% getDbList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: List = Obj.getTablesList() Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
-% getUserList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: List = Obj.getTablesList() Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
-% removeUser - Remove user Input:   UserName to remove Output:  true on success Example: db.DbAdmin.removeUser('robert') Refs:    https://www.postgresql.org/docs/9.4/sql-dropuser.html
-% runPsql - Input:   XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
-% setConn - Input:   Conn - Output:  true on success Example: Obj.setConn(DbCon);
-% xls2sql - Convert XLSX file downloaded from Google Drive to SQL file Input:   XlsFileName Output:  true on success Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    DbAdmin - Create new DbAdmin obeject Input:    'DbCon'     -    'Host'      -    'Database'  -
+%    addColumn - Add single or multiple columns to table Input: Output: Example: Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0') Refs:    https://www.postgresqltutorial.com/postgresql-add-column/
+%    addIndex - Add single index to table, may include one or multiple fields Input:   TableName - Table name to be altered          IndexName - Unique index name, usually composed as
+%    addUser - Add database user Input:   UserName       - User name          Password       - Pasword string          'DatabaseName' - If specified user will be granted only for this database          'Permission'   - 'read', 'write', 'full'
+%    createConnectionConfig - Create database connection in config/local/Database.DbConnections.UnitTest.yml Input:    'FileName'        = ''                %    'DatabaseName'    = ''                %    'Host'            = 'localhost'       % Host name or IP address
+%    createDatabase - Create database Input:    'XlsFileName' - When specified, 'DatabaseName'  -
+%    createTable - Create database table, @Todo Input: Output: Example: db.DbAdmin.createTable('unittest', ) Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
+%    delete -
+%    getDbList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: List = Obj.getTablesList() Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
+%    getUserList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: List = Obj.getTablesList() Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
+%    removeUser - Remove user Input:   UserName to remove Output:  true on success Example: db.DbAdmin.removeUser('robert') Refs:    https://www.postgresql.org/docs/9.4/sql-dropuser.html
+%    setConn - Input:   Conn - Output:  true on success Example: Obj.setConn(DbCon);
+%
+% Methods: Static
+%    startGui - Run gui utility Input: Output: Example: db.DbAdmin.startGui(
+%
+% Methods: Hidden
+%    exec - Execute SQL statement, by calling Obj.Query.exec() Input:   SqlText - Statement text Output:  true on success Example: Obj.exec('DROP USER IF EXISTS user1')
+%    runPsql - Run 'psql' external utility with command line parameters. Input:   XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
+%    xls2sql - Convert XLSX file downloaded from Google Drive to SQL file Input:   XlsFileName Output:  true on success Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
+%
+%#/docgen
 
 classdef DbAdmin < Component
 
@@ -414,7 +421,7 @@ classdef DbAdmin < Component
             %          https://stackoverflow.com/questions/760210/how-do-you-create-a-read-only-user-in-postgresql
             % SQL:     CREATE USER user user_name WITH ENCRYPED PASSWORD 'mypassword';
             %          GRANT ALL PRIVILEGES ON DATABASE sample_db TO user_name;
-            % 
+            %
             % @Todo - need to research and learn more about creating read-only users
             %
             arguments
@@ -647,7 +654,7 @@ classdef DbAdmin < Component
                             Cmd = sprintf('setenv PGPASSWORD ''%s'' ; %s', Args.Password, Cmd);
                         else
                             Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
-                        end                                              
+                        end
                     end
                 end
                 
@@ -668,31 +675,37 @@ classdef DbAdmin < Component
         
         function Result = startGui()
             % Run gui utility
-            % Input:   
-            % Output:
-            % Example: db.DbAdmin.startGui(
-            arguments
-            end
+            % Input:   -
+            % Output:  -
+            % Example: db.DbAdmin.startGui
 
             Result = false;
             try
                                 
                 % Prepare command line
-                Path = fullfile(tools.os.getAstroPackPath(), 'python', 'utils', 'gui_lazarus');
+                Path = fullfile(tools.os.getAstroPackPath(), 'python', 'utils', 'utils_gui');
+                if ~isfolder(Path)
+                    io.msgLog(LogLevel.Error, 'DbAdmin.startGui: Path not found: %s', Path);
+                    return;
+                end
+                
                 if tools.os.islinux
                     Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui');
                 else
                     Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui.exe');
                 end
  
-                
-                io.msgLog(LogLevel.Info, 'startGui: system( %s )', Cmd);
-                [Status, Output] = system(Cmd);
-                io.msgLog(LogLevel.Info, 'startGui: %d', Status);
-                io.msgLog(LogLevel.Info, 'startGui: %s', Output);
-                Result = true;
+                if isfile(Cmd)
+                    io.msgLog(LogLevel.Info, 'DbAdmin.startGui: system( %s )', Cmd);
+                    [Status, Output] = system(Cmd);
+                    %io.msgLog(LogLevel.Info, 'startGui: %d', Status);
+                    %io.msgLog(LogLevel.Info, 'startGui: %s', Output);
+                    Result = true;
+                else
+                    io.msgLog(LogLevel.Error, 'DbAdmin.startGui: File not found, use Lazarus to compile the project: %s', Cmd);
+                end
             catch Ex
-                io.msgLogEx(LogLevel.Info, Ex, 'startGui');
+                io.msgLogEx(LogLevel.Info, Ex, 'DbAdmin.startGui');
             end
         end
         
@@ -705,6 +718,6 @@ classdef DbAdmin < Component
             % Unit-Test
 
         Result = examples()
-            % Examples          
+            % Examples
     end
 end

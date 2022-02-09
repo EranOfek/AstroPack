@@ -9,26 +9,30 @@
 %
 % DbRecord - Data container that holds struct array of database table data.
 % Used with DbQuery.insert(), select(), etc.
-% Construct DbRecord before calling DbQuery.insert(), 
+% Construct DbRecord before calling DbQuery.insert(),
 %
 %--------------------------------------------------------------------------
-% #functions (autogen)
-% DbRecord - Constructor Input:   Data          - struct array, table, cell array, matrix,                          AstroTable, AstroCatalog, AstroHeader          Args.ColNames - char comma separated, or cell array Example: MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
-% convert2 - Convert Obj.Data struct array to given OutType Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog' Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog Example: Mat = Obj.conevrt2('mat')
-% convert2AstroCatalog - Convert record(s) to AstroCatalog Input:   - Output:  AstroCatalog object Example: AC = Obj.convert2AstroCatalog()
-% convert2AstroTable - Convert record(s) to AstroTable Input:   - Output:  AstroTable object Example: AT = Obj.convert2AstroTable()
-% convert2cell - Convert record(s) to cell Note that we need to transpose it Input:   - Output:  Cell-array Example: Cell = Obj.convert2cell()
-% convert2mat - Convert record(s) to matrix, non-numeric fields are Note that we need to transpose it Input:   - Output:  Matrix Example: Mat = Obj.convert2mat()
-% convert2table - Convert record(s) to table Input:   - Output:  Table Example: Tab = Obj.convert2table()
-% delete - Destructor io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
-% getFieldNames - Get list of field names, properties ending with '_' are excluded Input:   - Output:  cell-array of field-names Example: FieldNames = Obj.getFieldNames()
-% getRowCount - Get numer of rows in Data struct array Input:   - Output:  Number of rows in Obj.Data Example: Count = Obj.getRowCount()
-% merge - Merge input struct array with current data
-% newKey - Generate unique id, as Uuid or SerialStr (more compact and fast) Input:   - Output:  New Uuid or SerialStr Example: Key = Obj.newKey()
-% readCsv - Read from CSV file to Obj.Data struct-array @Todo - Not implemented yet Input:   - FileName - CSV file name Output:  - @TBD Example: - CsvData = Obj.readCsv('/tmp/data1.csv')
-% writeCsv - Write Obj.Data struct array to CSV file, using mex optimization @Todo - to be tested Input:   FileName     -          Args.Header  - Output:  true on sucess
-% #/functions (autogen)
+
+%#docgen
 %
+% Methods:
+%    DbRecord - Constructor Input:   Data          - struct array, table, cell array, matrix,                          AstroTable, AstroCatalog, AstroHeader                          If type is char, load data from CSV file, header                          line with field names is required
+%    convert2 - Convert Obj.Data struct array to given OutType Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog',           'astroheader' Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog Example: Mat = Obj.conevrt2('mat')
+%    convert2AstroCatalog - Convert record(s) to AstroCatalog Input:   - Output:  AstroCatalog object Example: AC = Obj.convert2AstroCatalog()
+%    convert2AstroHeader - Convert record(s) to AstroCatalog Input:   - Output:  AstroCatalog object Example: AC = Obj.convert2AstroCatalog()
+%    convert2AstroTable - Convert record(s) to AstroTable Input:   - Output:  AstroTable object Example: AT = Obj.convert2AstroTable()
+%    convert2cell - Convert record(s) to cell Note that we need to transpose it Input:   - Output:  Cell-array Example: Cell = Obj.convert2cell()
+%    convert2mat - Convert record(s) to matrix, non-numeric fields are Note that we need to transpose it Input:   - Output:  Matrix Example: Mat = Obj.convert2mat()
+%    convert2table - Convert record(s) to table Input:   - Output:  Table Example: Tab = Obj.convert2table()
+%    delete - Destructor io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
+%    getFieldNames - Get list of field names, properties ending with '_' are excluded Input:   - Output:  cell-array of field-names Example: FieldNames = Obj.getFieldNames()
+%    getRowCount - Get numer of rows in Data struct array Input:   - Output:  Number of rows in Obj.Data Example: Count = Obj.getRowCount()
+%    merge - Merge input struct array with current data
+%    newKey - Generate unique id, as Uuid or SerialStr (more compact and fast) Input:   - Output:  New Uuid or SerialStr Example: Key = Obj.newKey()
+%    readCsv - Read from CSV file to Obj.Data struct-array @Todo - Use MEX optimized version? (need to develop) Input:   - FileName - CSV input file name Output:  - true on success, data will be loaded to Obj.Data Example: - Rec.readCsv('/tmp/data1.csv')
+%    writeCsv - Write Obj.Data struct array to CSV file @Todo - Use MEX optimized version, (to be complted) Input:   FileName     - CSV output fle name Output:  true on sucess Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)
+%
+%#/docgen
 
 classdef DbRecord < Base
     
@@ -287,7 +291,7 @@ classdef DbRecord < Base
             elseif strcmp(OutType, 'astrocatalog')
                 Result = Obj.convert2AstroCatalog();
             elseif strcmp(OutType, 'astroheader')
-                Result = Obj.convert2AstroHeader();                
+                Result = Obj.convert2AstroHeader();
             else
                 error('convert2: unknown output type: %s', OutType);
             end
@@ -299,7 +303,7 @@ classdef DbRecord < Base
             % @Todo - Use MEX optimized version, (to be complted)
             % Input:   FileName     - CSV output fle name
             % Output:  true on sucess
-            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)           
+            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)
             if ~isempty(Obj.Data)
                 Table = struct2table(Obj.Data);
             else
@@ -309,7 +313,7 @@ classdef DbRecord < Base
             Result = true;
             
             % Use MEX version which is x30 faster than MATLAB version
-            %mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Args.Header, Obj.Data);           
+            %mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Args.Header, Obj.Data);
         end
         
         

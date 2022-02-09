@@ -79,8 +79,11 @@ MLX_ELEMENTS_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/mlx/mlx_elements')
 HTML_ELEMENTS_PATH = os.path.join(ASTROPACK_PATH, 'matlab/doc/mlx/html_elements')
 
 # Auto-generated Markers
-FUNC_BLOCK_BEGIN = '% #functions (autogen)'     # Start of function list block
-FUNC_BLOCK_END = '% #/functions (autogen)'      # End of function list block
+FUNC_BLOCK_BEGIN = '%#docgen'     # Start of function list block
+FUNC_BLOCK_END = '%#/docgen'      # End of function list block
+
+FUNC_BLOCK_BEGIN_OLD = '% #functions (autogen)'     # Start of function list block
+FUNC_BLOCK_END_OLD = '% #/functions (autogen)'      # End of function list block
 
 # Source code markers
 MARK_COMMENT_END = '#end'                       # End of comment block
@@ -1137,9 +1140,13 @@ class MatlabProcessor:
         start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN)
         end_idx   = self.index_starts_with(lines, FUNC_BLOCK_END)
 
+        if start_idx == -1:
+            start_idx = self.index_starts_with(lines, FUNC_BLOCK_BEGIN_OLD)
+            end_idx = self.index_starts_with(lines, FUNC_BLOCK_END_OLD)
+
         # Found both strings, cut out the block
         if start_idx > -1 and end_idx > -1:
-            lines = lines[:start_idx] + lines[end_idx + 3:]
+            lines = lines[:start_idx] + lines[end_idx + 2:]
         else:
             start_idx = 0
 
@@ -1207,24 +1214,29 @@ class MatlabProcessor:
                 count = 0
                 for func_name in func_list:
                     func = cls.func_dict[func_name]
-                    if ftype == func.type:
+                    if func.type == ftype:
                         count = count+1
 
                 if count > 0:
-                    if ftype != '':
-                        line = '%' + ftype
-                        lines.insert(line_num, line)
-                        line_num = line_num + 1
 
+                    # Write header
+                    lines.insert(line_num, '%')
+                    line_num = line_num + 1
+                    line = '% Methods: ' + ftype
+                    lines.insert(line_num, line)
+                    line_num = line_num + 1
+
+                    # Write list
                     for func_name in func_list:
                         func = cls.func_dict[func_name]
-                        line = '%' + func.name + ' - ' + func.comment
-                        lines.insert(line_num, line)
-                        line_num = line_num + 1
+                        if func.type == ftype:
+                            line = '%    ' + func.name + ' - ' + func.comment
+                            lines.insert(line_num, line)
+                            line_num = line_num + 1
 
+            lines.insert(line_num+0, '%')
             lines.insert(line_num+1, FUNC_BLOCK_END)
-            lines.insert(line_num+2, '%')
-            lines.insert(line_num+1, '')
+            lines.insert(line_num+2, '')
 
         self.write_m_file(fname, lines)
 
@@ -1563,6 +1575,7 @@ class MatlabProcessor:
 
                         func = FunctionData()
                         func.name = func_name
+                        func.type = methods_type
 
                         if func_name == self.unpack_name(cls.name):
                             func.is_constructor = True
@@ -2187,6 +2200,7 @@ def main():
     global UPDATE_FUNCLIST, UPDATE_M, UPDATE_M_OUT_FILE, BACKUP_M_FILE, TRIM_TRAILING_SPACES
     global GENERATE_TXT, GENERATE_MLX
 
+    '''
     UPDATE_FUNCLIST = args.funclist
     UPDATE_M = args.update_m
     #UPDATE_M_OUT_FILE = args.
@@ -2194,6 +2208,7 @@ def main():
     TRIM_TRAILING_SPACES = args.trim
     GENERATE_TXT = args.gentxt
     GENERATE_MLX = args.genmlx
+    '''
 
     # Create processor
     proc = MatlabProcessor()
@@ -2206,6 +2221,10 @@ def main():
         mlx = MlxWriter(args.mdfile + '.mlx')
         mlx.markdown('\n'.join(md.lines))
         mlx.close()
+        return
+
+    if args.dir and args.dir != '':
+        proc.process(args.dir, args.subdirs)
         return
 
     #

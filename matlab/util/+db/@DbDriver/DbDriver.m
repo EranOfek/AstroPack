@@ -31,16 +31,20 @@
 %   Drv.loadDriver();
 %--------------------------------------------------------------------------
 
-% #functions (autogen)
-% DbDriver - Constructor, currently only 'postgres' is supported
-% copyDriverFile - Copy driver file from source folder to target path This is requried to call javaclasspath() Input:   FileName - Jar file name Output:  true on success Example: Obj.copyDriverFile(Obj.PostgresJar)
-% delete - Destructor, unload driver from memory
-% getDbDriver - Get singleton Map object that maps database type to DbDriver object Example: Driver = db.DbDriver.getDbDriver('postgres')
-% loadDriver - Load database driver library Calls copyDriverFile() to copy the library file to target folder Output: true if loaded successfully
-% unloadDriver - Unload database driver Output: true if unloaded successfully
-% validateConfig - NOT IMPLEMENTED YET Validate that we have all configuration params that we need
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    DbDriver - Constructor, currently only 'postgres' is supported
+%    delete - Destructor, unload driver from memory
+%    loadDriver - Load database driver library Calls copyDriverFile() to copy the library file to target folder Output: true if loaded successfully
+%    unloadDriver - Unload database driver Output: true if unloaded successfully
+%    validateConfig - NOT IMPLEMENTED YET Validate that we have all configuration params that we need
+%
+% Methods: Static
+%    getDbDriver - Get singleton Map object that maps database type to DbDriver object Example: Driver = db.DbDriver.getDbDriver('postgres')
+%
+%#/docgen
+
 
 classdef DbDriver < Component
     % Database Driver Class, internally used by DbConnection

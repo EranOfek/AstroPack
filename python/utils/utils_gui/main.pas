@@ -1,9 +1,3 @@
-// Lazarus 2.2.0
-// Windows installer: lazarus-2.2.0-fpc-3.2.2-win64.exe
-//
-// Install Lazarus on Ubutnu
-// https://ubuntuhandbook.org/index.php/2021/11/install-lazarus-ide-ubuntu/
-
 unit main;
 
 {$mode objfpc}{$H+}
