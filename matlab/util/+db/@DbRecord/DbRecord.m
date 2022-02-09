@@ -50,8 +50,11 @@ classdef DbRecord < Base
             % Constructor
             % Input:   Data          - struct array, table, cell array, matrix,
             %                          AstroTable, AstroCatalog, AstroHeader
+            %                          If type is char, load data from CSV file, header
+            %                          line with field names is required
             %          Args.ColNames - char comma separated, or cell array
             % Example: MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
+            %          MyRec = db.DbRecord('csvfile.csv');
             arguments
                 Data = [];
                 Args.ColNames = [];  % Required when Data is Cell or Matrix
@@ -63,8 +66,12 @@ classdef DbRecord < Base
             
             % Load data
             if ~isempty(Data)
+                
+                % Load from CSV file
                 if ischar(Data)
                     Obj.Data = table2struct(readtable(Data));
+                    
+                % Load from memory data
                 elseif isstruct(Data)
                     Obj.Data = Data;
                 elseif istable(Data)

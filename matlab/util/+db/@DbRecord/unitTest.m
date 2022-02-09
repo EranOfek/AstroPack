@@ -116,13 +116,18 @@ function Result = unitTest()
     end    
 
     
-    % @Todo: Test writeCsv
-    % writeCsv(Obj, FileName, Args)
+    % writeCsv
+    CsvFileName = fullfile(tools.os.getTempDir(), 'dbrecord_csv1.csv');
+    R.writeCsv(CsvFileName);
+
+    % readCSv
+    R2 = db.DbRecord();
+    R2.readCsv(CsvFileName);
+    assert(all(size(R.Data) == size(R2.Data)));
     
-    
-	% @Todo: Test readCsv
-    % readCsv(Obj, FileName)
-    
+    % Constructor from CSV
+    R3 = db.DbRecord(CsvFileName);
+    assert(all(size(R3.Data) == size(R.Data)));
     
     % Done
     io.msgStyle(LogLevel.Test, '@passed', 'DbRecord test passed');

@@ -214,6 +214,7 @@ classdef DbQuery < Component
                 Args.Load = true        % true to load entire result set
                 Args.OutType = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
                 Args.UseCopy = false    % True to use COPY TO
+                Args.UseCsv = false     % True to write resultset to CSV file and then load it
                 Args.CsvFileName = ''   % Select to CSV file instead of result-set
             end
 
@@ -224,6 +225,7 @@ classdef DbQuery < Component
                 Args.TableName = Obj.TableName;
             end
             assert(~isempty(Args.TableName));
+            assert(~isempty(Columns));
 
             % Prepare Select
             Obj.SqlText = sprintf('SELECT %s FROM %s', Columns, Args.TableName);
@@ -248,9 +250,11 @@ classdef DbQuery < Component
             % Now Obj.SqlText is ready
             %
             
+            %-----------------------------------------------------
+            % SELECT to output CSV file (using COPY TO or CSVWriter, when shared folder is not available)
             if ~isempty(Args.CsvFileName)
                 % Shared folder is available, use it and then move the result to our target
-                if ~Obj.Conn.isSharedPathAvail()
+                if Obj.Conn.isSharedPathAvail()
                     [ServerFileName, ClientFileName] = Obj.getSharedFileName(Args.CsvFileName);
                     Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', ServerFileName, ''' CSV HEADER'];
                     Res = Obj.exec();
@@ -271,56 +275,59 @@ classdef DbQuery < Component
                         Obj.writeResultSetToCsvFile(Args.CsvFileName);
                     end
                 end
-            	return;
-            end
             
+            %-----------------------------------------------------
+            % SELECT using COPY TO, load result-set or return file name
             
             % Use COPY TO statement to temporary csv file, and read file
-            if Args.UseCopy
+            elseif Args.UseCopy
                 
                 % Generate UUID.csv or make sure that we only take the filename part
-                if isempty(Args.TempName)
-                    Args.TempName = sprintf('%s.csv', Component.newUuid());
-                else
-                    [filepath, FName, ext] = fileparts(Args.TempName);
-                    Args.TempName = strcat(FName, '.csv');
-                end
+                TempFileName = sprintf('%s.csv', Component.newUuid());
                 
-                % Prepare path, use ServerShareFileName in the COPY statement
-                % so the file name will be local on the server, we will be able
-                % to access over the network using ClientShareFileName
-                Obj.ServerShareFileName = sprintf('%s/%s', Obj.Conn.ServerSharePath, Args.TempName);
-                Obj.ClientShareFileName = sprintf('%s/%s', Obj.Conn.MountSharePath, Args.TempName);
-                
-                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Obj.ServerShareFileName, ''' CSV HEADER'];
-
+                % Prepare file names
+                [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
+                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', ServerFileName, ''' CSV HEADER'];
                 Res = Obj.exec();
                 if Res
-                    if ~isempty(Args.CsvFileName)
-                        Obj.writeResultSetToCsvFile(Args.CsvFileName);
-                    elseif Args.Load
+                    if Args.Load
                         tic();
-                        Result = db.DbRecord(Args.TempName);
+                        Result = db.DbRecord(ClientFileName);
                         Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
                         if ~isempty(Args.OutType)
                             Result = Result.convert2(Args.OutType);
                         end
                     else
-                        Result = true;
+                        Result = ClientFileName;
                     end
-                end
-
-            % SELECT and load result set
+                else
+                    Result = false;
+                end           
+            %-----------------------------------------------------
+            % SELECT to result-set, optionally load it
             else
                 % Run query
                 Res = Obj.query();
                 if Res
-                    if ~isempty(Args.CsvFileName)
-                        Obj.writeResultSetCsv(Args.CsvFileName);
-                    elseif Args.Load
-                        Result = Obj.loadResultSet();
-                        if ~isempty(Args.OutType)
-                            Result = Result.convert2(Args.OutType);
+                    if Args.Load
+                        
+                        % Load by writing temporary CSV file and constructing DbRecord
+                        % from it
+                        if Args.UseCsv
+                            TempFileName = sprintf('%s.csv', Component.newUuid());
+                            CsvFileName = fullfile(tools.os.getTempDir(), TempFileName);
+                            Obj.writeResultSetToCsvFile(CsvFileName);
+                            Result = db.DbRecord(CsvFileName);
+                            if ~isempty(Args.OutType)
+                                Result = Result.convert2(Args.OutType);                            
+                            end
+                        
+                        % Load with loadResultSet() 
+                        else
+                            Result = Obj.loadResultSet();
+                            if ~isempty(Args.OutType)
+                                Result = Result.convert2(Args.OutType);
+                            end
                         end
                     else
                         Result = true;
@@ -882,6 +889,9 @@ classdef DbQuery < Component
             % Output:  true on sucess
             % Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
             % See: https://stackoverflow.com/questions/60756995/write-a-sql-resultset-to-a-csv-file
+            %
+            % Note: Seems that there is a bug in CSVWriter, one row is missing from the
+            % file @Todo @Bug @Chen
             
             Result = false;
             
@@ -892,7 +902,7 @@ classdef DbQuery < Component
                 tools.os.copyJavaJarToTempDir(fullfile(tools.os.getAstroPackExternalPath(), 'opencsv', 'opencsv-5.5.2.jar'));
             end
                         
-            %try
+            try
                 % Create file string
                 File = java.io.FileWriter(CsvFileName);
                 
@@ -914,9 +924,9 @@ classdef DbQuery < Component
                 Writer.close();
                 File.close();
                 Result = true;
-            %catch Ex
-             %   Obj.msgLogEx(Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
-            %end
+            catch Ex
+                Obj.msgLogEx(Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
+            end
                     
         end
         
