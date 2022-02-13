@@ -1,3 +1,12 @@
+//----------------------------------------------------------------------------
+// Project:  MATLAB & Database Utils
+// Module:
+// File:     utils_gui.lpr
+// Title:    Project file
+// Author:   Chen Tishler, 01/2022
+//
+//----------------------------------------------------------------------------
+
 program utils_gui;
 
 {$mode objfpc}{$H+}

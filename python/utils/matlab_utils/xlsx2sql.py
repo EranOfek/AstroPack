@@ -55,6 +55,9 @@ import os, glob, time, argparse, shutil, csv, json, yaml, openpyxl
 from datetime import datetime
 from sys import platform
 
+# Will be set to parsed args for access within functions
+ARGS = None
+
 # True for debug-mode
 DEBUG = False
 
@@ -1355,6 +1358,9 @@ def process_xlsx_file(filename):
     log('\nCreate database by running from command line:\n')
     log('psql -U postgres -f ' + last_sql_fname)
 
+    if ARGS.psql:
+        
+
 
 # Process CSV file with database definitions
 def process_csv_file(filename, db_name):
@@ -1428,6 +1434,7 @@ def main():
     # Generator options
     parser.add_argument('-subdirs',     dest='subdirs',    action='store_true', default=False,   help='Process xlsx files in subfolders')
     parser.add_argument('-postgres',    dest='postgres',   action='store_true', default=True,    help='Generate PostgreSQL script')
+    parser.add_argument('-psql',        dest='psql',       action='store_true', default=False,   help='Execute Postgre PSQL to create database')
     parser.add_argument('-firebird',    dest='firebird',   action='store_true', default=False,   help='Generate FirebirdSQL script')
     parser.add_argument('-sqlite',      dest='sqlite',     action='store_true', default=True,    help='Generate SQLite script')
     parser.add_argument('-python',      dest='python',     action='store_true', default=False,   help='Generate Python code')
@@ -1437,6 +1444,8 @@ def main():
     parser.add_argument('-dart',        dest='dart',       action='store_true', default=False,   help='Generate Dart (Flutter) code')
 
     args = parser.parse_args()
+    global args
+    ARGS = args
 
     # Set generator options
     global GEN_POSTGRES, GEN_FIREBIRD, GEN_SQLITE

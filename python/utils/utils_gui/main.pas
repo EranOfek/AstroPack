@@ -1,3 +1,13 @@
+//----------------------------------------------------------------------------
+// Project:  MATLAB & Database Utils
+// Module:
+// File:     main.pas
+// Title:    Main GUI form
+// Author:   Chen Tishler, 01/2022
+//
+//----------------------------------------------------------------------------
+
+
 unit main;
 
 {$mode objfpc}{$H+}
@@ -6,8 +16,9 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, SynHighlighterXML, SynEdit, SynHighlighterSQL,
-  Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls, Buttons, ComCtrls,
-  Menus, DBGrids, Process, IniFiles, DB, LogPanel, util_datamod, about;
+  SynHighlighterHTML, IpHtml, Forms, Controls, Graphics, Dialogs, ExtCtrls,
+  StdCtrls, Buttons, ComCtrls, Menus, DBGrids, LazHelpHTML, Process, IniFiles,
+  DB, LogPanel, util_datamod, about;
 
 
 type
@@ -23,6 +34,7 @@ type
     BtnDocGenOpen: TButton;
     CheckBoxDocMarkdownToMlx: TCheckBox;
     CheckBoxXlsSqlFile: TCheckBox;
+    CheckBoxXlsSqlRunPsql: TCheckBox;
     CheckBoxXlsSqlFolder: TCheckBox;
     CheckBoxXlsSqlPostgre: TCheckBox;
     CheckBoxXlsSqlSQLite: TCheckBox;
@@ -51,6 +63,7 @@ type
     Image1: TImage;
     LabelTitle: TLabel;
     MainMenu: TMainMenu;
+    Memo1: TMemo;
     MemoXml: TMemo;
     MIView: TMenuItem;
     MIClearLog: TMenuItem;
@@ -71,6 +84,7 @@ type
     Panel4: TPanel;
     Panel5: TPanel;
     Panel6: TPanel;
+    Panel7: TPanel;
     Panel9: TPanel;
     PanelLog: TPanel;
     PanelXml: TPanel;
@@ -356,6 +370,9 @@ begin
 
   if CheckBoxXlsSqlDart.Checked then
     Params.Add('-dart');
+
+  if CheckBoxXlsSqlRunPsql.Cheked then
+    Params.Add('-psql');
 
   AppDataModule.RunPy(Params, LogPanel, PyProcess);
   Params.Free();

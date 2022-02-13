@@ -1,6 +1,11 @@
+//----------------------------------------------------------------------------
+// Project:
+// Module:
+// File:     LogPanel.pas
+// Title:    TLogPanel component
+// Author:   Chen Tishler, 1998-2022
 //
-// TLogPanel, by Chen Tishler, 1998-2022
-//
+//----------------------------------------------------------------------------
 
 unit LogPanel;
 

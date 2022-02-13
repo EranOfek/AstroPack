@@ -51,6 +51,9 @@ from datetime import datetime
 from random import randint
 import xml.sax.saxutils
 
+# Will be set to parsed args for access within functions
+ARGS = None
+
 #----------------------------------------------------------------------------
 # USE WITH CARE!
 # When true, update_class_m_file() will be called on each processed .m files to update
@@ -169,6 +172,10 @@ def replace_repch(s, ch_list, min_count, newch):
 
     return r
     '''
+
+
+def remove_multiple_spaces(s):
+    return ' '.join(s.split())
 
 # ===========================================================================
 
@@ -989,8 +996,8 @@ class MatlabProcessor:
                 line = line[1:]
 
             # Check for special cases in text
-            words = line.split(' ')
-            words_lower = line.lower().split(' ')
+            words = line.split()
+            words_lower = line.lower().split()
 
             # Example block
             if 'example' in words_lower:
@@ -2195,6 +2202,8 @@ def main():
     parser.add_argument('-mlx',      dest='genmlx',   action='store_true',    default=True,   help='Generate MLX files')
 
     args = parser.parse_args()
+    global args
+    ARGS = args
 
     # to the repository, so use with care, and let the other team members know about it.
     global UPDATE_FUNCLIST, UPDATE_M, UPDATE_M_OUT_FILE, BACKUP_M_FILE, TRIM_TRAILING_SPACES

@@ -1,3 +1,12 @@
+//----------------------------------------------------------------------------
+// Project:  MATLAB & Database Utils
+// Module:
+// File:     about.pas
+// Title:    About form
+// Author:   Chen Tishler, 01/2022
+//
+//----------------------------------------------------------------------------
+
 unit about;
 
 {$mode objfpc}{$H+}
