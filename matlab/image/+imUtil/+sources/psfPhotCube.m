@@ -85,7 +85,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.Yinit      = [];
         
         Args.SmallStep  = 1e-3;
-        Args.MaxStep    = 1;
+        Args.MaxStep    = 0.3;
         Args.ConvThresh = 1e-4;
         Args.MaxIter    = 10;
         
