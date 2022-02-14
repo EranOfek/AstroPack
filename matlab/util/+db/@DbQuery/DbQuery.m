@@ -126,9 +126,6 @@ classdef DbQuery < Component
         Eof             = true;     % True when cursor reached last record of current ResultSet
         Toc             = 0;        % Time of last operation
         PerfLog         = false;    % True to log performance times
-
-        ServerShareFileName = ''    %
-        ClientShareFileName = ''    %
                 
         % Internals
         JavaStatement   = []        % Java object - Prepared statement object
@@ -355,12 +352,12 @@ classdef DbQuery < Component
             %          empty and Rec is used as data source
             %          'ColNames'      - Comma-separated field names (i.e. 'recid,fint')
             %          'ColumnMap'     - Optional field map
-            %          'ExColumns'     - Additional fields as struct
             %          'BatchSize'     - Number of records per operation
             %          'InsertRecFunc' - Called to generate primary key if required
             %          'InsertRecArgs' - Arguments to InsertRecFunc
             %          'UseCopyThreshold' - When number of records is above this value, copyFrom() is used
-            %          'CsvFileName' - Specify CSV file as source of data
+            %          'CsvFileName'      - Specify CSV file as source of data
+            %          'BinaryFileName'   - When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
             % Output:  DbRecord
             % Example: -
             
@@ -372,13 +369,13 @@ classdef DbQuery < Component
                 Args.TableName = ''         % Table name, if not specified, Obj.TableName is used
                 Args.ColNames = []          % Comma-separated field names (i.e. 'recid,fint')
                 Args.ColumnMap = []         % Optional field map
-                Args.ExColumns struct = []  % Additional fields as struct
                 Args.BatchSize = []         % Number of records per operation
                 Args.InsertRecFunc = []     % Called to generate primary key if required
                 Args.InsertRecArgs = {}     % Arguments to InsertRecFunc
                 Args.UseCopyThreshold = []  % When number of records is above this value, copyFrom() is used
                 Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
-                Args.CsvFileName = ''       %
+                Args.CsvFileName = ''       % When using COPY, name of CSV file
+                Args.BinaryFileName = ''    % When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
             end
 
             % Execute SQL statement (using java calls)
@@ -390,11 +387,6 @@ classdef DbQuery < Component
                 Args.TableName = Obj.TableName;
             end
             assert(~isempty(Args.TableName));
-
-            
-            %if Args.UseCopyThreshold == 1
-            %    Args.CsvFileName
-            %end
             
             %
             % Insert directly from CSV file, primary key must be included
@@ -407,16 +399,16 @@ classdef DbQuery < Component
                 end
                 
                 if ~Obj.Conn.isSharedPathAvail()
-                    Obj.msgLog(LogLevel.Error, 'insert: sharec path is not available');
+                    Obj.msgLog(LogLevel.Error, 'insert: shared path is not available');
                     return;
                 end
                 
                 
                 % Get columns list from CSV file
                 fid = fopen(Args.CsvFileName);
-                ColNames = strsplit(fgetl(fid), ',');
+                AColNames = strsplit(fgetl(fid), ',');
                 fclose(fid);
-                Columns = strjoin(ColNames, ',');
+                Columns = strjoin(AColNames, ',');
  
                 TempFileName = sprintf('%s.csv', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
@@ -428,6 +420,43 @@ classdef DbQuery < Component
                 
                 return;
             end
+            
+            %---------------------------------------------------------
+            % See: 
+            %   https://nickb.dev/blog/disecting-the-postgres-bulk-insert-and-binary-format
+            %   https://www.postgresql.org/docs/14/sql-copy.htm
+            %   https://stackoverflow.com/questions/758945/whats-the-fastest-way-to-do-a-bulk-insert-into-postgres?rq=1
+            %   https://www.bytefish.de/blog/pgbulkinsert_bulkprocessor.html
+            %   https://github.com/PgBulkInsert/PgBulkInsert
+            if ~isempty(Args.BinaryFileName)
+                Obj.msgLog(LogLevel.Error, 'insert: BinaryFileName option is not supported yet!!!');
+
+                if ~isfile(Args.BinaryFileName)
+                    Obj.msgLog(LogLevel.Error, 'insert: file not found: %s', Args.BinaryFileName);
+                    return;
+                end
+                
+                if ~Obj.Conn.isSharedPathAvail()
+                    Obj.msgLog(LogLevel.Error, 'insert: shared path is not available');
+                    return;
+                end
+                                
+                % Get columns list from Rec file
+                AColNames = fieldnames(Rec.Data);
+                Columns = strjoin(AColNames, ',');
+ 
+                TempFileName = sprintf('%s.dat', Component.newUuid());
+                [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
+                copyfile(Args.CsvFileName, ClientFileName);              
+                Obj.msgLog(LogLevel.Debug, 'insert: Inserting Binary file, copied to: %s', ClientFileName);
+
+                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' BINARY', Args.TableName, Columns, ServerFileName);
+                Result = Obj.exec();
+                
+                return;
+                
+            end
+            
             %---------------------------------------------------------
             
             if isempty(Args.BatchSize)
@@ -1472,7 +1501,6 @@ classdef DbQuery < Component
         end
 
 
-
         function SqlColumns = makeWhereColumnsText(Obj, ColumnNames, Operand, ColumnMap)
             % Prepare SQL text from cell array
             % "WHERE RecID=? AND FInt=?..."
@@ -1649,6 +1677,92 @@ classdef DbQuery < Component
             if ~Valid
                 Obj.msgLog(LogLevel.Warning, 'getDbVersion: Invalid result: %s', Result);
             end
+        end
+        
+        
+        function Result = writeBinaryFile(Obj, Rec, FileName)
+            % Get cell array field names that match the specified field type
+            % Input:   Rec - DbRecord with data
+            % Output:  true on sucess
+            % Example: ColNames = Q.getColumnNamesOfType('Double');
+            % @Todo - Implement this function in MEX 
+            arguments
+                Obj
+                Rec             % DbRecord
+                FileName        % 
+            end
+
+            Fid = fopen(FileName, 'w');
+            
+            % Write file header
+            % Postgres contains various header information of 15 bytes followed by an
+            % optional header extension, which we mark as having a length of 0.
+            
+            % The file header consists of 15 bytes of fixed fields, followed by a 
+            % variable-length header extension area.
+            %
+            % The fixed fields are:
+            %   - Signature
+            %        11-byte sequence PGCOPY\n\377\r\n\0 — note that the zero byte 
+            %        is a required part of the signature. (The signature is designed 
+            %        to allow easy identification of files that have been munged by 
+            %        a non-8-bit-clean transfer. This signature will be changed by 
+            %        end-of-line-translation filters, dropped zero bytes, dropped high 
+            %        bits, or parity changes.)
+            % 
+            %   - Flags field
+            %        32-bit integer bit mask to denote important aspects of the file format. 
+            %        Bits are numbered from 0 (LSB) to 31 (MSB). Note that this field is 
+            %        stored in network byte order (most significant byte first), as are 
+            %        all the integer fields used in the file format. Bits 16–31 are reserved 
+            %        to denote critical file format issues; a reader should abort if it finds an 
+            %        unexpected bit set in this range. Bits 0–15 are reserved to signal 
+            %        backwards-compatible format issues; a reader should simply ignore any 
+            %        unexpected bits set in this range. Currently only one flag bit is defined, 
+            %        and the rest must be zero:
+            %
+            %        Bit 16 - If 1, OIDs are included in the data; if 0, not. Oid system 
+            %        columns are not supported in PostgreSQL anymore, but the format still 
+            %        contains the indicator.
+            %
+            %   - Header extension area length
+            %        32-bit integer, length in bytes of remainder of header, not including self. 
+            %        Currently, this is zero, and the first tuple follows immediately. 
+            %        Future changes to the format might allow additional data to be present in 
+            %        the header. A reader should silently skip over any header extension data it 
+            %        does not know what to do with.
+            %
+            
+            fwrite(Fid, 'PGCOPY');
+            fwrite(Fid, char(10), 'int8');
+            fwrite(Fid, char(0xFF), 'int8');
+            fwrite(Fid, char(13), 'int8');
+            fwrite(Fid, char(10), 'int8');
+            fwrite(Fid, char(0), 'int8');
+            fwrite(Fid, 0, 'int32');
+            fwrite(Fid, 0, 'int32');
+
+            % Write file data
+            % for every row of data:
+            %     write the number of columns to be written (short)
+            %     for every column in row:
+            %           write the amount of data in bytes about to be inserted (integer)
+            %           write data (length varies by type and contents)
+            %
+            
+            ARowCount = numel(Rec.Data);
+            AColNames = fieldnames(Rec.Data);
+            AColCount = numel(AColNames);
+            for RowNum=1:ARowCount
+                fwrite(Fid, int32(AColCount), 'int32');
+                for ColNum=1:AColCount
+                    % @Todo
+                    %fwrite(Fid, 
+                    %fwrite(Fid, 
+                end
+            end
+            
+            fclose(Fid);
         end
         
     end
