@@ -146,29 +146,13 @@ if nargout>1
     Flux         = zeros(SizeIm(1),SizeIm(2),Nbank,'like',Image);
 end
 
-% OLD - slow code
-%     for Ibank=1:1:Nbank
-%         FiltImage(:,:,Ibank) = imUtil.filter.filter2_fast(Image,Template(:,:,Ibank));
-% 
-%         % Convert the image variance to the filtred image variance
-%         NormVar(Ibank) = sum(Template(:,:,Ibank).^2,[1 2]);
-% 
-%         FiltImageVar(:,:,Ibank) = Variance.*NormVar(Ibank);
-%         %FiltImageStd(:,:,Ibank) = sqrt(Variance.*NormVar(Ibank));
-% 
-%         % S/N image
-%         SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./sqrt(FiltImageVar(:,:,Ibank));
-%         %SN(:,:,Ibank)   = FiltImage(:,:,Ibank)./FiltImageStd(:,:,Ibank);
-%         if nargout>1
-%             % flux estimator image [see Zackay & Ofek 2017 - Coaddition I paper]
-%             Flux(:,:,Ibank) = FiltImage(:,:,Ibank)./NormVar(Ibank);  % possible bug (CHECK) - FiltImageVar(:,:,Ibank);
-%         end
-%     end
+% 20% slower
+%for Ibank=1:1:Nbank
+%    FiltImage(:,:,Ibank) = imUtil.filter.filter2_fast(Image,Template(:,:,Ibank));    
+%end
 
-    
-for Ibank=1:1:Nbank
-    FiltImage(:,:,Ibank) = imUtil.filter.filter2_fast(Image,Template(:,:,Ibank));
-end
+FiltImage = imUtil.filter.filter2_fast(Image,Template);
+
 
 % Convert the image variance to the filtred image variance
 NormVar = sum(Template.^2,[1 2]);

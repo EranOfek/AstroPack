@@ -107,6 +107,6 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
                                             
     % write the original bias name to header
     if Args.BiasFileNameInHeader
-        Result.funHeader(Args.KeyBias, Bias.ImageData.FileName);
+        Result.funHeader(@insertKey, {Args.KeyBias, Bias.ImageData.FileName}, Inf);
     end
 end

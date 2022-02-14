@@ -50,7 +50,11 @@ if UseFFT
     Res = imUtil.filter.filter2_fft(Mat1,Mat2);
 else
     % note Mat2 is the first argument
-    Res = filter2(Mat2,Mat1,'same');
+    Nfilter = size(Mat2,3);
+    Res     = zeros(size(Mat1,1), size(Mat1,2), Nfilter);
+    for Ifilter=1:1:Nfilter
+        Res(:,:,Ifilter) = filter2(Mat2(:,:,Ifilter),Mat1,'same');
+    end
 end
 
 
