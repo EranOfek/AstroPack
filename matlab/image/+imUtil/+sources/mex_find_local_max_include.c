@@ -1,7 +1,7 @@
 // See: edit([matlabroot '/extern/examples/mex/explore.c']);
 // See: edit([matlabroot '/extern/examples/refbook/matrixDivide.c']);
 //
-// Access element in 2D array: 
+// Access element in 2D array:
 //    val = input[ col*rows + row ];
 //
 // Access element in 3D array:
@@ -14,57 +14,59 @@
 
 // For Ctrl-C detection http://www.caam.rice.edu/~wy1/links/mex_ctrl_c_trick/
 #if defined (_WIN32)
-    #include <windows.h>
+#include <windows.h>
 #elif defined (__linux__)
-    #include <unistd.h>
+#include <unistd.h>
 #endif
 
 #ifdef __cplusplus
-    extern "C" bool utIsInterruptPending();
+extern "C" bool utIsInterruptPending();
 #else
-    extern bool utIsInterruptPending();
+extern bool utIsInterruptPending();
 #endif
-    
+
 //-------------------------------------------------------------------------
 // The gateway function
 //
-// mexFunction is not a routine you call. Rather, mexFunction is the name 
-// of the gateway function in C which every MEX function requires. 
-// When you invoke a MEX function, MATLAB finds and loads the corresponding 
-// MEX function of the same name. MATLAB then searches for a symbol named 
-// mexFunction within the MEX function. If it finds one, it calls the MEX 
-// function using the address of the mexFunction symbol. MATLAB displays 
-// an error message if it cannot find a routine named mexFunction inside 
+// mexFunction is not a routine you call. Rather, mexFunction is the name
+// of the gateway function in C which every MEX function requires.
+// When you invoke a MEX function, MATLAB finds and loads the corresponding
+// MEX function of the same name. MATLAB then searches for a symbol named
+// mexFunction within the MEX function. If it finds one, it calls the MEX
+// function using the address of the mexFunction symbol. MATLAB displays
+// an error message if it cannot find a routine named mexFunction inside
 // the MEX function.
 //
-// Input Arguments    
+// Input Arguments
 //
 //    int nlhs              - Number of output arguments
 //    mxArray* plhs[]       - Output arguments
 //    int nrhs              - Number of input arguments
 //    const mxArray* prhs[] - Input arguments
-// 
-	
-void mexFunction( 
-        int nlhs, mxArray *plhs[],          // Output arguments
-        int nrhs, const mxArray *prhs[])    // Input arguments
+//
+
+void mexFunction(
+    int nlhs, mxArray *plhs[],          // Output arguments
+    int nrhs, const mxArray *prhs[])    // Input arguments
 {
     // Input
-    __Int* input, val;
-    __Int* out;
-    int dim = 1;    
-    mwSize rows, cols, deps;
-    mwSize row, col, dep;
+    __REAL* input;
+    // not a pointer: ok ?
+    __REAL val;
+    __REAL* out;
+    int dim = 1;
+    mwSize rows, cols;
+    mwSize row, col;
 
     mxClassID     class_id;
-    const char*   input_type;    
+    const char*   input_type;
     mwSize        input_ndims;
     const mwSize* input_size;
-   
+
     // Output
     mwSize output_ndims;
-    mwSize output_size[4] = {0,0,0,0};
-    
+    mwSize output_size[2] = {0,0};
+
     // Need at least one argument
     if (nrhs < 1) {
         return;
@@ -72,167 +74,130 @@ void mexFunction(
 
     // Get dim
     if ((nrhs > 1) && mxIsScalar(prhs[1])) {
-        dim = (int)mxGetScalar(prhs[1]);
+        Thresh = (__REAL)mxGetScalar(prhs[1]);
     }
-    
+    else {Thresh = 200.0;}
+
+    if ((nrhs > 2) && mxIsScalar(prhs[2])) {
+        Conn = (int)mxGetScalar(prhs[2]);
+    }
+    else {Conn = 200;}
+
+    if ((nrhs > 3) && mxIsScalar(prhs[3])) {
+        AllocateFrac = (__REAL)mxGetScalar(prhs[3]);
+    }
+    else {AllocateFrac = .1;}
+
+
+
+
     // Parse input matrix
-    class_id    = mxGetClassID(prhs[0]);        
-    input       = (__Int*)mxGetData(prhs[0]);
+    class_id    = mxGetClassID(prhs[0]);
+    input       = (__REAL*)mxGetData(prhs[0]);
     input_ndims = mxGetNumberOfDimensions(prhs[0]);
-    input_size  = mxGetDimensions(prhs[0]);      
+    input_size  = mxGetDimensions(prhs[0]);
     input_type  = mxGetClassName(prhs[0]);
-    
-    // 
-    if ((class_id != MEX_INT) && (class_id != MEX_UINT)) {
+
+    //
+    if (class_id != MEX_REAL)  {
         mexPrintf("Input matrix integer type does not match this function\n");
-        return;                
+        return;
     }
-                
+
     if (mxIsSparse(prhs[0])) {
-        mexPrintf("Sparse array is not supported yet\n");  
-        return;        
+        mexPrintf("Sparse array is not supported yet\n");
+        return;
     }
-    
-    //mexPrintf("input_ndims: %d\n", input_ndims);  
+
+    //mexPrintf("input_ndims: %d\n", input_ndims);
     //mexPrintf("input_size: %d, %d, %d\n", input_size[0], input_size[1], input_size[2]);
     //mexPrintf("input_type: %s\n", input_type);
-    //mexPrintf("dim: %d\n", dim);  
-        
+    //mexPrintf("dim: %d\n", dim);
+
     // Validate input params
-    if ((input_ndims != 2) && (input_ndims != 3)) {
-        mexPrintf("Invalid ndims of input matrix, supported ndims is 2 or 3: %d\n", input_ndims);  
+    if (input_ndims != 2)  {
+        mexPrintf("Invalid ndims of input matrix, supported ndims is 2 or 3: %d\n", input_ndims);
         return;
     }
-    
-    //-------------------------------------------- Input 2D 
-    if (input_ndims == 2) {
-        
-        rows = input_size[0];
-        cols = input_size[1];
-        
-        // Uri...
+
+    //-------------------------------------------- Input 2D
 
 
-        // 2D, dim=1: For each column, sum all rows
-        if (dim == 1) {
-            // Create output matrix            
-            output_ndims   = 2;
-            output_size[0] = 1;
-            output_size[1] = input_size[1];        
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                    
-                 
-            //
-            for (col = 0;  col < cols;  col++) {
-                out[col] = 0;
-                for (row = 0;  row < rows;  row++) {
-                    val = input[ col*rows + row ];
-                    out[col] |= val;
-                }            
-            }                        
-        }
-        
-        // 2D, dim=2: For each row, sum all column        
-        else if (dim == 2) {                    
-            // Create output matrix            
-            output_ndims   = 2;
-            output_size[0] = input_size[0];
-            output_size[1] = 1;        
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                    
+    rows = input_size[0];
+    cols = input_size[1];
 
-            //
-            for (row = 0;  row < rows;  row++) {                        
-                out[row] = 0;
-                for (col = 0;  col < cols;  col++) {
-                    val = input[ col*rows + row ];
-                    out[row] |= val;
-                }            
-            }            
-        }
+    mwSize output_ndims = 1;
+    mwSize  SizeListInd[1] = {rows*cols*AllocateFrac};
+    plhs[0] = mxCreateNumericArray(output_ndims, SizeListInd, class_id, mxREAL);
+    out = (__REAL*)mxGetData(plhs[0]);
+    // Uri...
+
+
+    // 2D, dim=1: For each column, sum all rows
+
+    // Create output matrix
+    //output_ndims   = 2;
+    //output_size[0] = input_size[1];
+    //output_size[1] = input_size[1];
+
+
+
+    if (nlhs > 1) {
+        plhs[1] = mxCreateNumericArray(output_ndims, SizeListInd, class_id, mxREAL);
+        out = (__REAL*)mxGetData(plhs[1]);
     }
+    if (nlhs > 2) {
+        plhs[2] = mxCreateNumericArray(output_ndims, SizeListInd, class_id, mxREAL);
+        out = (__REAL*)mxGetData(plhs[2]);
+    }
+    if (nlhs > 3) {
 
-    //-------------------------------------------- Input 3D 
-    else if (input_ndims == 3) {
-        rows = input_size[0];
-        cols = input_size[1];
-        deps = input_size[2];
-        
-        #ifdef never
-        for (dep = 0;  dep < deps;  dep++) {
-            for (col = 0;  col < cols;  col++) {
-                for (row = 0;  row < rows;  row++) {
-                    val = input[ col*rows + row + dep*cols*rows];
-                    mexPrintf("input[%02d, %02d, %02d] = %d\n", row+1, col+1, dep+1, val);
-                }                                                
-            }                                    
-        }
-        return;
-        #endif
-        
-        //
-        if (dim == 1) {
-            output_ndims   = 3;
-            output_size[0] = 1;
-            output_size[1] = input_size[1];
-            output_size[2] = input_size[2];
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
-            
-            //
-            for (dep = 0;  dep < deps;  dep++) {
-                for (col = 0;  col < cols;  col++) {
-                    out[dep*cols + col] = 0;
-                    for (row = 0;  row < rows;  row++) {
-                        val = input[ col*rows + row + dep*cols*rows];
-                        out[dep*cols + col] |= val;
-                    }            
-                }                                    
+        output_ndims = 2;
+        plhs[3] = mxCreateNumericArray(output_ndims, input_size, class_id, mxREAL);
+        out = (__REAL*)mxGetData(plhs[3]);
+    }
+    //
+    int count = 0;
+    if (conn==4) {
+        for (col = 1;  col < cols - 1;  col++) {
+
+            for (row = 1;  row < rows - 1;  row++) {
+                val = input[ col*rows + row ];
+                if (val>Thresh) {
+                    val1 = input[ (col-1)*rows + row ];
+                    val2 = input[ (col+1)*rows + row ];
+                    val3 = input[ col*rows + row-1 ];
+                    val4 = input[ col*rows + row+1 ];
+                    if (val>val1 && val>val2 && val>val3 && val>val4) {
+                        plhs[0][count] = col*rows + row;
+                        count = count + 1;
+                    }
+                }
             }
         }
-        
+    }
+
+
+    // 2D, dim=2: For each row, sum all column
+    else if (dim == 2) {
+        // Create output matrix
+        output_ndims   = 2;
+        output_size[0] = input_size[0];
+        output_size[1] = 1;
+        plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
+        out = (__Int*)mxGetData(plhs[0]);
+
         //
-        else if (dim == 2) {
-            output_ndims   = 3;            
-            output_size[0] = input_size[0];
-            output_size[1] = 1;
-            output_size[2] = input_size[2];        
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
-            
-            //
-            for (dep = 0;  dep < deps;  dep++) {            
-                for (row = 0;  row < rows;  row++) {                        
-                    out[dep*rows + row] = 0;                                    
-                    for (col = 0;  col < cols;  col++) {
-                        val = input[ col*rows + row + dep*cols*rows];
-                        out[dep*rows + row] |= val;
-                    }            
-                }
-            }                        
-        }
-        
-        //
-        else if (dim == 3) {
-            output_ndims   = 2;                        
-            output_size[0] = input_size[0];
-            output_size[1] = input_size[1];            
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
-            
-            //
-            for (row = 0;  row < rows;  row++) {                        
-                for (col = 0;  col < cols;  col++) {
-                    out[col*rows + row] = 0;                    
-                    for (dep = 0;  dep < deps;  dep++) {                                    
-                        val = input[ col*rows + row + dep*cols*rows ];
-                        out[col*rows + row] |= val;
-                    }
-                }            
-            }        
+        for (row = 0;  row < rows;  row++) {
+            out[row] = 0;
+            for (col = 0;  col < cols;  col++) {
+                val = input[ col*rows + row ];
+                out[row] |= val;
+            }
         }
     }
-  
-    //mexPrintf("output_ndims: %d\n", output_ndims);  
-    //mexPrintf("output_size:  %d, %d, %d\n", output_size[0], output_size[1], output_size[2]); 
+}
+
+//mexPrintf("output_ndims: %d\n", output_ndims);
+//mexPrintf("output_size:  %d, %d, %d\n", output_size[0], output_size[1], output_size[2]);
 }
