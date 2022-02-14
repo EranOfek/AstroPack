@@ -1,7 +1,0 @@
-# .gitignore for Python
-
-.idea/
-__pycache__/
-
-
-
