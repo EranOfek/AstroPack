@@ -7,7 +7,8 @@ function Res=filter2_fast(Mat1, Mat2, UseFFT, PadMethod)
 %              supposed to be faster given the filter size compared to the
 %              matrix size.
 % Input  : - A matrix.
-%          - A filter.
+%          - A filter. The filter may be a matrix, or a cube, in which the
+%            filter index is in the 3rd dimension.
 %          - UseFFT: Method to use. [] - auto, otherwise logical. Default is [].
 %          - Padding before operation (padded region will be removed from
 %            output).
@@ -16,6 +17,7 @@ function Res=filter2_fast(Mat1, Mat2, UseFFT, PadMethod)
 %            'replicate' - relpicate nearest edge value.
 %            'symmetric' - mirror reflection boundry conditions.
 % Output : - Convolution between the two matrices.
+%            If the filter is a 3D then the output is 3D.
 % License: GNU general public license version 3
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Apr 2016
