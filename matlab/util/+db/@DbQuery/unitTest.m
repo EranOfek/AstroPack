@@ -16,10 +16,16 @@ function Result = unitTest()
     assert(contains(pgver, 'PostgreSQL'));
 
     % Select into CSV file (CsvFileName)
-    CsvFileName = Q.select('*', 'TableName', 'master_table', 'UseCopy', true, 'Load', false);  %
+    CsvFileName = Q.select('*', 'TableName', 'master_table', 'Limit', 10000, 'UseCopy', true, 'Load', false);
     assert(~isempty(CsvFileName));
+    assert(isfile(CsvFileName));    
     
-    Q.select('*', 'TableName', 'master_table', 'CsvFileName', 'C:/temp/test_select.csv');
+    % Select into specified CSV file
+    CsvFileName = fullfile(tools.os.getTestWorkDir(), 'unittest_dbquery_select.csv');
+    delete(CsvFileName);
+    assert(~isfile(CsvFileName));    
+    Q.select('*', 'TableName', 'master_table', 'Limit', 10000, 'CsvFileName', CsvFileName);
+    assert(isfile(CsvFileName));    
     
     % Get Metadata    
     % Get tables list
@@ -29,13 +35,15 @@ function Result = unitTest()
     assert(~isempty(ColumnList));
     
     Q = db.DbQuery('unittest:master_table');
-    Q.select('*', 'TableName', 'master_table');
+    Rec = Q.select('*', 'TableName', 'master_table', 'Limit', 1000);
+    assert(Rec.getRowCount() > 0);
+    assert(Rec.getRowCount() <= 1000);
+    
     ColNames = Q.getColumnNamesOfType('Double');
     assert(~isempty(ColNames));
-    assert(strcmp(Q.getColumnType(ColNames(1)),'Double'));
-%     assert(Q.isColumn(ColNames(1)));
+    assert(strcmpi(Q.getColumnType(ColNames(1)), 'Double'));
     first_col = ColNames(1);
-    assert(strcmp(Q.columnName2matlab(first_col{1}),'fdouble'));
+    assert(strcmpi(Q.columnName2matlab(first_col{1}),'fdouble'));
     
     % Get list of fields composing the primary key
     PkList = Q.getTablePrimaryKey('master_table');
@@ -50,7 +58,7 @@ function Result = unitTest()
     H.insertKey('Key1');
     H.insertKey({'KeyA','ValueA','CommentA';'KeyB','ValueB','CommentB'},'end-1');
     R = db.DbRecord(H);
-    
+    Q.insert(H, 'TableName', 'master_table', 'InsertRecFunc', @make_recid, 'ColumnsOnly', true);
     
     H = AstroHeader();
     H.insertKey({'FInt1',1,'CommentA';'FInt2',2,'CommentB';'FIntXX','XX','CommentXX'},'end-1');
@@ -60,13 +68,7 @@ function Result = unitTest()
     Q = db.DbQuery('unittest:master_table');
     Q = db.DbQuery('unittest', 'TableName', 'master_table');
     io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
-    
-    %testUpdate(Q);
-    %testDelete(Q);
-    
-    %testInsert(Q);
-    %testSelect(Q);        
-        
+            
     ColNames = 'fdouble1,fdouble2,fdouble3';
     if isfield(Q.Config.Data.Database.DbConnections.UnitTest, 'DoubleFields')
         ColNames = Q.Config.Data.Database.DbConnections.UnitTest.DoubleFields;
@@ -74,49 +76,29 @@ function Result = unitTest()
     
     Cols = numel(strsplit(ColNames, ','));
     Mat = rand(1000, Cols);
-    R = db.DbRecord(Mat, 'ColNames', ColNames);
-    %Q.insert(R, 'InsertRecFunc', @make_recid);
     Q.insert(Mat, 'ColNames', ColNames, 'InsertRecFunc', @make_recid, 'InsertRecArgs', {'PK', 'recid'});
     
     % Select fields
     Q = db.DbQuery('unittest:master_table');    
     Limit = 10000;    
-    Columns = 'recid,fdouble1,fdouble2,fdouble3';
-    
-    % Still need to find a solution for this:
-    % https://gpdb.docs.pivotal.io/6-9/admin_guide/load/topics/g-loading-data-with-copy.html
-    % The COPY source file must be accessible to the postgres process on the master host. 
-    % Specify the COPY source file name relative to the data directory on the master host, or specify an absolute path.
-    UseCopy = false;  %%% !!!!!!!!    
-    
-    % CsvFileName
-    Q.select(Columns, 'CsvFileName', 'C:/temp/test_select.csv');
+    Columns = 'recid,fdouble1,fdouble2,fdouble3';    
 
     % Compare performance of SELECT vs COPY TO
-    for Iter=1:5
-        TempFile = 'C:/temp/__tmp1.csv';
-        if isfile(TempFile)
-            delete(TempFile);
-        end
-
+    CsvFileName = fullfile(tools.os.getTestWorkDir(), 'unittest_dbquery_select.csv');    
+    for Iter=1:3
+        delete(CsvFileName);
+        
         t = tic();
-        RecSelect = Q.select(Columns,  'Limit', Limit);
+        RecSelect = Q.select(Columns,  'Limit', Limit, 'Load', true);
         io.msgStyle(LogLevel.Test, 'magenta', 'SELECT: %0.5f', double(tic()-t)/1e7);
 
         t = tic();
-        
-        % @Todo
-        RecCopy   = Q.select(Columns,  'Limit', Limit, 'UseCopy', UseCopy);   %, 'TempName', TempFile);
+        RecCopy = Q.select(Columns,  'Limit', Limit, 'UseCopy', true, 'Load', true);
         io.msgStyle(LogLevel.Test, 'magenta', 'SELECT using COPY: %0.5f', double(tic()-t)/1e7);
 
         assert(numel(RecSelect.Data) == numel(RecCopy.Data));
-    end
-    
-    %Mat1 = Q.select('fdouble1,fdouble2,fdouble3',       'Where', 'fdouble1 > fdouble2', 'OutType', 'mat', 'Limit', Limit);
-    Rec1 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', UseCopy, 'TempName', 'C:/temp/__tmp1.csv');
-    Rec2 = Q.select('recid,fdouble1,fdouble2,fdouble3', 'Where', 'fdouble1 > fdouble2', 'Limit', Limit, 'UseCopy', UseCopy, 'TempName', 'C:/temp/__tmp2.csv');
-        
-    
+    end   
+            
     % Insert Mat
     Q = db.DbQuery('unittest:master_table', 'InsertRecFunc', @make_recid);    
     Mat = rand(10, 3);
@@ -141,8 +123,6 @@ function Result = unitTest()
         % @Todo - Not fully implemented yet
         testUpdate(Q);
         testDelete(Q);
-        testCopy(Q);
-        
     end
         
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery test passed')
@@ -188,10 +168,10 @@ function Result = testSelect(Q)
     R = Q.select('*', 'TableName', 'master_table', 'Limit', Limit);
     assert(isa(R, 'db.DbRecord'));
     
-    Q.select('*', 'TableName', 'master_table', 'Limit', Limit, 'CSVFileName', 'C:/Temp/CSVFileNameTemp.csv');
-    csvtemp = readtable('C:/Temp/CSVFileNameTemp.csv', 'ReadVariableNames', false);
-%     assert(~isempty(csvtemp));
-%     assert(height(csvtemp) == length(R.Data));
+    %CsvFileName = Q.select('*', 'TableName', 'master_table', 'Limit', Limit, 'UseCsv', true, 'Load', false');
+    %csvtemp = readtable(CsvFileName, 'ReadVariableNames', false);
+    %assert(~isempty(csvtemp));
+    %assert(height(csvtemp) == length(R.Data));
     
     % Table
     Tab = R.convert2table();
@@ -445,11 +425,6 @@ function Result = testInsert(Q)
             Count = Count * 10;
         end
     end
-
-    % @Todo - test insert() using copy, for large number of records
-    TestCopy = false;
-    if TestCopy
-    end
     
     io.msgStyle(LogLevel.Test, '@passed', 'DbQuery.insert test passed')
     Result = true;
@@ -515,55 +490,4 @@ function Result = testDelete(Q)
     Result = true;
 end
 
-%==========================================================================
-
-function Result = testCopy(Q)
-    if isfile('c:\temp\a1.csv')
-       delete('c:\temp\a1.csv'); 
-    end
-    if isfile('c:\temp\a2.csv')
-       delete('c:\temp\a2.csv'); 
-    end
-    
-    count1 = Q.selectCount('TableName', 'master_table');
-    Q.copyTo('master_table', 'c:\temp\a1.csv');
-    
-    csvtemp = readtable('c:\temp\a1.csv', 'ReadVariableNames', false);
-    count2 = height(csvtemp);
-    
-    Q.deleteRecord();
-    Q.copyFrom('master_table', 'c:\temp\a1.csv');
-    count3 = Q.selectCount('TableName', 'master_table');
-    
-    assert(count1 == count2 && count1 == count3);
-    
-    Q.copyTo('master_table', 'c:\temp\a2.csv', 'Columns', 'fint');
-    Q.copyFrom('master_table', 'c:\temp\a2.csv');
-    count4 = Q.selectCount('TableName', 'master_table');
-    
-    assert(count4 == count1*2);
-    
-    Result = true;
-    return;
-    
-    % ---------------------------------------------- copy
-    % https://www.postgresqltutorial.com/psql-commands/
-    % https://kb.objectrocket.com/postgresql/postgresql-psql-examples-part-2-1043
-    % From psql:
-    % psql -U postgres
-    % dbname unittest
-    % \dt
-    % \d master_table
-    % \COPY master_table TO 'c:\temp\aa1.csv' DELIMITER ',' CSV HEADER
-
-    % Q.exec("copy master_table to 'c:\\temp\\a2.csv' delimiter ',' csv header");
-
-    MyFileName = mfilename('fullpath');       
-    [MyPath, ~, ~] = fileparts(MyFileName);            
-    CsvFileName = 'unittest_csv1_to.csv';  %fullfile(MyPath, 'unittest_csv1.csv');
-
-    %Q.copyFrom('master_table', CsvFileName);
-
-    Result = true;
-end
 

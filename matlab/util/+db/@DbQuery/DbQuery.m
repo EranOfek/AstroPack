@@ -1152,14 +1152,25 @@ classdef DbQuery < Component
 
 
         function Result = getTablesList(Obj)
-            % Get columns list of specified table as cell array
+            % Get list of all tables in current database
             % Input:   -
             % Output:  Cell array
             % Example: = Obj.getTablesList()
             Text = 'SELECT table_name FROM information_schema.tables WHERE table_schema = ''public'' ORDER BY table_name';
             Result = Obj.selectColumn(Text, 'table_name');
         end
-              
+
+        
+        function Result = isTableExist(Obj, TableName)
+            % Check if specified table exists in current database
+            % Input:   TableName - Table name to search
+            % Output:  true if table exists
+            % Example: = Obj.isTableExist('MyTable')
+            Text = sprintf('SELECT table_name FROM information_schema.tables WHERE table_schema = ''public'' AND table_name = ''%s'' ORDER BY table_name', lower(TableName));
+            List = Obj.selectColumn(Text, 'table_name');
+            Result = any(strcmpi(List, TableName));
+        end
+        
         
         function Result = getTableColumnList(Obj, TableName)
             % Get columns list of specified table as cell array
@@ -1171,6 +1182,18 @@ classdef DbQuery < Component
         end
                 
 
+        function Result = isColumnExist(Obj, TableName, ColumnName)
+            % Check if column Get columns list of specified table as cell array
+            % Input:   TableName
+            %          ColumnName
+            % Output:  true if column exist
+            % Example: = Obj.isColumnExist('master_table', 'my_column')
+            Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' AND column_name = ''%s'' ORDER BY column_name', lower(TableName), lower(ColumnName));
+            List = Obj.selectColumn(Text, 'column_name');
+            Result = any(strcmpi(List, ColumnName));
+        end
+        
+        
         function Result = getTablePrimaryKey(Obj, TableName)
             % Get primary key column names of specified table
             % Input:   TableName
@@ -1702,7 +1725,7 @@ classdef DbQuery < Component
             %
             % The fixed fields are:
             %   - Signature
-            %        11-byte sequence PGCOPY\n\377\r\n\0 — note that the zero byte
+            %        11-byte sequence PGCOPY\n\377\r\n\0 ï¿½ note that the zero byte
             %        is a required part of the signature. (The signature is designed
             %        to allow easy identification of files that have been munged by
             %        a non-8-bit-clean transfer. This signature will be changed by
@@ -1713,9 +1736,9 @@ classdef DbQuery < Component
             %        32-bit integer bit mask to denote important aspects of the file format.
             %        Bits are numbered from 0 (LSB) to 31 (MSB). Note that this field is
             %        stored in network byte order (most significant byte first), as are
-            %        all the integer fields used in the file format. Bits 16–31 are reserved
+            %        all the integer fields used in the file format. Bits 16ï¿½31 are reserved
             %        to denote critical file format issues; a reader should abort if it finds an
-            %        unexpected bit set in this range. Bits 0–15 are reserved to signal
+            %        unexpected bit set in this range. Bits 0ï¿½15 are reserved to signal
             %        backwards-compatible format issues; a reader should simply ignore any
             %        unexpected bits set in this range. Currently only one flag bit is defined,
             %        and the rest must be zero:

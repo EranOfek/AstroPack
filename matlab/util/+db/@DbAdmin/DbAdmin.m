@@ -356,15 +356,29 @@ classdef DbAdmin < Component
         
 
         function Result = getDbList(Obj)
-            % Get columns list of specified table as cell array
+            % Get list of databases
             % Input:   -
-            % Output:  Cell array
+            % Output:  Cell array with list of databases
             % Example: List = Obj.getTablesList()
             % Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
             
             Text = 'SELECT datname FROM pg_database WHERE datistemplate = false';
             Result = Obj.Query.selectColumn(Text, 'datname');
         end
+        
+        
+        function Result = isDatabaseExist(Obj, DbName)
+            % Check if database exists
+            % Input:   DbName
+            % Output:  true if exists
+            % Example: List = Obj.isDatabaseExist('my_database')
+            % Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
+            
+            Text = sprintf('SELECT datname FROM pg_database WHERE datistemplate = false AND datname = ''%s''', lower(DbName));
+            List = Obj.Query.selectColumn(Text, 'datname');
+            Result = any(strcmpi(List, DbName));
+        end
+        
     end
     
     %----------------------------------------------------------------------
@@ -524,6 +538,8 @@ classdef DbAdmin < Component
         
         function Result = xls2sql(Obj, XlsFileName)
             % Convert XLSX file downloaded from Google Drive to SQL file
+            % Note: Requires ULTRASAT repository and ULTRASAT_PATH environment
+            %       var to be set correctly.
             % Input:   XlsFileName
             % Output:  true on success
             % Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
@@ -544,7 +560,7 @@ classdef DbAdmin < Component
                 [Path, FName] = fileparts(XlsFileName);
                 cd(Path);
                 PyScript = fullfile('python', 'utils', 'matlab_utils', 'xlsx2sql.py');
-                Py = fullfile(tools.os.getAstroPackPath(), PyScript);
+                Py = fullfile(tools.os.getUltrasatPath(), PyScript);
                 if ~isfile(Py)
                     return;
                 end
@@ -674,7 +690,7 @@ classdef DbAdmin < Component
     methods(Static)
         
         function Result = startGui()
-            % Run gui utility
+            % Run gui utility - @TODO - Currently DO NOT USE
             % Input:   -
             % Output:  -
             % Example: db.DbAdmin.startGui
@@ -683,7 +699,7 @@ classdef DbAdmin < Component
             try
                                 
                 % Prepare command line
-                Path = fullfile(tools.os.getAstroPackPath(), 'python', 'utils', 'utils_gui');
+                Path = fullfile(tools.os.getUltrasatPath(), 'python', 'utils', 'utils_gui');
                 if ~isfolder(Path)
                     io.msgLog(LogLevel.Error, 'DbAdmin.startGui: Path not found: %s', Path);
                     return;
