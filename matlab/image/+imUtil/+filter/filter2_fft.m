@@ -37,8 +37,8 @@ arguments
     Method         = 'conj';
 end
 
-Size1 = size(Mat1);
-Size2 = size(Mat2);
+Size1 = size(Mat1,[1 2]);
+Size2 = size(Mat2,[1 2]);
 
 if (any(Size2>Size1))
     error('Second matrix must be equal or smaller than first matrix - use conv_fft2.m instead');
@@ -65,9 +65,7 @@ switch lower(Method)
 
     case 'conj'
         % This result is equivalent to the rot option
-        
-        Size2 = size(Mat2);
-        
+                
         Mat2 = padarray(  (Mat2),Size1-Size2,'post');
         Mat2 = circshift(Mat2,-floor(Size2.*0.5));
         

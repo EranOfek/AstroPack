@@ -902,8 +902,8 @@ classdef AstroCatalog < AstroTable
                 [Lon, LonUnits] = getCol(Obj, ColLon);
                 [Lat, LatUnits] = getCol(Obj, ColLat);
                 
-                LonRad = convert.angular(LonUnits, 'rad', Lon);
-                LatRad = convert.angular(LatUnits, 'rad', Lat);
+                LonRad = convert.angular(LonUnits{1}, 'rad', Lon);
+                LatRad = convert.angular(LatUnits{1}, 'rad', Lat);
                 
                 Flag = celestial.htm.in_polysphere([LonRad, LatRad], [RA, Dec]);
                 Result(Iobj) = selectRows(Obj(Iobj), Flag, 'CreateNewObj', Args.CreateNewObj);

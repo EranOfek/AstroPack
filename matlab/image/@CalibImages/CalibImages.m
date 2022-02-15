@@ -522,7 +522,8 @@ classdef CalibImages < Component
         
         function Result = debias(Obj, Image, Args)
             % Subtract bias image from an image and update mask.
-            % Input  : - A CalibImages object.
+            % Input  : - A CalibImages object, a cell array of images, or 
+            %            a string of image names template.
             %            If this is a single-element object, then the bias
             %            image will subtrcated from all input images.
             %            If this is a multi-element object, then the input
@@ -547,16 +548,30 @@ classdef CalibImages < Component
             
             arguments
                 Obj
-                Image AstroImage
+                Image
                 Args.CreateNewObj logical     = false;   % refers to the Image and not the Obj!!!
                 Args.debiasArgs cell          = {};
             end
             
-            % create new copy of Image object
-            %[Result] = createNewObj(Image, Args.CreateNewObj, nargout);
-            if Args.CreateNewObj
-                Result = Image.copy;
+            if isa(Image, 'AstroImage')
+                % create new copy of Image object
+                %[Result] = createNewObj(Image, Args.CreateNewObj, nargout);
+                if Args.CreateNewObj
+                    Result = Image.copy;
+                else
+                    Result = Image;
+                end
             else
+                if iscell(Image)
+                    % Input is cell
+                    Image = AstroImage(Image);
+                elseif ischar(Image)
+                    % Input is char array
+                    List  = io.files.filelist(Image);
+                    Image = AstroImage(List);
+                else
+                    error('Second input must be an AstroImage, a cell array of images, or a string of image names template');
+                end
                 Result = Image;
             end
             
