@@ -374,7 +374,7 @@ classdef DbQuery < Component
                 Args.UseCopyThreshold = []  % When number of records is above this value, copyFrom() is used
                 Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
                 Args.CsvFileName = ''       % When using COPY, name of CSV file
-                Args.BinaryFileName = ''    % When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
+                Args.BinaryFileName = ''    % NOT IMPLEMENTED YET! When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
             end
 
             % Execute SQL statement (using java calls)

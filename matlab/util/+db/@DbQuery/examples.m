@@ -72,10 +72,22 @@ function Result = examples()
     Q.insert(H, 'TableName', 'master_table', 'InsertRecFunc', @make_recid, 'ColumnsOnly', true);
      
     % Select to CSV file
-    Q.select('*', 'TableName', 'master_table', 'CsvFileName', 'c:/temp/master_table.csv');
+    MyCsvFileName = fullfile(tools.os.getTempDir(), 'my_select.csv');
+    Result = Q.select('*', 'TableName', 'master_table', 'CsvFileName', MyCsvFileName);
+    disp(Result);
     
-    % Insert Csv file, it must include primary key column @Todo
-    %Q.insert(
+    % Insert Csv file, it must include primary key column
+    [MyPath,~,~] = fileparts(mfilename('fullpath'));
+    CsvFileName = fullfile(MyPath, 'unitTest_insert1.csv');
+    Where = "recid like 'pk_UnitTest_%'";
+    Q.deleteRecord('TableName', 'master_table', 'Where', Where);
+    Count = Q.selectCount('TableName', 'master_table', 'Where', Where);
+    fprintf('Count after delete %d\n', Count);
+    
+    Q.insert([], 'TableName', 'master_table', 'CsvFileName', CsvFileName);
+    
+    Count = Q.selectCount('TableName', 'master_table', 'Where', Where);
+    fprintf('Count after insert %d\n', Count);
     
     % Select into AstroHeader
     H = Q.select('*', 'Where', 'FInt1 = 7777', 'OutType', 'AstroHeader');
@@ -111,6 +123,8 @@ function Result = examples()
         sz = size(Tab);
         fprintf('Rows: %d, Cols: %d\n', sz(1), sz(2));
     end       
+    
+    Result = true;
 end
 
 %--------------------------------------------------------------------------
