@@ -15,9 +15,8 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
 
-    % CsvFileName
-    Q.select('*', 'TableName', 'master_table', 'UseCopy', true, 'Load', false);  %
-    CsvFileName = Q.ClientShareFileName;
+    % Select into CSV file (CsvFileName)
+    CsvFileName = Q.select('*', 'TableName', 'master_table', 'UseCopy', true, 'Load', false);  %
     assert(~isempty(CsvFileName));
     
     Q.select('*', 'TableName', 'master_table', 'CsvFileName', 'C:/temp/test_select.csv');

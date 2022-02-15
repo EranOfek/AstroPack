@@ -2,11 +2,16 @@
 % Discuess with @Eran
 %
 
-% #functions (autogen)
-% AstroDbOper - Obj.setName('AstroImageDb')
-% unitTest -
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    AstroDbOper - Obj.setName('AstroImageDb')
+%
+% Methods: Static
+%    unitTest -
+%
+%#/docgen
+
 
 classdef AstroDbOper < handle
     
