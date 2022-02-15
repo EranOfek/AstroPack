@@ -121,7 +121,7 @@ if (PutNaN)
 else
     R(R>1)     = 0;
 end
-ZZ         = Util.external.zernfun(n,m,R(:),Theta(:)); %,NormPar);
+ZZ         = zernfun(n,m,R(:),Theta(:)); %,NormPar);
 if (isnumeric(Norm))
     % noramlize such that sum(z^2)=N
     ZZ = bsxfun(@times,ZZ,sqrt(Norm./nansum(ZZ.^2,1)));
