@@ -53,47 +53,46 @@
 %#docgen
 %
 % Methods:
-%    DbQuery - Create new DbQuery obeject Input:   DbTableOrConn - Database alias from Database.yml, with   optional table name, for example: 'UnitTest'
+%    DbQuery - Create new DbQuery obeject Input: DbTableOrConn - Database alias from Database.yml, with optional table name, for example: 'UnitTest'
 %    delete -
-%    deleteRecord - Delete record by fields specified in Rec Note that we cannot use 'delete' as function name because it is a reserved keyword. Intput:  Args.TableName -          Args.Where     -
-%    exec - Execute SQL statement (that does not return data), for SELECT, use query() Input:   char-array - SQL text. If not specified, Obj.SqlText is used Output:  true on success Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
-%    getColumn - Get field value from current ResultSet, when ColumnName is numeric, it is used as column index Input:   ColumnName Output:  Column value: double/integer/char/ Example: Value = Obj.getColumn('MyFieldName')
-%    getColumnIndex - Get column index by column name, search in ColNames{} Input:   ColumnName - Output:  DbRecord Example: Index = Obj.getColumnIndex('')
-%    getColumnList - Get columns list of current ResultSet as celarray Input:   - Output: Example: ColNames = Obj.getColumnList()
-%    getColumnType - Get column type Input:   ColumnName - Output:  char - Example: -
-%    getTableColumnList - Get columns list of specified table as cell array Input:   TableName Output:  Cell array Example: = Obj.getTableColumnList('master_table')
-%    getTableIndexList - Get list of index names of specified table Input:   TableName Output:  Cell array Example: = Obj.getTableIndexList('master_table')
-%    getTablePrimaryKey - Get primary key column names of specified table Input:   TableName Output:  Cell array Example: = Obj.getTablePrimaryKey('master_table')
-%    getTablesList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: = Obj.getTablesList()
-%    insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray Input:   Rec             - Data to insert          'TableName'     - Table name, if not specified, Obj.TableName is used          'CsvFileName'   - When non-empty, use copyFrom and insert data from this file instead of Rec
-%    isColumn - Check if field exists by name Input:   ColumnName Output:  true if current result set Example: IsColumn = Obj.isColumn('MyFieldName')
-%    loadResultSet - Helper function for select() - Load ResultSet to DbRecord array Might be time and memory consuming! Input:  'MaxRows' - Optional limit of number of rows to load to memory Output:  DbRecord object: ColCount, ColNames, ColType, Data(i) Example: Obj.loadResultSet();
-%    next - Move cursor to next record, return false if reached end of data Input:   - Output:  true on sucess Example: Obj.next()
-%    prev - Move cursor to previous record, return false if reached end of data Input:   - Output:  true on sucess Example: Obj.prev()
-%    query - Run SELECT query, do NOT load any data. For non-SELECT statements, use exec() Input:   char-array - SQL text. If not specified, Obj.SqlText is used Output:  true on success, use loadResultSet() to load the data Example: Obj.query('SELECT COUNT(*) FROM master_table');
-%    select - Execute SELECT Columns FROM TableName and load results to memory Input:   - Columns - Comma-separated field names to select (i.e. 'recid,fint')            'TableName' - Table name, if not specified, Obj.TableName is used            'Where'     - Where condition (excluding WHERE keyword)            'Order'     - Order by clause  (excluding ORDER BY keyword)
-%    selectColumn - Get column from specified table as cell array Input:   SqlText - SELECT query text          ColumnName - Column name to select from query result Output:  Cell array Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
-%    selectCount - Select number of records with optionally WHERE clause Intput:  Args.TableName - If empty, use Obj.TableName          Args.Where     - Example: 'Flag == 1' Output:  integer        - COUNT returned by query Example: Count = Obj.selectCount()
-%    update - Update record Intput:  SetColumns   - Note that string values must be enclosed by single '                         for example: 'MyField=''MyValue'''          'TableName'  -          'Where'      -
-%    writeResultSetToCsvFile - Write Obj.JavaResultSet returned by select() to CSV file using Java CSVWriter obejct Input:   CsvFileName Output:  true on sucess Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
+%    deleteRecord - Delete record by fields specified in Rec Note that we cannot use 'delete' as function name because it is a reserved keyword. Intput: Args.TableName - Args.Where -
+%    exec - Execute SQL statement (that does not return data), for SELECT, use query() Input: char-array - SQL text. If not specified, Obj.SqlText is used Output: true on success Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
+%    getColumn - Get field value from current ResultSet, when ColumnName is numeric, it is used as column index Input: ColumnName Output: Column value: double/integer/char/ Example: Value = Obj.getColumn('MyFieldName')
+%    getColumnIndex - Get column index by column name, search in ColNames{} Input: ColumnName - Output: DbRecord Example: Index = Obj.getColumnIndex('')
+%    getColumnList - Get columns list of current ResultSet as celarray Input: - Output: Example: ColNames = Obj.getColumnList()
+%    getColumnType - Get column type Input: ColumnName - Output: char - Example: -
+%    getTableColumnList - Get columns list of specified table as cell array Input: TableName Output: Cell array Example: = Obj.getTableColumnList('master_table')
+%    getTableIndexList - Get list of index names of specified table Input: TableName Output: Cell array Example: = Obj.getTableIndexList('master_table')
+%    getTablePrimaryKey - Get primary key column names of specified table Input: TableName Output: Cell array Example: = Obj.getTablePrimaryKey('master_table')
+%    getTablesList - Get columns list of specified table as cell array Input: - Output: Cell array Example: = Obj.getTablesList()
+%    insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray Input: Rec - Data to insert 'TableName' - Table name, if not specified, Obj.TableName is used 'CsvFileName' - When non-empty, use copyFrom and insert data from this file instead of Rec
+%    isColumn - Check if field exists by name Input: ColumnName Output: true if current result set Example: IsColumn = Obj.isColumn('MyFieldName')
+%    loadResultSet - Helper function for select() - Load ResultSet to DbRecord array Might be time and memory consuming! Input: 'MaxRows' - Optional limit of number of rows to load to memory Output: DbRecord object: ColCount, ColNames, ColType, Data(i) Example: Obj.loadResultSet();
+%    next - Move cursor to next record, return false if reached end of data Input: - Output: true on sucess Example: Obj.next()
+%    prev - Move cursor to previous record, return false if reached end of data Input: - Output: true on sucess Example: Obj.prev()
+%    query - Run SELECT query, do NOT load any data. For non-SELECT statements, use exec() Input: char-array - SQL text. If not specified, Obj.SqlText is used Output: true on success, use loadResultSet() to load the data Example: Obj.query('SELECT COUNT(*) FROM master_table');
+%    select - Execute SELECT Columns FROM TableName and load results to memory Input: - Columns - Comma-separated field names to select (i.e. 'recid,fint') 'TableName' - Table name, if not specified, Obj.TableName is used 'Where' - Where condition (excluding WHERE keyword) 'Order' - Order by clause (excluding ORDER BY keyword)
+%    selectColumn - Get column from specified table as cell array Input: SqlText - SELECT query text ColumnName - Column name to select from query result Output: Cell array Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
+%    selectCount - Select number of records with optionally WHERE clause Intput: Args.TableName - If empty, use Obj.TableName Args.Where - Example: 'Flag == 1' Output: integer - COUNT returned by query Example: Count = Obj.selectCount()
+%    update - Update record Intput: SetColumns - Note that string values must be enclosed by single ' for example: 'MyField=''MyValue''' 'TableName' - 'Where' -
+%    writeResultSetToCsvFile - Write Obj.JavaResultSet returned by select() to CSV file using Java CSVWriter obejct Input: CsvFileName Output: true on sucess Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
 %
 % Methods: Hidden
-%    clear - Clear current statement and ResultSet Input:   - Output:  true on sucess Example: Obj.clear()
-%    clearResultSet - Clear current ResultSet and related data Input:   - Output:  - Example: Obj.clearResultSet()
-%    close - [Internal Use] Close current query Intput:  - Output:  true on sucess Example: -
-%    columnName2matlab - Convert specified table column name to valid MATLAB property/ struct-field name, replace non-valid chars with '_' Input:   Str - char array, i.e. 'My:Field' Output:  char array, i.e. 'My_Field' Example: ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
-%    copyFrom - Helper function for insert() - Import records FROM FILE to table using COPY FROM statement. Currently for INTERNAL USE. Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
-%    copyTo - Helper function for select() - Export records from table TO FILE using COPY TO statemet. Currently for INTERNAL USE. Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/ Input:   TableName
-%    getColumnNamesOfType - Get cell array field names that match the specified field type Input:   ColumnType: 'Integer', 'Double', etc. Output:  Cell array with list of all fields Example: ColNames = Q.getColumnNamesOfType('Double');
-%    getDbVersion - Query Postgres version, note that DbQuery must be linked to DbConnection Input:   - Output:  char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit' Example: Ver = DbQuery.getDbVersion()
-%    getMetadata - Get metadata of the specified table or the current result-set Input:   -          'TableName' - Output:  true on success Example: -
-%    getSharedFileName - Prepare file names for server and client Input:  FileName - Output: ServerFileName -         ClientFileName - Exampe: -
-%    makeInsertColumnsText - Input:   FieldNames -          'TableColumnList'          'FieldMap' - Output:  SqlFields  -          SqlValues  -
-%    makeUpdateColumnsText - Prepare SQL text from cell array Input:   ColumnNames -          'ColumnMap' - @Todo Future Output:  char-array Example: -
-%    makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input:   ColumnNames -          Operand    -          ColumnMap   -
-%    openConn - [Internal Use] Open connection, throw exception on failure Input:   - Output:  true on sucess Example: Obj.openConn()
-%    setConnection - [Internal Use] Set connection Input:   DbTableOrConn - Output:  true on sucess Example: Obj.setConnection('unittest')
-%    setStatementValues - Set statement values from specified DbRecord or struct Input:   Rec               -          FirstRecord       -          RecordCount       -          'ColumnNames'     -
+%    clear - Clear current statement and ResultSet Input: - Output: true on sucess Example: Obj.clear()
+%    clearResultSet - Clear current ResultSet and related data Input: - Output: - Example: Obj.clearResultSet()
+%    close - [Internal Use] Close current query Intput: - Output: true on sucess Example: -
+%    columnName2matlab - Convert specified table column name to valid MATLAB property/ struct-field name, replace non-valid chars with '_' Input: Str - char array, i.e. 'My:Field' Output: char array, i.e. 'My_Field' Example: ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
+%    getColumnNamesOfType - Get cell array field names that match the specified field type Input: ColumnType: 'Integer', 'Double', etc. Output: Cell array with list of all fields Example: ColNames = Q.getColumnNamesOfType('Double');
+%    getDbVersion - Query Postgres version, note that DbQuery must be linked to DbConnection Input: - Output: char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit' Example: Ver = DbQuery.getDbVersion()
+%    getMetadata - Get metadata of the specified table or the current result-set Input: - 'TableName' - Output: true on success Example: -
+%    getSharedFileName - Prepare file names for server and client Input: FileName - Output: ServerFileName - ClientFileName - Exampe: -
+%    makeInsertColumnsText - Input: FieldNames - 'TableColumnList' 'FieldMap' - Output: SqlFields - SqlValues -
+%    makeUpdateColumnsText - Prepare SQL text from cell array Input: ColumnNames - 'ColumnMap' - @Todo Future Output: char-array Example: -
+%    makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input: ColumnNames - Operand - ColumnMap -
+%    openConn - [Internal Use] Open connection, throw exception on failure Input: - Output: true on sucess Example: Obj.openConn()
+%    setConnection - [Internal Use] Set connection Input: DbTableOrConn - Output: true on sucess Example: Obj.setConnection('unittest')
+%    setStatementValues - Set statement values from specified DbRecord or struct Input: Rec - FirstRecord - RecordCount - 'ColumnNames' -
+%    writeBinaryFile - Get cell array field names that match the specified field type Input: Rec - DbRecord with data Output: true on sucess Example: ColNames = Q.getColumnNamesOfType('Double'); @Todo - Implement this function in MEX
 %
 %#/docgen
 
@@ -412,17 +411,17 @@ classdef DbQuery < Component
  
                 TempFileName = sprintf('%s.csv', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
-                copyfile(Args.CsvFileName, ClientFileName);              
+                copyfile(Args.CsvFileName, ClientFileName);
                 Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
 
-                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);                
+                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
                 Result = Obj.exec();
                 
                 return;
             end
             
             %---------------------------------------------------------
-            % See: 
+            % See:
             %   https://nickb.dev/blog/disecting-the-postgres-bulk-insert-and-binary-format
             %   https://www.postgresql.org/docs/14/sql-copy.htm
             %   https://stackoverflow.com/questions/758945/whats-the-fastest-way-to-do-a-bulk-insert-into-postgres?rq=1
@@ -447,7 +446,7 @@ classdef DbQuery < Component
  
                 TempFileName = sprintf('%s.dat', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
-                copyfile(Args.CsvFileName, ClientFileName);              
+                copyfile(Args.CsvFileName, ClientFileName);
                 Obj.msgLog(LogLevel.Debug, 'insert: Inserting Binary file, copied to: %s', ClientFileName);
 
                 Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' BINARY', Args.TableName, Columns, ServerFileName);
@@ -1685,11 +1684,11 @@ classdef DbQuery < Component
             % Input:   Rec - DbRecord with data
             % Output:  true on sucess
             % Example: ColNames = Q.getColumnNamesOfType('Double');
-            % @Todo - Implement this function in MEX 
+            % @Todo - Implement this function in MEX
             arguments
                 Obj
                 Rec             % DbRecord
-                FileName        % 
+                FileName        %
             end
 
             Fid = fopen(FileName, 'w');
@@ -1698,38 +1697,38 @@ classdef DbQuery < Component
             % Postgres contains various header information of 15 bytes followed by an
             % optional header extension, which we mark as having a length of 0.
             
-            % The file header consists of 15 bytes of fixed fields, followed by a 
+            % The file header consists of 15 bytes of fixed fields, followed by a
             % variable-length header extension area.
             %
             % The fixed fields are:
             %   - Signature
-            %        11-byte sequence PGCOPY\n\377\r\n\0 â€” note that the zero byte 
-            %        is a required part of the signature. (The signature is designed 
-            %        to allow easy identification of files that have been munged by 
-            %        a non-8-bit-clean transfer. This signature will be changed by 
-            %        end-of-line-translation filters, dropped zero bytes, dropped high 
+            %        11-byte sequence PGCOPY\n\377\r\n\0 — note that the zero byte
+            %        is a required part of the signature. (The signature is designed
+            %        to allow easy identification of files that have been munged by
+            %        a non-8-bit-clean transfer. This signature will be changed by
+            %        end-of-line-translation filters, dropped zero bytes, dropped high
             %        bits, or parity changes.)
-            % 
+            %
             %   - Flags field
-            %        32-bit integer bit mask to denote important aspects of the file format. 
-            %        Bits are numbered from 0 (LSB) to 31 (MSB). Note that this field is 
-            %        stored in network byte order (most significant byte first), as are 
-            %        all the integer fields used in the file format. Bits 16â€“31 are reserved 
-            %        to denote critical file format issues; a reader should abort if it finds an 
-            %        unexpected bit set in this range. Bits 0â€“15 are reserved to signal 
-            %        backwards-compatible format issues; a reader should simply ignore any 
-            %        unexpected bits set in this range. Currently only one flag bit is defined, 
+            %        32-bit integer bit mask to denote important aspects of the file format.
+            %        Bits are numbered from 0 (LSB) to 31 (MSB). Note that this field is
+            %        stored in network byte order (most significant byte first), as are
+            %        all the integer fields used in the file format. Bits 16–31 are reserved
+            %        to denote critical file format issues; a reader should abort if it finds an
+            %        unexpected bit set in this range. Bits 0–15 are reserved to signal
+            %        backwards-compatible format issues; a reader should simply ignore any
+            %        unexpected bits set in this range. Currently only one flag bit is defined,
             %        and the rest must be zero:
             %
-            %        Bit 16 - If 1, OIDs are included in the data; if 0, not. Oid system 
-            %        columns are not supported in PostgreSQL anymore, but the format still 
+            %        Bit 16 - If 1, OIDs are included in the data; if 0, not. Oid system
+            %        columns are not supported in PostgreSQL anymore, but the format still
             %        contains the indicator.
             %
             %   - Header extension area length
-            %        32-bit integer, length in bytes of remainder of header, not including self. 
-            %        Currently, this is zero, and the first tuple follows immediately. 
-            %        Future changes to the format might allow additional data to be present in 
-            %        the header. A reader should silently skip over any header extension data it 
+            %        32-bit integer, length in bytes of remainder of header, not including self.
+            %        Currently, this is zero, and the first tuple follows immediately.
+            %        Future changes to the format might allow additional data to be present in
+            %        the header. A reader should silently skip over any header extension data it
             %        does not know what to do with.
             %
             
@@ -1757,8 +1756,8 @@ classdef DbQuery < Component
                 fwrite(Fid, int32(AColCount), 'int32');
                 for ColNum=1:AColCount
                     % @Todo
-                    %fwrite(Fid, 
-                    %fwrite(Fid, 
+                    %fwrite(Fid,
+                    %fwrite(Fid,
                 end
             end
             
