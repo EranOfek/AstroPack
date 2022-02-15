@@ -815,7 +815,7 @@ classdef ImagePath < Base %Component
             % Verify Product
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
             switch Obj.Product
-                case { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat'}
+                case { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'}
                     % Ok
                 otherwise
                     error('Unknown Product option: %s', Obj.Product);
@@ -913,7 +913,7 @@ classdef ImagePath < Base %Component
 
 
     methods % write product
-        function Future = saveProduct(ObjIP, ObjProduct, Args) 
+        function [Future, ObjIP] = saveProduct(ObjIP, ObjProduct, Args) 
             % Save product to disk
             % Input  : - An ImagePath object
             %          - An object to save (e.g., AstroImage)
@@ -936,7 +936,10 @@ classdef ImagePath < Base %Component
             %                   populated (key,val). This is overriding the
             %                   Header properties.
             %                   Default is {'Product','Image'}.
+            %            'DataDirFromProjName' - Set DataDir value from
+            %                   ProjName. Default is false.
             % Output : - A future object (for parfeval).
+            %          - The updated ImagePath object.
             % Author : Eran Ofek (Jan 2022)
             
             
@@ -950,6 +953,7 @@ classdef ImagePath < Base %Component
                 Args.PropFromHeader logical    = true;
                 Args.CropID_FromInd logical    = false;
                 Args.SetProp cell              = {'Product','Image'};   % overide header
+                Args.DataDirFromProjName logical = false;
             end
             Future = [];
             if Args.Save
@@ -961,12 +965,13 @@ classdef ImagePath < Base %Component
                 if Args.ParEval
                     Future = parfeval(@ImagePath.saveProductBlocking, 0, ObjIP, ObjProduct, 'SaveFun',Args.SaveFun, 'SaveFunArgs',Args.SaveFunArgs, 'PropFromHeader',Args.PropFromHeader, 'SetProp',Args.SetProp);
                 else
-                    ImagePath.saveProductBlocking(ObjIP, ObjProduct,...
+                    ObjIP = ImagePath.saveProductBlocking(ObjIP, ObjProduct,...
                                                          'SaveFun',Args.SaveFun,...
                                                          'SaveFunArgs',Args.SaveFunArgs,...
                                                          'PropFromHeader',Args.PropFromHeader,...
                                                          'CropID_FromInd',Args.CropID_FromInd,...
-                                                         'SetProp',Args.SetProp);
+                                                         'SetProp',Args.SetProp,...
+                                                         'DataDirFromProjName',Args.DataDirFromProjName);
                 end
 
             end
@@ -974,7 +979,7 @@ classdef ImagePath < Base %Component
     end
             
     methods (Static) % utilities
-        function saveProductBlocking(ObjIP, ObjProduct, Args)
+        function ObjIP = saveProductBlocking(ObjIP, ObjProduct, Args)
             % Save product to disk - utility blocking function
             %   This function is for the internal use by
             %   ImagePath/saveProduct
@@ -995,7 +1000,9 @@ classdef ImagePath < Base %Component
             %                   ImagePath properties to set (override
             %                   header). These are ...Prop,val,...
             %                   Default is  {'Product','Image'}
-            % Output : null
+            %            'DataDirFromProjName' - Set DataDir value from
+            %                   ProjName. Default is false.
+            % Output : The updated ImagePath object.
             % Author : Eran Ofek (Jan 2022)
             % Example: 
 
@@ -1007,6 +1014,7 @@ classdef ImagePath < Base %Component
                 Args.PropFromHeader logical    = true;
                 Args.CropID_FromInd logical    = false;
                 Args.SetProp cell              = {'Product','Image'};   % overide header
+                Args.DataDirFromProjName logical = false;
             end
 
             NsetProp = numel(Args.SetProp);
@@ -1025,6 +1033,9 @@ classdef ImagePath < Base %Component
                 end
                 if Args.CropID_FromInd
                     ObjIP.CropID = Iprod;
+                end
+                if Args.DataDirFromProjName
+                    ObjIP.DataDir = ObjIP.ProjName;
                 end
 
                 FullName = ObjIP.genFull;
