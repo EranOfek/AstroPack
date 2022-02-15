@@ -161,6 +161,27 @@ classdef Targets < Component
             save('-v7.3', FileName, 'Obj');
         end
         
+        function writeFile(Obj, FileName)
+            % save the Targets object in a txt file.
+            % Input  : - A Targets object.
+            %          - File name.
+            % Author : Eran Ofek (Feb 2022)
+            % Example: T=celestial.scheduling.Targets;
+            %          T.generateTargetList('last');
+            %          T.writeFile('LAST_Fields.txt')
+           
+            arguments
+                Obj
+                FileName
+            end
+            
+            N = numel(Obj.RA);
+            VecN = (1:1:N).';
+            FID = fopen(FileName,'w');
+            fprintf(FID, '%6d   %9.5f %9.5f\n', [VecN(:), Obj.RA(:), Obj.Dec(:)].');
+            fclose(FID);
+            
+        end
     end
     
     methods
