@@ -1,7 +1,0 @@
---
--- FirebirdSQL database
---
-
-CREATE DATABASE $DatabaseName$ USER 'SYSDBA'
-   PAGE_SIZE 4096
-   DEFAULT CHARACTER SET UTF8;

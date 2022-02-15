@@ -70,7 +70,13 @@ function Result = examples()
     H = AstroHeader();
     H.insertKey({'FInt1',7777,'CommentA'; 'FInt2',2,'CommentB'; 'FIntXX','XX','CommentXX'}, 'end-1');
     Q.insert(H, 'TableName', 'master_table', 'InsertRecFunc', @make_recid, 'ColumnsOnly', true);
-        
+     
+    % Select to CSV file
+    Q.select('*', 'TableName', 'master_table', 'CsvFileName', 'c:/temp/master_table.csv');
+    
+    % Insert Csv file, it must include primary key column @Todo
+    %Q.insert(
+    
     % Select into AstroHeader
     H = Q.select('*', 'Where', 'FInt1 = 7777', 'OutType', 'AstroHeader');
     fprintf('AstroHeaders: %d\n', numel(H));

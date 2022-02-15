@@ -1,2 +1,2 @@
-DROP DATABASE IF EXISTS DbAdmin;
-CREATE DATABASE DbAdmin;
+DROP DATABASE IF EXISTS dbadmin_unittest;
+CREATE DATABASE dbadmin_unittest;

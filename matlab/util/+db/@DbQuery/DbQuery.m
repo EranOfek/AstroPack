@@ -1,3 +1,12 @@
+%--------------------------------------------------------------------------
+% File:    DbRecord.m
+% Class:   DbRecord
+% Title:   Data container that holds struct array of database table rows.
+% Author:  Chen Tishler
+% Created: July 2021
+%--------------------------------------------------------------------------
+% Description:
+%
 % DbQuery - SQL Database query
 %
 % Basic usage:
@@ -41,47 +50,51 @@
 %
 %--------------------------------------------------------------------------
 
-% #functions (autogen)
-% DbQuery - Create new DbQuery obeject Input:   DbTableOrConn - Database alias from Database.yml, with   optional table name, for example: 'UnitTest'
-% clear - Clear current statement and ResultSet Input:   - Output:  true on sucess Example: Obj.clear()
-% clearResultSet - Clear current ResultSet and related data Input:   - Output:  - Example: Obj.clearResultSet()
-% close - [Internal Use] Close current query Intput:  - Output:  true on sucess Example: -
-% columnName2matlab - Convert specified table column name to valid MATLAB property/ struct-field name, replace non-valid chars with '_' Input:   Str - char array, i.e. 'My:Field' Output:  char array, i.e. 'My_Field' Example: ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
-% copyFrom - Helper function for insert() - Import records from file to table Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/ Input:   TableName - Table name          FileName  - Input file name (CSV)
-% copyTo - Helper function for select() - Export records from table to file Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/ Input:   TableName          FileName
-% delete -
-% deleteRecord - Delete record by fields specified in Rec Note that we cannot use 'delete' as function name because it is a reserved keyword. Intput:  Args.TableName -          Args.Where     -
-% exec - Execute SQL statement (that does not return data), for SELECT, use query() Input:   char-array - SQL text. If not specified, Obj.SqlText is used Output:  true on success Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
-% getColumn - Get field value from current ResultSet, when ColumnName is numeric, it is used as column index Input:   ColumnName Output:  Column value: double/integer/char/ Example: Value = Obj.getColumn('MyFieldName')
-% getColumnIndex - Get column index by column name, search in ColNames{} Input:   ColumnName - Output:  DbRecord Example: Index = Obj.getColumnIndex('')
-% getColumnList - Get columns list of current ResultSet as celarray Input:   - Output: Example: ColNames = Obj.getColumnList()
-% getColumnNamesOfType - Get cell array field names that match the specified field type Input:   ColumnType: 'Integer', 'Double', etc. Output:  Cell array with list of all fields Example: ColNames = Q.getColumnNamesOfType('Double');
-% getColumnType - Get column type Input:   ColumnName - Output:  char - Example: -
-% getDbVersion - Query Postgres version, note that DbQuery must be linked to DbConnection Input:   - Output:  char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit' Example: Ver = DbQuery.getDbVersion()
-% getMetadata - Get metadata of the specified table or the current result-set Input:   -          'TableName' - Output:  true on success Example: -
-% getTableColumnList - Get columns list of specified table as cell array Input:   TableName Output:  Cell array Example: = Obj.getTableColumnList('master_table')
-% getTableIndexList - Get list of index names of specified table Input:   TableName Output:  Cell array Example: = Obj.getTableIndexList('master_table')
-% getTablePrimaryKey - Get primary key column names of specified table Input:   TableName Output:  Cell array Example: = Obj.getTablePrimaryKey('master_table')
-% getTablesList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: = Obj.getTablesList()
-% insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray Input:   Rec             -          'TableName'     - Table name, if not specified, Obj.TableName is used          'ColNames'      - Comma-separated field names (i.e. 'recid,fint')
-% isColumn - Check if field exists by name Input:   ColumnName Output:  true if current result set Example: IsColumn = Obj.isColumn('MyFieldName')
-% loadResultSet - Helper function for select() - Load ResultSet to DbRecord array Might be time and memory consuming! Input:  'MaxRows' - Optional limit of number of rows to load to memory Output:  DbRecord object: ColCount, ColNames, ColType, Data(i) Example: Obj.loadResultSet();
-% makeInsertColumnsText - Input:   FieldNames -          'TableColumnList'          'FieldMap' - Output:  SqlFields  -          SqlValues  -
-% makeUpdateColumnsText - Prepare SQL text from cell array Input:   ColumnNames -          'ColumnMap' - @Todo Future Output:  char-array Example: -
-% makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input:   ColumnNames -          Operand    -          ColumnMap   -
-% next - Move cursor to next record, return false if reached end of data Input:   - Output:  true on sucess Example: Obj.next()
-% openConn - [Internal Use] Open connection, throw exception on failure Input:   - Output:  true on sucess Example: Obj.openConn()
-% prev - Move cursor to previous record, return false if reached end of data Input:   - Output:  true on sucess Example: Obj.prev()
-% query - Run SELECT query, do NOT load any data. For non-SELECT statements, use exec() Input:   char-array - SQL text. If not specified, Obj.SqlText is used Output:  true on success, use loadResultSet() to load the data Example: Obj.query('SELECT COUNT(*) FROM master_table');
-% select - Execute SELECT Columns FROM TableName and load results to memory Input:   - Columns - Comma-separated field names to select (i.e. 'recid,fint')            'TableName' - Table name, if not specified, Obj.TableName is used            'Where'     - Where condition (excluding WHERE keyword)            'Order'     - Order by clause  (excluding ORDER BY keyword)
-% selectColumn - Get column from specified table as cell array Input:   SqlText - SELECT query text          ColumnName - Column name to select from query result Output:  Cell array Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
-% selectCount - Select number of records with optionally WHERE clause Intput:  Args.TableName - If empty, use Obj.TableName          Args.Where     - Example: 'Flag == 1' Output:  integer        - COUNT returned by query Example: Count = Obj.selectCount()
-% setConnection - [Internal Use] Set connection Input:   DbTableOrConn - Output:  true on sucess Example: Obj.setConnection('unittest')
-% setStatementValues - Set statement values from specified DbRecord or struct Input:   Rec               -          FirstRecord       -          RecordCount       -          'ColumnNames'     -
-% update - Update record Intput:  SetColumns   - Note that string values must be enclosed by single '                         for example: 'MyField=''MyValue'''          'TableName'  -          'Where'      -
-% writeResultSetCsv - Input:   CsvFileName Output:  true on sucess Example: Obj.writeResultSetCsv('/tmp/test1.csv'); See: https://stackoverflow.com/questions/60756995/write-a-sql-resultset-to-a-csv-file
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    DbQuery - Create new DbQuery obeject Input: DbTableOrConn - Database alias from Database.yml, with optional table name, for example: 'UnitTest'
+%    delete -
+%    deleteRecord - Delete record by fields specified in Rec Note that we cannot use 'delete' as function name because it is a reserved keyword. Intput: Args.TableName - Args.Where -
+%    exec - Execute SQL statement (that does not return data), for SELECT, use query() Input: char-array - SQL text. If not specified, Obj.SqlText is used Output: true on success Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
+%    getColumn - Get field value from current ResultSet, when ColumnName is numeric, it is used as column index Input: ColumnName Output: Column value: double/integer/char/ Example: Value = Obj.getColumn('MyFieldName')
+%    getColumnIndex - Get column index by column name, search in ColNames{} Input: ColumnName - Output: DbRecord Example: Index = Obj.getColumnIndex('')
+%    getColumnList - Get columns list of current ResultSet as celarray Input: - Output: Example: ColNames = Obj.getColumnList()
+%    getColumnType - Get column type Input: ColumnName - Output: char - Example: -
+%    getTableColumnList - Get columns list of specified table as cell array Input: TableName Output: Cell array Example: = Obj.getTableColumnList('master_table')
+%    getTableIndexList - Get list of index names of specified table Input: TableName Output: Cell array Example: = Obj.getTableIndexList('master_table')
+%    getTablePrimaryKey - Get primary key column names of specified table Input: TableName Output: Cell array Example: = Obj.getTablePrimaryKey('master_table')
+%    getTablesList - Get columns list of specified table as cell array Input: - Output: Cell array Example: = Obj.getTablesList()
+%    insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray Input: Rec - Data to insert 'TableName' - Table name, if not specified, Obj.TableName is used 'CsvFileName' - When non-empty, use copyFrom and insert data from this file instead of Rec
+%    isColumn - Check if field exists by name Input: ColumnName Output: true if current result set Example: IsColumn = Obj.isColumn('MyFieldName')
+%    loadResultSet - Helper function for select() - Load ResultSet to DbRecord array Might be time and memory consuming! Input: 'MaxRows' - Optional limit of number of rows to load to memory Output: DbRecord object: ColCount, ColNames, ColType, Data(i) Example: Obj.loadResultSet();
+%    next - Move cursor to next record, return false if reached end of data Input: - Output: true on sucess Example: Obj.next()
+%    prev - Move cursor to previous record, return false if reached end of data Input: - Output: true on sucess Example: Obj.prev()
+%    query - Run SELECT query, do NOT load any data. For non-SELECT statements, use exec() Input: char-array - SQL text. If not specified, Obj.SqlText is used Output: true on success, use loadResultSet() to load the data Example: Obj.query('SELECT COUNT(*) FROM master_table');
+%    select - Execute SELECT Columns FROM TableName and load results to memory Input: - Columns - Comma-separated field names to select (i.e. 'recid,fint') 'TableName' - Table name, if not specified, Obj.TableName is used 'Where' - Where condition (excluding WHERE keyword) 'Order' - Order by clause (excluding ORDER BY keyword)
+%    selectColumn - Get column from specified table as cell array Input: SqlText - SELECT query text ColumnName - Column name to select from query result Output: Cell array Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
+%    selectCount - Select number of records with optionally WHERE clause Intput: Args.TableName - If empty, use Obj.TableName Args.Where - Example: 'Flag == 1' Output: integer - COUNT returned by query Example: Count = Obj.selectCount()
+%    update - Update record Intput: SetColumns - Note that string values must be enclosed by single ' for example: 'MyField=''MyValue''' 'TableName' - 'Where' -
+%    writeResultSetToCsvFile - Write Obj.JavaResultSet returned by select() to CSV file using Java CSVWriter obejct Input: CsvFileName Output: true on sucess Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
+%
+% Methods: Hidden
+%    clear - Clear current statement and ResultSet Input: - Output: true on sucess Example: Obj.clear()
+%    clearResultSet - Clear current ResultSet and related data Input: - Output: - Example: Obj.clearResultSet()
+%    close - [Internal Use] Close current query Intput: - Output: true on sucess Example: -
+%    columnName2matlab - Convert specified table column name to valid MATLAB property/ struct-field name, replace non-valid chars with '_' Input: Str - char array, i.e. 'My:Field' Output: char array, i.e. 'My_Field' Example: ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
+%    getColumnNamesOfType - Get cell array field names that match the specified field type Input: ColumnType: 'Integer', 'Double', etc. Output: Cell array with list of all fields Example: ColNames = Q.getColumnNamesOfType('Double');
+%    getDbVersion - Query Postgres version, note that DbQuery must be linked to DbConnection Input: - Output: char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit' Example: Ver = DbQuery.getDbVersion()
+%    getMetadata - Get metadata of the specified table or the current result-set Input: - 'TableName' - Output: true on success Example: -
+%    getSharedFileName - Prepare file names for server and client Input: FileName - Output: ServerFileName - ClientFileName - Exampe: -
+%    makeInsertColumnsText - Input: FieldNames - 'TableColumnList' 'FieldMap' - Output: SqlFields - SqlValues -
+%    makeUpdateColumnsText - Prepare SQL text from cell array Input: ColumnNames - 'ColumnMap' - @Todo Future Output: char-array Example: -
+%    makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input: ColumnNames - Operand - ColumnMap -
+%    openConn - [Internal Use] Open connection, throw exception on failure Input: - Output: true on sucess Example: Obj.openConn()
+%    setConnection - [Internal Use] Set connection Input: DbTableOrConn - Output: true on sucess Example: Obj.setConnection('unittest')
+%    setStatementValues - Set statement values from specified DbRecord or struct Input: Rec - FirstRecord - RecordCount - 'ColumnNames' -
+%    writeBinaryFile - Get cell array field names that match the specified field type Input: Rec - DbRecord with data Output: true on sucess Example: ColNames = Q.getColumnNamesOfType('Double'); @Todo - Implement this function in MEX
+%
+%#/docgen
 
 classdef DbQuery < Component
 
@@ -99,7 +112,7 @@ classdef DbQuery < Component
         ColumnMap        = [];      % struct - @Todo
         InsertRecFunc   = [];       % function(DbQuery, DbRecord, First, Last)
         InsertBatchSize = 100;      %
-        InsertUseCopy   = 5000;     % Above this number of records, insert() uses copyFrom()
+        InsertUseCopyThreshold = 5000;     % Above this number of records, insert() uses copyFrom()
 
         % Metadata from last select
         ColCount        = 0;        % Number of columns
@@ -112,9 +125,6 @@ classdef DbQuery < Component
         Eof             = true;     % True when cursor reached last record of current ResultSet
         Toc             = 0;        % Time of last operation
         PerfLog         = false;    % True to log performance times
-
-        ServerShareFileName = ''    %
-        ClientShareFileName = ''    %
                 
         % Internals
         JavaStatement   = []        % Java object - Prepared statement object
@@ -190,8 +200,9 @@ classdef DbQuery < Component
             %                           'AstroHeader'
             %            'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
             %            'TempName'  - @Todo
-            %            'CsvFileName' - @Todo
-            % Output:  -
+            %            'CsvFileName' - Select to specified output CSV file, instead of
+            %                            result-set (using COPY TO)
+            % Output:  true on sucess
             % Example: -
             % Obj.select('Column1', 'Table', 'Where', '...', 'Order', '...')
             arguments
@@ -203,21 +214,22 @@ classdef DbQuery < Component
                 Args.Limit = -1         % Maximum number of records (LIMIT)
                 Args.Load = true        % true to load entire result set
                 Args.OutType = ''       % Optional conversion, otherwise DbRecord is returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog'
-                Args.UseCopy = false    % @Todo (not implemented yet): True to use copyTo() instead of SELECT
-                Args.TempName = ''      % @Todo
-                Args.CsvFileName = ''   % @Todo
+                Args.UseCopy = false    % True to use COPY TO
+                Args.UseCsv = false     % True to write resultset to CSV file and then load it
+                Args.CsvFileName = ''   % Select to CSV file instead of result-set
             end
 
-            Result = [];
+            Result = false;
 
             % Use speified TableName or Obj.TableName
-            if ~isempty(Args.TableName)
-                Obj.TableName = Args.TableName;
+            if isempty(Args.TableName)
+                Args.TableName = Obj.TableName;
             end
-            assert(~isempty(Obj.TableName));
+            assert(~isempty(Args.TableName));
+            assert(~isempty(Columns));
 
             % Prepare Select
-            Obj.SqlText = sprintf('SELECT %s FROM %s', Columns, Obj.TableName);
+            Obj.SqlText = sprintf('SELECT %s FROM %s', Columns, Args.TableName);
 
             % Where
             % @Todo: Support Where with external values
@@ -235,53 +247,90 @@ classdef DbQuery < Component
                 Obj.SqlText = [Obj.SqlText, ' LIMIT ', string(Args.Limit).char];
             end
 
+            %
+            % Now Obj.SqlText is ready
+            %
+            
+            %-----------------------------------------------------
+            % SELECT to output CSV file (using COPY TO or CSVWriter, when shared folder is not available)
+            if ~isempty(Args.CsvFileName)
+                % Shared folder is available, use it and then move the result to our target
+                if Obj.Conn.isSharedPathAvail()
+                    [ServerFileName, ClientFileName] = Obj.getSharedFileName(Args.CsvFileName);
+                    Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
+                    %Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', ServerFileName, ''' CSV HEADER'];
+                    Res = Obj.exec();
+                    if Res
+                        if ~strcmpi(ClientFileName, Args.CsvFileName)
+                            if isfile(Args.CsvFileName)
+                                delete(Args.CsvFileName);
+                            end
+                            movefile(ClientFileName, Args.CsvFileName);
+                        end
+                        Result = true;
+                    end
+                    
+                % Shared folder is not avilable, use select and write the results
+                else
+                    Res = Obj.query();
+                    if Res
+                        Obj.writeResultSetToCsvFile(Args.CsvFileName);
+                    end
+                end
+            
+            %-----------------------------------------------------
+            % SELECT using COPY TO, load result-set or return file name
+            
             % Use COPY TO statement to temporary csv file, and read file
-            if Args.UseCopy
+            elseif Args.UseCopy
                 
                 % Generate UUID.csv or make sure that we only take the filename part
-                if isempty(Args.TempName)
-                    Args.TempName = sprintf('%s.csv', Component.newUuid());
-                else
-                    [filepath, FName, ext] = fileparts(Args.TempName);
-                    Args.TempName = strcat(FName, '.csv');
-                end
+                TempFileName = sprintf('%s.csv', Component.newUuid());
                 
-                % Prepare path, use ServerShareFileName in the COPY statement
-                % so the file name will be local on the server, we will be able
-                % to access over the network using ClientShareFileName
-                Obj.ServerShareFileName = sprintf('%s/%s', Obj.Conn.ServerSharePath, Args.TempName);
-                Obj.ClientShareFileName = sprintf('%s/%s', Obj.Conn.MountSharePath, Args.TempName);
-                
-                Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', Obj.ServerShareFileName, ''' CSV HEADER'];
-                %Obj.msgLog(LogLevel.Debug, 'insert: UseCopy is not implemented yet, using INSERT');
-
+                % Prepare file names
+                [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
+                Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
+                %Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', ServerFileName, ''' CSV HEADER'];
                 Res = Obj.exec();
                 if Res
-                    if ~isempty(Args.CsvFileName)
-                        Obj.writeResultSetCsv(Args.CsvFileName);
-                    elseif Args.Load
+                    if Args.Load
                         tic();
-                        Result = db.DbRecord(Args.TempName);
+                        Result = db.DbRecord(ClientFileName);
                         Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
                         if ~isempty(Args.OutType)
                             Result = Result.convert2(Args.OutType);
                         end
                     else
-                        Result = true;
+                        Result = ClientFileName;
                     end
+                else
+                    Result = false;
                 end
-
-            % SELECT and load result set
+            %-----------------------------------------------------
+            % SELECT to result-set, optionally load it
             else
                 % Run query
                 Res = Obj.query();
                 if Res
-                    if ~isempty(Args.CsvFileName)
-                        Obj.writeResultSetCsv(Args.CsvFileName);
-                    elseif Args.Load
-                        Result = Obj.loadResultSet();
-                        if ~isempty(Args.OutType)
-                            Result = Result.convert2(Args.OutType);
+                    if Args.Load
+                        
+                        % Load by writing temporary CSV file and constructing DbRecord
+                        % from it
+                        if Args.UseCsv
+                            TempFileName = sprintf('%s.csv', Component.newUuid());
+                            CsvFileName = fullfile(tools.os.getTempDir(), TempFileName);
+                            Obj.writeResultSetToCsvFile(CsvFileName);
+                            Result = db.DbRecord(CsvFileName);
+                            if ~isempty(Args.OutType)
+                                Result = Result.convert2(Args.OutType);
+                            end
+                        
+                        % Load with loadResultSet()
+                        else
+                            Result = Obj.loadResultSet();
+                            if ~isempty(Args.OutType)
+                                Result = Result.convert2(Args.OutType);
+                            end
                         end
                     else
                         Result = true;
@@ -289,21 +338,25 @@ classdef DbQuery < Component
                 end
             end
         end
-
+        %------------------------------------------------------------------
 
         function Result = insert(Obj, Rec, Args)
             % Simple insert, all arguments are char
             % Insert new record to table, Keys and Values are celarray
-            % Input:   Rec             -
+            % Input:   Rec             - Data to insert
             %          'TableName'     - Table name, if not specified, Obj.TableName is used
+            %          'CsvFileName'   - When non-empty, use copyFrom and insert data from this file instead of Rec
+            %
+            %          These arguments are used only when CsvFileName is
+            %          empty and Rec is used as data source
             %          'ColNames'      - Comma-separated field names (i.e. 'recid,fint')
             %          'ColumnMap'     - Optional field map
-            %          'ExColumns'     - Additional fields as struct
             %          'BatchSize'     - Number of records per operation
             %          'InsertRecFunc' - Called to generate primary key if required
             %          'InsertRecArgs' - Arguments to InsertRecFunc
-            %          'UseCopy'       - When number of records is above this value, copyFrom() is used
-            %
+            %          'UseCopyThreshold' - When number of records is above this value, copyFrom() is used
+            %          'CsvFileName'      - Specify CSV file as source of data
+            %          'BinaryFileName'   - When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
             % Output:  DbRecord
             % Example: -
             
@@ -315,12 +368,13 @@ classdef DbQuery < Component
                 Args.TableName = ''         % Table name, if not specified, Obj.TableName is used
                 Args.ColNames = []          % Comma-separated field names (i.e. 'recid,fint')
                 Args.ColumnMap = []         % Optional field map
-                Args.ExColumns struct = []  % Additional fields as struct
                 Args.BatchSize = []         % Number of records per operation
                 Args.InsertRecFunc = []     % Called to generate primary key if required
                 Args.InsertRecArgs = {}     % Arguments to InsertRecFunc
-                Args.UseCopy = 0            % When number of records is above this value, copyFrom() is used
+                Args.UseCopyThreshold = []  % When number of records is above this value, copyFrom() is used
                 Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
+                Args.CsvFileName = ''       % When using COPY, name of CSV file
+                Args.BinaryFileName = ''    % When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
             end
 
             % Execute SQL statement (using java calls)
@@ -332,7 +386,78 @@ classdef DbQuery < Component
                 Args.TableName = Obj.TableName;
             end
             assert(~isempty(Args.TableName));
+            
+            %
+            % Insert directly from CSV file, primary key must be included
+            %
+            if ~isempty(Args.CsvFileName)
+                
+                if ~isfile(Args.CsvFileName)
+                    Obj.msgLog(LogLevel.Error, 'insert: csv file not found: %s', Args.CsvFileName);
+                    return;
+                end
+                
+                if ~Obj.Conn.isSharedPathAvail()
+                    Obj.msgLog(LogLevel.Error, 'insert: shared path is not available');
+                    return;
+                end
+                
+                
+                % Get columns list from CSV file
+                fid = fopen(Args.CsvFileName);
+                AColNames = strsplit(fgetl(fid), ',');
+                fclose(fid);
+                Columns = strjoin(AColNames, ',');
+ 
+                TempFileName = sprintf('%s.csv', Component.newUuid());
+                [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
+                copyfile(Args.CsvFileName, ClientFileName);
+                Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
 
+                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
+                Result = Obj.exec();
+                
+                return;
+            end
+            
+            %---------------------------------------------------------
+            % See:
+            %   https://nickb.dev/blog/disecting-the-postgres-bulk-insert-and-binary-format
+            %   https://www.postgresql.org/docs/14/sql-copy.htm
+            %   https://stackoverflow.com/questions/758945/whats-the-fastest-way-to-do-a-bulk-insert-into-postgres?rq=1
+            %   https://www.bytefish.de/blog/pgbulkinsert_bulkprocessor.html
+            %   https://github.com/PgBulkInsert/PgBulkInsert
+            if ~isempty(Args.BinaryFileName)
+                Obj.msgLog(LogLevel.Error, 'insert: BinaryFileName option is not supported yet!!!');
+
+                if ~isfile(Args.BinaryFileName)
+                    Obj.msgLog(LogLevel.Error, 'insert: file not found: %s', Args.BinaryFileName);
+                    return;
+                end
+                
+                if ~Obj.Conn.isSharedPathAvail()
+                    Obj.msgLog(LogLevel.Error, 'insert: shared path is not available');
+                    return;
+                end
+                                
+                % Get columns list from Rec file
+                AColNames = fieldnames(Rec.Data);
+                Columns = strjoin(AColNames, ',');
+ 
+                TempFileName = sprintf('%s.dat', Component.newUuid());
+                [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
+                copyfile(Args.CsvFileName, ClientFileName);
+                Obj.msgLog(LogLevel.Debug, 'insert: Inserting Binary file, copied to: %s', ClientFileName);
+
+                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' BINARY', Args.TableName, Columns, ServerFileName);
+                Result = Obj.exec();
+                
+                return;
+                
+            end
+            
+            %---------------------------------------------------------
+            
             if isempty(Args.BatchSize)
                 Args.BatchSize = Obj.InsertBatchSize;
             end
@@ -354,8 +479,9 @@ classdef DbQuery < Component
                 Args.InsertRecFunc(Obj, Rec, 1, numel(Rec.Data), Args.InsertRecArgs{:});
             end
 
-            if isempty(Args.UseCopy)
-                Args.UseCopy = Obj.InsertUseCopy;
+            % When not specified, use class's default
+            if isempty(Args.UseCopyThreshold)
+                Args.UseCopyThreshold = Obj.InsertUseCopyThreshold;
             end
 
             % Need connection, clear current query
@@ -377,18 +503,22 @@ classdef DbQuery < Component
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
             ColumnNames = fieldnames(Rec.Data);
             [SqlColumns, SqlValues] = Obj.makeInsertColumnsText(ColumnNames, 'ColumnMap', Args.ColumnMap, 'TableColumnList', TableColumnList);
+            %--------------------------------------------------------
+            % INSERT INTO statement
             
             % Use COPY FROM
-            if Args.UseCopy > 0 && RecordCount > Args.UseCopy
-                CsvFileName = sprintf('%s.csv', tempname);
-                Obj.msgLog(LogLevel.Warning, 'insert: UseCopy is not implemented yet, using INSERT');
+            if Args.UseCopyThreshold > 0 && RecordCount >= Args.UseCopyThreshold
+                TempFileName = sprintf('%s.csv', Component.newUuid());
+                [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
+                Rec.writeCsv(ClientFileName);
+                
+                Obj.msgLog(LogLevel.Debug, 'insert: Using COPY FROM');
 
-                %
-                %Rec.writeCsv(CsvFileName, Rec.Data, 'Header', Rec.Data);
+                Obj.SqlText = ['COPY ', string(Args.TableName).char, ' FROM ''', string(ServerFileName).char, ''' DELIMITER '','' CSV HEADER;'];
+                Result = Obj.exec();
 
-                %
-                %Result = Obj.copyFrom(Args.TableName, FileName);
-                %return;
+            
+                return;
             end
 
 
@@ -468,7 +598,7 @@ classdef DbQuery < Component
 
             Result = Obj.ExecOk;
         end
-
+        %------------------------------------------------------------------
 
         function Result = update(Obj, SetColumns, Args)
             % Update record
@@ -823,44 +953,50 @@ classdef DbQuery < Component
         end
 
         
-        function Result = writeResultSetCsv(Obj, CsvFileName)
-            %
+        function Result = writeResultSetToCsvFile(Obj, CsvFileName)
+            % Write Obj.JavaResultSet returned by select() to CSV file using
+            % Java CSVWriter obejct
             % Input:   CsvFileName
             % Output:  true on sucess
-            % Example: Obj.writeResultSetCsv('/tmp/test1.csv');
+            % Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
             % See: https://stackoverflow.com/questions/60756995/write-a-sql-resultset-to-a-csv-file
+            %
+            % Note: Seems that there is a bug in CSVWriter, one row is missing from the
+            % file @Todo @Bug @Chen
             
             Result = false;
+            
+            % Copy jar file only once
             persistent Init;
             if isempty(Init)
                 Init = true;
-                Path = fullfile(tools.os.getAstroPackExternalPath(), 'opencsv');
-                Jar = fullfile(Path, 'opencsv-5.5.2.jar');
-                
-                try
-                    import('com.opencsv.*');
-                    javaObject('CSVWriter');
-                catch
-                    dp = Jar;  %[pth filesep 'external' filesep 'snakeyaml-1.9.jar'];
-                    if not(ismember(dp, javaclasspath ('-dynamic')))
-                        javaaddpath(dp); % javaaddpath clears global variables!?
-                    end
-                    import('com.opencsv.*');
-                end;
-    
-                %javaclasspath(Jar);
-                %javaaddpath(Path, '-end');
+                tools.os.copyJavaJarToTempDir(fullfile(tools.os.getAstroPackExternalPath(), 'opencsv', 'opencsv-5.5.2.jar'));
             end
                         
             try
+                % Create file string
                 File = java.io.FileWriter(CsvFileName);
-                Writer = CSVWriter(File, ',');
+                
+                % Write CSV file using java CSVWriter object
+                % https://github.com/jlawrie/opencsv/blob/master/src/au/com/bytecode/opencsv/CSVWriter.java
+                % http://opencsv.sourceforge.net/apidocs/com/opencsv/CSVWriter.html
+                % CSVWriter(Writer writer,
+                %   char separator,
+                %   char quotechar,
+                %   char escapechar,
+                %   String lineEnd)
+                
+                % When creating with CSVWriter(File), the default quotechar is '"'
+                % which result in busy lines like:
+                % "a","","","10","0","","1.0","","N","0.0","0.0"
+                % So we send empty quotechar (see NO_QUOTE_CHARACTER in CSVWriter.java)
+                Writer = com.opencsv.CSVWriter(File, ',', char(0), char(0), newline);
                 Writer.writeAll(Obj.JavaResultSet, true);
                 Writer.close();
                 File.close();
                 Result = true;
             catch Ex
-                
+                Obj.msgLogEx(Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
             end
                     
         end
@@ -963,7 +1099,7 @@ classdef DbQuery < Component
             else
                 try
                     if ~isempty(Obj.JavaMetadata)
-                        Index = getColumnIndex(ColumnName);
+                        Index = Obj.getColumnIndex(ColumnName);
                         Result = (Index > 0);
                     else
                         Result = Obj.JavaResultSet.getString(ColumnName);
@@ -1016,14 +1152,25 @@ classdef DbQuery < Component
 
 
         function Result = getTablesList(Obj)
-            % Get columns list of specified table as cell array
+            % Get list of all tables in current database
             % Input:   -
             % Output:  Cell array
             % Example: = Obj.getTablesList()
             Text = 'SELECT table_name FROM information_schema.tables WHERE table_schema = ''public'' ORDER BY table_name';
             Result = Obj.selectColumn(Text, 'table_name');
         end
-              
+
+        
+        function Result = isTableExist(Obj, TableName)
+            % Check if specified table exists in current database
+            % Input:   TableName - Table name to search
+            % Output:  true if table exists
+            % Example: = Obj.isTableExist('MyTable')
+            Text = sprintf('SELECT table_name FROM information_schema.tables WHERE table_schema = ''public'' AND table_name = ''%s'' ORDER BY table_name', lower(TableName));
+            List = Obj.selectColumn(Text, 'table_name');
+            Result = any(strcmpi(List, TableName));
+        end
+        
         
         function Result = getTableColumnList(Obj, TableName)
             % Get columns list of specified table as cell array
@@ -1035,6 +1182,18 @@ classdef DbQuery < Component
         end
                 
 
+        function Result = isColumnExist(Obj, TableName, ColumnName)
+            % Check if column Get columns list of specified table as cell array
+            % Input:   TableName
+            %          ColumnName
+            % Output:  true if column exist
+            % Example: = Obj.isColumnExist('master_table', 'my_column')
+            Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' AND column_name = ''%s'' ORDER BY column_name', lower(TableName), lower(ColumnName));
+            List = Obj.selectColumn(Text, 'column_name');
+            Result = any(strcmpi(List, ColumnName));
+        end
+        
+        
         function Result = getTablePrimaryKey(Obj, TableName)
             % Get primary key column names of specified table
             % Input:   TableName
@@ -1151,79 +1310,26 @@ classdef DbQuery < Component
             Result = Obj.clear();
         end
         
+
+        function [ServerFileName, ClientFileName] = getSharedFileName(Obj, FileName)
+            % Prepare file names for server and client
+            % Input:  FileName -
+            % Output: ServerFileName -
+            %         ClientFileName -
+            % Exampe: -
+
+            % Prepare path, use ServerShareFileName in the COPY statement
+            % so the file name will be local on the server, we will be able
+            % to access over the network using ClientShareFileName
+            % Note that our server should be Linux
+            
+            [~, FName, Ext] = fileparts(FileName);
+            ServerFileName = sprintf('%s%s%s%s', Obj.Conn.ServerSharePath, '/', FName, Ext);
+            ClientFileName = fullfile(Obj.Conn.MountSharePath, strcat(FName, Ext));
+            %ClientFileName = sprintf('%s%s%s%s', Obj.Conn.MountSharePath, filesep, FName, Ext);
+        end
         
-        function Result = copyFrom(Obj, TableName, FileName, Args)
-            % Helper function for insert() - Import records from file to table
-            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
-            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
-            % Input:   TableName - Table name
-            %          FileName  - Input file name (CSV)
-            %          'Columns' - Columns list, default is to use CSV headers as field names and import all fields
-            %          'Csv'     - true=Csv file, @Todo - binary file?
-            %
-            % Output:  true on success
-            % Example: -
-            
-            arguments
-                Obj
-                TableName           % Table name
-                FileName            % Input file name (CSV)
-                Args.Columns = ''   % Fields list, default is to use CSV headers as field names and import all fields
-                Args.Csv = true     % true=Csv file, @Todo - binary file?
-            end
-
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyFrom');
-
-            AColumns = '';
-            if ~isempty(Args.Columns)
-                AColumns = [' (', Args.Columns, ') '];
-            end
-
-            % Prepare SQL:
-            % COPY tablename field1, field2 FROM 'filename' DELIMITER ',' CSV HEADER
-            ASql = ['COPY ', string(TableName).char, string(AColumns).char, ' FROM ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER;'];
-
-            % Execute
-            Result = Obj.exec(ASql);
-            Obj.msgLog(LogLevel.Debug, 'copyFrom time: %f', Obj.Toc);
-        end
-
-
-        function Result = copyTo(Obj, TableName, FileName, Args)
-            % Helper function for select() - Export records from table to file
-            % Copy statement, see https://www.postgresql.org/docs/9.2/sql-copy.html
-            % https://www.postgresqltutorial.com/export-postgresql-table-to-csv-file/
-            % Input:   TableName
-            %          FileName
-            %          'Columns' -
-            %          'Csv'     -
-            % Output:  true on success
-            % Example: -
-            
-            arguments
-                Obj
-                TableName           % Table name
-                FileName            % Output file name
-                Args.Columns = ''   % Fields list, if empty all fileds are exported
-                Args.Csv = true     % true to use CSV format
-            end
-
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: copyTo');
-
-            AColumns = '';
-            if ~isempty(Args.Columns)
-                AColumns = [' (', Args.Columns, ') '];
-            end
-
-            % Prepare SQL
-            ASql = ['COPY ', string(TableName).char, string(AColumns).char, ' TO ''', string(FileName).char, ''' DELIMITER '','' CSV HEADER'];
-
-            Result = Obj.exec(ASql);
-            Obj.msgLog(LogLevel.Debug, 'copyTo time: %f', Obj.Toc);
-            Result = Obj.ExecOk;
-        end
-
-
+        
         function Result = clear(Obj)
             % Clear current statement and ResultSet
             % Input:   -
@@ -1417,7 +1523,6 @@ classdef DbQuery < Component
         end
 
 
-
         function SqlColumns = makeWhereColumnsText(Obj, ColumnNames, Operand, ColumnMap)
             % Prepare SQL text from cell array
             % "WHERE RecID=? AND FInt=?..."
@@ -1596,6 +1701,92 @@ classdef DbQuery < Component
             end
         end
         
+        
+        function Result = writeBinaryFile(Obj, Rec, FileName)
+            % Get cell array field names that match the specified field type
+            % Input:   Rec - DbRecord with data
+            % Output:  true on sucess
+            % Example: ColNames = Q.getColumnNamesOfType('Double');
+            % @Todo - Implement this function in MEX
+            arguments
+                Obj
+                Rec             % DbRecord
+                FileName        %
+            end
+
+            Fid = fopen(FileName, 'w');
+            
+            % Write file header
+            % Postgres contains various header information of 15 bytes followed by an
+            % optional header extension, which we mark as having a length of 0.
+            
+            % The file header consists of 15 bytes of fixed fields, followed by a
+            % variable-length header extension area.
+            %
+            % The fixed fields are:
+            %   - Signature
+            %        11-byte sequence PGCOPY\n\377\r\n\0 � note that the zero byte
+            %        is a required part of the signature. (The signature is designed
+            %        to allow easy identification of files that have been munged by
+            %        a non-8-bit-clean transfer. This signature will be changed by
+            %        end-of-line-translation filters, dropped zero bytes, dropped high
+            %        bits, or parity changes.)
+            %
+            %   - Flags field
+            %        32-bit integer bit mask to denote important aspects of the file format.
+            %        Bits are numbered from 0 (LSB) to 31 (MSB). Note that this field is
+            %        stored in network byte order (most significant byte first), as are
+            %        all the integer fields used in the file format. Bits 16�31 are reserved
+            %        to denote critical file format issues; a reader should abort if it finds an
+            %        unexpected bit set in this range. Bits 0�15 are reserved to signal
+            %        backwards-compatible format issues; a reader should simply ignore any
+            %        unexpected bits set in this range. Currently only one flag bit is defined,
+            %        and the rest must be zero:
+            %
+            %        Bit 16 - If 1, OIDs are included in the data; if 0, not. Oid system
+            %        columns are not supported in PostgreSQL anymore, but the format still
+            %        contains the indicator.
+            %
+            %   - Header extension area length
+            %        32-bit integer, length in bytes of remainder of header, not including self.
+            %        Currently, this is zero, and the first tuple follows immediately.
+            %        Future changes to the format might allow additional data to be present in
+            %        the header. A reader should silently skip over any header extension data it
+            %        does not know what to do with.
+            %
+            
+            fwrite(Fid, 'PGCOPY');
+            fwrite(Fid, char(10), 'int8');
+            fwrite(Fid, char(0xFF), 'int8');
+            fwrite(Fid, char(13), 'int8');
+            fwrite(Fid, char(10), 'int8');
+            fwrite(Fid, char(0), 'int8');
+            fwrite(Fid, 0, 'int32');
+            fwrite(Fid, 0, 'int32');
+
+            % Write file data
+            % for every row of data:
+            %     write the number of columns to be written (short)
+            %     for every column in row:
+            %           write the amount of data in bytes about to be inserted (integer)
+            %           write data (length varies by type and contents)
+            %
+            
+            ARowCount = numel(Rec.Data);
+            AColNames = fieldnames(Rec.Data);
+            AColCount = numel(AColNames);
+            for RowNum=1:ARowCount
+                fwrite(Fid, int32(AColCount), 'int32');
+                for ColNum=1:AColCount
+                    % @Todo
+                    %fwrite(Fid,
+                    %fwrite(Fid,
+                end
+            end
+            
+            fclose(Fid);
+        end
+        
     end
     
     
@@ -1612,6 +1803,6 @@ classdef DbQuery < Component
             % amount of data
 
         Result = examples()
-            % Examples                      
+            % Examples
     end
 end

@@ -1,30 +1,41 @@
-% DbConnection Class, connection to database
-% Impleented as wrapper for Java Connection class
-% Sample connection string: 'jdbc:postgresql://localhost:5432/pipeline'
-% Used internally by DbQuery
+%--------------------------------------------------------------------------
+% File:    DbConnection.m
+% Class:   DbConnection
+% Title:   Internal class used by DbQuery for database connection (using Java 'Connection' class)
+% Author:  Chen Tishler
+% Created: July 2021
+%--------------------------------------------------------------------------
+% Usage:
 %
-% Author: Chen Tishler (July 2021)
-%
-% Usual usage:
-%
+% This class is intenally used by DbQuery.
 % Use the static function getDbConnection() to get or create DbConnection
-% object, settings will be loaded from configuration.
+% object, settings will be loaded from configuration. See detailed
+% documentation in DbQuery documentation.
 %
+% Example:
 %   DbConn = db.DbConnection.getDbConnection('unittest');
 %
-%
+% Sample connection string:
+%   'jdbc:postgresql://localhost:5432/pipeline'
+%--------------------------------------------------------------------------
 
-% #functions (autogen)
-% DbConnection - Constructor Input:       'DriverName'      - Currently only 'postgres' is supported       'Host'            - Network host name or IP address       'DatabaseName'    - Database name, i.e. 'unittest'
-% close - Disconnect from database, % @Todo
-% delete - Destructor
-% findFieldIC - Search struct field name, ignore case Intput:  - Output:  - Example: -
-% getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
-% getDbConnection - Search global (singleton) map of DbConnection for the specified connection key Since persistent data is visible only inside this function, we call the function with different option for find and to
-% newQuery - Create new DbQuery instance linked to this connection
-% open - Connect to database specified by Host:Port:Database as UserName/Password
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    DbConnection - Constructor Input:       'DriverName'      - Currently only 'postgres' is supported       'Host'            - Network host name or IP address       'DatabaseName'    - Database name, i.e. 'unittest'
+%    close - Disconnect from database, % @Todo
+%    delete - Destructor
+%    isSharedPathAvail - Check if shared folder is available between server and client
+%    newQuery - Create new DbQuery instance linked to this connection
+%    open - Connect to database specified by Host:Port:Database as UserName/Password
+%
+% Methods: Static
+%    findFieldIC - Search struct field name, ignore case Intput:  - Output:  - Example: -
+%    getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
+%    getDbConnection - Search global (singleton) map of DbConnection for the specified connection key Since persistent data is visible only inside this function, we call the function with different option for find and to
+%
+%#/docgen
+
 
 classdef DbConnection < Component
     
@@ -244,6 +255,20 @@ classdef DbConnection < Component
             % Example : Q = Obj.newQuery()
             Result = db.DbQuery(Obj);
         end
+        
+        
+        function Result = isSharedPathAvail(Obj)
+            % Check if shared folder is available between server and client
+            %
+            Result = false;
+            if ~isempty(Obj.ServerSharePath) && ~isempty(Obj.MountSharePath)
+                if isfolder(Obj.MountSharePath)
+                    Result = true;
+                end
+            end
+            
+        end
+        
     end
     
     %----------------------------------------------------------------------

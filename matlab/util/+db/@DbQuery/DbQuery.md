@@ -1,5 +1,10 @@
 # Overview
 
+	DbQuery - MATLAB components for PostgreSQL
+	Author: Chen Tishler
+	Created: Jun 2021
+	
+	
 ### General
 
 DbQuery - SQL Database Component
