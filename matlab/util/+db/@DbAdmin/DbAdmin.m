@@ -164,10 +164,13 @@ classdef DbAdmin < Component
                 
             end
             
+            Result = false;
+            
             % Execute SQL file using psql
             if ~isempty(Args.SqlFileName)
                 if isfile(Args.SqlFileName)
                     Obj.runPsql('SqlFileName', Args.SqlFileName);
+                    Result = true;
                 end
                 
             % Extract database definition from XLS file and execute the
@@ -176,6 +179,7 @@ classdef DbAdmin < Component
                 SqlFileName = Obj.xls2sql(Args.XlsFileName);
                 if ~isempty(SqlFileName) && isfile(SqlFileName)
                     Obj.runPsql('SqlFileName', SqlFileName);
+                    Result = true;
                 end
             else
                 
