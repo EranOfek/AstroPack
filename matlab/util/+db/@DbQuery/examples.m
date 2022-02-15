@@ -103,9 +103,8 @@ function Result = examples()
     % This requires that config/local/Database.DbConnections.UnitTest.yml
     % includes correct values for ServerSharePath and MountSharePath
     % See instructions how to set shared folder in:
-    % matlab/util/+db/@DbAdmin/share_linux_folder.md
-    Q.select('*', 'TableName', 'master_table', 'UseCopy', true, 'Load', false);
-    CsvFileName = Q.ClientShareFileName;
+    % matlab/util/+db/@DbAdmin/postgressql_installation.md
+    CsvFileName = Q.select('*', 'TableName', 'master_table', 'Limit', 1000, 'UseCopy', true, 'Load', false);
     fprintf('CSV file: %s\n', CsvFileName);
     if isfile(CsvFileName)
         Tab = readtable(CsvFileName);
