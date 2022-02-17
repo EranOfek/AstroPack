@@ -392,6 +392,17 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             H.FontSize = 18;
             H.Interpreter = 'latex';
             
+            
+            % limiting magnitude plot
+            ColorVec = [0.6:0.2:1.4];
+            NcV      = numel(ColorVec);
+            Colors   = generate_colors(NcV-1);
+            for IcV=1:1:NcV-1
+                Icolor = Color>ColorVec(IcV) & Color<ColorVec(IcV+1);
+                semilogy(RefMag(Icolor), SN(Icolor), 'k.','Color',Colors(IcV,:));
+                hold on;
+            end
+            
         end
     end
 end
