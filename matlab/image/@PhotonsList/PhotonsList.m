@@ -107,18 +107,74 @@ classdef PhotonsList < Component
     
     
     methods % good times and selections
-        function [Obj, GoodTimes, FlagGood] = findGoodTimes(Obj, Args)
+        function [Obj] = populateBadTimes(Obj, Args)
+            % Identify bad times and populate the bad times property.
+            % Input  : - A PhotonsList object.
+            %          * ...,key,val,...
+            %            'ColTime' - Column name containing the time tags.
+            %                   If empty, then use the PhotonsList object
+            %                   ColTime property. Default is [].
+            %            'NperBin' - Mean number of points per bin that
+            %                   will be used to estimate the bin size.
+            %                   Default is 100.
+            %            'TimeBin' - Time bin. If not empty this will override
+            %                   the 'NperBin' argument. Default is [].
+            %            'MeanFun' - A function handle that will be used to
+            %                   calculate the mean of histogram.
+            %                   Default is @tools.math.stat.nanmedian
+            %            'ThresholdSN' - Threshold S/N for bins above the
+            %                   mean that will be flagges as bad times.
+            %                   Default is 4.
+            % Output : - A PhotonsList object with the BadTimes property
+            %            populated. The bad times contains a two matrix
+            %            ciolumn with [Start End] of each bad time window.
+            % Author : Eran Ofek (Fen 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          P = populateBadTimes(P)
             %
+            
             
             arguments
                 Obj
-                Args.NperBin           = 100;
-                Args.BinTime           = [];
-                Args.ThresholdSN       = 10;
+                Args.ColTime                   = [];
+                Args.NperBin                   = 100;
+                Args.TimeBin                   = [];
+                Args.MeanFun function_handle   = @tools.math.stat.nanmedian;
+                Args.ThresholdSN               = 4;
+                
             end
             
+            Nobj = numel(Obj);
+            if ~isempty(Args.ColTime)
+                [Obj(1:1:Nobj).ColTime] = deal(Args.ColTime);
+            end
             
-            
+            for Iobj=1:1:Nobj
+                Times     = getCol(Obj(Iobj), Obj(Iobj).ColTime);
+                Nt        = numel(Times);
+                MinTime   = min(Times);
+                MaxTime   = max(Times);
+                TimeRange = MaxTime - MinTime;
+                
+                if isempty(Args.TimeBin)
+                    % use NperBin
+                    TimeBin = Args.NperBin .* TimeRange ./Nt;
+                else
+                    TimeBin = Args.TimeBin;
+                end
+                
+                Edges = (MinTime: TimeBin: MaxTime);
+                Nhist = histcounts(Times, Edges);
+                
+                Mean = Args.MeanFun(Nhist,[1 2]);
+                
+                BadBins = Nhist > (Mean + sqrt(Mean).*Args.ThresholdSN);
+                
+                BadBinsInd = find(BadBins);
+                
+                Obj(Iobj).BadTimes = [Edges(BadBinsInd).', Edges(BadBinsInd+1).'];
+              
+            end
             
         end
         
