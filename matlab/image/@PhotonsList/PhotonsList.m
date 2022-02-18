@@ -19,7 +19,8 @@ classdef PhotonsList < Component
         Image
         X
         Y
-        %Header(1,1) AstroHeader                      % maybe redundent if part of AstroImage
+        HeaderData(1,1) AstroHeader                      % maybe redundent if part of AstroImage
+        WCS(1,1) AstroWCS
         BadTimes(:,2)                     = zeros(0,2);
         %FlagGood(:,1) logical             = true(0,1);
         %FlagEnergy(:,1) logical           = true(0,1);
@@ -85,8 +86,9 @@ classdef PhotonsList < Component
     end
     
     methods (Static)  % static methods / reading photon-tagged lists
-        function Obj = readPhotonsList1(File, Args)
-            % Read time-taged photons list into a PhotonsList object
+        function [Obj] = readPhotonsList1(File, Args)
+            % Read time-taged photons list from a FITS file into a PhotonsList object
+            %   Read also the header and WCS from the header.
             % Input  : - A FITS file name to read.
             %          * ...,key,val,...
             %            'HDU' - HDU number in the FITS image.
@@ -96,14 +98,25 @@ classdef PhotonsList < Component
             
             arguments
                 File
-                Args.HDU                  = 1; % HDU or dataset
+                Args.HDU                  = 2; % HDU of table
+                Args.HeaderHDU            = 1;
                 Args.ReadBadTimes logical = true;
             end
             
+            Obj = PhotonsList;
+            
             ImIO = ImageIO(File, 'HDU',Args.HDU, 'IsTable',true , 'readTableArgs',{'OutTable','astrocatalog'});
             
-            Obj = PhotonsList;
-            Obj.Events = ImIO.Data;
+            [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog');
+            % get WCS from HeaderT
+            
+            Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT);
+            
+            % read header
+            [HeadCell] = FITS.readHeader1(File, Args.HeaderHDU);
+            
+            Obj.HeaderData.Data = HeadCell;
+            Obj.Events = Out;
             
         end
         

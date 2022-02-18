@@ -17,9 +17,6 @@
 % The reason for that is the ds9 discontinuity (probably numeric). 
 % The same check for AstroWCS methods shows no discontinuity. 
 % 
-
-
-
 % #functions (autogen)
 % AstroWCS - Basic constructor for AstroWCS class. User should usually use AstroWCS.header2wcs or AstroWCS.tran2wcs
 % alphadelta2phitheta - Convert celestial coordinates to native coordinates
@@ -1099,9 +1096,7 @@ classdef AstroWCS < Component
         end
     end
     
-    methods (Static)  % static methods
-
-   %======== Functions to construct AstroWCS from AstroHeader =========
+    methods (Static)  % static methods %======== Functions to construct AstroWCS from AstroHeader =========
         
         function Result = header2wcs(AH,Args)
             % Create and populate an AstroWCS object from an AstroHeader object
@@ -1193,6 +1188,88 @@ classdef AstroWCS < Component
             end
         end
                 
+        function Result = xrayHeader2wcs(AH, Args)
+            % Read X-Ray telescope/mission header into WCS object
+            % Input  : - An AstroHeader object, or a cell array of header.
+            %          * ...,key,val,...
+            %            'Mission' - X-Ray mission. Default is 'chandra'.
+            %            'Num1' - Number suffix in X coordinate keywords.
+            %                   Default is 11.
+            %            'Num2' - Number suffix in Y coordinate keywords.
+            %                   Default is 12.
+            % Output : - An AstroWCS object
+            % Author : Eran Ofek (Feb 2022)
+            
+            arguments
+                AH
+                Args.Mission        = 'chandra';
+                Args.Num1           = 11;
+                Args.Num2           = 12;
+                
+            end
+            
+            Keys.CTYPE{2} = sprintf('%s%d','TCTYP',Args.Num2);
+            Keys.CTYPE{1} = sprintf('%s%d','TCTYP',Args.Num1);
+            
+            Keys.CRVAL{2} = sprintf('%s%d','TCRVL',Args.Num2);
+            Keys.CRVAL{1} = sprintf('%s%d','TCRVL',Args.Num1);
+            
+            Keys.CRPIX{2} = sprintf('%s%d','TCRPX',Args.Num2);
+            Keys.CRPIX{1} = sprintf('%s%d','TCRPX',Args.Num1);
+            
+            Keys.CDELT{2} = sprintf('%s%d','TCDLT',Args.Num2);
+            Keys.CDELT{1} = sprintf('%s%d','TCDLT',Args.Num1);
+            
+            Keys.CUNIT{2} = sprintf('%s%d','TCUNI',Args.Num2);
+            Keys.CUNIT{1} = sprintf('%s%d','TCUNI',Args.Num1);
+            
+            if isa(AH, 'AstroHeader')
+                Nobj = numel(AH);
+            else
+                % assume a single header in a cell array
+                Nobj = 1;
+            end
+            
+            Result = AstroWCS;
+            for Iobj=1:1:Nobj
+            
+                Result(Iobj).NAXIS      = 2;
+                Result(Iobj).WCSAXES    = 2;
+
+                if isa(AH, 'AstroHeader')
+                    CellHeader = AH(Iobj).Data;
+                else
+                    % assume input is a cell array
+                    CellHeader = AH;
+                end
+            
+                FieldNames = fieldnames(Keys);
+                Nfn        = numel(FieldNames);
+                for Ifn=1:1:Nfn
+                    [Val1] = imUtil.headerCell.getValBySynonym(CellHeader, Keys.(FieldNames{Ifn}){1});
+                    [Val2] = imUtil.headerCell.getValBySynonym(CellHeader, Keys.(FieldNames{Ifn}){2});
+                    switch FieldNames{Ifn}
+                        case 'CDELT'
+                            Result(Iobj).CD      = zeros(2,2);
+                            Result(Iobj).CD(1,1) = Val1;
+                            Result(Iobj).CD(2,2) = Val2;
+                        case {'CTYPE','CUNIT'}
+                            % cell arrays
+                            Result(Iobj).(FieldNames{Ifn}) = {Val1, Val2};
+                        otherwise
+                            % vectors
+                            Result(Iobj).(FieldNames{Ifn}) = [Val1, Val2];
+                    end
+                    % populate proj Meta
+                    Result(Iobj).read_ctype;
+                    Result(Iobj).populate_projMeta;
+                    
+                end
+            end
+            
+            
+        end
+            
         function [radesys,equinox] =read_radesys_equinox(Header)
             % Read from AstroHeader the RADESYS and EQUINOX. If any are missing fill with deafults.
             % Input  : - AstroHeader object.
