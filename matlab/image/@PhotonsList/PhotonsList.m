@@ -363,7 +363,105 @@ classdef PhotonsList < Component
     end
 
     methods % sources
-        
+        function [Src] = getSrcPhotons(Obj, RA, Dec, Args)
+            % Get photons around sources RA/Dec position.
+            %   Given a list of RA/Dec or X/Y positions, return all photons
+            %   around these positions.
+            % Input  : - A PhotonsList object.
+            %          - J2000.0 RA, or sky x coordinates.
+            %          - J2000.0 Dec, or sky y coordinates.
+            %          * ...,key,val,...
+            %            'InUnits' - Input units 'rad','deg' for spherical.
+            %                   or 'sky' if input coordinates are sky x/y
+            %                   coordinates. Default is 'deg'.
+            %            'SearchRadius' - Returm all photons within this
+            %                   diatance for each source position.
+            %                   Default is 10.
+            %            'SearchRadiusUnits' - Search radius units
+            %                   'pix' | 'arcsec'. Default is 'pix.
+            %            'ReturnCol' - Columns to return for seleced
+            %                   photons.
+            %                   If 'RA','Dec' are added then RA/Dec will be
+            %                   added to the PhotonsList object (and it
+            %                   will be updated).
+            %                   Default is {'time','energy','ccd_id','chipx','chipy','x','y','grade','RA','Dec'}
+            %            'ColSky' - Column names that contains the sky x/y
+            %                   coordinates. If empty, then use the ColSky
+            %                   property in the PhotonsList object.
+            %                   Default is [].
+            % Output : - A structure array with element for each source
+            %            position requested. The following fields are
+            %            available:
+            %            .Flag - A vector of logical indicating the
+            %                   selected photons for the source.
+            %            .Data - A matrix with only the selected photons
+            %                   (i.e., all the photons within the search radius
+            %                   from the source position). The matrix
+            %                   columns are those in the 'ReturnCol' input
+            %                   argument.
+            % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          Src = P.getSrcPhotons(91.423,-86.632)
+            
+            arguments
+                Obj(1,1)
+                RA
+                Dec
+                Args.InUnits           = 'deg';   % 'sky' - for X/Y position
+                Args.SearchRadius      = 10;
+                Args.SearchRadiusUnits = 'pix';
+                Args.ReturnCol         = {'time','energy','ccd_id','chipx','chipy','x','y','grade','RA','Dec'};
+                Args.ColSky            = [];
+            end
+            
+            ARCSEC_DEG = 3600;
+            
+            if isempty(Args.ColSky)
+                Args.ColSky = Obj.ColSky;
+            end
+            
+            if any(strcmp(Args.ReturnCol, 'RA')) || any(strcmp(Args.ReturnCol, 'Dec'))
+                % RA/Dec requested - add to catalog
+                Obj.addSkyCoo;  % add RA/Dec to catalog
+            end
+            
+            
+            switch lower(Args.SearchRadiusUnits)
+                case 'pix'
+                    % do nothing
+                    SearchRadius = Args.SearchRadius;  % [pix]
+                case 'arcsec'
+                    PixScale     = abs(Obj.WCS.CD(1,1)).*ARCSEC_DEG;  % arcsec/pix
+                    SearchRadius = Args.SearchRadius./PixScale;   % [pix]
+                otherwise
+                    error('Unknown SearchRadiusUnits option');
+            end
+            SearchRadius2 = SearchRadius.^2;  % [pix^2]
+            
+            switch lower(Args.InUnits)
+                case 'sky'
+                    % coordinates are already X/Y sky
+                    Xsrc = RA;
+                    Ysrc = Dec;
+                otherwise
+                    % coordinates are RA/Dec
+                    % Convert to sky X/Y
+                    [Xsrc, Ysrc] = Obj.sky2xy(RA, Dec, 'InUnits',Args.InUnits);
+            end
+            XY     = getCol(Obj, Args.ColSky);   % XY of all photons
+            
+            ReturnData = getCol(Obj, Args.ReturnCol);
+            
+            Nsrc = numel(Xsrc);
+            for Isrc=1:1:Nsrc
+                % search for photons of each source
+                
+                Dist2 = (XY(:,1) - Xsrc).^2 + (XY(:,2) - Ysrc).^2;
+                Src(Isrc).Flag  = Dist2<SearchRadius2;
+                Src(Isrc).Data  = ReturnData(Src(Isrc).Flag,:);
+            end
+            
+        end
     end
     
     methods % astrometry
@@ -434,6 +532,35 @@ classdef PhotonsList < Component
             
         end
         
+        function Obj = addSkyCoo(Obj, Args)
+            % Add RA/Dec to events list
+            % Input  : - A PhotonsList object.
+            %          * ...,key,val,...
+            %            'CooUnits' - Units of added coordinates.
+            %                   Default is 'deg'.
+            % Output : - A PhotonsList object with the added RA/Dec.
+            % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          P.addSkyCoo;
+           
+            arguments
+                Obj
+                Args.CooUnits      = 'deg';
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                XY = getCol(Obj(Iobj), Obj(Iobj).ColSky);
+                [RA, Dec] = xy2sky(Obj(Iobj), XY(:,1), XY(:,2), 'OutUnits',Args.CooUnits);
+               
+                % insert/replace columns
+                Obj(Iobj) = insertCol(Obj(Iobj).Events,...
+                                      [RA, Dec], Inf, {'RA','Dec'}, {Args.CooUnits, Args.CooUnits});
+%                 Obj(Iobj).Events.Catalog  = [Obj(Iobj).Events.Catalog, RA, Dec];
+%                 Obj(Iobj).Events.ColNames = [Obj(Iobj).Events.ColNames(:).', 'RA', 'Dec'];
+%                 Obj(Iobj).Events.ColUnits = [Obj(Iobj).Events.ColUnits(:).', Args.CooUnits, Args.CooUnits];
+            end
+        end
     end
        
     
