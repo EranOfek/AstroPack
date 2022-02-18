@@ -12,11 +12,13 @@
 %
 
 classdef PhotonsList < Component
-    properties (Dependent)
-        Image
-    end
+    
     properties
+        
         Events(1,1) AstroCatalog
+        Image
+        X
+        Y
         %Header(1,1) AstroHeader                      % maybe redundent if part of AstroImage
         BadTimes(:,2)                     = zeros(0,2);
         %FlagGood(:,1) logical             = true(0,1);
@@ -48,6 +50,18 @@ classdef PhotonsList < Component
     end
     
     methods % setters/getters
+        function Result = get.Image(Obj)
+            % getter for Image
+            % If empty, then will calculate the image using the sky x/y
+            % coordinates.
+            
+            if isempty(Obj.Image)
+                XY = getCol(Obj, Obj.ColSky);
+                [Obj.Image, Obj.X, Obj.Y] = PhotonsList.events2image(XY);
+            end
+            Result = Obj.Image;
+        end
+        
         
     end
     
