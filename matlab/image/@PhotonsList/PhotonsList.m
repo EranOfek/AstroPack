@@ -97,10 +97,44 @@ classdef PhotonsList < Component
     
     
     methods (Static)    % static functions
-        function Result = events2image(Table, Args)
-            %
+        function [Image,X,Y] = events2image(XY, Args)
+            % Generate an image from a list of [X,Y] positions.
+            % Input  : - A two column matrix of [X,Y] positions.
+            %          * ...,key,val,...
+            %            'BinSize' - Bin size in X and Y. Default is [1 1]. 
+            %            'CCDSEC' - A vector of [Xmin, Xmax, Ymin, Ymax],
+            %                   in which to construct the image.
+            %                   If empty, will use the min.max values in
+            %                   the XY values. Default is [].
+            % Output : - The image constructed from the list of XY
+            %            positions.
+            %          - A vector of X position corresponding to the center
+            %            of the X pixels.
+            %          - A vector of Y position corresponding to the center
+            %            of the Y pixels.
+            % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          XY = getCol(P,{'x','y'});
+            %          [Image,X,Y] = PhotonsList.events2image(XY);
             
+            arguments
+                XY
+                Args.BinSize = [1 1];
+                Args.CCDSEC  = [];
+            end
             
+            if isempty(Args.CCDSEC)
+                CCDSEC = [min(XY(:,1)), max(XY(:,1)), min(XY(:,2)), max(XY(:,2))];
+            else
+                CCDSEC = Args.CCDSEC;
+            end
+            
+            Xedges = (CCDSEC(1):Args.BinSize(1):CCDSEC(2));
+            Yedges = (CCDSEC(3):Args.BinSize(2):CCDSEC(4));
+            
+            Image  = histcounts2(XY(:,1), XY(:,2), Xedges, Yedges);
+            X      = (Xedges(1:end-1) + Xedges(2:end)).*0.5;
+            Y      = (Yedges(1:end-1) + Yedges(2:end)).*0.5;
         end
         
     end
