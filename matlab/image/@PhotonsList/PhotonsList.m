@@ -348,6 +348,9 @@ classdef PhotonsList < Component
         end
     end
 
+    methods % sources
+        
+    end
     
     methods % astrometry
         function pix2coo
