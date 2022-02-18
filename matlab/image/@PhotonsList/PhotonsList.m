@@ -110,6 +110,7 @@ classdef PhotonsList < Component
             [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog');
             % get WCS from HeaderT
             
+            % BUG HERE!!!
             Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT);
             
             % read header
@@ -366,11 +367,70 @@ classdef PhotonsList < Component
     end
     
     methods % astrometry
-        function pix2coo
+        function [RA, Dec] = xy2sky(Obj, X, Y, Args)
+            % Convert X,Y coordinates to RA/Dec
+            %   Note that in ds9 these are called detector coordinates,
+            %   while in the Chandra event file they are called sky
+            %   coordinates.
+            % Input  : - A single-element PhotonsList object.
+            %          - X (sky) coordinate.
+            %          - Y (sky) coordinate.
+            %          * ...,key,val,...
+            %            'OutUnits' - Default is 'deg'.
+            % Output : - J2000.0 RA
+            %          - J2000.0 Dec
+            % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          [r,d]=P.WCS.xy2sky(4075,4094);
+            
+            arguments
+                Obj(1,1)
+                X
+                Y
+                Args.OutUnits    = 'deg';
+            end
+            RAD = 180./pi;
+
+            DX = (X - Obj.WCS.CRPIX(1)).*Obj.WCS.CD(1,1)./RAD;
+            DY = (Y - Obj.WCS.CRPIX(2)).*Obj.WCS.CD(2,2)./RAD;
+            [RA,Dec] = celestial.proj.pr_ignomonic(DX, DY, Obj.WCS.CRVAL./RAD);
+
+            RA  = convert.angular('rad', Args.OutUnits, RA);
+            Dec = convert.angular('rad', Args.OutUnits, Dec);
             
         end
         
-        function coo2pix
+        function [X, Y] = sky2xy(Obj, RA, Dec, Args)
+            % Convert RA/Dec coordinates to X/Y.
+            %   Note that in ds9 these are called detector coordinates,
+            %   while in the Chandra event file they are called sky
+            %   coordinates.
+            % Input  : - A single-element PhotonsList object.
+            %          - J2000.0 RA
+            %          - J2000.0 Dec
+            %          * ...,key,val,...
+            %            'InUnits' - Default is 'deg'.
+            % Output : - X (sky) coordinates.
+            %          - Y (sky) coordinates.
+            % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          [r,d]=P.xy2sky(4075,4094);
+            %          [x,y]=P.sky2xy(r,d);
+            
+            arguments
+                Obj(1,1)
+                RA
+                Dec
+                Args.InUnits    = 'deg';
+            end
+            RAD = 180./pi;
+
+            RA  = convert.angular(Args.InUnits,'rad',RA);
+            Dec = convert.angular(Args.InUnits,'rad',Dec);
+            
+            [X,Y] = celestial.proj.pr_gnomonic(RA,Dec, 1, Obj.WCS.CRVAL./RAD);
+            X = X.*RAD./Obj.WCS.CD(1,1) + Obj.WCS.CRPIX(1);
+            Y = Y.*RAD./Obj.WCS.CD(2,2) + Obj.WCS.CRPIX(2);
             
         end
         

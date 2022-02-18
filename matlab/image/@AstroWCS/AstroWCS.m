@@ -1190,6 +1190,8 @@ classdef AstroWCS < Component
                 
         function Result = xrayHeader2wcs(AH, Args)
             % Read X-Ray telescope/mission header into WCS object
+            %   Note that the sky2xy/xy2sky are relevant for the "Detector"
+            %   coordinates in ds9.
             % Input  : - An AstroHeader object, or a cell array of header.
             %          * ...,key,val,...
             %            'Mission' - X-Ray mission. Default is 'chandra'.
