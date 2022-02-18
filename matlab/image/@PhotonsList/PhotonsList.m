@@ -131,7 +131,6 @@ classdef PhotonsList < Component
             % Author : Eran Ofek (Fen 2022)
             % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
             %          P = populateBadTimes(P)
-            %
             
             
             arguments
@@ -176,6 +175,83 @@ classdef PhotonsList < Component
               
             end
             
+        end
+        
+        function [Obj, FlagBad] = removeBadTimes(Obj, Args)
+            % Remove bad times from PhotonsList
+            % Input  : - A PhotonsList object.
+            %          * ...,key,val,...
+            %            'RePop' - Repopulate the BadTimes property in the
+            %                   PhotonsList object using populateBadTimes.
+            %                   Default is true.
+            %            'RemoveBadTimes' - Remove bad times from
+            %                   PhotonsList object. Default is true.
+            %            'CreateNewObj' - Create a new copy of the object.
+            %                   Default is false.
+            %            'ColTime' - Column name containing the time tags.
+            %                   If empty, then use the PhotonsList object
+            %                   ColTime property. Default is [].
+            %            'NperBin' - Mean number of points per bin that
+            %                   will be used to estimate the bin size.
+            %                   Default is 100.
+            %            'TimeBin' - Time bin. If not empty this will override
+            %                   the 'NperBin' argument. Default is [].
+            %            'MeanFun' - A function handle that will be used to
+            %                   calculate the mean of histogram.
+            %                   Default is @tools.math.stat.nanmedian
+            %            'ThresholdSN' - Threshold S/N for bins above the
+            %                   mean that will be flagges as bad times.
+            %                   Default is 4.
+            % Output : - A PhotonsList object with the optionaly removed
+            %            photons in bad times.
+            %          - A structure array with a .Flag field containing a
+            %            vector of logical of all the bad photons.
+            % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          P = removeBadTimes(P)
+            
+           
+            arguments
+                Obj
+                Args.RePop logical             = true;
+                Args.RemoveBadTimes logical    = true;
+                Args.CreateNewObj logical      = false;
+                Args.ColTime                   = [];
+                Args.NperBin                   = 100;
+                Args.TimeBin                   = [];
+                Args.MeanFun function_handle   = @tools.math.stat.nanmedian;
+                Args.ThresholdSN               = 4;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+               Result = Obj;
+            end
+            
+            
+            Nobj = numel(Obj);
+            if ~isempty(Args.ColTime)
+                [Obj(1:1:Nobj).ColTime] = deal(Args.ColTime);
+            end
+            
+            if Args.RePop
+                [Obj] = populateBadTimes(Obj, 'ColTime',Args.ColTime,...
+                                          'NperBin',Args.NperBin,...
+                                          'TimeBin',Args.TimeBin,...
+                                          'MeanFun',Args.MeanFun,...
+                                          'ThresholdSN',Args.ThresholdSN);
+            end
+            
+            for Iobj=1:1:Nobj
+                % remove bad times from PhotonList
+                Times     = getCol(Obj(Iobj), Obj(Iobj).ColTime);
+              
+                [FlagBad(Iobj).Flag] = tools.array.find_ranges_flag(Times, Obj(Iobj).BadTimes);
+                if Args.RemoveBadTimes
+                    Obj(Iobj).Events.Catalog = Obj(Iobj).Events.Catalog(~FlagBad(Iobj).Flag,:);
+                end
+            end
         end
         
         function [Obj, FlagEnergy] = selectEnergy(Obj, EnergyRange, Args)
