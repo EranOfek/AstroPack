@@ -1,6 +1,5 @@
 % AstroSpec
 %
-
 % #functions (autogen)
 % AstroSpec - constructor for AstroSpec
 % applyAtmosphericExt - Apply atmospheric extinction (airmass) to AstroSpec object. One to one, or one to many.
@@ -651,7 +650,8 @@ classdef AstroSpec < Component
                             case 'mat'
                                 Result = Spec;
                             case 'astrospec'
-                                Result(Iast) = AstroSpec({Spec});
+                                Result(Iast)   = AstroSpec({Spec});
+                                Result(Iast).Z = 0;
                             otherwise
                                 error('Unknown OutType option');
                         end
@@ -1486,7 +1486,12 @@ classdef AstroSpec < Component
             %          T=[5000 0; 5001 1; 5999 1; 6000 0];  % filter transmission
             %          Spec.interpOverNan;
             %          [Result, Flag, FilterWave] = synphot(Spec, T, 'F55');
-
+            %
+            % G= AstroSpec.specGalQSO('Gal_Sb.txt'); 
+            % A=G.redshift(z);
+            % mag=synphot(A,Result,{'a','b','c','d','e','f','g','h'});
+            % plot(z, [mag.a]-[mag.e])
+            
             arguments
                 Obj
                 FilterFamily       % AstroFilter object, Name, Matrix
@@ -1826,11 +1831,10 @@ classdef AstroSpec < Component
             %          - Input redshift. If empty, then will attempt to
             %            read it from the Z property. Default is [].
             %          * ...,key,val,...
-            %            'CreateNewObj' - [], true, false.
-            %                   If true, create new deep copy
-            %                   If false, return pointer to object
-            %                   If [] and Nargout==0 then do not create new copy.
-            %                   Otherwise, create new copy. Default is [].
+            %            'CreateNewObj' - Create new copy.
+            %                   Default is true.
+            %            'ApplyFluxZcorr' - Apply the 1+z flux correction.
+            %                   Default is true.
             %            'CorrectFluxErr' - Default is true.
             %            'CorrectBack'    - Default is true.
             % Output : - An updated AstroSpec object.
@@ -1847,37 +1851,57 @@ classdef AstroSpec < Component
                 Obj
                 Zout                             = 0;
                 Zin                              = [];  % Z of spectra
-                Args.CreateNewObj                = [];
+                Args.CreateNewObj logical        = true;
+                Args.ApplyFluxZcorr logical      = true;
                 Args.CorrectFluxErr(1,1) logical = true;
                 Args.CorrectBack(1,1) logical    = true;
             end
             
-            [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
         
             Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
+            Nz   = numel(Zout);
+            Nmax = max(Nobj, Nz);
+            
+            if Nz>1 && Nobj==1
+                % copy spectrum into multi-element object
+                Result = AstroSpec(Nmax);
+                for Imax=1:1:Nmax
+                    Result(Imax) = Obj.copy;
+                end
+            end
+            
+            for Imax=1:1:Nmax
+                Iobj = min(Imax, Nobj);
+                Iz   = min(Imax, Nz);
                 if ~isempty(Zin)
                     % reset Z property in object
-                    Obj(Iobj).Z   = Zin;
+                    Result(Imax).Z   = Zin;
                 end
                 
-                if isempty(Obj(Iobj).Z)
+                if isempty(Result(Imax).Z)
                     error('Z must be specified either in object or as Zin input argument');
                 end
                 
                 % apply redshift to wavelength
                 % convert to rest frame
-                Result(Iobj).Wave    = Result(Iobj).Wave .* (1 + Zout) ./ (1 + Result(Iobj).Z);
-                Result(Iobj).Flux    = Result(Iobj).Flux .* (1 + Result(Iobj).Z) ./ (1 + Zout);
-                if (Args.CorrectFluxErr)
-                    Result(Iobj).FluxErr = Result(Iobj).FluxErr .* (1 + Result(Iobj).Z) ./ (1 + Zout);
+                Result(Imax).Wave    = Result(Imax).Wave .* (1 + Zout(Iz)) ./ (1 + Result(Iobj).Z);
+                if Args.ApplyFluxZcorr
+                    Result(Imax).Flux    = Result(Imax).Flux .* (1 + Result(Iobj).Z) ./ (1 + Zout(Iz));
                 end
-                if (Args.CorrectBack)
-                    Result(Iobj).Back    = Result(Iobj).Back .* (1 + Result(Iobj).Z) ./ (1 + Zout);
+                if Args.CorrectFluxErr && ~isempty(Result(Imax).FluxErr)
+                    Result(Imax).FluxErr = Result(Imax).FluxErr .* (1 + Result(Iobj).Z) ./ (1 + Zout(Iz));
+                end
+                if Args.CorrectBack && ~isempty(Result(Imax).Back)
+                    Result(Imax).Back    = Result(Imax).Back .* (1 + Result(Iobj).Z) ./ (1 + Zout(Iz));
                 end
                 
-                Result(Iobj).Z       = [];     % needed [so Z setter will not apply the redshift]
-                Result(Iobj).Z       = Zout;
+                Result(Imax).Z       = [];     % needed [so Z setter will not apply the redshift]
+                Result(Imax).Z       = Zout(Iz);
             end
             
             
