@@ -377,6 +377,8 @@ classdef PhotonsList < Component
             %            'SearchRadius' - Returm all photons within this
             %                   diatance for each source position.
             %                   Default is 10.
+            %            'Annulus' - Annuulus radii at which to get
+            %                   background photons. Default is [20 30].
             %            'SearchRadiusUnits' - Search radius units
             %                   'pix' | 'arcsec'. Default is 'pix.
             %            'ReturnCol' - Columns to return for seleced
@@ -394,11 +396,15 @@ classdef PhotonsList < Component
             %            available:
             %            .Flag - A vector of logical indicating the
             %                   selected photons for the source.
+            %            .FlagBack - The same as Flag but for the annulus
+            %                   background.
             %            .Data - A matrix with only the selected photons
             %                   (i.e., all the photons within the search radius
             %                   from the source position). The matrix
             %                   columns are those in the 'ReturnCol' input
             %                   argument.
+            %            .DataBack - The same as Data, but for the annulus
+            %                   background photons.
             % Author : Eran Ofek (Feb 2022)
             % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
             %          Src = P.getSrcPhotons(91.423,-86.632)
@@ -409,6 +415,7 @@ classdef PhotonsList < Component
                 Dec
                 Args.InUnits           = 'deg';   % 'sky' - for X/Y position
                 Args.SearchRadius      = 10;
+                Args.Annulus           = [20 30];
                 Args.SearchRadiusUnits = 'pix';
                 Args.ReturnCol         = {'time','energy','ccd_id','chipx','chipy','x','y','grade','RA','Dec'};
                 Args.ColSky            = [];
@@ -430,13 +437,16 @@ classdef PhotonsList < Component
                 case 'pix'
                     % do nothing
                     SearchRadius = Args.SearchRadius;  % [pix]
+                    Annulus      = Args.Annulus;
                 case 'arcsec'
                     PixScale     = abs(Obj.WCS.CD(1,1)).*ARCSEC_DEG;  % arcsec/pix
                     SearchRadius = Args.SearchRadius./PixScale;   % [pix]
+                    Annulus      = Args.Annulus./PixScale;
                 otherwise
                     error('Unknown SearchRadiusUnits option');
             end
             SearchRadius2 = SearchRadius.^2;  % [pix^2]
+            Annulus2      = Annulus.^2;
             
             switch lower(Args.InUnits)
                 case 'sky'
@@ -457,8 +467,11 @@ classdef PhotonsList < Component
                 % search for photons of each source
                 
                 Dist2 = (XY(:,1) - Xsrc).^2 + (XY(:,2) - Ysrc).^2;
-                Src(Isrc).Flag  = Dist2<SearchRadius2;
-                Src(Isrc).Data  = ReturnData(Src(Isrc).Flag,:);
+                Src(Isrc).Flag     = Dist2<SearchRadius2;
+                Src(Iscc).FlagBack = Dist2<Annulus2; 
+                Src(Isrc).Data     = ReturnData(Src(Isrc).Flag,:);
+                Src(Isrc).DataBack = ReturnData(Src(Isrc).FlagBack,:);
+                
             end
             
         end
