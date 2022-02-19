@@ -1,6 +1,5 @@
 % AstroTransmission
 %
-
 % #functions (autogen)
 % AstroTransmission - constructor for AstroTransmission Populate an AstroTransmission object.
 % atmosphericExtinction - Return Atmospheric extinction The extinction im mag/transmission is provided in the Flux field.
@@ -24,7 +23,6 @@
 % synphot - Synthetic photometry on an AstroSpec object spectra
 % #/functions (autogen)
 %
-
 % use case thoughts:
 % get(Telescope, Camera, Family, Filter, <type>, <AM>)
 % getTel(Telescope) - telescope only
