@@ -1425,39 +1425,74 @@ classdef MatchedSources < Component
             %          * ...,key,val,...
             %            'FieldName' - Field name on which to run the
             %                   matched filter. Default is 'MAG'.
-            %            'SubMean' - Subtract mean before filtering.
-            %                   If empty, do not sutract mean, otherwise,
-            %                   this is a function handle for the mean
-            %                   calculation. Default is @median.
             %            'Templates' - Template bank (column-wise), with
             %                   the same length (epochs) as the matced
             %                   sources matrix.
             %            'rmsMagArgs' - Additional arguments to pass to
             %                   MatchedSources/rmsMag. Default is {}.
-            % Output : 
-            % Author :
+            %            'Back' - Back value to subtract from the data.
+            %                   Alternatively, a function_handle for calculating
+            %                   the background.
+            %                   If empty, then do not subtract background.
+            %                   Default is [].
+            %            'BackArgs' - A cell array of additional arguments to pass
+            %                   to the background calc. function. Default is {}.
+            %            'Std' - An std of the data scalar, vector, or matrix.
+            %                   Alternatively, this can be a function handle that
+            %                   will be used to calculate the std.
+            %                   The second argument of the function must be dim.
+            %                   If empty, then will ise rmsMag to estimate
+            %                   the std for each star according to its
+            %                   magnitude.
+            %                   Default is @tools.math.stat.rstd
+            %            'StdArgs' - A cell array of additional arguments to pass
+            %                   to the background std calc. function after the data
+            %                   and dim parameters. Default is {}.
+            %            'IsTemplateFFT' - Is template is FFTed and complex
+            %                   conjugate of template. Default is false.
+            % Output : A structure array, in which the number of elements
+            %          equal to the number of elemenst in the MatchedSources object.
+            %          each element contains a structure array .Temp that
+            %          contains, the results foe each template (number of
+            %          elements equal to the number of elements).
+            %          The following fields are available:
+            %          .S - Matrix of the detection statistics.
+            %               The size of the matrix is like the size of the
+            %               data. Columns corresponds to sources, and lines
+            %               to epochs. The statistics is given in units of
+            %               the std.
+            %          .DataStd - The Std per source (column) that was used
+            %               for the normaliztion.
+            %          .MaxS - The maximum over each column in S.
+            %          .IndMaxS - The index of the maximum over each column
+            %               in S.
+            %          .MinS - The minimum over each column in S.
+            %          .IndMinS - The index of the minimum over each column
+            %               in S.
+            % Author : Eran Ofek (Feb 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(randn(100,200).*10,'MAG')
-            %          T = [0 1 2 3 2 1 0].';
+            %          T = [0 1 2 3 2 1 0].'.*100;
             %          MS.Data.MAG(1:numel(T),2) = T;
             %          [Result] = matchedFilter(MS, 'Templates', [T, T, T])
             
             
             arguments
                 Obj
-                Args.FieldName    = 'MAG';
-                Args.SubMean      = @median;  % empty - do not subtract
-                Args.Templates    = [];
-                Args.rmsMagArgs   = {};
+                Args.FieldName              = 'MAG';
+                Args.Templates              = [];
+                
+                Args.Back                   = [];
+                Args.BackArgs cell          = {};
+                Args.Std                    = @tools.math.stat.rstd; % additional argument must be Dim
+                Args.StdArgs cell           = {};
+                Args.PadVal                 = 0;
+                Args.IsTemplateFFT logical  = false;
+
+                Args.rmsMagArgs             = {};
             end
-            
-            error('use tools.math.filter.filter1');
-            
-            [TempLen, Ntemp] = size(Args.Templates);
-            NhalfTemp        = floor(Ntemp.*0.5);
-            
-            Norm2Template    = sqrt(sum(Args.Templates.^2, 1));
-            %TemplatesFFTconj = conj(fft(Args.Templates, 1));
+                        
+            Ntemp = size(Args.Templates, 2);
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
@@ -1465,41 +1500,27 @@ classdef MatchedSources < Component
                 Matrix = getMatrix(Obj(Iobj), FieldName);
                 [Nep, NsrcSel] = size(Matrix);
 
-                [ResRMS] = rmsMag(Obj, 'MagField',Args.FieldName,...
-                                       'ParField',Args.FieldName,...
-                                       Args.rmsMagArgs{:});
+                if isempty(Args.Std)
+                    [ResRMS] = rmsMag(Obj, 'MagField',Args.FieldName,...
+                                           'ParField',Args.FieldName,...
+                                           Args.rmsMagArgs{:});
 
+                    % use ResRMS to estimate std
+                    Std = ResRMS.EstimatedStdPar;
+                else
+                    Std = Args.Std;
+                end
                 
+                for Itemp=1:1:Ntemp                    
+                    [Result(Iobj).Temp(Itemp).S, Result(Iobj).Temp(Itemp).DataStd] = tools.math.filter.filter1(Matrix, Args.Templates(:,Itemp), 1,...
+                                                                                        'Back',Args.Back,...
+                                                                                        'BackArgs',Args.BackArgs,...
+                                                                                        'Std',Std,...
+                                                                                        'StdArgs',Args.StdArgs,...
+                                                                                        'IsTemplateFFT',Args.IsTemplateFFT);
 
-                if ~isempty(Args.SubMean)
-                    MeanMatrix = Args.SubMean(Matrix, 1, 'omitnan');
-                    Matrix     = Matrix - MeanMatrix;
-                end
-            
-                PadLen = Nep - TempLen;
-                if PadLen<0
-                    error('Template is longer than time series');
-                end
-                Templates = padarray(Args.Templates, [PadLen 0], 0, 'post');
-                % circshift Templates such that the template center is at
-                % thed edge, so no shift will be applied
-                Templates = circshift(Templates, -NhalfTemp, 1);
-                TemplatesFFTconj = conj(fft(Templates, [], 1));
-                
-                for Itemp=1:1:Ntemp
-                    
-                    NormStd  = ResRMS.EstimatedStdPar./Norm2Template(Itemp);
-                    % Detection statistics for all LC, for a given template Itemp
-                    StatTemp = ifft(fft(Matrix,1).*TemplatesFFTconj(:,Itemp), [], 1)./NormStd;
-                    Result(Iobj).Template(Itemp).S = StatTemp;
-                    [Max, MaxInd] = max(StatTemp,[],1);
-                    [Min, MinInd] = min(StatTemp,[],1);
-                    
-                    Result(Iobj).Template(Itemp).MaxS = Max;
-                    Result(Iobj).Template(Itemp).MaxI = MaxInd;
-                    Result(Iobj).Template(Itemp).MinS = Min;
-                    Result(Iobj).Template(Itemp).MinI = MinInd;
-                    
+                    [Result(Iobj).Temp(Itemp).MaxS, Result(Iobj).Temp(Itemp).IndMaxS] = max(Result(Iobj).Temp(Itemp).S);
+                    [Result(Iobj).Temp(Itemp).MinS, Result(Iobj).Temp(Itemp).IndMinS] = min(Result(Iobj).Temp(Itemp).S);
                 end
             end
         end
