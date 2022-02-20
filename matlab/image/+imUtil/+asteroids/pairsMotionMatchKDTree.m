@@ -1,4 +1,4 @@
-function Cand = radonScatter(Time,X,Y,Args)
+function Cand = pairsMotionMatchKDTree(Time,X,Y,Args)
     % Given a list of [Time, X, Y] search for points which belong to the
     %       same constant-rate moving object.
     %   The algorithm run time scales like N^2. First, all pairs which have
@@ -10,6 +10,9 @@ function Cand = radonScatter(Time,X,Y,Args)
     % Requires: the KD tree package from: https://github.com/taiya/kdtree
     % Input  : - Vector of times. These are the times at which the X and Y
     %            positions were measured.
+    %            The positions and times corresponds to all the orphan
+    %            candidates for which a linear motion will be searched and
+    %            fitted.
     %          - Vector of measured X positions.
     %          - Vector of measured Y positions.
     %          * ...,key,val,...
@@ -47,7 +50,7 @@ function Cand = radonScatter(Time,X,Y,Args)
     % Example: Time = [1 2 3 4 5 6 7 8 9 10 9 2 3 3 1 2 1 1 2 3 5 2, randi(100,1,1000)].'./1440;
     %          Nt   = numel(Time); X=rand(Nt,1).*3600; Y    = rand(Nt,1).*3600;
     %          X(1)=0; Y(1)=0; X(2)=10; Y(2)=5; X(3)=20; Y(3)=10; X(5)=40; Y(5)=20;
-    %          Cand = imUtil.cat.radonScatter(Time,X,Y)
+    %          Cand = imUtil.asteroids.pairsMotionMatchKDTree(Time,X,Y)
     
     arguments
         Time
