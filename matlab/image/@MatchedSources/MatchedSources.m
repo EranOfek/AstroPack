@@ -1470,6 +1470,10 @@ classdef MatchedSources < Component
                 Args.OutputFields      = {'RA','Dec'};
             end
             
+            % features to add:
+            % choose only Ndet which are sucessive
+            % remove sourece by some criteria - e.g., SN_std... FLAGS...
+            
             Nout = numel(Args.OutputFields);
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
