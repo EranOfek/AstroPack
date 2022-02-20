@@ -22,8 +22,8 @@ function [S, DataStd]=filter1(Data, Template, Dim, Args)
     % Output : - The filtered statistics in units of std.
     %          - The Data std.
     % Author : Eran Ofek (Feb 2022)
-    % Example: Data = randn(20,1).*0.1; T = [1 2 3 2 1].';
-    %          Data(1:5) = T + randn(5,1).*0.1;
+    % Example: Data = randn(200,2).*0.1; T = [1 2 1 2 1].';
+    %          Data(1:5,1) = T + randn(5,1).*0.1;
     %          [S, DS] = tools.math.filter.filter1(Data, T);
     
     arguments
@@ -37,6 +37,9 @@ function [S, DataStd]=filter1(Data, Template, Dim, Args)
     end
     
     Length   = size(Data, Dim);
+    
+    % make sure Template is normalized to unity
+    Template = Template./sum(Template, Dim);
     
     if Args.IsTemplateFFT
         TemplateFFT = Args.Template;
@@ -56,8 +59,10 @@ function [S, DataStd]=filter1(Data, Template, Dim, Args)
         % assume Std is a function handle
         DataStd = Args.Std(Data, Dim);
     end
-    Norm = sqrt(sum(Template.^2, Dim));
+    Norm = 1./sqrt(sum(Template.^2, Dim));
     
-    S = ifft(fft(Data, [], Dim) .* TemplateFFT, [], Dim)./(DataStd.*Norm);
+    S = ifft(fft(Data, [], Dim) .* TemplateFFT, [], Dim);
+    %S = S./imUtil.background.rstd(S);   % empirical test
+    S = Norm .* S./DataStd;
     
 end
