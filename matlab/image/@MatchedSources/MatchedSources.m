@@ -1451,6 +1451,7 @@ classdef MatchedSources < Component
             %               .EpochInd - Vector of epoch indices in which
             %                       the source was detected.
             %               .JD - Vector of JD.
+            %               .Ndet - Numbre of detections.
             %               .(all the fields in OutputFields) - Vector of
             %                       requested properties.
             % Author : Eran Ofek (Feb 2022)
@@ -1494,7 +1495,8 @@ classdef MatchedSources < Component
                     FlagOrphan(Iobj).Src(Iind).SrcInd   = IndOrphans(Iind);
                     FlagOrphan(Iobj).Src(Iind).EpochInd = find(NotNanMatrix(:,IndOrphans(Iind)));
                     FlagOrphan(Iobj).Src(Iind).JD       = Obj(Iobj).JD(NotNanMatrix(:,IndOrphans(Iind)));
-                
+                    FlagOrphan(Iobj).Src(Iind).Ndet     = numel(FlagOrphan(Iobj).Src(Iind).JD);
+                    
                     for Iout=1:1:Nout
                         FlagOrphan(Iobj).Src(Iind).(Args.OutputFields{Iout}) = OutCell{Iout}(NotNanMatrix(:,IndOrphans(Iind)), IndOrphans(Iind) );
                     end
