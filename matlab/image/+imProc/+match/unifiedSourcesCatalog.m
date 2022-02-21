@@ -78,17 +78,7 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
 
     % MergedCoo is an AstroCatalog with two columns
     % X, Y of all sources found
-    if isempty(Xunit)
-        Xu = '';
-    else
-        Xu = Xunit{1};
-    end
-    if isempty(Yunit)
-        Yu = '';
-    else
-        Yu = Yunit{1};
-    end
-    Result  = AstroCatalog({[X, Y]}, 'ColNames',{ColNameX{1},ColNameY{1}}, 'ColUnits',{Xu, Yu});
+    Result  = AstroCatalog({[X, Y]}, 'ColNames',{ColNameX{1},ColNameY{1}}, 'ColUnits',{Xunit{1}, Yunit{1}});
     
     Nsrc = size(Result.Catalog,1);
     ResInd(Iobj).IndInUnified = (1:1:Nsrc).';

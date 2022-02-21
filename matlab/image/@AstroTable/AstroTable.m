@@ -601,13 +601,21 @@ classdef AstroTable < Component
            
             if ischar(Fields)
                 ColInd = colname2ind(Obj, Fields);
-                Result = Obj.ColUnits{ColInd};
+                if ColInd>numel(Obj.ColUnits)
+                    Result = '';
+                else
+                    Result = Obj.ColUnits{ColInd};
+                end
             elseif iscell(Fields)
                 Nf = numel(Fields);
                 Result = cell(1,Nf);
                 ColInd = colname2ind(Obj, Fields);
                 for If=1:1:Nf
-                    Result{If} = Obj.ColUnits(ColInd);
+                    if ColInd(If)>numel(Obj.ColUnits)
+                        Result{If} = '';
+                    else
+                        Result{If} = Obj.ColUnits(ColInd(If));
+                    end
                 end
             else
                 error('Unknown Fields type - must be a char or cell');
@@ -871,7 +879,7 @@ classdef AstroTable < Component
             end
             if nargout>1
                 if ColInd>numel(Obj.ColUnits)
-                    Units = '';
+                    Units = {''};
                 else
                     Units = Obj.ColUnits(ColInd);
                 end

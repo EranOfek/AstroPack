@@ -1,4 +1,4 @@
-% ImagePath - A class for generating and storing image/path names
+% ImagePath - A class for generating stand storing image/path names
 %       for ULTRASAT and LAST.
 %
 % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
@@ -992,7 +992,7 @@ classdef ImagePath < Base %Component
             %                   to the SaveFun function.
             %                   Default is {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
             %            'PropFromHeader' - A logical indicating if to
-            %                   populate ImagePath properties from image header.
+            %                   popuAlate ImagePath properties from image header.
             %                   Default is true.
             %            'CropID_FromInd' - If true, then CropID is taken
             %                   from object element index. Default is false.
