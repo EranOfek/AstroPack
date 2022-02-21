@@ -396,7 +396,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             % limiting magnitude plot
             ColorVec = [0.6:0.2:1.4];
             NcV      = numel(ColorVec);
-            Colors   = generate_colors(NcV-1);
+            Colors   = plot.generate_colors(NcV-1);
             for IcV=1:1:NcV-1
                 Icolor = Color>ColorVec(IcV) & Color<ColorVec(IcV+1);
                 semilogy(RefMag(Icolor), SN(Icolor), 'k.','Color',Colors(IcV,:));
