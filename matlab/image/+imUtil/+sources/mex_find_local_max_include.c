@@ -83,7 +83,7 @@ void mexFunction(
 
 
     if ((nrhs > 2) && mxIsScalar(prhs[2])) {
-        Conn = (int)mxGetScalar(prhs[2]);
+        Conn = (__REAL)mxGetScalar(prhs[2]);
     }
     else {Conn = 4;}
 
@@ -138,23 +138,23 @@ void mexFunction(
 
 
     
-    // if (nlhs > 1) {
+    if (nlhs > 1) {
     plhs[1] = mxCreateNumericArray(output_ndims, SizeListInd, class_id, MEX_REAL);
     outII = (__INT*)mxGetData(plhs[1]);
-    //}
-    //if (nlhs > 2) {
+    }
+    if (nlhs > 2) {
     plhs[2] = mxCreateNumericArray(output_ndims, SizeListInd, class_id, MEX_REAL);
     outJJ = (__INT*)mxGetData(plhs[2]);
-    //}
-    //if (nlhs > 3) {
-
+    }
+    if (nlhs > 3) {
     output_ndims = 2;
     plhs[3] = mxCreateNumericArray(output_ndims, input_size, class_id, MEX_REAL);
     outBW = (__INT*)mxGetData(plhs[3]);
-    //}
+    }
     //
     int count = 0;
     if (Conn==4) {
+        // skip the edges of the image
         for (col = 1;  col < cols - 1;  col++) {
 
             for (row = 1;  row < rows - 1;  row++) {
@@ -165,8 +165,8 @@ void mexFunction(
                     val3 = input[ col*rows + row-1 ];
                     val4 = input[ col*rows + row+1 ];
                     if (val>val1 && val>val2 && val>val3 && val>val4) {
-                        mwSize Indd = (__INT)col*(__INT)rows + (__INT)row;
-                        
+                        //mwSize Indd = (__INT)col*(__INT)rows + (__INT)row;
+                        mwSize Indd = col*rows + row;
                         outListInd[count] = (__INT)Indd;
                         
                         if (nlhs > 2) {
