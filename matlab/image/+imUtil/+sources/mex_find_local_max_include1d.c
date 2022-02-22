@@ -55,10 +55,11 @@ void mexFunction(
     // not a pointer: ok ?
     __FLOAT val;
     int *outListInd, *outII, *outJJ, *outBW;
+    int *outListInd_, *outII_, *outJJ_, *outBW_;
     int dim = 1;
     mwSize rows, cols;
     mwSize row, col;
-    __FLOAT val1, val2, val3, val4, val5, val6, val7, val8;
+    __FLOAT val1, val2, val3, val4;
 
     mxClassID     class_id;
     const char*   input_type;
@@ -73,7 +74,7 @@ void mexFunction(
     mwSize output_ndims = 1;
     mwSize output_size[2] = {0,0};
 
-   // mexPrintf("nlhs: %d, nrhs: %d\n", nlhs, nrhs);
+    //mexPrintf("nlhs: %d, nrhs: %d\n", nlhs, nrhs);
     //return;
 
     // Get dim
@@ -102,7 +103,7 @@ void mexFunction(
     if ((nrhs > 3) && mxIsScalar(prhs[3]))
     {
         AllocateFrac = (__FLOAT)mxGetScalar(prhs[3]);
-        //mexPrintf("AllocateFrac: %0.5f\n", AllocateFrac);
+       // mexPrintf("AllocateFrac: %0.5f\n", AllocateFrac);
     }
 
     if (mxIsSparse(prhs[0])) {
@@ -116,7 +117,7 @@ void mexFunction(
         return;
     }
 
-    //mexPrintf("Hi 1\n");
+    mexPrintf("Hi 1\n");
     //return;
 
     // Parse input matrix
@@ -131,11 +132,11 @@ void mexFunction(
 
 
 
-    //mexPrintf("input_ndims: %d\n", input_ndims);
-    //mexPrintf("input_size:  %d, %d\n", input_size[0], input_size[1]);
-   // mexPrintf("class_id:    %d\n", class_id);
-    //mexPrintf("input_type:  %s\n", input_type);
-    //mexPrintf("dim:         %d\n", dim);
+    mexPrintf("input_ndims: %d\n", input_ndims);
+    mexPrintf("input_size:  %d, %d\n", input_size[0], input_size[1]);
+    mexPrintf("class_id:    %d\n", class_id);
+    mexPrintf("input_type:  %s\n", input_type);
+    mexPrintf("dim:         %d\n", dim);
 
 
     // Validate input params
@@ -147,12 +148,12 @@ void mexFunction(
     rows = input_size[0];
     cols = input_size[1];
 
-    //mexPrintf("Rows: %d, Cols: %d\n", rows, cols);
+   // mexPrintf("Rows: %d, Cols: %d\n", rows, cols);
 
     // Allocate output 1D array of integers (array of indexes)
-    int SizeList = (int)ceil((__FLOAT)rows * (__FLOAT)cols * AllocateFrac);
+    int SizeList = (int)ceil((__FLOAT)rows * (__FLOAT)cols * AllocateFrac) ;
     mwSize SizeListInd[1] = { (mwSize)ceil((__FLOAT)rows * (__FLOAT)cols * AllocateFrac) };
-    //mexPrintf("SizeListInd: %d\n", (int)SizeListInd[0]);
+    mexPrintf("SizeListInd: %d\n", (int)SizeListInd[0]);
     if (SizeListInd[0] < 1)
     {
         mexPrintf("SizeListInd is zero, AllocateFrac is too small?\n");
@@ -160,10 +161,9 @@ void mexFunction(
     }
     // mxREAL - The output is real and not complex
     // mxINT32_CLASS - The output type is 32bit integer
-    plhs[0] = mxCreateNumericArray(output_ndims, SizeListInd, mxINT32_CLASS, mxREAL);
-
-    // Get pointer to output array
-    outListInd = (int*)mxGetData(plhs[0]);
+    mexPrintf("size dynamic array %d\n",SizeList);
+    outListInd = (int*) malloc(SizeList);
+    outListInd[10] = 20;
     if (nlhs > 1)
     {
         plhs[1] = mxCreateNumericArray(output_ndims, SizeListInd, mxINT32_CLASS, mxREAL);
@@ -199,7 +199,8 @@ void mexFunction(
                     {
                         //mwSize Indd = (__INT)col*(__INT)rows + (__INT)row;
                         mwSize Indd = col*rows + row + 1;
-                        outListInd[count] = (int)Indd;
+                        //outListInd[count] = (int)Indd;
+                        //outListInd[count] = 1;
                         //mexPrintf("col: %d, row: %d, ind: %d\n", col, row, (int)Indd);
                         if (nlhs > 2) {
                             outII[count] = (int)(Indd-1)%(int)rows+1;
@@ -216,57 +217,24 @@ void mexFunction(
             }
         }
     }
-
-if (Conn==8) 
-    {
-        // skip the edges of the image
-        bool flag =true;
-        for (col = 1;  (col < cols - 1)&&flag;  col++) {
-
-            for (row = 1;  (row < rows - 1)&&flag ;  row++) {
-                val = input[ col*rows + row ];
-                if (val>Thresh) {
-                    val1 = input[ (col-1)*rows + row ]; // left
-                    val2 = input[ (col+1)*rows + row ]; // right
-                    val3 = input[ col*rows + row-1 ]; // up
-                    val4 = input[ col*rows + row+1 ]; // down
-                    val5 = input[ (col-1)*rows + row - 1]; // left up
-                    val6 = input[ (col+1)*rows + row  - 1]; // right up
-                    val7 = input[ (col-1)*rows + row + 1 ]; // left down
-                    val8 = input[ (col+1)*rows + row + 1 ]; // right down
-                    if (val>val1 && val>val2 && val>val3 && val>val4 &&val>val5 && val>val6 && val>val7 && val>val8)
-                    {
-                        //mwSize Indd = (__INT)col*(__INT)rows + (__INT)row;
-                        mwSize Indd = col*rows + row + 1;
-                        outListInd[count] = (int)Indd;
-                        //mexPrintf("col: %d, row: %d, ind: %d\n", col, row, (int)Indd);
-                        if (nlhs > 2) {
-                            outII[count] = (int)(Indd-1)%(int)rows+1;
-                            outJJ[count] = (int)ceil((Indd+.00000001)/rows);
-                        }
-
-                        count = count + 1;
-                        if (count == SizeList) 
-                        {
-                            flag = false;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     if (nlhs > 3)
     {
         for (int i =0;i<count;i++) 
         {
             
             outBW[outII[i]+ (outJJ[i]-1)*rows-1] = 1;
-            //mexPrintf("col: %d, row: %d\n", (int)outII[i], (int)outJJ[i] );
+           // mexPrintf("col: %d, row: %d\n", (int)outII[i], (int)outJJ[i] );
         }
     }
-
-
+    mwSize  SizeListM[1] = {(mwSize)count};
+    plhs[0] = mxCreateNumericArray(output_ndims, SizeListM, mxINT32_CLASS, mxREAL);
+    // Get pointer to output array
+    outListInd_ = (int*)mxGetData(plhs[0]);
+    //for (int i =0;i<count;i++) 
+//    {
+  //      outListInd_[i] = outListInd[i];
+   //}
+ free(outListInd);
 }
 
 //mexPrintf("output_ndims: %d\n", output_ndims);

@@ -1,13 +1,15 @@
+Conn=8;
 z2 = randn(8998);
 z3 = zeros(size(z2)+2);
 size(z3)
 z3(2:(size(z2,1)+1),2:(size(z2,2)+1))= z2;
+%z3=z2;
 tic
-[a1,b1,c1,d1] = imUtil.sources.mex_find_local_max_single(z3,2,4,0.025);
+[a1,b1,c1,d1] = imUtil.sources.mex_find_local_max_single(z3,2,Conn,0.05);
 toc
 
 tic
-[a2,b2,c2,d2] = imUtil.sources.findLocalMaxAboveThreshold(z3,2,4,0.025);
+[a2,b2,c2,d2] = imUtil.sources.findLocalMaxAboveThreshold(z3,2,Conn,0.05);
 toc
 
 
