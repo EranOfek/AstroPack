@@ -91,7 +91,6 @@ function [Mode, Variance] = mode_vec(Vector, Log, IgnoreNaN, Accuracy, MinN, Onl
                 IqrVal(2) = log(Mode);
                 Factor    = Factor.*2;
             end
-
             Variance = (range(IqrVal).*Factor).^2;
         end
     end
