@@ -11,7 +11,7 @@ function findOrphansClean(Obj, Args)
         Args.SN_Field          = 'SN_2';
         Args.Flags_Field       = 'FLAGS';
         
-        Args.MinSN             = 
+        Args.MinSN             = @(Ndet) 8 - Ndet
     end
 
     % look for all orphan candidates in a MatchedSources object

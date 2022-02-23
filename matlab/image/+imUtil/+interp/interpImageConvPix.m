@@ -12,7 +12,7 @@ function Conv2 = interpImageConvPix(Image, Kernel, PosIJ)
     %          [Conv2(K), Image(K)]
     %
     %          Image = rand(1000,1000);
-    %          K = randi(1e6,100,1);
+    %          K = randi(1e6,1000,1);
     %          Image(K) = NaN;
     %          Kernel     = imUtil.kernel2.gauss; %ones(11,11)./121;
     %          Conv2 = imUtil.interp.interpImageConvPix(Image, Kernel);
@@ -26,6 +26,11 @@ function Conv2 = interpImageConvPix(Image, Kernel, PosIJ)
     
     if isempty(PosIJ)
         [Inan, Jnan] = find(isnan(Image));
+        
+        % a bit slower
+        %ISnan = find(isnan(Image));
+        %[Inan, Jnan] = imUtil.image.ind2sub_fast(size(Image), ISnan);
+        
         PosIJ = [Inan Jnan];
     end
     
