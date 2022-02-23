@@ -150,7 +150,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
                 else
                     Variance = (range(IqrVal).*Factor).^2;
                 end
-                 range((IqrVal)).*Factor
+                % range((IqrVal)).*Factor
     %             Variance
     %             'a'
             end
