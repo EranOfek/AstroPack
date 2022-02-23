@@ -11,14 +11,16 @@ function findOrphansClean(Obj, Args)
         Args.SN_Field          = 'SN_2';
         Args.Flags_Field       = 'FLAGS';
         
-        Args.MinSN             = @(Ndet) 8 - Ndet
+        Args.MinSN             = @(X)(8 - X);   % X is Ndet
     end
 
     % look for all orphan candidates in a MatchedSources object
     OutputFields = [Args.OutputFields, Args.SN_Field, Args.Flags_Field];
     OrphansList = lcUtil.findOrphans(Obj, 'SelectFieldName',Args.SelectFieldName, 'MaxNepochs',Args.MaxNepochs, 'OutputFields',OutputFields);
     
-    
+    Ncand = numel(OrphansList);
+    for Icand=1:1:Ncand
+        
     
     
     
