@@ -39,11 +39,12 @@ function FlagOrphan = findOrphans(Obj, Args)
     %          F = lcUtil.findOrphans(MS,'SelectFieldName','MAG', 'MaxNepochs',2)
 
     arguments
-        Obj
-        Args.MaxNepochs        = 1;
-        Args.SelectFieldName   = MatchedSources.DefNamesX;
+        Obj MatchedSources
+        Args.MaxNepochs           = 1;
+        Args.RemoveNdet0 logical  = true;
+        Args.SelectFieldName      = MatchedSources.DefNamesX;
 
-        Args.OutputFields      = {'RA','Dec'};
+        Args.OutputFields         = {'RA','Dec'};
     end
 
     % features to add:
@@ -59,7 +60,14 @@ function FlagOrphan = findOrphans(Obj, Args)
         NepochPerSrc = sum(NotNanMatrix, 1);
 
         % flag orphan sources
-        FlagOrphan(Iobj).Flag         = NepochPerSrc <= Args.MaxNepochs;
+         if Args.RemoveNdet0
+            % Remove sources with Ndet=0
+            % This can happen when some property (Args.SelectFieldName) of detected source can
+            % not be measured 
+            FlagOrphan(Iobj).Flag         = NepochPerSrc <= Args.MaxNepochs & NepochPerSrc>0;
+         else
+             FlagOrphan(Iobj).Flag         = NepochPerSrc <= Args.MaxNepochs;
+         end
         FlagOrphan(Iobj).NotNanMatrix = NotNanMatrix;
 
         if ~isempty(Args.OutputFields)
@@ -72,6 +80,8 @@ function FlagOrphan = findOrphans(Obj, Args)
         IndOrphans  = find(FlagOrphan(Iobj).Flag);
         NIndOprhans = numel(IndOrphans);
         for Iind=1:1:NIndOprhans
+           
+                
             FlagOrphan(Iobj).Src(Iind).SrcInd   = IndOrphans(Iind);
             FlagOrphan(Iobj).Src(Iind).EpochInd = find(NotNanMatrix(:,IndOrphans(Iind)));
             FlagOrphan(Iobj).Src(Iind).JD       = Obj(Iobj).JD(NotNanMatrix(:,IndOrphans(Iind)));
