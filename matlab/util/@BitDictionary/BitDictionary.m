@@ -254,7 +254,7 @@ classdef BitDictionary < Component
             
             arguments
                 Obj
-                BitName     {mustBeA(BitName,{'char','cell'})}
+                BitName       % char or cell
             end
             
             if isempty(Obj)
@@ -288,7 +288,7 @@ classdef BitDictionary < Component
                 end
             end
             BitDec = 2.^BitInd;
-            SumBitDec = nansum(BitDec,'all');
+            SumBitDec = sum(BitDec,'all','omitnan');
                 
         end
         

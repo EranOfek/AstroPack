@@ -75,6 +75,9 @@ function FlagOrphan = findOrphans(Obj, Args)
             [OutCell{1:1:Nout}] = getMatrix(Obj(Iobj), Args.OutputFields);
         end
 
+        % prep JD to save time
+        JD = Obj(Iobj).JD;
+        
         % look for indices of epochs in which the orphan sources
         % were detected
         IndOrphans  = find(FlagOrphan(Iobj).Flag);
@@ -84,7 +87,7 @@ function FlagOrphan = findOrphans(Obj, Args)
                 
             FlagOrphan(Iobj).Src(Iind).SrcInd   = IndOrphans(Iind);
             FlagOrphan(Iobj).Src(Iind).EpochInd = find(NotNanMatrix(:,IndOrphans(Iind)));
-            FlagOrphan(Iobj).Src(Iind).JD       = Obj(Iobj).JD(NotNanMatrix(:,IndOrphans(Iind)));
+            FlagOrphan(Iobj).Src(Iind).JD       = JD(NotNanMatrix(:,IndOrphans(Iind)));
             FlagOrphan(Iobj).Src(Iind).Ndet     = numel(FlagOrphan(Iobj).Src(Iind).JD);
 
             for Iout=1:1:Nout

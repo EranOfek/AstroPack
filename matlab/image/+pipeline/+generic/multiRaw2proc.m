@@ -329,13 +329,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                              'DeleteVarBeforeCoadd',false);
                                                                                          
     
-    
+    % find orphans
+    [OrphansList,CleanOrphansList,Norphans] = lcUtil.findOrphansClean(MatchedS, 'BitDict',Coadd(1).MaskData.Dict);
    
-    
-
-
-    
-    
     
     
     if isnumeric(Args.SubDir)
