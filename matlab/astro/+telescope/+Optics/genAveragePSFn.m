@@ -1,4 +1,4 @@
-function [Image, PowerSpec] = genAveragePSFn(Args)
+function [Image, PowerSpec, AllImages] = genAveragePSFn(Args)
     % Generate a multiple-stars PSF from multiple speckle images
     % Input  : * ...,key,val,...
     %            'Flux' - Vector of flux, per image, of sources.
@@ -18,6 +18,7 @@ function [Image, PowerSpec] = genAveragePSFn(Args)
     % Output : - A combined average image.
     %          - The average power spectrum, where the zero frequency is at
     %            the image edges.
+    %          - A cube of all individual generated images.
     % Author : Eran Ofek (Feb 2022)
     % Example: [Image, PowerSpec] = telescope.Optics.genAveragePSFn;
     %          surface(Image); shading interp; colorbar
@@ -40,8 +41,9 @@ function [Image, PowerSpec] = genAveragePSFn(Args)
     Nflux = numel(Args.Flux);
     J = (1:1:Args.Norder);
     
-    MeanImage = zeros(Args.ImageSize, Args.ImageSize);
+    Image     = zeros(Args.ImageSize, Args.ImageSize);
     PowerSpec = zeros(Args.ImageSize, Args.ImageSize);
+    AllImages = zeros(Args.ImageSize, Args.ImageSize, Args.Nimages);
     
     for Iim=1:1:Args.Nimages
         % generate a random realization of the zernike coef.
@@ -49,13 +51,19 @@ function [Image, PowerSpec] = genAveragePSFn(Args)
         % generate an image based on the current realization
         [~,Image1] = telescope.Optics.zerwavefront2image(J,[],C);
         
-        Image = Image1.*Args.Flux(1);
+        Image1 = Image1.*Args.Flux(1);
         
-        for Iflux=2:1:Nflux
-            Image2 = circshift(Image1, Args.PosXY(Iflux-1,2), 1);
-            Image2 = circshift(Image2, Args.PosXY(Iflux-1,1), 2);
-            
-            Image  = Image + Image2.*Args.Flux(Iflux);
+        if Nflux==1
+            Image = Image + Image1;
+            AllImages(:,:,Iim) = Image1;
+        else
+            for Iflux=2:1:Nflux
+                Image2 = circshift(Image1, Args.PosXY(Iflux-1,2), 1);
+                Image2 = circshift(Image2, Args.PosXY(Iflux-1,1), 2);
+
+                Image  = Image + Image2.*Args.Flux(Iflux);
+                AllImages(:,:,Iim) = Image2;
+            end
         end
         
         if Args.PoissNoise
