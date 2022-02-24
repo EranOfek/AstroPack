@@ -4,7 +4,7 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     %   only 1 (or a few) epochs - These are selected using lcUtil.findOrphans
     %   Clean sources are those which satisfy some additional criteria like
     %   1. sucessive observations; 2. SN above some threshold; 3. no bad
-    %   flags.
+    %   flags; 4. 2nd moment are larger than some threshold.
     % Input  : - A MatchedSources object.
     %          * ...,key,val,...
     %            'BitDict' - 
@@ -25,6 +25,12 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     %                   Default is 'SN_2'.
     %            'Flags_Field' - A field containing FLAGS of source.
     %                   Default is 'FLAGS'.
+    %            'M2_Fields' - Fields of 2nd moment. If empty, then will
+    %                   not use this. Default is {'X2','Y2'}
+    %            'M2_Min' - Minimum value for [X2, Y2] 2nd moment. 
+    %                   If all detections in either X2 or Y2 are below
+    %                   these threshold then set to GoodOrphan = false.
+    %                   Default is [0.7 0.7].
     %            'CheckSucessive' - A logical indicating if to check that
     %                   all the observations are sucessive.
     %                   If true, then sources without sucessive
@@ -82,6 +88,8 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
         
         Args.SN_Field                = 'SN_2';
         Args.Flags_Field             = 'FLAGS';
+        Args.M2_Fields               = {}; %{'X2','Y2'};
+        Args.M2_Min                  = [0.7 0.7];
         
         Args.CheckSucessive logical  = true;
         Args.MinSN                   = [9, 5]; %@(X)max(8 - X, 5);   % X is Ndet
@@ -110,7 +118,7 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     end
         
     % look for all orphan candidates in a MatchedSources object
-    OutputFields = [Args.OutputFields, Args.SN_Field, Args.Flags_Field];
+    OutputFields = [Args.OutputFields, Args.SN_Field, Args.Flags_Field, Args.M2_Fields];
     OrphansList = lcUtil.findOrphans(Obj, 'SelectFieldName',Args.SelectFieldName, 'MaxNepochs',Args.MaxNepochs, 'OutputFields',OutputFields);
     
     Nobj = numel(Obj);
@@ -153,6 +161,15 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
                    OrphansList(Iobj).Src(Isrc).GoodOrphan = false;
                 end
             end
+            
+            % Check 2nd moment
+            if ~isempty(Args.M2_Fields)
+                if all(OrphansList(Iobj).Src(Isrc).(Args.M2_Fields{1}) < Args.M2_Min(1)) || ...
+                                    all(OrphansList(Iobj).Src(Isrc).(Args.M2_Fields{2}) < Args.M2_Min(2))
+                    OrphansList(Iobj).Src(Isrc).GoodOrphan = false;
+                end
+            end
+            
         end
     end
     
