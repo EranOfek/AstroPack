@@ -12,7 +12,14 @@ function findOrphansClean(Obj, Args)
         Args.Flags_Field             = 'FLAGS';
         
         Args.CheckSucessive logical  = true;
-        Args.MinSN                   = @(X)(8 - X);   % X is Ndet
+        Args.MinSN                   = [8, 5]; %@(X)max(8 - X, 5);   % X is Ndet
+        Args.MeanFun                 = @mean;
+    end
+    
+    if isempty(Args.MinSN)
+        FunMinSN = [];
+    else
+        FunMinSN = @(Ndet,MaxSN,MinSN) max(MaxSM - Ndet, MinSN);
     end
 
     % look for all orphan candidates in a MatchedSources object
@@ -35,7 +42,13 @@ function findOrphansClean(Obj, Args)
             end
             
             % check that S/N is larger than threshold
-            
+            if ~isempty(Args.MinSN)
+                if Args.MeanFun(OrphansList(Iobj).Src(Isrc).(Args.SN_Field)) < FunMinSN(OrphansList(Iobj).Src(Isrc).Ndet, Args.MinSN(1), Args.MinSN(2))
+                    % source is below S/N threshold
+                    % Remove source
+                    OrphansList(Iobj).Src(Isrc).GoodOrphan = false;
+                end
+            end
             
             % Check FLAGS
             
