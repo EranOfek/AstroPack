@@ -480,8 +480,21 @@ classdef PhotonsList < Component
         
         function [Obj, Image] = constructImage(Obj, Args)
             % construct image in any coordinate system
-            % Input  : - 
-            % Output : - 
+            % Input  : - A PhotonsList object.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system in which to construct
+            %                   the image. This is either a {x,y} column
+            %                   names, or 'det'|'tdet'|'chip'|'sky'.
+            %                   Default is 'sky'.
+            %            'BinSize' - Bin size in X and Y. Default is [1 1]. 
+            %            'CCDSEC' - A vector of [Xmin, Xmax, Ymin, Ymax],
+            %                   in which to construct the image.
+            %                   If empty, will use the min.max values in
+            %                   the XY values. Default is [].
+            % Output : - An PhotonsList object in which the Image, X, Y are
+            %            populated.
+            %          - An image matrix of the last element in the object.
+            % Author : Eran Ofek (Feb 2022)
             
             arguments
                 Obj
@@ -490,43 +503,72 @@ classdef PhotonsList < Component
                 Args.CCDSEC  = [];
             end
             
+            Nobj = numel(Obj);
+            
+            
             if iscell(Args.CooSys)
                 Col = Args.CooSys;
             else
                 switch lower(Args.CooSys)
                     case 'sky'
-                        Col = Obj.ColSky;
+                        Col = Obj(1).ColSky;
                     case 'chip'
-                        Col = Obj.ColChip;
+                        Col = Obj(1).ColChip;
                     case 'det'
-                        Col = Obj.Det;
+                        Col = Obj(1).Det;
                     case 'tdet'
-                        Col = Obj.TDet;
+                        Col = Obj(1).TDet;
                     otherwise
                         error('Unknown CooSys option');
                 end
             end
 
-            XY = getCol(Obj, Col);
-            [Obj.Image, Obj.X, Obj.Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
+            for Iobj=1:1:Nobj
+                XY = getCol(Obj(Iobj), Col);
+                [Obj(Iobj).Image, Obj(Iobj).X, Obj(Iobj).Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
+            end
             if nargout>1
-                Image = Obj.Image;
+                Image = Obj(end).Image;
             end
             
         end
         
         function [Obj, Back] = background(Obj, Args)
-            % Estimate background in image
+            % Estimate Poisson background in PhotonsList image
+            %   The background expectency is estimated by poissfit the
+            %   counts in the pixels. This is done in 2 iterations. After
+            %   the first iterations high values are removed.
+            % Input  : - A PhotonsList object.
+            %          * ...,key,val,...
+            %            'MaxProb' - The cumulative probability of poisson
+            %                   distribution that is used to calc the max
+            %                   value above the cut the distribution.
+            %                   Default is 1-1e-4.
+            %            'MaxMinHist' - The min number of counts to use.
+            %                   Default is 3.
+            % Output : - A PhotonsList object in which the Back property is
+            %            populated.
+            %          - The background level in the last PhotonsList
+            %            image.
+            % Author : Eran Ofek (Feb 2022)
+            
             
             arguments
                 Obj
-                Args
+                Args.MaxProb     = 1-1e-4;
+                Args.MaxMinHist  = 3;
             end
            
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                % calculate
+                % calculate background level
                 
+                Lambda   = poissfit(Obj(Iobj).Image);
+                Max      = max(Args.MaxMinHist, poissinv(Args.MaxProv, Lambda));
+                SelIm    = Obj(Iobj).Image(Obj(Iobj).Image<=Max);
+                Back     = poissfit(SelIm);
+                
+                Obj(Iobj).Back.Image = Back;
             end
             
         end
