@@ -265,6 +265,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     % Save individual proc images
+    DataProp = {'Image','Mask','Cat','PSF'};
+    IP = ImagePath.generateImagePathFromProduct(AllSI, 'PropFromHeader',true,...
+                                                          'DataDirFromProjName',true,...
+                                                          'CropID_FromInd',false,...
+                                                          'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
+    
+                                                      
+    % writeProduct(IP, AllSI, 'SaveFields', DataProp([Args.SaveProcIm, Args.SaveProcMask, Args.SaveProcCat, false]));
+      
+      
     IP   = ImagePath;
     Future = saveProduct(IP, AllSI, 'Save',Args.SaveProcIm,...
                            'ParEval',false,...

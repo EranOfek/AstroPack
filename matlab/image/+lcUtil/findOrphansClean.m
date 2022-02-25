@@ -41,7 +41,7 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     %                   (Ndet). The function is of the form @(Ndet,MaxSN,MinSN) max(MaxSN - Ndet, MinSN);
     %                   and the parameters are [MaxSN, MinSN].
     %                   Sources below this S/N will set to GoodOrphan = false.
-    %                   Default is [9,5].
+    %                   Default is [10,5].
     %            'MeanFun' - Function handle that will be used to calculate
     %                   the mean S/N over all detections.
     %                   Default is @mean.

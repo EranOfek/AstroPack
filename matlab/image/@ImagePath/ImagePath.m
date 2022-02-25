@@ -913,6 +913,63 @@ classdef ImagePath < Base %Component
 
 
     methods % write product
+        function ObjIP = writeProduct(ObjIP, ObjProduct, Args)
+            % Write an array of data prodicts to disk.
+            % Input  : - An ImagePath object array.
+            %          - A data product (e.g., an AstroImage). If this is
+            %            an AstroImage then the number of elements must be
+            %            equal to the number of elements in the first input
+            %            argument.
+            %          * ...,key,val,...
+            %            'SaveFields' - Fields to save.
+            %                   Default is {'Image','Mask','Cat'}.
+            %            'WriteFun' - Default is @write1.
+            %                   Fun(Object, Name, Field, WriteFunArgs{:})
+            %            'WriteFunArgs' - Cell array of arguments to pass
+            %                   to the WriteFun.
+            %                   Default is {'IsSimpleFITS',true,
+            %                   'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false}.
+            %            'Product' - For a non AstroImage object. This is
+            %                   the data type that will be written.
+            %                   Default is 'Asteroids'.
+            % Output : - The ImagePath object (without changes).
+            % Author : Eran Ofek (Feb 2022)
+            %
+            
+            arguments
+                ObjIP
+                ObjProduct
+                Args.SaveFields                = {'Image','Mask','Cat'};
+                Args.WriteFun function_handle  = @write1;
+                Args.WriteFunArgs cell         = {'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
+                Args.Product                   = 'Asteroids';   %'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'
+            end
+            
+            Nfield  = numel(Args.SaveFields);
+            Nprod   = numel(ObjProduct);
+            if isa(ObjProduct, 'AstroImage')
+                for Iprod=1:1:Nprod
+                    for Ifield=1:1:Nfield
+                        Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.SaveFields{Ifield}, Args.WriteFunArgs{:});
+                    end
+                end
+            else
+                % save as MAT file
+                IP1 = ObjIP(1).copy;
+                IP1.Counter   = 0;
+                IP1.CropID    = 0;
+                IP1.Product   = Args.Product;
+                IP1.FileType  = 'mat';
+                
+                save(IP1.genFull, 'ObjProduct');
+            end
+                
+                
+            
+                
+                
+        end  
+            
         function [Future, ObjIP] = saveProduct(ObjIP, ObjProduct, Args) 
             % Save product to disk
             % Input  : - An ImagePath object
@@ -1052,6 +1109,72 @@ classdef ImagePath < Base %Component
             end
             
         end
+        
+        
+        
+        function ObjIP = generateImagePathFromProduct(ObjProduct, Args)
+            % Generate an ImagePath object from product (e.g., AstroImage)
+            % Input  : - A product object (e.g., AstroImage).
+            %          * ...,key,val,...
+            %            'PropFromHeader' - A logical indicating if to
+            %                   popuAlate ImagePath properties from image header.
+            %                   Default is true.
+            %            'CropID_FromInd' - If true, then CropID is taken
+            %                   from object element index. Default is false.
+            %            'SetProp' - A cell array of pairs of additional
+            %                   ImagePath properties to set (override
+            %                   header). These are ...Prop,val,...
+            %                   Default is  {'Product','Image'}
+            %            'DataDirFromProjName' - Set DataDir value from
+            %                   ProjName. Default is false.
+            % Output : - An ImagePath object populated based on product
+            %            data.
+            % Author : Eran Ofek (Feb 2022)
+            % Example: IP = ImagePath.generateImagePathFromProduct(AllSI(1));
+            
+            arguments
+                ObjProduct
+                Args.PropFromHeader logical    = true;
+                Args.CropID_FromInd logical    = false;
+                Args.SetProp cell              = {'Product','Image'};   % overide header
+                Args.DataDirFromProjName logical = false;
+            end
+           
+            NsetProp = numel(Args.SetProp);
+            if (0.5.*NsetProp)~=floor(0.5.*NsetProp)
+                % odd number of SetProp
+                error('Number of elements in SetProp argument must be even (key,val)');
+            end            
+            
+            
+            Nprod = numel(ObjProduct);
+            ObjIP = ImagePath(Nprod);
+            for Iprod=1:1:Nprod
+                if Args.PropFromHeader
+                    ObjIP(Iprod).readFromHeader(ObjProduct(Iprod));  
+                end
+                for Iset=1:2:NsetProp
+                    ObjIP(Iprod).(Args.SetProp{Iset}) = Args.SetProp{Iset+1};
+                end
+                if Args.CropID_FromInd
+                    ObjIP(Iprod).CropID = Iprod;
+                end
+                if Args.DataDirFromProjName
+                    ObjIP(Iprod).DataDir = ObjIP.ProjName;
+                end
+
+%                FullName = ObjIP.genFull;
+%                 if Iprod==1
+%                     % create Dir
+%                     Path = fileparts(FullName);
+%                     %if exist(Path,'dir')==0
+%                     %    % create dir
+%                     %    mkdir(Path);
+%                     %end
+%                 end
+            end
+        end
+        
     end
             
     %----------------------------------------------------------------------

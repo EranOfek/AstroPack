@@ -42,6 +42,7 @@ DefV.Wait                 = 1;  % seconds
 DefV.email                = 'eran.ofek@weizmann.ac.il'; % note that in this service the e-mail is copuled to user/pass!
 DefV.BaseURL              = 'https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves?';
 DefV.FilterDic            = {'zg','zr','zi'};
+DefV.SaveFile             = '';
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
 RadiusDeg = convert.angular(InPar.RadiusUnits,'deg',InPar.Radius);
@@ -124,6 +125,11 @@ for I=1:1:N
     %CL
     [Stat,Res] = system(CL);
     Str = io.files.file2str(TmpFile,'str');
+    
+    if ~isempty(InPar.SaveFile)
+        movefile(TmpFile,InPar.SaveFile);
+    end
+        
     delete(TmpFile);
     
     %(URL)
