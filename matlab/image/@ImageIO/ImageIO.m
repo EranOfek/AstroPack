@@ -208,7 +208,7 @@ classdef ImageIO < Component
                         Args.FileType = 'other';
                 end
             end
-            
+                        
             % read file
             switch Args.FileType
                 case 'fits'
