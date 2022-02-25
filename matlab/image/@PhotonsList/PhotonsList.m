@@ -16,12 +16,15 @@ classdef PhotonsList < Component
     properties
         
         Events(1,1) AstroCatalog
+        BadTimes(:,2)                     = zeros(0,2);
         Image
         X
         Y
         HeaderData(1,1) AstroHeader                      % maybe redundent if part of AstroImage
+        Back BackImage
+        Mask MaskImage
         WCS(1,1) AstroWCS
-        BadTimes(:,2)                     = zeros(0,2);
+        
         %FlagGood(:,1) logical             = true(0,1);
         %FlagEnergy(:,1) logical           = true(0,1);
         
@@ -57,8 +60,7 @@ classdef PhotonsList < Component
             % coordinates.
             
             if isempty(Obj.Image)
-                XY = getCol(Obj, Obj.ColSky);
-                [Obj.Image, Obj.X, Obj.Y] = PhotonsList.events2image(XY);
+                [Obj] = constructImage(Obj);
             end
             Result = Obj.Image;
         end
@@ -471,6 +473,59 @@ classdef PhotonsList < Component
                 Src(Iscc).FlagBack = Dist2<Annulus2; 
                 Src(Isrc).Data     = ReturnData(Src(Isrc).Flag,:);
                 Src(Isrc).DataBack = ReturnData(Src(Isrc).FlagBack,:);
+                
+            end
+            
+        end
+        
+        function [Obj, Image] = constructImage(Obj, Args)
+            % construct image in any coordinate system
+            % Input  : - 
+            % Output : - 
+            
+            arguments
+                Obj
+                Args.CooSys  = 'sky';   %  {'det','tdet','chip','sky'} or cell array of x/y col names
+                Args.BinSize = [1 1];
+                Args.CCDSEC  = [];
+            end
+            
+            if iscell(Args.CooSys)
+                Col = Args.CooSys;
+            else
+                switch lower(Args.CooSys)
+                    case 'sky'
+                        Col = Obj.ColSky;
+                    case 'chip'
+                        Col = Obj.ColChip;
+                    case 'det'
+                        Col = Obj.Det;
+                    case 'tdet'
+                        Col = Obj.TDet;
+                    otherwise
+                        error('Unknown CooSys option');
+                end
+            end
+
+            XY = getCol(Obj, Col);
+            [Obj.Image, Obj.X, Obj.Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
+            if nargout>1
+                Image = Obj.Image;
+            end
+            
+        end
+        
+        function [Obj, Back] = background(Obj, Args)
+            % Estimate background in image
+            
+            arguments
+                Obj
+                Args
+            end
+           
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % calculate
                 
             end
             
