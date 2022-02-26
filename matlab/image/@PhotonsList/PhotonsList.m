@@ -479,7 +479,8 @@ classdef PhotonsList < Component
         end
         
         function [Obj, Image] = constructImage(Obj, Args)
-            % construct image in any coordinate system
+            % construct image in any coordinate system, and optionaly
+            % select energy and ccd_id.
             % Input  : - A PhotonsList object.
             %          * ...,key,val,...
             %            'CooSys' - Coordinate system in which to construct
@@ -493,22 +494,29 @@ classdef PhotonsList < Component
             %                   the XY values. Default is [].
             %            'CCDID' - Select a specific CCD. If empty, use
             %                   all. Default is [].
+            %            'ColCCDID' - Column name containing the CCDID.
+            %                   default is 'ccd_id'.
+            %            'EnergyRange' - [Min Max] energy to select.
+            %                   If empty, select all.
+            %                   Default is [].
+            %            'ColEnergy' - Column name containing the photons
+            %                   energy. Default is 'energy'.
             % Output : - An PhotonsList object in which the Image, X, Y are
             %            populated.
             %          - An image matrix of the last element in the object.
             % Author : Eran Ofek (Feb 2022)
             % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
             %          P.constructImage;
-            %          P.constructImage('CooSys','chip')
+            %          P.constructImage('CooSys','chip','EnergyRange',[1000 3000])
             
             arguments
                 Obj
-                Args.CooSys   = 'sky';   %  {'det','tdet','chip','sky'} or cell array of x/y col names
-                Args.BinSize  = [1 1];
-                Args.CCDSEC   = [];
-                Args.CCDID    = [];
-                Args.ColCCDID = 'ccd_id';
-                Args.EnergyRange = [0 Inf];
+                Args.CooSys      = 'sky';   %  {'det','tdet','chip','sky'} or cell array of x/y col names
+                Args.BinSize     = [1 1];
+                Args.CCDSEC      = [];
+                Args.CCDID       = [];
+                Args.ColCCDID    = 'ccd_id';
+                Args.EnergyRange = [];
                 Args.ColEnergy   = 'energy';
             end
             
@@ -536,11 +544,19 @@ classdef PhotonsList < Component
                 if isempty(Args.CCDID)
                     % use all CCDID
                     XY = getCol(Obj(Iobj), Col);
+                    Flag = true(size(XY,1),1);
                 else
                     % use specific CCDID
                     XY   = getCol(Obj(Iobj), [Col, Args.ColCCDID]);
                     Flag = XY(:,3)==Args.CCDID;
                     XY   = XY(Flag,1:2);
+                end
+                if ~isempty(Args.EnergyRange)
+                    % select events by Energy
+                    Energy = getCol(Obj(Iobj), Args.ColEnergy);
+                    Energy = Energy(Flag);
+                    FlagE  = Energy>Args.EnergyRange(1) & Energy<Args.EnergyRange(2);
+                    XY     = XY(FlagE,:);
                 end
                 if ~isempty(XY)
                     [Obj(Iobj).Image, Obj(Iobj).X, Obj(Iobj).Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
@@ -576,8 +592,7 @@ classdef PhotonsList < Component
             % Author : Eran Ofek (Feb 2022)
             % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
             %          P.constructImage;
-
-            
+            %          P.background
             
             arguments
                 Obj
@@ -590,10 +605,13 @@ classdef PhotonsList < Component
                 % calculate background level
                 
                 Lambda   = poissfit(Obj(Iobj).Image);
-                Max      = max(Args.MaxMinHist, poissinv(Args.MaxProv, Lambda));
+                Max      = max(Args.MaxMinHist, poissinv(Args.MaxProb, Lambda));
                 SelIm    = Obj(Iobj).Image(Obj(Iobj).Image<=Max);
                 Back     = poissfit(SelIm);
                 
+                if isempty(Obj(Iobj).Back)
+                    Obj(Iobj).Back = BackImage;
+                end
                 Obj(Iobj).Back.Image = Back;
             end
             
