@@ -616,6 +616,7 @@ classdef PhotonsList < Component
             end
             
         end
+        
     end
     
     methods % astrometry
