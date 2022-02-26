@@ -491,16 +491,25 @@ classdef PhotonsList < Component
             %                   in which to construct the image.
             %                   If empty, will use the min.max values in
             %                   the XY values. Default is [].
+            %            'CCDID' - Select a specific CCD. If empty, use
+            %                   all. Default is [].
             % Output : - An PhotonsList object in which the Image, X, Y are
             %            populated.
             %          - An image matrix of the last element in the object.
             % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          P.constructImage;
+            %          P.constructImage('CooSys','chip')
             
             arguments
                 Obj
-                Args.CooSys  = 'sky';   %  {'det','tdet','chip','sky'} or cell array of x/y col names
-                Args.BinSize = [1 1];
-                Args.CCDSEC  = [];
+                Args.CooSys   = 'sky';   %  {'det','tdet','chip','sky'} or cell array of x/y col names
+                Args.BinSize  = [1 1];
+                Args.CCDSEC   = [];
+                Args.CCDID    = [];
+                Args.ColCCDID = 'ccd_id';
+                Args.EnergyRange = [0 Inf];
+                Args.ColEnergy   = 'energy';
             end
             
             Nobj = numel(Obj);
@@ -524,8 +533,22 @@ classdef PhotonsList < Component
             end
 
             for Iobj=1:1:Nobj
-                XY = getCol(Obj(Iobj), Col);
-                [Obj(Iobj).Image, Obj(Iobj).X, Obj(Iobj).Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
+                if isempty(Args.CCDID)
+                    % use all CCDID
+                    XY = getCol(Obj(Iobj), Col);
+                else
+                    % use specific CCDID
+                    XY   = getCol(Obj(Iobj), [Col, Args.ColCCDID]);
+                    Flag = XY(:,3)==Args.CCDID;
+                    XY   = XY(Flag,1:2);
+                end
+                if ~isempty(XY)
+                    [Obj(Iobj).Image, Obj(Iobj).X, Obj(Iobj).Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
+                else
+                    Obj(Iobj).Image = [];
+                    Obj(Iobj).X     = [];
+                    Obj(Iobj).Y     = [];
+                end
             end
             if nargout>1
                 Image = Obj(end).Image;
@@ -551,6 +574,9 @@ classdef PhotonsList < Component
             %          - The background level in the last PhotonsList
             %            image.
             % Author : Eran Ofek (Feb 2022)
+            % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
+            %          P.constructImage;
+
             
             
             arguments
