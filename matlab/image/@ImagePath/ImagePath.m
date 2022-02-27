@@ -932,6 +932,8 @@ classdef ImagePath < Base %Component
             %            'Product' - For a non AstroImage object. This is
             %                   the data type that will be written.
             %                   Default is 'Asteroids'.
+            %            'Level' - Overide level. If empty, do not
+            %                   override. Default is [].
             % Output : - The ImagePath object (without changes).
             % Author : Eran Ofek (Feb 2022)
             %
@@ -943,15 +945,57 @@ classdef ImagePath < Base %Component
                 Args.WriteFun function_handle  = @write1;
                 Args.WriteFunArgs cell         = {'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
                 Args.Product                   = 'Asteroids';   %'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'
+                Args.Level                     = []; % override Level
+                Args.FileType                  = []; % override FileType
             end
+            
+            % verify that directory exist
+            mkdir(ObjIP(1).genPath);
             
             Nfield  = numel(Args.SaveFields);
             Nprod   = numel(ObjProduct);
             if isa(ObjProduct, 'AstroImage')
                 for Iprod=1:1:Nprod
+                    if ~isempty(Args.Level)
+                        ObjIP(Iprod).Level = Args.Level;
+                    end
+                    if ~isempty(Args.FileType)
+                        ObjIP(Iprod).FileType = Args.FileType;
+                    end
                     for Ifield=1:1:Nfield
+                        ObjIP(Iprod).Product = Args.SaveFields{Ifield};
                         Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.SaveFields{Ifield}, Args.WriteFunArgs{:});
                     end
+                end
+            elseif isa(ObjProduct, 'AstroCatalog')
+                % save AstroCatalog
+                switch Args.SaveFields{1}
+                    case 'Cat'
+                        for Iprod=1:1:Nprod
+                            if ~isempty(Args.Level)
+                                ObjIP(Iprod).Level = Args.Level;
+                            end
+                            if ~isempty(Args.FileType)
+                                ObjIP(Iprod).FileType = Args.FileType;
+                            end
+                            ObjIP(Iprod).Product = 'Cat';
+                            Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
+                        end
+                end
+            elseif isa(ObjProduct, 'MatchedSources')
+                % save MatchedSources
+                switch Args.SaveFields{1}
+                    case 'Cat'
+                        for Iprod=1:1:Nprod
+                            if ~isempty(Args.Level)
+                                ObjIP(Iprod).Level = Args.Level;
+                            end
+                            if ~isempty(Args.FileType)
+                                ObjIP(Iprod).FileType = Args.FileType;
+                            end
+                            ObjIP(Iprod).Product = 'MergedMat';
+                            Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
+                        end
                 end
             else
                 % save as MAT file
