@@ -19,7 +19,7 @@ function Result = BigDbTest()
     fprintf('Postgres version: %s\n', pgver);
        
     % Set table name so next calls will not need to specify it       
-    Q.TableName = 'big_table';
+    Q.TableName = 'big_table2';
     
     ColNames = Q.getColumnNamesOfType('Double');
     Cols = 50 %numel(strsplit(ColNames, ','));

@@ -125,6 +125,69 @@ CREATE INDEX big_table_idx_FDouble48 ON big_table(FDouble48);
 CREATE INDEX big_table_idx_FDouble49 ON big_table(FDouble49);
 CREATE INDEX big_table_idx_FDouble50 ON big_table(FDouble50);
 
+-- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest\csv\unittest - big_table2.csv
+CREATE TABLE big_table2 (
+RecID TEXT NOT NULL,
+FDouble01 REAL,
+FDouble02 REAL,
+FDouble03 REAL,
+FDouble04 REAL,
+FDouble05 REAL,
+FDouble06 REAL,
+FDouble07 REAL,
+FDouble08 REAL,
+FDouble09 REAL,
+FDouble10 REAL,
+FDouble11 REAL,
+FDouble12 REAL,
+FDouble13 REAL,
+FDouble14 REAL,
+FDouble15 REAL,
+FDouble16 REAL,
+FDouble17 REAL,
+FDouble18 REAL,
+FDouble19 REAL,
+FDouble20 REAL,
+FDouble21 REAL,
+FDouble22 REAL,
+FDouble23 REAL,
+FDouble24 REAL,
+FDouble25 REAL,
+FDouble26 REAL,
+FDouble27 REAL,
+FDouble28 REAL,
+FDouble29 REAL,
+FDouble30 REAL,
+FDouble31 REAL,
+FDouble32 REAL,
+FDouble33 REAL,
+FDouble34 REAL,
+FDouble35 REAL,
+FDouble36 REAL,
+FDouble37 REAL,
+FDouble38 REAL,
+FDouble39 REAL,
+FDouble40 REAL,
+FDouble41 REAL,
+FDouble42 REAL,
+FDouble43 REAL,
+FDouble44 REAL,
+FDouble45 REAL,
+FDouble46 REAL,
+FDouble47 REAL,
+FDouble48 REAL,
+FDouble49 REAL,
+FDouble50 REAL,
+
+PRIMARY KEY(RecID)
+);
+
+CREATE INDEX big_table2_idx_FDouble01 ON big_table2(FDouble01);
+CREATE INDEX big_table2_idx_FDouble02 ON big_table2(FDouble02);
+CREATE INDEX big_table2_idx_FDouble03 ON big_table2(FDouble03);
+CREATE INDEX big_table2_idx_FDouble04 ON big_table2(FDouble04);
+CREATE INDEX big_table2_idx_FDouble05 ON big_table2(FDouble05);
+
 -- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest\csv\unittest - details_table.csv
 CREATE TABLE details_table (
 RecID TEXT NOT NULL,
