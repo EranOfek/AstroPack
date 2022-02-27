@@ -4,15 +4,126 @@
 --
 
 --
--- FirebirdSQL database
+-- SQLite database
 --
+-- Execute by command line:
+--      sqlite3 db_file_name.sqlite < script.sql
 
 -- When executing the script on existing database, remove this 'CREATE DATABASE' statement
 -- Use 'DB Browser for SQLite' as GUI for SQLite
-CREATE DATABASE unittest USER 'SYSDBA'
-   PAGE_SIZE 4096
-   DEFAULT CHARACTER SET UTF8;
 
+-- CREATE DATABASE unittest USER 'SYSDBA'
+--    PAGE_SIZE 4096
+--    DEFAULT CHARACTER SET UTF8;
+
+
+-- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest\csv\unittest - big_table.csv
+CREATE TABLE big_table (
+RecID TEXT NOT NULL,
+FDouble01 REAL,
+FDouble02 REAL,
+FDouble03 REAL,
+FDouble04 REAL,
+FDouble05 REAL,
+FDouble06 REAL,
+FDouble07 REAL,
+FDouble08 REAL,
+FDouble09 REAL,
+FDouble10 REAL,
+FDouble11 REAL,
+FDouble12 REAL,
+FDouble13 REAL,
+FDouble14 REAL,
+FDouble15 REAL,
+FDouble16 REAL,
+FDouble17 REAL,
+FDouble18 REAL,
+FDouble19 REAL,
+FDouble20 REAL,
+FDouble21 REAL,
+FDouble22 REAL,
+FDouble23 REAL,
+FDouble24 REAL,
+FDouble25 REAL,
+FDouble26 REAL,
+FDouble27 REAL,
+FDouble28 REAL,
+FDouble29 REAL,
+FDouble30 REAL,
+FDouble31 REAL,
+FDouble32 REAL,
+FDouble33 REAL,
+FDouble34 REAL,
+FDouble35 REAL,
+FDouble36 REAL,
+FDouble37 REAL,
+FDouble38 REAL,
+FDouble39 REAL,
+FDouble40 REAL,
+FDouble41 REAL,
+FDouble42 REAL,
+FDouble43 REAL,
+FDouble44 REAL,
+FDouble45 REAL,
+FDouble46 REAL,
+FDouble47 REAL,
+FDouble48 REAL,
+FDouble49 REAL,
+FDouble50 REAL,
+
+PRIMARY KEY(RecID)
+);
+
+CREATE INDEX big_table_idx_FDouble01 ON big_table(FDouble01);
+CREATE INDEX big_table_idx_FDouble02 ON big_table(FDouble02);
+CREATE INDEX big_table_idx_FDouble03 ON big_table(FDouble03);
+CREATE INDEX big_table_idx_FDouble04 ON big_table(FDouble04);
+CREATE INDEX big_table_idx_FDouble05 ON big_table(FDouble05);
+CREATE INDEX big_table_idx_FDouble06 ON big_table(FDouble06);
+CREATE INDEX big_table_idx_FDouble07 ON big_table(FDouble07);
+CREATE INDEX big_table_idx_FDouble08 ON big_table(FDouble08);
+CREATE INDEX big_table_idx_FDouble09 ON big_table(FDouble09);
+CREATE INDEX big_table_idx_FDouble10 ON big_table(FDouble10);
+CREATE INDEX big_table_idx_FDouble11 ON big_table(FDouble11);
+CREATE INDEX big_table_idx_FDouble12 ON big_table(FDouble12);
+CREATE INDEX big_table_idx_FDouble13 ON big_table(FDouble13);
+CREATE INDEX big_table_idx_FDouble14 ON big_table(FDouble14);
+CREATE INDEX big_table_idx_FDouble15 ON big_table(FDouble15);
+CREATE INDEX big_table_idx_FDouble16 ON big_table(FDouble16);
+CREATE INDEX big_table_idx_FDouble17 ON big_table(FDouble17);
+CREATE INDEX big_table_idx_FDouble18 ON big_table(FDouble18);
+CREATE INDEX big_table_idx_FDouble19 ON big_table(FDouble19);
+CREATE INDEX big_table_idx_FDouble20 ON big_table(FDouble20);
+CREATE INDEX big_table_idx_FDouble21 ON big_table(FDouble21);
+CREATE INDEX big_table_idx_FDouble22 ON big_table(FDouble22);
+CREATE INDEX big_table_idx_FDouble23 ON big_table(FDouble23);
+CREATE INDEX big_table_idx_FDouble24 ON big_table(FDouble24);
+CREATE INDEX big_table_idx_FDouble25 ON big_table(FDouble25);
+CREATE INDEX big_table_idx_FDouble26 ON big_table(FDouble26);
+CREATE INDEX big_table_idx_FDouble27 ON big_table(FDouble27);
+CREATE INDEX big_table_idx_FDouble28 ON big_table(FDouble28);
+CREATE INDEX big_table_idx_FDouble29 ON big_table(FDouble29);
+CREATE INDEX big_table_idx_FDouble30 ON big_table(FDouble30);
+CREATE INDEX big_table_idx_FDouble31 ON big_table(FDouble31);
+CREATE INDEX big_table_idx_FDouble32 ON big_table(FDouble32);
+CREATE INDEX big_table_idx_FDouble33 ON big_table(FDouble33);
+CREATE INDEX big_table_idx_FDouble34 ON big_table(FDouble34);
+CREATE INDEX big_table_idx_FDouble35 ON big_table(FDouble35);
+CREATE INDEX big_table_idx_FDouble36 ON big_table(FDouble36);
+CREATE INDEX big_table_idx_FDouble37 ON big_table(FDouble37);
+CREATE INDEX big_table_idx_FDouble38 ON big_table(FDouble38);
+CREATE INDEX big_table_idx_FDouble39 ON big_table(FDouble39);
+CREATE INDEX big_table_idx_FDouble40 ON big_table(FDouble40);
+CREATE INDEX big_table_idx_FDouble41 ON big_table(FDouble41);
+CREATE INDEX big_table_idx_FDouble42 ON big_table(FDouble42);
+CREATE INDEX big_table_idx_FDouble43 ON big_table(FDouble43);
+CREATE INDEX big_table_idx_FDouble44 ON big_table(FDouble44);
+CREATE INDEX big_table_idx_FDouble45 ON big_table(FDouble45);
+CREATE INDEX big_table_idx_FDouble46 ON big_table(FDouble46);
+CREATE INDEX big_table_idx_FDouble47 ON big_table(FDouble47);
+CREATE INDEX big_table_idx_FDouble48 ON big_table(FDouble48);
+CREATE INDEX big_table_idx_FDouble49 ON big_table(FDouble49);
+CREATE INDEX big_table_idx_FDouble50 ON big_table(FDouble50);
 
 -- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest\csv\unittest - details_table.csv
 CREATE TABLE details_table (

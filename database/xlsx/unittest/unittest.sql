@@ -55,6 +55,213 @@ SET default_table_access_method = heap;
 
 
 
+-- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest\csv\unittest - big_table.csv
+CREATE TABLE public.big_table (
+RecID VARCHAR NOT NULL,
+FDouble01 DOUBLE PRECISION DEFAULT 0,
+FDouble02 DOUBLE PRECISION DEFAULT 0,
+FDouble03 DOUBLE PRECISION DEFAULT 0,
+FDouble04 DOUBLE PRECISION DEFAULT 0,
+FDouble05 DOUBLE PRECISION DEFAULT 0,
+FDouble06 DOUBLE PRECISION DEFAULT 0,
+FDouble07 DOUBLE PRECISION DEFAULT 0,
+FDouble08 DOUBLE PRECISION DEFAULT 0,
+FDouble09 DOUBLE PRECISION DEFAULT 0,
+FDouble10 DOUBLE PRECISION DEFAULT 0,
+FDouble11 DOUBLE PRECISION DEFAULT 0,
+FDouble12 DOUBLE PRECISION DEFAULT 0,
+FDouble13 DOUBLE PRECISION DEFAULT 0,
+FDouble14 DOUBLE PRECISION DEFAULT 0,
+FDouble15 DOUBLE PRECISION DEFAULT 0,
+FDouble16 DOUBLE PRECISION DEFAULT 0,
+FDouble17 DOUBLE PRECISION DEFAULT 0,
+FDouble18 DOUBLE PRECISION DEFAULT 0,
+FDouble19 DOUBLE PRECISION DEFAULT 0,
+FDouble20 DOUBLE PRECISION DEFAULT 0,
+FDouble21 DOUBLE PRECISION DEFAULT 0,
+FDouble22 DOUBLE PRECISION DEFAULT 0,
+FDouble23 DOUBLE PRECISION DEFAULT 0,
+FDouble24 DOUBLE PRECISION DEFAULT 0,
+FDouble25 DOUBLE PRECISION DEFAULT 0,
+FDouble26 DOUBLE PRECISION DEFAULT 0,
+FDouble27 DOUBLE PRECISION DEFAULT 0,
+FDouble28 DOUBLE PRECISION DEFAULT 0,
+FDouble29 DOUBLE PRECISION DEFAULT 0,
+FDouble30 DOUBLE PRECISION DEFAULT 0,
+FDouble31 DOUBLE PRECISION DEFAULT 0,
+FDouble32 DOUBLE PRECISION DEFAULT 0,
+FDouble33 DOUBLE PRECISION DEFAULT 0,
+FDouble34 DOUBLE PRECISION DEFAULT 0,
+FDouble35 DOUBLE PRECISION DEFAULT 0,
+FDouble36 DOUBLE PRECISION DEFAULT 0,
+FDouble37 DOUBLE PRECISION DEFAULT 0,
+FDouble38 DOUBLE PRECISION DEFAULT 0,
+FDouble39 DOUBLE PRECISION DEFAULT 0,
+FDouble40 DOUBLE PRECISION DEFAULT 0,
+FDouble41 DOUBLE PRECISION DEFAULT 0,
+FDouble42 DOUBLE PRECISION DEFAULT 0,
+FDouble43 DOUBLE PRECISION DEFAULT 0,
+FDouble44 DOUBLE PRECISION DEFAULT 0,
+FDouble45 DOUBLE PRECISION DEFAULT 0,
+FDouble46 DOUBLE PRECISION DEFAULT 0,
+FDouble47 DOUBLE PRECISION DEFAULT 0,
+FDouble48 DOUBLE PRECISION DEFAULT 0,
+FDouble49 DOUBLE PRECISION DEFAULT 0,
+FDouble50 DOUBLE PRECISION DEFAULT 0,
+
+CONSTRAINT big_table_pkey PRIMARY KEY(RecID)
+);
+
+CREATE INDEX big_table_idx_FDouble01 ON public.big_table
+  USING btree (FDouble01);
+
+CREATE INDEX big_table_idx_FDouble02 ON public.big_table
+  USING btree (FDouble02);
+
+CREATE INDEX big_table_idx_FDouble03 ON public.big_table
+  USING btree (FDouble03);
+
+CREATE INDEX big_table_idx_FDouble04 ON public.big_table
+  USING btree (FDouble04);
+
+CREATE INDEX big_table_idx_FDouble05 ON public.big_table
+  USING btree (FDouble05);
+
+CREATE INDEX big_table_idx_FDouble06 ON public.big_table
+  USING btree (FDouble06);
+
+CREATE INDEX big_table_idx_FDouble07 ON public.big_table
+  USING btree (FDouble07);
+
+CREATE INDEX big_table_idx_FDouble08 ON public.big_table
+  USING btree (FDouble08);
+
+CREATE INDEX big_table_idx_FDouble09 ON public.big_table
+  USING btree (FDouble09);
+
+CREATE INDEX big_table_idx_FDouble10 ON public.big_table
+  USING btree (FDouble10);
+
+CREATE INDEX big_table_idx_FDouble11 ON public.big_table
+  USING btree (FDouble11);
+
+CREATE INDEX big_table_idx_FDouble12 ON public.big_table
+  USING btree (FDouble12);
+
+CREATE INDEX big_table_idx_FDouble13 ON public.big_table
+  USING btree (FDouble13);
+
+CREATE INDEX big_table_idx_FDouble14 ON public.big_table
+  USING btree (FDouble14);
+
+CREATE INDEX big_table_idx_FDouble15 ON public.big_table
+  USING btree (FDouble15);
+
+CREATE INDEX big_table_idx_FDouble16 ON public.big_table
+  USING btree (FDouble16);
+
+CREATE INDEX big_table_idx_FDouble17 ON public.big_table
+  USING btree (FDouble17);
+
+CREATE INDEX big_table_idx_FDouble18 ON public.big_table
+  USING btree (FDouble18);
+
+CREATE INDEX big_table_idx_FDouble19 ON public.big_table
+  USING btree (FDouble19);
+
+CREATE INDEX big_table_idx_FDouble20 ON public.big_table
+  USING btree (FDouble20);
+
+CREATE INDEX big_table_idx_FDouble21 ON public.big_table
+  USING btree (FDouble21);
+
+CREATE INDEX big_table_idx_FDouble22 ON public.big_table
+  USING btree (FDouble22);
+
+CREATE INDEX big_table_idx_FDouble23 ON public.big_table
+  USING btree (FDouble23);
+
+CREATE INDEX big_table_idx_FDouble24 ON public.big_table
+  USING btree (FDouble24);
+
+CREATE INDEX big_table_idx_FDouble25 ON public.big_table
+  USING btree (FDouble25);
+
+CREATE INDEX big_table_idx_FDouble26 ON public.big_table
+  USING btree (FDouble26);
+
+CREATE INDEX big_table_idx_FDouble27 ON public.big_table
+  USING btree (FDouble27);
+
+CREATE INDEX big_table_idx_FDouble28 ON public.big_table
+  USING btree (FDouble28);
+
+CREATE INDEX big_table_idx_FDouble29 ON public.big_table
+  USING btree (FDouble29);
+
+CREATE INDEX big_table_idx_FDouble30 ON public.big_table
+  USING btree (FDouble30);
+
+CREATE INDEX big_table_idx_FDouble31 ON public.big_table
+  USING btree (FDouble31);
+
+CREATE INDEX big_table_idx_FDouble32 ON public.big_table
+  USING btree (FDouble32);
+
+CREATE INDEX big_table_idx_FDouble33 ON public.big_table
+  USING btree (FDouble33);
+
+CREATE INDEX big_table_idx_FDouble34 ON public.big_table
+  USING btree (FDouble34);
+
+CREATE INDEX big_table_idx_FDouble35 ON public.big_table
+  USING btree (FDouble35);
+
+CREATE INDEX big_table_idx_FDouble36 ON public.big_table
+  USING btree (FDouble36);
+
+CREATE INDEX big_table_idx_FDouble37 ON public.big_table
+  USING btree (FDouble37);
+
+CREATE INDEX big_table_idx_FDouble38 ON public.big_table
+  USING btree (FDouble38);
+
+CREATE INDEX big_table_idx_FDouble39 ON public.big_table
+  USING btree (FDouble39);
+
+CREATE INDEX big_table_idx_FDouble40 ON public.big_table
+  USING btree (FDouble40);
+
+CREATE INDEX big_table_idx_FDouble41 ON public.big_table
+  USING btree (FDouble41);
+
+CREATE INDEX big_table_idx_FDouble42 ON public.big_table
+  USING btree (FDouble42);
+
+CREATE INDEX big_table_idx_FDouble43 ON public.big_table
+  USING btree (FDouble43);
+
+CREATE INDEX big_table_idx_FDouble44 ON public.big_table
+  USING btree (FDouble44);
+
+CREATE INDEX big_table_idx_FDouble45 ON public.big_table
+  USING btree (FDouble45);
+
+CREATE INDEX big_table_idx_FDouble46 ON public.big_table
+  USING btree (FDouble46);
+
+CREATE INDEX big_table_idx_FDouble47 ON public.big_table
+  USING btree (FDouble47);
+
+CREATE INDEX big_table_idx_FDouble48 ON public.big_table
+  USING btree (FDouble48);
+
+CREATE INDEX big_table_idx_FDouble49 ON public.big_table
+  USING btree (FDouble49);
+
+CREATE INDEX big_table_idx_FDouble50 ON public.big_table
+  USING btree (FDouble50);
+
 -- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest\csv\unittest - details_table.csv
 CREATE TABLE public.details_table (
 RecID VARCHAR NOT NULL,
