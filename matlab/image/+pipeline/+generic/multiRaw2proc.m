@@ -308,7 +308,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     % find orphans
     %[OrphansList,CleanOrphansList,Norphans] = lcUtil.findOrphansClean(MatchedS, 'BitDict',Coadd(1).MaskData.Dict);
-   
+    % fit objects that appears on a line in the same epoch - possible streaks
+    % fit the rest
     
     
     
