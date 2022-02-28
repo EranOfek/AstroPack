@@ -409,11 +409,17 @@ classdef DbQuery < Component
                 fclose(fid);
                 Columns = strjoin(AColNames, ',');
  
+                % Check 
                 TempFileName = sprintf('%s.csv', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
                 
-                % Copy CsvFileName to shared folder, only if we need to copy it
-                if ~strcmp(ClientFileName, Args.CsvFileName)
+                % Check if CsvFileName is already on shared folder
+                [CsvPath, ~, ~] = fileparts(Args.CsvFileName);
+                [ClientPath, ~, ~] = fileparts(ClientFileName);
+                if strcmp(CsvPath, ClientPath)
+                    [ServerFileName, ~] = Obj.getSharedFileName(Args.CsvFileName);
+                else
+                   % Copy CsvFileName to shared folder, only if we need to copy it                    
                     copyfile(Args.CsvFileName, ClientFileName);
                     Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
                 end

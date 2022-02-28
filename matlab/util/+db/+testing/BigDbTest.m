@@ -4,11 +4,11 @@ function Result = BigDbTest()
     % config/local/Database.DbConnections.UnitTest.yml
     % 
     DatabaseName = 'unittest';
-    TableName = 'big_table2';
-    Cols = 50;
+    TableName = 'master_table';   %'big_table2';
+    Cols = 5;
     BatchSize = 2000;
     PidPk = 0;
-    UseIntPk = true;
+    UseIntPk = ~true;
     
     Q = db.DbQuery(DatabaseName);
     pgver = Q.getDbVersion();
