@@ -66,7 +66,7 @@ void mexFunction(
     mwSize        input_ndims;
     const mwSize* input_size;
     // default values of inputs
-    __FLOAT Thresh = 200.;
+    __FLOAT Thresh = 2.1;
     __FLOAT AllocateFrac = 0.1;
     int Conn = 4;
 
@@ -103,7 +103,7 @@ void mexFunction(
     if ((nrhs > 3) && mxIsScalar(prhs[3]))
     {
         AllocateFrac = (__FLOAT)mxGetScalar(prhs[3]);
-       // mexPrintf("AllocateFrac: %0.5f\n", AllocateFrac);
+        // mexPrintf("AllocateFrac: %0.5f\n", AllocateFrac);
     }
 
     if (mxIsSparse(prhs[0])) {
@@ -148,12 +148,13 @@ void mexFunction(
     rows = input_size[0];
     cols = input_size[1];
 
-   // mexPrintf("Rows: %d, Cols: %d\n", rows, cols);
+    // mexPrintf("Rows: %d, Cols: %d\n", rows, cols);
 
     // Allocate output 1D array of integers (array of indexes)
     int SizeList = (int)ceil((__FLOAT)rows * (__FLOAT)cols * AllocateFrac) ;
     mwSize SizeListInd[1] = { (mwSize)ceil((__FLOAT)rows * (__FLOAT)cols * AllocateFrac) };
-    mexPrintf("SizeListInd: %d\n", (int)SizeListInd[0]);
+    outListInd = (int*)mxMalloc(SizeList);
+    mexPrintf("SizeListInd: %d\n", SizeListInd[0]);
     if (SizeListInd[0] < 1)
     {
         mexPrintf("SizeListInd is zero, AllocateFrac is too small?\n");
@@ -162,8 +163,21 @@ void mexFunction(
     // mxREAL - The output is real and not complex
     // mxINT32_CLASS - The output type is 32bit integer
     mexPrintf("size dynamic array %d\n",SizeList);
-    outListInd = (int*) malloc(SizeList);
-    outListInd[10] = 20;
+
+    /*
+    long sz = 1000;
+    for (int i=0;  i < 10;  i++) {
+    mexPrintf("mxMalloc: %ld\n", (long)sz);
+    outListInd = mxMalloc(sz);
+    mexPrintf("allocated: %ld\n", (long)sz);
+    mxFree(outListInd);
+    mexPrintf("free: %ld\n", (long)sz);
+    sz *= 10;
+    Sleep(3000);
+    }
+    */
+
+    //outListInd[10] = 20;
     if (nlhs > 1)
     {
         plhs[1] = mxCreateNumericArray(output_ndims, SizeListInd, mxINT32_CLASS, mxREAL);
@@ -182,10 +196,11 @@ void mexFunction(
     }
 
     int count = 0;
-    if (Conn==4) 
+    if (Conn==4)
     {
+
+        bool flag = true;
         // skip the edges of the image
-        bool flag =true;
         for (col = 1;  (col < cols - 1)&&flag;  col++) {
 
             for (row = 1;  (row < rows - 1)&&flag ;  row++) {
@@ -199,8 +214,8 @@ void mexFunction(
                     {
                         //mwSize Indd = (__INT)col*(__INT)rows + (__INT)row;
                         mwSize Indd = col*rows + row + 1;
-                        //outListInd[count] = (int)Indd;
-                        //outListInd[count] = 1;
+                        outListInd[count] = (int)Indd;
+
                         //mexPrintf("col: %d, row: %d, ind: %d\n", col, row, (int)Indd);
                         if (nlhs > 2) {
                             outII[count] = (int)(Indd-1)%(int)rows+1;
@@ -208,7 +223,7 @@ void mexFunction(
                         }
 
                         count = count + 1;
-                        if (count == SizeList) 
+                        if (count >= SizeList)
                         {
                             flag = false;
                         }
@@ -219,22 +234,28 @@ void mexFunction(
     }
     if (nlhs > 3)
     {
-        for (int i =0;i<count;i++) 
+        for (int i =0;i<count;i++)
         {
-            
+
             outBW[outII[i]+ (outJJ[i]-1)*rows-1] = 1;
-           // mexPrintf("col: %d, row: %d\n", (int)outII[i], (int)outJJ[i] );
+            // mexPrintf("col: %d, row: %d\n", (int)outII[i], (int)outJJ[i] );
         }
     }
     mwSize  SizeListM[1] = {(mwSize)count};
+    output_ndims =1;
+
     plhs[0] = mxCreateNumericArray(output_ndims, SizeListM, mxINT32_CLASS, mxREAL);
     // Get pointer to output array
     outListInd_ = (int*)mxGetData(plhs[0]);
-    //for (int i =0;i<count;i++) 
-//    {
-  //      outListInd_[i] = outListInd[i];
-   //}
- free(outListInd);
+    //mexPrintf("Size: %d , %d\n",(int)SizeListM[0],(int)count) ;
+
+    //count = (int)10;
+
+    for (int i =0;i<count;i++)
+    {
+        outListInd_[i] = outListInd[i];
+    }
+    mxFree(outListInd);
 }
 
 //mexPrintf("output_ndims: %d\n", output_ndims);

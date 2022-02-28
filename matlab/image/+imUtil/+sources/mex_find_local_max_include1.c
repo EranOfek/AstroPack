@@ -65,7 +65,7 @@ void mexFunction(
     mwSize        input_ndims;
     const mwSize* input_size;
     // default values of inputs
-    __FLOAT Thresh = 200.;
+    __FLOAT Thresh = 2.1;
     __FLOAT AllocateFrac = 0.1;
     int Conn = 4;
 
