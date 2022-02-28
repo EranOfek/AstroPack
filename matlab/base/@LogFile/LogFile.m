@@ -26,7 +26,10 @@ classdef LogFile < handle
         LogPath = ''            % 'C:\\_Ultrasat\\log'
         Timestamp = ''          % Timestamp when log file created
         MaxFileSize = 10000000  % Limit file size automatic switching, will be renamed to '.old', default is 10MB
+        RenameToTime = true     % True to rename old files to timestamp
         UseFlush = true         % Due to issue with fflush(), fclose() is called on each write (Chen, 13/06/2021), @Todo
+        UsePid = true           % True to write process id
+        Pid = 0
     end
 
     %--------------------------------------------------------
@@ -47,6 +50,7 @@ classdef LogFile < handle
             % Make timestamp
             Obj.Timestamp = Obj.getFileNameTimestamp();            
             Obj.MaxFileSize = Args.MaxFileSize;
+            Obj.Pid = feature('getpid');
             
             % Empty file name, use default
             if isempty(FileName)
@@ -116,10 +120,16 @@ classdef LogFile < handle
             % Example: MyLogFile.write2('Perf', 'Elapsed time: %f', toc)
             
             % Prepare prompt from timestamp and title
+            if Obj.UsePid
+                Prompt = sprintf('[%05d] %s', Obj.Pid, Obj.getTimestamp());
+            else            
+                Prompt = Obj.getTimestamp();
+            end
+            
             if isempty(Title)
-                Prompt = sprintf('%s > ', Obj.getTimestamp());
+                Prompt = sprintf('%s > ', Prompt);
             else
-                Prompt = sprintf('%s > %s ', Obj.getTimestamp(), Title);
+                Prompt = sprintf('%s > %s ', Prompt, Title);
             end
 
             % Open file
@@ -150,7 +160,12 @@ classdef LogFile < handle
                     
                     % Rename file, delete existing .old if exists
                     [TmpPath, TmpFileName, ~] = fileparts(Obj.FileName);
-                    OldName = fullfile(TmpPath, strcat(TmpFileName, '.old'));
+                    if Obj.RenameToTime
+                        Ext = datestr(now, 'yyyy_mm_dd__HH_MM_SS');
+                        OldName = fullfile(TmpPath, strcat(TmpFileName, '.', Ext));
+                    else
+                        OldName = fullfile(TmpPath, strcat(TmpFileName, '.old'));
+                    end
                     if isfile(OldName)
                         delete(OldName);
                     end

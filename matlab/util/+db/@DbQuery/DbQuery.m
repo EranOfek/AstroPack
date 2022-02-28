@@ -411,8 +411,12 @@ classdef DbQuery < Component
  
                 TempFileName = sprintf('%s.csv', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
-                copyfile(Args.CsvFileName, ClientFileName);
-                Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
+                
+                % Copy CsvFileName to shared folder, only if we need to copy it
+                if ~strcmp(ClientFileName, Args.CsvFileName)
+                    copyfile(Args.CsvFileName, ClientFileName);
+                    Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
+                end
 
                 Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
                 Result = Obj.exec();
