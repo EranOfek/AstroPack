@@ -161,8 +161,8 @@ classdef LogFile < handle
                     % Rename file, delete existing .old if exists
                     [TmpPath, TmpFileName, ~] = fileparts(Obj.FileName);
                     if Obj.RenameToTime
-                        Ext = datestr(now, 'yyyy_mm_dd__HH_MM_SS');
-                        OldName = fullfile(TmpPath, strcat(TmpFileName, '.', Ext));
+                        Dt = datestr(now, 'yyyy_mm_dd__HH_MM_SS');
+                        OldName = fullfile(TmpPath, strcat(TmpFileName, '.', Dt, '.old'));
                     else
                         OldName = fullfile(TmpPath, strcat(TmpFileName, '.old'));
                     end
