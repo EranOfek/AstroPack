@@ -180,8 +180,17 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
         for Iobj=1:1:Nobj
             FlagGood = [OrphansList(Iobj).Src(:).GoodOrphan];
             CleanOrphansList(Iobj).Src = OrphansList(Iobj).Src(FlagGood);
+            
             if nargout>2
                 Norphans = Norphans + sum(FlagGood);
+            end
+            
+            % calc mean properties
+            Nsrc = numel(CleanOrphansList(Iobj).Src);
+            for Isrc=1:1:Nsrc
+                CleanOrphansList(Iobj).Src(Isrc).MeanRA  = mean(CleanOrphansList(Iobj).Src(Isrc).RA);
+                CleanOrphansList(Iobj).Src(Isrc).MeanDec = mean(CleanOrphansList(Iobj).Src(Isrc).Dec);
+                CleanOrphansList(Iobj).Src(Isrc).MeanJD = mean(CleanOrphansList(Iobj).Src(Isrc).JD);
             end
         end
     end

@@ -306,12 +306,28 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                              'DeleteVarBeforeCoadd',false);
                                                                                          
     
-    % find orphans
-    %[OrphansList,CleanOrphansList,Norphans] = lcUtil.findOrphansClean(MatchedS, 'BitDict',Coadd(1).MaskData.Dict);
-    % fit objects that appears on a line in the same epoch - possible streaks
-    % fit the rest
-    
-    
+    % find orphans / streaks
+%     [OrphansList,CleanOrphansList,Norphans] = lcUtil.findOrphansClean(MatchedS, 'BitDict',Coadd(1).MaskData.Dict, 'MaxNepochs',3);
+%     % fit objects that appears on a line in the same epoch - possible streaks
+%     % fit the rest
+%     
+%     Flag1 = [CleanOrphansList(21).Src.Ndet]==1;
+%     
+%     Data = [[CleanOrphansList(21).Src(Flag1).MeanRA].', [CleanOrphansList(21).Src(Flag1).MeanDec].'];
+%     MeanJD = [CleanOrphansList(21).Src(Flag1).MeanJD];
+%     Result = tools.math.fit.ransacLinear(Data, 'MinRMS',1./3600, 'ThresholdDist', 1./3600);
+%     if Result.Npt > numel(unique(MeanJD))
+%         % multiple apperances on a staright line in the same epoch
+%         % likely a satellite streak
+%     end
+%     
+%     % look for remaining orphans
+%     FlagRealOrphans = ~Result.FlagGoodPt;
+%     NnotStreak = numel(CleanOrphansList(21).Src(FlagRealOrphans));
+% 
+%     if NnotStreak>3
+%         
+%     end
     
  
     % Save individual coadd images
