@@ -1,5 +1,60 @@
 function Result = psfFitPhot(Obj, Args)
-    % 
+    % Execute PSF photometry on a list of coordinates and add the results
+    %   to the input AstroCatalog.
+    % Input  : - An AstroImage object with an optional catalog data with
+    %            initial source positions.
+    %          * ...,key,val,...
+    %            'XY' - A two column matrix of [X,Y] coordimates. If empty,
+    %                   then will assume that the X,Y coordinates are
+    %                   available in the AstroCatalog in the AStroImage
+    %                   object. The column names are defined by the 'ColX', and
+    %                   'ColY' arguments.
+    %            'PSF' - Either a PSF stamp (matrix), a function_handle
+    %                   that generates a PSF stamp, or empty.
+    %                   If empty, will take the PSF from the PSFData field
+    %                   in the AstroImage. Default is [].
+    %            'PSFArgs' - If 'PSF' is a function handle this is a cell
+    %                   array of additional arguments to pass to this function.
+    %                   Default is {}.
+    %            'UpdateCat' - A logical indicating if to add PSF measured quantities
+    %                   to the AstroCatalog in the input AstroImage.
+    %                   Default is true.
+    %
+    %            'ColX' - If 'XY' is empty, then these are the column names
+    %                   from which to obtain the initial X coordinates for the
+    %                   PSF fitting. Default is AstroCatalog.DefNamesX.
+    %            'ColY' - Like 'ColX', but for the Y axis.
+    %                   Default is AstroCatalog.DefNamesY.
+    %            'ColBack' - Like 'ColX', but for the background.
+    %                   Default is 'BACK_IM'.
+    %            'ColVar' - Like 'ColX', but for the variance.
+    %                   Default is 'VAR_IM'.
+    %            'ColStd' - Like 'ColX', but for the std of the background.
+    %                   If given, this will override 'ColVar'.
+    %                   Default is [].
+    %            'FitRadius' - PSF fitting radius. Points outside this
+    %                   radius will not be used. Default is 3.
+    %            'HalfSize' - Default half size for the sources stamps.
+    %                   Default is 8.
+    %            'backgroundCubeArgs' - A cell array of additional arguments to
+    %                   pass to the 'backgroundCubeArgs' arguments in the
+    %                   imUtil.sources.psfPhotCube function.
+    %                   Default is {}.
+    %
+    %            'CreateNewObj' - Create new AstroCatalog object in the
+    %                   AstroImage object. Default is false.
+    %           
+    %            'mexCutout' - mexCutout argument for
+    %                   imUtil.cut.image2cutouts. Default is true.
+    %            'Circle' - rgument for
+    %                   imUtil.cut.image2cutouts. Default is false.
+    %            'psfPhotCubeArgs' - A cell array of additional arguments
+    %                   to pass to imUtil.sources.psfPhotCube.
+    %                   Default is {}.
+    % Output : - The input AstroImage object, where the following column
+    %            names were optionally added to the AStroCatalog:
+    %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'}
+    % Author : Eran Ofek (Feb 2022)
     % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
     %          AI=imProc.background.background(AI);
     %          AI=imProc.sources.findMeasureSources(AI);
