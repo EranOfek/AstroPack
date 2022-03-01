@@ -207,6 +207,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % add PSF FWHM to header
     imProc.psf.fwhm(Coadd);
     
+    % PSF photometry
+    [ResPSF, Coadd] = imProc.sources.psfFitPhot(Coadd, 'CreateNewObj',false);
+    
     % plot for LAST pipeline paper
     % semilogy(ResultCoadd(1).AstrometricFit.ResFit.RefMag, ResultCoadd(1).AstrometricFit.ResFit.Resid.*3600,'k.')
     % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;                                 
@@ -217,7 +220,6 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % H=ylabel('$|$Residual$|$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
     
     % 
-    
     
     if Args.CoaddMatchMergedCat
         % match against external catalogs

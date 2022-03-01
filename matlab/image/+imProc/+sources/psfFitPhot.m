@@ -1,4 +1,4 @@
-function Result = psfFitPhot(Obj, Args)
+function [Result, ResultObj] = psfFitPhot(Obj, Args)
     % Execute PSF photometry on a list of coordinates and add the results
     %   to the input AstroCatalog.
     % Input  : - An AstroImage object with an optional catalog data with
@@ -51,7 +51,8 @@ function Result = psfFitPhot(Obj, Args)
     %            'psfPhotCubeArgs' - A cell array of additional arguments
     %                   to pass to imUtil.sources.psfPhotCube.
     %                   Default is {}.
-    % Output : - The input AstroImage object, where the following column
+    % Output : - A structure array with the PSF fitting data.
+    %          - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
     %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'}
     % Author : Eran Ofek (Feb 2022)
@@ -84,7 +85,7 @@ function Result = psfFitPhot(Obj, Args)
         Args.psfPhotCubeArgs cell    = {};
     end
     
-    Result = Obj;
+    ResultObj = Obj;
     
     if isa(Args.PSF, 'function_handle')
         Args.PSF = Args.PSF(Args.PSFArgs{:});
@@ -92,14 +93,14 @@ function Result = psfFitPhot(Obj, Args)
         
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
-        if Args.CreateNewObj && isempty(Obj(Iobj).catData)
-            Result(Iobj).CatData = Obj(Iobj).CatData.copy;
+        if Args.CreateNewObj && isempty(Obj(Iobj).CatData)
+            ResultObj(Iobj).CatData = Obj(Iobj).CatData.copy;
         end
        
         % get PSF
         if isempty(Args.PSF)
             % try to read PSF from AstroPSF
-            PSF = Result(Iobj).PSFData.getPSF;
+            PSF = ResultObj(Iobj).PSFData.getPSF;
         else
             PSF = Args.PSF;
         end
@@ -145,11 +146,7 @@ function Result = psfFitPhot(Obj, Args)
         % get Cube of stamps around sources
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
         
-        
         % PSF fitting
-        
-        
-        warning('results are somewhat differnt than APER + larger scatter...');
         
         % Cube is Background subtracted
         [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
@@ -174,7 +171,7 @@ function Result = psfFitPhot(Obj, Args)
         % add sources to catalog
         % calculate magnitude
         if Args.UpdateCat
-            Obj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.Chi2./Result.Dof]),...
+            ResultObj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.Chi2./Result.Dof]),...
                                     Inf,...
                                     {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'},...
                                     {'pix',    'pix',    '',          'mag',     ''});
