@@ -4,7 +4,7 @@ function Result = BigDbTest2()
     % config/local/Database.DbConnections.UnitTest.yml
     % 
     DatabaseName = 'perftest';
-    TableName = 'table_b5';   %'big_table2';
+    TableName = 'table_b2';   %'big_table2';
     Cols = 50;
     BatchSize = 200000;
     PidPk = 0;
@@ -43,7 +43,7 @@ function Result = BigDbTest2()
         Data(i).pk1 = Pk1;
         Data(i).pk2 = 0;
         for Col=1:Cols
-            Data(i).(ColNames{Col}) = Col;
+            Data(i).(ColNames{Col}) = x; %Col;
             x = x + x;
         end
     end
@@ -65,7 +65,7 @@ function Result = BigDbTest2()
         
         % Update data with keys
         for i=1:BatchSize
-            Data(i).pk2 = int32(RowIndex);
+            Data(i).pk2 = int64(RowIndex);
             %Data(i).pk1 = StartIntPk + RowIndex;
             RowIndex = RowIndex+1;
         end
