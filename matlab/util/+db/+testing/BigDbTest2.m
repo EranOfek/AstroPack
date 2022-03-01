@@ -10,6 +10,8 @@ function Result = BigDbTest2()
     PidPk = 0;
     UseIntPk = true;
     
+    MsgLogger.getSingleton().setLogLevel(LogLevel.Debug);
+    
     Q = db.DbQuery(DatabaseName);
     pgver = Q.getDbVersion();
     io.msgLog(LogLevel.Test, 'Postgres version: %s', pgver);

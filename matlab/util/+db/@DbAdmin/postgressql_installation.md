@@ -4,6 +4,7 @@ This documents contains installation instructions of PostgreSQL
 database engine in Windows and Linux, along with utilities such as
 JetBrains DataGrip.
 
+-----------------------------------------------------------------------------
 
 ### PostgreSQL V14 - Installation on Linux:
 
@@ -11,6 +12,14 @@ Reference:
 
 https://techviewleo.com/how-to-install-postgresql-database-on-ubuntu/
 
+- Step 1: Check requirements and update system
+- Step 2: Install PostgreSQL 14 on Ubuntu 20.04|18.04
+- Step 3: Connect to PostgreSQL 14 database
+- Step 4: Configure PostgreSQL 14 instance for Remote Access
+- Step 5: User management in PostgreSQL 14 Database
+
+
+### Steps 1,2 - Installation
 
 	sudo apt update && sudo apt upgrade
 	sudo apt -y install gnupg2 wget vim
@@ -27,6 +36,8 @@ Verify the installed PostgreSQL version
 
 
 ### Set password for 'postgres' default user
+
+FOLLOW THE INSTRUCTION IN THIS LINK
 
 https://stackoverflow.com/questions/27107557/what-is-the-default-password-for-postgres
 
@@ -57,8 +68,80 @@ Connect with password 'PassRoot'
 
 
 	psql -h ubuntu -p 5432 -U admin -W -d template1
+
+
+### Step 4: Configure PostgreSQL 14 instance for Remote Access
+
+FOLLOW THE INSTRUCTION IN THIS LINK
+
+https://stackoverflow.com/questions/27107557/what-is-the-default-password-for-postgres
+
+    sudo sed -i '/^host/s/ident/md5/' /etc/postgresql/14/main/pg_hba.conf
+    sudo sed -i '/^local/s/peer/trust/' /etc/postgresql/14/main/pg_hba.conf
+
+Edit /etc/postgresql/14/main/pg_hba.conf
+
+    sudo vim /etc/postgresql/14/main/pg_hba.conf
+
+in the file, add the lines below
+
+    # IPv4 local connections:
+    host    all             all             127.0.0.1/32            scram-sha-256
+    host    all             all             0.0.0.0/0                md5
+    
+    # IPv6 local connections:
+    host    all             all             ::1/128                 scram-sha-256
+    host    all             all             0.0.0.0/0                md5
+
+
+Edit /etc/postgresql/14/main/postgresql.conf
+
+    sudo vim /etc/postgresql/14/main/postgresql.conf
+
+In the file, uncomment and edit the line as below.
+
+    #------------------------------------------------------------------------------
+    # CONNECTIONS AND AUTHENTICATION
+    #-----------------------------------------------------------------------------
+    .......
+    listen_addresses='*'
+    
+Now restart and enable PostgreSQL for the changes to take effect
+
+    sudo systemctl restart postgresql
+    sudo systemctl enable postgresql
+
 	
-	
+### Step 5: Create a superuser with the name 'admin'
+
+FOLLOW THE INSTRUCTION IN THIS LINK
+
+https://stackoverflow.com/questions/27107557/what-is-the-default-password-for-postgres
+
+
+Create a superuser with the name admin as below. 
+You can edit Passw0rd to your preferred password.
+
+    sudo -u postgres psql
+
+Type
+
+    CREATE ROLE admin WITH LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD 'Passw0rd';
+
+Verify the user has been created with the required privileges.
+
+    postgres=# \du
+
+You should get this output
+
+     Role name |                         Attributes                         | Member of 
+    -----------+------------------------------------------------------------+-----------
+     admin     | Superuser, Create role, Create DB                          | {}
+     postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
+
+
+-----------------------------------------------------------------------------
+
 ### Create database on server
 
 	
@@ -150,7 +233,9 @@ On **server** machine:
 
     sudo mkdir /var/samba/pgshare
     sudo chmod 777 /var/samba/pgshare
-	
+
+Edit /etc/samba/smb.conf
+
     sudo nano /etc/samba/smb.conf
 
 
@@ -181,21 +266,42 @@ No user/password is required, grant full access to folder.
 Install cifs and create folder with correct permissions:
 
     sudo apt-get install cifs-utils
+
+For host 'gauss' (Eran)
+
     sudo mkdir /media/gauss_pgshare
     sudo chown -R nobody:nogroup /media/gauss_pgshare
     sudo chmod -R 0777 /media/gauss_pgshare
     sudo nano /etc/fstab
+
+For host 'scorpius' (Yossi)
+
+    sudo mkdir /media/scorpius_pgshare
+    sudo chown -R nobody:nogroup /media/scorpius_pgshare
+    sudo chmod -R 0777 /media/scorpius_pgshare
+    sudo nano /etc/fstab
+
 
 
 Edit /etc/fstab:
 
     sudo nano /etc/fstab
     //gauss/pgshare /media/gauss_pgshare cifs rw,guest,uid=nobody,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0
+    //scorpius/pgshare /media/scorpius_pgshare cifs rw,guest,uid=nobody,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0
 
 
 After saving the modifications, reload mount table:
 
     sudo mount -a
+
+Test client access
+
+    ls -la /media/gauss_pgshare/
+    ls -la /media/scorpius_pgshare/
+
+Test server access
+
+    ls -la /var/samba/pgshare/
 
 
 ### Client - Windows - Mount Shared SAMBA Folder
