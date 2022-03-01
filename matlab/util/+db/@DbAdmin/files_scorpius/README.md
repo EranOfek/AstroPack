@@ -1,4 +1,4 @@
-# Files from Linux running PostgreSQL server
+# Files from Linux running PostgreSQL server on host 'scorpius' (Yossi)
 
 Keep this folder as reference to running server.
 
