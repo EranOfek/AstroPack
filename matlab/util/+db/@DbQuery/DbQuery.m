@@ -416,17 +416,23 @@ classdef DbQuery < Component
                 % Check if CsvFileName is already on shared folder
                 [CsvPath, ~, ~] = fileparts(Args.CsvFileName);
                 [ClientPath, ~, ~] = fileparts(ClientFileName);
+                NeedDelete = false;
                 if strcmp(CsvPath, ClientPath)
                     [ServerFileName, ~] = Obj.getSharedFileName(Args.CsvFileName);
                 else
                    % Copy CsvFileName to shared folder, only if we need to copy it                    
                     copyfile(Args.CsvFileName, ClientFileName);
+                    NeedDelete = true;
                     Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
                 end
 
                 Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
                 Result = Obj.exec();
                 
+                % Delete temporary file
+                if NeedDelete
+                    delete(ClientFileName);
+                end
                 return;
             end
             
