@@ -427,7 +427,10 @@ classdef DbQuery < Component
                 end
 
                 Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
+                t1 = tic();
                 Result = Obj.exec();
+                t2 = toc(t1);
+                Obj.msgLog(LogLevel.Debug, 'insert: COPY FROM: %0.6f', t2);
                 
                 % Delete temporary file
                 if NeedDelete
