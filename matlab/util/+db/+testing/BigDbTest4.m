@@ -1,10 +1,10 @@
 
-function Result = BigDbTest3()
+function Result = BigDbTest4()
     % You need to have configuration file with database user and password:
     % config/local/Database.DbConnections.UnitTest.yml
     % 
     DatabaseName = 'perftest';
-    TableName = 'table_b2';   %'big_table2';
+    TableName = 'table_e';   %'big_table2';
     Cols = 50;
     BatchSize = 200000;
     PidPk = 0;
@@ -40,11 +40,11 @@ function Result = BigDbTest3()
     x = 0.001;
     for i=1:BatchSize
         %Data(i).recid = '_';
-        Data(i).pk1 = Pk1;
-        Data(i).pk2 = 0;
+        %Data(i).pk1 = ''; %Pk1;
+        %Data(i).pk2 = 0;
         for Col=1:Cols
             Data(i).(ColNames{Col}) = x; %Col;
-            x = x + x;
+            x = x + 1;
         end
     end
         
@@ -52,23 +52,27 @@ function Result = BigDbTest3()
     FileName = sprintf('BigDbTest_%d.csv', Pid);
     CsvFileName = fullfile(tools.os.getTempDir(), FileName);    
     
+    Table = struct2table(Data);
+    writetable(Table, CsvFileName);           
+        
     %[ServerFileName, ClientFileName] = Q.getSharedFileName(CsvFileName);
     %CsvFileName = ClientFileName;
     
             
     BatchCounter = 1;
     RowIndex = 1;
+    RowCount = 0;
     while true
         
         % Generate CSV       
         % io.msgLog(LogLevel.Test, '[%05d] preparing data: %d x %d...', BatchCounter, BatchSize, Cols);
         
         % Update data with keys
-        for i=1:BatchSize
-            Data(i).pk2 = int64(RowIndex);
+        %for i=1:BatchSize
+            %Data(i).pk2 = int64(RowIndex);
             %Data(i).pk1 = StartIntPk + RowIndex;
             RowIndex = RowIndex+1;
-        end
+        %end
         
         % Update data with keys
 %         for i=1:BatchSize
@@ -87,10 +91,15 @@ function Result = BigDbTest3()
 
         
         %io.msgLog(LogLevel.Test, '[%05d] writing csv file: %s', BatchCounter, CsvFileName);
-        Table = struct2table(Data);
-        writetable(Table, CsvFileName);           
+        %Table = struct2table(Data);
+        %writetable(Table, CsvFileName);           
         
-        RowCount = Q.selectCount();
+        if mod(BatchCounter, 10) == 1
+            RowCount = Q.selectCount();
+        else
+            RowCount = RowCount + BatchSize;
+        end
+        
         t1 = tic;
         Q.insert([], 'CsvFileName', CsvFileName);        
         io.msgLog(LogLevel.Test, '[%05d] RowCount=%d, insert %d x %d: %0.5f sec', BatchCounter, RowCount, BatchSize, Cols, toc(t1));
