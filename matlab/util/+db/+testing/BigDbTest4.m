@@ -4,7 +4,7 @@ function Result = BigDbTest4()
     % config/local/Database.DbConnections.UnitTest.yml
     % 
     DatabaseName = 'perftest';
-    TableName = 'table_e';   %'big_table2';
+    TableName = 'table_f';   %'big_table2';
     Cols = 50;
     BatchSize = 200000;
     PidPk = 0;
@@ -24,6 +24,14 @@ function Result = BigDbTest4()
     StartStringPK = datestr(now, 'yyyy_mm_dd_HH_MM_SS');
        
     UnitTestDb = strcmp(DatabaseName, 'unittest');
+    
+    %
+    FileName = sprintf('BigDbTest_%d.csv', Pid);
+    CsvFileName = fullfile(tools.os.getTempDir(), FileName);    
+    
+    [ServerFileName, ClientFileName] = Q.getSharedFileName(CsvFileName);
+    CsvFileName = ClientFileName;
+
     
     % Prepare data
     Data = struct;
@@ -48,16 +56,9 @@ function Result = BigDbTest4()
         end
     end
         
-    %
-    FileName = sprintf('BigDbTest_%d.csv', Pid);
-    CsvFileName = fullfile(tools.os.getTempDir(), FileName);    
-    
+   
     Table = struct2table(Data);
-    writetable(Table, CsvFileName);           
-        
-    %[ServerFileName, ClientFileName] = Q.getSharedFileName(CsvFileName);
-    %CsvFileName = ClientFileName;
-    
+    writetable(Table, CsvFileName);                     
             
     BatchCounter = 1;
     RowIndex = 1;
