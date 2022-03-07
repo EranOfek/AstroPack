@@ -7,6 +7,8 @@ function Result = findMeasureSources(Obj, Args)
     %                   This will work only if the following columns are requested
     %                   'SN_1','SN_2','FLUX_CONV_2','FLUX_CONV_3','STD_ANNULUS'.
     %                   Default is false.
+    %            'FlagCR' - A logical indicating if to flag cosmic rays
+    %                   (CR)  using the CR_DeltaHT flag. Default is true.
     %            'ReFind' - A logical indicating if to find stars if the
     %                   catalog is already populated. Default is true.
     %            'Threshold' - Detection threshold above background in units of
@@ -110,6 +112,7 @@ function Result = findMeasureSources(Obj, Args)
     arguments
         Obj
         Args.RemoveBadSources logical      = false;
+        Args.FlagCR logical                = true;
         Args.ReFind(1,1) logical           = true;
         Args.Threshold                     = 5;
         Args.Psf                           = [];
@@ -212,7 +215,7 @@ function Result = findMeasureSources(Obj, Args)
                    
             % remove bad sources
             % works only for Gaussian PSF
-            if Args.RemoveBadSources
+            if Args.FlagCR || Args.RemoveBadSources 
                 [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
                                                                            'ColNamsSN',{'SN_1','SN_2'},...
                                                                            'RemoveBadSources',Args.RemoveBadSources,...
