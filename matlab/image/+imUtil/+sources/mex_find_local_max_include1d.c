@@ -2,10 +2,10 @@
 // See: edit([matlabroot '/extern/examples/refbook/matrixDivide.c']);
 //
 // Access element in 2D array:
-//    val = input[ col*rows + row ];
+//    val = input[ col*num_rows + row ];
 //
 // Access element in 3D array:
-//    val = input[ col*rows + row + dep*cols*rows ];
+//    val = input[ col*num_rows + row + dep*num_cols*num_rows ];
 //
 // originally at D:\GitHub\AstroPack\matlab\image\+imUtil\+sources
 #include <stdio.h>
@@ -13,7 +13,7 @@
 #include "matrix.h"
 
 // For Ctrl-C detection http://www.caam.rice.edu/~wy1/links/mex_ctrl_c_trick/
-#if defined (_WIN32)
+#if defined (_WIN64)
 #include <windows.h>
 #elif defined (__linux__)
 #include <unistd.h>
@@ -57,10 +57,10 @@ void mexFunction(
     int *outListInd, *outII, *outJJ, *outBW;
     int *outListInd_, *outII_, *outJJ_, *outBW_;
     int dim = 1;
-    mwSize rows, cols;
+    mwSize num_rows, num_cols;
     mwSize row, col;
     __FLOAT val1, val2, val3, val4;
-
+    __FLOAT val5, val6, val7, val8;
     mxClassID     class_id;
     const char*   input_type;
     mwSize        input_ndims;
@@ -127,6 +127,7 @@ void mexFunction(
     if (class_id != MEX_FLOAT)
     {
         mexPrintf("Input matrix data type does not match this function\n");
+     
         return;
     }
 
@@ -145,16 +146,23 @@ void mexFunction(
 
     //-------------------------------------------- Input 2D
 
-    rows = input_size[0];
-    cols = input_size[1];
+    num_rows = input_size[0];
+    num_cols = input_size[1];
 
-    // mexPrintf("Rows: %d, Cols: %d\n", rows, cols);
+    // mexPrintf("num rows: %d, cols: %d\n", num_rows, num_cols);
 
     // Allocate output 1D array of integers (array of indexes)
-    int SizeList = (int)ceil((__FLOAT)rows * (__FLOAT)cols * AllocateFrac) ;
-    mwSize SizeListInd[1] = { (mwSize)ceil((__FLOAT)rows * (__FLOAT)cols * AllocateFrac) };
-    outListInd = (int*)mxMalloc(SizeList);
+    int SizeList = (int)ceil((__FLOAT)num_rows * (__FLOAT)num_cols * AllocateFrac) ;
+    mexPrintf("SizeList %d \n",SizeList); 
+    mwSize SizeListInd[1] = { (mwSize)ceil((__FLOAT)num_rows * (__FLOAT)num_cols * AllocateFrac) };
     mexPrintf("SizeListInd: %d\n", SizeListInd[0]);
+    outListInd = (int*)mxMalloc(SizeList*sizeof(int));
+    if (nlhs>2)
+    {
+        outII = (int*)mxMalloc(SizeList*sizeof(int));
+        outJJ = (int*)mxMalloc(SizeList*sizeof(int));
+    }
+    
     if (SizeListInd[0] < 1)
     {
         mexPrintf("SizeListInd is zero, AllocateFrac is too small?\n");
@@ -178,16 +186,7 @@ void mexFunction(
     */
 
     //outListInd[10] = 20;
-    if (nlhs > 1)
-    {
-        plhs[1] = mxCreateNumericArray(output_ndims, SizeListInd, mxINT32_CLASS, mxREAL);
-        outII = (int*)mxGetData(plhs[1]);
-    }
-    if (nlhs > 2)
-    {
-        plhs[2] = mxCreateNumericArray(output_ndims, SizeListInd, mxINT32_CLASS, mxREAL);
-        outJJ = (int*)mxGetData(plhs[2]);
-    }
+
     if (nlhs > 3)
     {
         output_ndims = 2;
@@ -201,25 +200,25 @@ void mexFunction(
 
         bool flag = true;
         // skip the edges of the image
-        for (col = 1;  (col < cols - 1)&&flag;  col++) {
+        for (col = 1;  (col < num_cols - 1)&&flag;  col++) {
 
-            for (row = 1;  (row < rows - 1)&&flag ;  row++) {
-                val = input[ col*rows + row ];
+            for (row = 1;  (row < num_rows - 1)&&flag ;  row++) {
+                val = input[ col*num_rows + row ];
                 if (val>Thresh) {
-                    val1 = input[ (col-1)*rows + row ];
-                    val2 = input[ (col+1)*rows + row ];
-                    val3 = input[ col*rows + row-1 ];
-                    val4 = input[ col*rows + row+1 ];
+                    val1 = input[ (col-1)*num_rows + row ];
+                    val2 = input[ (col+1)*num_rows + row ];
+                    val3 = input[ col*num_rows + row-1 ];
+                    val4 = input[ col*num_rows + row+1 ];
                     if (val>val1 && val>val2 && val>val3 && val>val4)
                     {
-                        //mwSize Indd = (__INT)col*(__INT)rows + (__INT)row;
-                        mwSize Indd = col*rows + row + 1;
+                        //mwSize Indd = (__INT)col*(__INT)num_rows + (__INT)row;
+                        mwSize Indd = col*num_rows + row + 1;
                         outListInd[count] = (int)Indd;
 
                         //mexPrintf("col: %d, row: %d, ind: %d\n", col, row, (int)Indd);
                         if (nlhs > 2) {
-                            outII[count] = (int)(Indd-1)%(int)rows+1;
-                            outJJ[count] = (int)ceil((Indd+.00000001)/rows);
+                            outII[count] = (int)(Indd-1)%(int)num_rows+1;
+                            outJJ[count] = (int)ceil((Indd+.0000000001)/num_rows);
                         }
 
                         count = count + 1;
@@ -231,14 +230,62 @@ void mexFunction(
                 }
             }
         }
-    }
-    if (nlhs > 3)
-    {
-        for (int i =0;i<count;i++)
+        if (nlhs > 3)
         {
+            for (int i =0;i<count;i++)
+            {
 
-            outBW[outII[i]+ (outJJ[i]-1)*rows-1] = 1;
-            // mexPrintf("col: %d, row: %d\n", (int)outII[i], (int)outJJ[i] );
+                outBW[outII[i]+ (outJJ[i]-1)*num_rows-1] = 1;
+                // mexPrintf("col: %d, row: %d\n", (int)outII[i], (int)outJJ[i] );
+            }
+        }
+    }
+
+    if (Conn==8)
+    {
+        // skip the edges of the image
+        bool flag =true;
+        for (col = 1;  (col < num_cols - 1)&&flag;  col++) {
+
+            for (row = 1;  (row < num_rows - 1)&&flag ;  row++) {
+                val = input[ col*num_rows + row ];
+                if (val>Thresh) {
+                    val1 = input[ (col-1)*num_rows + row ]; // left
+                    val2 = input[ (col+1)*num_rows + row ]; // right
+                    val3 = input[ col*num_rows + row-1 ]; // up
+                    val4 = input[ col*num_rows + row+1 ]; // down
+                    val5 = input[ (col-1)*num_rows + row - 1]; // left up
+                    val6 = input[ (col+1)*num_rows + row  - 1]; // right up
+                    val7 = input[ (col-1)*num_rows + row + 1 ]; // left down
+                    val8 = input[ (col+1)*num_rows + row + 1 ]; // right down
+                    if (val>val1 && val>val2 && val>val3 && val>val4 &&val>val5 && val>val6 && val>val7 && val>val8)
+                    {
+                        //mwSize Indd = (__INT)col*(__INT)num_rows + (__INT)row;
+                        mwSize Indd = col*num_rows + row + 1;
+                        outListInd[count] = (int)Indd;
+                        //mexPrintf("col: %d, row: %d, ind: %d\n", col, row, (int)Indd);
+                        if (nlhs > 2) {
+                            outII[count] = (int)(Indd-1)%(int)num_rows+1;
+                            outJJ[count] = (int)ceil((Indd+.00000001)/num_rows);
+                        }
+
+                        count = count + 1;
+                        if (count == SizeList)
+                        {
+                            flag = false;
+                        }
+                    }
+                }
+            }
+        }
+        if (nlhs > 3)
+        {
+            for (int i =0;i<count;i++)
+            {
+
+                outBW[outII[i]+ (outJJ[i]-1)*num_rows-1] = 1;
+                // mexPrintf("col: %d, row: %d\n", (int)outII[i], (int)outJJ[i] );
+            }
         }
     }
     mwSize  SizeListM[1] = {(mwSize)count};
@@ -256,6 +303,25 @@ void mexFunction(
         outListInd_[i] = outListInd[i];
     }
     mxFree(outListInd);
+    if (nlhs > 1)
+    {
+        plhs[1] = mxCreateNumericArray(output_ndims, SizeListM, mxINT32_CLASS, mxREAL);
+        outII_ = (int*)mxGetData(plhs[1]);
+    }
+    if (nlhs > 2)
+    {
+        plhs[2] = mxCreateNumericArray(output_ndims, SizeListM, mxINT32_CLASS, mxREAL);
+        outJJ_ = (int*)mxGetData(plhs[2]);
+        for (int i =0;i<count;i++)
+        {
+            outII_[i] = outII[i];
+            outJJ_[i] = outJJ[i];
+        }
+        mxFree(outII);
+        mxFree(outJJ);
+    }
+
+
 }
 
 //mexPrintf("output_ndims: %d\n", output_ndims);
