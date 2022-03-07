@@ -336,3 +336,12 @@ So, the idea of SP-GiST access method is to split the value domain into
 non-overlapping subdomains each of which, in turn, can also be split. 
 Partitioning like this induces non-balanced trees (unlike B-trees and regular GiST).
 
+
+	postgres=# create table points(p point);
+
+	postgres=# insert into points(p) values
+	  (point '(1,1)'), (point '(3,2)'), (point '(6,3)'),
+	  (point '(5,5)'), (point '(7,8)'), (point '(8,6)');
+
+	postgres=# create index points_quad_idx on points using spgist(p);
+

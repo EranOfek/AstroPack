@@ -1,8 +1,10 @@
 
-CREATE TABLE public.table_f (
+CREATE TABLE public.table_f_radec1 (
 pk1 BIGINT GENERATED ALWAYS AS IDENTITY,
+
 f_ra DOUBLE PRECISION DEFAULT 0,
 f_dec DOUBLE PRECISION DEFAULT 0,
+p_ra_dec point default point(0, 0),
 
 fdouble001 REAL DEFAULT 0,
 fdouble002 REAL DEFAULT 0,
@@ -57,8 +59,13 @@ fdouble050 REAL DEFAULT 0
 
 );
 
+create index table_f_radec1_idx_p_ra_dec on table_f_radec1 using spgist(p_ra_dec);
 
-CREATE INDEX table_f_idx_ra_dec ON public.table_f
-  USING btree (f_ra, f_dec);
+CREATE INDEX table_f_radec1_idx_ra ON public.table_f_radec1
+  USING btree (f_ra);
+  
+CREATE INDEX table_f_radec1_idx_dec ON public.table_f_radec1
+  USING btree (f_dec);
+
 
 
