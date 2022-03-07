@@ -161,8 +161,17 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                    'Threshold',Args.Threshold,...
                                                    'CreateNewObj',false);
                                            
-                                           
+        % Estimate PSF
+        [Coadd, Summary] = imProc.psf.constructPSF(Coadd, Args.constructPSFArgs{:});
+        % add PSF FWHM to header
+        imProc.psf.fwhm(Coadd);
+
+        % PSF photometry
+        [ResPSF, Coadd] = imProc.sources.psfFitPhot(Coadd, 'CreateNewObj',false);                                   
+
         % astrometry    
+        % Note that if available, will use the "X" & "Y" positions produced
+        % by the PSF photometry
         MeanJD = mean(JD);
         [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
                                                                                                 'WCS',AllSI(1,Ifields).WCS,...
@@ -174,6 +183,10 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
         
         % photometric calibration
+        % change to PSF phot...
+        %CatColNameMag            = 'MAG_APER_3';
+        %CatColNameMagErr   = 'MAGERR_APER_3';
+        
         [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
                                                                                                     'CreateNewObj',false,...
                                                                                                     'MagZP',Args.ZP,...
@@ -202,13 +215,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         
     end
     
-    % Estimate PSF
-    [Coadd, Summary] = imProc.psf.constructPSF(Coadd, Args.constructPSFArgs{:});
-    % add PSF FWHM to header
-    imProc.psf.fwhm(Coadd);
     
-    % PSF photometry
-    [ResPSF, Coadd] = imProc.sources.psfFitPhot(Coadd, 'CreateNewObj',false);
     
     % plot for LAST pipeline paper
     % semilogy(ResultCoadd(1).AstrometricFit.ResFit.RefMag, ResultCoadd(1).AstrometricFit.ResFit.Resid.*3600,'k.')
