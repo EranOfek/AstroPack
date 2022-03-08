@@ -213,4 +213,9 @@ https://hevodata.com/learn/postgresql-partitions/
 	CREATE TABLE sales_2019_Q4 PARTITION OF sales FOR VALUES FROM ('2019-10-01') TO ('2020-01-01');
 
 
+### Sub-Partitioning
+
+https://blog.dbi-services.com/postgresql-partitioning-8-sub-partitioning/
+
+
 

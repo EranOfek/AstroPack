@@ -6,7 +6,7 @@ function Result = BigDbTestTelemetry1()
     DatabaseName = 'perftest';
     TableName = 'telemetry1';   %'big_table2';
     Cols = 50;
-    BatchSize = 10000;
+    BatchSize = 1000;
     Pid = feature('getpid');
     
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug);

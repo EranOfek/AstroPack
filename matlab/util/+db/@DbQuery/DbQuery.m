@@ -1193,6 +1193,23 @@ classdef DbQuery < Component
         end
 
         
+        function Result = getPartitionTree(Obj, Args)
+            % Get list of table's partitions
+            % Input:   'TableName'
+            % Output:  Cell array
+            % Example: = Obj.getPartitionTree('TableName', 'my_table')
+            arguments
+                Obj
+                Args.TableName = '';
+            end
+            if isempty(Args.TableName)
+                Args.TableName = Obj.TableName;
+            end
+            Text = sprintf('select * from pg_partition_tree(''%s'')', Args.TableName);
+            Result = Obj.selectColumn(Text, 'relid');
+        end
+        
+        
         function Result = isTableExist(Obj, TableName)
             % Check if specified table exists in current database
             % Input:   TableName - Table name to search
