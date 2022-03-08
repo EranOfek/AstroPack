@@ -345,3 +345,40 @@ Partitioning like this induces non-balanced trees (unlike B-trees and regular Gi
 
 	postgres=# create index points_quad_idx on points using spgist(p);
 
+
+### BRIN
+
+https://www.cybertec-postgresql.com/en/brin-indexes-correlation-correlation-correlation/?gclid=Cj0KCQiAmpyRBhC-ARIsABs2EAoQdxayenamUtgXj7IC8ODxGw794_1mnAK_03SofsXOZfnpz2vVZasaAjS2EALw_wcB
+
+https://www.percona.com/blog/2019/07/16/brin-index-for-postgresql-dont-forget-the-benefits/
+
+
+BRIN Index is a revolutionary idea in indexing first proposed by PostgreSQL contributor 
+Alvaro Herrera. BRIN stands for “Block Range INdex”. A block range is a group of pages 
+adjacent to each other, where summary information about all those pages is stored in Index.  
+For example, Datatypes like integers – dates where sort order is linear – can be stored as min 
+and max value in the range. Other database systems including Oracle announced similar 
+features later. BRIN index often gives similar gains as Partitioning a table.
+
+BRIN usage will return all the tuples in all the pages in the particular range. 
+So the index is lossy and extra work is needed to further filter out records. 
+So while one might say that is not good, there are a few advantages.
+
+Since only summary information about a range of pages is stored, BRIN indexes 
+are usually very small compared to B-Tree indexes. So if we want to squeeze the 
+working set of data to shared_buffer, this is a great help.
+Lossiness of BRIN can be controlled by specifying pages per range 
+(discussed in a later section)
+Offloads the summarization work to vacuum or autovacuum. So the overhead of 
+index maintenance on transaction / DML operation is minimal.
+
+
+Limitation:
+
+BRIN indexes are efficient if the ordering of the key values follows the 
+organization of blocks in the storage layer. In the simplest case, this 
+could require the physical ordering of the table, which is often the 
+creation order of the rows within it, to match the key’s order. Keys on generated 
+sequence numbers or created data are best candidates for BRIN index.
+
+

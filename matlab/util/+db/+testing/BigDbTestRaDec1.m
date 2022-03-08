@@ -4,9 +4,9 @@ function Result = BigDbTestRaDec1()
     % config/local/Database.DbConnections.UnitTest.yml
     % 
     DatabaseName = 'perftest';
-    TableName = 'table_f';   %'big_table2';
-    Cols = 6;
-    BatchSize = 20;
+    TableName = 'table_f_radec0';   %'big_table2';
+    Cols = 4;
+    BatchSize = 200000;
     PidPk = 0;
     UseIntPk = true;
     Pid = feature('getpid');
@@ -45,7 +45,7 @@ function Result = BigDbTestRaDec1()
         end
     end    
     
-    ColNames = { 'f_ra', 'f_dec', 'p_ra_dec', 'fdouble001', 'fdouble001' };
+    ColNames = { 'f_ra', 'f_dec', 'fdouble001', 'fdouble001' };
     
     
     x = 0.001;
@@ -99,7 +99,7 @@ function Result = BigDbTestRaDec1()
         %writetable(Table, CsvFileName);           
         
         if mod(BatchCounter, 10) == 1
-            RowCount = Q.selectCount();
+            RowCount = Q.selectCount('Fast', true);
         else
             RowCount = RowCount + BatchSize;
         end

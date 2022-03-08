@@ -897,6 +897,7 @@ classdef DbQuery < Component
                 Obj                     %
                 Args.TableName = ''     % If empty, use Obj.TableName
                 Args.Where = ''         % Example: 'Flag == 1'
+                Args.Fast = false       %
             end
 
             % TableName
@@ -906,16 +907,28 @@ classdef DbQuery < Component
             assert(~isempty(Args.TableName));
 
             % Prepare Select
-            Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s', Args.TableName);
+            if Args.Fast && isempty(Args.Where)
+                % See https://wiki.postgresql.org/wiki/Count_estimate
+                Obj.SqlText = sprintf('SELECT reltuples AS estimate FROM pg_class WHERE relname = ''%s''', Args.TableName);                
+                Obj.query();
+                Result = Obj.getColumn('estimate');
+                
+                % -1 might be returned on empty table
+                if Result < 0
+                    Result = 0;
+                end
+            else
+                Obj.SqlText = sprintf('SELECT COUNT(*) FROM %s', Args.TableName);
 
-            % Where
-            if ~isempty(Args.Where)
-                Obj.SqlText = [Obj.SqlText, ' WHERE ', string(Args.Where).char];
+                % Where
+                if ~isempty(Args.Where)
+                    Obj.SqlText = [Obj.SqlText, ' WHERE ', string(Args.Where).char];
+                end
+
+                % Run query and return result
+                Obj.query();
+                Result = Obj.getColumn('count');
             end
-
-            % Run query and return result
-            Obj.query();
-            Result = Obj.getColumn('count');
         end
 
 
