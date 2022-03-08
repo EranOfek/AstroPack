@@ -192,3 +192,25 @@ big tables.
 
 SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_f_radec0';
 
+
+### Partitioning
+
+https://www.postgresql.org/docs/current/ddl-partitioning.html
+
+
+https://hevodata.com/learn/postgresql-partitions/
+
+### Partitioning - Example 1
+
+https://hevodata.com/learn/postgresql-partitions/
+
+
+
+	CREATE TABLE sales (id int, p_name text, amount int, sale_date date)
+	PARTITION BY RANGE (sale_date);
+
+
+	CREATE TABLE sales_2019_Q4 PARTITION OF sales FOR VALUES FROM ('2019-10-01') TO ('2020-01-01');
+
+
+

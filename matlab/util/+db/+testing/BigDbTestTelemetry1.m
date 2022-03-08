@@ -1,12 +1,12 @@
 
-function Result = BigDbTestTelemery1()
+function Result = BigDbTestTelemetry1()
     % You need to have configuration file with database user and password:
     % config/local/Database.DbConnections.UnitTest.yml
     % 
     DatabaseName = 'perftest';
     TableName = 'telemetry1';   %'big_table2';
     Cols = 50;
-    BatchSize = 9999;
+    BatchSize = 10000;
     Pid = feature('getpid');
     
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug);
@@ -22,33 +22,19 @@ function Result = BigDbTestTelemery1()
     
     [~, ClientFileName] = Q.getSharedFileName(CsvFileName);
     CsvFileName = ClientFileName;
-    
-    % Prepare data
-    Data = struct;
-    rcv_time = rand;
-    tick = int32(rand*1000000);
-    time = rand;
-    for i=1:BatchSize
-        Data(i).rcv_time = rcv_time;
-        Data(i).param = sprintf('PRM%03d', mod(i, 999));
-        Data(i).idx = mod(i, 200);
-        Data(i).f_time = time;
-        Data(i).f_tick = tick;
-        Data(i).f_value = rand * 1000;
-        Data(i).s_value = sprintf('this %d is my %d text bla bla %d', i, i, i);
-    end
-               
+                   
     BatchCounter = 1;
     RowCount = 0;
     while true
         
-        % Update data with keys
+        % Prepare data
+        Data = struct;        
         rcv_time = rand;
         tick = int32(rand*1000000);
         time = rand;
         for i=1:BatchSize
             Data(i).rcv_time = rcv_time;
-            Data(i).param = sprintf('PRM%03d', mod(i, 999));
+            Data(i).param = sprintf('PRM%06d', mod(i, 999));
             Data(i).idx = mod(i, 200);
             Data(i).f_time = time;
             Data(i).f_tick = tick;
