@@ -267,7 +267,7 @@ Stop the systemd service
 
 Create new location
 
-    mkdir /data/pgdata
+    sudo mkdir /data/pgdata
     sudo chown postgres:postgres /data/pgdata
     sudo chmod 700 /data/pgdata
 

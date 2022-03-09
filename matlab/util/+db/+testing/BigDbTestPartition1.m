@@ -55,10 +55,13 @@ function Result = BigDbTestPartition1()
     
         f_time = floor((now-738000)*100000);
         f_start = f_time * 10000;
-        SqlText = sprintf('CREATE TABLE table_f_part1_%d PARTITION OF table_f_part1 FOR VALUES FROM (%f) TO (%f)', f_time, f_start, f_start+9999);
-        Q.exec(SqlText);
+        %SqlText = sprintf('CREATE TABLE table_f_part1_%d PARTITION OF table_f_part1 FOR VALUES FROM (%f) TO (%f)', f_time, f_start, f_start+9999);
+        %Q.exec(SqlText);
+        
+        Q.createPartition(sprintf('table_f_part1_%d', f_time), 'Type', 'range', ...
+            'RangeStart', f_start, 'RangeEnd', f_start+9999);
                        
-        for Iter=1:1
+        for Iter=1:10
             
             % Update data
             io.msgLog(LogLevel.Debug, 'preparing data...');
@@ -70,7 +73,7 @@ function Result = BigDbTestPartition1()
             writetable(Table, CsvFileName);                     
 
             if mod(BatchCounter, 10) == 1
-                RowCount = Q.selectCount();
+                RowCount = Q.selectCount('Fast', true);
             else
                 RowCount = RowCount + BatchSize;
             end

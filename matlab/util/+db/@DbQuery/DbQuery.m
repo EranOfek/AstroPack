@@ -1205,10 +1205,41 @@ classdef DbQuery < Component
             if isempty(Args.TableName)
                 Args.TableName = Obj.TableName;
             end
-            Text = sprintf('select * from pg_partition_tree(''%s'')', Args.TableName);
+            Text = sprintf('SELECT * FROM pg_partition_tree(''%s'')', Args.TableName);
             Result = Obj.selectColumn(Text, 'relid');
         end
         
+
+        function Result = createPartition(Obj, PartitionName, Args)
+            % Get list of table's partitions
+            % Input:   PartitionName
+            %          'TableName'
+            %          'Type' - 'range' is the only type currently supported
+            %          'RangeStart' - 
+            %          'RangeEnd'
+            % Output:  Cell array
+            % Example: = Obj.CreatePartition('my_table_part1', 'TableName', 'my_table',
+            %            'Type', 'range', 'RangeStart', 100, 'RangeEnd', 200);
+            arguments
+                Obj
+                PartitionName
+                Args.TableName = '';
+                Args.Type
+                Args.RangeStart
+                Args.RangeEnd
+            end
+            if isempty(Args.TableName)
+                Args.TableName = Obj.TableName;
+            end
+            if strcmp(Args.Type, 'range')
+                Text = sprintf('CREATE TABLE %s PARTITION OF %s FOR VALUES FROM (%f) TO (%f)', PartitionName, Args.TableName, Args.RangeStart, Args.RangeEnd);
+                Result = Obj.exec(Text);
+            else
+                Obj.msgLog(LogLevel.Error, 'CreatePartition: unsupported partition type: %s', Args.Type);
+                Result = false;
+            end
+        end
+
         
         function Result = isTableExist(Obj, TableName)
             % Check if specified table exists in current database
