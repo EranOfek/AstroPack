@@ -10,7 +10,8 @@ z3(2:(size(z2,1)+1),2:(size(z2,2)+1))= z2;
 Thresh = 2.1;
 AllocateFrac = 0.02;
 tic
-[a1,b1,c1,d1] = imUtil.sources.mex_find_local_max_single(z3,Thresh,Conn,AllocateFrac);
+%[a1,b1,c1,d1] = imUtil.sources.mex_find_local_max_single(z3,Thresh,Conn,AllocateFrac);
+[a1,b1,c1,d1] = imUtil.sources.findLocalMaxAboveThreshold_mex_double(z3,Thresh,Conn,AllocateFrac);
 toc
 
 tic
