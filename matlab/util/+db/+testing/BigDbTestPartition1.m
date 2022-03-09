@@ -69,8 +69,10 @@ function Result = BigDbTestPartition1()
             for i=1:BatchSize
                 Data(i).f_time = time;
             end
-            Table = struct2table(Data);
-            writetable(Table, CsvFileName);                     
+            
+            mex_WriteStructCsv(Data, CsvFileName);
+            %Table = struct2table(Data);
+            %writetable(Table, CsvFileName);
 
             if mod(BatchCounter, 10) == 1
                 RowCount = Q.selectCount('Fast', true);

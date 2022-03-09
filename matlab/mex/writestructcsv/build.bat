@@ -1,2 +1,2 @@
-call mex mex_WriteStruct.c -lut
+call mex mex_WriteStructCsv.c -lut
 pause
