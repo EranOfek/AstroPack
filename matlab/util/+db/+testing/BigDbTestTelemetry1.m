@@ -43,8 +43,9 @@ function Result = BigDbTestTelemetry1()
         end
         
         % Write to CSV file
-        Table = struct2table(Data);
-        writetable(Table, CsvFileName);                     
+        mex_WriteStructCsv(Data, CsvFileName);
+        %Table = struct2table(Data);
+        %writetable(Table, CsvFileName);                     
             
         % Get number of rows in table
         if mod(BatchCounter, 10) == 1
