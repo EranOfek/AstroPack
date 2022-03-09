@@ -26,3 +26,17 @@ questions based on my experience:
 
 
 
+### Binary files
+
+Check solution for large tables (10^12) - use binary data file + on-disk b-tree indexing
+
+http://people.csail.mit.edu/jaffer/WB
+
+http://abiusx.com/me/code/wb/
+
+Python
+
+https://github.com/NicolasLM/bplustree
+
+
+
