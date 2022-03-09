@@ -164,7 +164,7 @@ void mexFunction(
     }
     // mxREAL - The output is real and not complex
     // mxINT32_CLASS - The output type is 32bit integer
-    mexPrintf("size dynamic array %d\n",SizeList);
+    //    mexPrintf("size dynamic array %d\n",SizeList);
 
     
     
