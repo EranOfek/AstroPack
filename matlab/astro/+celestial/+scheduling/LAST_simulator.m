@@ -68,42 +68,75 @@ function [TimeHistory,History,ResS]=LAST_simulator(JD,varargin)
 %plotm(G(:,2).*RAD,G(:,1).*RAD,'k.')
 %axis off
 
+% [TimeHistory_l,History_l,ResS_l]=celestial.scheduling.LAST_simulator(celestial.time.julday([1 3 2021]),'Plot',false,'Nnight',365);
+% [TimeHistory_h,History_h,ResS_h]=celestial.scheduling.LAST_simulator(celestial.time.julday([1 3 2021]),'Plot',false,'Nnight',365);
+% plot.subplot1(2,1)
+% plot.subplot1(1);
+% histogram(ResS_l.AllAM,[1:0.05:2]')  % histogram of AM distribution
+% H = text(1.4,2.5e4,'Slow Cadence');
+% H.Interpreter = 'latex';
+% plot.subplot1(2);
+% histogram(ResS_h.AllAM,[1:0.05:2]')  % histogram of AM distribution
+% H = text(1.4,3.5e4,'High Cadence');
+% H.Interpreter = 'latex';
+% H = xlabel('Airmass');
+% H.FontSize = 18;
+% H.Interpreter = 'latex';
+% H = ylabel('Number');
+% H.FontSize = 18;
+% H.Interpreter = 'latex';
+%
+% ResS.TargetList = [ResS_l.TargetList; ResS_h.TargetList];
+% axesm ('aitoff', 'Frame', 'on', 'Grid', 'on');
+% scatterm(ResS.TargetList(:,2).*RAD,ResS.TargetList(:,1).*RAD,45,ResS.TargetList(:,4),'filled');
+% H=colorbar;
+% H.Label.String='Epochs/yr'; 
+% H.Label.Interpreter='latex';
+% G=celestial.coo.coco([(0:1:360)',zeros(361,1)],'g','j2000.0');
+% hold on;
+% plotm(G(:,2).*RAD,G(:,1).*RAD,'k.')
+% axis off
+% print VisisPerField.eps -depsc2
+%
+DT_l=diff([TimeHistory_l.JD].');  
+DT_h=diff([TimeHistory_h.JD].');
+
 
 
 RAD = 180./pi;
 
 InPar = inputParser;
 addOptional(InPar,'DecRange',[-30 90]./RAD);
-%addOptional(InPar,'Ntel',8);
-addOptional(InPar,'Ntel',4);
+addOptional(InPar,'Ntel',8);
+%addOptional(InPar,'Ntel',4);
 
 addOptional(InPar,'Nnight',10);
 addOptional(InPar,'Lon',35./RAD);
 addOptional(InPar,'Lat',30./RAD);
 
-addOptional(InPar,'TimeStep',5./1440);  % day
+addOptional(InPar,'TimeStep',440./86400);  % day
 addOptional(InPar,'SunAltLimit',-12./RAD);  
 addOptional(InPar,'MaxAM',2);  
 addOptional(InPar,'AzAltLimit',[0 15;90 15; 180 15; 270 15; 360 15]);  % [Az Alt] deg  
 addOptional(InPar,'MinMoonDistIllum',[0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30]);  % [illum, MinDist]  
 
-%addOptional(InPar,'MinVisibilityTime',5./24);  % [day] 
-addOptional(InPar,'MinVisibilityTime',2./24);  % [day] 
+addOptional(InPar,'MinVisibilityTime',5./24);  % [day] 
+%addOptional(InPar,'MinVisibilityTime',2./24);  % [day] 
 addOptional(InPar,'FactorVisibilityAM',1.2);  % [day] 
 
-%addOptional(InPar,'MainCadence',0.8);  % [day]
-addOptional(InPar,'MainCadence',2.4);  % [day]
-%addOptional(InPar,'NightCadence',30./1440); % [day]
-addOptional(InPar,'NightCadence',40./1440); % [day]
+addOptional(InPar,'MainCadence',0.8);  % [day]
+%addOptional(InPar,'MainCadence',2.4);  % [day]
+addOptional(InPar,'NightCadence',30./1440); % [day]
+%addOptional(InPar,'NightCadence',40./1440); % [day]
 %addOptional(InPar,'Nfast',2); % [day]
 addOptional(InPar,'Nfast',8); % [day]
 
 addOptional(InPar,'MainWFun',@celestial.scheduling.fermiexp); %@(t) 1.0+0.5.*exp(-t./1) ); % weight as a function of time since it is allowed to observe the target
-%addOptional(InPar,'MainWFunPar', {0.8, 1, 0.03, 1, 0.5} );  %t0, DecayExp, SoftFermi, BaseW, ExtraW
-addOptional(InPar,'MainWFunPar', {2.4, 1, 0.03, 1, 0.5} );  %t0, DecayExp, SoftFermi, BaseW, ExtraW
+addOptional(InPar,'MainWFunPar', {0.8, 1, 0.03, 1, 0.5} );  %t0, DecayExp, SoftFermi, BaseW, ExtraW
+%addOptional(InPar,'MainWFunPar', {2.4, 1, 0.03, 1, 0.5} );  %t0, DecayExp, SoftFermi, BaseW, ExtraW
 addOptional(InPar,'NightWFun',@celestial.scheduling.fermiexp); %@(t) 1.5+0.5.*exp(-t./1) ); % weight as a function of time since it is allowed to observe the target
-%addOptional(InPar,'NightWFunPar',{30./1440, 1, 0.003, 1.5, 0.5});  %t0, DecayExp, SoftFermi, BaseW, ExtraW
-addOptional(InPar,'NightWFunPar',{40./1440, 1, 0.003, 1.5, 0.5});  %t0, DecayExp, SoftFermi, BaseW, ExtraW
+addOptional(InPar,'NightWFunPar',{30./1440, 1, 0.003, 1.5, 0.5});  %t0, DecayExp, SoftFermi, BaseW, ExtraW
+%addOptional(InPar,'NightWFunPar',{40./1440, 1, 0.003, 1.5, 0.5});  %t0, DecayExp, SoftFermi, BaseW, ExtraW
 
 addOptional(InPar,'InterpMethod','linear'); 
 addOptional(InPar,'Plot',true); 
