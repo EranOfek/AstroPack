@@ -15,7 +15,7 @@ function runPipeLAST(DataNumber, Args)
         Args.GeoPos                   = [35 30 400];
         Args.MinNdark                 = 10;
         Args.MinNflat                 = 5;
-        Args.multiRaw2procArgs cell   = {};
+        Args.multiRaw2procCoaddArgs cell   = {};
         
         Args.BasePath                 = []; % '/last01e/data1/archive/LAST.1.1.1';
         Args.DataDir                  = ''; % 
@@ -144,7 +144,7 @@ function runPipeLAST(DataNumber, Args)
             % execute the pipeline
             Counter = Counter + 1;
             tic;
-            pipeline.generic.multiRaw2proc(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procArgs{:}, 'SubDir',sprintf('%d',Counter), 'BasePath', Args.BasePath);
+            pipeline.generic.multiRaw2procCoadd(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',sprintf('%d',Counter), 'BasePath', Args.BasePath);
             toc
                         
             % move images to path
