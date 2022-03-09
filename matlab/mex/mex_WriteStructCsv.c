@@ -179,18 +179,18 @@ void mexFunction( int nlhs, mxArray *plhs[],
                     fprintf(fd, "%s", str);
                     break;
 
-                // double
-                case mxDOUBLE_CLASS:
-					f_double = *((double*)p_data);
-                    //f_double = (double)*mxGetDoubles(fld);
-                    fprintf(fd, "%lf", f_double);
-                    break;
-
                 // single
                 case mxSINGLE_CLASS:
 					f_single = *((float*)p_data);
                     //f_single = (float*)*mxGetSingles(fld);
-                    fprintf(fd, "%f", f_single);
+                    fprintf(fd, "%.9g", f_single);
+                    break;
+
+                // double
+                case mxDOUBLE_CLASS:
+					f_double = *((double*)p_data);
+                    //f_double = (double)*mxGetDoubles(fld);
+                    fprintf(fd, "%.17g", f_double);
                     break;
 
                 case mxINT8_CLASS:
