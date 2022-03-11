@@ -229,12 +229,13 @@ function Result = findMeasureSources(Obj, Args)
                 % Replace NaN with valid X/Y position
                 XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
                 [SizeImageY, SizeImageX] = sizeImage(Result(Iobj));
-                Fnan                 = isnan(XY(:,1)) | XY(:,1)<0 | XY(:,2)<0 | XY(:,1)>SizeImageX | XY(:,2)>SizeImageY;
+                Fnan                 = isnan(XY(:,1)) | XY(:,1)<1 | XY(:,2)<1 | XY(:,1)>(SizeImageX-1) | XY(:,2)>(SizeImageY-1);
                 XY(Fnan,:)           = XYpeak(Fnan,:);
                 
                 % need to decide what to do about NaN positions
                 if ~isemptyImage(Result(Iobj).MaskData)
                     Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                   
                     Flags                = Args.FlagsType(Flags);
                     Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
                 end
