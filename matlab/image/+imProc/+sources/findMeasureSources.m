@@ -228,7 +228,8 @@ function Result = findMeasureSources(Obj, Args)
                 XY                   = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesX, 'ColY',Args.ColNamesY); 
                 % Replace NaN with valid X/Y position
                 XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
-                Fnan                 = isnan(XY(:,1));
+                [SizeImageY, SizeImageX] = sizeImage(Result(Iobj));
+                Fnan                 = isnan(XY(:,1)) | XY(:,1)<0 | XY(:,2)<0 | XY(:,1)>SizeImageX | XY(:,2)>SizeImageY;
                 XY(Fnan,:)           = XYpeak(Fnan,:);
                 
                 % need to decide what to do about NaN positions
