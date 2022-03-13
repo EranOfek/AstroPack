@@ -162,12 +162,12 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                    'CreateNewObj',false);
                                            
         % Estimate PSF
-        [Coadd, Summary] = imProc.psf.constructPSF(Coadd, Args.constructPSFArgs{:});
+        [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:});
         % add PSF FWHM to header
-        imProc.psf.fwhm(Coadd);
+        imProc.psf.fwhm(Coadd(Ifields));
 
         % PSF photometry
-        [ResPSF, Coadd] = imProc.sources.psfFitPhot(Coadd, 'CreateNewObj',false);                                   
+        [ResPSF, Coadd(Ifields)] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false);                                   
 
         % astrometry    
         % Note that if available, will use the "X" & "Y" positions produced

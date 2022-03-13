@@ -216,28 +216,33 @@ function Result = findMeasureSources(Obj, Args)
             % remove bad sources
             % works only for Gaussian PSF
             if Args.FlagCR || Args.RemoveBadSources 
-                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(2:3),...
+                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(1:2),...
                                                                            'ColNamsSN',{'SN_1','SN_2'},...
                                                                            'RemoveBadSources',Args.RemoveBadSources,...
                                                                            'CreateNewObj',false);
             end
-            
             
             % populate Flags from the Mask image
             if Args.AddFlags
                 XY                   = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesX, 'ColY',Args.ColNamesY); 
                 % Replace NaN with valid X/Y position
                 XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
-                Fnan                 = isnan(XY(:,1));
+                [SizeImageY, SizeImageX] = sizeImage(Result(Iobj));
+                Fnan                 = isnan(XY(:,1)) | XY(:,1)<1 | XY(:,2)<1 | XY(:,1)>(SizeImageX-1) | XY(:,2)>(SizeImageY-1);
                 XY(Fnan,:)           = XYpeak(Fnan,:);
                 
                 % need to decide what to do about NaN positions
                 if ~isemptyImage(Result(Iobj).MaskData)
                     Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                   
                     Flags                = Args.FlagsType(Flags);
                     Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
                 end
-            end                
+            end   
+            
+           
+            
+            
         end
                                                     
                                                         

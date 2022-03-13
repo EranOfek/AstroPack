@@ -1005,7 +1005,7 @@ classdef ImagePath < Base %Component
                 IP1.Product   = Args.Product;
                 IP1.FileType  = 'mat';
                 
-                save(IP1.genFull, 'ObjProduct');
+                save('-v7.3',IP1.genFull, 'ObjProduct');
             end
                 
                 

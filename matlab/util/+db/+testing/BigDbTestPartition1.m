@@ -6,7 +6,7 @@ function Result = BigDbTestPartition1()
     DatabaseName = 'perftest';
     TableName = 'table_f_part1';   %'big_table2';
     Cols = 50;
-    BatchSize = 2000;
+    BatchSize = 200000;
     Pid = feature('getpid');
     
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug);
@@ -49,7 +49,7 @@ function Result = BigDbTestPartition1()
     while true
 
         % Create new partition
-        pause(1)        
+        %pause(1)        
         BaseDate = 738580;  % 27/02/2022
         f_time = int32((now()-BaseDate)*1000000);
     
@@ -70,9 +70,9 @@ function Result = BigDbTestPartition1()
                 Data(i).f_time = time;
             end
             
-            %mex_WriteStructCsv(Data, CsvFileName);
-            Table = struct2table(Data);
-            writetable(Table, CsvFileName);
+            writeStructCsv_mex(Data, CsvFileName);
+            %Table = struct2table(Data);
+            %writetable(Table, CsvFileName);
 
             if mod(BatchCounter, 10) == 1
                 RowCount = Q.selectCount('Fast', true);
