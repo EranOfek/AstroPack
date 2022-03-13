@@ -43,7 +43,7 @@ function Result = BigDbTestTelemetry1()
         end
         
         % Write to CSV file
-        mex_WriteStructCsv(Data, CsvFileName);  % strcat(CsvFileName, '.mex.csv'));
+        writeStructCsv_mex(Data, CsvFileName);  % strcat(CsvFileName, '.mex.csv'));
         %Table = struct2table(Data);
         %writetable(Table, CsvFileName);  %strcat(CsvFileName, '.tab.csv'));
             
