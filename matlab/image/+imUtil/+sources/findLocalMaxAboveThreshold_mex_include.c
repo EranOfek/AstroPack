@@ -74,16 +74,17 @@ void mexFunction(
     mwSize output_ndims = 1;
     mwSize output_size[2] = {0,0};
 
-    //mexPrintf("nlhs: %d, nrhs: %d\n", nlhs, nrhs);
-    //return;
-
-    // Get dim
-    //mexPrintf(nrhs);
+    
     class_id    = mxGetClassID(prhs[0]);
     input       = (__FLOAT*)mxGetData(prhs[0]);
     input_ndims = mxGetNumberOfDimensions(prhs[0]);
     input_size  = mxGetDimensions(prhs[0]);
     input_type  = mxGetClassName(prhs[0]);
+    //mexPrintf("input_ndims: %d\n", input_ndims);
+    //mexPrintf("input_size:  %d, %d\n", input_size[0], input_size[1]);
+    //mexPrintf("class_id:    %d\n", class_id);
+    //mexPrintf("input_type:  %s\n", input_type);
+    //mexPrintf("dim:         %d\n", dim);
 
     // Get Thresh
     if ((nrhs > 1) && mxIsScalar(prhs[1]))
@@ -120,19 +121,13 @@ void mexFunction(
     // Validate matrix data type
     if (class_id != MEX_FLOAT)
     {
-        mexPrintf("Input matrix data type does not match this function\n");
-     
+        mexPrintf("Input matrix data of type %s does not match the required input data type  \n",input_type);
         return;
     }
 
 
 
-    // mexPrintf("input_ndims: %d\n", input_ndims);
-    // mexPrintf("input_size:  %d, %d\n", input_size[0], input_size[1]);
-    // mexPrintf("class_id:    %d\n", class_id);
-    // mexPrintf("input_type:  %s\n", input_type);
-    // mexPrintf("dim:         %d\n", dim);
-
+    
 
     // Validate input params
 
