@@ -215,13 +215,12 @@ function Result = findMeasureSources(Obj, Args)
                    
             % remove bad sources
             % works only for Gaussian PSF
-%             if Args.FlagCR || Args.RemoveBadSources 
-%                 [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(1:2),...
-%                                                                            'ColNamsSN',{'SN_1','SN_2'},...
-%                                                                            'RemoveBadSources',Args.RemoveBadSources,...
-%                                                                            'CreateNewObj',false);
-%             end
-            
+            if Args.FlagCR || Args.RemoveBadSources 
+                [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(1:2),...
+                                                                           'ColNamsSN',{'SN_1','SN_2'},...
+                                                                           'RemoveBadSources',Args.RemoveBadSources,...
+                                                                           'CreateNewObj',false);
+            end
             
             % populate Flags from the Mask image
             if Args.AddFlags
@@ -239,7 +238,11 @@ function Result = findMeasureSources(Obj, Args)
                     Flags                = Args.FlagsType(Flags);
                     Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
                 end
-            end                
+            end   
+            
+           
+            
+            
         end
                                                     
                                                         
