@@ -37,8 +37,13 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
         Args.AddColNmatch logical = true;
         Args.ColNmatchPos         = Inf;
         Args.ColNmatchName        = 'Nmatch';
+        
+        Args.Col2copy cell        = {};
+        Args.ColsUnits            = {''};
     end
     
+    Iobj = 1;
+    Ncols = numel(Args.Col2copy);
         
     % Obj, but with extra columns indicating if there is a match in CatH
     if Args.AddColDist
@@ -48,6 +53,16 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
     if Args.AddColNmatch
         Result(Iobj) = insertCol(Result(Iobj), ResInd.Obj2_NmatchObj1 , Args.ColNmatchPos, Args.ColNmatchName, '');
     end
+    
+    
+    if Ncols>0
+        DD       = selectRows(MergedCat(I), ResInd(Iobj).Obj1_IndInObj2, 'CreateNewObj',true);
+        DataCols = getCol(DD, Args.Col2copy);
+        
+        insertCol(Result, DataCols, Inf, Args.Col2copy, Args.ColsUnits);
+    end
+    
+    
     
     if nargout>1
         % catalog of selected sources in Obj that has matches in CatH [size like CatH)]

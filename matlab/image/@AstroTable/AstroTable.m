@@ -459,7 +459,7 @@ classdef AstroTable < Component
             %           Obj1(FlagInd,:) = Obj2(FlagInd2,:)
             %           Obj1 = NaN; Obj1(FlagInd,:) = Obj2(FlagInd2,:) insert NaN to Obj1 when appear in FlagInd
             % Input  : - A matrix.
-            %          - A vector of logicals or aindices.
+            %          - A vector of logicals or indices.
             %            In the case that this is a vector of logicals, no
             %            NaNs are allowed, and the function will return the
             %            lines with logical true.

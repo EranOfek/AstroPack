@@ -96,7 +96,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         
         % convert AstroImage to AstroCatalog: Obj1
         if isa(Obj1,'AstroImage')
-            Cat1 = Obj1(Iobj1).CatDat;
+            Cat1 = Obj1(Iobj1).CatData;
         elseif isa(Obj1,'AstroCatalog')
             Cat1 = Obj1(Iobj1);
         elseif isnumeric(Obj1(Iobj1))
