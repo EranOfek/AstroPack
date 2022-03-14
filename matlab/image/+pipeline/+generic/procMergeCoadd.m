@@ -234,7 +234,10 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     end
     
     % match Coadd catalog against MergedCat
+    % [Result,ResInd] = insertColFromMatched_matchIndices(Coadd, MatchedCat, [], 'CreateNewObj',false, 'Col2copy', {'Nobs'})
+    
     % put in a stand alone code
+    
 %     tic;
 %     Result = imProc.match.matchReturnIndices(Coadd, MergedCat, 'Radius',3, 'RadiusUnits','arcsec', 'CooType','sphere');
 %     for I=1:1:24

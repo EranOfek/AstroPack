@@ -9,7 +9,7 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
     %       2. Selected lines in the original AstroCatalog which has
     %       matches, with possibly Dist and Nmatch
     %       columns.
-    % Input  : - A single element AstroCatalog object.
+    % Input  : - An AstroCatalog object.
     %          - ResInd. This is the output of imProc.match.matchReturnIndices
     %          * ...,key,val,...
     %            'AddColDist' - Default is true.
@@ -27,7 +27,7 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
     % Example: 
     
     arguments
-        Obj(1,1) AstroCatalog   % AstroCatalog or AstroImage
+        Obj AstroCatalog        % AstroCatalog or AstroImage
         ResInd                  % output of matchReturnIndices
         
         Args.AddColDist logical   = true;
@@ -38,43 +38,39 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
         Args.ColNmatchPos         = Inf;
         Args.ColNmatchName        = 'Nmatch';
         
-        Args.Col2copy cell        = {};
-        Args.ColsUnits            = {''};
     end
     
-    Iobj = 1;
-    Ncols = numel(Args.Col2copy);
+    
         
-    % Obj, but with extra columns indicating if there is a match in CatH
-    if Args.AddColDist
-        DistData     = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist(FlagNN));
-        Result(Iobj) = insertCol(Result(Iobj), ResInd.Obj2_Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
-    end
-    if Args.AddColNmatch
-        Result(Iobj) = insertCol(Result(Iobj), ResInd.Obj2_NmatchObj1 , Args.ColNmatchPos, Args.ColNmatchName, '');
+    Nobj = numel(Obj);
+    if numel(ResInd)~=Nobj
+        error('ResInd must have the same number of elements as the input object');
     end
     
     
-    if Ncols>0
-        DD       = selectRows(MergedCat(I), ResInd(Iobj).Obj1_IndInObj2, 'CreateNewObj',true);
-        DataCols = getCol(DD, Args.Col2copy);
-        
-        insertCol(Result, DataCols, Inf, Args.Col2copy, Args.ColsUnits);
-    end
-    
-    
-    
-    if nargout>1
-        % catalog of selected sources in Obj that has matches in CatH [size like CatH)]
-        FlagNN = ~isnan(ResInd.Obj2_IndInObj1);
-        SelObj(Iobj) = selectRows(Obj(Iobj), IndObj);
-        % add Dist/Nmatch to SelObj
+    for Iobj=1:1:Nobj
+        % Obj, but with extra columns indicating if there is a match in CatH
         if Args.AddColDist
-            DistData     = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist(FlagNN));
-            SelObj(Iobj) = insertCol(SelObj(Iobj), DistData, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
+            DistData     = convert.angular('rad', Args.ColDistUnits, ResInd(Iobj).Obj2_Dist(FlagNN));
+            Result(Iobj) = insertCol(Result(Iobj), ResInd(Iobj).Obj2_Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
         end
         if Args.AddColNmatch
-            SelObj(Iobj) = insertCol(SelObj(Iobj), ResInd.Obj2_NmatchObj1(FlagNN) , Args.ColNmatchPos, Args.ColNmatchName, '');
+            Result(Iobj) = insertCol(Result(Iobj), ResInd(Iobj).Obj2_NmatchObj1 , Args.ColNmatchPos, Args.ColNmatchName, '');
+        end
+
+
+        if nargout>1
+            % catalog of selected sources in Obj that has matches in CatH [size like CatH)]
+            FlagNN = ~isnan(ResInd(Iobj).Obj2_IndInObj1);
+            SelObj(Iobj) = selectRows(Obj(Iobj), IndObj);
+            % add Dist/Nmatch to SelObj
+            if Args.AddColDist
+                DistData     = convert.angular('rad', Args.ColDistUnits, ResInd(Iobj).Obj2_Dist(FlagNN));
+                SelObj(Iobj) = insertCol(SelObj(Iobj), DistData, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
+            end
+            if Args.AddColNmatch
+                SelObj(Iobj) = insertCol(SelObj(Iobj), ResInd(Iobj).Obj2_NmatchObj1(FlagNN) , Args.ColNmatchPos, Args.ColNmatchName, '');
+            end
         end
     end
 
