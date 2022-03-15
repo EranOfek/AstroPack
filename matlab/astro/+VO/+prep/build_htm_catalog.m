@@ -146,7 +146,7 @@ end
 if (InPar.SaveInd)
     IndFileName = sprintf('%s_htm.hdf5',InPar.CatName);
     delete(IndFileName);
-    % Nsrc=HDF5.get_nsrc(CatName);
+    Nsrc=HDF5.get_nsrc(InPar.CatName);
     HDF5.save_htm_ind(HTM,IndFileName,[],{},Nsrc)
 
     HDF5.save_cat_colcell(InPar.CatName,InPar.ColCell,InPar.ColUnits);

@@ -17,6 +17,16 @@ function [Result,ResInd] = insertColFromMatched_matchIndices(Obj, Matched, ResIn
     %            'matchReturnIndicesArgs' - A cell array of additional
     %                   arguments to pass to imProc.match.matchReturnIndices
     %                   Default is {}.
+    %            'Radius'  - Search radius. Default is 5.
+    %            'RadiusUnits' - Search radius units (if spherical
+    %                   coordinates search). Default is 'arcsec'.
+    %            'CreateNewObj' - A logical indicating if to create a new
+    %                   copy of Obj1 if it is not sorted. If false, then
+    %                   Obj1 will be modified. Default is false.
+    %            'CooType'  - CooType (i.e., 'pix','sphere').
+    %                   If empty, will use what is available in the catalog
+    %                   with preference for 'sphere'. Default is empty.
+    %
     %            'Col2copy' - A cell array of columns to copy from the
     %                   the second input argument (Matched) to the first
     %                   input argument (Obj).
@@ -35,6 +45,10 @@ function [Result,ResInd] = insertColFromMatched_matchIndices(Obj, Matched, ResIn
         Matched
         ResInd                          = [];
         Args.matchReturnIndicesArgs     = {};
+        Args.Radius                     = 3;
+        Args.RadiusUnits                = 'arcsec';
+        Args.CooType                    = 'sphere';
+    
         Args.Col2copy cell              = {};
         Args.InsertPos                  = Inf;
         Args.CreateNewObj logical       = false;
@@ -46,6 +60,7 @@ function [Result,ResInd] = insertColFromMatched_matchIndices(Obj, Matched, ResIn
         Result = Obj;
     end
     
+    Ncols    = numel(Args.Col2copy);
     Nobj     = numel(Obj);
     Nmatched = numel(Matched);
     
@@ -55,6 +70,12 @@ function [Result,ResInd] = insertColFromMatched_matchIndices(Obj, Matched, ResIn
     
     if isempty(ResInd)
         CalcResInd = true;
+        ResInd     = struct('Obj2_IndInObj1',cell(Nobj,1),...
+                            'Obj2_Dist',cell(Nobj,1),...
+                            'Obj2_NmatchObj1',cell(Nobj,1),...
+                            'Obj1_IndInObj2',cell(Nobj,1),...
+                            'Obj1_FlagNearest',cell(Nobj,1),...
+                            'Obj1_FlagAll',cell(Nobj,1));
     else
         CalcResInd = false;
     end
@@ -75,11 +96,13 @@ function [Result,ResInd] = insertColFromMatched_matchIndices(Obj, Matched, ResIn
         end
             
         if CalcResInd
-            ResInd(Iobj) = imProc.match.matchReturnIndices(ObjI, MatchedI, Args.matchReturnIndicesArgs{:});
+            ResInd(Iobj) = imProc.match.matchReturnIndices(ObjI, MatchedI, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits, 'CooType',Args.CooType,...
+                                                                           Args.matchReturnIndicesArgs{:});
+            
         end
     
         if Ncols>0
-            DD       = selectRows(MergedI, ResInd(Iobj).Obj1_IndInObj2, 'CreateNewObj',true);
+            DD       = selectRows(MatchedI, ResInd(Iobj).Obj1_IndInObj2, 'CreateNewObj',true);
             [DataCols, Units] = getCol(DD, Args.Col2copy);
 
             if isa(Result, 'AstroImage')

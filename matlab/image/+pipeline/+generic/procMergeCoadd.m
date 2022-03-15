@@ -61,6 +61,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.AddGlobalMotion logical          = true;
         Args.constructPSFArgs cell            = {};
         
+        Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
     end
     SEC_DAY = 86400;
     
@@ -234,19 +235,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     end
     
     % match Coadd catalog against MergedCat
-    % [Result,ResInd] = insertColFromMatched_matchIndices(Coadd, MatchedCat, [], 'CreateNewObj',false, 'Col2copy', {'Nobs'})
-    
-    % put in a stand alone code
-    
-%     tic;
-%     Result = imProc.match.matchReturnIndices(Coadd, MergedCat, 'Radius',3, 'RadiusUnits','arcsec', 'CooType','sphere');
-%     for I=1:1:24
-%         DD   = selectRows(MergedCat(I), Result(I).Obj1_IndInObj2, 'CreateNewObj',true);
-%         Nobs = getCol(DD, 'Nobs');
-%     
-%         insertCol(Coadd(I).CatData, Nobs, Inf, 'Nobs', '');
-%     end
-%     toc
+    [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
     
         
 end
