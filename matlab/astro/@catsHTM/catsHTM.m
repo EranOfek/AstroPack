@@ -2395,9 +2395,10 @@ classdef catsHTM
         
         function mergeCats(CatNames, Args)
             % Merge multiple catsHTM catalogs into a single catsHTM cat.
-           
+            % Example: catsHTM.mergeCats
+            
             arguments
-                CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','GALEX','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSS','ROSATfsc','XMM','ztfDR1var','WDEDR3','QSO1M'};  % 16 bit
+                CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','GALEX','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSSDR17','ROSATfsc','XMM','ztfDR1var','WDEDR3','QSO1M'};  % 16 bit
                 Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       4,       5,      15,    2,           10,    10,        30,        10,   2,         2,       3];
                 Args.Nbit        = 20;
                 Args.NewCatName  = 'MergedCat';
