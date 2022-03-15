@@ -118,7 +118,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         
         Args.SubDir = '';  % no sub dir
-        Args.BasePath = '/raid/eran/archive'; %'/euler/archive';
+        Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
         
         
         % save products
