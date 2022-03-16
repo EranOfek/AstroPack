@@ -627,7 +627,7 @@ classdef OrbitalEl < Base
             
             
             Part1 = [(CosW.*CosO - SinWcosI.*SinO);  (CosW.*SinO + SinWcosI.*CosO); SinW.*SinI];
-            Part2 = [(-SinW.*CosO + CosWcosI.*SinO); (CosWcosI.*CosO - SinW.*SinO); CosW.*SinI];
+            Part2 = [(-SinW.*CosO - CosWcosI.*SinO); (CosWcosI.*CosO - SinW.*SinO); CosW.*SinI];
                  
             V     = VP(1,:) .* Part1 + VP(2,:) .* Part2;
             
