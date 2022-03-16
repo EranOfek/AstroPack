@@ -100,7 +100,7 @@ function runPipeLAST(DataNumber, Args)
             
             if isempty(CI.Bias.Image) || isempty(CI.Flat.Image)
                 warning('No flat or dark available');
-                pasue(30);
+                pause(30);
             end
             
             
