@@ -78,6 +78,8 @@ function runPipeLAST(DataNumber, Args)
     Cont = true;
     Counter = 0;
     while Cont
+        % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.1.02.3/new')
+        
         % check if there is a new Dark/Flat
         [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
         [FoundFlat, RecentFlatImage, RecentFlatMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.FlatSearchStr, '_Image_',{'_Mask_'});

@@ -29,7 +29,7 @@ function Found = prepDarkFlat(Args)
         PrevNInd = 0;
         while Cont
             Files             = io.files.dirSortedByDate(Args.SearchStr);
-            RecentImage       = Files{end};
+            RecentImage       = Files.name{end};
             IP                = ImagePath.parseFileName(List);
             [Ind, IndCounter] = getAllInCounterSeries(IP, RecentImage, Args.ModNumber);
 
