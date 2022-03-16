@@ -67,6 +67,8 @@ function startup(Args)
         Args.EnvVar_ConfigPath           = 'ASTROPACK_CONFIG_PATH';
     end
     
+    PWD = pwd;
+    
     if Args.setGraphics
         setGraphics();
     end
@@ -150,6 +152,9 @@ function startup(Args)
     end
     fprintf('AstroPack startup addpath count: %d\n', PathCount);
     fprintf('AstroPack startup done: %s\n', mfilename('fullpath'));
+    
+    
+    cd(PWD);
 end
 
 
