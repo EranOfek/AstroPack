@@ -1,6 +1,6 @@
 --
 -- Automatic generated file by xlsx2sql.py
--- Origin file: /home/eran/matlab/AstroPack/database/xlsx/unittest5.xlsx
+-- Origin file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5.xlsx
 --
 
 -- To create the database, run from command line:
@@ -55,9 +55,9 @@ SET default_table_access_method = heap;
 
 
 
--- Source file: /home/eran/matlab/AstroPack/database/xlsx/unittest5/csv/unittest5 - details_table.csv
+-- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5\csv\unittest5 - details_table.csv
 CREATE TABLE public.details_table (
-RecID VARCHAR NOT NULL,
+RecID VARCHAR(256) NOT NULL,
 InsertTime TIMESTAMP,
 UpdateTime TIMESTAMP,
 FInt INTEGER DEFAULT 0,
@@ -65,7 +65,7 @@ FBigInt BIGINT DEFAULT 0,
 FBool BOOLEAN,
 FDouble DOUBLE PRECISION DEFAULT 0,
 FTimestamp TIMESTAMP,
-FString VARCHAR,
+FString VARCHAR(256),
 FDouble1 DOUBLE PRECISION DEFAULT 0,
 FDouble2 DOUBLE PRECISION DEFAULT 0,
 FDouble3 DOUBLE PRECISION DEFAULT 0,
@@ -96,22 +96,25 @@ FInt7 INTEGER DEFAULT 0,
 FInt8 INTEGER DEFAULT 0,
 FInt9 INTEGER DEFAULT 0,
 FInt10 INTEGER DEFAULT 0,
-FString1 VARCHAR,
-FString2 VARCHAR,
-FString3 VARCHAR,
-FString4 VARCHAR,
-FString5 VARCHAR,
-FString6 VARCHAR,
-FString7 VARCHAR,
-FString8 VARCHAR,
-FString9 VARCHAR,
-FString10 VARCHAR,
-dstring1 VARCHAR,
-dstring2 VARCHAR,
-dstring3 VARCHAR,
+FString1 VARCHAR(256),
+FString2 VARCHAR(256),
+FString3 VARCHAR(256),
+FString4 VARCHAR(256),
+FString5 VARCHAR(256),
+FString6 VARCHAR(256),
+FString7 VARCHAR(256),
+FString8 VARCHAR(256),
+FString9 VARCHAR(256),
+FString10 VARCHAR(256),
+dstring1 VARCHAR(256),
+dstring2 VARCHAR(256),
+dstring3 VARCHAR(256),
 
 CONSTRAINT details_table_pkey PRIMARY KEY(RecID)
 );
+
+CREATE INDEX details_table_idx_RecID ON public.details_table
+  USING btree (RecID);
 
 CREATE INDEX details_table_idx_InsertTime ON public.details_table
   USING btree (InsertTime);
@@ -182,9 +185,9 @@ CREATE INDEX details_table_idx_dstring2 ON public.details_table
 CREATE INDEX details_table_idx_dstring3 ON public.details_table
   USING btree (dstring3);
 
--- Source file: /home/eran/matlab/AstroPack/database/xlsx/unittest5/csv/unittest5 - master_table.csv
+-- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5\csv\unittest5 - master_table.csv
 CREATE TABLE public.master_table (
-RecID VARCHAR NOT NULL,
+RecID VARCHAR(256) NOT NULL,
 InsertTime TIMESTAMP,
 UpdateTime TIMESTAMP,
 FInt INTEGER DEFAULT 0,
@@ -192,7 +195,7 @@ FBigInt BIGINT DEFAULT 0,
 FBool BOOLEAN,
 FDouble DOUBLE PRECISION DEFAULT 0,
 FTimestamp TIMESTAMP,
-FString VARCHAR,
+FString VARCHAR(256),
 FDouble1 DOUBLE PRECISION DEFAULT 0,
 FDouble2 DOUBLE PRECISION DEFAULT 0,
 FDouble3 DOUBLE PRECISION DEFAULT 0,
@@ -223,22 +226,25 @@ FInt7 INTEGER DEFAULT 0,
 FInt8 INTEGER DEFAULT 0,
 FInt9 INTEGER DEFAULT 0,
 FInt10 INTEGER DEFAULT 0,
-FString1 VARCHAR,
-FString2 VARCHAR,
-FString3 VARCHAR,
-FString4 VARCHAR,
-FString5 VARCHAR,
-FString6 VARCHAR,
-FString7 VARCHAR,
-FString8 VARCHAR,
-FString9 VARCHAR,
-FString10 VARCHAR,
-mstring1 VARCHAR,
-mstring2 VARCHAR,
-mstring3 VARCHAR,
+FString1 VARCHAR(256),
+FString2 VARCHAR(256),
+FString3 VARCHAR(256),
+FString4 VARCHAR(256),
+FString5 VARCHAR(256),
+FString6 VARCHAR(256),
+FString7 VARCHAR(256),
+FString8 VARCHAR(256),
+FString9 VARCHAR(256),
+FString10 VARCHAR(256),
+mstring1 VARCHAR(256),
+mstring2 VARCHAR(256),
+mstring3 VARCHAR(256),
 
 CONSTRAINT master_table_pkey PRIMARY KEY(RecID)
 );
+
+CREATE INDEX master_table_idx_RecID ON public.master_table
+  USING btree (RecID);
 
 CREATE INDEX master_table_idx_InsertTime ON public.master_table
   USING btree (InsertTime);

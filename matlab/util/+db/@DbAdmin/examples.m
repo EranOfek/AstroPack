@@ -55,8 +55,10 @@ function Result = examples()
     disp(UserList);
     
     % Add user
-    Admin.addUser('test1', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'full');
-    Admin.addUser('test1r', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'read');    
+    % To check that user was created, use pgAdmin, right-click on the
+    % database name (i.e. 'unittest5'), select 'Properties' and open tab 'Secutity'
+    Admin.addUser('test2', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'full');
+    Admin.addUser('test2r', 'pass', 'DatabaseName', 'unittest5', 'Permission', 'read');    
 
     % Remove user
     % Admin.removeUser('Test1');

@@ -1,20 +1,23 @@
 --
 -- Automatic generated file by xlsx2sql.py
--- Origin file: /home/eran/matlab/AstroPack/database/xlsx/unittest5.xlsx
+-- Origin file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5.xlsx
 --
 
 --
--- FirebirdSQL database
+-- SQLite database
 --
+-- Execute by command line:
+--      sqlite3 db_file_name.sqlite < script.sql
 
 -- When executing the script on existing database, remove this 'CREATE DATABASE' statement
 -- Use 'DB Browser for SQLite' as GUI for SQLite
-CREATE DATABASE unittest5 USER 'SYSDBA'
-   PAGE_SIZE 4096
-   DEFAULT CHARACTER SET UTF8;
+
+-- CREATE DATABASE unittest5 USER 'SYSDBA'
+--    PAGE_SIZE 4096
+--    DEFAULT CHARACTER SET UTF8;
 
 
--- Source file: /home/eran/matlab/AstroPack/database/xlsx/unittest5/csv/unittest5 - details_table.csv
+-- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5\csv\unittest5 - details_table.csv
 CREATE TABLE details_table (
 RecID TEXT NOT NULL,
 InsertTime REAL,
@@ -72,6 +75,7 @@ dstring3 TEXT,
 PRIMARY KEY(RecID)
 );
 
+CREATE INDEX details_table_idx_RecID ON details_table(RecID);
 CREATE INDEX details_table_idx_InsertTime ON details_table(InsertTime);
 CREATE INDEX details_table_idx_UpdateTime ON details_table(UpdateTime);
 CREATE INDEX details_table_idx_FInt ON details_table(FInt);
@@ -96,7 +100,7 @@ CREATE INDEX details_table_idx_dstring1 ON details_table(dstring1);
 CREATE INDEX details_table_idx_dstring2 ON details_table(dstring2);
 CREATE INDEX details_table_idx_dstring3 ON details_table(dstring3);
 
--- Source file: /home/eran/matlab/AstroPack/database/xlsx/unittest5/csv/unittest5 - master_table.csv
+-- Source file: D:\Ultrasat\AstroPack.git\database\xlsx\unittest5\csv\unittest5 - master_table.csv
 CREATE TABLE master_table (
 RecID TEXT NOT NULL,
 InsertTime REAL,
@@ -154,6 +158,7 @@ mstring3 TEXT,
 PRIMARY KEY(RecID)
 );
 
+CREATE INDEX master_table_idx_RecID ON master_table(RecID);
 CREATE INDEX master_table_idx_InsertTime ON master_table(InsertTime);
 CREATE INDEX master_table_idx_UpdateTime ON master_table(UpdateTime);
 CREATE INDEX master_table_idx_FInt ON master_table(FInt);
