@@ -1296,7 +1296,13 @@ classdef OrbitalEl < Base
                             Result(Itype).Incl        = T.i(Flag);
                             Result(Itype).W           = T.w(Flag);
                             Result(Itype).Node        = T.Node(Flag);
-                            Result(Itype).Tp          = T.Tp(Flag);
+                            % Tp is stored in [yyyymmdd.frac]
+                            Tp = T.Tp(Flag);
+                            Frac = mod(Tp,1);
+                            DV   = datevec(cellfun(@num2str, num2cell(Tp),'UniformOutput',false),'yyyymmdd');
+                            DV   = [DV(:,1:3), Frac];
+                            Result(Itype).Tp          = celestial.time.julday(DV(:,[3 2 1 4]));
+                            %Result(Itype).Tp          = T.Tp(Flag);
                             Result(Itype).Ref         = T.Ref(Flag);
                         end
                     otherwise
