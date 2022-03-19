@@ -553,7 +553,7 @@ classdef OrbitalEl < Base
         end
             
         function varargout=trueAnom2rectPos(Obj, Nu, R, AngUnits)
-            % True anomaly and radius vector to rectangular position
+            % True anomaly and radius vector to rectangular Ecliptic position
             % Description: True anomaly to rectangular position
             % Input  : - OrbitalEl object.
             %          - True anomaly [rad].
@@ -587,7 +587,7 @@ classdef OrbitalEl < Base
         end
         
         function [V,X] = trueAnom2rectVel(Obj, Nu, R, E, AngUnits)
-            % Return rectangular velocity and position vectors in Equatorial system
+            % Return rectangular velocity and position vectors in Ecliptic system
             %   calculated from the orbital elements and the true anomaly.
             % Input  : - Vector of true anomaly.
             %          - Vector of Eccentric anomaly. If empty, then calc.
