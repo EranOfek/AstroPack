@@ -145,8 +145,26 @@ You should get this output
 ### Create database on server
 
 	
-	psql -h ubuntu -p 5432 -U admin -W -d postgres -f unittest.sql
+	psql -h ubuntu -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
 	
+
+Windows:
+
+	set PGPASSWORD=...
+	psql -h gauss -p 5432 -U postgres -w -d postgres -f <script_postgres>.sql
+
+Linux (bash):
+
+	export PGPASSWORD='...'
+	psql -h gauss -p 5432 -U postgres -w -d postgres -f <script_postgres>.sql
+
+
+Linux (tcsh):
+
+	setenv PGPASSWORD '...'
+	psql -h gauss -p 5432 -U postgres -w -d postgres -f <script_postgres>.sql
+
+
 
 ### JDBC Driver
 

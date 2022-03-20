@@ -11,7 +11,7 @@
 %
 % Create database on remote server (password: 'Passw0rd')
 %
-%     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
+%     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
 %
 %--------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@
 %
 % Methods: Hidden
 %    exec - Execute SQL statement, by calling Obj.Query.exec() Input:   SqlText - Statement text Output:  true on success Example: Obj.exec('DROP USER IF EXISTS user1')
-%    runPsql - Run 'psql' external utility with command line parameters. Input:   XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
+%    runPsql - Run 'psql' external utility with command line parameters. Input:   XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
 %    xls2sql - Convert XLSX file downloaded from Google Drive to SQL file Input:   XlsFileName Output:  true on success Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
 %
 %#/docgen
@@ -596,7 +596,7 @@ classdef DbAdmin < Component
                 end
                 
                 % Prepare file name of generated SQL
-                SqlFileName = sprintf('%s%s%s.sql', FName, filesep, FName);
+                SqlFileName = sprintf('%s%s%s_postgres.sql', FName, filesep, FName);
                 
                 % Check that SQL file was created in current folder
                 if isfile(SqlFileName)
@@ -623,7 +623,7 @@ classdef DbAdmin < Component
             % Input:   XlsFileName
             % Output:
             % Example: db.DbAdmin.runPsql(
-            % psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
+            % psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
             % Note: psql (psql.exe on Windows) must be on PATH
             %       i.e. Add C:\Program Files\PostgreSQL\14\bin to SYSTEM PATH
             arguments
