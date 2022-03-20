@@ -323,7 +323,7 @@ switch lower(Plot)
         Irot = 1;
         VecRot(Irot) = 0;
         
-        RotMat = [cosd(VecRot(Irot)), -sin(VecRot(Irot)); sin(VecRot(Irot)), cos(VecRot(Irot))];
+        RotMat = [cosd(VecRot(Irot)), -sind(VecRot(Irot)); sind(VecRot(Irot)), cosd(VecRot(Irot))];
                 
         XY = RotMat*[ResLC.x_t(:).'; ResLC.y_t(:).'];
 
@@ -538,7 +538,7 @@ switch lower(Plot)
             for Irot=1:1:Nrot
                 [Irot, Nrot]
                 
-                RotMat = [cosd(VecRot(Irot)), -sin(VecRot(Irot)); sin(VecRot(Irot)), cos(VecRot(Irot))];
+                RotMat = [cosd(VecRot(Irot)), -sind(VecRot(Irot)); sind(VecRot(Irot)), cosd(VecRot(Irot))];
                 
                 XY = RotMat*[ResLC.x_t(:).'; ResLC.y_t(:).'];
                 % add noise to positions (after rotation)
