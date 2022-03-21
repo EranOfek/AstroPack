@@ -10,12 +10,14 @@ function Found = prepDarkFlat(Args)
         Args.NewFilesDir              = [];
         Args.CalibDir                 = [];
         Args.BasePath                 = [];
+        
         Args.SearchStr                = '*_dark_raw*_Image_*.fits';
         Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits';
         Args.ModNumber                = 20;
         Args.MinNimages               = 8;
         Args.WaitForMoreImages        = 40;   % [s]
     end
+    
     
     % files of interest
     
