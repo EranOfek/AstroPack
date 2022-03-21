@@ -18,8 +18,8 @@ function startup(AddLast, AddAstroPath)
         Nlist = numel(List);
         for Ilist=1:1:Nlist
             if ~(strcmp(List(1),'+') || strcmp(List(1),'@'))
-                sprintf('%s%s%s',Base, filesep, List{Ilist})
-                %addpath(sprintf('%s%s%s',Base, filesep, List{Ilist}));
+                %sprintf('%s%s%s',Base, filesep, List{Ilist})
+                addpath(sprintf('%s%s%s',Base, filesep, List{Ilist}));
             end
         end
     end
