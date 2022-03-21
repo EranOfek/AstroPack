@@ -21,6 +21,8 @@ function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
     %                   will be below the local max).
     %           'Algo' - Either:
     %                   'findlocal' - use findLocalMaxAboveThreshold.
+    %                   'findlocalmex' - use
+    %                           findLocalMaxAboveThreshold_mex_single/double.
     %                   'imregionalmax' - use imregionalmax.
     %                   Default is 'findlocal'.
     % Output : - A five column matrix of [X,Y,SN,ImageIndex,LinaerIndexIn2D].
@@ -44,7 +46,7 @@ function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
         Args.Variance         = [];   % if empty, calc from image
         Args.Threshold        = 5;
         Args.Conn             = 8;
-        Args.Algo             = 'findlocal';  % 'findlocal' | 'imregionalmax'
+        Args.Algo             = 'findlocal';  % 'findlocal' | 'findlocalmex' | 'imregionalmax'
     end
     
     
@@ -78,6 +80,23 @@ function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
             else
                 [IndLocalMax, Y, X] = imUtil.sources.findLocalMaxAboveThreshold(SN, Args.Threshold, Args.Conn);
             end            
+            
+        case 'findlocalmex'
+            if isa(SN,'double')
+                if nargout>1
+                    [IndLocalMax, Y, X, BW] = imUtil.sources.findLocalMaxAboveThreshold_mex_double(SN, Args.Threshold, Args.Conn);
+                else
+                    [IndLocalMax, Y, X] = imUtil.sources.findLocalMaxAboveThreshold_mex_double(SN, Args.Threshold, Args.Conn);
+                end  
+            elseif isa(SN,'single')
+                if nargout>1
+                    [IndLocalMax, Y, X, BW] = imUtil.sources.findLocalMaxAboveThreshold_mex_single(SN, Args.Threshold, Args.Conn);
+                else
+                    [IndLocalMax, Y, X] = imUtil.sources.findLocalMaxAboveThreshold_mex_single(SN, Args.Threshold, Args.Conn);
+                end  
+            else
+                error('findlocalmex supports only double or single input');
+            end
             
         case 'imregionalmax'
             [IndLocalMax, Y, X, BW]=imUtil.sources.findLocalMaxImregionalmax(SN, Args.Threshold, Args.Conn);
