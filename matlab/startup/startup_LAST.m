@@ -6,6 +6,8 @@ function startup(AddLast, AddAstroPath)
         AddAstroPath logical  = true;
     end
     
+    PWDbase = pwd;
+    
     Home     = char(java.lang.System.getProperty('user.home'));
     Base     = sprintf('%s%s%s%s%s',Home, filesep,'matlab',filesep, 'LAST');
     Computer = char(java.net.InetAddress.getLocalHost.getHostName);
@@ -31,5 +33,7 @@ function startup(AddLast, AddAstroPath)
         AstroPack_CatsHTMPath = [filesep, Computer, filesep, 'data', filesep, 'catsHTM'];
         startup('AstroPack_CatsHTMPath',AstroPack_CatsHTMPath);
     end
+    
+    cd(PWDbase);
 
 end
