@@ -2,25 +2,36 @@ function Found = prepDarkFlat(Args)
     % Look for dark images and combine when ready
     % Example:
     % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.01.01.03/new','CalibDir','/last02w/data1/archive/LAST.01.01.03/calib','BasePath','/last02w/data1/archive');
+    % pipeline.last.prepDarkFlat('Type','flat','NewFilesDir','/last02w/data1/archive/LAST.01.01.03/new','CalibDir','/last02w/data1/archive/LAST.01.01.03/calib','BasePath','/last02w/data1/archive');
     
     
     
     arguments
-        Args.Type                     = 'dark';  % 'dark' | 'flat'
+        Args.Type                     = 'dark';  % 'dark' | 'flat' | 'twflat'
         Args.NewFilesDir              = [];
         Args.CalibDir                 = [];
         Args.BasePath                 = [];
         
-        Args.SearchStr                = '*_dark_raw*_Image_*.fits';
-        Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits';
+        Args.SearchStr                = []; %'*_dark_raw*_Image_*.fits';
+        Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits'; % needed for the flat
         Args.ModNumber                = 20;
-        Args.MinNimages               = 8;
+        Args.MinNimages               = 3; % 8; % 18;
         Args.WaitForMoreImages        = 40;   % [s]
+        Args.KeyFilter                = 'FILTER';
+        
     end
     
-    
+    if isempty(Args.SearchStr)
+        switch lower(Args.Type)
+            case 'dark'
+                Args.SearchStr = '*_dark_raw*_Image_*.fits';
+            case {'flat','twflat'}
+                Args.SearchStr = '*flat_raw*_Image_*.fits';
+            otherwise
+                error('Unknown Type option');
+        end
+    end
     % files of interest
-    
     if isempty(Args.CalibDir) || isempty(Args.NewFilesDir) || isempty(Args.BasePath)
         error('CalibDir, NewFilesDir and BasePath must be provided');
     end
@@ -58,6 +69,9 @@ function Found = prepDarkFlat(Args)
         
         Nip = numel(IP);
         [IP(1:Nip).BasePath] = deal(Args.BasePath);
+        for I=1:1:numel(IP)
+            IP(I).DataDir = IP(I).ProjName;
+        end
         
         if NInd>=Args.MinNimages
             % found enough images
@@ -95,20 +109,21 @@ function Found = prepDarkFlat(Args)
                         movefile(Source, Destination);
                     end
                     
-                case 'flat'
+                case {'flat','twflat'}
                     % read most recent bias
                     [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.CalibDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
                     % add full path
-                    RecentDarkImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkImage);
-                    RecentDarkMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkMask{1});
+                    RecentDarkImage = sprintf('%s%s%s',Args.CalibDir, filesep, RecentDarkImage);
+                    RecentDarkMask  = sprintf('%s%s%s',Args.CalibDir, filesep, RecentDarkMask{1});
         
                     CI.Bias = AstroImage(RecentDarkImage, 'Mask',RecentDarkMask);
                     
+                    AI = AstroImage({Files.name});
+                    FlatImages = CI.debias(AI);
+                    %FlatImages.setKeyVal('FILTER','clear');
+                    %StF = FlatImages(1).getStructKey(Args.KeyFilter);
                     
-                    FlatImages = CI.debias(Files);
-                    FlatImages.setKeyVal('FILTER','clear');
-
-                    CI.createFlat;
+                    CI.createFlat(FlatImages); %, StF.(Args.KeyFilter));
                     
                     % save data
                     FlatIP = IP(1).copy;
@@ -129,8 +144,8 @@ function Found = prepDarkFlat(Args)
                     Nfiles = numel(Files);
                     Path           = IP(1).genPath;
                     for Iim=1:1:Nfiles
-                        Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, Files{Iim});
-                        Destination = sprintf('%s%s%s', Path, filesep, Files{Iim});
+                        Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, Files(Iim).name);
+                        Destination = sprintf('%s%s%s', Path, filesep, Files(Iim).name);
                         % make sure diirectory exist
                         mkdir(Path);
                         % move file
