@@ -1,24 +1,33 @@
 function Found = prepDarkFlat(Args)
     % Look for dark images and combine when ready
-    % Example: pipeline.last.prepDarkFlat
+    % Example:
+    % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.01.01.03/new','CalibDir','/last02w/data1/archive/LAST.01.01.03/calib','BasePath','/last02w/data1/archive');
+    
     
     
     arguments
         Args.Type                     = 'dark';  % 'dark' | 'flat'
         Args.NewFilesDir              = [];
         Args.CalibDir                 = [];
+        Args.BasePath                 = [];
         Args.SearchStr                = '*_dark_raw*_Image_*.fits';
         Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits';
         Args.ModNumber                = 20;
-        Args.MinNimages               = 18;
+        Args.MinNimages               = 8;
         Args.WaitForMoreImages        = 40;   % [s]
     end
     
     % files of interest
     
+    if isempty(Args.CalibDir) || isempty(Args.NewFilesDir) || isempty(Args.BasePath)
+        error('CalibDir, NewFilesDir and BasePath must be provided');
+    end
+    
     PWD = pwd;
+    mkdir(Args.CalibDir);
     mkdir(Args.NewFilesDir);
     cd(Args.NewFilesDir);
+   
     
     Files = io.files.dirSortedByDate(Args.SearchStr);
     List  = {Files.name};
@@ -31,17 +40,23 @@ function Found = prepDarkFlat(Args)
             Files             = io.files.dirSortedByDate(Args.SearchStr);
             RecentImage       = Files(end).name;
             IP                = ImagePath.parseFileName(List);
+            %IP.genFile
             [Ind, IndCounter] = getAllInCounterSeries(IP, RecentImage, Args.ModNumber);
 
             NInd = numel(Ind);
             if NInd>PrevNInd
                 % number of images changed - wait more time
                 pause(Args.WaitForMoreImages);
+                PrevNInd = NInd;
             else
                 Cont = false;
             end
+            
         end
-                
+        
+        Nip = numel(IP);
+        [IP(1:Nip).BasePath] = deal(Args.BasePath);
+        
         if NInd>=Args.MinNimages
             % found enough images
             % combine images
@@ -70,8 +85,8 @@ function Found = prepDarkFlat(Args)
                     Nfiles = numel(Files);
                     Path           = IP(1).genPath;
                     for Iim=1:1:Nfiles
-                        Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, Files{Iim});
-                        Destination = sprintf('%s%s%s', Path, filesep, Files{Iim});
+                        Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, Files(Iim).name);
+                        Destination = sprintf('%s%s%s', Path, filesep, Files(Iim).name);
                         % make sure diirectory exist
                         mkdir(Path);
                         % move file

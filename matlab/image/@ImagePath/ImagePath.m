@@ -658,6 +658,8 @@ classdef ImagePath < Base %Component
                 ModNumber = Inf;
             end
             
+            Obj.genFile;
+            
             [~,SI] = Obj.sortByJD;
             if ischar(FileName)
                 Ind = find(strcmp({Obj.FileName}, FileName));
