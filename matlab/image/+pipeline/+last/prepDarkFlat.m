@@ -1,5 +1,6 @@
 function Found = prepDarkFlat(Args)
     % Look for dark images and combine when ready
+    % Example: pipeline.last.prepDarkFlat
     
     
     arguments
@@ -16,6 +17,7 @@ function Found = prepDarkFlat(Args)
     % files of interest
     
     PWD = pwd;
+    mkdir(Args.NewFilesDir);
     cd(Args.NewFilesDir);
     
     Files = io.files.dirSortedByDate(Args.SearchStr);
@@ -27,7 +29,7 @@ function Found = prepDarkFlat(Args)
         PrevNInd = 0;
         while Cont
             Files             = io.files.dirSortedByDate(Args.SearchStr);
-            RecentImage       = Files{end};
+            RecentImage       = Files(end).name;
             IP                = ImagePath.parseFileName(List);
             [Ind, IndCounter] = getAllInCounterSeries(IP, RecentImage, Args.ModNumber);
 

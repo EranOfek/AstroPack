@@ -1600,6 +1600,66 @@ classdef MatchedSources < Component
             
         end
         
+        % index from position
+        function [Ind,Flag] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
+            % search sources in MatchedSource object by RA/Dec
+            % Input  : - A single element MatchedSources object.
+            %          - R.A.
+            %          - Dec.
+            %          - Search radius. Default is 3.
+            %          * ...,key,val,...
+            %            'SearchRadiusUnits' - SearchRadius units.
+            %                   Default is 'arcsec'.
+            %            'InCooUnits' - Input RA/Dec units.
+            %                   Default is 'deg'.
+            %            'CooUnits' - Coordinates units in the Data matrix.
+            %                   Default is 'deg'.
+            %            'FieldRA' - Field name containing the R.A.
+            %                   Default is 'RA'.
+            %            'FieldRA' - Field name containing the Dec.
+            %                   Default is 'Dec'.
+            %            'MeanFun' - Mean function to apply over columns.
+            %                   Default is @tools.math.stat.nanmedian
+            %            'MeanFunArgs' - A cell array of additional
+            %                   arguments to pass to 'MeanFun' after the
+            %                   Dim argument. Default is {}.
+            % Output : - Indices of sources found withing search radius.
+            %          - Flag of logicals of found sources.
+            % Author : Eran Ofek (Mar 2022)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','RA','Dec'})
+            %          [Ind,Flag] = coneSearch(MS, 0.5,0.5,100);
+            
+            arguments
+                Obj(1,1)
+                RA
+                Dec
+                SearchRadius                 = 3;
+                Args.SearchRadiusUnits       = 'arcsec';
+                Args.InCooUnits              = 'deg';   % 'deg' | 'rad'
+                Args.CooUnits                = 'deg';   % 'deg' | 'rad'
+                Args.FieldRA                 = 'RA';
+                Args.FieldDec                = 'Dec';
+                Args.MeanFun function_handle = @tools.math.stat.nanmedian;
+                Args.MeanFunArgs cell        = {};
+            end
+            
+            Obj = addSrcData(Obj, Args.FieldRA,  [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            Obj = addSrcData(Obj, Args.FieldDec, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            
+            RA  = convert.angular(Args.InCooUnits, 'rad', RA);
+            Dec = convert.angular(Args.InCooUnits, 'rad', Dec);
+            
+            MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj.SrcData.(Args.FieldRA));
+            MeanDec = convert.angular(Args.CooUnits, 'rad', Obj.SrcData.(Args.FieldDec));
+            
+            SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+            Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
+            Flag = Dist<SearchRadius;
+            Ind  = find(Flag);
+            
+        end
+        
         % plot LC by source index
         
         % plot LC by source position

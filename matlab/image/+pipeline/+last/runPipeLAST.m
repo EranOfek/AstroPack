@@ -78,16 +78,22 @@ function runPipeLAST(DataNumber, Args)
     Cont = true;
     Counter = 0;
     while Cont
+        % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.1.02.3/new')
+        
         % check if there is a new Dark/Flat
         [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
         [FoundFlat, RecentFlatImage, RecentFlatMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.FlatSearchStr, '_Image_',{'_Mask_'});
         
         % add full path
-        RecentDarkImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkImage);
-        RecentDarkMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkMask{1});
+        if ~isempty(RecentDarkImage)
+            RecentDarkImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkImage{1});
+            RecentDarkMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkMask{1});
+        end
         
-        RecentFlatImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatImage);
-        RecentFlatMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatMask{1});
+        if ~isempty(RecentFlatImage)
+            RecentFlatImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatImage{1});
+            RecentFlatMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatMask{1});
+        end
         
         
         if (~FoundDark || ~FoundFlat)
@@ -96,7 +102,7 @@ function runPipeLAST(DataNumber, Args)
             
             if isempty(CI.Bias.Image) || isempty(CI.Flat.Image)
                 warning('No flat or dark available');
-                pasue(30);
+                pause(30);
             end
             
             

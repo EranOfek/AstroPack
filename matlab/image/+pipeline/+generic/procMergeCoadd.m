@@ -61,6 +61,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.AddGlobalMotion logical          = true;
         Args.constructPSFArgs cell            = {};
         
+        Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
     end
     SEC_DAY = 86400;
     
@@ -233,7 +234,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
     end
     
+    % match Coadd catalog against MergedCat
+    [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
     
-    
+        
 end
 

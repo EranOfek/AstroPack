@@ -1,0 +1,13 @@
+Field Name,Index,Data Type,Description,Comments,Metadata
+# @Todo - Add partitioning to this table as it can grow to > 200M rows per year,,,,,
+,,,,,
+pk,identity,int64,Primary Key,,
+rcv_time,*,double,,"Replace to 'timestamp', need to update python DbQuery.insert",
+,,,,,
+param_name,*,string,Parameter name,,
+param_index,,int,Parameter index,,
+param_time,*,double,Date & Time,,
+param_tick,,int64,Tick,,
+value_numeric,*,double,Numeric value,,
+value_text,*,string,Text value,,
+metadata,,string,Metadata,,

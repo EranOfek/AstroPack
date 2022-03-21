@@ -67,6 +67,8 @@ function startup(Args)
         Args.EnvVar_ConfigPath           = 'ASTROPACK_CONFIG_PATH';
     end
     
+    PWD = pwd;
+    
     if Args.setGraphics
         setGraphics();
     end
@@ -150,6 +152,9 @@ function startup(Args)
     end
     fprintf('AstroPack startup addpath count: %d\n', PathCount);
     fprintf('AstroPack startup done: %s\n', mfilename('fullpath'));
+    
+    
+    cd(PWD);
 end
 
 
@@ -253,7 +258,7 @@ function DirList=defaultDirs_AstroPack_CatsHTMPath(DirList, CatsHTMDir)
                            {CatsHTMDir,'SDSS','DR14offset'},...
                            {CatsHTMDir,'Simbad_PM200'},...
                            {CatsHTMDir,'SkyMapper'},...
-                           {CatsHTMDir,'SpecSDSS','DR14'},...
+                           {CatsHTMDir,'SpecSDSS','DR17'},...
                            {CatsHTMDir,'Spitzer','IRACgc'},...
                            {CatsHTMDir,'Spitzer','SAGE'},...
                            {CatsHTMDir,'SWIREz'},...
@@ -273,6 +278,7 @@ function DirList=defaultDirs_AstroPack_CatsHTMPath(DirList, CatsHTMDir)
                            {CatsHTMDir,'ZTF','SrcLCDR1'},...
                            {CatsHTMDir,'ZTF','ztfDR1var'}};
 end
+
 
     
 %--- utility functions ---    

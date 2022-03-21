@@ -28,6 +28,8 @@ function Nsrc=build_htm_catalog(Cat,varargin)
 % Example: [HTM,LevList] = celestial.htm.htm_build(5);
 %          F=io.files.load2('FIRST.mat')
 %          VO.prep.build_htm_catalog(F,'CatName','FIRST','HTM_Level',6);
+%
+%          VO.prep.build_htm_catalog(S,'CatName','SpecSDSSDR17','HTM_Level',7);
 % Reliable: 2
 
 RAD = 180./pi;
@@ -144,7 +146,7 @@ end
 if (InPar.SaveInd)
     IndFileName = sprintf('%s_htm.hdf5',InPar.CatName);
     delete(IndFileName);
-    % Nsrc=HDF5.get_nsrc(CatName);
+    Nsrc=HDF5.get_nsrc(InPar.CatName);
     HDF5.save_htm_ind(HTM,IndFileName,[],{},Nsrc)
 
     HDF5.save_cat_colcell(InPar.CatName,InPar.ColCell,InPar.ColUnits);

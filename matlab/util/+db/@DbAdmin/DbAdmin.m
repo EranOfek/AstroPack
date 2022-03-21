@@ -11,7 +11,7 @@
 %
 % Create database on remote server (password: 'Passw0rd')
 %
-%     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
+%     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
 %
 %--------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@
 %
 % Methods: Hidden
 %    exec - Execute SQL statement, by calling Obj.Query.exec() Input:   SqlText - Statement text Output:  true on success Example: Obj.exec('DROP USER IF EXISTS user1')
-%    runPsql - Run 'psql' external utility with command line parameters. Input:   XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
+%    runPsql - Run 'psql' external utility with command line parameters. Input:   XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
 %    xls2sql - Convert XLSX file downloaded from Google Drive to SQL file Input:   XlsFileName Output:  true on success Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
 %
 %#/docgen
@@ -171,15 +171,21 @@ classdef DbAdmin < Component
                 if isfile(Args.SqlFileName)
                     Obj.runPsql('SqlFileName', Args.SqlFileName);
                     Result = true;
+                else
+                    Obj.msgLog(LogLevel.Error, 'createDatabase: Input SQL file not found: %s', Args.SqlFileName);
                 end
                 
             % Extract database definition from XLS file and execute the
             % resulting SQL file using psql
             elseif ~isempty(Args.XlsFileName)
-                SqlFileName = Obj.xls2sql(Args.XlsFileName);
-                if ~isempty(SqlFileName) && isfile(SqlFileName)
-                    Obj.runPsql('SqlFileName', SqlFileName);
-                    Result = true;
+                if isfile(Args.XlsFileName)
+                    SqlFileName = Obj.xls2sql(Args.XlsFileName);
+                    if ~isempty(SqlFileName) && isfile(SqlFileName)
+                        Obj.runPsql('SqlFileName', SqlFileName);
+                        Result = true;
+                    end
+                else
+                    Obj.msgLog(LogLevel.Error, 'createDatabase: Input XLSX file not found: %s', ArgsXlsFileName);
                 end
             else
                 
@@ -460,7 +466,7 @@ classdef DbAdmin < Component
             
             % 3. Grant full access
             if ~isempty(Args.DatabaseName) && (strcmp(Args.Permission, 'write') || strcmp(Args.Permission, 'full'))
-                SqlText = sprintf('GRANT ALL PRIVILEGES ON %s TO %s', Args.DatabaseName, UserName);
+                SqlText = sprintf('GRANT ALL PRIVILEGES ON DATABASE %s TO %s', Args.DatabaseName, UserName);
                 Result = Obj.exec(SqlText);
             end
             
@@ -544,6 +550,7 @@ classdef DbAdmin < Component
             % Convert XLSX file downloaded from Google Drive to SQL file
             % Note: Requires ULTRASAT repository and ULTRASAT_PATH environment
             %       var to be set correctly.
+            % Note: python3 (python3.exe on Windows) should be on system PATH
             % Input:   XlsFileName
             % Output:  true on success
             % Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
@@ -566,25 +573,42 @@ classdef DbAdmin < Component
                 PyScript = fullfile('python', 'utils', 'matlab_utils', 'xlsx2sql.py');
                 Py = fullfile(tools.os.getUltrasatPath(), PyScript);
                 if ~isfile(Py)
+                    io.msgLog(LogLevel.Info, 'xlsx2sql.py: File not found: %s', Py);
                     return;
                 end
                 
                 % Prepare command line, assume we have 'python3' installed
-                Cmd = sprintf('python3 %s -f %s', Py, XlsFileName);
-                io.msgLog(LogLevel.Info, 'xlsx2sql.py: %s', Cmd);
-                [Status, Output] = system(Cmd);
-                io.msgLog(LogLevel.Info, '%d', Status);
-                io.msgLog(LogLevel.Info, '%s', Output);
+                % Note: python3 (python3.exe on Windows) should be on
+                % SYSTEM PATH (not USER PATH).
+                % See: https://stackoverflow.com/questions/47539201/python-is-not-recognized-windows-10
+                % For example: Add both C:\Python38 and C:\Python38\Scripts
+                Cmd = sprintf('python3 %s -x %s', Py, XlsFileName);
+                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: %s', Cmd);
                 
-                SqlFileName = sprintf('%s%s%s.sql', FName, filesep, FName);
+                % Execute python3 xlsx2sql.py, this may take a while...
+                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: Executing %s', Cmd);
+                
+                [Status, Output] = system(Cmd);
+                io.msgLog(LogLevel.Info, 'Status: %d', Status);
+                io.msgLog(LogLevel.Info, '%s', Output);
+                if Status ~= 0
+                    Obj.msgLog(LogLevel.Error, 'xlsx2sql.py: FAILED to execute, make sure that python3 is found on your PATH: %s', Cmd);
+                end
+                
+                % Prepare file name of generated SQL
+                SqlFileName = sprintf('%s%s%s_postgres.sql', FName, filesep, FName);
+                
+                % Check that SQL file was created in current folder
                 if isfile(SqlFileName)
                     SqlFileName = fullfile(pwd, SqlFileName);
                     if isfile(SqlFileName)
                         Result = SqlFileName;
                     else
+                        io.msgLog(LogLevel.Error, 'xlsx2sql.py: SQL file was not generated in current folder: %s', SqlFileName);    
                         SqlFileName = '';
                     end
                 else
+                    Obj.msgLog(LogLevel.Error, 'xlsx2sql.py: SQL file was not generated: %s', SqlFileName);
                     SqlFileName = '';
                 end
                 
@@ -599,7 +623,9 @@ classdef DbAdmin < Component
             % Input:   XlsFileName
             % Output:
             % Example: db.DbAdmin.runPsql(
-            % psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
+            % psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
+            % Note: psql (psql.exe on Windows) must be on PATH
+            %       i.e. Add C:\Program Files\PostgreSQL\14\bin to SYSTEM PATH
             arguments
                 Obj
                 Args.Host          = ''        %
@@ -682,6 +708,9 @@ classdef DbAdmin < Component
                 [Status, Output] = system(Cmd);
                 io.msgLog(LogLevel.Info, 'psql: %d', Status);
                 io.msgLog(LogLevel.Info, 'psql: %s', Output);
+                if Status ~= 0
+                    Obj.msgLog(LogLevel.Error, 'runPsql: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
+                end
                 Result = true;
             catch Ex
                 io.msgLogEx(LogLevel.Info, Ex, 'psql');
