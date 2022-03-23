@@ -123,8 +123,8 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
         Summary(Iim).Rotation = atan2d(Result(Iim).WCS.CD(1,1), Result(Iim).WCS.CD(1,2));
         Summary(Iim).Scale    = sqrt(Result(Iim).WCS.CD(1,1).^2 + Result(Iim).WCS.CD(1,2).^2).*ARCSEC_DEG;   % arcsec
         [Summary(Iim).CenterRA, Summary(Iim).CenterDec] = CroppedAI(Iim).WCS.xy2sky(Xcenter, Ycenter);
-        Summary(Iim).Ngood = Result(Iim).ResFit.Ngood;
-        Summary(Iim).AssymRMS = Result(Iim).ResFit.AssymRMS.*ARCSEC_DEG;   % arcsec
+        Summary(Iim).Ngood = Result(Iim).ResFit(Result(Iim).BestInd).Ngood;
+        Summary(Iim).AssymRMS = Result(Iim).ResFit(Result(Iim).BestInd).AssymRMS.*ARCSEC_DEG;   % arcsec
         
     end
     
