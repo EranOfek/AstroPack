@@ -272,7 +272,8 @@ classdef DbQuery < Component
                     
                 % Shared folder is not avilable, use select and write the results
                 else
-                    Res = Obj.query();
+                    % @Todo - should we use next=false??? (24/03/2022)
+                    Res = Obj.query(Obj.SqlText);  %, 'next', false);
                     if Res
                         Obj.writeResultSetToCsvFile(Args.CsvFileName);
                     end
@@ -310,7 +311,7 @@ classdef DbQuery < Component
             % SELECT to result-set, optionally load it
             else
                 % Run query
-                Res = Obj.query();
+                Res = Obj.query(Obj.SqlText);
                 if Res
                     if Args.Load
                         
@@ -778,11 +779,16 @@ classdef DbQuery < Component
     
     methods % High-level: Run query / Execute statement(s)
 
-        function Result = query(Obj, varargin)
+        function Result = query(Obj, ASqlText, Args)
             % Run SELECT query, do NOT load any data. For non-SELECT statements, use exec()
             % Input:   char-array - SQL text. If not specified, Obj.SqlText is used
             % Output:  true on success, use loadResultSet() to load the data
             % Example: Obj.query('SELECT COUNT(*) FROM master_table');
+            arguments
+                Obj
+                ASqlText = ''
+                Args.Next = true
+            end
             
             % Obj.msgLog(LogLevel.Debug, 'query');
             Result = false;
@@ -797,8 +803,8 @@ classdef DbQuery < Component
             Obj.clear();
 
             % Set SQL text, or use current Obj.SqlText
-            if numel(varargin) == 1
-                Obj.SqlText = varargin{1};
+            if ~isempty(ASqlText)
+                Obj.SqlText = ASqlText;
             end
 
             % Prepare query
@@ -819,7 +825,10 @@ classdef DbQuery < Component
                 Obj.getMetadata();
 
                 % Get first result record
-                Obj.next();
+                if Args.Next
+                    Obj.next();
+                end
+                
                 Result = true;
             catch
                 Obj.IsOpen = false;
@@ -831,11 +840,15 @@ classdef DbQuery < Component
         end
 
 
-        function Result = exec(Obj, varargin)
+        function Result = exec(Obj, ASqlText)
             % Execute SQL statement (that does not return data), for SELECT, use query()
             % Input:   char-array - SQL text. If not specified, Obj.SqlText is used
             % Output:  true on success
             % Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
+            arguments
+                Obj
+                ASqlText = ''
+            end
 
             %Obj.msgLog(LogLevel.Debug, 'exec');
             Result = false;
@@ -846,8 +859,8 @@ classdef DbQuery < Component
             Obj.clear();
 
             % Set SQL text, or use current Obj.SqlText
-            if numel(varargin) >= 1
-                Obj.SqlText = varargin{1};
+            if ~isempty(ASqlText)
+                Obj.SqlText = ASqlText;
             end
 
             % Prepare query
@@ -858,12 +871,13 @@ classdef DbQuery < Component
                 Obj.msgLog(LogLevel.Error, 'exec: prepareStatement failed: %s', Obj.SqlText);
             end
 
+            % @Todo - Why do we need it?
             % See https://www.codota.com/code/java/methods/java.sql.PreparedStatement/setBigDecimal
-            if numel(varargin) >= 1
-                try
-                catch
-                end
-            end
+            %if numel(varargin) >= 1
+            %    try
+            %    catch
+            %    end
+            %end
 
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -986,15 +1000,17 @@ classdef DbQuery < Component
 
         
         function Result = writeResultSetToCsvFile(Obj, CsvFileName)
-            % Write Obj.JavaResultSet returned by select() to CSV file using
-            % Java CSVWriter obejct
+            % Write Obj.JavaResultSet returned by select() to CSV file using Java CSVWriter obejct
+            % NOTE: from unknown reason CSVWriter object does not work, @Todo (24/03/2022)
             % Input:   CsvFileName
             % Output:  true on sucess
             % Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
             % See: https://stackoverflow.com/questions/60756995/write-a-sql-resultset-to-a-csv-file
             %
             % Note: Seems that there is a bug in CSVWriter, one row is missing from the
-            % file @Todo @Bug @Chen
+            % file @Todo @Bug @Chen - Maybe we need to remove the call to
+            % next() from query() - 
+            % 
             
             Result = false;
             
@@ -1022,7 +1038,10 @@ classdef DbQuery < Component
                 % which result in busy lines like:
                 % "a","","","10","0","","1.0","","N","0.0","0.0"
                 % So we send empty quotechar (see NO_QUOTE_CHARACTER in CSVWriter.java)
+                
+                % This line fails on some cases @Todo (24/03/2022)
                 Writer = com.opencsv.CSVWriter(File, ',', char(0), char(0), newline);
+                
                 Writer.writeAll(Obj.JavaResultSet, true);
                 Writer.close();
                 File.close();

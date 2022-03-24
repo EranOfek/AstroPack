@@ -72,6 +72,8 @@ function Result = examples()
     Q.insert(H, 'TableName', 'master_table', 'InsertRecFunc', @make_recid, 'ColumnsOnly', true);
      
     % Select to CSV file
+    % Note: Currently Shared Path must be used, as CSVWriter does not work
+    % from unknown reason (24/03/2022)
     MyCsvFileName = fullfile(tools.os.getTempDir(), 'my_select.csv');
     Result = Q.select('*', 'TableName', 'master_table', 'CsvFileName', MyCsvFileName);
     disp(Result);
