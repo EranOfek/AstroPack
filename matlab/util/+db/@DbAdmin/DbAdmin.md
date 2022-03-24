@@ -15,17 +15,17 @@ or (note that files in config/local/ override the same file in config/)
 config/local/Database.DbConnections.UnitTest.yml
 
 
+    # Edit this file and save it in config/local/
 
-	# Edit this file and save it in config/local/
-
-	DatabaseName    : 'unittest'        # Database name
-	Host            : 'gauss'           # Host name or IP address
-	DriverName      : 'postgres'        # Driver name
-	Port            : 5432              # Port number
-	UserName        : '?'               # Login user - Replace ? with username
-	Password        : '?'               # Login password - Replace ? with password
-	ServerSharePath : ''                # 
-
+    DatabaseName        : 'unittest'                # Database name
+    Host                : 'gauss'                   # Host name or IP address
+    DriverName          : 'postgres'                # Driver name
+    Port                : 5432                      # Port number
+    UserName            : '?'                       # Login user - Replace ? with username
+    Password            : '?'                       # Login password - Replace ? with password
+    ServerSharePath     : '/var/samba/pgshare'      # Linux
+    MountSharePath      : '/media/gauss_pgshare'    # Linux
+    WinMountSharePath   : 'S:/'                     # Windows (run: net use S: \\gauss\pgshare)
 
 
 # Creating Database from Google Sheets
@@ -48,11 +48,11 @@ Generate SQL scripts from CSV files downloaded from Google Sheets tabs
 
      python xlsx2sql.py -f unittest.xlsx
 
-If the specified file name does not contain path, 
-it looks for files in AstroPack repository by environment variable 
+If the specified file name does not contain path,
+it looks for files in AstroPack repository by environment variable
 ASTROPACK_PATH, in folder database/xlsx/.
 
-Output files are created under the same folder in a subfolder, i.e. 
+Output files are created under the same folder in a subfolder, i.e.
 database/xls/unittest/.
 
 ### Create database from the output SQL file
