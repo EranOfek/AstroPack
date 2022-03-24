@@ -18,26 +18,27 @@
 %#docgen
 %
 % Methods:
-%    DbAdmin - Create new DbAdmin obeject Input:    'DbCon'     -    'Host'      -    'Database'  -
-%    addColumn - Add single or multiple columns to table Input: Output: Example: Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0') Refs:    https://www.postgresqltutorial.com/postgresql-add-column/
-%    addIndex - Add single index to table, may include one or multiple fields Input:   TableName - Table name to be altered          IndexName - Unique index name, usually composed as
-%    addUser - Add database user Input:   UserName       - User name          Password       - Pasword string          'DatabaseName' - If specified user will be granted only for this database          'Permission'   - 'read', 'write', 'full'
-%    createConnectionConfig - Create database connection in config/local/Database.DbConnections.UnitTest.yml Input:    'FileName'        = ''                %    'DatabaseName'    = ''                %    'Host'            = 'localhost'       % Host name or IP address
-%    createDatabase - Create database Input:    'XlsFileName' - When specified, 'DatabaseName'  -
-%    createTable - Create database table, @Todo Input: Output: Example: db.DbAdmin.createTable('unittest', ) Refs:    https://www.postgresql.org/docs/8.0/sql-createuser.html
+%    DbAdmin - Create new DbAdmin obeject Input: 'DbCon' - 'Host' - 'Database' -
+%    addColumn - Add single or multiple columns to table Input: Output: Example: Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0') Refs: https://www.postgresqltutorial.com/postgresql-add-column/
+%    addIndex - Add single index to table, may include one or multiple fields Input: TableName - Table name to be altered IndexName - Unique index name, usually composed as
+%    addUser - Add database user Input: UserName - User name Password - Pasword string 'DatabaseName' - If specified user will be granted only for this database 'Permission' - 'read', 'write', 'full'
+%    createConnectionConfig - Create database connection in config/local/Database.DbConnections.UnitTest.yml Input: 'FileName' = '' % 'DatabaseName' = '' % 'Host' = 'localhost' % Host name or IP address
+%    createDatabase - Create database Input: 'XlsFileName' - When specified, 'DatabaseName' -
+%    createTable - Create database table, @Todo Input: Output: Example: db.DbAdmin.createTable('unittest', ) Refs: https://www.postgresql.org/docs/8.0/sql-createuser.html
 %    delete -
-%    getDbList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: List = Obj.getTablesList() Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
-%    getUserList - Get columns list of specified table as cell array Input:   - Output:  Cell array Example: List = Obj.getTablesList() Refs:    https://www.postgresqltutorial.com/postgresql-list-users/
-%    removeUser - Remove user Input:   UserName to remove Output:  true on success Example: db.DbAdmin.removeUser('robert') Refs:    https://www.postgresql.org/docs/9.4/sql-dropuser.html
-%    setConn - Input:   Conn - Output:  true on success Example: Obj.setConn(DbCon);
+%    getDbList - Get list of databases Input: - Output: Cell array with list of databases Example: List = Obj.getTablesList() Refs: https://www.postgresqltutorial.com/postgresql-list-users/
+%    getUserList - Get columns list of specified table as cell array Input: - Output: Cell array Example: List = Obj.getTablesList() Refs: https://www.postgresqltutorial.com/postgresql-list-users/
+%    isDatabaseExist - Check if database exists Input: DbName Output: true if exists Example: List = Obj.isDatabaseExist('my_database') Refs: https://www.postgresqltutorial.com/postgresql-list-users/
+%    removeUser - Remove user Input: UserName to remove Output: true on success Example: db.DbAdmin.removeUser('robert') Refs: https://www.postgresql.org/docs/9.4/sql-dropuser.html
+%    setConn - Input: Conn - Output: true on success Example: Obj.setConn(DbCon);
 %
 % Methods: Static
-%    startGui - Run gui utility Input: Output: Example: db.DbAdmin.startGui(
+%    startGui - Run gui utility - @TODO - Currently DO NOT USE Input: - Output: - Example: db.DbAdmin.startGui
 %
 % Methods: Hidden
-%    exec - Execute SQL statement, by calling Obj.Query.exec() Input:   SqlText - Statement text Output:  true on success Example: Obj.exec('DROP USER IF EXISTS user1')
-%    runPsql - Run 'psql' external utility with command line parameters. Input:   XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
-%    xls2sql - Convert XLSX file downloaded from Google Drive to SQL file Input:   XlsFileName Output:  true on success Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
+%    exec - Execute SQL statement, by calling Obj.Query.exec() Input: SqlText - Statement text Output: true on success Example: Obj.exec('DROP USER IF EXISTS user1')
+%    runPsql - Run 'psql' external utility with command line parameters. Input: XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
+%    xls2sql - Convert XLSX file downloaded from Google Drive to SQL file Note: Requires ULTRASAT repository and ULTRASAT_PATH environment var to be set correctly. Note: python3 (python3.exe on Windows) should be on system PATH Input: XlsFileName
 %
 %#/docgen
 
@@ -604,7 +605,7 @@ classdef DbAdmin < Component
                     if isfile(SqlFileName)
                         Result = SqlFileName;
                     else
-                        io.msgLog(LogLevel.Error, 'xlsx2sql.py: SQL file was not generated in current folder: %s', SqlFileName);    
+                        io.msgLog(LogLevel.Error, 'xlsx2sql.py: SQL file was not generated in current folder: %s', SqlFileName);
                         SqlFileName = '';
                     end
                 else
