@@ -128,7 +128,13 @@ function [Result, Flag] = cleanSources(Obj, Args)
        
         % flag bad sources in Mask image
         if Args.MaskCR && isa(Obj, 'AstroImage')
-            %Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Flag(Iobj).CR, Args.BitNameCR, 1);
+            warning('VERIFY that maskSet works properly');
+            SizeImage = size(Obj(Iobj).Image);
+            FlagImage = false(SizeImage);
+            FXY  = round(XY(:,1:2));
+            Find = imUtil.image.sub2ind_fast(SizeImage, FXY(:,2), FXY(:,1));
+            FlagImage(Find) = true;
+            Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, FlagImage, Args.BitNameCR, 1);
         end
             
         % remove bad sources
