@@ -655,6 +655,24 @@ classdef Targets < Component
             Ind = Ind(SI);
             
         end
+        
+        function Obj = setPriority(Obj, TargetInd, Args)
+            % set the priority of a target after it was observed
+            
+            arguments
+                Obj
+                TargetInd
+                Args.Method
+            end
+            
+            switch Args.Method
+                case ''
+                    
+                otherwise
+                    error('Unknown Method option');
+            end
+            
+        end
     end
     
     methods (Static)  % static utilities
