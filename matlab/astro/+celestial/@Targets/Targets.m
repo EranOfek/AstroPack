@@ -597,6 +597,23 @@ classdef Targets < Component
                     
                 case 'predefined'
                     
+                case 'cycle'
+                    % prioritize targets by cycling through a list.
+                    % The highest priority is set by the target with lowest
+                    % number of previous visits and the shortest visibility
+                    % time.
+                    
+                    VisibilityTime = leftVisibilityTime(Obj, JD);
+                    
+                    Npr = 200;
+                    Obj.Priority = zeros(Ntarget,1);
+                    Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
+                    Obj.Priority(Obj.GlobalCounter > Obj.PriorityArgs.MaxNobs) = 0;
+                    
+                    [~,SI] = sortrows([Obj.GlobalCounter, VisibilityTime],[1 2]);
+                    N = numel(SI);
+                    Obj.Priority(SI) = Obj.Priority(SI) + (N:-1:1).'.*0.01;
+                    
                 case 'west2east'
                     % priortize targets by the left visibility time,
                     % where the highest priority target is the one with the
