@@ -1,4 +1,4 @@
-% celestial.scheduling.Targets class
+% celestial.Targets class
 %       Containers for astronomical targets.
 %       Including visibility and scheduling
 %       
@@ -53,12 +53,12 @@ classdef Targets < Component
             %            The file may contain a matlab Targets object.
             % Output : - A Targets object.
             % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.scheduling.Targets
+            % Example: T=celestial.Targets
             %           
-            %          T=celestial.scheduling.Targets;
+            %          T=celestial.Targets;
             %          T.generateTargetList('last');
             %          T.write('try1.mat')
-            %          T=celestial.scheduling.Targets('try1.mat');
+            %          T=celestial.Targets('try1.mat');
             %          !rm try1.mat
             
             arguments
@@ -93,7 +93,7 @@ classdef Targets < Component
             %                   Default is 1.
             % Output : - A populated Targets object.
             % Author : Eran Ofek (Jan 2022)
-            % Example: T = celestial.scheduling.Targets
+            % Example: T = celestial.Targets
             %          T.generateTargetList('last')
             
             arguments
@@ -119,7 +119,7 @@ classdef Targets < Component
                         Ntarget = numel(Obj.RA);
                         
                         Obj.Index = (1:1:Ntarget).';
-                        Obj.TargetName = celestial.scheduling.Targets.radec2name(Obj.RA, Obj.Dec);
+                        Obj.TargetName = celestial.Targets.radec2name(Obj.RA, Obj.Dec);
                         
                         Obj.Priority       = Args.Priority(:).*ones(Ntarget,1);
                         Obj.LastJD         = zeros(Ntarget,1);
@@ -143,7 +143,7 @@ classdef Targets < Component
                     Obj.TargetName = List(:,3);
                 else
                     % default names
-                    Obj.TargetName = celestial.scheduling.Targets.radec2name(Obj.RA, Obj.Dec);
+                    Obj.TargetName = celestial.Targets.radec2name(Obj.RA, Obj.Dec);
                 end
                 
             end
@@ -154,7 +154,7 @@ classdef Targets < Component
             % Input  : - A Targets object.
             %          - File name.
             % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.scheduling.Targets;
+            % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          T.write('try1.mat')
             
@@ -166,7 +166,7 @@ classdef Targets < Component
             % Input  : - A Targets object.
             %          - File name.
             % Author : Eran Ofek (Feb 2022)
-            % Example: T=celestial.scheduling.Targets;
+            % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          T.writeFile('LAST_Fields.txt')
            
@@ -191,7 +191,7 @@ classdef Targets < Component
             % Output : - Ecliptic longitude [deg].
             %          - Ecliptic latitude [deg].
             % AUthor : Eran Ofek (Jan 2022)
-            % Example: T=celestial.scheduling.Targets;
+            % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          [Lon, Lat] = T.ecliptic;
             
@@ -209,7 +209,7 @@ classdef Targets < Component
             % Output : - Galactic longitude [deg].
             %          - Galactic latitude [deg].
             % AUthor : Eran Ofek (Jan 2022)
-            % Example: T=celestial.scheduling.Targets;
+            % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          [Lon, Lat] = T.galactic;
             
@@ -385,7 +385,7 @@ classdef Targets < Component
             %          * see code
             % Output : - Vector of left time for target visibility [day].
             % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.scheduling.Targets;
+            % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          [VisibilityTime] = leftVisibilityTime(T)
             
@@ -399,7 +399,7 @@ classdef Targets < Component
                 JD     = celestial.time.julday;
             end
                         
-            [SunSetJD, IsRise] = celestial.scheduling.Targets.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.VisibilityArgs.SunAltLimit);
+            [SunSetJD, IsRise] = celestial.Targets.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.VisibilityArgs.SunAltLimit);
             
             Ntarget = numel(Obj.RA);
             
@@ -439,7 +439,7 @@ classdef Targets < Component
             %            indicating if the target is visible.
             %          - Structure of specific flags.
             % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.scheduling.Targets;
+            % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          [FlagAll, Flag] = isVisible(T)
             
@@ -568,7 +568,7 @@ classdef Targets < Component
     methods % weights and priority
         function [Obj, P] = calcPriority(Obj, JD, CadenceMethod)
             %
-            % Example: T=celestial.scheduling.Targets;
+            % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          [T, P] = calcPriority(T, 2451545.5, 'west2east')
             
@@ -657,7 +657,7 @@ classdef Targets < Component
             %          - Sun dAlt/dt [deg/sec]
             %          - Sun dAz/dt [deg/sec]
             % Author : Eran Ofek (Jan 2022)
-            % Example: [Alt, Az] = celestial.scheduling.Targets.sunAlt(2451545, [1 1])
+            % Example: [Alt, Az] = celestial.Targets.sunAlt(2451545, [1 1])
             
             RAD = 180./pi;
             
@@ -699,7 +699,7 @@ classdef Targets < Component
             %          - A logical flag indicating if rise (true), or set
             %            (false).
             % Author : Eran Ofek (Jan 2022)
-            % Example: [Time, IsRise] = celestial.scheduling.Targets.nextSunHorizon
+            % Example: [Time, IsRise] = celestial.Targets.nextSunHorizon
             
             arguments
                 JD           = celestial.time.julday;
@@ -713,7 +713,7 @@ classdef Targets < Component
             
             VecJD = JD + (0:Args.Step:MIN_IN_DAY).'./MIN_IN_DAY;
             
-            SunAlt = celestial.scheduling.Targets.sunAlt(VecJD, GeoPos);
+            SunAlt = celestial.Targets.sunAlt(VecJD, GeoPos);
             
             DiffSign  = [0; diff(sign(SunAlt))];
             Iapprox   = find(abs(DiffSign) == 2, 1, 'first');
@@ -728,7 +728,7 @@ classdef Targets < Component
                 IsRise = true;
             end
                        
-            Time = tools.find.fun_binsearch(@celestial.scheduling.Targets.sunAlt, Args.AltThreshold, Range, 0.1./1440, GeoPos);
+            Time = tools.find.fun_binsearch(@celestial.Targets.sunAlt, Args.AltThreshold, Range, 0.1./1440, GeoPos);
             
         end
         
@@ -750,7 +750,7 @@ classdef Targets < Component
             %          - J2000.0 Dec of anti Sun direction.
             % Author : Eran Ofek (Jan 2022)
             % Example:
-            % [RA,Dec]=celestial.scheduling.Targets.earthShadow(2451545 +(0:0.1:365)');
+            % [RA,Dec]=celestial.Targets.earthShadow(2451545 +(0:0.1:365)');
 
             arguments
                 JD
