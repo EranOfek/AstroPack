@@ -248,7 +248,7 @@ classdef Targets < Component
             Sun.RA  = RA.*RAD;
             Sun.Dec = Dec.*RAD;
             LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
-            HA      = LST - RA;
+            HA      = LST - Sun.RA;
             [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Sun.Dec./RAD, Obj.GeoPos(2)./RAD);
             Sun.Az  = Az.*RAD;
             Sun.Alt = Alt.*RAD;
@@ -622,6 +622,37 @@ classdef Targets < Component
                     error('Unknown CadenceMethod option');
             end
             P = Obj.Priority;
+            
+        end
+    end
+    
+    methods % targets selection
+        function Ind = selectTarget(Obj, JD, Args)
+            % Return the indices of visible targets sorted by priority highest to lowest.
+            % Input  : - A Target object.
+            %          - JD. Default is current UTC time.
+            %          * ...,key,val,...
+            %            'isVisibleArgs' - A cell array of additional
+            %                   arguments to pass to isVisible.
+            %                   Default is {}.
+            % Output : - Indices of visible targets, sorted by priority,
+            %            highest to lowest.
+            % Author : Eran Ofek (Mar 2022)
+            % Example: Ind = selectTarget(T);
+            
+            arguments
+                Obj
+                JD                        = [];
+                Args.isVisibleArgs cell   = {};
+            end
+            
+            if isempty(JD)
+                JD     = celestial.time.julday;
+            end
+            
+            Ind = find(Obj.isVisible(JD,Args.isVisibleArgs{:}));
+            [~,SI] = sort(Obj.Priority(Ind), 'descend');
+            Ind = Ind(SI);
             
         end
     end
