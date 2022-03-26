@@ -205,7 +205,7 @@ classdef convert
             % Package: @convert
             % Description: Convert angular units.
             % Input  : - Input angular units name:
-            %            'rad'|'deg'|'arcmin'|'arcsec'|'mas'|'frac'|'hour'
+            %            'rad'|'deg'|'arcmin'|'arcsec'|'mas'|'microas'|'frac'|'hour'
             %            Note that the 'pix' option generate a conversion factor of 1.
             %          - Output angular units (options like first input argument).
             %          - Value to convert. Default is 1.
@@ -251,6 +251,8 @@ classdef convert
                             ConvVal = 1./3600;
                         case 'mas'
                             ConvVal = 1./(3600.*1000);
+                        case 'microas'
+                            ConvVal = 1./(3600.*1e6);
                         case 'frac'
                             % fraction to deg
                             ConvVal = 360;
@@ -275,6 +277,8 @@ classdef convert
                             ConvVal = ConvVal.*3600;
                         case 'mas'
                             ConvVal = ConvVal.*3600.*1000;
+                        case 'microas'
+                            ConvVal = ConvVal.*3600.*1e6;
                         case 'frac'
                             ConvVal = ConvVal./360;
                         case 'hour'
