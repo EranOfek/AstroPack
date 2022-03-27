@@ -113,7 +113,8 @@ if (Args.SaveFile)
                 websave(URL(I).FileName,Link{I});
             end
         case 'pwget'
-            www.pwget(Link,Args.PwgetPar,Args.PwgetNP);
+            PwgetPar = sprintf('%s -O %s',Args.PwgetPar, URL(I).FileName);
+            www.pwget(Link, PwgetPar,Args.PwgetNP);
         otherwise
             error('Unknown WgetOption option');
     end
