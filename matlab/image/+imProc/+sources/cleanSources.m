@@ -127,6 +127,7 @@ function [Result, Flag] = cleanSources(Obj, Args)
         %Flag(Iobj).BadSN = all(SN_FluxAnn < Args.ThresholdSN, 2);
        
         % flag bad sources in Mask image
+        Args.MaskCR = false;
         if Args.MaskCR && isa(Obj, 'AstroImage')
             warning('VERIFY that maskSet works properly');
             SizeImage = size(Obj(Iobj).Image);
