@@ -329,6 +329,10 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             end
         end
     end
+    
+    if Icrop==0
+        AstCrop = [];
+    end
         
 end
 

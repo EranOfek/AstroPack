@@ -240,4 +240,6 @@ if Args.DivideVarByN
     CoaddVar = CoaddVar./CoaddN;
 end
 
-
+if nargout>1
+    CoaddVarEmpirical = squeeze(CoaddVarEmpirical);
+end

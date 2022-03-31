@@ -19,6 +19,8 @@ function Found = prepDarkFlat(Args)
         Args.WaitForMoreImages        = 40;   % [s]
         Args.KeyFilter                = 'FILTER';
         
+        Args.Verbose logical          = false;
+        
     end
     
     if isempty(Args.SearchStr)
