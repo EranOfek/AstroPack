@@ -923,6 +923,8 @@ classdef ImagePath < Base %Component
             %            equal to the number of elements in the first input
             %            argument.
             %          * ...,key,val,...
+            %            'Save' - A logical indicating if to save the
+            %                   products. Default is true.
             %            'SaveFields' - Fields to save.
             %                   Default is {'Image','Mask','Cat'}.
             %            'WriteFun' - Default is @write1.
@@ -943,6 +945,7 @@ classdef ImagePath < Base %Component
             arguments
                 ObjIP
                 ObjProduct
+                Args.Save
                 Args.SaveFields                = {'Image','Mask','Cat'};
                 Args.WriteFun function_handle  = @write1;
                 Args.WriteFunArgs cell         = {'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
@@ -951,69 +954,66 @@ classdef ImagePath < Base %Component
                 Args.FileType                  = []; % override FileType
             end
             
-            % verify that directory exist
-            mkdir(ObjIP(1).genPath);
-            
-            Nfield  = numel(Args.SaveFields);
-            Nprod   = numel(ObjProduct);
-            if isa(ObjProduct, 'AstroImage')
-                for Iprod=1:1:Nprod
-                    if ~isempty(Args.Level)
-                        ObjIP(Iprod).Level = Args.Level;
-                    end
-                    if ~isempty(Args.FileType)
-                        ObjIP(Iprod).FileType = Args.FileType;
-                    end
-                    for Ifield=1:1:Nfield
-                        ObjIP(Iprod).Product = Args.SaveFields{Ifield};
-                        Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.SaveFields{Ifield}, Args.WriteFunArgs{:});
-                    end
-                end
-            elseif isa(ObjProduct, 'AstroCatalog')
-                % save AstroCatalog
-                switch Args.SaveFields{1}
-                    case 'Cat'
-                        for Iprod=1:1:Nprod
-                            if ~isempty(Args.Level)
-                                ObjIP(Iprod).Level = Args.Level;
-                            end
-                            if ~isempty(Args.FileType)
-                                ObjIP(Iprod).FileType = Args.FileType;
-                            end
-                            ObjIP(Iprod).Product = 'Cat';
-                            Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
+            if Args.Save
+                % verify that directory exist
+                mkdir(ObjIP(1).genPath);
+
+                Nfield  = numel(Args.SaveFields);
+                Nprod   = numel(ObjProduct);
+                if isa(ObjProduct, 'AstroImage')
+                    for Iprod=1:1:Nprod
+                        if ~isempty(Args.Level)
+                            ObjIP(Iprod).Level = Args.Level;
                         end
-                end
-            elseif isa(ObjProduct, 'MatchedSources')
-                % save MatchedSources
-                switch Args.SaveFields{1}
-                    case 'Cat'
-                        for Iprod=1:1:Nprod
-                            if ~isempty(Args.Level)
-                                ObjIP(Iprod).Level = Args.Level;
-                            end
-                            if ~isempty(Args.FileType)
-                                ObjIP(Iprod).FileType = Args.FileType;
-                            end
-                            ObjIP(Iprod).Product = 'MergedMat';
-                            Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
+                        if ~isempty(Args.FileType)
+                            ObjIP(Iprod).FileType = Args.FileType;
                         end
+                        for Ifield=1:1:Nfield
+                            ObjIP(Iprod).Product = Args.SaveFields{Ifield};
+                            Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.SaveFields{Ifield}, Args.WriteFunArgs{:});
+                        end
+                    end
+                elseif isa(ObjProduct, 'AstroCatalog')
+                    % save AstroCatalog
+                    switch Args.SaveFields{1}
+                        case 'Cat'
+                            for Iprod=1:1:Nprod
+                                if ~isempty(Args.Level)
+                                    ObjIP(Iprod).Level = Args.Level;
+                                end
+                                if ~isempty(Args.FileType)
+                                    ObjIP(Iprod).FileType = Args.FileType;
+                                end
+                                ObjIP(Iprod).Product = 'Cat';
+                                Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
+                            end
+                    end
+                elseif isa(ObjProduct, 'MatchedSources')
+                    % save MatchedSources
+                    switch Args.SaveFields{1}
+                        case 'Cat'
+                            for Iprod=1:1:Nprod
+                                if ~isempty(Args.Level)
+                                    ObjIP(Iprod).Level = Args.Level;
+                                end
+                                if ~isempty(Args.FileType)
+                                    ObjIP(Iprod).FileType = Args.FileType;
+                                end
+                                ObjIP(Iprod).Product = 'MergedMat';
+                                Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
+                            end
+                    end
+                else
+                    % save as MAT file
+                    IP1 = ObjIP(1).copy;
+                    IP1.Counter   = 0;
+                    IP1.CropID    = 0;
+                    IP1.Product   = Args.Product;
+                    IP1.FileType  = 'mat';
+
+                    save('-v7.3',IP1.genFull, 'ObjProduct');
                 end
-            else
-                % save as MAT file
-                IP1 = ObjIP(1).copy;
-                IP1.Counter   = 0;
-                IP1.CropID    = 0;
-                IP1.Product   = Args.Product;
-                IP1.FileType  = 'mat';
-                
-                save('-v7.3',IP1.genFull, 'ObjProduct');
             end
-                
-                
-            
-                
-                
         end  
             
         function [Future, ObjIP] = saveProduct(ObjIP, ObjProduct, Args) 

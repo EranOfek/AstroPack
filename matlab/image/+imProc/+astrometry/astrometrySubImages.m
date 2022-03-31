@@ -65,6 +65,8 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     
     % get approximate coordinates for field center
     [RA, Dec] = getCoo(Obj(1).HeaderData);
+    RA = RA - 1.1;
+    Dec = Dec - 1.6;
     if isempty(Args.EpochOut)
         Args.EpochOut = julday(Obj(1).HeaderData);
     end
