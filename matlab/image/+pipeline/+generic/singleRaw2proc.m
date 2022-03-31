@@ -129,6 +129,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.WCS                              = [];   % WCS/AstroImage with WCS - will use astrometryRefine...
         Args.addCoordinates2catalogArgs cell  = {'OutUnits','deg'};
         
+        Args.UseDATEOBS logical               = false;   % convert DATE-OBS to JD instead of using JD
+        
         % source finding
         Args.Threshold                        = 5;
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
@@ -204,15 +206,18 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     end
     
     % fix date
-    % JD is can't be written with exponent
-    Nai = numel(AI);
-    for Iai=1:1:Nai
-        Date = AI(Iai).HeaderData.getVal('DATE-OBS');
-        Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
-        JD   = celestial.time.julday(Date);
-        StrJD = sprintf('%16.8f',JD);
-        AI(Iai).setKeyVal('JD',StrJD);
-    end    
+    if Args.UseDATEOBS
+        % In some headers JD is written with exp - can't be used
+        % use DATE-OBS to write new JD
+        Nai = numel(AI);
+        for Iai=1:1:Nai
+            Date = AI(Iai).HeaderData.getVal('DATE-OBS');
+            Date = sprintf('%s:%s:%s', Date(1:13), Date(14:15), Date(16:end));
+            JD   = celestial.time.julday(Date);
+            StrJD = sprintf('%16.8f',JD);
+            AI(Iai).setKeyVal('JD',StrJD);
+        end    
+    end
     
     
     % Note that InterpolateOverSaturated is false, because this is done
