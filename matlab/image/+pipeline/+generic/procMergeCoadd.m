@@ -164,8 +164,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                            
         % Estimate PSF
         [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:});
-        % add PSF FWHM to header
-        imProc.psf.fwhm(Coadd(Ifields));
+        
 
         % PSF photometry
         [ResPSF, Coadd(Ifields)] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false);                                   
@@ -182,6 +181,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                                                                 'Tran',Args.Tran,...
                                                                                                 'CreateNewObj',false);
 
+        % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+        imProc.psf.fwhm(Coadd(Ifields));
         
         % photometric calibration
         % change to PSF phot...

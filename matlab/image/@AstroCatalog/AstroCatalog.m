@@ -26,6 +26,7 @@
 
 classdef AstroCatalog < AstroTable
     properties
+        JD                % for the user - store JD
         %ColX                                                            = [];
         %ColY                                                            = [];
         %CooType char    {mustBeMember(CooType,{'pix','sphere',''})}     = '';
