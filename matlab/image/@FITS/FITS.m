@@ -701,10 +701,7 @@ classdef FITS < handle
 
             Nkey = size(KeyCell,1);
 
-            % Chen fixed
-            %List = io.files.filelist(ImageName, false);
-            List = {ImageName};
-            %[~,List] = io.files.filelist(ImageName,NaN);
+            List = io.files.filelist(ImageName);
             
             Nim = numel(List);
 
