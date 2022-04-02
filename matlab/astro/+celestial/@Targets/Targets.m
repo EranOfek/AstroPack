@@ -17,8 +17,8 @@ classdef Targets < Component
         
         CadenceMethod                           % 'periodic' | 'continues' | 'west2east'
         Priority                                % baseline priority that multiplies the base priority
-        PriorityArgs               = struct('MaxNobs',Inf,...
-                                            'InterNightCadence',40./1440,...
+        MaxNobs                    = Inf;
+        PriorityArgs               = struct('InterNightCadence',40./1440,...
                                             'CadenceFun',@celestial.scheduling.fermiexp,...  
                                             'CadeneFunArgs',[1.4, 1, 0.03, 1, 0.5]);  %t0,Decay,Soft,BaseW,ExtraW)
                                                     
@@ -572,12 +572,20 @@ classdef Targets < Component
             %          T.generateTargetList('last');
             %          [T, P] = calcPriority(T, 2451545.5, 'west2east')
             
+            %          T=celestial.Targets; T.generateTargetList('last');
+            %          [lon,lat]=T.ecliptic; F=abs(lat)<5 & T.RA>100 & T.RA<110; T.MaxNobs(~F)=0; T.MaxNobs(F)=Inf;
+            %          [~,PP]=T.calcPriority(2451545.5,'cycle')
+            
             
             arguments
                 Obj
-                JD                   = celestial.time.julday;
+                JD                   = [];
                 CadenceMethod        = [];
                 %Args
+            end
+            
+            if isempty(JD)
+                JD                   = celestial.time.julday;
             end
             
             if ~isempty(CadenceMethod)
@@ -604,15 +612,19 @@ classdef Targets < Component
                     % time.
                     
                     VisibilityTime = leftVisibilityTime(Obj, JD);
+                    Active         = Obj.MaxNobs(:)>0;
                     
                     Npr = 200;
                     Obj.Priority = zeros(Ntarget,1);
                     Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
-                    Obj.Priority(Obj.GlobalCounter > Obj.PriorityArgs.MaxNobs) = 0;
                     
-                    [~,SI] = sortrows([Obj.GlobalCounter, VisibilityTime],[1 2]);
+                    Obj.Priority = Obj.Priority .* Active;
+                    Obj.Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
+                    
+                    [~,SI] = sortrows([Active, Obj.GlobalCounter, VisibilityTime],[-1 2 3]);
+                    Active = Active(SI);
                     N = numel(SI);
-                    Obj.Priority(SI) = Obj.Priority(SI) + (N:-1:1).'.*0.01;
+                    Obj.Priority(SI) = Obj.Priority(SI) .* (1 + (N:-1:1).'.*0.01).*Active;
                     
                 case 'west2east'
                     % priortize targets by the left visibility time,
@@ -626,14 +638,14 @@ classdef Targets < Component
                     Obj.Priority = zeros(Ntarget,1);
                     Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
                                         
-                    VisibilityTime(Obj.GlobalCounter > Obj.PriorityArgs.MaxNobs) = 0;
+                    VisibilityTime(Obj.GlobalCounter > Obj.MaxNobs) = 0;
                     
                     [~,SI] = sort(VisibilityTime);
                     Iv     = find(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility, Npr, 'first');
                     Nv     = numel(Iv);
                     Obj.Priority(SI(Iv)) = 2 - ((1:1:Nv)' - 1)./(Npr+1);
                     
-                    Obj.Priority(Obj.GlobalCounter > Obj.PriorityArgs.MaxNobs) = 0;
+                    Obj.Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
                     
                 otherwise
                     error('Unknown CadenceMethod option');
