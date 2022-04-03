@@ -24,7 +24,7 @@ classdef Targets < Component
                                                     
         LastJD
         GlobalCounter              = 0;
-        NightCounter
+        NightCounter               = 0;
         
         GeoPos                     = [35.041201 30.053014 400];  %
        
