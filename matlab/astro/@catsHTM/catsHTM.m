@@ -797,7 +797,6 @@ classdef catsHTM
             % Example:
             % Data=catsHTM.create_indiv_catalog_lists4wget('/data/euler/catsHTM','/home/eran/');
             
-           
             if (nargin<2)
                 WriteDir = '';
                 if nargin<1
@@ -811,8 +810,7 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=12:1:12
-                %1:1:Nd
+            for Id=1:1:Nd
                 if Data(Id).Status
                     Data(Id)
                     Dir = sprintf('%s%s',BaseDir,Data(Id).Dir);
