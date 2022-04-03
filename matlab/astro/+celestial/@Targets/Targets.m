@@ -23,7 +23,7 @@ classdef Targets < Component
                                             'CadeneFunArgs',[1.4, 1, 0.03, 1, 0.5]);  %t0,Decay,Soft,BaseW,ExtraW)
                                                     
         LastJD
-        GlobalCounter
+        GlobalCounter              = 0;
         NightCounter
         
         GeoPos                     = [35.041201 30.053014 400];  %
