@@ -73,10 +73,10 @@ fprintf(FID,'<BODY bgcolor=%s text=%s link%s vlink=%s %s> \n',...
 %--------------------------
 if (ischar(Content)==1)
    % file name
-   StrContent = Util.files.file2str(Content,'str');
+   StrContent = io.files.file2str(Content,'str');
    fprintf(FID,'%s \n<br>\n',StrContent);
 elseif (iscell(Content)==1)
-   StrContent = Util.IO.fprintf_cell(FID,'%s \n<br>\n',Content);
+   StrContent = io.files.fprintf_cell(FID,'%s \n<br>\n',Content);
 else
    error('Content is of unknown type');
 end
