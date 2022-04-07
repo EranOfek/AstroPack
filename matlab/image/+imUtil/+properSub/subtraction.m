@@ -129,18 +129,19 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Pr_hat = fftshift(Pr_hat);
     end
     
+    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn, 'AbsFun',AbsFun, 'Eps',Args.Eps);
+    
     % denominator of D
-    
-    D_den     = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;
-    D_num     = Fr.*Pr_hat.*N_hat - Fn.*Pn_hat.*R_hat;
-    D_denSqrt = sqrt(D_den);
-    D_hat     = D_num./D_denSqrt;
-    
-    Fd        = Fr .* Fn ./ sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
-    
-    Pd_num    = Fr .* Fn .* Pr_hat .* Pn_hat;
-    Pd_den    = Fd .* D_denSqrt;
-    Pd_hat    = Pd_num./Pd_den;
+%     D_den     = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;
+%     D_num     = Fr.*Pr_hat.*N_hat - Fn.*Pn_hat.*R_hat;
+%     D_denSqrt = sqrt(D_den);
+%     D_hat     = D_num./D_denSqrt;
+%     
+%     Fd        = Fr .* Fn ./ sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
+%     
+%     Pd_num    = Fr .* Fn .* Pr_hat .* Pn_hat;
+%     Pd_den    = Fd .* D_denSqrt;
+%     Pd_hat    = Pd_num./Pd_den;
     
     S_hat     = Fd .* D_hat .* conj(Pd_hat);
    
@@ -158,12 +159,14 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         
         % apply source noise 
         if ApplySourceNoise
-            Kr_hat    = Fr.*Fn.^2.*conj(Pr_hat).*AbsFun(Pn_hat).^2./D_den;
-            Kn_hat    = Fn.*Fr.^2.*conj(Pn_hat).*AbsFun(Pr_hat).^2./D_den;
-            V_Sn      = imUtil.filter.conv2_fft(Args.VN, Kn_hat.^2);
-            V_Sr      = imUtil.filter.conv2_fft(Args.VR, Kr_hat.^2);
-
-            Vcorr     = V_Sn + V_Sr;
+            % ZOGY Equations 26-29
+            [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, VN, VR, AbsFun);
+            
+%             Kr_hat    = Fr.*Fn.^2.*conj(Pr_hat).*AbsFun(Pn_hat).^2./D_den;
+%             Kn_hat    = Fn.*Fr.^2.*conj(Pn_hat).*AbsFun(Pr_hat).^2./D_den;
+%             V_Sr      = imUtil.filter.conv2_fft(Args.VR, Kr_hat.^2);
+%             V_Sn      = imUtil.filter.conv2_fft(Args.VN, Kn_hat.^2);           
+%             Vcorr     = V_Sn + V_Sr;
         else
             Vcorr     = 0;
         end
