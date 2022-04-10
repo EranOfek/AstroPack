@@ -547,7 +547,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/MergedCat/';
+            Data(I).Dir  = '/MergedCat/V1/';
             Data(I).Name = 'MergedCat';
             Data(I).Desc = 'Merged catalog';
             Data(I).Ref  = 'Ofek et al. 2021';
@@ -865,7 +865,8 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=1:1:Nd
+            for Id=18:1:18,
+                %1:1:Nd
                 if Data(Id).Status
                     Data(Id)
                     Dir = sprintf('%s%s',BaseDir,Data(Id).Dir);
