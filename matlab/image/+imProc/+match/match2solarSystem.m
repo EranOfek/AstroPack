@@ -274,6 +274,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         end
         
     else
+        % Args.SerachSingleEpoch = false
         % This option supports multiple images of random fields at random
         % epochs.
         % Each image is treated seperatly

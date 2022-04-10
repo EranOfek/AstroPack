@@ -147,6 +147,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.UpdateHeader logical             = true;   % CROPID & LEVEL
         
         Args.OrbEl                            = []; %celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
+        Args.KnownAsteroidsSearchRadius       = 8;     % [arcsec]
         Args.match2solarSystemArgs            = {};
         Args.GeoPos                           = [];
         
@@ -393,16 +394,19 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % match known solar system objects
         if ~isempty(Args.OrbEl)
             % NOTE TIME SHOULD be in TT scale
-            %tic;
+            Args.OrbEl=celestial.OrbitalEl.loadSolarSystem
+            tic;
             TTmUTC = 70./86400;
             % need to get ImageRA, ImageDec...
             [SourcesWhichAreMP, SI] = imProc.match.match2solarSystem(SI,...
-                                                                     'ImageRadius',1800.*1.25.*sqrt(2)./2,...
+                                                                     'SearchRadius',Args.KnownAsteroidsSearchRadius,...
                                                                      'JD',JD+TTmUTC,...
                                                                      'OrbEl',Args.OrbEl,...
                                                                      'GeoPos', Args.GeoPos,...
                                                                      Args.match2solarSystemArgs{:});
-            %toc
+                                                                 
+                                                                 
+            toc
         end
 
         % match against external catalogs
