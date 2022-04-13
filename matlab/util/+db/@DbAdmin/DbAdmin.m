@@ -764,6 +764,11 @@ classdef DbAdmin < Component
     
     methods(Static) % Unit-Tests
 
+        function help
+            % Show MLX manual
+            tools.os.class_mlx(mfilename('fullpath'))
+        end
+        
         Result = unitTest()
             % Unit-Test
 
