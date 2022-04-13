@@ -1,7 +1,7 @@
 %--------------------------------------------------------------------------
-% File:    DbRecord.m
-% Class:   DbRecord
-% Title:   Data container that holds struct array of database table rows.
+% File:    DbQuery.m
+% Class:   DbQuery
+% Title:   SQL Database query component for Postgres
 % Author:  Chen Tishler
 % Created: July 2021
 %--------------------------------------------------------------------------
@@ -86,9 +86,9 @@
 %    getDbVersion - Query Postgres version, note that DbQuery must be linked to DbConnection Input: - Output: char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit' Example: Ver = DbQuery.getDbVersion()
 %    getMetadata - Get metadata of the specified table or the current result-set Input: - 'TableName' - Output: true on success Example: -
 %    getSharedFileName - Prepare file names for server and client Input: FileName - Output: ServerFileName - ClientFileName - Exampe: -
-%    makeInsertColumnsText - Input: FieldNames - 'TableColumnList' 'FieldMap' - Output: SqlFields - SqlValues -
-%    makeUpdateColumnsText - Prepare SQL text from cell array Input: ColumnNames - 'ColumnMap' - @Todo Future Output: char-array Example: -
-%    makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input: ColumnNames - Operand - ColumnMap -
+%    makeInsertColumnsText - Input: FieldNames - 'TableColumnList' - Output: SqlFields - SqlValues -
+%    makeUpdateColumnsText - Prepare SQL text from cell array Input: ColumnNames - Output: char-array Example: -
+%    makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input: ColumnNames - Operand
 %    openConn - [Internal Use] Open connection, throw exception on failure Input: - Output: true on sucess Example: Obj.openConn()
 %    setConnection - [Internal Use] Set connection Input: DbTableOrConn - Output: true on sucess Example: Obj.setConnection('unittest')
 %    setStatementValues - Set statement values from specified DbRecord or struct Input: Rec - FirstRecord - RecordCount - 'ColumnNames' -
@@ -100,24 +100,19 @@ classdef DbQuery < Component
 
     % Properties
     properties (SetAccess = public)
-
-        % Connection details
-        Conn            = []        % DbConnection
-
-        % Current SQL statement data
-        SqlText         = ''        % SQL text
-
+        Conn            = []        % DbConnection component to that links to the specific host/database/user
+        SqlText         = ''        % Current SQL text
         TableName       = '';       % Current table name
         PrimaryKey                  % Primary Key(s) used when TableName is not empty - char or celarray
-        ColumnMap        = [];      % struct - @Todo
+
         InsertRecFunc   = [];       % function(DbQuery, DbRecord, First, Last)
-        InsertBatchSize = 100;      %
-        InsertUseCopyThreshold = 5000;     % Above this number of records, insert() uses copyFrom()
+        InsertBatchSize = 100;      % Batch size when inserting multiple rows using INSERT statement
+        InsertUseCopyThreshold = 5000; % Above this number of records, insert() uses copyFrom()
 
         % Metadata from last select
-        ColCount        = 0;        % Number of columns
-        ColNames        = [];       % cell
-        ColType         = [];       % cell
+        ColCount        = 0;        % Number of columns in current dataset
+        ColNames        = [];       % Column names of current dataset (cell)
+        ColType         = [];       % Column types of current dataset (cell)
 
         % Flags and statistics
         IsOpen          = false;    % Last result of query()
@@ -138,11 +133,16 @@ classdef DbQuery < Component
         % Constructor
         function Obj = DbQuery(DbTableOrConn, Args)
             % Create new DbQuery obeject
-            % Input:
-            %   DbTableOrConn - Database alias from Database.yml, with
-            %   optional table name, for example: 'UnitTest'
+            % Input : DbTableOrConn - Database alias from Database.yml, with
+            %         optional table name, for example: 'UnitTest'
+            %         'TableName' - Set current table name, when not set, it must be
+            %                     specified by each function (insert/select/etc.)
+            %   'PrimaryKey'    - 
+            %   'InsertRecFunc' - 
             %
-            % Examples:
+            % Output:  Instance of DbQuery object
+            %            
+            % Examples :
             %   % Create query object for 'UnitTest' database alias 'UnitTest'
             %   Q = DbQuery('UnitTest')
             %
@@ -159,7 +159,7 @@ classdef DbQuery < Component
                 DbTableOrConn   = []        % DbAlias / DbAlias:TableName / DbConnection object
                 Args.TableName              % Set TableName when not included in DbTable parameter
                 Args.PrimaryKey             % Primary key(s)
-                Args.InsertRecFunc          %
+                Args.InsertRecFunc          % Default function used with insert(). See help of insert()
             end
 
             % Setup component
@@ -189,22 +189,21 @@ classdef DbQuery < Component
 
         function Result = select(Obj, Columns, Args)
             % Execute SELECT Columns FROM TableName and load results to memory
-            % Input:   - Columns - Comma-separated field names to select (i.e. 'recid,fint')
-            %            'TableName' - Table name, if not specified, Obj.TableName is used
-            %            'Where'     - Where condition (excluding WHERE keyword)
-            %            'Order'     - Order by clause  (excluding ORDER BY keyword)
-            %            'Limit'     - Maximum number of records (LIMIT)
-            %            'Load'      - true to load entire result set
-            %            'OutType'   - Optional conversion, otherwise DbRecord is
+            % Input :  Columns - Comma-separated field names to select (i.e. 'recid,fint')
+            %          'TableName' - Table name, if not specified, Obj.TableName is used
+            %          'Where'     - Where condition (excluding WHERE keyword)
+            %          'Order'     - Order by clause  (excluding ORDER BY keyword)
+            %          'Limit'     - Maximum number of records (LIMIT)
+            %          'Load'      - true to load entire result set
+            %          'OutType'   - Optional conversion, otherwise DbRecord is
             %                           returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog',
             %                           'AstroHeader'
-            %            'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
-            %            'TempName'  - @Todo
-            %            'CsvFileName' - Select to specified output CSV file, instead of
+            %          'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
+            %          'TempName'  - @Todo
+            %          'CsvFileName' - Select to specified output CSV file, instead of
             %                            result-set (using COPY TO)
-            % Output:  true on sucess
-            % Example: -
-            % Obj.select('Column1', 'Table', 'Where', '...', 'Order', '...')
+            % Output  : DbRecord object or other data type according to 'OutType' argument.
+            % Example : DataSet = Obj.select('Column1', 'Table', 'Where', 'X=1', 'Order', 'Column1')
             arguments
                 Obj                     %
                 Columns                 % Comma-separated field names to select (i.e. 'recid,fint')
@@ -228,6 +227,10 @@ classdef DbQuery < Component
             assert(~isempty(Args.TableName));
             assert(~isempty(Columns));
 
+            if iscell(Columns)
+                Columns = strjoin(Columns, ',');
+            end
+            
             % Prepare Select
             Obj.SqlText = sprintf('SELECT %s FROM %s', Columns, Args.TableName);
 
@@ -342,24 +345,29 @@ classdef DbQuery < Component
         %------------------------------------------------------------------
 
         function Result = insert(Obj, Rec, Args)
-            % Simple insert, all arguments are char
-            % Insert new record to table, Keys and Values are celarray
-            % Input:   Rec             - Data to insert
-            %          'TableName'     - Table name, if not specified, Obj.TableName is used
-            %          'CsvFileName'   - When non-empty, use copyFrom and insert data from this file instead of Rec
+            % INSERT new row(s) to database table.
+            % Data source can be specified as actual data in Rec, or from external file.
+            % (Note that BinaryFileName is not supported yet).
+            % Input :  Rec            - Data to insert
+            %          'TableName'    - Table name, if not specified, Obj.TableName is used
+            %          'CsvFileName'  - When non-empty, use COPY FROM and insert data from 
+            %                           this file instead of Rec.
             %
             %          These arguments are used only when CsvFileName is
-            %          empty and Rec is used as data source
-            %          'ColNames'      - Comma-separated field names (i.e. 'recid,fint')
-            %          'ColumnMap'     - Optional field map
-            %          'BatchSize'     - Number of records per operation
-            %          'InsertRecFunc' - Called to generate primary key if required
-            %          'InsertRecArgs' - Arguments to InsertRecFunc
-            %          'UseCopyThreshold' - When number of records is above this value, copyFrom() is used
-            %          'CsvFileName'      - Specify CSV file as source of data
-            %          'BinaryFileName'   - When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
-            % Output:  DbRecord
-            % Example: -
+            %          empty and Rec is used as data source:
+            %
+            %          'ColNames'        - Comma-separated or cell array column names (i.e. 'recid,fint')
+            %          'BatchSize'       - Number of records per operation
+            %          'InsertRecFunc'   - Called to generate primary key if required, see below.
+            %          'InsertRecArgs'   - Arguments to InsertRecFunc
+            %          'UseCopyThreshold'- When number of records is above this value, copyFrom() is used
+            %          'CsvFileName'     - Specify CSV file as source of data
+            %          'BinaryFileName'  - When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
+            % Output : true on success.
+            % Examples: 
+            %
+            %
+            %
             
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, i).char;
             arguments
@@ -368,7 +376,6 @@ classdef DbQuery < Component
                                             % AstroTable, AstroCatalog, AstroHeader
                 Args.TableName = ''         % Table name, if not specified, Obj.TableName is used
                 Args.ColNames = []          % Comma-separated field names (i.e. 'recid,fint')
-                Args.ColumnMap = []         % Optional field map
                 Args.BatchSize = []         % Number of records per operation
                 Args.InsertRecFunc = []     % Called to generate primary key if required
                 Args.InsertRecArgs = {}     % Arguments to InsertRecFunc
@@ -522,7 +529,7 @@ classdef DbQuery < Component
             % Prepare SQL statement
             % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
             ColumnNames = fieldnames(Rec.Data);
-            [SqlColumns, SqlValues] = Obj.makeInsertColumnsText(ColumnNames, 'ColumnMap', Args.ColumnMap, 'TableColumnList', TableColumnList);
+            [SqlColumns, SqlValues] = Obj.makeInsertColumnsText(ColumnNames, 'TableColumnList', TableColumnList);
             %--------------------------------------------------------
             % INSERT INTO statement
             
@@ -585,7 +592,7 @@ classdef DbQuery < Component
 
                 % Iterate struct fields
                 T2 = tic();
-                Obj.setStatementValues(Rec, RecIndex, BatchSize, 'TableColumnList', TableColumnList);  %Args.ColumnMap, 'FirstIndex', ColumnIndex);
+                Obj.setStatementValues(Rec, RecIndex, BatchSize, 'TableColumnList', TableColumnList);
                 RecIndex = RecIndex + BatchSize;
                 Toc2 = toc(T2);
 
@@ -626,7 +633,6 @@ classdef DbQuery < Component
             %                         for example: 'MyField=''MyValue'''
             %          'TableName'  -
             %          'Where'      -
-            %          'ColumnMap'  - @Todo - for future use
             % Output:  true on success
             % Example: Obj.update('TableName', 'MyTable', 'MyField=1', 'Where', 'TheFlag = 1')
             
@@ -635,7 +641,6 @@ classdef DbQuery < Component
                 SetColumns              % SQL statement, i.e. 'FInt=1', etc.
                 Args.TableName = ''     % Table name
                 Args.Where = ''         % Where condition
-                %Args.ColumnMap = []    % Optional field map, for future use
             end
 
             % Use all fields that exist in the table
@@ -658,15 +663,6 @@ classdef DbQuery < Component
             Obj.clear();
 
             % Prepare SQL statement
-            % sql = sprintf("INSERT INTO master_table(RecID, FInt) VALUES ('%s', %d)", uuid, 1).char;
-            %FieldNames = Obj.getFieldNames(Rec);
-            %WhereFieldNames = Obj.getFieldNames(WhereRec);
-            %disp(FieldNames);
-            %SqlFields = Obj.makeUpdateFieldsText(FieldNames, Args.FieldMap);
-            %WhereFields = Obj.getFieldNames(WhereRec);
-            %Where = Obj.makeWhereFieldsText(WhereFieldNames, ' AND ', Args.FieldMap);
-
-            %
             if ~isempty(Args.Where)
                 Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char, ' WHERE ', string(Args.Where).char];
             else
@@ -684,8 +680,8 @@ classdef DbQuery < Component
             end
 
             % Iterate struct fields
-            %Obj.setStatementValues(ColumnNames, Rec, Args.ColumnMap);
-            %Obj.setStatementValues(WhereColumnNames, WhereRec, Args.ColumnMap, 'ColumnIndex', numel(ColumnNames)+1);
+            %Obj.setStatementValues(ColumnNames, Rec);
+            %Obj.setStatementValues(WhereColumnNames, WhereRec, 'ColumnIndex', numel(ColumnNames)+1);
 
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -755,7 +751,7 @@ classdef DbQuery < Component
             end
 
             % Iterate struct fields
-            %Obj.setStatementValues(ColumnNames, Rec, ColumnMap);
+            %Obj.setStatementValues(ColumnNames, Rec);
 
             % Execute
             % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
@@ -1524,7 +1520,6 @@ classdef DbQuery < Component
         function [SqlColumns, SqlValues] = makeInsertColumnsText(Obj, ColumnNames, Args)
             % Input:   FieldNames -
             %          'TableColumnList'
-            %          'FieldMap' -
             % Output:  SqlFields  -
             %          SqlValues  -
             % Example: [SqlFields, SqlValues] = Obj.makeInsertColumnsText('fint,fdouble')
@@ -1533,7 +1528,6 @@ classdef DbQuery < Component
                 Obj
                 ColumnNames
                 Args.TableColumnList = [];   %
-                Args.ColumnMap = [];         % Optional struct.ColumnName = ActualColumnName;
             end
 
             % Prepare SQL text from cell array of field names
@@ -1561,13 +1555,7 @@ classdef DbQuery < Component
                         continue;
                     end
                 end
-
                     
-                % Optionally replace field name from mapping
-                if ~isempty(Args.ColumnMap) && isfield(Args.ColumnMap, ColumnName)
-                    ColumnName = Args.ColumnMap.(ColumnName);
-                end
-
                 %
                 if numel(SqlColumns) > 0
                     SqlColumns = [SqlColumns, ',', ColumnName]; %#ok<AGROW>
@@ -1585,7 +1573,6 @@ classdef DbQuery < Component
         function SqlColumns = makeUpdateColumnsText(Obj, ColumnNames, Args)
             % Prepare SQL text from cell array
             % Input:   ColumnNames -
-            %          'ColumnMap' - @Todo Future
             % Output:  char-array
             % Example: -
             
@@ -1593,7 +1580,6 @@ classdef DbQuery < Component
             arguments
                 Obj
                 ColumnNames             %
-                Args.ColumnMap = [];    % Optional struct.ColumnName = ActualColumnName;
             end
 
 
@@ -1604,11 +1590,6 @@ classdef DbQuery < Component
 
             for i = 1:numel(ColumnNames)
                 ColumnName = ColumnNames{i};
-
-                % Optionally replace field name from mapping
-                if ~isempty(Args.ColumnMap) && isfield(Args.ColumnMap, ColumnName)
-                    ColumnName = Args.ColumnMap.(ColumnName);
-                end
 
                 %
                 if numel(SqlColumns) > 0
@@ -1622,20 +1603,18 @@ classdef DbQuery < Component
         end
 
 
-        function SqlColumns = makeWhereColumnsText(Obj, ColumnNames, Operand, ColumnMap)
-            % Prepare SQL text from cell array
-            % "WHERE RecID=? AND FInt=?..."
-            % Input:   ColumnNames -
-            %          Operand    -
-            %          ColumnMap   -
-            % Output:  DbRecord
-            % Example: -
-            
+        function SqlColumns = makeWhereColumnsText(Obj, ColumnNames, Operand)
+            % Prepare SQL text from cell array, for example "WHERE RecID=? AND FInt=?..."
+            % % Used internally by DbQuery.
+            % Input   : ColumnNames -
+            %           Operand    - 'AND' ' / 'OR'
+            % Output  : char containing SQL text such as "WHERE RecID=? AND FInt=?..."
+            % Example : makeWhereColumnsText(ColumnList, 'OR')
+           
             arguments
                 Obj
                 ColumnNames     %
                 Operand         % 'AND' / 'OR'
-                ColumnMap       %
             end
 
             SqlColumns = '';
@@ -1645,11 +1624,6 @@ classdef DbQuery < Component
 
             for i = 1:numel(ColumnNames)
                 ColumnName = ColumnNames{i};
-
-                % Optionally replace field name from mapping
-                if ~isempty(ColumnMap) && isfield(ColumnMap, ColumnName)
-                    ColumnName = ColumnMap.(ColumnName);
-                end
 
                 %
                 if numel(SqlColumns) > 0
@@ -1664,23 +1638,22 @@ classdef DbQuery < Component
 
 
         function Result = setStatementValues(Obj, Rec, FirstRecord, RecordCount, Args)
-            % Set statement values from specified DbRecord or struct
-            % Input:   Rec               -
-            %          FirstRecord       -
-            %          RecordCount       -
-            %          'ColumnNames'     -
-            %          'ColumnMap'       -
-            %          'StartIndex'      -
-            %          'TableColumnList' -
-            % Output:
-            % Example:
+            % Set statement values from specified DbRecord or struct.
+            % Used internally by DbQuery.
+            % Input   : Rec               - 
+            %           FirstRecord       -
+            %           RecordCount       -
+            %           'ColumnNames'     -
+            %           'StartIndex'      -
+            %           'TableColumnList' -
+            % Output  : true on success
+            % Example : setStatementValues(Rec, 1, 1)
             arguments
                 Obj                     %
                 Rec                     % DbRecord
                 FirstRecord             %
                 RecordCount             %
                 Args.ColumnNames = [];  % cell
-                Args.ColumnMap = []     % Optional
                 Args.StartIndex = 1     % Index of field in current JavaStatement
                 Args.TableColumnList = [];
             end
@@ -1743,11 +1716,11 @@ classdef DbQuery < Component
 
 
         function Result = columnName2matlab(Obj, Str)
-            % Convert specified table column name to valid MATLAB property/
-            % struct-field name, replace non-valid chars with '_'
-            % Input:   Str - char array, i.e. 'My:Field'
-            % Output:  char array, i.e. 'My_Field'
-            % Example: ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
+            % Convert specified string to valid MATLAB property name or
+            % valid struct-field name, replace non-valid chars with '_'
+            % Input   : char array with column name, i.e. 'My:Field'
+            % Output  : char array, i.e. 'My_Field'
+            % Example : ColumnNames = getValidColumnName('My:Field') -> 'My_Field'
             for i=1:numel(Str)
                 Ch = Str(i);
                 Valid = isstrprop(Ch, 'alpha') || isstrprop(Ch, 'digit') || Ch == '_';
@@ -1761,9 +1734,10 @@ classdef DbQuery < Component
 
         function Result = getColumnNamesOfType(Obj, ColumnType)
             % Get cell array field names that match the specified field type
-            % Input:   ColumnType: 'Integer', 'Double', etc.
-            % Output:  Cell array with list of all fields
-            % Example: ColNames = Q.getColumnNamesOfType('Double');
+            % Input   : ColumnType - Type such as 'Integer', 'Double', etc, according 
+            %                        to MATLAB data types
+            % Output  : Cell array with list of all columns that match the specified type.
+            % Example : ColNames = Q.getColumnNamesOfType('Double');
             
             arguments
                 Obj
@@ -1785,9 +1759,9 @@ classdef DbQuery < Component
 
         function Result = getDbVersion(Obj)
             % Query Postgres version, note that DbQuery must be linked to DbConnection
-            % Input:   -
-            % Output:  char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
-            % Example: Ver = DbQuery.getDbVersion()
+            % Input   : None
+            % Output  : char-array, such as 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'
+            % Example : Ver = DbQuery.getDbVersion()
             
             Result = [];
             Obj.query('SELECT version()');
@@ -1802,11 +1776,14 @@ classdef DbQuery < Component
         
         
         function Result = writeBinaryFile(Obj, Rec, FileName)
-            % Get cell array field names that match the specified field type
-            % Input:   Rec - DbRecord with data
-            % Output:  true on sucess
-            % Example: ColNames = Q.getColumnNamesOfType('Double');
-            % @Todo - Implement this function in MEX
+            % Write DbRecord object to binary file for COPY FROM opeation
+            % For internal use only.
+            % @Todo - Still not complete!
+            % Input   : Rec - DbRecord filled with struct array (Rec.Data)
+            %           FileName - Output file name
+            % Output  : true on sucess
+            % Example : writeBinaryFile(Rec, '/tmp/myfile.dat')
+            % @Todo - Implement this function in MEX?
             arguments
                 Obj
                 Rec             % DbRecord
