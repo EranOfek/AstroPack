@@ -1,12 +1,11 @@
 # Overview
 
-### General
+## General
 
 
 ## Database Configuration File
 
-
-# Database.DbConnections.UnitTest
+### Database.DbConnections.UnitTest
 
 config/Database.DbConnections.UnitTest.yml
 
@@ -28,7 +27,7 @@ config/local/Database.DbConnections.UnitTest.yml
     WinMountSharePath   : 'S:/'                     # Windows (run: net use S: \\gauss\pgshare)
 
 
-# Creating Database from Google Sheets
+## Creating Database from Google Sheets
 
 Database Definitions Sheets
 

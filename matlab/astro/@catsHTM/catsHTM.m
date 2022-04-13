@@ -503,6 +503,15 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GLADE/';
+            Data(I).Name = 'GLADE';
+            Data(I).Desc = 'GLADE galaxy catalog; http://glade.elte.hu/';
+            Data(I).Ref  = 'Dalya et al. 2021';
+            Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/HST/HSCv2/';
             Data(I).Name = 'HSCv2';
             Data(I).Desc = 'HST source catalog version 2';
@@ -534,6 +543,16 @@ classdef catsHTM
 %             Data(I).Ref  = 'Helou et al. 1991';
 %             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/1991ASSL..171...89H/abstract';
             
+
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/MergedCat/V1/';
+            Data(I).Name = 'MergedCat';
+            Data(I).Desc = 'Merged catalog';
+            Data(I).Ref  = 'Ofek et al. 2021';
+            Data(I).RefLink = 'in prep.';
+
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
@@ -591,6 +610,15 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/QSO/Flesch2021/';
+            Data(I).Name = 'QSO1M';
+            Data(I).Desc = 'QSO 1M catalog';
+            Data(I).Ref  = 'Flesch et al. 2021';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2021yCat.7290....0F/abstract';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/ROSATfsc/';
             Data(I).Name = 'ROSATfsc';
             Data(I).Desc = 'The ROSAT faint source catalog';
@@ -641,6 +669,15 @@ classdef catsHTM
             Data(I).Desc = 'SDSS-DR14 spectroscopic catalog';
             Data(I).Ref  = 'Abolfathi et al. 2018';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2018ApJS..235...42A/abstract';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/SpecSDSS/DR17/';
+            Data(I).Name = 'SpecSDSSDR17';
+            Data(I).Desc = 'SDSS-DR17 spectroscopic catalog';
+            Data(I).Ref  = 'Abdurrouf et al. 2022';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2022ApJS..259...35A/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -744,6 +781,24 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/unWISE/';
+            Data(I).Name = 'unWISE';
+            Data(I).Desc = 'The unWISE IR catalog';
+            Data(I).Ref  = 'Meisner et al. 2017';
+            Data(I).RefLink = 'https://catalog.unwise.me/';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/WD/WDEDR3/';
+            Data(I).Name = 'WDEDR3';
+            Data(I).Desc = 'GAIA-EDR3 WD catalog';
+            Data(I).Ref  = 'Gentile Fusillo et al. 2021';
+            Data(I).RefLink = 'https://arxiv.org/abs/2106.07669';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/WISE/';
             Data(I).Name = 'WISE';
             Data(I).Desc = 'The WISE IR catalog';
@@ -797,7 +852,6 @@ classdef catsHTM
             % Example:
             % Data=catsHTM.create_indiv_catalog_lists4wget('/data/euler/catsHTM','/home/eran/');
             
-           
             if (nargin<2)
                 WriteDir = '';
                 if nargin<1
@@ -811,7 +865,7 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=12:1:12
+            for Id=18:1:18,
                 %1:1:Nd
                 if Data(Id).Status
                     Data(Id)
@@ -877,6 +931,8 @@ classdef catsHTM
             Text = sprintf('%s <table><tr><th> Name </th> <th> Description</th> <th>wget file</th> <th>checksum</th> <th> Nsrc</th><th>Reference</th> </tr>\n',Text);
             for I=1:1:N
                 I
+               
+               Data(I).Name
                
                 if Data(I).iscatsHTM
                     Nsrc = catsHTM.nsrc(Data(I).Name);

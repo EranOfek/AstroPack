@@ -195,7 +195,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         else
             % assume the user supplied an OrbitalEl object
             % find their coordinates
-            [ResultNear, Names] = searchMinorPlanetsNearPosition(Args.OrbEl, JD, Args.ImageRA, Args.ImageDec, Aths.ImageRadius,...
+            [ResultNear, Names] = searchMinorPlanetsNearPosition(Args.OrbEl, JD, Args.ImageRA, Args.ImageDec, Args.ImageRadius,...
                                                                          'SearchRadiusUnits',Args.ImageCooUnits,...
                                                                          'CooUnits',Args.ImageCooUnits,...
                                                                          'MagLimit',Args.MagLimit,...
@@ -274,6 +274,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         end
         
     else
+        % Args.SerachSingleEpoch = false
         % This option supports multiple images of random fields at random
         % epochs.
         % Each image is treated seperatly

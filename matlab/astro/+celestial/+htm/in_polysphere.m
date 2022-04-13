@@ -36,13 +36,10 @@ function Flag=in_polysphere(Positions,Corners,Crit)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-Def.Crit = 1;
-if (nargin==2)
-   Crit  = Def.Crit;
-elseif (nargin==3)
-   % do nothing
-else
-   error('Illegal number of input arguments');
+arguments
+    Positions
+    Corners
+    Crit        = 1;
 end
 
 % sort corners

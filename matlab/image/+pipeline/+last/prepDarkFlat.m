@@ -1,8 +1,8 @@
 function Found = prepDarkFlat(Args)
     % Look for dark images and combine when ready
     % Example:
-    % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.01.01.03/new','CalibDir','/last02w/data1/archive/LAST.01.01.03/calib','BasePath','/last02w/data1/archive');
-    % pipeline.last.prepDarkFlat('Type','flat','NewFilesDir','/last02w/data1/archive/LAST.01.01.03/new','CalibDir','/last02w/data1/archive/LAST.01.01.03/calib','BasePath','/last02w/data1/archive');
+    % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.01.82.03/new','CalibDir','/last02w/data1/archive/LAST.01.82.03/calib','BasePath','/last02w/data1/archive');
+    % pipeline.last.prepDarkFlat('Type','flat','NewFilesDir','/last02w/data1/archive/LAST.01.82.03/new','CalibDir','/last02w/data1/archive/LAST.01.82.03/calib','BasePath','/last02w/data1/archive');
     
     
     
@@ -12,16 +12,20 @@ function Found = prepDarkFlat(Args)
         Args.CalibDir                 = [];
         Args.BasePath                 = [];
         
+        Args.MaxTimeDiff              = 1800;  % [s] - max time diff between images
         Args.SearchStr                = []; %'*_dark_raw*_Image_*.fits';
         Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits'; % needed for the flat
         Args.ModNumber                = 20;
         Args.MinNimages               = 3; % 8; % 18;
+        Args.MinMaxFlat               = [3000 40000];
         Args.WaitForMoreImages        = 40;   % [s]
         Args.KeyFilter                = 'FILTER';
         
         Args.Verbose logical          = false;
         
     end
+    
+    SEC_IN_DAY = 86400;
     
     if isempty(Args.SearchStr)
         switch lower(Args.Type)
@@ -45,6 +49,14 @@ function Found = prepDarkFlat(Args)
    
     
     Files = io.files.dirSortedByDate(Args.SearchStr);
+    % screen files by date relative to first found file
+    DT    = [Files.datenum] - min([Files.datenum]);
+    IndOfChange = find(diff(DT) > (Args.MaxTimeDiff./SEC_IN_DAY), 1, 'first');
+    if ~isempty(IndOfChange)
+        % select all "first" images within time window
+        Files       = Files(1:IndOfChange);
+    end
+    
     List  = {Files.name};
     if isempty(List)
         Found = false;
@@ -53,6 +65,15 @@ function Found = prepDarkFlat(Args)
         PrevNInd = 0;
         while Cont
             Files             = io.files.dirSortedByDate(Args.SearchStr);
+            % screen files by date relative to first found file
+            DT    = [Files.datenum] - min([Files.datenum]);
+            IndOfChange = find(diff(DT) > (Args.MaxTimeDiff./SEC_IN_DAY), 1, 'first');
+            if ~isempty(IndOfChange)
+                % select all "first" images within time window
+                Files       = Files(1:IndOfChange);
+            end
+          
+            
             RecentImage       = Files(end).name;
             IP                = ImagePath.parseFileName(List);
             %IP.genFile
@@ -125,22 +146,30 @@ function Found = prepDarkFlat(Args)
                     %FlatImages.setKeyVal('FILTER','clear');
                     %StF = FlatImages(1).getStructKey(Args.KeyFilter);
                     
-                    CI.createFlat(FlatImages); %, StF.(Args.KeyFilter));
-                    
-                    % save data
-                    FlatIP = IP(1).copy;
-                    FlatIP.Level   = 'proc';
-                    FlatIP.Product = 'Image';
-                    FlatName = [Args.CalibDir, filesep, FlatIP.genFile];
-                    write1(CI.Flat, FlatName, FlatIP.Product);
-                    
-                    FlatIP.Product = 'Var';
-                    FlatName = [Args.CalibDir, filesep, FlatIP.genFile];
-                    write1(CI.Flat, FlatName, FlatIP.Product);
-                    
-                    FlatIP.Product = 'Mask';
-                    FlatName = [Args.CalibDir, filesep, FlatIP.genFile];
-                    write1(CI.Flat, FlatName, FlatIP.Product);
+                    % optional removal of images with low/high value
+                    ImMedian = imProc.stat.median(FlatImages);
+                    FlagGood = ImMedian>min(Args.MinMaxFlat) & ImMedian<max(Args.MinMaxFlat);
+                    if sum(FlagGood) >= Args.MinNimages
+                        % enough images for flat
+                        FlatImages = FlatImages(FlagGood);
+                        
+                        CI.createFlat(FlatImages); %, StF.(Args.KeyFilter));
+
+                        % save data
+                        FlatIP = IP(1).copy;
+                        FlatIP.Level   = 'proc';
+                        FlatIP.Product = 'Image';
+                        FlatName = [Args.CalibDir, filesep, FlatIP.genFile];
+                        write1(CI.Flat, FlatName, FlatIP.Product);
+
+                        FlatIP.Product = 'Var';
+                        FlatName = [Args.CalibDir, filesep, FlatIP.genFile];
+                        write1(CI.Flat, FlatName, FlatIP.Product);
+
+                        FlatIP.Product = 'Mask';
+                        FlatName = [Args.CalibDir, filesep, FlatIP.genFile];
+                        write1(CI.Flat, FlatName, FlatIP.Product);
+                    end
                     
                     % move files to date directory
                     Nfiles = numel(Files);

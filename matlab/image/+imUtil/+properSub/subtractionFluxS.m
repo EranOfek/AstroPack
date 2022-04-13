@@ -1,5 +1,7 @@
 function F_S = subtractionFluxS(Pn, Pr, SigmaN, SigmaR, Args)
     % Calculate the proper subtraction flux normalization factor (F_S)
+    %       F_S is used to convert the S subtraction statistics into flux
+    %       normalized image on which photometry can be done.
     %       Equation (42) in Zackay, Ofek, & Gal-Yam (2016; ApJ 830, 27).
     % Input  : - The PSF of the new image N. The PSF image size must be
     %            equal to the N and R image sizes, and the PSF center

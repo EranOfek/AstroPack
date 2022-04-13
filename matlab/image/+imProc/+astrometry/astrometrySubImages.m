@@ -41,6 +41,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.CreateNewObj logical                = false;
         
         Args.CatName                             = 'GAIAEDR3';  % or AstroCatalog array
+        Args.CooOffset                           = [0 0];
         Args.astrometryCoreArgs cell             = {};
         Args.astrometryRefineArgs cell           = {};
         
@@ -65,8 +66,9 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     
     % get approximate coordinates for field center
     [RA, Dec] = getCoo(Obj(1).HeaderData);
-    RA = RA - 1.1;
-    Dec = Dec - 1.6;
+    RA        = RA  + Args.CooOffset(1);
+    Dec       = Dec + Args.CooOffset(2);
+    
     if isempty(Args.EpochOut)
         Args.EpochOut = julday(Obj(1).HeaderData);
     end

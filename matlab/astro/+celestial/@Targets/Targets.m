@@ -23,8 +23,8 @@ classdef Targets < Component
                                             'CadeneFunArgs',[1.4, 1, 0.03, 1, 0.5]);  %t0,Decay,Soft,BaseW,ExtraW)
                                                     
         LastJD
-        GlobalCounter
-        NightCounter
+        GlobalCounter              = 0;
+        NightCounter               = 0;
         
         GeoPos                     = [35.041201 30.053014 400];  %
        
@@ -76,6 +76,19 @@ classdef Targets < Component
                 Obj = io.files.load2(Obj.FileName);
             end
             
+        end
+    end
+    
+    methods % setters/getters
+        function Result = get.MaxNobs(Obj)
+            % getter for MaxNobs
+            
+            Obj.MaxNobs = Obj.MaxNobs(:);
+            if numel(Obj.MaxNobs)==1
+                Obj.MaxNobs = Obj.MaxNobs + zeros(size(Obj.RA));
+            end
+            
+            Result = Obj.MaxNobs;
         end
     end
     
@@ -566,7 +579,7 @@ classdef Targets < Component
     end
     
     methods % weights and priority
-        function [Obj, P] = calcPriority(Obj, JD, CadenceMethod)
+        function [Obj, P, Ind] = calcPriority(Obj, JD, CadenceMethod)
             %
             % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
@@ -574,7 +587,9 @@ classdef Targets < Component
             
             %          T=celestial.Targets; T.generateTargetList('last');
             %          [lon,lat]=T.ecliptic; F=abs(lat)<5 & T.RA>100 & T.RA<110; T.MaxNobs(~F)=0; T.MaxNobs(F)=Inf;
-            %          [~,PP]=T.calcPriority(2451545.5,'cycle')
+            %          [~,PP,Ind]=T.calcPriority(2451545.5,'cycle');
+            %          T.GlobalCounter(Ind(1))=T.GlobalCounter(Ind(1))+1;
+            %          [~,PP,Ind]=T.calcPriority(2451545.5,'cycle');
             
             
             arguments
@@ -650,7 +665,16 @@ classdef Targets < Component
                 otherwise
                     error('Unknown CadenceMethod option');
             end
-            P = Obj.Priority;
+            
+            if nargout>1
+                P = Obj.Priority;
+                if nargout>2
+                    % return also the indices of targets with priority>0 listed by priority
+                    [SortedP,SI] = sort(P, 'descend');
+                    Flag = SortedP>0;
+                    Ind  = SI(Flag);
+                end
+            end
             
         end
     end

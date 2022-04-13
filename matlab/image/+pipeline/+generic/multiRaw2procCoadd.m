@@ -21,7 +21,124 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %       Catalog of coadd image
     %       Add PSF-fit photometry to coadd catalog
     %       Match coadd catalog against external catalog
+    % Input  : - List of images, of the smae field, to process.
+    %            This can be a cell array of images, or a character array
+    %            with regular expressions, or an AstroImage array.
+    %          * ...,key,val,...
+    %            'SubDir' - SubDir is an ImagePath class argument specifying
+    %                   the sub directory in which to store the data products.
+    %                   In case of a large number of data products it is
+    %                   recomended that each sequence of images will have a
+    %                   different SubDir. Default is ''.
+    %            'BasePath' - Base path in which to store the data.
+    %                   Default is '/last02w/data1/archive'.
     %
+    %            'CalibImages' - A CalibImages object containing the dark
+    %                   and flat images. If empty, will attempt using the
+    %                   'Dark','Flat','Fringe' arguments. DEfault is [].
+    %            'Dark' - An AstroImage containing the dark image. This
+    %                   argument is suprceeded by 'CalibImages'.
+    %                   Default is [].
+    %            'Flat' - An AstroImage containing the flat image. This
+    %                   argument is suprceeded by 'CalibImages'.
+    %                   Default is [].
+    %            'Fringe' - An AstroImage containing the fringe image. This
+    %                   argument is suprceeded by 'CalibImages'.
+    %                   Default is [].
+    %            'SubImageSizeXY' - Approximate [X, Y] size of sub images.
+    %                   The output images will have approximately this size.
+    %                   Default is [1600 1600].
+    %            'OverlapXY' - Approximate overlpa in [X,Y] between sub
+    %                   images. Default is [64 64].
+    %            'IdentifyBadImagesCCDSEC' - Bad images udentification is
+    %                   done in a small section of the full image defined by this
+    %                   CCDSEC [Xmin Xmax Ymin Ymax].
+    %                   Default is [3001 4000 3001 4000].
+    %            'AstroImageReadArgs' - A cell array of additional
+    %                   arguments to pass to the AstroImage constructor when
+    %                   reading images. Default is {}.
+    %            'ImageSizeXY' - Image size [X, Y]. If empty, get from the
+    %                   header of the first image. Default is [].
+    %            --- Photometry/Astrometry related ---
+    %            'backgroundArgs' - A cell array of additional arguments to
+    %                   pass to the imProc.background.background function.
+    %                   Default is {}.
+    %            'SameField' - A logical indicating if analyzing the same
+    %                   field. Default is true.
+    %            'CatName' - Astrometric and photometric catalog name.
+    %                   Default is 'GAIAEDR3'.
+    %            'CooOffset' - Approximate [RA Dec] offsets in deg of the image
+    %                   center compared to the header RA/Dec.
+    %                   Default is [0 0].
+    %
+    %            'singleRaw2procArgs' - A cell array of arguments to pass
+    %                   to pipeline.generic.singleRaw2proc. Default is {}.
+    %            'DeletePropAfterSrcFinding' - A cell array of AstroImage
+    %                   property names to delete after the source finding is
+    %                   completed. Default is {'Back','Var'}.
+    %            'UpdateCounter' - A logical indicating if to add a keyword
+    %                   name 'COUNTER' to the image header. This keyword
+    %                   contains the image number in the sequence.
+    %                   Default is true.
+    %
+    %            'coaddArgs' - A cell array of additional aruments to pass
+    %                   to imProc.stack.codd.
+    %                   Default is {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
+    %            'BackSubSizeXY' - Size [X,Y] in which background will be estimated.
+    %                   Default is [128 128].
+    %            'ZP' - Photomnetric ZP (mag for 1 electron), for raw photometry. Default is 25.
+    %            'Threshold' - Sources detection threshold in units of S/N.
+    %                   Default is 5.
+    %            'ColCell' - A cell array of photometric properties that
+    %                   imProc.sources.findMeasureSources will save.
+    %                   Default is {'XPEAK','YPEAK',...
+    %                                             'X1', 'Y1',...
+    %                                             'X2','Y2','XY',...
+    %                                             'SN','BACK_IM','VAR_IM',...  
+    %                                             'BACK_ANNULUS', 'STD_ANNULUS', ...
+    %                                             'FLUX_APER', 'FLUXERR_APER',...
+    %                                             'MAG_APER', 'MAGERR_APER',...
+    %                                             'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'}
+    %            '
+    %            got here...
+%       
+%         Args.findMeasureSourcesArgs cell      = {};
+%         
+%         Args.photometricZPArgs cell           = {};
+%         
+%         % Astrometry
+%         Args.Scale                            = 1.25;
+%         Args.Tran                             = Tran2D('poly3');
+%         Args.astrometryRefineArgs cell        = {};
+%         
+%         % Match against external catalog: 'MergedCat
+%         Args.CoaddMatchMergedCat logical      = true;
+%         Args.MergedMatchMergedCat logical     = true;
+%         
+%         Args.mergeCatalogsArgs cell           = {};
+%         
+%         Args.ReturnRegisteredAllSI logical    = true;  % use true if you want the return AllSI to be registered versions. If you don't care use true (should be faster/less mem)
+%         
+%         Args.StackMethod                      = 'sigmaclip';
+%         Args.Asteroids_PM_MatchRadius         = 3;
+%         Args.DeleteBackBeforeCoadd logical    = true;
+%         Args.DeleteVarBeforeCoadd logical     = true;
+%         
+%         
+%         
+%         % save products
+%         Args.SaveAll               = [];  % empty - check individuals
+%         Args.SaveProcIm logical    = true;
+%         Args.SaveProcMask logical  = true;
+%         Args.SaveProcCat logical   = true;
+%         Args.SaveMatchCat logical  = true;
+%         Args.SaveMatchMat logical  = true;
+%         Args.SaveCoaddIm logical   = true;
+%         Args.SaveCoaddMask logical = true;
+%         Args.SaveCoaddCat logical  = true;
+%         Args.SaveAsteroids logical = true;
+%         
+        
     % Example: L=io.files.filelist('LAST*science.fits');
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(L(289:308),'CalibImages',CI);
     % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(L(249:268),'CalibImages',CI);
@@ -59,6 +176,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     arguments
         FilesList                                               % Cell array, regexp, or AstroIamge
+        Args.SubDir = '';  % no sub dir
+        Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
+
         Args.CalibImages CalibImages          = [];
         Args.Dark                             = []; % [] - do nothing
         Args.Flat                             = []; % [] - do nothing
@@ -73,6 +193,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         Args.SameField logical                = true;
         Args.CatName                          = 'GAIAEDR3';
+        Args.CooOffset                        = [0 0];    % [deg]
         
         Args.singleRaw2procArgs cell          = {};
         Args.DeletePropAfterSrcFinding        = {'Back','Var'};
@@ -117,9 +238,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.DeleteVarBeforeCoadd logical     = true;
         
         
-        Args.SubDir = '';  % no sub dir
-        Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
-        
+                
         
         % save products
         Args.SaveAll               = [];  % empty - check individuals
@@ -228,6 +347,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             % AllSI(Iim,:),
             [SI, BadImageFlag, AstrometricCat] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                                       'CatName',Args.CatName,...
+                                                                                      'CooOffset',Args.CooOffset,...
                                                                                       'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                                       'RefineSearchRadius',10,...
                                                                                       'RemoveBadImages',false,...
@@ -241,6 +361,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             %tic;
             [SI, BadImageFlag, ~] = pipeline.generic.singleRaw2proc(AI(Iim),'CalibImages',Args.CalibImages,...
                                                                          'CatName',AstrometricCat,...
+                                                                         'CooOffset',Args.CooOffset,...
                                                                          'WCS',AllSI(Iim-1,:),...
                                                                          'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
                                                                          'RefineSearchRadius',10,...

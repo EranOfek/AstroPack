@@ -1,15 +1,15 @@
 %--------------------------------------------------------------------------
-% File:    DbAdmin.m
-% Class:   DbAdmin
+% File:    DbAdmin.m.
+% Class:   DbAdmin.
 % Title:   Database administrator utils for PostgreSQL, based on DbQuery.
-% Author:  Chen Tishler
-% Created: December 2021
+% Author:  Chen Tishler.
+% Created: December 2021.
 %--------------------------------------------------------------------------
 % PostgreSQL V14 - Installation instructions for Linux:
 %
 %     https://techviewleo.com/how-to-install-postgresql-database-on-ubuntu/
 %
-% Create database on remote server (password: 'Passw0rd')
+% Create database on remote server (password: 'Passw0rd'):
 %
 %     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
 %
@@ -764,6 +764,11 @@ classdef DbAdmin < Component
     
     methods(Static) % Unit-Tests
 
+        function help
+            % Show MLX manual
+            tools.os.class_mlx(mfilename('fullpath'))
+        end
+        
         Result = unitTest()
             % Unit-Test
 
