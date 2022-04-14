@@ -25,11 +25,13 @@ function runPipeLAST(DataNumber, Args)
         
         Args.SearchStr                = '*.fits'; 
         Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits';
-        Args.FlatSearchStr            = '*_flat_proc*_Image_*.fits';
+        Args.FlatSearchStr            = '*flat_proc*_Image_*.fits';
         Args.ScienceSearchStr         = '*_*_clear_*_science_raw*Image*.fits';
         Args.NinBatch                 = 20;
         Args.DefBaseProjName          = 'LAST';
         
+        Args.MountNumber              = []; % if given, override MountNumber
+        Args.AbortFile                = 'abort';
     end
    
     RAD = 180./pi;
@@ -47,8 +49,15 @@ function runPipeLAST(DataNumber, Args)
             otherwise
                 error('Unknown host name template')
         end
-        MountNumber = HostName(5:6);
-        Args.ProjName = sprintf('%s.%d.%s.%d', Args.DefBaseProjName, Args.NodeNumber, MountNumber, CameraNumber);
+        if isempty(Args.MountNumber)
+            MountNumber = HostName(5:6);
+        else
+            if isnumeric(Args.MountNumber)
+                Args.MountNumber = sprintf('%02d',Args.MountNumber);
+            end
+            MountNumber = Args.MountNumber;
+        end
+        Args.ProjName = sprintf('%s.%02d.%s.%02d', Args.DefBaseProjName, Args.NodeNumber, MountNumber, CameraNumber);
     end
     
     BasePathDefault =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', Args.ProjName);
@@ -66,7 +75,7 @@ function runPipeLAST(DataNumber, Args)
         Args.BasePath = BasePathDefault;
     end
     
-    StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, 'stop');
+    StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, Args.AbortFile);
     
     %<ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
     MostRecentDarkImage = '';
@@ -86,12 +95,12 @@ function runPipeLAST(DataNumber, Args)
         
         % add full path
         if ~isempty(RecentDarkImage)
-            RecentDarkImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkImage{1});
+            RecentDarkImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkImage);
             RecentDarkMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkMask{1});
         end
         
         if ~isempty(RecentFlatImage)
-            RecentFlatImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatImage{1});
+            RecentFlatImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatImage);
             RecentFlatMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatMask{1});
         end
         
@@ -130,6 +139,9 @@ function runPipeLAST(DataNumber, Args)
         IP.setAllVal('BasePath', Args.BasePath);
         IP.setAllVal('DataDir',  Args.DataDir);
         IP.setAllVal('ProjName', Args.ProjName);
+        
+        %%% NEED to make sure that the processed file are of the same field
+        
         
         % find the latest image
         IP.setTime;   % make sure JD is populated
