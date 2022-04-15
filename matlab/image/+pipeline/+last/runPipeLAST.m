@@ -17,6 +17,7 @@ function runPipeLAST(DataNumber, Args)
         Args.MinNflat                 = 5;
         Args.multiRaw2procCoaddArgs cell   = {};
         
+        Args.BaseArchive              = []; % '/last01e/data1/archive';
         Args.BasePath                 = []; % '/last01e/data1/archive/LAST.1.1.1';
         Args.DataDir                  = ''; % 
         Args.NewFilesDir              = []; %'/last01e/data1/archive/new';
@@ -60,7 +61,8 @@ function runPipeLAST(DataNumber, Args)
         Args.ProjName = sprintf('%s.%02d.%s.%02d', Args.DefBaseProjName, Args.NodeNumber, MountNumber, CameraNumber);
     end
     
-    BasePathDefault =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', Args.ProjName);
+    BaseArchiveDefault =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive');
+    BasePathDefault    =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', Args.ProjName);
     if isempty(Args.NewFilesDir)
         % generate NewFilesDir
         Args.NewFilesDir = fullfile(BasePathDefault, filesep, 'new');
@@ -73,6 +75,10 @@ function runPipeLAST(DataNumber, Args)
     if isempty(Args.BasePath)
         % generate default BasePath - e.g., '/last01e/data1/archive/LAST.1.12.3'
         Args.BasePath = BasePathDefault;
+    end
+    if isempty(Args.BaseArchive)
+        % generate default BasePath - e.g., '/last01e/data1/archive/LAST.1.12.3'
+        Args.BaseArchive = BaseArchiveDefault;
     end
     
     StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, Args.AbortFile);
@@ -87,7 +93,10 @@ function runPipeLAST(DataNumber, Args)
     Cont = true;
     Counter = 0;
     while Cont
-        % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.1.02.3/new')
+        % look for darks and create master dark
+        pipeline.last.prepDarkFlat('NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
+        % look for flats and created master flat
+        pipeline.last.prepDarkFlat('Type','flat','NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
         
         % check if there is a new Dark/Flat
         [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
