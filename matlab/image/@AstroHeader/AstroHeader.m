@@ -1574,12 +1574,13 @@ classdef AstroHeader < Component
             % Input  : - An AstroHeader object.
             %          * ...key,val,...
             %            'OutType' - The output type - options are:
-            %                   'cell' - a cell array (default).
+            %                   'cell' - a cell array.
             %                   'table' - a table.
             %                   'AstroCatalog' - An AstroCatalog object
             %                           containing a table.
             %                   'AstroTable' - An AstroTable object
             %                           containing a table.
+            %                   Default is 'AstroCatalog'.
             %            'SelectedKeys' - A cell array of keyword names to
             %                   select from headers. If empty, use all
             %                   available keywords. Default is {}.
@@ -1604,7 +1605,7 @@ classdef AstroHeader < Component
             
             arguments
                 Obj
-                Args.OutType                   = 'cell';   % 'cell' | 'table' | 'AstroTable' | 'AstroCatalog'
+                Args.OutType                   = 'astrocatalog';   % 'cell' | 'table' | 'AstroTable' | 'AstroCatalog'
                 Args.SelectedKeys cell         = {};  % if empty, all keys
                 Args.RemoveComments logical    = true;
                 Args.RemoveHistory logical     = true;
