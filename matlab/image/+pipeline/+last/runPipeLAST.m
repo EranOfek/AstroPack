@@ -5,7 +5,8 @@ function runPipeLAST(DataNumber, Args)
     %          * ...,key,val,...
     %            See code
     % Author : Eran Ofek (Jan 2022)
-    % Example: pipeline.last.runPipeLAST(1)
+    % Example: 
+    
     
     arguments
         DataNumber                    = 1;
@@ -162,7 +163,7 @@ function runPipeLAST(DataNumber, Args)
         
         if ~isempty(Ind)
             
-            IP.setAllVal('FormatCounter', '%d');
+            IP.setAllVal('FormatCounter', '%03d');
             IP(Ind).genFile;
             Path           = IP(1).genPath;
             ListImages     = {IP(Ind).FileName};
