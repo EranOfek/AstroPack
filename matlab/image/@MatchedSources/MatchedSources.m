@@ -1656,7 +1656,7 @@ classdef MatchedSources < Component
             % Author : Eran Ofek (Mar 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','RA','Dec'})
-            %          [Ind,Flag] = coneSearch(MS, 0.5,0.5,100);
+            %          [Ind,Flag,Dist] = coneSearch(MS, 0.5,0.5,100);
             
             arguments
                 Obj(1,1)
