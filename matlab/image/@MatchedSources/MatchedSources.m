@@ -1249,6 +1249,32 @@ classdef MatchedSources < Component
         
     end
     
+    methods % combine/merge
+%         function matchReturnIndices
+%             
+%         end
+           
+%         function Result = merge(Obj, Args)
+%             %
+%             
+%             arguments
+%                 Obj
+%                 Args.IsCooSphere logical     = true;
+%                 Args.ColNameX                = AstroCatalog.DefNamesX;
+%                 Args.ColNameY                = AstroCatalog.DefNamesY;
+%                 Args.ColNameRA               = AstroCatalog.DefNamesRA;
+%                 Args.ColNameDec              = AstroCatalog.DefNamesDec;
+%             end
+%             
+%             Nobj = numel(Obj);
+%             
+%             for Iobj=1:1:Nobj
+%                 
+%             end
+%             
+%         end
+    end
+    
     methods % light curves analysis
         function [PSD, Freq] = psd(Obj, Args)
             % Estimate the mean power spectral density of all the sources.
