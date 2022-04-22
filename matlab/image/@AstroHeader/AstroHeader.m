@@ -240,7 +240,6 @@ classdef AstroHeader < Component
             
         end
         
-        
         function show(Obj)
             % Display all headers in an AstroHeader object
            
@@ -444,8 +443,7 @@ classdef AstroHeader < Component
             
         end
         
-    end
-    
+    end   
     
     methods  % getVal, etc.
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
@@ -552,8 +550,7 @@ classdef AstroHeader < Component
                 Val    = CCDSEC(2:end-1);
             end
         end
-              
-        
+                    
         function [Result ,ResultC, IK] = getStructKey(Obj,ExactKeys,Args)
             % Get multiple  keys from multiple headers and store in a structure array
             %       The keyword search can be exact (UseDict=false), or
@@ -766,8 +763,7 @@ classdef AstroHeader < Component
             end
         
         end
-        
-                
+                    
         function Obj = insertDefaultComments(Obj,Args)
             % Insert/replace default comments for keys using the header comments dictionary
             % Input  : - An AstroHeader object (multiple elements supported)
@@ -888,8 +884,7 @@ classdef AstroHeader < Component
             end
                  
         end
-        
-        
+           
         function Obj = insertKey(Obj, KeyValComment, Pos)
             % Insert key/val/comment to headers
             % Input  : - An AstroHeader object (multi. elements supported)
@@ -913,8 +908,7 @@ classdef AstroHeader < Component
             end
             
         end
-        
-        
+            
         function Obj = replaceVal(Obj,Key,Val,Args)
             % Replace a keyword value in headers (no dictionary in key
             % search).
@@ -975,8 +969,7 @@ classdef AstroHeader < Component
             end
             
         end
-        
-        
+         
         function Result = setVal(Obj, Key, Val)
             % @Todo - use Dictionaries
             
@@ -1555,7 +1548,7 @@ classdef AstroHeader < Component
             % Input  : - An AstroHeader object.
             %          - A cell array of keywords to select from the
             %            header (exact match).
-            % Output : - AN AstroHeader object with the selected keys.
+            % Output : - An AstroHeader object with the selected keys.
             % Author : Eran Ofek (Nov 2021)
             % Example: H = AstroHeader('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
             %          H.selectKeys(H.Data(1:10,1));
@@ -1571,6 +1564,126 @@ classdef AstroHeader < Component
             
         end
         
+    end
+    
+    methods % conversions
+        function Result = header2table(Obj, Args)
+            % Convert an array of AstroHeader to a table/cell/AstroTable/AstroCatalog
+            %       in which each column shows the same key for all
+            %       headers.
+            % Input  : - An AstroHeader object.
+            %          * ...key,val,...
+            %            'OutType' - The output type - options are:
+            %                   'cell' - a cell array.
+            %                   'table' - a table.
+            %                   'AstroCatalog' - An AstroCatalog object
+            %                           containing a table.
+            %                   'AstroTable' - An AstroTable object
+            %                           containing a table.
+            %                   Default is 'AstroCatalog'.
+            %            'SelectedKeys' - A cell array of keyword names to
+            %                   select from headers. If empty, use all
+            %                   available keywords. Default is {}.
+            %            'RemoveComments' - (logical) Remove comment keywords.
+            %                   Default is true.
+            %            'RemoveHistory' - (logical) Remove history
+            %                   keywords. Default is true.
+            %            'RemoveEmpty' - (logical) Remove empty keywords.
+            %                   Default is true.
+            %            'RemoveNonUnique' - (logical) Remove non-unique
+            %                   keywords. Default is true.
+            %            'SelectKeysInFirst' - (logical) Select only
+            %                   keywords that were selected in the first header.
+            %                   Default is true.
+            % Output : - A cell/table/AstroCatalog/AstroTable object
+            %            containing a table of selected keyword values.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: H = AstroHeader('*.fits', 1);
+            %          R = header2table([H(1), H(1)]);
+            %          R = header2table([H(1), H(1)], 'OutType','table');
+            %          R = header2table([H(1), H(1)], 'OutType','AstroCatalog');
+            
+            arguments
+                Obj
+                Args.OutType                   = 'astrocatalog';   % 'cell' | 'table' | 'AstroTable' | 'AstroCatalog'
+                Args.SelectedKeys cell         = {};  % if empty, all keys
+                Args.RemoveComments logical    = true;
+                Args.RemoveHistory logical     = true;
+                Args.RemoveEmpty logical       = true;
+                Args.RemoveNonUnique logical   = true;
+                Args.SelectKeysInFirst logical = true;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Nkeys = size(Obj(Iobj).Data, 1);
+                if Args.RemoveComments
+                    FlagComment = strcmp(Obj(Iobj).Data(:,1), 'COMMENT');
+                else
+                    FlagComment = false(Nkeys, 1);
+                end
+                
+                if Args.RemoveHistory
+                    FlagHistory = strcmp(Obj(Iobj).Data(:,1), 'HISTORY');
+                else
+                    FlagHistory = false(Nkeys, 1);
+                end
+                
+                if Args.RemoveEmpty
+                    FlagEmpty = cellfun(@isempty, Obj(Iobj).Data(:,1));
+                else
+                    FlagEmpty = false(Nkeys, 1);
+                end
+            
+                CellHeader = Obj(Iobj).Data(~FlagHistory & ~FlagHistory & ~FlagEmpty,:);
+                
+                if Args.RemoveNonUnique
+                    [~,IU] = unique(CellHeader(:,1));
+                    CellHeader = CellHeader(IU,:);
+                end
+                
+                % select specific keywords
+                if ~isempty(Args.SelectedKeys)
+                    Flag       = ismember(CellHeader(:,1), Args.SelectedKeys);
+                    CellHeader = CellHeader(Flag(:), :);
+                end
+                
+                Ncol = size(CellHeader, 1);
+                if ~isempty(Args.SelectedKeys) && numel(Args.SelectedKeys)~=Ncol
+                    error('Number of selected keys in headers must be consistemt');
+                end
+                    
+                if Iobj==1
+                    if Args.SelectKeysInFirst
+                        Args.SelectedKeys = CellHeader(:,1).';
+                    end
+                    % allocate cell
+                    OutCell = cell(Nobj, Ncol);
+                end
+                OutCell(Iobj,:) = CellHeader(:,2).';
+            end
+            
+            switch lower(Args.OutType)
+                case 'cell'
+                    Result = OutCell;
+                case 'table'
+                    Result = cell2table(OutCell);
+                    Result.Properties.VariableNames = CellHeader(:,1).';
+                case 'astrocatalog'
+                    Result = AstroCatalog;
+                    Result.Catalog = cell2table(OutCell);
+                    Result.Catalog.Properties.VariableNames = CellHeader(:,1).';
+                    Result.ColNames = CellHeader(:,1).';
+                case 'astrotable'
+                    Result = AstroTable;
+                    Result.Catalog = cell2table(OutCell);
+                    Result.Catalog.Properties.VariableNames = CellHeader(:,1).';
+                    Result.ColNames = CellHeader(:,1).';
+                otherwise
+                    error('Unknown OutType option');
+            end
+            
+        end
     end
     
     methods % specific functions

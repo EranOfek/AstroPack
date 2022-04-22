@@ -1249,6 +1249,32 @@ classdef MatchedSources < Component
         
     end
     
+    methods % combine/merge
+%         function matchReturnIndices
+%             
+%         end
+           
+%         function Result = merge(Obj, Args)
+%             %
+%             
+%             arguments
+%                 Obj
+%                 Args.IsCooSphere logical     = true;
+%                 Args.ColNameX                = AstroCatalog.DefNamesX;
+%                 Args.ColNameY                = AstroCatalog.DefNamesY;
+%                 Args.ColNameRA               = AstroCatalog.DefNamesRA;
+%                 Args.ColNameDec              = AstroCatalog.DefNamesDec;
+%             end
+%             
+%             Nobj = numel(Obj);
+%             
+%             for Iobj=1:1:Nobj
+%                 
+%             end
+%             
+%         end
+    end
+    
     methods % light curves analysis
         function [PSD, Freq] = psd(Obj, Args)
             % Estimate the mean power spectral density of all the sources.
@@ -1601,7 +1627,7 @@ classdef MatchedSources < Component
         end
         
         % index from position
-        function [Ind,Flag] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
+        function [Ind,Flag, Dist] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
             % search sources in MatchedSource object by RA/Dec
             % Input  : - A single element MatchedSources object.
             %          - R.A.
@@ -1616,7 +1642,7 @@ classdef MatchedSources < Component
             %                   Default is 'deg'.
             %            'FieldRA' - Field name containing the R.A.
             %                   Default is 'RA'.
-            %            'FieldRA' - Field name containing the Dec.
+            %            'FieldDec' - Field name containing the Dec.
             %                   Default is 'Dec'.
             %            'MeanFun' - Mean function to apply over columns.
             %                   Default is @tools.math.stat.nanmedian
@@ -1625,10 +1651,12 @@ classdef MatchedSources < Component
             %                   Dim argument. Default is {}.
             % Output : - Indices of sources found withing search radius.
             %          - Flag of logicals of found sources.
+            %          - Angular distance [rad] between found sources and
+            %            search position.
             % Author : Eran Ofek (Mar 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','RA','Dec'})
-            %          [Ind,Flag] = coneSearch(MS, 0.5,0.5,100);
+            %          [Ind,Flag,Dist] = coneSearch(MS, 0.5,0.5,100);
             
             arguments
                 Obj(1,1)
@@ -1657,6 +1685,7 @@ classdef MatchedSources < Component
             Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
             Flag = Dist<SearchRadius;
             Ind  = find(Flag);
+            Dist = Dist(Flag);
             
         end
         

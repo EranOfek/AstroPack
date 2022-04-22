@@ -1,4 +1,4 @@
-function Found = prepDarkFlat(Args)
+function [Found, CI] = prepDarkFlat(Args)
     % Look for dark images and combine when ready
     % Example:
     % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.01.82.03/new','CalibDir','/last02w/data1/archive/LAST.01.82.03/calib','BasePath','/last02w/data1/archive');
@@ -26,6 +26,8 @@ function Found = prepDarkFlat(Args)
     end
     
     SEC_IN_DAY = 86400;
+    
+    CI = [];
     
     if isempty(Args.SearchStr)
         switch lower(Args.Type)
@@ -56,6 +58,8 @@ function Found = prepDarkFlat(Args)
         % select all "first" images within time window
         Files       = Files(1:IndOfChange);
     end
+    
+    Found = false;
     
     List  = {Files.name};
     if isempty(List)
@@ -131,7 +135,7 @@ function Found = prepDarkFlat(Args)
                         % move file
                         movefile(Source, Destination);
                     end
-                    
+                    Found = true;
                 case {'flat','twflat'}
                     % read most recent bias
                     [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.CalibDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
@@ -182,7 +186,7 @@ function Found = prepDarkFlat(Args)
                         % move file
                         movefile(Source, Destination);
                     end
-                    
+                    Found = true;
                     
                 otherwise
                     error('Unknown Type option');
