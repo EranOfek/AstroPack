@@ -41,13 +41,6 @@
 % Create database on remote server (password: 'Passw0rd')
 %
 %     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest.sql
-%
-% Using COPY:
-% Still need to find a solution for this:
-% https://gpdb.docs.pivotal.io/6-9/admin_guide/load/topics/g-loading-data-with-copy.html
-% The COPY source file must be accessible to the postgres process on the master host.
-% Specify the COPY source file name relative to the data directory on the master host, or specify an absolute path.
-%
 %--------------------------------------------------------------------------
 
 %#docgen
@@ -103,8 +96,8 @@ classdef DbQuery < Component
         Conn            = []        % DbConnection component to that links to the specific host/database/user
         SqlText         = ''        % Current SQL text
         TableName       = '';       % Current table name
-        PrimaryKey                  % Primary Key(s) used when TableName is not empty - char or celarray
 
+        % 'Insert' related
         InsertRecFunc   = [];       % function(DbQuery, DbRecord, First, Last)
         InsertBatchSize = 100;      % Batch size when inserting multiple rows using INSERT statement
         InsertUseCopyThreshold = 5000; % Above this number of records, insert() uses copyFrom()
@@ -123,8 +116,8 @@ classdef DbQuery < Component
                 
         % Internals
         JavaStatement   = []        % Java object - Prepared statement object
-        JavaMetadata    = []        % Java object, set by getMetadata()
-        JavaResultSet   = []        % Java object, returned result-set from SELECT
+        JavaMetadata    = []        % Java object - set by getMetadata()
+        JavaResultSet   = []        % Java object - returned result-set from SELECT
     end
 
     %----------------------------------------------------------------------
@@ -133,12 +126,11 @@ classdef DbQuery < Component
         % Constructor
         function Obj = DbQuery(DbTableOrConn, Args)
             % Create new DbQuery obeject
-            % Input : DbTableOrConn - Database alias from Database.yml, with
+            % Input : DbTableOrConn - DbConnection object, or database alias from Database.yml, with
             %         optional table name, for example: 'UnitTest'
             %         'TableName' - Set current table name, when not set, it must be
-            %                     specified by each function (insert/select/etc.)
-            %   'PrimaryKey'    - 
-            %   'InsertRecFunc' - 
+            %                       specified by each function (insert/select/etc.)
+            %         'InsertRecFunc' - Default function used with insert(). See help of insert()
             %
             % Output:  Instance of DbQuery object
             %            
@@ -148,7 +140,7 @@ classdef DbQuery < Component
             %
             %   % Create query object for 'UnitTest' database and table
             %   'master_table'
-            %   Q = DbQuery(UnitTest:master_table')
+            %   Q = DbQuery('UnitTest:master_table')
             %
             %   % Create query object for custom database connection (not
             %   from Database.yml)
@@ -156,10 +148,9 @@ classdef DbQuery < Component
             %   Q.DbQuery(MyConn)
             %
             arguments
-                DbTableOrConn   = []        % DbAlias / DbAlias:TableName / DbConnection object
-                Args.TableName              % Set TableName when not included in DbTable parameter
-                Args.PrimaryKey             % Primary key(s)
-                Args.InsertRecFunc          % Default function used with insert(). See help of insert()
+                DbTableOrConn   = []  % DbAlias / DbAlias:TableName / DbConnection object
+                Args.TableName        % Set TableName when not included in DbTable parameter
+                Args.InsertRecFunc    % Default function used with insert(). See help of insert()
             end
 
             % Setup component
@@ -180,7 +171,7 @@ classdef DbQuery < Component
         % Destructor
         function delete(Obj)
             Obj.clear();
-            Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
+            %Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end
     end
 
@@ -188,8 +179,8 @@ classdef DbQuery < Component
     methods % High-level: Select/Insert/Update/Delete
 
         function Result = select(Obj, Columns, Args)
-            % Execute SELECT Columns FROM TableName and load results to memory
-            % Input :  Columns - Comma-separated field names to select (i.e. 'recid,fint')
+            % Execute SELECT Columns FROM TableName and optionally load results to memory
+            % Input :  Columns - Cellarray or comma-separated field names to select (i.e. 'recid,fint')
             %          'TableName' - Table name, if not specified, Obj.TableName is used
             %          'Where'     - Where condition (excluding WHERE keyword)
             %          'Order'     - Order by clause  (excluding ORDER BY keyword)
@@ -199,7 +190,6 @@ classdef DbQuery < Component
             %                           returned: 'table', 'cell', 'mat', 'AstroTable', 'AstroCatalog',
             %                           'AstroHeader'
             %          'UseCopy'   - @Todo (not implemented yet): True to use copyTo() instead of SELECT
-            %          'TempName'  - @Todo
             %          'CsvFileName' - Select to specified output CSV file, instead of
             %                            result-set (using COPY TO)
             % Output  : DbRecord object or other data type according to 'OutType' argument.
