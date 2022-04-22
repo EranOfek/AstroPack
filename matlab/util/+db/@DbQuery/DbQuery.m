@@ -1307,10 +1307,11 @@ classdef DbQuery < Component
         
         
         function Result = selectColumn(Obj, SqlText, ColumnName)
-            % Get column from specified table as cell array
+            % Get all rows of specified column from table as cell array.
+            % Used for example by getTablesList()
             % Input   : SqlText - SELECT query text
             %           ColumnName - Column name to select from query result
-            % Output  : Cell array
+            % Output  : Cell array with returned values
             % Example : Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
             
             Result = {};
@@ -1324,7 +1325,6 @@ classdef DbQuery < Component
                 end
             end
         end
-
     end
     
     %======================================================================
