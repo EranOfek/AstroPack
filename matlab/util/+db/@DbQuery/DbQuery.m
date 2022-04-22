@@ -1562,7 +1562,7 @@ classdef DbQuery < Component
         end
 
 
-        function SqlColumns = makeUpdateColumnsText(Obj, ColumnNames, Args)
+        function SqlColumns = makeUpdateColumnsText(Obj, ColumnNames)
             % Prepare SQL text from cell array
             % Input:   ColumnNames -
             % Output:  char-array
@@ -1573,7 +1573,6 @@ classdef DbQuery < Component
                 Obj
                 ColumnNames             %
             end
-
 
             SqlColumns = '';
 
