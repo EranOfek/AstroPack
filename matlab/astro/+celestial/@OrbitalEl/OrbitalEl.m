@@ -589,10 +589,11 @@ classdef OrbitalEl < Base
         function [V,X] = trueAnom2rectVel(Obj, Nu, R, E, AngUnits)
             % Return rectangular velocity and position vectors in Ecliptic system
             %   calculated from the orbital elements and the true anomaly.
-            % Input  : - Vector of true anomaly.
-            %          - Vector of Eccentric anomaly. If empty, then calc.
-            %            Default is [].
+            % Input  : - An OrbitalEl object.
+            %          - Vector of true anomaly.
             %          - Vector of radius vector. If empty, then calc.
+            %            Default is [].
+            %          - Vector of Eccentric anomaly. If empty, then calc.
             %            Default is [].
             %          - Units of true and eccentric anomaly.
             %            Default is 'rad'.
@@ -1326,17 +1327,19 @@ classdef OrbitalEl < Base
             
             arguments
                 N             = 1e6;
+                Args.A        = 1;
                 Args.RangeE   = [0, 0.9];
                 Args.Epoch    = 0;
             end
             
             Result = celestial.OrbitalEl;
             Result.Number    = (1:1:N).';
+            Result.A         = ones(N,1).*Args.A;
             Result.Node      = rand(N,1).*360;
             Result.W         = rand(N,1).*360;
             Result.Incl      = rand(N,1).*180 - 90;
             Result.Eccen     = rand(N,1).*range(Args.RangeE) + min(Args.RangeE);
-            Result.Epoch     = zeros(N,1).*Args.Epoch;
+            Result.Epoch     = ones(N,1).*Args.Epoch;
             Result.Mepoch    = rand(N,1).*360;
             
             
