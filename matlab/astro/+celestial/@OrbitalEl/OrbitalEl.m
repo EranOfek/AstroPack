@@ -1,6 +1,6 @@
-% OrbitalEl
+% celestial.OrbitalEl - A class for storing and manipulating orbital
+% elements, and two body motion calculations.
 %
-
 % #functions (autogen)
 % OrbitalEl - Constractor for OrbitalEl class
 % eccAnom2radius - Eccentric anomaly to radius vector
