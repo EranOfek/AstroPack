@@ -232,7 +232,7 @@ classdef OrbitalEl < Base
             end
             
         end
-        
+                
     end
 
     methods % Keplerian orbit functions
@@ -1310,6 +1310,36 @@ classdef OrbitalEl < Base
                 end
             end
                 
+        end
+        
+        function Result = randomElements(N, Args)
+            % Generate random orbital elements
+            % Input  : - Number of random elements to generate.
+            %          * ...,key,val,...
+            %            'RangeE' - Eccntricity range.
+            %                   Default is [0, 0.9].
+            %            'Epoch' - Epoch of observations.
+            %                   Default is 0.
+            % Output : - An OrbitalEl object with random elements.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: R = celestial.OrbitalEl.randomElements;
+            
+            arguments
+                N             = 1e6;
+                Args.RangeE   = [0, 0.9];
+                Args.Epoch    = 0;
+            end
+            
+            Result = celestial.OrbitalEl;
+            Result.Number    = (1:1:N).';
+            Result.Node      = rand(N,1).*360;
+            Result.W         = rand(N,1).*360;
+            Result.Incl      = rand(N,1).*180 - 90;
+            Result.Eccen     = rand(N,1).*range(Args.RangeE) + min(Args.RangeE);
+            Result.Epoch     = zeros(N,1).*Args.Epoch;
+            Result.Mepoch    = rand(N,1).*360;
+            
+            
         end
     end
 
