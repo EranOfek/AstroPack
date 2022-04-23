@@ -1,5 +1,7 @@
 % Parallel timer class - Create a timer object on a parallel worker
 
+NOT WORKING
+
 classdef ParTimer < handle
     % ParTimer class
     
