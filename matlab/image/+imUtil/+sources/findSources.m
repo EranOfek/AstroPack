@@ -143,7 +143,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     % add forced photometry surces
     if ~isempty(Args.ForcedList)
         NsrcF = size(Args.ForcedList,1);
-        PosF  = nan(NsrcF,4);
+        PosF  = nan(NsrcF,5);
         % take the rounded positions
         PosF(:,1:2) = round(Args.ForcedList);
         % forced photomety are marked as arriving from template=NaN
