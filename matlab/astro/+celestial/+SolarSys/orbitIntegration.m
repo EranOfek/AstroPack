@@ -1,4 +1,4 @@
-function [X,V] = asteroidIntegration(JD,X0,V0,Args)
+function [X,V] = orbitIntegration(JD,X0,V0,Args)
     % Calculate the position and velocity evolution for a list of asteroids 
     % Input  : - Target asteroids position vector in au.
     %            This is a 3 X Nobj matrix, where 3 is the number of
