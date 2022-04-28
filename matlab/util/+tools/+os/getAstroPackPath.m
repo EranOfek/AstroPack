@@ -1,26 +1,17 @@
 function Result = getAstroPackPath()
 
-    MatlabDir    = 'matlab';
-    AstroPackDir = 'AstroPack';
-
-    if (ismac || isunix)
-        % Linux / Mac
-        HomeDir = getenv('HOME');
-        AstroPackPath = getenv('ASTROPACK_PATH');
-        if isempty(AstroPackPath)    
-            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
+    AstroPackPath = getenv('ASTROPACK_PATH');
+    
+    if isempty(AstroPackPath)
+        AstroPackDir = 'AstroPack';
+        if (ismac || isunix)
+            % Linux / Mac (forward slash)
+                HomeDir = extractBefore(mfilename('fullpath'),'AstroPack/matlab');
+        else
+            % Windows (back slash)
+                HomeDir = extractBefore(mfilename('fullpath'),'AstroPack\matlab');
         end
-    else
-        % Windows
-        HomeDir = getenv('HOMEPATH');
-        AstroPackPath = getenv('ASTROPACK_PATH');    
-        if isempty(AstroPackPath)
-            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
-        end
-    end
-
-    if (isempty(HomeDir))
-        %error('Can not find home directory environment variable - edit the startup.m file accordingly');
+        AstroPackPath = fullfile(HomeDir, AstroPackDir);
     end
 
     Result = AstroPackPath;

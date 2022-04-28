@@ -340,6 +340,13 @@ classdef Configuration < handle
     %======================================================================
     %                          Static Functions
     %======================================================================
+    methods (Static)
+        function help
+            % Show MLX manual
+            tools.os.class_mlx(mfilename('fullpath'))
+        end
+    end
+    
     methods(Static) % Static functions to access the Singleton configuration
 
         function Result = getSingleton()

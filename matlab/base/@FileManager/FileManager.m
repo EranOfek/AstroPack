@@ -567,12 +567,12 @@ classdef FileManager < handle
 
     end
     
-    methods (Static) % help
+    methods (Static)
         function help
-            % mlx help for FileManager
-            edit manuals.classes.FileManager
+            % Show MLX manual
+            tools.os.class_mlx(mfilename('fullpath'))
         end
-    end
+    end        
     
     methods (Static)
         Result = unitTest()

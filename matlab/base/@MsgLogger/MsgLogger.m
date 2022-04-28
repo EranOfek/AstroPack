@@ -384,6 +384,13 @@ classdef MsgLogger < handle
         end
     end
 
+    %----------------------------------------------------------------------
+    methods (Static)
+        function help
+            % Show MLX manual
+            tools.os.class_mlx(mfilename('fullpath'))
+        end
+    end    
 
     methods(Static) % Static functions
 

@@ -192,6 +192,13 @@ classdef LogFile < handle
 
     end
 
+    %----------------------------------------------------------------------
+    methods (Static)
+        function help
+            % Show MLX manual
+            tools.os.class_mlx(mfilename('fullpath'))
+        end
+    end        
 
     methods(Static)
 
