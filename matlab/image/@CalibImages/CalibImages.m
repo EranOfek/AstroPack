@@ -4,7 +4,7 @@
 %   images for a single detector or a section of a detector.
 %   This allows performing calibration for multiple detectors
 %   simultaneously.
-
+%
 % #functions (autogen)
 % CalibImages - Constructor for the CalibImages class
 % checkObjImageSize - Check the validity of the size (number of elements) of CalibImages object and input image This function will return an error if not one of the following: size(Image)size(Obj) or (numel(Obj)1 and numel(Image)>1)');
@@ -20,7 +20,6 @@
 % set.Fringe - setter for Fringe property - set FringeExpTime+FringeFilter from Header
 % #/functions (autogen)
 %
-
 % use case:
 %   1. create dark/bias/flat/fringe
 %       bias
@@ -187,7 +186,7 @@ classdef CalibImages < Component
         end
         
     end
-    
+        
     methods (Access=private)
         function [Nobj, Nim] = checkObjImageSize(Obj, Image)
             % Check the validity of the size (number of elements) of CalibImages object and input image
@@ -248,6 +247,22 @@ classdef CalibImages < Component
             Obj.Bias = AstroImage(Args.Bias, 'Mask',Args.BiasMask, 'Var',Args.BiasVar);
             Obj.Dark = AstroImage(Args.Dark, 'Mask',Args.DarkMask, 'Var',Args.DarkVar);
             Obj.Flat = AstroImage(Args.Flat, 'Mask',Args.FlatMask, 'Var',Args.FlatVar);
+            
+        end
+        
+        function Obj = loadFromDir(DirName, Args)
+            %
+           
+            arguments
+                DirName
+                Args.DarkImType   = 'dark';
+                Args.FlatImType   = 'flat';
+                Args.DarkProduct  = {'Image','Mask'};
+                Args.FlatProduct  = {'Image','Mask'};
+            end
+            
+            
+            
             
         end
     end
