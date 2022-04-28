@@ -23,7 +23,9 @@ CopyObj
 DbInfo
 DeepCp
 Dictionary
+Exception
 FITS
+FileManager
 HDF5
 HandleClass
 HandleClassCopy

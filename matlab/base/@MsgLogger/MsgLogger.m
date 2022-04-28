@@ -5,18 +5,24 @@
 % Author: Chen Tishler (Apr 2021)
 %
 
-% #functions (autogen)
-% MsgLogger -
-% getLevelStr - Convert Level enumeation to string
-% getSingleton - Return singleton object, the deafult MsgLogger
-% msgLog - Log message to console/file according to current LogLevel settings
-% msgLogEx - Log exception message
-% msgStack - Log stack trace
-% msgStyle - Log message to console/file according to current LogLevel settings
-% setLogLevel - Set current log level, Args.type is 'all', 'file', 'disp'
-% shouldLog - Return true if specified Level should be logged according to the specified CurLevel settings
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    MsgLogger - Construct Logger (file and optional console) This class uses internally the LogFile class for actual file access. Input: 'FileName' - File name, if empty the singleton LogFile is used 'UseTimestamp' - true - Add current timestamp as prefix to the
+%    getLevelStr - Convert Level enumeation to string Input: Level - LogLevel enumeration (in file LogLeve.m) Output: char array Example: getLevelStr(LogLevel.Error)
+%    msgLog - Log message to console/file according to current LogLevel settings Input: Level - LogLevel enumeration, see LogLevel.m varargin - Any fprintf arguments Output: - Example: Obj.msgLog(LogLevel.Debug, 'Elapsed time: %f', toc)
+%    msgLogEx - Log MException message to console/file according to current LogLevel settings Input: Level - LogLevel enumeration, see LogLevel.m Ex - MException object varargin - Any fprintf arguments Output: -
+%    msgStack - Log stack trace, @Todo - NOT fully tested yet! Input: Level varargin - fprintf arguments Output: Log to file and console with msgLog() Example: Obj.msgStack(LogLevel.Error);
+%    msgStyle - Change style of log message. Input: Level - LogLevel enumeration, see LogLevel.m Style - 'red', 'blue', etc., see cprintf.m varargin - Any fprintf arguments Output: -
+%    mustLog - Return true if specified Level should be logged according Input: Level - Output: true/false Example: Obj.mustLog(LogLevel.Debug)
+%    shouldLog - Return true if specified Level should be logged according to the specified CurLevel settings Input: Level - CurLevel - Output: true/false according to specified Level and CurLevel
+%
+% Methods: Static
+%    getSingleton - Return singleton object, the default MsgLogger Input: 'FileName' - 'UseTimestamp' - 'Console' - Output: MsgLogger object
+%    setLogLevel - Set current log level, Args.type is 'all', 'file', 'disp' Input: Level - 'type' - 'all', 'file', 'disp' Output: - Example: MsgLogger.getSingleton().setLogLevel(LogLevel.Debug)
+%
+%#/docgen
+
 
 classdef MsgLogger < handle
     % Message logger to console and file, with log levels
@@ -28,7 +34,7 @@ classdef MsgLogger < handle
         Console                 % True to print messages also to console
         Enabled logical         % True to enable logging, when false, calling msg..() function will do nothing
         UserData                % Optional user data
-        LogF LogFile            % Log file, used internally        
+        LogF LogFile            % Log file, used internally
     end
 
     %--------------------------------------------------------
@@ -48,13 +54,13 @@ classdef MsgLogger < handle
             %                             config/local/MsgLogger.yml or config/MsgLogger.yml are used for
             %                             initial log levels, Console, and MaxFileSize
             %
-            % Any component derived from 'Component' class has a Logger property 
+            % Any component derived from 'Component' class has a Logger property
             % which by default is set to the singleton logger.
             % This allows by default single log file for all our classes.
             %
             % From any Component derived object:
             %   Obj.msgLog(LogLevel.Debug, 'My message');
-            %            
+            %
             % To replace the default singleton logger of your class:
             %   Obj.Logger = MsgLogger('FileName', '/tmp/my_log_file');
             %
@@ -75,7 +81,7 @@ classdef MsgLogger < handle
             %
             %
             % Note: You can always create instances of MsgLogger even when
-            %       not using a class. For example, a package function may have a 
+            %       not using a class. For example, a package function may have a
             %       logger using 'persistent':
             %
             %       function Result = myFunctionInsidePackage()
@@ -89,17 +95,17 @@ classdef MsgLogger < handle
             %
             % Using log-levels:
             %   See base/LogLevel.m for list of log levels.
-            %   Set log level for log file, only messages with log level 
+            %   Set log level for log file, only messages with log level
             %   with this and higher priority  will be logged to the file.
-            %   MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');            
+            %   MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');
             %
-            %   Set log level for log file, only messages with log level 
+            %   Set log level for log file, only messages with log level
             %   with this and higher priority  will be logged to console.
-            %   MsgLogger.setLogLevel(LogLevel.Warning, 'type', 'disp');            
+            %   MsgLogger.setLogLevel(LogLevel.Warning, 'type', 'disp');
             %
-            %   io.msgLog(LogLevel.Info, 'This should go to file only');              
+            %   io.msgLog(LogLevel.Info, 'This should go to file only');
             %   io.msgLog(LogLevel.Warning, 'This should go to file and display');
-            %            
+            %
             %
             arguments
                 Args.FileName = 'AstroPackLog'  % Log file name, if empty it uses the singleton object
@@ -116,7 +122,7 @@ classdef MsgLogger < handle
             % Load configuration file only once
             persistent Conf;
             persistent ConfigLoaded;
-            persistent AddPath;                            
+            persistent AddPath;
             if Args.LoadConfig && isempty(ConfigLoaded)
                 ConfigLoaded = true;
                 if isempty(AddPath)
@@ -124,7 +130,7 @@ classdef MsgLogger < handle
                     MyFileName = mfilename('fullpath');
                     [MyPath, ~, ~] = fileparts(MyFileName);
                     ExternalPath = fullfile(MyPath, '..', '..', 'external');
-                    addpath(ExternalPath);                
+                    addpath(ExternalPath);
                 end
 
                 % Load config file from config/local/MsgLogger.yml or from config/MsgLogger.yml
@@ -146,8 +152,8 @@ classdef MsgLogger < handle
                 % Use MaxFileSize from configuration
                 if Args.MaxFileSize == 0
                     Args.MaxFileSize = Conf.MsgLogger.MaxFileSize;
-                end                
-            end            
+                end
+            end
 
             % Always have a default value, even if not set in configuration
             if Args.MaxFileSize == 0
@@ -194,7 +200,7 @@ classdef MsgLogger < handle
             end
 			
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
-			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);			
+			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
@@ -203,7 +209,7 @@ classdef MsgLogger < handle
             % Prepare prompt with level
             LevStr = getLevelStr(Obj, Level);
 
-            % Log to display			
+            % Log to display
             if LogToDisplay
                 fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
                 fprintf(varargin{:});
@@ -232,11 +238,11 @@ classdef MsgLogger < handle
             end
 
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
-			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);			
+			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
-            end            
+            end
             
             % Prepare prompt with log level
             LevStr = getLevelStr(Obj, Level);
@@ -270,13 +276,13 @@ classdef MsgLogger < handle
                 Msg = sprintf('Exception: %s - %s - %s', Ex.identifier, Ex.message, MsgReport);
             end
             Obj.msgStyle(Level, 'red', Msg);
-        end        
+        end
         
 		function Result = shouldLog(Obj, Level, CurLevel)
             % Return true if specified Level should be logged according
             % to the specified CurLevel settings
-            % Input:   Level    - 
-            %          CurLevel - 
+            % Input:   Level    -
+            %          CurLevel -
             % Output:  true/false according to specified Level and CurLevel
             % Example: Obj.shouldLog(LogLevel.Debug, Obj.CurLevel)
             
@@ -303,7 +309,7 @@ classdef MsgLogger < handle
 
         function Result = mustLog(Obj, Level)
             % Return true if specified Level should be logged according
-            % Input:   Level - 
+            % Input:   Level -
             % Output:  true/false
             % Example: Obj.mustLog(LogLevel.Debug)
             Result = false;
@@ -340,7 +346,7 @@ classdef MsgLogger < handle
                 case LogLevel.Perf
                     s = 'PRF';
 				case LogLevel.Test
-					s = 'TST';                    
+					s = 'TST';
 				case LogLevel.All
 					s = 'ALL';
 				otherwise
@@ -383,9 +389,9 @@ classdef MsgLogger < handle
 
         function Result = getSingleton(Args)
             % Return singleton object, the default MsgLogger
-            % Input:   'FileName'       - 
+            % Input:   'FileName'       -
             %          'UseTimestamp'   -
-            %          'Console'        - 
+            %          'Console'        -
             % Output:  MsgLogger object
             % Example: Logger = MsgLogger.getSingleton()
             
@@ -405,7 +411,7 @@ classdef MsgLogger < handle
 
         function setLogLevel(Level, Args)
             % Set current log level, Args.type is 'all', 'file', 'disp'
-            % Input:   Level  - 
+            % Input:   Level  -
             %          'type' - 'all', 'file', 'disp'
             % Output:  -
             % Example: MsgLogger.getSingleton().setLogLevel(LogLevel.Debug)

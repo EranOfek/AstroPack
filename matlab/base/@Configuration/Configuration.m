@@ -75,7 +75,7 @@
 %     MyConf.loadFile('c:/temp/unittest.yml', 'Field', false);
 %     disp(MyConf.Data.Key1)
 %
-% ### Load entire folder 
+% ### Load entire folder
 %
 % Suppose you have two files, 'c:/temp/myconfig/unittest.yml'
 % and 'c:/temp/myconfig/anothertest.yml':
@@ -91,24 +91,29 @@
 %
 %--------------------------------------------------------------------------
 %
-% #functions (autogen)
-% Configuration -
-% expandFolder - Expand Path with macros from Configuration.System.EnvFolders This functions assume that we already loaded a configuration file called System.yml which has EnvFolders section.
-% getRange - Get minimum and maximum values from cell array, assuming that cell{1} holds the minimum and cell{2} folds the maximum This is usefull when storing Example: [min, max] = conf.getRange(conf.Yaml.DarkImage.TemperatureRange)
-% getSingleton - Return the singleton Configuration object, this is the 'Global' configuration object of the system
-% getSysConfigPath - Get path to system configuration file, from ASTROPACK_CONFIG_PATH or repository
-% internal_initSysConfig - Return singleton Configuration object, clear entire configuration if argument is 'clear' This function DOES NOT load any configuration file, just create/clear the object
-% internal_loadYaml - Read YAML file to struct, add FileName field
-% internal_reloadYaml - Reload configuration file, YamlStruct.FileName property must exist FileName is created by Configuration.loadYaml() on loading.
-% loadFile - Load specified file to new property inside Obj.Data. When Args.Field is true, a new property based on the file name will be created in Obj.Data Use this function when working with user Confguuration object, or when you want to explictly load/reload specific
-% loadFolder - Load all configuration files inside the specified folder Each file is loaded to Obj.Data.FileName struct. Example: MyConfig = Configuration(); MyConfig.loadFile('C:/Temp/MyConfigFolder');
-% loadSysConfig - Load entire system configuration, same as getSingleton()
-% reload - Reload all configuration files from folder used by last call to loadFolder(), if Obj.Path is empty, it reloads existing structs by the stored FileName field Example: MyConfig.reloadFolder()
-% reloadFile - Reload specified configuration object (file name) Call this function with the Example: MyConfig.reloadFile(MyConfig.Data.unittest)
-% reloadSysConfig - Reload entire system configuration, Warning: calls 'clear java'
-% unmacro - Replace macros in string with values from struct Example: Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc" Configuration.unmacro(Component.Config.Data.DarkImage.InputFolder, Component.Config.Data.EnvFolders)
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    Configuration - Constructor Intput: * ...,key,val,... 'Name' - Optionall name for the configuration object 'File' - YML file name to load 'Folder' - Folder to load
+%    expandFolder - Expand Path with macros from Configuration.System.EnvFolders This functions assume that we already loaded a configuration file called System.yml which has EnvFolders section. Input: Output:
+%    internal_convertStruct - Recursive scan and replace data in struct: '@FuncName' -> Function handle 'eval(...)' -> Call to eval, can be used to create object, run any function, etc.
+%    internal_loadYaml - Read YAML file to struct, add FileName field Input: FileName - File name of YAML file to be loaded Output: struct with hierarchical data loaded from YAML file Example: MyStruct = Configuration.internal_loadYaml('conf.yml')
+%    internal_reloadYaml - Reload configuration file, YamlStruct.FileName property must exist FileName is created by Configuration.loadYaml() on loading. Input: - Output: - Example: - MyStruct = internal_reloadYaml(MyStruct)
+%    loadFile - Load specified file to new property inside Obj.Data. When Args.Field is true, a new property based on the file name will be created in Obj.Data Use this function when working with user Confguuration object, or when you want to explictly load/reload specific
+%    loadFolder - Load all configuration files inside the specified folder Each file is loaded to Obj.Data.FileName struct. Input: - A Configuration object. - Path - folder name to look for *.yml files * ...,key,val,...
+%    reload - Reload all configuration files from folder used by last call to loadFolder(), if Obj.Path is empty, it reloads existing structs by the stored FileName field Example: MyConfig.reloadFolder()
+%    reloadFile - Reload specified configuration object (file name) Input: - A Configuration objeect. - YamlStructOrFileName - if char, it specified the file name to be loaded, otherwise it is assumed to be struct that contains also FileName field, and this file is reloaded
+%
+% Methods: Static
+%    getSingleton - Return the singleton Configuration object, this is the 'Global' configuration object of the system Example: Conf = Configuration.getSingleton()
+%    getSysConfigPath - Get path to system configuration file, from ASTROPACK_CONFIG_PATH or repository This function is called from MsgLogger and MUST NOT use any msgLog() call! Output: Path of configuration files
+%    internal_initSysConfig - **Internal function** Return singleton Configuration object, clear entire configuration if argument is 'clear' This function DOES NOT load any configuration file, just create/clear the object Output: New Configuration object Example: Conf = Configuration.internal_initSysConfig('clear')
+%    loadSysConfig - Load entire system configuration, same as getSingleton() Example: Configuration.loadSysConfig()
+%    reloadSysConfig - Reload entire system configuration, Warning: calls 'clear java' Example: Configuration.reloadSysConfig()
+%    unmacro - @Todo help Replace macros in string with values from struct Input: - Output: - Example: -
+%
+%#/docgen
+
 
 classdef Configuration < handle
     % Note that this class is derived from Base and not from Component
@@ -279,7 +284,7 @@ classdef Configuration < handle
         function reloadFile(Obj, YamlStructOrFileName)
             % Reload specified configuration object (file name)
             % Input: - A Configuration objeect.
-            %        - YamlStructOrFileName - if char, it specified the file name 
+            %        - YamlStructOrFileName - if char, it specified the file name
             %          to be loaded, otherwise it is assumed to be struct that contains
             %          also FileName field, and this file is reloaded
             % Output:  Obj.Data... is afected
@@ -320,9 +325,9 @@ classdef Configuration < handle
             % Expand Path with macros from Configuration.System.EnvFolders
             % This functions assume that we already loaded a configuration
             % file called System.yml which has EnvFolders section.
-            % Input:   
-            % Output:  
-            % Example: 
+            % Input:
+            % Output:
+            % Example:
             if isfield(Obj.Data, 'System') && isfield(Obj.Data.System, 'EnvFolders')
                 Result = Configuration.unmacro(Path, Obj.Data.System.EnvFolders);
             else
@@ -340,7 +345,7 @@ classdef Configuration < handle
         function Result = getSingleton()
             % Return the singleton Configuration object, this is the 'Global'
             % configuration object of the system
-            % Example: Conf = Configuration.getSingleton() 
+            % Example: Conf = Configuration.getSingleton()
             Result = Configuration.internal_initSysConfig();
         end
 
@@ -354,7 +359,7 @@ classdef Configuration < handle
         
         function Result = reloadSysConfig()
             % Reload entire system configuration, Warning: calls 'clear java'
-            % Example: Configuration.reloadSysConfig()          
+            % Example: Configuration.reloadSysConfig()
             io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
             clear java;
             Result = Configuration.internal_initSysConfig('clear');
@@ -435,7 +440,7 @@ classdef Configuration < handle
         function YamlStruct = internal_loadYaml(FileName)
             % Read YAML file to struct, add FileName field
             % Input:   FileName - File name of YAML file to be loaded
-            % Output:  struct with hierarchical data loaded from YAML file 
+            % Output:  struct with hierarchical data loaded from YAML file
             % Example: MyStruct = Configuration.internal_loadYaml('conf.yml')
             io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
             try
@@ -495,13 +500,13 @@ classdef Configuration < handle
                         if startsWith(Value, '@')
                             FuncName = Value(2:end);
                             FuncHandle = str2func(FuncName);
-                            Struct.(FieldName) = FuncHandle; 
-                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
+                            Struct.(FieldName) = FuncHandle;
+                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);
                             
                         % Eval (any expression)
                         elseif startsWith(Value, 'eval(')
                             Struct.(FieldName) = eval(Value);
-                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
+                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);
                         end
                     end
                 end
@@ -519,7 +524,7 @@ classdef Configuration < handle
             % Replace macros in string with values from struct
             % Input:   -
             % Output:  -
-            % Example: -            
+            % Example: -
             % Example:
             % Str="$Root/abc", MacrosStruct.Root="xyz" -> "xyz/abc"
             % Configuration.unmacro(Component.Config.Data.DarkImage.InputFolder, Component.Config.Data.EnvFolders)

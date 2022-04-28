@@ -2,20 +2,26 @@
 %
 % Simple textual log file with timestamp and other features.
 % Note that this class is derived from 'handle' and not from 'Component'
-% 
+%
 % Author: Chen Tishler (Apr 2021)
 %
 
-% #functions (autogen)
-% LogFile - Constructor for LogFile
-% delete - Destructor - close file
-% getFileNameTimestamp - Return current date/time as sortable string
-% getSingleton - Return singleton object, this is the default log file to be used by current process (or workspace)
-% getTimestamp - Return current date/time as sortable string with milliseconds
-% write - Write text line to file
-% write2 - Log title and text line to file
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    LogFile - Constructor for LogFile Input: FileName - Log file name. If empty, use 'DefaultLogFile'. If FileName does not contain path separator, call LogFile.defaultPath() to get default path for log files. 'UseTimestamp' - When true, add current timestamp to file name
+%    delete - Destructor - close file if open
+%    write - Write text line to file Input: varargin - Any fprintf() arguments Output: true on success Example: MyLogFile.write('Elapsed time: %f', toc)
+%    write2 - Write title and text line to file, usually used internally by other components. Input: varargin - Any fprintf() arguments Output: true on success Example: MyLogFile.write2('Perf', 'Elapsed time: %f', toc)
+%
+% Methods: Static
+%    defaultPath - Set/get default log path Input: When input argument is specified, store it as the current log path, replacing the old value. Example: MyPath = LogFile.defaultPath() Example: LogFile.defaultPath('/tmp/log_folder')
+%    getFileNameTimestamp - Return current date/time as sortable string, suitable for file name on Linux and Windows, such as '2021-12-20__11-07-03' Input: - Output: Current time formated as 'yyyy-mm-dd__HH-MM-SS' Example: T = LogFile.getFileNameTimestamp()
+%    getSingleton - Return singleton object, this is the default log file to be used by current process (or workspace) Input: - Output: Example: SysLogFile = LogFile.getSingleton();
+%    getTimestamp - Return current date/time as sortable string with milliseconds, such as '2021-12-20 11:05:59.357' Input: - Output: Current time formated as 'yyyy-mm-dd HH:MM:SS.FFF' Example: T = LogFile.getTimestamp()
+%
+%#/docgen
+
 
 classdef LogFile < handle
     % Properties
@@ -38,17 +44,17 @@ classdef LogFile < handle
         function Obj = LogFile(FileName, Args)
             % Constructor for LogFile
             % Input:  FileName - Log file name. If empty, use 'DefaultLogFile'.
-            %               If FileName does not contain path separator, call 
+            %               If FileName does not contain path separator, call
             %               LogFile.defaultPath() to get default path for log files.
             %         'UseTimestamp' - When true, add current timestamp to file name
             arguments
                 FileName = ''               % File name
-                Args.UseTimestamp = false   % True to add timestamp to file name, 
+                Args.UseTimestamp = false   % True to add timestamp to file name,
                 Args.MaxFileSize = 10000000 % Maximum file size before switching to '.old'
             end
 
             % Make timestamp
-            Obj.Timestamp = Obj.getFileNameTimestamp();            
+            Obj.Timestamp = Obj.getFileNameTimestamp();
             Obj.MaxFileSize = Args.MaxFileSize;
             Obj.Pid = feature('getpid');
             
@@ -65,11 +71,11 @@ classdef LogFile < handle
             
             % Filename does not include folder name, use deafult folder
             if ~contains(FileName, '/') && ~contains(FileName, '\')
-                FileName = fullfile(LogFile.defaultPath(), FileName);                
+                FileName = fullfile(LogFile.defaultPath(), FileName);
             end
                      
             % Add timestamp before file name
-            if Args.UseTimestamp                
+            if Args.UseTimestamp
                 [Path, FileName, Ext] = fileparts(FileName);
                 FileName = [FileName, Ext];
                 FileName = fullfile(Path, sprintf('%s-%s', Obj.Timestamp, FileName));
@@ -116,13 +122,13 @@ classdef LogFile < handle
             % Write title and text line to file, usually used internally by
             % other components.
             % Input:   varargin - Any fprintf() arguments
-            % Output:  true on success            
+            % Output:  true on success
             % Example: MyLogFile.write2('Perf', 'Elapsed time: %f', toc)
             
             % Prepare prompt from timestamp and title
             if Obj.UsePid
                 Prompt = sprintf('[%05d] %s', Obj.Pid, Obj.getTimestamp());
-            else            
+            else
                 Prompt = Obj.getTimestamp();
             end
             
@@ -169,7 +175,7 @@ classdef LogFile < handle
                     if isfile(OldName)
                         delete(OldName);
                     end
-                    movefile(Obj.FileName, OldName);                    
+                    movefile(Obj.FileName, OldName);
                 end
             end
             
@@ -206,7 +212,7 @@ classdef LogFile < handle
                     Path = 'C:/log';
                 else
                     Path = '~/log';
-                end                
+                end
             end
             Result = Path;
         end
@@ -216,7 +222,7 @@ classdef LogFile < handle
             % Return singleton object, this is the default log file
             % to be used by current process (or workspace)
             % Input:   -
-            % Output:             
+            % Output:
             % Example: SysLogFile = LogFile.getSingleton();
             arguments
                 Args.FileName = ''          % File name
@@ -252,7 +258,7 @@ classdef LogFile < handle
     end
 
 
-    methods(Static) 
+    methods(Static)
         Result = unitTest()
             % Unit test
     end

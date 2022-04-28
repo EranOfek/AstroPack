@@ -4,18 +4,21 @@
 % Authors: Chen Tishler & Eran Ofek (Apr 2021)
 %
 % Functionality:
-% #functions (autogen)
-% Base - Constructor
-% copy - Create a deep copy of the object (and any object that inherits
-%       from Base).
-% copyProp - Copy the content of properties from Obj into Target.
-% setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied
+%#docgen
 %
-% copyElement - (Internal) Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
-% createNewObj - A utility function for creation of an object new copy based on nargout
-% openMLX - added by O.S., opens the MLX of the class, Run by using: classname.empty.openMLX
-% #/functions (autogen)
+% Methods:
+%    Base - Constructor
+%    copyElement - Custom copy of object properties, internally used by matlab.mixin.Copyable Called from copy() of matlab.mixin.Copyable decendents See: https://www.mathworks.com/help/matlab/ref/matlab.mixin.copyable-class.html
+%    copyProp - Copy the content of properties from Obj into Target.
+%    createNewObj - A utility function for creation of an object new copy based on nargout
+%    openMLX - added by O.S., opens the MLX of the class, Run by using: classname.empty.openMLX
+%    setProps - Copy fields of struct Args to class properties, non-existing properties are ignored Return number of fields copied Input: Args - 'arguments' struct of the caller function Example: Obj.setProps(Args)
 %
+% Methods: Static
+%    help - Show MLX manual
+%
+%#/docgen
+
 %
 % Making a DEEP Copy: Copy each property value and assign it to the new
 % (copied) property. Recursively copy property values that reference handle
@@ -167,12 +170,12 @@ classdef Base < matlab.mixin.Copyable
     %Todo: Chen how to open the manual of the actual class
     %Check if there is somethink like @classmethod of python:
     %https://www.geeksforgeeks.org/classmethod-in-python/
-    % methods (Static)
-    %     function help
-    %         % show mlx help file for AstroCatalog
-    %         open manuals.AstroCatalog
-    %     end
-    % end
+    methods (Static)
+        function help
+            % Show MLX manual
+            tools.os.class_mlx(mfilename('fullpath'))
+        end
+    end
 
     % https://www.mathworks.com/matlabcentral/answers/525877-link-to-section-in-another-live-script
     % function open_local_mlx(mlxname, lineNum)

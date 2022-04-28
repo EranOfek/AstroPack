@@ -4,17 +4,20 @@
 %
 % Usage:
 %   ut.bpush() - Runs all Unit-Tests before git push
-%                If errors found, you should NOT push your changes to the main 
+%                If errors found, you should NOT push your changes to the main
 %                working branch (dev1/master/etc.)
 %
 
-% #functions (autogen)
-% bpush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-% diff - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-% test - Run all unit tests
-% unitTest -
-% #/functions (autogen)
+%#docgen
 %
+% Methods: Static
+%    bpush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS Output: true on sucess Example: ut.bpush()
+%    diff - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS Output: true on sucess Example: ut.diff()
+%    test - Run all unit tests Output: true on sucess Example: ut.test()
+%    unitTest - Dummy function to avoid warnings about missing unitTest()
+%
+%#/docgen
+
 
 classdef ut < handle
 
@@ -32,7 +35,7 @@ classdef ut < handle
         function Result = bpush()
             % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
             % Output:  true on sucess
-            % Example: ut.bpush()            
+            % Example: ut.bpush()
             Result = UnitTester.beforePush();
         end
 
@@ -40,7 +43,7 @@ classdef ut < handle
         function Result = diff()
             % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
             % Output:  true on sucess
-            % Example: ut.diff()            
+            % Example: ut.diff()
             persistent Tester
             if isempty(Tester)
                 Tester = UnitTester;

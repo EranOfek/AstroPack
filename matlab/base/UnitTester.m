@@ -1,44 +1,49 @@
 % Top-Level Unit Tester
-% Author: Chen Tishler, 
+% Author: Chen Tishler,
 %
 
 % Usage:
 %
 
-% #functions (autogen)
-% UnitTester -
-% Warn -
-% beforePush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-% doBeforePush - Run all required tests before 'git push' command WARNING: DO NOT PUSH to common branch (currently: 'dev1') if there are failed tests!
-% doPerfTest - Run all Performance tests
-% doStressTest - Run all Stress tests
-% doTest - Run all unit-tests and show report
-% findClassDef - Search classdef
-% findFunction - Search unitTest() function
-% fullName -
-% getClassName - Get class name from folder name that starts with '@'
-% getFunctionName - 'function Result = unitTest()'
-% getPackageName - Get package name from file name
-% getTestFits - Return FITS file name and size from our test data folder
-% isTested - Check if already tested by inspecting at Obj.TestList
-% msgLog - Write message to log
-% msgStyle - Write message to log
-% perfTest - Run all Performance tests
-% processFile -
-% processFolder - Recursivly call processFile()
-% readFile - Read file to Lines{}
-% report - Print report of all performed tests
-% runTest - Run single unit test, Target is class name Example: runTest('ImagePath')
-% setup - Class setup, prepare path to source code
-% shouldProcessFile -
-% stressTest - Run all Stress tests
-% test -
-% testAll - Run all unit-test functions found in MATLAB source files
-% testCore - Run core unit-tests, required before we can run any other
-% testImage - Run image related unit-tests
-% unitTest -
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    UnitTester -
+%    Warn - Add text to warnings list stored in Obj.WarnList Input: Text - any text to add to warnings list Output: - Example: Obj.Warn('New warning text')
+%    doBeforePush - Run all required tests before 'git push' command WARNING: DO NOT PUSH to common branch (currently: 'dev1') if there are failed tests! Output: true on success Example: Obj.doBeforePush()
+%    doPerfTest - Run all Performance tests Output: true on success Example: Obj.doPerfTest()
+%    doStressTest - Run all Stress tests Output: true on success Example: Obj.doStressTest()
+%    doTest - Run all unit-tests and show report Output: true if all tests passed Example: Obj.doTest()
+%    findClassDef - Search 'classdef' in text lines Input: Lines - Output: Given class name Example: ClassName = findClassDef(TextLines)
+%    findFunction - Search specified function name in text lines Input: Lines - cell array of char FuncName - function name to find Output: FuncName if found, '' if not found Example: Found = findFunction(Lines, 'MyFunc')
+%    fullName - Return full file name including package Input: PackageName - Package name ClassOrFunc - Class name or function name Output: Example: Full = fullName('io', 'msgLog')
+%    getClassName - Get class name from folder name that starts with '@' Input: FileName - file name of .m source code Output: [Class name (char), Class folder (char)] Example: [TheClass, Folder] = getClassName('matlab/@Base/Base.m');
+%    getFunctionName - Extract function name from given source code line 'function Result = unitTest()' Input: Line - source code line that should include 'function' Output: Function name if found in Line Example: Func = getFunctionName(''function Result = unitTest()')
+%    getPackageName - Get package name from file name Input: FileName - file name of .m source code Output: Package name Example: PkgName = getPackageName('matlab/+io/Test.m')
+%    isTested - Check if already tested by inspecting Obj.TestList Input: Target - file name, function name, etc. Output: True if already tested (found in Obj.TestList) Example: Tested = Obj.isTested('Base.m')
+%    msgLog - Write message to log, see io.msgLog()
+%    msgStyle - Write message to log with color, see io.msgStyle()
+%    processFile - Process file Input: FileName - 'FuncName' - 'Required' - Output: true on success
+%    processFolder - Recursivly call processFile() for all files in given folder name Input: Path - Path to source files folder 'FuncName' - Test function name, default is 'unitTest' 'Required' - true if FuncName is required to be defined in the class
+%    readFile - Read file to Lines{} Input: FileName - file name to read Output: Cell array Example: Lines = readFile('~/AstroPack/matlab/Base/LogLevel.m')
+%    report - Print report of all performed tests Output: Display report to console & log file using Obj.msgLog() Returns none Example: Obj.report()
+%    runTest - Run single unit test, Target is class name Input: ClassName - Class name to run test for 'FuncName' - Test function name to call, default is 'unitTest' Output: true on success Example: runTest('ImagePath')
+%    setup - [Internal use, called from constructor] Class setup, prepare path to source code Output: true on success Example: Obj.setup()
+%    shouldProcessFile - Return true if file should be procssed, check for special folders (i.e. 'unused') Input: FileName - Output: true if given file should be processed Example: shouldProcessFile('~/AstroPack/matlab/obsolete/hello.m')
+%    testAll - Run all unit-test functions found in MATLAB source files Output: true on success Example: Obj.testAll()
+%    testCore - Run core unit-tests, required before we can run any other Output: true on success Example: Obj.testCore()
+%    testImage - Run image related unit-tests Output: true on success Example: Obj.testImage()
+%
+% Methods: Static
+%    beforePush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS Before processing it calls 'clear all' and 'clear java' Output: true if all tested passed successfully Example: UnitTester.beforePush()
+%    getTestFits - Return FITS file name and size from our test data folder Input: Index - integer file number in the FITS folder Output: FileName - char, FileSize - numeric Example: [File,Size] = getTestFits(1)
+%    perfTest - Run all Performance tests Output: true if all tested passed successfully Example: UnitTester.perfTest()
+%    stressTest - Run all Stress tests Output: true if all tested passed successfully Example: UnitTester.stressTest()
+%    test - Output: true if all tested passed successfully Example: UnitTester.test()
+%    unitTest - Dummy unitTest to avoid warnning about missing unitTest() function
+%
+%#/docgen
+
 
 classdef UnitTester < handle
 
@@ -65,7 +70,7 @@ classdef UnitTester < handle
     methods % Main functions
 
         function Result = setup(Obj)
-            % [Internal use, called from constructor] Class setup, prepare path to source code 
+            % [Internal use, called from constructor] Class setup, prepare path to source code
             % Output:  true on success
             % Example: Obj.setup()
 
@@ -338,7 +343,7 @@ classdef UnitTester < handle
     end
     
     %----------------------------------------------------------------------
-    methods % 
+    methods %
     
         function Result = runTest(Obj, ClassName, Args)
             % Run single unit test, Target is class name
@@ -401,8 +406,8 @@ classdef UnitTester < handle
             %           'FuncName' - Test function name, default is 'unitTest'
             %           'Required' - true if FuncName is required to be defined in the
             %           class
-            % Output: 
-            % Example:            
+            % Output:
+            % Example:
 
             arguments
                 Obj
@@ -465,9 +470,9 @@ classdef UnitTester < handle
 
         function Result = processFile(Obj, FileName, Args)
             % Process file
-            % Input:    FileName   - 
-            %           'FuncName' - 
-            %           'Required' - 
+            % Input:    FileName   -
+            %           'FuncName' -
+            %           'Required' -
             % Output:   true on success
             % Example:  processFile('~/AstroPack/matlab/@Base/Base.m')
             
@@ -536,7 +541,7 @@ classdef UnitTester < handle
         function Result = shouldProcessFile(Obj, FileName)
             % Return true if file should be procssed, check for special
             % folders (i.e. 'unused')
-            % Input:   FileName - 
+            % Input:   FileName -
             % Output:  true if given file should be processed
             % Example: shouldProcessFile('~/AstroPack/matlab/obsolete/hello.m')
             Result = true;
@@ -563,7 +568,7 @@ classdef UnitTester < handle
             % Return full file name including package
             % Input:   PackageName - Package name
             %          ClassOrFunc - Class name or function name
-            % Output:  
+            % Output:
             % Example: Full = fullName('io', 'msgLog')
             Result = ClassOrFunc;
             if ~isempty(PackageName)
@@ -575,7 +580,7 @@ classdef UnitTester < handle
         function Result = readFile(Obj, FileName)
             % Read file to Lines{}
             % Input:   FileName - file name to read
-            % Output:  Cell array 
+            % Output:  Cell array
             % Example: Lines = readFile('~/AstroPack/matlab/Base/LogLevel.m')
             
             fid = fopen(FileName);
@@ -592,7 +597,7 @@ classdef UnitTester < handle
         
         function Result = findClassDef(Obj, Lines)
             % Search 'classdef' in text lines
-            % Input:   Lines - 
+            % Input:   Lines -
             % Output:  Given class name
             % Example: ClassName = findClassDef(TextLines)
             
@@ -764,7 +769,7 @@ classdef UnitTester < handle
     methods(Static)
 
         function Result = unitTest()
-            % Dummy unitTest to avoid warnning about missing unitTest() function            
+            % Dummy unitTest to avoid warnning about missing unitTest() function
             Result = true;
         end
         
@@ -772,7 +777,7 @@ classdef UnitTester < handle
         function Result = test()
             %
             % Output:  true if all tested passed successfully
-            % Example: UnitTester.test()            
+            % Example: UnitTester.test()
             Tester = UnitTester;
             Result = Tester.doTest();
         end
@@ -780,7 +785,7 @@ classdef UnitTester < handle
 
         function Result = beforePush()
             % Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-            % Before processing it calls 'clear all' and 'clear java'            
+            % Before processing it calls 'clear all' and 'clear java'
             % Output:  true if all tested passed successfully
             % Example: UnitTester.beforePush()
             clear all;

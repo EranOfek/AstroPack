@@ -7,10 +7,13 @@
 % Author: Chen Tishler (Apr 2021)
 %
 
-% #functions (autogen)
-% unitTest -
-% #/functions (autogen)
+%#docgen
 %
+% Methods: Static
+%    unitTest - Required to avoid UnitTester error message about missing unitTest
+%
+%#/docgen
+
 
 classdef LogLevel < uint32
     % Log levels, used with MsgLogger class, msgLog(), etc.

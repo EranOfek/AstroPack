@@ -33,6 +33,7 @@
 %    setConn - Input: Conn - Output: true on success Example: Obj.setConn(DbCon);
 %
 % Methods: Static
+%    help - Show MLX manual
 %    startGui - Run gui utility - @TODO - Currently DO NOT USE Input: - Output: - Example: db.DbAdmin.startGui
 %
 % Methods: Hidden

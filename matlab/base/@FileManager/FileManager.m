@@ -8,9 +8,9 @@
 %   and time stamps to the full file name.
 %   The writeLine method can be used to write a message line to the cosole
 %   and file.
-%   
+%
 %   Properties:
-%       
+%
 %   Functionality:
 %       FileManager(N) - Constructor for FileManager
 %       delete(Obj) - Destructor - close file if open
@@ -34,12 +34,40 @@
 %          FM.writeLine('bla bla bla');
 %          FM.writeLine('bla bla bla','LevelStr','[DBG]');
 %          FM.writeLine('bla bla bla','LineFormat','%20s');
-%          FM.close          
+%          FM.close
 %
             
+%#docgen
+%
+% Methods:
+%    FileManager - Constructor for FileManager
+%    close - Close a file in FileManager according to its NameID.
+%    delete - Destructor - close file if open
+%    deleteFiles - Delete files from disks.
+%    get.DateChanged - Update the hidden property DateChanged by calling FileTimeStamp Example: FM=FileManager; FM.DateChanged
+%    get.FileTime - getter for FileTime - if empty set it to now Example: FM = FileManager; FM.FileTime
+%    get.FileTimeStamp - getter for FileTimeStamp Return the TimeStamp string to be added (if requested) to the file name Example: FM=FileManager; FM.FileTimeStamp
+%    get.FullName - getter for file FullName The file full name is constrcured from the Path, FileName, FileTimeStamp, and ExtName. Note that the FileTimeStamp getter may change the date if needed.
+%    isOpen - Check if files in FileManager are open correctly FID not empty and >0
+%    open - Open a file in FileManager according to its NameID.
+%    searchID - Search NameID in FileManager NameID strings and return the indices of the found files in the FileManager array.
+%    set.AddDateToFileName - setter for AddDateToFileName, including updating FullNamePopulated FullNamePopulated is set to false on any change.
+%    set.ExtName - setter for ExtName, including updating FullNamePopulated FullNamePopulated is set to false on any change.
+%    set.FileName - setter for FileName, including updating FullNamePopulated FullNamePopulated is set to false on any change.
+%    set.FullName - setter for FullName, including updating FullNamePopulated If FullName is non empty, then FullNamePopulated is set to true.
+%    set.Path - setter for Path, including updating FullNamePopulated FullNamePopulated is set to false on any change.
+%    writeHeader - Write an header to a file (Creation date and name)
+%    writeLine - Write a line to the file and/or console This can be used to write a message line into the file and or console. Will write the line to the file only if WriteFile=true, and will write it to the console only if WriteConsole=true.
+%
+% Methods: Static
+%    getTimestamp - Return current date/time as sortable string with milliseconds, such as '2021-12-20 11:05:59.357' Output: Current time formated as 'yyyy-mm-dd HH:MM:SS.FFF' Example: T = LogFile.getTimestamp()
+%    help - mlx help for FileManager
+%
+%#/docgen
+
 classdef FileManager < handle
     % Properties
-    properties 
+    properties
         NameID char
         FullName                    = '';
         FileName                    = '';
@@ -55,7 +83,7 @@ classdef FileManager < handle
     
     
     properties (Hidden)
-        CreatePath logical           = true; % will create path (mkdir) 
+        CreatePath logical           = true; % will create path (mkdir)
         OpenPermission               = 'a+';
         MachineFormat                = 'native';
         Encoding                     = '';
@@ -70,8 +98,8 @@ classdef FileManager < handle
     end
     
         
-%     
-%     
+%
+%
 %         FileName                % File name
 %         Fid = []                % File handle
 %         UserData                % Optional user data
@@ -160,7 +188,7 @@ classdef FileManager < handle
         function Result = get.DateChanged(Obj)
             % Update the hidden property DateChanged by calling FileTimeStamp
             % Example: FM=FileManager;
-            %          FM.DateChanged 
+            %          FM.DateChanged
             
             Obj.FileTimeStamp;
             Result = Obj.DateChanged;
@@ -222,9 +250,9 @@ classdef FileManager < handle
             % Author : Eran Ofek (Jan 2022)
             % Example: FM=FileManager;
             %          FM.FullName
-            %           
+            %
                  
-            %if isempty(Obj.FullName) || 
+            %if isempty(Obj.FullName) ||
             if ~isempty(Obj.FileName) && (Obj.DateChanged || ~Obj.FullNamePopulated)
                 % construct FullName
                 if isempty(Obj.ExtName)
@@ -237,7 +265,7 @@ classdef FileManager < handle
                     Result = sprintf('%s%s%s%s%s%s',Obj.Path, filesep, Obj.FileName, Obj.FileTimeStamp, ExtName);
                 else
                     Result = sprintf('%s%s%s%s%s',Obj.Path, filesep, Obj.FileName, ExtName);
-                end  
+                end
                 Obj.FullName = Result;
                 Obj.FullNamePopulated = true;
             else
@@ -279,7 +307,7 @@ classdef FileManager < handle
                     [~,Ind] = ismember(Name, {Obj.NameID});
                 end
             end
-        end   
+        end
         
     end
 
@@ -503,7 +531,7 @@ classdef FileManager < handle
                 if Obj.WriteConsole
                     fprintf(Args.LineFormat, FullLine);
                 end
-            end                    
+            end
         end
     end
     
@@ -523,14 +551,14 @@ classdef FileManager < handle
 %         function Result = getSingleton(Args)
 %             % Return singleton FileManager object.
 %             % Input:   -
-%             % Output:             
+%             % Output:
 %             % Example: SysLogFile = LogFile.getSingleton();
-%             
+%
 %             arguments
 %                 Args.FileName = ''          % File name
 %                 Args.UseTimestamp = false   % true to add current timestamp to file name
 %             end
-%             
+%
 %             persistent Result
 %             if isempty(Result)
 %                 Result = FileManager;
@@ -546,7 +574,7 @@ classdef FileManager < handle
         end
     end
     
-    methods (Static) 
+    methods (Static)
         Result = unitTest()
             % Unit test
     end

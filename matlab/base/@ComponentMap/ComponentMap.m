@@ -11,19 +11,24 @@
 % ComponentMap.getSingleton()
 %
 
-% #functions (autogen)
-% ComponentMap - Constructor, optional parameter is used as map name, otherwise the default '(unnamed)' is used
-% add - Add Component to the map using its MapKey property
-% delete - Destructor
-% find - Find component in map by the specified key, returns [] if not found
-% getCount - Return number of items in map
-% getKey - Get component map key, generate it if required
-% getSingleton - Return singleton object
-% msgLog - Write message to log
-% release - Release all components from map
-% remove - Remove the specified component from map
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    ComponentMap - Constructor, optional parameter is used as map name, otherwise the default '(unnamed)' is used
+%    add - Add Component to the map using its MapKey property Input: Comp - Component to be added to the map Output: - Example: Obj.add(MyComp)
+%    delete - Destructor, display message and call Obj.release()
+%    find - Find component in map by the specified key, returns [] if not found Input: CompKey - Component key, char array Output: Component found by CompKey, [] if not found Example: Comp = Obj.find('MyCompKey')
+%    getCount - Return number of items in map Output: integer, number of items in map Example: Count = MyMap.getCount()
+%    getKey - Get component map key, generate it if required Input: Comp - Component Output: Example: Key = Obj.getKey(MyComp)
+%    msgLog - Write message to log, see io.msgLog() Input: Level - LogLevel enumeration, see LogLevel.m varargin - Any fprintf arguments
+%    release - Release all components from map Example: MyMap.release()
+%    remove - Remove the specified component from map Input: Comp - Component to be removed from map Output: - Example: Obj.remove(MyComp)
+%
+% Methods: Static
+%    getSingleton - Return singleton ComponentMap object Example: Map = ComponentMap.getSingleton()
+%
+%#/docgen
+
 
 classdef ComponentMap < handle
 
@@ -68,8 +73,8 @@ classdef ComponentMap < handle
     methods % Map functions
         function add(Obj, Comp)
             % Add Component to the map using its MapKey property
-            % Input:   Comp - Component to be added to the map 
-            % Output:  -            
+            % Input:   Comp - Component to be added to the map
+            % Output:  -
             % Example: Obj.add(MyComp)
             
             Key = Obj.getKey(Comp);
@@ -125,13 +130,13 @@ classdef ComponentMap < handle
 
         function Result = getKey(Obj, Comp)
             % Get component map key, generate it if required
-            % Input:   Comp - Component 
-            % Output:  
+            % Input:   Comp - Component
+            % Output:
             % Example: Key = Obj.getKey(MyComp)
             Result = Comp.needMapKey();
             if Obj.IgnoreCase
                 Result = lower(Result);
-            end            
+            end
         end
 
 

@@ -18,14 +18,14 @@
 % Sample connection string:
 %   'jdbc:postgresql://localhost:5432/pipeline'
 %--------------------------------------------------------------------------
-% Todo: 
+% Todo:
 %
 %
 
 %#docgen
 %
 % Methods:
-%    DbConnection - Constructor Input:       'DriverName'      - Currently only 'postgres' is supported       'Host'            - Network host name or IP address       'DatabaseName'    - Database name, i.e. 'unittest'
+%    DbConnection - Constructor Input: 'DriverName' - Currently only 'postgres' is supported 'Host' - Network host name or IP address 'DatabaseName' - Database name, i.e. 'unittest'
 %    close - Disconnect from database, % @Todo
 %    delete - Destructor
 %    isSharedPathAvail - Check if shared folder is available between server and client
@@ -33,7 +33,7 @@
 %    open - Connect to database specified by Host:Port:Database as UserName/Password
 %
 % Methods: Static
-%    findFieldIC - Search struct field name, ignore case Intput:  - Output:  - Example: -
+%    findFieldIC - Search struct field name, ignore case Intput: - Output: - Example: -
 %    getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
 %    getDbConnection - Search global (singleton) map of DbConnection for the specified connection key Since persistent data is visible only inside this function, we call the function with different option for find and to
 %

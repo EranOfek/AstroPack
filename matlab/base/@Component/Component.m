@@ -20,23 +20,30 @@
 %               Convert scalar data property in an object into an array
 %--------------------------------------------------------------------------
 %
-% #functions (autogen)
-% Component - Constructor By default use system log and configuration NewComp = Component() NewComp = Component(Owner)
-% convert2class - Convert a class that henhirts from Component to another class Uses eval, so in some cases maybe slow. Creates a new copy.
-% copyElement - Custom copy of object properties Called from copy() of matlab.mixin.Copyable decendents
-% data2array - Convert scalar data property in an object into an array
-% makeUuid - Generate or re-generate unique ID for each element in object, Return Uuid or [] for array MyUuid = Obj.makeUuid()
-% msgLog - Write message to log according to current log-level settings Example: Obj.msgLog(LogLevel.Debug, 'Value: d', i)
-% msgStyle - Log with style (color, etc.) Example: Obj.msgLog(LogLevel.Debug, 'Value: d', i)
-% needMapKey - Generate or get current map key as uuid Map key is used with ComponentMap class as key to the object
-% needUuid - Generate unique ID only if empty Return Uuid or [] for array
-% newSerial - Generate simple serial number, used as alternative to Uuid
-% newSerialStr - Generate simple serial number, used as alternative to Uuid, shorter string and fast performance. If parameter is specified, use it as prefix to the counter Example: Serial = Obj.newSerialStr('MyIndex') -> 'MyIndex1'
-% newUuid - Generate Uuid using java package
-% selectDefaultArgsFromProp - Given an Args structure, go over fields - if empty, take value from object property. Otherwise, use value.
-% setName - Set component name
-% #/functions (autogen)
+%#docgen
 %
+% Methods:
+%    Component - Constructor By default use singleton MsgLogger and Configuration
+%    convert2class - Convert a class that henhirts from Component to another class Uses eval, so in some cases maybe slow. Creates a new copy.
+%    copyElement - Custom copy of object properties, internally used by matlab.mixin.Copyable Called from copy() of matlab.mixin.Copyable decendents See: https://www.mathworks.com/help/matlab/ref/matlab.mixin.copyable-class.html
+%    data2array - Convert scalar data property in an object into an array
+%    makeUuid - Generate or re-generate Obj.Uuid unique ID, using newUuid() function. If Obj is an array, newUuid() is called for each element. Output: Uuid, or [] if Obj is array Example: MyUuid = Obj.makeUuid()
+%    msgLog - Write message to log according to current log-level settings Input: Level - LogLevel enumeration, see LogLevel.m varargin - fprintf arguments Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
+%    msgLogEx - Log MException message to console/file according to current LogLevel settings Input: Level - LogLevel enumeration, see LogLevel.m Ex - MException object varargin - Any fprintf arguments Output: -
+%    msgStyle - Log with style (color, etc.) Input: Level - LogLevel enumeration, see LogLevel.m varargin - fprintf arguments Example: Obj.msgLog(LogLevel.Debug, 'Value: %d', i)
+%    needMapKey - Generate or get current map key as uuid Map key is used with ComponentMap class as key to the object Output: New/existing Uuid, or [] if Obj is an array Example: MyMayKey = Obj.needMapKey()
+%    needUuid - Generate unique ID only if Obj.Uuid is empty. If Obj is an array, generate for each element. Output: New/existing Uuid, or [] if Obj is an array Example: MyUuid = Obj.needUuid()
+%    selectDefaultArgsFromProp - Given an Args structure, go over fields - if empty, take value from object property. Otherwise, use value.
+%    setName - Set component name Intput: Name - char Example: Obj.setName('MyClass')
+%    validateConfig - Validate that we have all configuration params that we need Not fully implemented yet!
+%
+% Methods: Static
+%    newSerial - Generate auto-increment serial number using persistent integer counter, used as local/fast alternative to Uuid when real UUID is not required Output: Serial number integer Example: N = Component.newSerial()
+%    newSerialStr - Generate auto-increment serial number using persistent integer counter, used as local/fast alternative to Uuid when real UUID is not required If parameter is specified, use it as prefix to the counter Output: Serial number char array Example: Serial = Component.newSerialStr('MyIndex')
+%    newUuid - Generate Uuid using java package, such as '3ac140ba-19b5-4945-9d75-ff9e45d00e91' Output: Uuid char array (36 chars) Example: U = Component.newUuid()
+%
+%#/docgen
+
 
 classdef Component < Base
     % Parent class for all components
@@ -220,7 +227,7 @@ classdef Component < Base
             % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
             
             m = MsgLogger.getSingleton();
-            m.msgLogEx(Level, Ex, varargin{:});            
+            m.msgLogEx(Level, Ex, varargin{:});
         end
         
     end
@@ -346,7 +353,7 @@ classdef Component < Base
             %assert(~isempty(Obj.Config.Data.System.EnvFolders.ROOT));
             
             Result = true;
-        end        
+        end
     end
 
     %----------------------------------------------------------------------
@@ -377,7 +384,7 @@ classdef Component < Base
         function Result = newUuid()
             % Generate Uuid using java package, such as '3ac140ba-19b5-4945-9d75-ff9e45d00e91'
             % Output:  Uuid char array (36 chars)
-            % Example: U = Component.newUuid()            
+            % Example: U = Component.newUuid()
             Temp = java.util.UUID.randomUUID;
 
             % Convert java string to char
@@ -386,7 +393,7 @@ classdef Component < Base
 
 
         function Result = newSerial()
-            % Generate auto-increment serial number using persistent integer counter, 
+            % Generate auto-increment serial number using persistent integer counter,
             % used as local/fast alternative to Uuid when real UUID is not required
             % Output:  Serial number integer
             % Example: N = Component.newSerial()
@@ -400,7 +407,7 @@ classdef Component < Base
 
 
         function Result = newSerialStr(varargin)
-            % Generate auto-increment serial number using persistent integer counter, 
+            % Generate auto-increment serial number using persistent integer counter,
             % used as local/fast alternative to Uuid when real UUID is not required
             % If parameter is specified, use it as prefix to the counter
             % Output:  Serial number char array
