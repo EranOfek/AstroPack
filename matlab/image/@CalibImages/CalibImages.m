@@ -293,7 +293,7 @@ classdef CalibImages < Component
                 DirName = '';
             end
                 
-            Obj = calibImages;
+            Obj = CalibImages;
             
             % Bias
             Field  = 'BiasProduct';
