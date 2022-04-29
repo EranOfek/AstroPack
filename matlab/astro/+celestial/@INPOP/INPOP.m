@@ -16,6 +16,8 @@ classdef INPOP < Base
     properties (Constant)
         LatestVersion     = 'inpop21a';
         RangeShort        = [2414105.00, 2488985.00];
+        ColTstart         = 1;
+        ColTend           = 2;
     end
     
     methods % constructor
@@ -172,9 +174,17 @@ classdef INPOP < Base
     
     methods  % aux/util functions
         function Obj = populateTables(Obj, Object, Args)
-            %
+            % Populate pos/vel INPOP tables in the INPOP object.
+            %   In the INPOP object, the PosTables and VelTables contains
+            %   the pos/vel chebyshev coef. for each Solar System object.
+            %   This function read the tables from disk, in some time
+            %   range, and populate the PosTables or VelTables properties.
+            % Input  : -
+            % Output : - 
+            % Author : Eran Ofek (Apr 2022)
             % Example: I = celestial.INPOP;
-            %          I.populateTables
+            %          I.populateTables;  % load 'pos' '100' years tables for Sun and Earth
+            %          I.populateTables('Mars','TimeSpan',[2451545 2451545+365]); % load data in some specific range for Mars
             
             arguments
                 Obj
@@ -200,11 +210,13 @@ classdef INPOP < Base
                 end
             else
                 TimePeriod = Args.TimeSpan;
+                MinJD = -Inf;
+                MaxJD = Inf;
             end
             
             Nobject = numel(Object);
             for Iobject=1:1:Nobject
-            
+                % read data
                 switch lower(Args.OriginType)
                     case 'ascii'
                         Table = celestial.INPOP.loadIAsciiINPOP('TimeScale',Args.TimeScale,...
@@ -217,6 +229,11 @@ classdef INPOP < Base
                         error('Unknown OriginType option');
                 end
 
+                % select data in some time range
+                Flag  = Table(:,Obj.ColTstart)>=MinJD & Table(:,Obj.ColTend)<=MaxJD;
+                Table = Table(Flag,:);
+                
+                % store data
                 switch lower(Args.FileData)
                     case 'pos'
                         Obj.PosTables.(Object{Iobject}) = Table;
