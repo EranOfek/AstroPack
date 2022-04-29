@@ -1,4 +1,9 @@
-% INPOP
+% INPOP - A container and calculator class for INPOP ephemeris data
+% This class can retrieve, store and use the INPOP ephemeris data
+% (https://www.imcce.fr/inpop).
+% This class can be use to calculate the positions of the main Solar System
+% objects.
+%
 %
 % NOTES [Answers from IMCCE]
 %
@@ -220,7 +225,7 @@ classdef INPOP < Base
             
             arguments
                 Obj
-                Object           = {'Sun','Earth'};
+                Object           = {'Sun','Ear'};
                 Args.TimeSpan    = '100';  % '1000' or [MinJD MaxJD]
                 Args.OriginType  = 'ascii';
                 Args.TimeScale   = 'TDB';
@@ -281,8 +286,49 @@ classdef INPOP < Base
     end
     
     methods % ephemeris evaluation
-         
-        
+        function Pos = getPos(Obj, Object, JD, Args)
+            %
+            % Example: I = celestial.INPOP;
+            %          I.populateTables;
+            %          Pos = I.getPos
+            
+            arguments
+                Obj
+                Object    = 'Ear';
+                JD        = 2451545;
+                Args.Algo = 1;
+                
+            end
+            
+            TableName = 'PosTables';
+            ColDataStart = 3;
+            
+            if prod(size(JD))>1
+                % assume input is rows of dats [Day, Mount, Year, H M S]
+                JD = celestial.time.julday(JD);
+            else
+                JD = JD(:);
+            end
+            
+            % need to do for each coordinate
+            Tstart = Obj.(TableName).(Object)(:,Obj.ColTstart);
+            Tend   = Obj.(TableName).(Object)(:,Obj.ColTend);
+            Tmid   = (Tstart + Tend).*0.5;
+            
+            [Nrow, Ncol] = size(Obj.(TableName).(Object));
+            IndVec       = (1:1:Nrow).';
+            IndJD        = interp1(Tmid, IndVec, JD, 'nearest');
+            
+            ChebyCoef    = Obj.(TableName).(Object)(IndJD,ColDataStart:end);
+            
+            % maybe need to divide by half time span
+            ChebyEval    = Obj.ChebyFun(JD - Tmid);
+            
+            Pos          = sum(ChebyCoef.*ChebyEval(:,1:(Ncol-ColDataStart+1)),2);
+                
+            
+            
+        end
     end
     
     methods(Static) % Unit test
