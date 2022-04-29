@@ -7,9 +7,15 @@ classdef INPOP < Base
 
     % Properties
     properties
-        ChebyFun       = [];  % Chebyshev anonymous functions indexd by thir order-1
-                                  % i.e., element 3 contains sum of cheby polys 0,1,2
-        Tables struct
+        ChebyFun            = [];  % Chebyshev anonymous functions indexd by thir order-1
+                                   % i.e., element 3 contains sum of cheby polys 0,1,2
+        PosTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
+        VelTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
+    end
+    
+    properties (Constant)
+        LatestVersion     = 'inpop21a';
+        RangeShort        = [2414105.00, 2488985.00];
     end
     
     methods % constructor
@@ -165,16 +171,62 @@ classdef INPOP < Base
     end
     
     methods  % aux/util functions
-        function Obj = read2table(Target, Args)
+        function Obj = populateTables(Obj, Object, Args)
             %
+            % Example: I = celestial.INPOP;
+            %          I.populateTables
             
             arguments
-                Target           = 'Sun';
-                Args.TimeSpan    = 'short';  % 'full'
+                Obj
+                Object           = {'Sun','Earth'};
+                Args.TimeSpan    = '100';  % '1000' or [MinJD MaxJD]
                 Args.OriginType  = 'ascii';
+                Args.TimeScale   = 'TDB';
+                Args.Version     = Obj.LatestVersion;
+                Args.FileData    = 'pos';
             end
             
+            if ischar(Object)
+                Object = {Object};
+            end
             
+            if isnumeric(Args.TimeSpan)
+                MinJD = min(Args.TimeSpan(:));
+                MaxJD = max(Args.TimeSpan(:));
+                if MinJD<Obj.RangeShort(1) || MaxJD>Obj.RangeShort(2)
+                    TimePeriod = '1000';
+                else
+                    TimePeriod =  '100';
+                end
+            else
+                TimePeriod = Args.TimeSpan;
+            end
+            
+            Nobject = numel(Object);
+            for Iobject=1:1:Nobject
+            
+                switch lower(Args.OriginType)
+                    case 'ascii'
+                        Table = celestial.INPOP.loadIAsciiINPOP('TimeScale',Args.TimeScale,...
+                                                                 'Object',Object{Iobject},...
+                                                                 'Version',Args.Version,...
+                                                                 'TimePeriod',TimePeriod,...
+                                                                 'FileData',Args.FileData);
+
+                    otherwise
+                        error('Unknown OriginType option');
+                end
+
+                switch lower(Args.FileData)
+                    case 'pos'
+                        Obj.PosTables.(Object{Iobject}) = Table;
+                    case 'vel'
+                        Obj.VelTables.(Object{Iobject}) = Table;
+                    otherwise
+                        error('Unknown FileData option');
+                end
+                
+            end
             
         end
     end
