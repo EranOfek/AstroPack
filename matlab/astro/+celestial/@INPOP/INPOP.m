@@ -1,5 +1,37 @@
 % INPOP
 %
+% NOTES [Answers from IMCCE]
+%
+% We distribute the INPOP ephemeris files on the following web page :
+%
+% https://www.imcce.fr/recherche/equipes/asd/inpop/download19a
+%
+% The timescale of the data are expressed in TDB or TCB. Usually, most of
+% our users use files expressed in the timescale TDB. The name of the
+% downloaded file contains TDB or TCB to discriminate the timescale
+% argument of the tchebyvchev polynomials.
+%
+% On this web page, we distribute the ephemerids in two major formats :
+% - "binary" : the internal file format is described in
+% https://www.imcce.fr/content/medias/recherche/equipes/asd/inpop/inpop_file_format_2_0.pdf
+% These file may be directly used using the calceph library.
+%
+% - spice  : these file format is decribed in
+% https://arxiv.org/pdf/1507.04291.pdf
+% section 5.3.2 and 5.3.3
+% These file format may be directly used using the calceph library or spice library.
+%
+% You may find the calceph at https://www.imcce.fr/inpop/calceph
+% Some examples are provided with the library, in several languages (C, fortran, python, ...).
+%
+% A python tutorial is available at
+% https://mybinder.org/v2/gh/gastineau/demo_calceph_mybinder/master?filepath=index.ipynb
+%
+% Concerning the polynomials, the polynomials are as Chebyshev polynomials
+% of the first kind. Some details about the evaluation are available at
+% https://gitlab.obspm.fr/imcce_calceph/calceph/-/blob/master/src/calcephchebyshev.c
+%
+
 
 
 classdef INPOP < Base
