@@ -7,11 +7,25 @@ classdef INPOP < Base
 
     % Properties
     properties
-        
+        ChebyFun       = [];  % Chebyshev anonymous functions indexd by thir order-1
+                                  % i.e., element 3 contains sum of cheby polys 0,1,2
+        Tables struct
     end
     
     methods % constructor
-      
+        function Obj = INPOP(Args)
+            %
+            
+            arguments
+                Args.PopOrder = 15;
+            end
+            
+            Obj.ChebyFun = tools.math.fun.chebyshevFun(1, [0:1:Args.PopOrder]);
+            
+        end
+    end
+    
+    methods  % getters/setters
         
     end
     
@@ -149,7 +163,27 @@ classdef INPOP < Base
         end
         
     end
+    
+    methods  % aux/util functions
+        function Obj = read2table(Target, Args)
+            %
+            
+            arguments
+                Target           = 'Sun';
+                Args.TimeSpan    = 'short';  % 'full'
+                Args.OriginType  = 'ascii';
+            end
+            
+            
+            
+        end
+    end
+    
+    methods % ephemeris evaluation
+         
         
+    end
+    
     methods(Static) % Unit test
 
         Result = unitTest()
