@@ -346,12 +346,14 @@ classdef INPOP < Base
     
     methods % ephemeris evaluation
         function Pos = getPos(Obj, Object, JD, Args)
-            % Get INPOP planetray positions by evaluation of the chebyshev polynomials.
+            % Get INPOP planetray positions (or velocities or time) by evaluation of the chebyshev polynomials.
             %   This function can get the [X,Y,Z] Barycentric position [km]
             %   with respect to the ICRS equatorial J2000.0 coordinate
             %   system.
             %   The function gets the positions for a single object and
             %   multiple times.
+            %   The function can be used also to evaluate the TT time
+            %   table (see getTT for details).
             % Input  : - A single-element celestial.INPOP object.
             %          - A planet/object name:
             %            'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar',
@@ -364,15 +366,17 @@ classdef INPOP < Base
             %            Default is 2451545.
             %          * ...,key,val,...
             %            'TimeScale' - The JD time scale. Default is 'TDB'.
-            %            'OutUnits'  - 'km','cm','au',...
+            %            'OutUnits'  - 'km','cm','au',... for velocity this
+            %                   is always, the same per day.
             %                   Default is 'au'.
             %                   Note that the value of he AU is taken from
             %                   the Constant.AU property.
             %            'Algo' - Algorithm. Currently a single option
             %                   exist.
             % Output : - A 3 by number of epochs matrix of [X; Y; Z]
-            %            positions [km].
-            %
+            %            positions or velocities.
+            %            Units are given by OutUnits, or OutUnits per day.
+            % Author : Eran Ofek (Apr 2022)
             % Example: I = celestial.INPOP;
             %          I.populateTables;
             %          Pos = I.getPos
@@ -387,17 +391,29 @@ classdef INPOP < Base
             %          Pos = I.getPos('Ear',JD);                                 
             %          max(abs(Coo(2,:).*constant.au./1e5 - Pos(2,:)))
 
-            
             arguments
                 Obj(1,1)
-                Object           = 'Ear';
-                JD               = 2451545;
-                Args.TimeScale   = 'TDB';
-                Args.OutUnits    = 'au';
-                Args.Algo        = 1;
+                Object               = 'Ear';
+                JD                   = 2451545;
+                Args.IsPos logical   = true;
+                Args.TimeScale       = 'TDB';
+                Args.OutUnits        = 'au';
+                Args.Algo            = 1;
+                Args.Ncoo            = 3;  % internal argument used to evaluate pos/vel (=3) or time (=1)
             end
             
-            TableName = 'PosTables';
+            if Args.IsPos
+                TableName = 'PosTables';
+            else
+                % velocity
+                TableName = 'VelTables';
+            end
+            
+            if Args.Ncoo==1
+                % override to original ynits [s]
+                Args.OutUnits = 'km';
+            end
+            
             ColDataStart = 3;
             
             if min(size(JD))>1
@@ -413,24 +429,28 @@ classdef INPOP < Base
                 error('Number of entries in table is not divided by 3');
             end
             
-            Tstart = Obj.(TableName).(Object)(1:3:end, Obj.ColTstart);
-            Tend   = Obj.(TableName).(Object)(1:3:end, Obj.ColTend);
+            if isempty(Obj.(TableName).(Object))
+                error('%s table for object %s is not loaded - use populateTables to load table', TableName, Object);
+            end
+            
+            Tstart = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTstart);
+            Tend   = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTend);
             Tmid   = (Tstart + Tend).*0.5;
             Tstep  = Tmid(2) - Tmid(1);
             Thstep = Tstep.*0.5;
             
             % find the index of time for X-axis only
-            IndVec       = (1:Nrow./3).';
+            IndVec       = (1:Nrow./Args.Ncoo).';
             % The index of the JD is measured in the Tmid vector and not in
             % the XYZ coef. table...
             IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
             ChebyOrder   = Ncol - Obj.ColTend;
             
-            Pos = zeros(3, Njd);
-            for Icoo=1:1:3
+            Pos = zeros(Args.Ncoo, Njd);
+            for Icoo=1:1:Args.Ncoo
                 % need to do for each coordinate
                 
-                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*3+Icoo-3, ColDataStart:end);
+                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*Args.Ncoo+Icoo-Args.Ncoo, ColDataStart:end);
             
                 % maybe need to divide by half time span
                 ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
@@ -440,14 +460,51 @@ classdef INPOP < Base
             
             switch lower(Args.OutUnits)
                 case 'km'
-                    % do nothing
+                    % do nothing [km, or km/day]
                 case 'cm'
+                    % cm or cm/day
                     Pos = Pos.*1e5;
                 case 'au'
+                    % au or au/day
                     Pos = Pos .* (1./Obj.Constant.AU);
                 otherwise
                     error('Unknown OutUnits option');
             end
+        end
+        
+        function TT = getTT(Obj, JD, Args)
+            % Evaulate TT-TDB or TCG-TCB
+            %   Dynamical Time replaced ephemeris time as the independent argument in dynamical theories and ephemerides. Its unit of duration is based on the orbital motions of the Earth, Moon, and planets.
+            %   Terrestrial Time (TT), (or Terrestrial Dynamical Time, TDT), with unit of duration 86400 SI seconds on the geoid, is the independent argument of apparent geocentric ephemerides. TDT = TAI + 32.184 seconds.
+            %   Barycentric Dynamical Time (TDB), is the independent argument of ephemerides and dynamical theories that are referred to the solar system barycenter. TDB varies from TT only by periodic variations.
+            %   Geocentric Coordinate Time (TCG) is a coordinate time having its spatial origin at the center of mass of the Earth. TCG differs from TT as: TCG - TT = Lg x (JD -2443144.5) x 86400 seconds, with Lg = 6.969291e-10.
+            %   Barycentric Coordinate Time (TCB)is a coordinate time having its spatial origin at the solar system barycenter. TCB differs from TDB in rate. The two are related by: TCB - TDB = iLb x (JD -2443144.5) x 86400 seconds, with Lb = 1.550505e-08.
+            % Input  : - A single-element celestial.INPOP object.
+            %          - A vector of JD at which to evaulate the
+            %            positions/velocities.
+            %            Alternatively this can be a 4/6 columns matrix of
+            %            [day month year [Frac | H M S]].
+            %            Default is 2451545.
+            %          * ...,key,val,...
+            %            'TimeScale' - If 'TDB' will return TT-TDB
+            %                       If 'TCB' will returm TCG-TCB.
+            %            'Algo' - Algorithm. Currently a single option
+            %                   exist.
+            % Output : - TT-TDB or TCG-TCB [s].
+            % Author : Eran Ofek (Apr 2022)
+            % Example: JD=[2414106.00,2451545]';
+            %          TT = I.getTT(JD);
+            %          
+            
+            arguments
+                Obj(1,1)
+                JD                   = 2451545;
+                Args.TimeScale       = 'TDB';
+                Args.Algo            = 1;
+            end
+            
+            TT = Obj.getPos('TT',JD, 'IsPos',true, 'OutUnits','km', 'Ncoo',1, 'Algo', Args.Algo, 'TimeScale',Args.TimeScale);
+
         end
     end
     
