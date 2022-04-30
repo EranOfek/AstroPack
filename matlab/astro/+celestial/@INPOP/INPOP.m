@@ -1,8 +1,8 @@
 % INPOP - A container and calculator class for INPOP ephemeris data
 % This class can retrieve, store and use the INPOP ephemeris data
 % (https://www.imcce.fr/inpop).
-% This class can be use to calculate the positions of the main Solar System
-% objects.
+% This class can be use to calculate the positions and velocities
+% of the main Solar System objects.
 %
 %
 % NOTES [Answers from IMCCE]
@@ -36,7 +36,6 @@
 % of the first kind. Some details about the evaluation are available at
 % https://gitlab.obspm.fr/imcce_calceph/calceph/-/blob/master/src/calcephchebyshev.c
 %
-
 
 
 classdef INPOP < Base
@@ -177,8 +176,8 @@ classdef INPOP < Base
             
         end
         
-        function Result = loadIAsciiINPOP(Args)
-            % Load an ASCII INPOP ephmerides file
+        function [Result,FileName] = loadINPOP(Args)
+            % Load an INPOP ephmerides file (in ASCII or MAT formats)
             %   The loaded file contains columns with:
             %       JDstart JDend Chebyshev coef. for the object position
             %       between JDstart and JDend.
@@ -192,30 +191,80 @@ classdef INPOP < Base
             %            'FileData' - ['pos'] | 'vel'.
             %            'Version' - Default is 'inpop21a'.
             %            'TimeScale' - ['TDB'] | 'TCB'.
-            %            'FileType' - Default is 'asc'.
+            %            'FileType' - 'mat' | 'asc'.
+            %                   Use celestial.INPOP.convertAscii2mat to
+            %                   create the mat files.
+            %                   Default is 'asc'.
             %            'TimePeriod' - ['100'] | '1000'.
             % Output : - A matrix containing the requested data file.
             %            Containing columns with:
             %            JDstart JDend Chebyshev coef. for the object position
             %            between JDstart and JDend.
+            %          - File name containing the data.
             % Author : Eran Ofek (Apr 2022)
-            % Example: R = celestial.INPOP.loadIAsciiINPOP('Object','Sun');
+            % Example: R = celestial.INPOP.loadINPOP('Object','Sun');
+            %          R = celestial.INPOP.loadINPOP('Object','Sun','FileType','mat');
             
             arguments
                 Args.Object        = 'Sun';
                 Args.Location      = celestial.INPOP.Location;
                 Args.Version       = 'inpop21a';
                 Args.TimeScale     = 'TDB';   % 'TDB' | 'TCB'
-                Args.FileType      = 'asc';
-                Args.TimePeriod    = '100';    % '100' | '1000'
+                Args.FileType      = 'asc';   % 'mat' | 'asc';
+                Args.TimePeriod    = '100';   % '100' | '1000'
                 Args.FileData      = 'pos';
             end
             
             FileName    = celestial.INPOP.inpopFileName('Object', Args.Object, 'Version',Args.Version, 'TimeScale',Args.TimeScale, 'FileType',Args.FileType, 'TimePeriod',Args.TimePeriod, 'FileData',Args.FileData);
             FullFileName = sprintf('%s%s%s',Args.Location, filesep, FileName);
             
-            Result = readmatrix(FullFileName, 'NumHeaderLines',2,'FileType','text');
+            switch lower(Args.FileType)
+                case 'asc'
+                    Result = readmatrix(FullFileName, 'NumHeaderLines',2,'FileType','text');
+                case 'mat'
+                    Result = io.files.load2(FullFileName);
+                otherwise
+                    error('Unknown FileType option');
+            end
             
+        end
+        
+        function convertAscii2mat(Args)
+            % Convert the INPOP ascii files to fast-readout mat format files
+            % Input  : * ...,key,val,...
+            %            See function code for details
+            % Author : Eran Ofek (Apr 2022)
+            % Example: celestial.INPOP.convertAscii2mat('TimePeriod',{'100'});
+            
+            arguments
+                Args.Object        = {'Sun','Mer','Ven','Ear','EMB','Moo','Mar','Jup','Sat','Ura','Nep','Plu','Lib','TT'};
+                Args.Location      = celestial.INPOP.Location;
+                Args.Version       = 'inpop21a';
+                Args.TimeScale     = 'TDB';   % 'TDB' | 'TCB'
+                Args.TimePeriod    = {'100','1000'};    % '100' | '1000'
+                Args.FileData      = {'pos','vel'};
+                Args.MatVersion    = '-v7.3';
+            end
+            
+            PWD = pwd;
+            cd(Args.Location);
+            for Ifd=1:1:numel(Args.FileData)
+                for Itp=1:1:numel(Args.TimePeriod)
+                    for Iobj=1:1:numel(Args.Object)
+                        if ~(strcmp(Args.Object{Iobj}, 'TT') && strcmp(Args.FileData{Ifd},'vel'))
+                            [Table,FileName] = celestial.INPOP.loadINPOP('Object',Args.Object{Iobj},...
+                                                                'Location',Args.Location,...
+                                                                'Version',Args.Version,...
+                                                                'TimeScale',Args.TimeScale,...
+                                                                'TimePeriod',Args.TimePeriod{Itp},...
+                                                                'FileData',Args.FileData{Ifd});
+                            NewFileName = strrep(FileName,'asc','mat');
+                            save(NewFileName, 'Table', Args.MatVersion);
+                        end
+                    end
+                end
+            end
+            cd(PWD);
         end
         
         function Result = readConstants(FileName)
@@ -269,6 +318,9 @@ classdef INPOP < Base
             %            'Version' - Default is Obj.LatestVersion
             %            'FileData' - Either ['pos'], or 'vel'. for
             %                   positional and veocity data tables.
+            %            'FileType' - 'asc' | ['mat'].
+            %                   Use celestial.INPOP.convertAscii2mat to
+            %                   create the mat files.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -285,6 +337,7 @@ classdef INPOP < Base
                 Args.TimeScale   = 'TDB';
                 Args.Version     = Obj.LatestVersion;
                 Args.FileData    = 'pos';
+                Args.FileType    = 'mat';
             end
             
             if ischar(Object)
@@ -315,11 +368,12 @@ classdef INPOP < Base
                 % read data
                 switch lower(Args.OriginType)
                     case 'ascii'
-                        Table = celestial.INPOP.loadIAsciiINPOP('TimeScale',Args.TimeScale,...
-                                                                 'Object',Object{Iobject},...
-                                                                 'Version',Args.Version,...
-                                                                 'TimePeriod',TimePeriod,...
-                                                                 'FileData',Args.FileData);
+                        Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+                                                          'Object',Object{Iobject},...
+                                                          'Version',Args.Version,...
+                                                          'TimePeriod',TimePeriod,...
+                                                          'FileData',Args.FileData,...
+                                                          'FileType',Args.FileType);
 
                     otherwise
                         error('Unknown OriginType option');
