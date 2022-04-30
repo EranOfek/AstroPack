@@ -52,9 +52,11 @@ classdef INPOP < Base
     
     properties (Constant)
         LatestVersion     = 'inpop21a';
+        Location          = '~/matlab/data/SolarSystem/INPOP/';
         RangeShort        = [2414105.00, 2488985.00];
         ColTstart         = 1;
         ColTend           = 2;
+        Constant          = celestial.INPOP.readConstants;
     end
     
     methods % constructor
@@ -62,10 +64,13 @@ classdef INPOP < Base
             %
             
             arguments
-                Args.PopOrder = 15;
+                Args.PopOrder = [6:1:15];
             end
             
-            Obj.ChebyFun = tools.math.fun.chebyshevFun(1, [0:1:Args.PopOrder]);
+            Norder = numel(Args.PopOrder);
+            for Iorder=1:1:Norder
+                Obj.ChebyFun{Args.PopOrder(Iorder)+1} = tools.math.fun.chebyshevFun(1, [0:1:Args.PopOrder(Iorder)]);
+            end
             
         end
     end
@@ -192,7 +197,7 @@ classdef INPOP < Base
             
             arguments
                 Args.Object        = 'Sun';
-                Args.Location      = '~/matlab/data/SolarSystem/INPOP/';
+                Args.Location      = celestial.INPOP.Location;
                 Args.Version       = 'inpop21a';
                 Args.TimeScale     = 'TDB';   % 'TDB' | 'TCB'
                 Args.FileType      = 'asc';
@@ -207,6 +212,32 @@ classdef INPOP < Base
             
         end
         
+        function Result = readConstants(FileName)
+            % Read INPOP constants table into a structure
+            % Input  : - A File name. Default is
+            %            'inpop21a_TDB_m100_p100_asc_header.asc'.
+            %            The file must be located in the directory
+            %            specified in celestial.INPOP.Location.
+            % Output : - A structure with the constant names.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: Result = celestial.INPOP.readConstants
+            
+            arguments
+                FileName = 'inpop21a_TDB_m100_p100_asc_header.asc';
+            end
+            
+            FullFileName = sprintf('%s%s',celestial.INPOP.Location, FileName);
+            
+            FID = fopen(FullFileName);
+            C = textscan(FID,'%s %f\n','Delimiter','=', 'Headerlines',1);
+            fclose(FID);
+            C{1}   = strtrim(C{1});
+            N      = numel(C{1});
+            for I=1:1:N
+                Result.(C{1}{I}) = C{2}(I);
+            end
+        end
+        
     end
     
     methods  % aux/util functions
@@ -216,12 +247,29 @@ classdef INPOP < Base
             %   the pos/vel chebyshev coef. for each Solar System object.
             %   This function read the tables from disk, in some time
             %   range, and populate the PosTables or VelTables properties.
-            % Input  : -
-            % Output : - 
+            % Input  : - A single element celestial.INPOP object.
+            %          - Object name, or a cell array of object names for
+            %            which to populate the Postables/VelTables.
+            %            Possible strings: 'Sun', 'Mer',
+            %            'Ven', 'Ear', 'EMB', 'Moo', 'Mar', 'Jup', 'Sat', 'Ura',
+            %            'Nep', 'Plu', 'Lib', and 'all'.
+            %          * ...,key,val,...
+            %            'TimeSpan' - Either '100', '1000' (years), or
+            %                   [MinJD MaxJD] vector of JD range.
+            %                   Default is '100'.
+            %            'OriginType' - File type from which to read
+            %                   tables. Default is 'ascii'.
+            %            'TimeScale' - Default is 'TDB'.
+            %            'Version' - Default is Obj.LatestVersion
+            %            'FileData' - Either ['pos'], or 'vel'. for
+            %                   positional and veocity data tables.
+            % Output : - A celestial.INPOP object in which the PosTables or
+            %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
             % Example: I = celestial.INPOP;
             %          I.populateTables;  % load 'pos' '100' years tables for Sun and Earth
             %          I.populateTables('Mars','TimeSpan',[2451545 2451545+365]); % load data in some specific range for Mars
+            %          I.populateTables('all');
             
             arguments
                 Obj
@@ -234,7 +282,12 @@ classdef INPOP < Base
             end
             
             if ischar(Object)
-                Object = {Object};
+                switch lower(Object)
+                    case 'all'
+                        Object = {'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar', 'Jup', 'Sat', 'Ura', 'Nep', 'Plu', 'Lib'};
+                    otherwise
+                        Object = {Object};
+                end
             end
             
             if isnumeric(Args.TimeSpan)
@@ -287,6 +340,32 @@ classdef INPOP < Base
     
     methods % ephemeris evaluation
         function Pos = getPos(Obj, Object, JD, Args)
+            % Get INPOP planetray positions by evaluation of the chebyshev polynomials.
+            %   This function can get the [X,Y,Z] Barycentric position [km]
+            %   with respect to the ICRS equatorial J2000.0 coordinate
+            %   system.
+            %   The function gets the positions for a single object and
+            %   multiple times.
+            % Input  : - A single-element celestial.INPOP object.
+            %          - A planet/object name:
+            %            'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar',
+            %            'Jup', 'Sat', 'Ura', 'Nep', 'Plu'.
+            %            Default is 'Ear'.
+            %          - A vector of JD at which to evaulate the
+            %            positions/velocities.
+            %            Alternatively this can be a 4/6 columns matrix of
+            %            [day month year [Frac | H M S]].
+            %            Default is 2451545.
+            %          * ...,key,val,...
+            %            'TimeScale' - The JD time scale. Default is 'TDB'.
+            %            'OutUnits'  - 'km','cm','au',...
+            %                   Default is 'au'.
+            %                   Note that the value of he AU is taken from
+            %                   the Constant.AU property.
+            %            'Algo' - Algorithm. Currently a single option
+            %                   exist.
+            % Output : - A 3 by number of epochs matrix of [X; Y; Z]
+            %            positions [km].
             %
             % Example: I = celestial.INPOP;
             %          I.populateTables;
@@ -296,12 +375,20 @@ classdef INPOP < Base
             %          Pos = I.getPos('Ear',JD);
             %          [Coo]=celestial.SolarSys.calc_vsop87(JD,'Earth','e','E'); Coo.*constant.au./1e5
             %          
+            %          % test accuracy relative to VSOP87
+            %          JD=(2451545:0.01:(2451545+100)).';
+            %          [Coo]=celestial.SolarSys.calc_vsop87(JD,'Earth','e','E');     
+            %          Pos = I.getPos('Ear',JD);                                 
+            %          max(abs(Coo(2,:).*constant.au./1e5 - Pos(2,:)))
+
             
             arguments
-                Obj
-                Object    = 'Ear';
-                JD        = 2451545;
-                Args.Algo = 1;
+                Obj(1,1)
+                Object           = 'Ear';
+                JD               = 2451545;
+                Args.TimeScale   = 'TDB';
+                Args.OutUnits    = 'au';
+                Args.Algo        = 1;
                 
             end
             
@@ -324,12 +411,15 @@ classdef INPOP < Base
             Tstart = Obj.(TableName).(Object)(1:3:end, Obj.ColTstart);
             Tend   = Obj.(TableName).(Object)(1:3:end, Obj.ColTend);
             Tmid   = (Tstart + Tend).*0.5;
+            Tstep  = Tmid(2) - Tmid(1);
+            Thstep = Tstep.*0.5;
             
             % find the index of time for X-axis only
             IndVec       = (1:Nrow./3).';
             % The index of the JD is measured in the Tmid vector and not in
             % the XYZ coef. table...
             IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
+            ChebyOrder   = Ncol - Obj.ColTend;
             
             Pos = zeros(3, Njd);
             for Icoo=1:1:3
@@ -338,12 +428,21 @@ classdef INPOP < Base
                 ChebyCoef    = Obj.(TableName).(Object)(IndJD.*3+Icoo-3, ColDataStart:end);
             
                 % maybe need to divide by half time span
-                ChebyEval    = Obj.ChebyFun(JD - Tmid(IndJD));
+                ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
             
                 Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:(Ncol-ColDataStart+1))].',1);
             end
             
-            
+            switch lower(Args.OutUnits)
+                case 'km'
+                    % do nothing
+                case 'cm'
+                    Pos = Pos.*1e5;
+                case 'au'
+                    Pos = Pos .* (1./Obj.Constant.AU);
+                otherwise
+                    error('Unknown OutUnits option');
+            end
         end
     end
     

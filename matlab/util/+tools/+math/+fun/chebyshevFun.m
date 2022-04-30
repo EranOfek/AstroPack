@@ -35,6 +35,12 @@ function Fun = chebyshevFun(Type, Orders)
         StrFun = ['@(x)', StrFun];
         Fun    = str2func(StrFun);
         %Fun = matlabFunction(SymFun);
+    else
+        Orders = Orders(Orders~=0);
+        SymFun = simplify(ChebyFun(Orders, x));
+        StrFun = vectorize(SymFun);
+        StrFun = ['@(x)', StrFun];
+        Fun    = str2func(StrFun);
     end
     
 end
