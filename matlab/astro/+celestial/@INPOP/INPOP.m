@@ -44,8 +44,8 @@ classdef INPOP < Base
 
     % Properties
     properties
-        ChebyFun            = [];  % Chebyshev anonymous functions indexd by thir order-1
-                                   % i.e., element 3 contains sum of cheby polys 0,1,2
+        ChebyFun cell       = {};  % Chebyshev anonymous functions indexd by thir order-1
+                                   % i.e., element 3 contains cheby polys 0,1,2
         PosTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
         VelTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
     end
@@ -389,7 +389,6 @@ classdef INPOP < Base
                 Args.TimeScale   = 'TDB';
                 Args.OutUnits    = 'au';
                 Args.Algo        = 1;
-                
             end
             
             TableName = 'PosTables';
