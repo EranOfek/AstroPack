@@ -346,7 +346,7 @@ classdef INPOP < Base
     
     methods % ephemeris evaluation
         function Pos = getPos(Obj, Object, JD, Args)
-            % Get INPOP planetray positions (or velocities or time) by evaluation of the chebyshev polynomials.
+            % Get INPOP planetary positions (or velocities or time) by evaluation of the chebyshev polynomials.
             %   This function can get the [X,Y,Z] Barycentric position [km]
             %   with respect to the ICRS equatorial J2000.0 coordinate
             %   system.
