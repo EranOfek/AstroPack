@@ -111,7 +111,13 @@ classdef INPOP < Base
                 otherwise
                     % planet
                     % inpop21a_TDB_m100_p100_asc_pos_Plu.asc
-                    FileName = sprintf('%s_%s_m%s_p%s_%s_%s_%s.%s', Args.Version, Args.TimeScale, Args.TimePeriod, Args.TimePeriod, Args.FileType, Args.FileData, Args.Object(1:3), Args.FileType);
+                    switch Args.Object
+                        case 'TT'
+                            ObjectName = Args.Object;
+                        otherwise
+                            ObjectName = Args.Object(1:3);
+                    end
+                    FileName = sprintf('%s_%s_m%s_p%s_%s_%s_%s.%s', Args.Version, Args.TimeScale, Args.TimePeriod, Args.TimePeriod, Args.FileType, Args.FileData, ObjectName, Args.FileType);
             end
         end
         
