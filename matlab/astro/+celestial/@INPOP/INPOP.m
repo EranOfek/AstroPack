@@ -291,6 +291,11 @@ classdef INPOP < Base
             % Example: I = celestial.INPOP;
             %          I.populateTables;
             %          Pos = I.getPos
+            %
+            %          JD=[2414106.00,2451545]';
+            %          Pos = I.getPos('Ear',JD);
+            %          [Coo]=celestial.SolarSys.calc_vsop87(JD,'Earth','e','E'); Coo.*constant.au./1e5
+            %          
             
             arguments
                 Obj
@@ -303,29 +308,40 @@ classdef INPOP < Base
             TableName = 'PosTables';
             ColDataStart = 3;
             
-            if prod(size(JD))>1
+            if min(size(JD))>1
                 % assume input is rows of dats [Day, Mount, Year, H M S]
                 JD = celestial.time.julday(JD);
             else
                 JD = JD(:);
             end
-            
-            % need to do for each coordinate
-            Tstart = Obj.(TableName).(Object)(:,Obj.ColTstart);
-            Tend   = Obj.(TableName).(Object)(:,Obj.ColTend);
-            Tmid   = (Tstart + Tend).*0.5;
+            Njd = numel(JD);
             
             [Nrow, Ncol] = size(Obj.(TableName).(Object));
-            IndVec       = (1:1:Nrow).';
-            IndJD        = interp1(Tmid, IndVec, JD, 'nearest');
+            if mod(Nrow,3)~=0
+                error('Number of entries in table is not divided by 3');
+            end
             
-            ChebyCoef    = Obj.(TableName).(Object)(IndJD,ColDataStart:end);
+            Tstart = Obj.(TableName).(Object)(1:3:end, Obj.ColTstart);
+            Tend   = Obj.(TableName).(Object)(1:3:end, Obj.ColTend);
+            Tmid   = (Tstart + Tend).*0.5;
             
-            % maybe need to divide by half time span
-            ChebyEval    = Obj.ChebyFun(JD - Tmid);
+            % find the index of time for X-axis only
+            IndVec       = (1:Nrow./3).';
+            % The index of the JD is measured in the Tmid vector and not in
+            % the XYZ coef. table...
+            IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
             
-            Pos          = sum(ChebyCoef.*ChebyEval(:,1:(Ncol-ColDataStart+1)),2);
+            Pos = zeros(3, Njd);
+            for Icoo=1:1:3
+                % need to do for each coordinate
                 
+                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*3+Icoo-3, ColDataStart:end);
+            
+                % maybe need to divide by half time span
+                ChebyEval    = Obj.ChebyFun(JD - Tmid(IndJD));
+            
+                Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:(Ncol-ColDataStart+1))].',1);
+            end
             
             
         end
