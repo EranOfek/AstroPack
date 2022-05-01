@@ -1,4 +1,4 @@
-function S = filter1ues(Tdata, Data, Tfilt, Filt, Args)
+function [S,Nnn,DataStd] = filter1ues(Tdata, Data, Tfilt, Filt, Args)
     % One dimensional filtering for un-evenly spaced data
     %
     % Example: Tdata = (1:1:100).'; Data = randn(100,10);
@@ -26,16 +26,17 @@ function S = filter1ues(Tdata, Data, Tfilt, Filt, Args)
     
     Nlag = numel(Args.Lag);
     S    = nan(Nlag, Ncol);
+    Nnn  = nan(Nlag, Ncol);
     for Ilag=1:1:Nlag
         TimeLag = Args.Lag(Ilag);
         
         LagFilt = interp1(Tfilt+TimeLag, Filt, Tdata0, Args.InterpMethod);
         
-        Product = LagFilt.*Data;
-        Nnn     = sum(~isnan(Product), Dim, 'omitnan');
+        Product   = LagFilt.*Data;
+        Nnn(Ilag,:) = sum(~isnan(Product), Dim, 'omitnan');
     
-        Norm = 1./sqrt(sum(LagFilt.^2, Dim, 'omitnan'));
+        Norm      = 1./sqrt(sum(LagFilt.^2, Dim, 'omitnan'));
     
-        S(Ilag,:) = Norm .* sum(Product, Dim, 'omitnan')./(DataStd);
+        S(Ilag,:) = Norm .* sum(Product, Dim, 'omitnan')./DataStd;
     end
 end
