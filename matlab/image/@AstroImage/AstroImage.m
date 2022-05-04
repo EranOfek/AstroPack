@@ -216,6 +216,10 @@ classdef AstroImage < Component
                 Args.MaskHDU                  = [];
                 Args.MaskScale                = [];
                 
+                Args.PSF                      = [];
+                Args.PSFHDU                   = [];
+                Args.PSFScale                 = [];
+                
                 Args.FileType                 = [];
                 Args.UseRegExp(1,1) logical   = false;
                 
@@ -269,10 +273,10 @@ classdef AstroImage < Component
                                                                         'FileNames',FN);
                                                                         
                         % Other data properties
-                        ListProp  = {'Back','Var','Mask'};
-                        ListData  = {'BackData','VarData','MaskData'};
-                        ListHDU   = {'BackHDU','VarHDU','MaskHDU'};
-                        ListScale = {'BackScale','VarScale','MaskScale'};
+                        ListProp  = {'Back','Var','Mask', 'PSF'};
+                        ListData  = {'BackData','VarData','MaskData', 'PSFData'};
+                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU'};
+                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale'};
                         
                         Nlist = numel(ListProp);
                         for Ilist=1:1:Nlist
@@ -439,7 +443,7 @@ classdef AstroImage < Component
             
                 
             switch lower(Args.DataProp)
-                case {'imagedata','backdata','vardata','maskdata'}
+                case {'imagedata','backdata','vardata','maskdata','psfdata'}
                     ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
                                              'FileType',Args.FileType,...
                                              'CCDSEC',Args.CCDSEC,...

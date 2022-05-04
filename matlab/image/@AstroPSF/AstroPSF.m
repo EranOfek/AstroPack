@@ -42,6 +42,7 @@ classdef AstroPSF < Component
     properties (SetAccess = public)
         DataPSF           = [];   % The fun parameters, or an image
         DataVar           = [];
+        Scale             = 1;    % used for consistency only
         FunPSF            = [];   % e.g., Map = Fun(Data, X,Y, Color, Flux)
         ArgVals cell      = {};
         ArgNames cell     = {'X','Y','Color','Flux'};
