@@ -1199,6 +1199,32 @@ classdef AstroImage < Component
             
         end
         
+        function Obj = populateWCS(Obj, Args)
+            % Populate the WCS of an AstroImage based on the header.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            %            'header2wcsArgs' - A cell array of additional
+            %                   arguments to pass to AstroWCS.header2wcs
+            %                   Default is {}.
+            % Output : - An AstroImage object in which the WCS property is
+            %            populated with a AstroWCS object.
+            %            The AstroWCS object is built using the AstroWCS.header2wcs
+            %            static function.
+            % Author : Eran Ofek (May 2022)
+            % Example: AI.populateWCS
+            
+            arguments
+                Obj
+                Args.header2wcsArgs cell      = {};
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).WCS = AstroWCS.header2wcs(Obj(Iobj).HeaderData, Args.header2wcsArgs{:});
+            end
+            
+        end
+        
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
         end
@@ -2302,8 +2328,7 @@ classdef AstroImage < Component
             end
         
         end
-        
-        
+               
         function varargout = object2array(Obj,DataProp)
             % Convert an AstroImage object that contains scalars into an array
             % Input  : - An AstroImage object.
@@ -2372,7 +2397,6 @@ classdef AstroImage < Component
         end
     end
     
-
     methods % specific functionality and overloads
         function varargout = plus(Obj1, Obj2, varargin)
             % Apply the plus operator between AstroImage objects.
