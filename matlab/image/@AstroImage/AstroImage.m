@@ -56,7 +56,8 @@
 %       readImages2AstroImage - Create AstroImage object and read images into a specific property.
 %       help - show mlx manual
 %       unitTest - unitTest for AstroImage
-
+%
+%
 % #functions (autogen)
 % AstroImage - Constructor and image reader for AstroImage class
 % astroImage2AstroCatalog - Convert the CataData in AstroImage object into an AstroCatalog object array.
@@ -559,6 +560,12 @@ classdef AstroImage < Component
                 
         end
 
+        function Data = get.PSF(Obj)
+            % getter for PSF
+           
+            Data = Obj.PSFData.DataPSF;
+            
+        end
     end
     
     methods (Static)  % static methods
