@@ -38,18 +38,18 @@ DefV.Out     = NaN;
 
 InPar = set_varargin_keyval(DefV,'y','def',varargin{:});
 
-if (~iscell(URL)),
+if (~iscell(URL))
    URL = {URL};
 end
 
 AddArg = '';
-if (IsFTP),
+if (IsFTP)
    AddFTP = 'ftp-';
 else
    AddFTP = '';
 end
 
-if (~isnan(InPar.User)),
+if (~isnan(InPar.User))
    AddArg = sprintf('%s--%suser=%s ',AddArg,AddFTP,InPar.User);
    AddArg = sprintf('%s--%supassword=%s ',AddArg,AddFTP,InPar.Pass);
 end
@@ -61,17 +61,17 @@ switch lower(InPar.Clob)
     % do nothing
 end
 
-if (~isempty(InPar.Par)),
+if (~isempty(InPar.Par))
    AddArg = sprintf('%s %s ',AddArg,InPar.Par);
 end
-if (~isnan(InPar.Out)),
+if (~isnan(InPar.Out))
    AddArg = sprintf('%s--output-document=%s ',AddArg,InPar.Out);
 end
 
 
 
 Nurl = length(URL);
-for Iurl=1:1:Nurl,   
+for Iurl=1:1:Nurl
    Command = sprintf('wget %s%s',AddArg,URL{Iurl});
    Status(Iurl) = system(Command);
 end
