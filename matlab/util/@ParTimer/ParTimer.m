@@ -46,7 +46,7 @@ classdef ParTimer < handle
             for Ita=1:2:Nta
                 FunStr = sprintf('%s  %s=%s;', FunStr, Args.TimerArgs{Ita}, Args.TimerArgs{Ita+1});
             end
-            F = parfeval(Obj.Pool, fcn, numout,X1,...,Xm)
+            F = parfeval(Obj.Pool, FunStr, numout,X1,...,Xm)
             
         end
     end
