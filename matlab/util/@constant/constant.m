@@ -14,6 +14,38 @@
 %          C=constant.all_st('SI')  % Upload all constants into a structure "C" [SI]
 %          constant.all_var   % Upload all constants into workspace variables [cgs]
 %          constant.all_var('SI') % Upload all constants into workspace variables [SI]
+%   The available constants are:
+%           a: 7.5657e-16
+%          a0: 5.2918e-11
+%       alpha: 0.0072974
+%         amu: 1.6605e-27
+%          au: 1.496e+11
+%           c: 299792458
+%         day: 86400
+%           e: 1.6022e-19
+%      EarthM: 5.9722e+24
+%      EarthR: 6371000
+%        eps0: 8.8542e-12
+%           G: 6.6726e-11
+%           h: 6.6261e-34
+%        hbar: 1.0546e-34
+%          kB: 1.3806e-23
+%          ly: 9.4607e+15
+%          me: 9.1094e-31
+%          mp: 1.6726e-27
+%         mu0: 1.2566e-06
+%          NA: 6.0221e+23
+%          pc: 3.0857e+16
+%           R: 8.3146
+%         RAD: 57.296
+%          re: 2.8179e-15
+%     Rydberg: 1.0974e+07
+%       sigma: 5.6704e-08
+%      sigmaT: 6.6525e-29
+%        SunL: 3.839e+26
+%        SunM: 1.9889e+30
+%        SunR: 696342000
+%
 %--------------------------------------------------------------------------
 %
 % #functions (autogen)
