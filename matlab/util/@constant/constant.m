@@ -1,18 +1,21 @@
-%--------------------------------------------------------------------------
-% constant class                                                    class
-% Description: A static class for physical and astrophysical constants.
-%              This class include many static function for constants.
+% A static class for physical and astrophysical constants.
+% Description: This class include many static function for constants.
+%              You can also use it to load all constants to workspace or
+%              into a structure.
 %              Type "constant." followed by <tab> to see the full list of
 %              functions.
-%              constant.all return a structure array of selected constants.
-% Input  : null
-% Output : null
-% Tested : Matlab R2014a
-%     By : Eran O. Ofek                    Aug 2016
-%    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Reliable: 2
+%              By default all constants are provided in the cgs system (see
+%              examples for other systems).
+%              
+% Author : Eran Ofek (Aug 2016)
+% Example: constant.hbar   % return h-bar in cgs units
+%          constant.c('SI') % return the speed of light in SI units
+%          C=constant.all_st  % Upload all constants into a structure "C" [cgs]
+%          C=constant.all_st('SI')  % Upload all constants into a structure "C" [SI]
+%          constant.all_var   % Upload all constants into workspace variables [cgs]
+%          constant.all_var('SI') % Upload all constants into workspace variables [SI]
 %--------------------------------------------------------------------------
-
+%
 % #functions (autogen)
 % EarthM - Return the value of the Earth Mass Package: @constant Description: Return the value of the EarthM Earth mass.
 % EarthMoonMassRatio - Return the value of Earth/Moon mass ratio Package: @constant Description: Return the value of Earth/Moon mass ratio
@@ -69,7 +72,6 @@
 
 classdef constant
     
-    
     % get all physical constants
     methods (Static)
         
@@ -84,16 +86,20 @@ classdef constant
             % Input  : - System. Default is 'cgs'.
             % Output : - A structure array with element per constant.
             
+            arguments
+                System = 'cgs';
+            end
+
             List = {'a','a0','alpha','amu','au','c','day','e',...
                     'EarthM','EarthR','eps0','G','h','hbar','kB','ly',...
                     'me','mp','mu0','NA','pc','R','RAD','re',...
                     'Rydberg','sigma','sigmaT','SunL','SunM','SunR'};
                 
             Nl = numel(List);
-            Const = Util.struct.struct_def({'Name','Const','Units','Error','Form'},Nl,1);
+            Const = tools.struct.struct_def({'Name','Const','Units','Error','Form'},Nl,1);
             for Il=1:1:Nl
                 Const(Il).Name = List{Il};
-                [Const(Il).Const,Const(Il).Units,Const(Il).Error,Const(Il).Form] = constant.(List{Il});
+                [Const(Il).Const,Const(Il).Units,Const(Il).Error,Const(Il).Form] = constant.(List{Il})(System);
             end
                     
             
