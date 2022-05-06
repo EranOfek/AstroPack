@@ -10,7 +10,6 @@
 %       StampSize - PSF stamp size.
 % Functionality :
 %
-
 % #functions (autogen)
 % AstroPSF -
 % curve_of_growth - Calculate curve of growth of a PSF includinf radii
