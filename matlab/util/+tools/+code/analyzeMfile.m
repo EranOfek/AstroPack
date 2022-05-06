@@ -1,8 +1,12 @@
 function Report = analyzeMfile(FileName, Args)
     % Analyze m files. Count lines of code, identify functions, help, authors etc.
-    % Input  : - File name.
+    % Input  : - File name or a cell array containing the file content
+    %            (file line per cell element).
     %          * ...,key,val,...
     %            'CountLines' - A logical indicating if to count lines.
+    %            'HelpInHead' - A logical indicating if the elpmsection is
+    %                   in the first line of the file (true), or after the
+    %                   function statement (false). Default is false.
     % Output : - A structure containing the report, including the following
     %            fields:
     %            .IsClass - Is a class.
@@ -17,19 +21,19 @@ function Report = analyzeMfile(FileName, Args)
     arguments
         FileName
         Args.CountLines logical       = true;
+        Args.HelpInHead logical       = false;
     end
     
     % Read the file
-    SpStr = io.files.file2str(FileName, 'cell');
+    if iscell(FileName)
+        SpStr = FileName;
+    else
+        SpStr = io.files.file2str(FileName, 'cell');
+    end
     %SpStr = regexp(StrFile,'\n','split');
     
     % check if a class
-    Matched = regexp(SpStr, '[^%]\s*[^'']classdef', 'match');
-    if sum(~cellfun(@isempty, Matched))>0
-        Report.IsClass = true;
-    else
-        Report.IsClass = false;
-    end
+    Report.IsClass = tools.code.isClass(SpStr);
     
     % count number of functions
     Matched  = regexp(SpStr, '^\s*function', 'match');
@@ -44,23 +48,21 @@ function Report = analyzeMfile(FileName, Args)
         Report.Lines.Code     = Report.Lines.NonEmpty - Report.Lines.Comments;
     end
     
-    % parse first line of help
-    if isempty(Report.StartPosFunctions)
-        Report.DescriptionLine = '';
+    % get the entire help
+    if Args.HelpInHead
+        HelpStartLine = 1;
     else
-        Report.DescriptionLine = SpStr{Report.StartPosFunctions(1)+1};
-        Report.DescriptionLine = strrep(Report.DescriptionLine,'%',' ');
-        Report.DescriptionLine = strtrim(Report.DescriptionLine);
+        HelpStartLine = 2;
     end
-    
+    Matched = regexp(SpStr,'\s*%', 'match');
+    HelpEndLine = find(diff(~cellfun(@isempty, Matched(HelpStartLine:end)))~=0, 1, 'first')+1;
+    Report.Help = SpStr(HelpStartLine:HelpEndLine);
+    Report.Help = strrep(Report.Help,'%',' ');
+
+        
     if Report.NumFunctions>0
     
-        % get the entire help
-        Matched = regexp(SpStr,'\s*%', 'match');
-        HelpEndLine = find(diff(~cellfun(@isempty, Matched(2:end)))~=0, 1, 'first')+1;
-        Report.Help = SpStr(2:HelpEndLine);
-        Report.Help = strrep(Report.Help,'%',' ');
-
+        
         % search for author name
         Author = regexp(Report.Help,'Author : (?<Author>\w+\s?\w+\.? \w+)\s+\((?<Month>\w+)\s(?<Year>\d+)\)', 'names');
         Flag   = ~cellfun(@isempty,Author);
@@ -80,4 +82,16 @@ function Report = analyzeMfile(FileName, Args)
         Report.Month  = Info.Month;
         Report.Year   = Info.Year;
     end
+    
+    % parse first line of help
+    if isempty(Report.StartPosFunctions)
+        Report.DescriptionLine = '';
+    else
+        Report.DescriptionLine = SpStr{Report.StartPosFunctions(1)+1};
+        Report.DescriptionLine = strrep(Report.DescriptionLine,'%',' ');
+        Report.DescriptionLine = strtrim(Report.DescriptionLine);
+    end
+    
+    
+    
 end
