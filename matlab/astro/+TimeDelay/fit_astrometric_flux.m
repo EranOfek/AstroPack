@@ -36,6 +36,7 @@ function [Res]=fit_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
 %            .LL_H1
 %            .BestPar_H0
 %            .BestPar_H1
+% Author : Eran Ofek (Apr 2020)
 % Example: Res=TimeDelay.fit_astrometric_flux
 %          ResF=TimeDelay.timedelayed_lc;
 % Res=TimeDelay.fit_astrometric_flux(ResF.T,ResF.F_t,ResF.x_t,ResF.y_t,ResF.eps_F_abs,ResF.eps_x_abs);

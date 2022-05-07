@@ -11,7 +11,7 @@ function f_t=reconstruct_ft(F_t,x_t,x0,x,A0,A1,ErrF_t,Errx_t)
 %          - Errx_t. Default is 0.
 % Output : - Reconstruct primary light curve
 % Reference: Springer & Ofek (2020)
-%      By : Eran O. Ofek        Oct 2020
+% Author : Eran Ofek (Oct 2020)
 % Example: f_t=TimeDelay.reconstruct_ft(F_t,x_t,x0,x,A0,A1,ErrF_t,Errx_t)
 
 if nargin<8

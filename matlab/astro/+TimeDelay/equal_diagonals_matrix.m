@@ -6,7 +6,7 @@ function Mat=equal_diagonals_matrix(Vec)
 % Input  : - A vector. The first element will populate the diagonal of the
 %            matrix, and the last element the corner.
 % Output : - A matrix.
-%     By : Eran O. Ofek                     Nov 2020
+% Author : Eran Ofek (Apr 2020)
 % Example: Mat=TimeDelay.equal_diagonals_matrix([1 2 3]);
 
 

@@ -20,6 +20,7 @@ function [LogLikeF,Sigma_F,Sigma_phi]=logl_BPL(Pars, FitPar, Limits, Min_w, w, F
 %            Tau,Alpha1,Alpha2,gamma
 %          - Sigma_F, column per parameter Tau/Alpha/gamma
 %          - Sigma_phi, column per parameter Tau/Alpha/gamma
+% Author : Eran Ofek (Apr 2020)
 % Example: 
 % [LogLikeF,Sigma_F,Sigma_phi]=TimeDelay.logl_F([1 0.66],[10 NaN NaN 3],[],[],ResLC.w, ResLC.F_w, ResLC.sigma_F_hat)
 
