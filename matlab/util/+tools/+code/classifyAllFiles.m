@@ -18,6 +18,7 @@ function AllFiles = classifyAllFiles(Args)
     %            .IsClassDir - true if a dir is a class (start with @).
     %            .FileInPackage - true if file resides inside a package.
     %            .FileInClass - true if file resides inside a class.
+    %            .IsContentFile - is a 'content.m' file.
     %            .Extension - File extension (e.g., '.m').
     %            .PackNames - A cell array of pacakge names identified in
     %                   the folder name (without the leading +).
@@ -35,6 +36,9 @@ function AllFiles = classifyAllFiles(Args)
     %                   .Year
     % Author : Eran Ofek (May 2022)
     % Example: AllFiles = tools.code.classifyAllFiles
+    %          % Identify all .m files without Author name
+    %          Im=find(strcmp({AllFiles.Extension},'.m'));
+    %          Ina = find(cellfun(@isempty,{AllFiles(Im).Author}));
        
     arguments
         Args.Path               = [];
@@ -58,6 +62,7 @@ function AllFiles = classifyAllFiles(Args)
     [AllFiles(1:1:Nf).IsClassDir]          = deal(false);
     [AllFiles(1:1:Nf).FileInPackage]       = deal(false);
     [AllFiles(1:1:Nf).FileInClass]         = deal(false);
+    [AllFiles(1:1:Nf).IsContentFile]       = deal(false);
     [AllFiles(1:1:Nf).Extension]           = deal('');
     [AllFiles(1:1:Nf).IsClass]             = deal(false);
     [AllFiles(1:1:Nf).StartPosFunctions]   = deal('');
@@ -87,6 +92,13 @@ function AllFiles = classifyAllFiles(Args)
             
         else
             % File
+            
+            % check if content file
+            switch AllFiles(If).name
+                case 'content.m'
+                    AllFiles(If).IsContentFile = true;
+                otherwise
+            end
             
             % Check if file resides in a package
             if contains(AllFiles(If).folder, '+')
@@ -137,7 +149,11 @@ function AllFiles = classifyAllFiles(Args)
                         AllFun = tools.code.breakClassToFunctions(FileName);
                         Nfun = numel(AllFun);
                         for Ifun=1:1:Nfun
+                            try
                             AllFiles(If).ClassFuns(Ifun) = tools.code.analyzeMfile(AllFun(Ifun).Text);
+                            catch
+                                'a'
+                            end
                         end
                     end
                     

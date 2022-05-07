@@ -81,6 +81,13 @@ function Report = analyzeMfile(FileName, Args)
         Report.Author = Info.Author;
         Report.Month  = Info.Month;
         Report.Year   = Info.Year;
+    else
+        Info.Author = '';
+        Info.Month  = '';
+        Info.Year   = '';
+        Report.Author = Info.Author;
+        Report.Month  = Info.Month;
+        Report.Year   = Info.Year;
     end
     
     % parse first line of help

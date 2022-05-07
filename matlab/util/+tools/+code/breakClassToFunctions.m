@@ -40,5 +40,8 @@ function AllFun = breakClassToFunctions(FileName)
         AllFun(Ifun).Text = SpStr(FunLineStart:FunLineEnd);
         
     end
+    if Nfun==0
+        AllFun = struct('Text',cell(0,1));
+    end
         
 end
