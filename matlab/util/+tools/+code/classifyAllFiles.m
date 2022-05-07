@@ -40,6 +40,9 @@ function AllFiles = classifyAllFiles(Args)
     %          % Identify all .m files without Author name
     %          Im=find(strcmp({AllFiles.Extension},'.m') & ~[AllFiles.IsUnitTestFile] & ~[AllFiles.IsContentFile]);
     %          Ina = find(cellfun(@isempty,{AllFiles(Im).Author}));
+    %          % Identify all .m files with one line help
+    %          Im=find(strcmp({AllFiles.Extension},'.m') & ~[AllFiles.IsUnitTestFile] & ~[AllFiles.IsContentFile] & ~[AllFiles.isdir]);
+    %          Ina = find([AllFiles(Im).HelpNumLines]<2);
        
     arguments
         Args.Path               = [];
@@ -72,6 +75,7 @@ function AllFiles = classifyAllFiles(Args)
     [AllFiles(1:1:Nf).Lines]               = deal('');
     [AllFiles(1:1:Nf).DescriptionLine]     = deal('');
     [AllFiles(1:1:Nf).Help]                = deal('');
+    [AllFiles(1:1:Nf).HelpNumLines]        = deal(0);
     [AllFiles(1:1:Nf).Author]              = deal('');
     [AllFiles(1:1:Nf).Month]               = deal('');
     [AllFiles(1:1:Nf).Year]                = deal('');
@@ -153,11 +157,7 @@ function AllFiles = classifyAllFiles(Args)
                         AllFun = tools.code.breakClassToFunctions(FileName);
                         Nfun = numel(AllFun);
                         for Ifun=1:1:Nfun
-                            try
                             AllFiles(If).ClassFuns(Ifun) = tools.code.analyzeMfile(AllFun(Ifun).Text);
-                            catch
-                                'a'
-                            end
                         end
                     end
                     

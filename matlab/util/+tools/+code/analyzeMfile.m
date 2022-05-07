@@ -15,6 +15,7 @@ function Report = analyzeMfile(FileName, Args)
     %            .Lines - A structure containing line counting parameters.
     %            .DescriptionLine
     %            .Help
+    %            .HelpNumLines
     % Author : Eran Ofek (May 2022)
     % Report = tools.code.analyzeMfile(a)
    
@@ -58,7 +59,7 @@ function Report = analyzeMfile(FileName, Args)
     HelpEndLine = find(diff(~cellfun(@isempty, Matched(HelpStartLine:end)))~=0, 1, 'first')+1;
     Report.Help = SpStr(HelpStartLine:HelpEndLine);
     Report.Help = strrep(Report.Help,'%',' ');
-
+    Report.HelpNumLines = numel(Report.Help);
         
     if Report.NumFunctions>0
     
