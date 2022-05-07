@@ -7,6 +7,7 @@ function [PathNUV,PathFUV]=ind2path(Ind,DR)
 %          - Data relaese. Default is 'GR7'.
 % Output : - GALEX NUV images path.
 %          - GALEX FUV images path.
+% AUthor : Eran Ofek (Oct 2018)
 % Reliable: 2
 
 if (nargin==1)

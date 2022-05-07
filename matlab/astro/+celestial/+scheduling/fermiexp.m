@@ -4,6 +4,7 @@ function W=fermiexp(t,t0,Decay,Soft,BaseW,ExtraW)
 % Input  : - time
 %          * t0, DecayExp, SoftFermi, BaseW, ExtraW
 % Output : - Weights
+% Author : Eran Ofek (Jan 2020)
 % Example: W=celestial.scheduling.fermiexp(t,1,1,0.05,1,0.5);
 
 W = zeros(size(t));

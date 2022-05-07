@@ -8,6 +8,7 @@ function [t_coal,da_dt,de_dt]=coalescence_gw_time(M1,M2,a,e)
 % Output : - Coalescensc time [s]
 %          - da/dt [cm/s]
 %          - de/dt [s^-1]
+% Author : Eran Ofek (Jan 2015)
 % Example: [t_coal,da_dt,de_dt]=AstroUtil.binary.coalescence_gw_time(M1,M2,a,e)
 
 if nargin<4

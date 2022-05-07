@@ -43,7 +43,7 @@ function [LC,ZP,BinLC,BinConLC]=read_mark_lc(File,BinVec,BinType,BinSize,Randomi
 %            (6) Bootstrap Std of flux in bin.
 %            (7) Jackknife Std of flux in bin.
 % Tested : Matlab 7.13
-%     By : Eran O. Ofek / Aviram Steinbok  Apr 2012
+% Author : Eran O. Ofek & Aviram Steinbok  (Apr 2012)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 %-------------------------------------------------------------------------------
 

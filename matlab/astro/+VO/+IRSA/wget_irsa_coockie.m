@@ -6,6 +6,7 @@ function CookieName=wget_irsa_coockie(varargin)
 %          - Password. Default is
 %          - Cookie name. Default is 'ptf.txt'.
 % Output : - String containing cookie name.
+% Author : Eran Ofek (Oct 2018)
 % Example: CookieName=VO.IRSA.wget_irsa_coockie
 % Reliable: 
 %--------------------------------------------------------------------------

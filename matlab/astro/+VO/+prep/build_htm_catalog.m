@@ -25,6 +25,7 @@ function Nsrc=build_htm_catalog(Cat,varargin)
 %            'IndStep'  - Step for index file. Default is 30.
 %            'SaveInd'  - Save index HDF file. Default is true.
 % Output : null
+% Author : Eran Ofek (Oct 2018)
 % Example: [HTM,LevList] = celestial.htm.htm_build(5);
 %          F=io.files.load2('FIRST.mat')
 %          VO.prep.build_htm_catalog(F,'CatName','FIRST','HTM_Level',6);

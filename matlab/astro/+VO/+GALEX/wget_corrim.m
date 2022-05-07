@@ -30,6 +30,7 @@ function [LinkSt]=wget_corrim(RA,Dec,varargin)
 %            'Unzip' - Unzip the images. Default is true.
 % Output : - Structure array of links to GALEX images.
 %            Link(ImageInd,BandIndex,ImTypeIndex)...
+% Author : Eran Ofek (Oct 2018)
 % Example: [LinkSt]=VO.GALEX.wget_corrim(0,0.1);
 % Reliable: 2
 

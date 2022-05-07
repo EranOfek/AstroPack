@@ -19,6 +19,7 @@ function AllFiles = classifyAllFiles(Args)
     %            .FileInPackage - true if file resides inside a package.
     %            .FileInClass - true if file resides inside a class.
     %            .IsContentFile - is a 'content.m' file.
+    %            .IsUnitTestFile - is a 'unitTest.m' file.
     %            .Extension - File extension (e.g., '.m').
     %            .PackNames - A cell array of pacakge names identified in
     %                   the folder name (without the leading +).
@@ -37,7 +38,7 @@ function AllFiles = classifyAllFiles(Args)
     % Author : Eran Ofek (May 2022)
     % Example: AllFiles = tools.code.classifyAllFiles
     %          % Identify all .m files without Author name
-    %          Im=find(strcmp({AllFiles.Extension},'.m'));
+    %          Im=find(strcmp({AllFiles.Extension},'.m') & ~[AllFiles.IsUnitTestFile] & ~[AllFiles.IsContentFile]);
     %          Ina = find(cellfun(@isempty,{AllFiles(Im).Author}));
        
     arguments
@@ -63,6 +64,7 @@ function AllFiles = classifyAllFiles(Args)
     [AllFiles(1:1:Nf).FileInPackage]       = deal(false);
     [AllFiles(1:1:Nf).FileInClass]         = deal(false);
     [AllFiles(1:1:Nf).IsContentFile]       = deal(false);
+    [AllFiles(1:1:Nf).IsUnitTestFile]      = deal(false);
     [AllFiles(1:1:Nf).Extension]           = deal('');
     [AllFiles(1:1:Nf).IsClass]             = deal(false);
     [AllFiles(1:1:Nf).StartPosFunctions]   = deal('');
@@ -97,6 +99,8 @@ function AllFiles = classifyAllFiles(Args)
             switch AllFiles(If).name
                 case 'content.m'
                     AllFiles(If).IsContentFile = true;
+                case 'unitTest.m'
+                    AllFiles(If).IsUnitTestFile = true;
                 otherwise
             end
             
