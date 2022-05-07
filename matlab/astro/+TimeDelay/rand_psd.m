@@ -12,7 +12,7 @@ function F_w=rand_psd(Psd,Gamma)
 %            expectency value (P~f^-Gamma). Default is 3.
 % Output : - A random realization of the requested power spectrum.
 %            The ifft of this power spectrum is real.
-%     By : Eran O. Ofek                  Oct 2020
+% Author : Eran O. Ofek (Oct 2020)
 % Example: F_w=TimeDelay.rand_psd((1:1:100))
 %          F_w=TimeDelay.rand_psd(100,3)
 
