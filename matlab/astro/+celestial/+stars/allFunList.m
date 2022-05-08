@@ -3,7 +3,7 @@
 %     celestial.stars.allFunList - Functions and Classes list for the celestial.stars package
 %  celestial.stars.constellation - Find the constellations in which celestial coordinates are located.
 % celestial.stars.nearest_bright_star - Select N bright stars near a given coordinate
-% celestial.stars.star_apparent_place - ------------------------------------------------------------------------------
+% celestial.stars.star_apparent_place - Compute the apparent place of stars at a given epoch
 %       celestial.stars.unitTest - Package Unit-Test
 %       celestial.stars.vb_ephem - ------------------------------------------------------------------------------
  help celestial.stars.allFunList

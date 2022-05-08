@@ -7,9 +7,9 @@
 %        celestial.proj.pr_bonne - Bonne projection.
 %      celestial.proj.pr_cassini - Cassini projection.
 %        celestial.proj.pr_conic - Conic projection.
-%  celestial.proj.pr_cylindrical - ------------------------------------------------------------------------------
-%     celestial.proj.pr_gnomonic - --------------------------------------------------------------------------
-%       celestial.proj.pr_hammer - ------------------------------------------------------------------------------
+%  celestial.proj.pr_cylindrical - Project coordinates (longitude and latitude) using a general cylindrical projection.
+%     celestial.proj.pr_gnomonic - Project coordinates (longitude and latitude) using the Gnomonic non conformal projection
+%       celestial.proj.pr_hammer - Project coordinates (longitude and latitude) using the Hammer projection.
 % celestial.proj.pr_hammer_aitoff - ------------------------------------------------------------------------------
 %    celestial.proj.pr_ignomonic - roject coordinates using the inverse Gnomonic non conformal projection
 % celestial.proj.pr_ihammer_aitoff - ------------------------------------------------------------------------------
@@ -23,6 +23,6 @@
 % celestial.proj.pr_stereographic - ------------------------------------------------------------------------------
 % celestial.proj.pr_stereographic_polar - Project coordinates using the Stereographic polar projection
 %           celestial.proj.pr_xy - X-Y projection (no transformation).
-%      celestial.proj.projectcoo - --------------------------------------------------------------------------
+%      celestial.proj.projectcoo - Project coordinates from longitude and latitude to X/Y
 %        celestial.proj.unitTest - Package Unit-Test
  help celestial.proj.allFunList

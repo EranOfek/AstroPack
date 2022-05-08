@@ -1,5 +1,5 @@
-function [X,Y]=pr_cylindrical(Long,Lat,R,StandCoo);
-%------------------------------------------------------------------------------
+function [X,Y]=pr_cylindrical(Long,Lat,R,StandCoo)
+% Project coordinates (longitude and latitude) using a general cylindrical projection.
 % pr_cylindrical function                                             AstroMap
 % Description: Project coordinates (longitude and latitude) using a general
 %              cylindrical projection.
@@ -22,12 +22,12 @@ function [X,Y]=pr_cylindrical(Long,Lat,R,StandCoo);
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reliable: 2
 %------------------------------------------------------------------------------
-if (nargin==2),
+if (nargin==2)
    R = 1;
    StandCoo = [0 0];
-elseif (nargin==3),
+elseif (nargin==3)
    StandCoo = [0 0];
-elseif (nargin==4),
+elseif (nargin==4)
    % no default   
 else
    error('Illigal number of argument');

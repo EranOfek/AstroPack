@@ -144,7 +144,7 @@
 % celestial.coo.is_coordinate_ok - Check that coordinates satisfy some observability conditions
 % celestial.coo.light_abberation - --------------------------------------------------------------------------
 % celestial.coo.light_deflection - Calculate the observer-centric direction of a planet, corrected for light deflection.
-%      celestial.coo.nearest_coo - ------------------------------------------------------------------------------
+%      celestial.coo.nearest_coo - Search for nearest coordinates in a list.
 %         celestial.coo.nutation - Intermidiate accuracy IAU 1984 nutation
 %     celestial.coo.nutation1980 - --------------------------------------------------------------------------
 %  celestial.coo.nutation2rotmat - Return the nutation rotation matrix
@@ -180,7 +180,7 @@
 % celestial.coo.sphere_dist_thresh - --------------------------------------------------------------------------
 %      celestial.coo.sphere_move - Applay offset to RA and Dec
 %    celestial.coo.sphere_offset - Calculate the offset needed to move between two points on the celestial sphere
-% celestial.coo.spherical_tri_area - ------------------------------------------------------------------------------
+% celestial.coo.spherical_tri_area - Calculate the area of a spherical triangle
 % celestial.coo.spherical_triangle_circum_circle - Calculate the radius of the circum circle of a spherical triangle
 % celestial.coo.spherical_triangle_inscribed_circle - Calculate the radius of the inscribed circle of a spherical triangle
 % celestial.coo.star_conjunctions - Calculate conjuctions between stars given their proper motion.
@@ -202,7 +202,7 @@
 %       celestial.htm.nhtm2level - Given number of HTM elements calculate number of levels.
 % celestial.htm.polysphere_poles - Given a spherical polygon vertces, find the poles of each of sides
 %  celestial.htm.polysphere_sort - Sort a convex spherical polygon
-% celestial.htm.search_htm_coocat - --------------------------------------------------------------------------
+% celestial.htm.search_htm_coocat - Search coordinates in HTMs
 % celestial.htm.tree_collect_leafs - Collect leafs in a tree
 %         celestial.htm.unitTest - Package Unit-Test
 %       celestial.map.allFunList - Functions and Classes list for the celestial.map package
@@ -227,9 +227,9 @@
 %        celestial.proj.pr_bonne - Bonne projection.
 %      celestial.proj.pr_cassini - Cassini projection.
 %        celestial.proj.pr_conic - Conic projection.
-%  celestial.proj.pr_cylindrical - ------------------------------------------------------------------------------
-%     celestial.proj.pr_gnomonic - --------------------------------------------------------------------------
-%       celestial.proj.pr_hammer - ------------------------------------------------------------------------------
+%  celestial.proj.pr_cylindrical - Project coordinates (longitude and latitude) using a general cylindrical projection.
+%     celestial.proj.pr_gnomonic - Project coordinates (longitude and latitude) using the Gnomonic non conformal projection
+%       celestial.proj.pr_hammer - Project coordinates (longitude and latitude) using the Hammer projection.
 % celestial.proj.pr_hammer_aitoff - ------------------------------------------------------------------------------
 %    celestial.proj.pr_ignomonic - roject coordinates using the inverse Gnomonic non conformal projection
 % celestial.proj.pr_ihammer_aitoff - ------------------------------------------------------------------------------
@@ -243,7 +243,7 @@
 % celestial.proj.pr_stereographic - ------------------------------------------------------------------------------
 % celestial.proj.pr_stereographic_polar - Project coordinates using the Stereographic polar projection
 %           celestial.proj.pr_xy - X-Y projection (no transformation).
-%      celestial.proj.projectcoo - --------------------------------------------------------------------------
+%      celestial.proj.projectcoo - Project coordinates from longitude and latitude to X/Y
 %        celestial.proj.unitTest - Package Unit-Test
 % celestial.scheduling.LAST_scheduler - 
 % celestial.scheduling.LAST_simulator - Simulate LAST targets scheduling
@@ -265,7 +265,7 @@
 %     celestial.stars.allFunList - Functions and Classes list for the celestial.stars package
 %  celestial.stars.constellation - Find the constellations in which celestial coordinates are located.
 % celestial.stars.nearest_bright_star - Select N bright stars near a given coordinate
-% celestial.stars.star_apparent_place - ------------------------------------------------------------------------------
+% celestial.stars.star_apparent_place - Compute the apparent place of stars at a given epoch
 %       celestial.stars.unitTest - Package Unit-Test
 %       celestial.stars.vb_ephem - ------------------------------------------------------------------------------
 %      celestial.time.allFunList - Functions and Classes list for the celestial.time package

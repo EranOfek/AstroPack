@@ -43,7 +43,7 @@
 % celestial.coo.is_coordinate_ok - Check that coordinates satisfy some observability conditions
 % celestial.coo.light_abberation - --------------------------------------------------------------------------
 % celestial.coo.light_deflection - Calculate the observer-centric direction of a planet, corrected for light deflection.
-%      celestial.coo.nearest_coo - ------------------------------------------------------------------------------
+%      celestial.coo.nearest_coo - Search for nearest coordinates in a list.
 %         celestial.coo.nutation - Intermidiate accuracy IAU 1984 nutation
 %     celestial.coo.nutation1980 - --------------------------------------------------------------------------
 %  celestial.coo.nutation2rotmat - Return the nutation rotation matrix
@@ -79,7 +79,7 @@
 % celestial.coo.sphere_dist_thresh - --------------------------------------------------------------------------
 %      celestial.coo.sphere_move - Applay offset to RA and Dec
 %    celestial.coo.sphere_offset - Calculate the offset needed to move between two points on the celestial sphere
-% celestial.coo.spherical_tri_area - ------------------------------------------------------------------------------
+% celestial.coo.spherical_tri_area - Calculate the area of a spherical triangle
 % celestial.coo.spherical_triangle_circum_circle - Calculate the radius of the circum circle of a spherical triangle
 % celestial.coo.spherical_triangle_inscribed_circle - Calculate the radius of the inscribed circle of a spherical triangle
 % celestial.coo.star_conjunctions - Calculate conjuctions between stars given their proper motion.

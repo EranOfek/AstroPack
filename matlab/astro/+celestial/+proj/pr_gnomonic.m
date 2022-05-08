@@ -1,5 +1,5 @@
 function [X,Y]=pr_gnomonic(Long,Lat,R,CenterVec)
-%--------------------------------------------------------------------------
+% Project coordinates (longitude and latitude) using the Gnomonic non conformal projection
 % pr_gnomonic function                                            AstroMap
 % Description: Project coordinates (longitude and latitude) using the
 %              Gnomonic non conformal projection

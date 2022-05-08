@@ -13,7 +13,7 @@
 %       celestial.htm.nhtm2level - Given number of HTM elements calculate number of levels.
 % celestial.htm.polysphere_poles - Given a spherical polygon vertces, find the poles of each of sides
 %  celestial.htm.polysphere_sort - Sort a convex spherical polygon
-% celestial.htm.search_htm_coocat - --------------------------------------------------------------------------
+% celestial.htm.search_htm_coocat - Search coordinates in HTMs
 % celestial.htm.tree_collect_leafs - Collect leafs in a tree
 %         celestial.htm.unitTest - Package Unit-Test
  help celestial.htm.allFunList

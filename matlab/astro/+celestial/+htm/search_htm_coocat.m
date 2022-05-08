@@ -1,5 +1,5 @@
 function HTMind=search_htm_coocat(RA,Dec,SearchRad,HTMcenters,Use_search_cat)
-%--------------------------------------------------------------------------
+% Search coordinates in HTMs
 % search_htm_coocat function                                           htm
 % Description: 
 % Input  : - RA (J2000.0) (radians, sexahesimal string or [H M S]).
@@ -19,8 +19,6 @@ function HTMind=search_htm_coocat(RA,Dec,SearchRad,HTMcenters,Use_search_cat)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: HTMind=celestial.htm.search_htm_coocat(1,1,1./RAD,'FIRST_htm.mat')
 % Reliable: 2
-%--------------------------------------------------------------------------
-import Util.IO.*
 
 InvRAD    = pi./180;
 
@@ -33,7 +31,7 @@ end
 
 
 if (ischar(HTMcenters))
-    HTMcenters = load2(HTMcenters);
+    HTMcenters = io.files.load2(HTMcenters);
 end
 
 ColRA     = HTMcenters.(ColField).RA;

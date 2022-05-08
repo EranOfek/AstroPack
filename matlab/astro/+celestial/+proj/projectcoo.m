@@ -1,5 +1,5 @@
 function [X,Y]=projectcoo(Long,Lat,ProjectionType,R,Par1,Par2)
-%--------------------------------------------------------------------------
+% Project coordinates from longitude and latitude to X/Y
 % projectcoo function                                             AstroMap
 % Description: Project coordinates from longitude and latitude
 %              to X/Y using a specified projection.
