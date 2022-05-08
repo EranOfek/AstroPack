@@ -1,6 +1,5 @@
 function [DLon,DObl]=nutation_lowacc(JD)
-%--------------------------------------------------------------------------
-% nutation_lowacc function                                           ephem
+% Low accuracy (~1") calculation of the nutation.
 % Description: Low accuracy (~1") calculation of the nutation.
 % Input  : - Matrix of Julian days.
 % Output : - Matrix of nutation in longitude [rad].
