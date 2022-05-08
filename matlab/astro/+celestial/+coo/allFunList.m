@@ -41,11 +41,11 @@
 % celestial.coo.inside_celestial_box - Check if coorduinates are within box
 %       celestial.coo.interp_coo - Interpolate celestial coordinates as a function of time
 % celestial.coo.is_coordinate_ok - Check that coordinates satisfy some observability conditions
-% celestial.coo.light_abberation - --------------------------------------------------------------------------
+% celestial.coo.light_abberation - Given an object observer-centric direction, corrected for light deflection
 % celestial.coo.light_deflection - Calculate the observer-centric direction of a planet, corrected for light deflection.
 %      celestial.coo.nearest_coo - Search for nearest coordinates in a list.
 %         celestial.coo.nutation - Intermidiate accuracy IAU 1984 nutation
-%     celestial.coo.nutation1980 - --------------------------------------------------------------------------
+%     celestial.coo.nutation1980 - Calculate the IAU 1980 Nutation series for a set of JDs.
 %  celestial.coo.nutation2rotmat - Return the nutation rotation matrix
 %  celestial.coo.nutation_lowacc - Low accuracy (~1") calculation of the nutation.
 %        celestial.coo.obliquity - Calculate the obliquity of the Earth ecliptic.
@@ -75,8 +75,8 @@
 % celestial.coo.sphere_dist_fast - Calculate the angular distance between two points on the celestial sphere.
 % celestial.coo.sphere_dist_fastSmall - Spherical distance approximation for small angular distances
 % celestial.coo.sphere_dist_fastThresh - Calculate angular distances only for sources with Dec diff below threshold.
-% celestial.coo.sphere_dist_fast_thresh - --------------------------------------------------------------------------
-% celestial.coo.sphere_dist_thresh - --------------------------------------------------------------------------
+% celestial.coo.sphere_dist_fast_thresh - Calculate the angular distance between two points on the (STATUS UNKNOWN)
+% celestial.coo.sphere_dist_thresh - Check if the angular dist. between points is below some threshold.
 %      celestial.coo.sphere_move - Applay offset to RA and Dec
 %    celestial.coo.sphere_offset - Calculate the offset needed to move between two points on the celestial sphere
 % celestial.coo.spherical_tri_area - Calculate the area of a spherical triangle

@@ -58,7 +58,7 @@
 %  astro.lensing.alpha_kspl_fast - Deflection for softened power law elliptical density
 %        astro.lensing.alpha_sis - Gravitational deflection for softend spherical isothermal sphere
 %        astro.lensing.alpha_spl - Gravitational deflection of softened power law elliptical potential
-%    astro.lensing.beta_minimize - -----------------------------------------------------------------------------
+%    astro.lensing.beta_minimize - Minimize residuals in the image plane.
 %       astro.lensing.calc_alpha - 1;2cfunction [AlphaX,AlphaY,A_11,A_22,A_12,Phi,Kappa]=calc_alpha(ThetaX,ThetaY,Pars,ModelType);
 % astro.lensing.calc_magnification - Magnification from mapping matrix
 %        astro.lensing.dls_ds_2z - Given D_ls/D_s ratio, z_l and cosmological parameters, solve for z_s.
@@ -66,16 +66,16 @@
 % astro.lensing.fit_astrometric_timedelay - SHORT DESCRIPTION HERE
 % astro.lensing.generate_timedelay_lc - Generate random power-law power spectrum light curve and its time delays.
 % astro.lensing.integrand_jn_ellkappa - -----------------------------------------------------------------------------
-%       astro.lensing.iplane_rms - --------------------------------------------------------------------------
+%       astro.lensing.iplane_rms - Minimize residuals in the image plane.
 %  astro.lensing.iplane_rms_norm - --------------------------------------------------------------------------
 % astro.lensing.iplane_rms_smart - --------------------------------------------------------------------------
-% astro.lensing.kappa_from_alpha - -----------------------------------------------------------------------------
+% astro.lensing.kappa_from_alpha - Calculate the surface density of a lens numerically from the deflection field.
 % astro.lensing.lensmodel_solvenorm - ---------------------------------------------------------------------------
 %   astro.lensing.plot_lens_data - -------------------------------------------------------------------------
-%   astro.lensing.predict_images - ----------------------------------------------------------------------
+%   astro.lensing.predict_images - UNDER CONSTRUCTION
 %      astro.lensing.s1plane_rms - --------------------------------------------------------------------------
 %       astro.lensing.splane_rms - --------------------------------------------------------------------------
-%     astro.lensing.splane_rms_n - --------------------------------------------------------------------------
+%     astro.lensing.splane_rms_n - Best fit source plane solution
 %  astro.lensing.splane_rms_norm - --------------------------------------------------------------------------
 % astro.lensing.splane_rms_norm1 - --------------------------------------------------------------------------
 %         astro.lensing.unitTest - Package Unit-Test
@@ -143,7 +143,7 @@
 % astro.spec.is_rrlyr_sdss_colors - Is RR Lyr star candidate based on SDSS colors
 %               astro.spec.kcorr - Calculate k-correction.
 %            astro.spec.lines_db - Search spectral line by name or wavelength and add ionization potential
-%           astro.spec.luptitude - --------------------------------------------------------------------------
+%           astro.spec.luptitude - Convert flux to luptitude (sinh-magnitude) (OBSOLETE)
 %           astro.spec.matchspec - A GUI utility to inspect and match spectrum with templates.
 %      astro.spec.scale_spectrum - Scale spectrum by shift and stretch.
 %           astro.spec.shift2vel - Calculate the velocity from the red/blue shift (z).

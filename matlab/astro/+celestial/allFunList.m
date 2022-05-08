@@ -142,11 +142,11 @@
 % celestial.coo.inside_celestial_box - Check if coorduinates are within box
 %       celestial.coo.interp_coo - Interpolate celestial coordinates as a function of time
 % celestial.coo.is_coordinate_ok - Check that coordinates satisfy some observability conditions
-% celestial.coo.light_abberation - --------------------------------------------------------------------------
+% celestial.coo.light_abberation - Given an object observer-centric direction, corrected for light deflection
 % celestial.coo.light_deflection - Calculate the observer-centric direction of a planet, corrected for light deflection.
 %      celestial.coo.nearest_coo - Search for nearest coordinates in a list.
 %         celestial.coo.nutation - Intermidiate accuracy IAU 1984 nutation
-%     celestial.coo.nutation1980 - --------------------------------------------------------------------------
+%     celestial.coo.nutation1980 - Calculate the IAU 1980 Nutation series for a set of JDs.
 %  celestial.coo.nutation2rotmat - Return the nutation rotation matrix
 %  celestial.coo.nutation_lowacc - Low accuracy (~1") calculation of the nutation.
 %        celestial.coo.obliquity - Calculate the obliquity of the Earth ecliptic.
@@ -176,8 +176,8 @@
 % celestial.coo.sphere_dist_fast - Calculate the angular distance between two points on the celestial sphere.
 % celestial.coo.sphere_dist_fastSmall - Spherical distance approximation for small angular distances
 % celestial.coo.sphere_dist_fastThresh - Calculate angular distances only for sources with Dec diff below threshold.
-% celestial.coo.sphere_dist_fast_thresh - --------------------------------------------------------------------------
-% celestial.coo.sphere_dist_thresh - --------------------------------------------------------------------------
+% celestial.coo.sphere_dist_fast_thresh - Calculate the angular distance between two points on the (STATUS UNKNOWN)
+% celestial.coo.sphere_dist_thresh - Check if the angular dist. between points is below some threshold.
 %      celestial.coo.sphere_move - Applay offset to RA and Dec
 %    celestial.coo.sphere_offset - Calculate the offset needed to move between two points on the celestial sphere
 % celestial.coo.spherical_tri_area - Calculate the area of a spherical triangle
@@ -230,16 +230,16 @@
 %  celestial.proj.pr_cylindrical - Project coordinates (longitude and latitude) using a general cylindrical projection.
 %     celestial.proj.pr_gnomonic - Project coordinates (longitude and latitude) using the Gnomonic non conformal projection
 %       celestial.proj.pr_hammer - Project coordinates (longitude and latitude) using the Hammer projection.
-% celestial.proj.pr_hammer_aitoff - ------------------------------------------------------------------------------
+% celestial.proj.pr_hammer_aitoff - Project coordinates (longitude and latitude) using equal area Hammer-Aitoff projection
 %    celestial.proj.pr_ignomonic - roject coordinates using the inverse Gnomonic non conformal projection
-% celestial.proj.pr_ihammer_aitoff - ------------------------------------------------------------------------------
-%     celestial.proj.pr_mercator - -----------------------------------------------------------------------------
+% celestial.proj.pr_ihammer_aitoff - Project coordinates (longitude and latitude) using the inverse of the equal area Hammer-Aitoff projection
+%     celestial.proj.pr_mercator - Project coordinates (longitude and latitude) using the Mercator projection.
 %    celestial.proj.pr_mollweide - Project coordinates (longitude and latitude) using the equal area Mollweide projection.
-%    celestial.proj.pr_parabolic - ------------------------------------------------------------------------------
+%    celestial.proj.pr_parabolic - Project coordinates (longitude and latitude) using the Parabolic projection.
 %       celestial.proj.pr_planis - planisphere projection.
-%        celestial.proj.pr_polar - ------------------------------------------------------------------------------
+%        celestial.proj.pr_polar - Project coordinates (longitude and latitude) using the polar projection (from north pole).
 %          celestial.proj.pr_sin - Slant ortographic (SIN) projection
-%   celestial.proj.pr_sinusoidal - ------------------------------------------------------------------------------
+%   celestial.proj.pr_sinusoidal - Project coordinates (longitude and latitude) using the Sinusoidal projection.
 % celestial.proj.pr_stereographic - Project coordinates (longitude and latitude) using the Stereographic projection.
 % celestial.proj.pr_stereographic_polar - Project coordinates using the Stereographic polar projection
 %           celestial.proj.pr_xy - X-Y projection (no transformation).

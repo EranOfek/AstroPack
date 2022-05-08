@@ -1,6 +1,5 @@
 function [Flag,Dist,PA]=sphere_dist_thresh(Long,Lat,LongRef,LatRef,MaxDist,Shape)
-%--------------------------------------------------------------------------
-% sphere_dist_thresh function                                        ephem
+% Check if the angular dist. between points is below some threshold.
 % Description: Given Long and Lat coordinates and a reference coordinates
 %              (in radians) return a flag indicating if each point is
 %              within a spherical distance from a reference point.
@@ -19,7 +18,7 @@ function [Flag,Dist,PA]=sphere_dist_thresh(Long,Lat,LongRef,LatRef,MaxDist,Shape
 %     By : Eran O. Ofek                    Mar 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example:
-% [Flag,Dist,PA]=sphere_dist_thresh(rand(100,1),rand(100,1),0.5,0.5,0.2,'box')
+% [Flag,Dist,PA]=celestial.coo.sphere_dist_thresh(rand(100,1),rand(100,1),0.5,0.5,0.2,'box')
 % Reliable: 2
 %--------------------------------------------------------------------------
 RAD  = 180./pi;

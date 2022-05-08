@@ -34,7 +34,7 @@
 % astro.spec.is_rrlyr_sdss_colors - Is RR Lyr star candidate based on SDSS colors
 %               astro.spec.kcorr - Calculate k-correction.
 %            astro.spec.lines_db - Search spectral line by name or wavelength and add ionization potential
-%           astro.spec.luptitude - --------------------------------------------------------------------------
+%           astro.spec.luptitude - Convert flux to luptitude (sinh-magnitude) (OBSOLETE)
 %           astro.spec.matchspec - A GUI utility to inspect and match spectrum with templates.
 %      astro.spec.scale_spectrum - Scale spectrum by shift and stretch.
 %           astro.spec.shift2vel - Calculate the velocity from the red/blue shift (z).
