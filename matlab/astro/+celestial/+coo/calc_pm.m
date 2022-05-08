@@ -1,5 +1,5 @@
 function [PM_RA,PM_Dec,PM_Tot,PM_PA]=calc_pm(PosList,ErrMat,TimeUnit)
-%--------------------------------------------------------------------------
+% Calculate the proper motion of a star (OBSOLETE)
 % calc_pm function     
 % Description: Calculate the proper motion of a star from a set of
 %              measurments.

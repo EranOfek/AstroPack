@@ -17,4 +17,5 @@
 % draft_pipeline.PipelineStateMachine - 
 % draft_pipeline.PipelineUltrasat - 
 % draft_pipeline.PipelineUnitTest - 
+%      draft_pipeline.allFunList - Functions and Classes list for the draft_pipeline package
  help draft_pipeline.allFunList

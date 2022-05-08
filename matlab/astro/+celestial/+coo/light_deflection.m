@@ -1,6 +1,5 @@
 function P1=light_deflection(P,Q,E)
-%------------------------------------------------------------------------------
-% light_deflection function                                              ephem
+% Calculate the observer-centric direction of a planet, corrected for light deflection.
 % Description: Calculate the observer-centric direction of a planet,
 %              corrected for light deflection in the natural frame.
 %              Note: for the stellar case Q=P.

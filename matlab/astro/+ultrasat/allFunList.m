@@ -3,6 +3,7 @@
 %              ultrasat.Cerenkov - Calculate the Cerenkov spectrum generated in a lens
 % ultrasat.GEO_object_visibility - SHORT DESCRIPTION HERE
 % ultrasat.ULTRASAT_restricted_visibility - SHORT DESCRIPTION HERE
+%            ultrasat.allFunList - Functions and Classes list for the ultrasat package
 %             ultrasat.dEdX_calc - Calculate dE/dX as a function of energy
 %            ultrasat.event_rate - Calculate event rate for ULTRASAT given event and host abs. mag.
 % ultrasat.geostat_electrons_spec_flux - Return spectral model for electron flux in geostationary orbit

@@ -3,6 +3,7 @@
 %                  yaml.ReadYaml - import yaml.*;
 %               yaml.ReadYamlRaw - import yaml.*;
 %                 yaml.WriteYaml - import yaml.*;
+%                yaml.allFunList - Functions and Classes list for the yaml package
 %                  yaml.datadump - import yaml.*;
 %            yaml.deflateimports - import yaml.*;
 %             yaml.doinheritance - import yaml.*;

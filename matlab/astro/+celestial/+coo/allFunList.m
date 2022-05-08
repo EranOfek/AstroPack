@@ -3,13 +3,14 @@
 %       celestial.coo.aberration - Apply aberration of light to source position
 %       celestial.coo.add_offset - Offset a position by angular distance and position angle
 %          celestial.coo.airmass - Airmass from time and object and observer position
+%       celestial.coo.allFunList - Functions and Classes list for the celestial.coo package
 %           celestial.coo.alt2ha - Convert altitude and declnation to hour angle
 %        celestial.coo.altha2dec - Convert altitude and hour angle to declination
 %      celestial.coo.angle_in2pi - Convert an angle to the 0 to 2*pi range
 % celestial.coo.area_sphere_polygon - Area of a polygon on a sphere
 %      celestial.coo.azalt2hadec - Convert Az/Alt to HA/Dec
 %   celestial.coo.boundingCircle - fit the smallest-radius bounding circle to set of X, Y points
-%          celestial.coo.calc_pm - --------------------------------------------------------------------------
+%          celestial.coo.calc_pm - Calculate the proper motion of a star (OBSOLETE)
 % celestial.coo.cel_annulus_area - Area within a celestial annulus
 %   celestial.coo.celestial_circ - Grid of coordinates on a small spherical circle
 %   celestial.coo.center2corners - Return field corners given its center and size
@@ -29,7 +30,7 @@
 % celestial.coo.fit_proper_motion - SHORT DESCRIPTION HERE
 %      celestial.coo.fit_scircle - 
 %   celestial.coo.geocentric2lsr - Geocentric or heliocentric velocity to velocity relative to the LSR
-%  celestial.coo.get_skytile_coo - -----------------------------------------------------------------------
+%  celestial.coo.get_skytile_coo - Search for coordinates in tiles
 %           celestial.coo.ha2alt - Hour angle to altitude and airmass
 %            celestial.coo.ha2az - Convert hour angle and declination to azimuth, altitude and airmass
 %      celestial.coo.hadec2azalt - Convert HA/Dec to Az/Alt
@@ -41,12 +42,12 @@
 %       celestial.coo.interp_coo - Interpolate celestial coordinates as a function of time
 % celestial.coo.is_coordinate_ok - Check that coordinates satisfy some observability conditions
 % celestial.coo.light_abberation - --------------------------------------------------------------------------
-% celestial.coo.light_deflection - ------------------------------------------------------------------------------
+% celestial.coo.light_deflection - Calculate the observer-centric direction of a planet, corrected for light deflection.
 %      celestial.coo.nearest_coo - ------------------------------------------------------------------------------
 %         celestial.coo.nutation - Intermidiate accuracy IAU 1984 nutation
 %     celestial.coo.nutation1980 - --------------------------------------------------------------------------
-%  celestial.coo.nutation2rotmat - --------------------------------------------------------------------------
-%  celestial.coo.nutation_lowacc - --------------------------------------------------------------------------
+%  celestial.coo.nutation2rotmat - Return the nutation rotation matrix
+%  celestial.coo.nutation_lowacc - Low accuracy (~1") calculation of the nutation.
 %        celestial.coo.obliquity - Calculate the obliquity of the Earth ecliptic.
 %   celestial.coo.parallactic2ha - Convert parallactic angle and declinatio to hour angle
 % celestial.coo.parallactic_angle - ------------------------------------------------------------------------------
@@ -64,7 +65,7 @@
 % celestial.coo.proper_motion_parallax - Applay proper motion and parallax to a catalog
 %       celestial.coo.refraction - Estimate atmospheric refraction, in visible light.
 % celestial.coo.refraction_coocor - Atmospheric refraction correction for equatorial coordinates.
-%  celestial.coo.refraction_wave - --------------------------------------------------------------------------
+%  celestial.coo.refraction_wave - Calculate the wavelength-dependent atmospheric refraction
 %         celestial.coo.rotm_coo - Rotation matrix for coordinate conversion
 %        celestial.coo.shift_coo - Shift spherical coordinates by lon/lat.
 % celestial.coo.sky_area_above_am - Calculate sky area observable during the night above a specific airmass.
@@ -77,7 +78,7 @@
 % celestial.coo.sphere_dist_fast_thresh - --------------------------------------------------------------------------
 % celestial.coo.sphere_dist_thresh - --------------------------------------------------------------------------
 %      celestial.coo.sphere_move - Applay offset to RA and Dec
-%    celestial.coo.sphere_offset - --------------------------------------------------------------------------
+%    celestial.coo.sphere_offset - Calculate the offset needed to move between two points on the celestial sphere
 % celestial.coo.spherical_tri_area - ------------------------------------------------------------------------------
 % celestial.coo.spherical_triangle_circum_circle - Calculate the radius of the circum circle of a spherical triangle
 % celestial.coo.spherical_triangle_inscribed_circle - Calculate the radius of the inscribed circle of a spherical triangle
@@ -85,6 +86,6 @@
 % celestial.coo.star_conjunctions_montecarlo - SHORT DESCRIPTION HERE
 %     celestial.coo.tile_the_sky - Tile the celestial sphere
 % celestial.coo.topocentricVector - Calculate the topocentric vector of an observer.
-%  celestial.coo.topocentric_vec - --------------------------------------------------------------------------
+%  celestial.coo.topocentric_vec - Calculate the topocentric position and velocity vectors (OBSOLOETE)
 %         celestial.coo.unitTest - 
  help celestial.coo.allFunList

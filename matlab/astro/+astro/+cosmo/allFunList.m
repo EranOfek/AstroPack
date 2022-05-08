@@ -4,6 +4,7 @@
 %            astro.cosmo.ad_dist - Calculate the filled beam angular diameter distance between two redshifts
 %         astro.cosmo.ad_dr_dist - Calculates the Dyer-Roeder angular diameter distance for the empty beam
 %          astro.cosmo.ad_q_dist - Angular diamater distance with quintessence
+%         astro.cosmo.allFunList - Functions and Classes list for the astro.cosmo package
 %             astro.cosmo.cdt_dz - Calculate the differential cdt/dz in the FLRW geometry.
 %      astro.cosmo.comoving_dist - Comoving distance
 %    astro.cosmo.comoving_volume - Calculate the differential and comoving volume

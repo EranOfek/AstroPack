@@ -7,5 +7,6 @@
 % db.testing.BigDbTestPartition1 - You need to have configuration file with database user and password:
 %     db.testing.BigDbTestRaDec1 - You need to have configuration file with database user and password:
 % db.testing.BigDbTestTelemetry1 - You need to have configuration file with database user and password:
+%          db.testing.allFunList - Functions and Classes list for the db.testing package
 %             db.testing.devtest - 
  help db.testing.allFunList
