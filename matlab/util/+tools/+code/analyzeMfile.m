@@ -22,7 +22,7 @@ function Report = analyzeMfile(FileName, Args)
     arguments
         FileName
         Args.CountLines logical       = true;
-        Args.HelpInHead logical       = false;
+        %Args.HelpInHead logical       = false;
     end
     
     % Read the file
@@ -50,7 +50,7 @@ function Report = analyzeMfile(FileName, Args)
     end
     
     % get the entire help
-    if Args.HelpInHead
+    if Report.IsClass
         HelpStartLine = 1;
     else
         HelpStartLine = 2;
@@ -90,16 +90,26 @@ function Report = analyzeMfile(FileName, Args)
         Report.Month  = Info.Month;
         Report.Year   = Info.Year;
     end
-    
+   
     % parse first line of help
-    if isempty(Report.StartPosFunctions)
-        Report.DescriptionLine = '';
+    if Report.IsClass
+        %isempty(Report.StartPosFunctions)
+        Report.DescriptionLine = SpStr{1};
     else
-        Report.DescriptionLine = SpStr{Report.StartPosFunctions(1)+1};
-        Report.DescriptionLine = strrep(Report.DescriptionLine,'%',' ');
-        Report.DescriptionLine = strtrim(Report.DescriptionLine);
+        if isempty(Report.StartPosFunctions)
+            % a script
+            if isempty(SpStr)
+                % empty file
+                Report.DescriptionLine = '';
+            else
+                Report.DescriptionLine = SpStr{1};
+            end
+        else
+            % a function
+            Report.DescriptionLine = SpStr{Report.StartPosFunctions(1)+1};
+        end
     end
-    
-    
+    Report.DescriptionLine = strrep(Report.DescriptionLine,'%',' ');
+    Report.DescriptionLine = strtrim(Report.DescriptionLine);
     
 end

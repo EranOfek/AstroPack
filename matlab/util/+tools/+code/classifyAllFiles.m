@@ -140,13 +140,13 @@ function AllFiles = classifyAllFiles(Args)
             switch AllFiles(If).Extension
                 case '.m'
                     FileName = fullfile(AllFiles(If).folder, AllFiles(If).name);
-                    IsClass = tools.code.isClass(FileName);
-                    if IsClass
-                        HelpInHead = true;
-                    else
-                        HelpInHead = false;
-                    end
-                    Report = tools.code.analyzeMfile(FileName, 'HelpInHead',HelpInHead);
+%                     IsClass = tools.code.isClass(FileName);
+%                     if IsClass
+%                         HelpInHead = true;
+%                     else
+%                         HelpInHead = false;
+%                     end
+                    Report = tools.code.analyzeMfile(FileName); %, 'HelpInHead',HelpInHead);
                     FieldNames = fieldnames(Report);
                     Nfield     = numel(FieldNames);
                     for Ifield=1:1:Nfield
