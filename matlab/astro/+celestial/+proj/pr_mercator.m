@@ -1,6 +1,5 @@
-function [X,Y]=pr_mercator(Long,Lat,R,CenLong);
-%-----------------------------------------------------------------------------
-% pr_mercator function                                               AstroMap
+function [X,Y]=pr_mercator(Long,Lat,R,CenLong)
+% Project coordinates (longitude and latitude) using the Mercator projection.
 % Description: Project coordinates (longitude and latitude) using the
 %              Mercator projection.
 % Input  : - Vector of Longitude, in radians.
@@ -14,12 +13,12 @@ function [X,Y]=pr_mercator(Long,Lat,R,CenLong);
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reliable: 2
 %-----------------------------------------------------------------------------
-if (nargin==2),
+if (nargin==2)
    R = 1;
    CenLong = 0;
-elseif (nargin==3),
+elseif (nargin==3)
    CenLong = 0;
-elseif (nargin==4),
+elseif (nargin==4)
    % no default   
 else
    error('Illigal number of argument');

@@ -1,5 +1,5 @@
 function [Dist,PA]=sphere_dist_fast_thresh(RA_1,Dec_1,RA_2,Dec_2,Thresh)
-%--------------------------------------------------------------------------
+% Calculate the angular distance between two points on the (STATUS UNKNOWN)
 % sphere_dist_fast_thresh function                                   ephem
 % Description: Calculate the angular distance between two points on the
 %              celestial sphere. See sphere_dist.m (and built in distance.m)
@@ -10,6 +10,7 @@ function [Dist,PA]=sphere_dist_fast_thresh(RA_1,Dec_1,RA_2,Dec_2,Thresh)
 %          - Matrix of latitudes for the first point [radian].
 %          - Matrix of logitudes for the second point [radian].
 %          - Matrix of latitudes for the second point [radian].
+%          - Threshold below to calculate the angular distance.
 % Output : - Matrix of distances between points [radian].
 %          - Matrix of position angles between points [radian].
 % Tested : Matlab 2011b

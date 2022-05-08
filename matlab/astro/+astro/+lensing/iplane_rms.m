@@ -1,6 +1,5 @@
-function [AllDist_I,RMS_I,Dof,AllBestBeta]=iplane_rms(ModelPars,ModelType,ImagesCell,Dls_Ds);
-%--------------------------------------------------------------------------
-% iplane_rms function                                                glens
+function [AllDist_I,RMS_I,Dof,AllBestBeta]=iplane_rms(ModelPars,ModelType,ImagesCell,Dls_Ds)
+% Minimize residuals in the image plane.
 % Description: Given a model parameters of a lens, and the
 %                          images position, calculate the best source
 %                          position that minimize the residuals in

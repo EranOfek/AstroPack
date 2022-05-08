@@ -1,6 +1,5 @@
 function [Nut,NutMatrix]=nutation1980(JD,Units,MatType)
-%--------------------------------------------------------------------------
-% nutation1984 function                                              ephem
+% Calculate the IAU 1980 Nutation series for a set of JDs.
 % Description: Calculate the IAU 1980 Nutation series for a set of JDs.
 % Input  : - Column vector of JDs.
 %          - Output units {'rad','deg','as','mas'}. Default is 'rad'.
@@ -21,10 +20,10 @@ RAD = 180./pi;
 
 Def.Units = 'rad';
 Def.MatType = 'f';
-if (nargin==1),
+if (nargin==1)
      Units = Def.Units;
      MatType = Def.MatType;
-elseif (nargin==2),
+elseif (nargin==2)
      MatType = Def.MatType;
 else
     % do nothing
@@ -182,7 +181,7 @@ DObl = DObl.*ConvFactor;
 
 Nut = [DLon, DObl];
    
-if (nargout>1),
+if (nargout>1)
     NutMatrix = nutation2rotmat(Nut,JD,MatType);
 end
 

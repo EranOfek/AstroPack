@@ -1,6 +1,5 @@
 function [X,Y]=pr_hammer_aitoff(Long,Lat,R)
-%------------------------------------------------------------------------------
-% pr_hammer_aitoff function                                           AstroMap
+% Project coordinates (longitude and latitude) using equal area Hammer-Aitoff projection
 % Description: Project coordinates (longitude and latitude) using equal area
 %              Hammer-Aitoff projection used in the FITS/WCS standard.
 % Input  : - Vector of Longitude, in radians.

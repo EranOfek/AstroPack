@@ -1,6 +1,5 @@
-function [AllDist_S,RMS_S,AllBetaMean,BestNorm]=splane_rms_n(ModelPars,ModelType,ImagesCell,Dls_Ds);
-%--------------------------------------------------------------------------
-% splane_rms_n function                                              glens
+function [AllDist_S,RMS_S,AllBetaMean,BestNorm]=splane_rms_n(ModelPars,ModelType,ImagesCell,Dls_Ds)
+% Best fit source plane solution
 % Description:       Given a model parameters of a lens, and the
 %                          images position, calculate the deflections
 %                          (and magnification) and the sources position,
