@@ -1,6 +1,5 @@
 function CellLines=strlines2cell(String)
-%--------------------------------------------------------------------------
-% strlines2cell function                                           General
+% break the string into a cell array in which each cell contains a line.
 % Description: Given a string with end of line characters, break the
 %              string into a cell array in which each cell contains
 %              a line.

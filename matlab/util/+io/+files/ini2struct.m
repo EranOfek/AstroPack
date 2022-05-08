@@ -1,4 +1,5 @@
 function Result = ini2struct(FileName)
+% Convert ini file into a structure
 %==========================================================================
 %  Author: Andriy Nych ( nych.andriy@gmail.com )
 % Version:        733341.4155741782200

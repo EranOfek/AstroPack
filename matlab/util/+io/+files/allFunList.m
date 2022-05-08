@@ -17,7 +17,7 @@
 %          io.files.fprintf_cell - An fprintf command for a cell vector.
 %                io.files.gunzip - Execute gunzip on files, or a cell array of files
 %                  io.files.gzip - Execute gzip on files, or a cell array of files
-%            io.files.ini2struct - ==========================================================================
+%            io.files.ini2struct - Convert ini file into a structure
 %               io.files.inifile - INIFILE Creates, reads, or writes data from/to a standard ini (ascii)
 %   io.files.list_fun_in_package - Find all functions in a matlab package.
 %                 io.files.load2 - Load a mat file into a variable

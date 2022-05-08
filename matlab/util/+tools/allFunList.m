@@ -248,7 +248,7 @@
 %            tools.rand.unitTest - Package Unit-Test
 %             tools.rand.utrandi - Generate random integers for unit-testing, range is 0..100
 %        tools.string.allFunList - Functions and Classes list for the tools.string package
-% tools.string.construct_fullpath - --------------------------------------------------------------------------
+% tools.string.construct_fullpath - Construct a full path string to a program name, given its name
 % tools.string.construct_keyval_string - --------------------------------------------------------------------------
 %      tools.string.find_strcmpi - --------------------------------------------------------------------------
 %         tools.string.read_date - ------------------------------------------------------------------------------
@@ -259,9 +259,9 @@
 %       tools.string.str2num_nan - --------------------------------------------------------------------------
 %     tools.string.str_duplicate - Duplicate a string multiple times.
 %       tools.string.strcmp_cell - --------------------------------------------------------------------------
-%  tools.string.strdouble2double - -----------------------------------------------------------------------------
+%  tools.string.strdouble2double - Convert string, double or any data type to double.
 %   tools.string.stringSearchFun - Return a function handle for a string search (i.e., strcmp, strcmpi, regexp, regexpi
-%     tools.string.strlines2cell - --------------------------------------------------------------------------
+%     tools.string.strlines2cell - break the string into a cell array in which each cell contains a line.
 %          tools.string.unitTest - Package Unit-Test
 %           tools.string.unsplit - unsplit a cell array of strings.
 %        tools.struct.allFunList - Functions and Classes list for the tools.struct package

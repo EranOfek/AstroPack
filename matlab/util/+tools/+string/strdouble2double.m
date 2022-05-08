@@ -1,7 +1,6 @@
-function Out=strdouble2double(In);
-%-----------------------------------------------------------------------------
-% strdouble2double function                                           General
-% Description: Convert string, souble or any data type to double.
+function Out=strdouble2double(In)
+% Convert string, double or any data type to double.
+% Description: Convert string, double or any data type to double.
 %              Unlike str2double.m, this script doesn't return NaN if
 %              the input is already a double.
 % Input  : - String or a number or a cell array of strings or numbers.
@@ -11,13 +10,13 @@ function Out=strdouble2double(In);
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 %-----------------------------------------------------------------------------
 
-if (iscell(In)),
-   IndNum = find(cellfun(@isstr,In)==0);
+if (iscell(In))
+   IndNum = find(cellfun(@ischar,In)==0);
    Out    = str2double(In);
    Out(IndNum) = [In{IndNum}];
 
 else
-   if (isnumeric(In)),
+   if (isnumeric(In))
       Out = In;
    else
       Out = str2double(In);
