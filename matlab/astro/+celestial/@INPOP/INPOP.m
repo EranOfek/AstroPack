@@ -284,12 +284,17 @@ classdef INPOP < Base
             FullFileName = sprintf('%s%s',celestial.INPOP.Location, FileName);
             
             FID = fopen(FullFileName);
-            C = textscan(FID,'%s %f\n','Delimiter','=', 'Headerlines',1);
-            fclose(FID);
-            C{1}   = strtrim(C{1});
-            N      = numel(C{1});
-            for I=1:1:N
-                Result.(C{1}{I}) = C{2}(I);
+            if FID>0
+                C = textscan(FID,'%s %f\n','Delimiter','=', 'Headerlines',1);
+                fclose(FID);
+                C{1}   = strtrim(C{1});
+                N      = numel(C{1});
+                for I=1:1:N
+                    Result.(C{1}{I}) = C{2}(I);
+                end
+            else
+                warning('Can not find %s - try to download the INPOP files first',FullFileName);
+                Result = [];
             end
         end
         
