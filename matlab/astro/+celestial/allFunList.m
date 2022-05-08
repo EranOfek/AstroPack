@@ -126,7 +126,7 @@
 %     celestial.coo.coo_resolver - Resolve coordinates or target name into RA/Dec
 %          celestial.coo.cosined - Convert between coordinates and cosine directions
 %      celestial.coo.cosined2coo - Cosine direction to coordinates
-%          celestial.coo.dome_az - --------------------------------------------------------------------------
+%          celestial.coo.dome_az - UNDER CONSTRUCTION
 % celestial.coo.ecliptic2helioecliptic - Ecliptic longitude to Helio-ecliptic longitude
 % celestial.coo.fit_proper_motion - SHORT DESCRIPTION HERE
 %      celestial.coo.fit_scircle - 
@@ -173,7 +173,7 @@
 % celestial.coo.solve_alignment6dof_problem - 
 %      celestial.coo.sphere_dist - angular distance and position angle between two points on the sphere
 % celestial.coo.sphere_dist_cosd - Angular distance between a set of two cosine vector directions.
-% celestial.coo.sphere_dist_fast - --------------------------------------------------------------------------
+% celestial.coo.sphere_dist_fast - Calculate the angular distance between two points on the celestial sphere.
 % celestial.coo.sphere_dist_fastSmall - Spherical distance approximation for small angular distances
 % celestial.coo.sphere_dist_fastThresh - Calculate angular distances only for sources with Dec diff below threshold.
 % celestial.coo.sphere_dist_fast_thresh - --------------------------------------------------------------------------
@@ -209,7 +209,7 @@
 %         celestial.map.amapproj - Old map projection function (not supported)
 % celestial.map.plot_monthly_smap - Plot a monthly sky map
 %        celestial.map.plot_smap - Given a star catalog plot star map
-%      celestial.map.prep_dss_fc - -----------------------------------------------------------------------------
+%      celestial.map.prep_dss_fc - Prepare DSS finding charts, with labels
 %         celestial.map.unitTest - Package Unit-Test
 %       celestial.map.usnob1_map - Plot a finding chart using a local copy of the USNO-B2.0
 %   celestial.meteors.allFunList - Functions and Classes list for the celestial.meteors package
@@ -234,13 +234,13 @@
 %    celestial.proj.pr_ignomonic - roject coordinates using the inverse Gnomonic non conformal projection
 % celestial.proj.pr_ihammer_aitoff - ------------------------------------------------------------------------------
 %     celestial.proj.pr_mercator - -----------------------------------------------------------------------------
-%    celestial.proj.pr_mollweide - ------------------------------------------------------------------------------
+%    celestial.proj.pr_mollweide - Project coordinates (longitude and latitude) using the equal area Mollweide projection.
 %    celestial.proj.pr_parabolic - ------------------------------------------------------------------------------
 %       celestial.proj.pr_planis - planisphere projection.
 %        celestial.proj.pr_polar - ------------------------------------------------------------------------------
 %          celestial.proj.pr_sin - Slant ortographic (SIN) projection
 %   celestial.proj.pr_sinusoidal - ------------------------------------------------------------------------------
-% celestial.proj.pr_stereographic - ------------------------------------------------------------------------------
+% celestial.proj.pr_stereographic - Project coordinates (longitude and latitude) using the Stereographic projection.
 % celestial.proj.pr_stereographic_polar - Project coordinates using the Stereographic polar projection
 %           celestial.proj.pr_xy - X-Y projection (no transformation).
 %      celestial.proj.projectcoo - Project coordinates from longitude and latitude to X/Y

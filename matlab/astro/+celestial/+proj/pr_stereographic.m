@@ -1,5 +1,5 @@
-function [X,Y]=pr_stereographic(Long,Lat,R,Par);
-%------------------------------------------------------------------------------
+function [X,Y]=pr_stereographic(Long,Lat,R,Par)
+% Project coordinates (longitude and latitude) using the Stereographic projection.
 % pr_stereographic function                                           AstroMap
 % Description: Project coordinates (longitude and latitude) using the
 %              Stereographic projection.
@@ -16,12 +16,12 @@ function [X,Y]=pr_stereographic(Long,Lat,R,Par);
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reliable: 2
 %------------------------------------------------------------------------------
-if (nargin==4),
+if (nargin==4)
    % no default
-elseif (nargin==3),
+elseif (nargin==3)
    % no default
    Par = [0 0];
-elseif (nargin==2),
+elseif (nargin==2)
    R = 1;
    Par = [0 0];
 else

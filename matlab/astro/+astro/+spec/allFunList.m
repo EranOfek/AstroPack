@@ -9,7 +9,7 @@
 %      astro.spec.blackbody_flux - Flux of blackbody in some wavelength range
 %     astro.spec.blackbody_mag_c - Blackbody magnitude
 %     astro.spec.brightness_temp - Brightness temperature
-% astro.spec.calibrate_spec_using_phot - --------------------------------------------------------------------------
+% astro.spec.calibrate_spec_using_phot - calibrate as pectrum based on photometry.
 % astro.spec.cat_fit_template2phot - SHORT DESCRIPTION HERE
 %  astro.spec.chi2_bb_photometry - Given photometric observations calculate \chi^2 for BB with a given T.
 %          astro.spec.color2temp - Usage: temp = color2temp(color, filter1, filter2, filter_system='GAIA', mag_system='AB')

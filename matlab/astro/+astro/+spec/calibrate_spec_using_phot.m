@@ -1,6 +1,5 @@
 function [ObsRestSpec,CorrSpec,Par]=calibrate_spec_using_phot(Spec,SpecDate,LC,FiltFam,FiltName,FiltSys,varargin)
-%--------------------------------------------------------------------------
-% calibrate_spec_using_phot function                             AstroSpec
+% calibrate as pectrum based on photometry.
 % Description: Given a spectrum and a light curve in one or more bands,
 %              applay synthetic photometry to the spectrum to calibrate
 %              it against the light curves. Optionally, if RA, Dec are

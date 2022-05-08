@@ -1,5 +1,5 @@
 function [DomeAz,Az,Alt]=dome_az(HA,Dec,ObsLat,DomeRad,MountRad)
-%--------------------------------------------------------------------------
+% UNDER CONSTRUCTION
 % dome_az function                                                   ephem
 % Description: 
 % Input  : - 

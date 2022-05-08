@@ -25,7 +25,7 @@
 %     celestial.coo.coo_resolver - Resolve coordinates or target name into RA/Dec
 %          celestial.coo.cosined - Convert between coordinates and cosine directions
 %      celestial.coo.cosined2coo - Cosine direction to coordinates
-%          celestial.coo.dome_az - --------------------------------------------------------------------------
+%          celestial.coo.dome_az - UNDER CONSTRUCTION
 % celestial.coo.ecliptic2helioecliptic - Ecliptic longitude to Helio-ecliptic longitude
 % celestial.coo.fit_proper_motion - SHORT DESCRIPTION HERE
 %      celestial.coo.fit_scircle - 
@@ -72,7 +72,7 @@
 % celestial.coo.solve_alignment6dof_problem - 
 %      celestial.coo.sphere_dist - angular distance and position angle between two points on the sphere
 % celestial.coo.sphere_dist_cosd - Angular distance between a set of two cosine vector directions.
-% celestial.coo.sphere_dist_fast - --------------------------------------------------------------------------
+% celestial.coo.sphere_dist_fast - Calculate the angular distance between two points on the celestial sphere.
 % celestial.coo.sphere_dist_fastSmall - Spherical distance approximation for small angular distances
 % celestial.coo.sphere_dist_fastThresh - Calculate angular distances only for sources with Dec diff below threshold.
 % celestial.coo.sphere_dist_fast_thresh - --------------------------------------------------------------------------

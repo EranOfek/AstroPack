@@ -14,13 +14,13 @@
 %    celestial.proj.pr_ignomonic - roject coordinates using the inverse Gnomonic non conformal projection
 % celestial.proj.pr_ihammer_aitoff - ------------------------------------------------------------------------------
 %     celestial.proj.pr_mercator - -----------------------------------------------------------------------------
-%    celestial.proj.pr_mollweide - ------------------------------------------------------------------------------
+%    celestial.proj.pr_mollweide - Project coordinates (longitude and latitude) using the equal area Mollweide projection.
 %    celestial.proj.pr_parabolic - ------------------------------------------------------------------------------
 %       celestial.proj.pr_planis - planisphere projection.
 %        celestial.proj.pr_polar - ------------------------------------------------------------------------------
 %          celestial.proj.pr_sin - Slant ortographic (SIN) projection
 %   celestial.proj.pr_sinusoidal - ------------------------------------------------------------------------------
-% celestial.proj.pr_stereographic - ------------------------------------------------------------------------------
+% celestial.proj.pr_stereographic - Project coordinates (longitude and latitude) using the Stereographic projection.
 % celestial.proj.pr_stereographic_polar - Project coordinates using the Stereographic polar projection
 %           celestial.proj.pr_xy - X-Y projection (no transformation).
 %      celestial.proj.projectcoo - Project coordinates from longitude and latitude to X/Y
