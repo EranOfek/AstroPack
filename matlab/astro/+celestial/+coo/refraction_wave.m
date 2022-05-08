@@ -1,5 +1,5 @@
 function [R,N]=refraction_wave(Alt,Lam,T,P,Pw)
-%--------------------------------------------------------------------------
+% Calculate the wavelength-dependent atmospheric refraction
 % refraction_wave function                                           ephem
 % Description: Calculate the wavelength-dependent atmospheric refraction
 %              and index of refraction based on Cox (1999) formula.

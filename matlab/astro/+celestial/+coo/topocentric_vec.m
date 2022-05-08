@@ -1,6 +1,5 @@
 function [G,Gt]=topocentric_vec(JD_UT1, Geod, RefEllips, Xp, Yp)
-%--------------------------------------------------------------------------
-% topocentric_vec function                                           ephem
+% Calculate the topocentric position and velocity vectors (OBSOLOETE)
 %  OBSOLETE: use celestial.coo.topocentricVector instead
 % Description: Calculate the topocentric position and velocity vectors
 %              of an observer, with respect to the true equator and

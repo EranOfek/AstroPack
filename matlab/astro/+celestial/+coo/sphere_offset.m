@@ -1,6 +1,5 @@
 function [OffsetLong,OffsetLat,Dist,PA]=sphere_offset(RA1,Dec1,RA2,Dec2,Units,OffsetType)
-%--------------------------------------------------------------------------
-% sphere_offset function                                             ephem
+% Calculate the offset needed to move between two points on the celestial sphere
 % Description: Calculate the offset needed to move from a point on the
 %              celesial sphere to a second point on the celestial sphere,
 %              along longitide (small circle) and latitude (great circle).
