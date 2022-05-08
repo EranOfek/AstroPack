@@ -46,7 +46,7 @@ function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
         Args.Variance         = [];   % if empty, calc from image
         Args.Threshold        = 5;
         Args.Conn             = 8;
-        Args.Algo             = 'findlocal';  % 'findlocal' | 'findlocalmex' | 'imregionalmax'
+        Args.Algo             = 'findlocalmex';  % 'findlocal' | 'findlocalmex' | 'imregionalmax'
     end
     
     
