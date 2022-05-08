@@ -4,7 +4,7 @@
 %   images for a single detector or a section of a detector.
 %   This allows performing calibration for multiple detectors
 %   simultaneously.
-
+%
 % #functions (autogen)
 % CalibImages - Constructor for the CalibImages class
 % checkObjImageSize - Check the validity of the size (number of elements) of CalibImages object and input image This function will return an error if not one of the following: size(Image)size(Obj) or (numel(Obj)1 and numel(Image)>1)');
@@ -20,7 +20,6 @@
 % set.Fringe - setter for Fringe property - set FringeExpTime+FringeFilter from Header
 % #/functions (autogen)
 %
-
 % use case:
 %   1. create dark/bias/flat/fringe
 %       bias
@@ -187,7 +186,7 @@ classdef CalibImages < Component
         end
         
     end
-    
+        
     methods (Access=private)
         function [Nobj, Nim] = checkObjImageSize(Obj, Image)
             % Check the validity of the size (number of elements) of CalibImages object and input image
@@ -248,6 +247,110 @@ classdef CalibImages < Component
             Obj.Bias = AstroImage(Args.Bias, 'Mask',Args.BiasMask, 'Var',Args.BiasVar);
             Obj.Dark = AstroImage(Args.Dark, 'Mask',Args.DarkMask, 'Var',Args.DarkVar);
             Obj.Flat = AstroImage(Args.Flat, 'Mask',Args.FlatMask, 'Var',Args.FlatVar);
+            
+        end
+        
+        function Obj = loadFromDir(DirName, Args)
+            % load a single filter calibration files from directory
+            %   assuming image names has some pattern with ImType and product
+            %   name in the file name.
+            %   E.g., file name is of the format: *ImType*Product*FileType
+            % Input  : - Dir name in which to look for the files.
+            %          * ...,key,val,...
+            %            'BiasImType' - ImType that should appear in the
+            %                   bias images names. Default is 'dark'.
+            %            'FlatImType' - ImType that should appear in the
+            %                   flat images names. Default is 'flat'.
+            %            'BiasProduct' - A cell array of product names to
+            %                   upload, in addition to the 'Image', for
+            %                   the bias image. Default is {'Mask'}.
+            %            'FlatProduct' - A cell array of product names to
+            %                   upload, in addition to the 'Image', for
+            %                   the flat image. Default is {'Mask'}.
+            %            'ImageProduct' - Image product to search and
+            %                   upload. Default is 'Image'.
+            %            'FileType' - File type to read. Default is 'fits'.
+            %            'LoadLatest' - A logical indicating if to read the
+            %                   latest files (by date), or the first.
+            %                   Default is true.
+            % Output : - A CalibImages object in which the Bias and Flat
+            %            fields are populated.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: CI = CalibImages.loadFromDir
+           
+            arguments
+                DirName                  = [];
+                Args.BiasImType          = 'dark';
+                Args.FlatImType          = 'flat';
+                Args.BiasProduct         = {'Mask'};  % 'Image' always loaded
+                Args.FlatProduct         = {'Mask'};
+                Args.ImageProduct        = 'Image';
+                Args.FileType            = 'fits';
+                Args.LoadLatest logical  = true;
+            end
+            
+            if isempty(DirName)
+                DirName = '';
+            end
+            if ~isempty(DirName)
+                DirName = sprintf('%s%s',DirName, filesep);
+            end
+            
+            Obj = CalibImages;
+            
+            % Bias
+            Field  = 'BiasProduct';
+            ImType = 'BiasImType'; 
+            Nprod = numel(Args.(Field));
+            Pat = sprintf('%s*%s*%s*%s',DirName, Args.(ImType), Args.ImageProduct, Args.FileType);
+            Files = io.files.dirSortedByDate(Pat);
+            if isempty(Files)
+                warning('Bias images were not found in %s',DirName);
+            else
+                if Args.LoadLatest
+                    Files = Files(end);
+                else
+                    Files = Files(1);
+                end
+                ArgsAI    = cell(1, 1+Nprod.*2);
+                I         = 1;
+                ArgsAI{I} = Files.name;
+
+                for Iprod=1:1:Nprod
+                    I = I + 1;
+                    ArgsAI{I} = Args.(Field){Iprod};
+                    I = I + 1;
+                    ArgsAI{I} = strrep(Files.name, Args.ImageProduct, Args.(Field){Iprod});
+                end
+                Obj.Bias = AstroImage(ArgsAI{:});
+            end
+            
+            % Flat
+            Field  = 'FlatProduct';
+            ImType = 'FlatImType'; 
+            Nprod = numel(Args.(Field));
+            Pat = sprintf('%s*%s*%s*%s',DirName, Args.(ImType), Args.ImageProduct, Args.FileType);
+            Files = io.files.dirSortedByDate(Pat);
+            if isempty(Files)
+                warning('Bias images were not found in %s',DirName);
+            else
+                if Args.LoadLatest
+                    Files = Files(end);
+                else
+                    Files = Files(1);
+                end
+                ArgsAI    = cell(1, 1+Nprod.*2);
+                I         = 1;
+                ArgsAI{I} = Files.name;
+
+                for Iprod=1:1:Nprod
+                    I = I + 1;
+                    ArgsAI{I} = Args.(Field){Iprod};
+                    I = I + 1;
+                    ArgsAI{I} = strrep(Files.name, Args.ImageProduct, Args.(Field){Iprod});
+                end
+                Obj.Flat = AstroImage(ArgsAI{:});
+            end
             
         end
     end

@@ -94,6 +94,9 @@ function runPipeLAST(DataNumber, Args)
     Cont = true;
     Counter = 0;
     while Cont
+        % move focus files
+        %io.files.moveFiles('*.focus*.\.fits',[], Args.NewFilesDir, ...
+        
         % look for darks and create master dark
         pipeline.last.prepDarkFlat('NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
         % look for flats and created master flat
@@ -174,16 +177,18 @@ function runPipeLAST(DataNumber, Args)
             tic;
             pipeline.generic.multiRaw2procCoadd(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',sprintf('%d',Counter), 'BasePath', Args.BasePath);
             toc
-                        
+            
             % move images to path
-            for Iim=1:1:Args.NinBatch
-                Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, ListImages{Iim});
-                Destination = sprintf('%s%s%s', Path, filesep, ListImages{Iim});
-                % make sure diirectory exist
-                mkdir(Path);
-                % move file
-                movefile(Source, Destination);
-            end
+            Destination = io.files.moveFiles(ListImages, ListImages, Args.NewFilesDir, Path, 'MkDir',true);
+%             % move images to path
+%             for Iim=1:1:Args.NinBatch
+%                 Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, ListImages{Iim});
+%                 Destination = sprintf('%s%s%s', Path, filesep, ListImages{Iim});
+%                 % make sure diirectory exist
+%                 mkdir(Path);
+%                 % move file
+%                 movefile(Source, Destination);
+%             end
             
             % FFU: write log file
         

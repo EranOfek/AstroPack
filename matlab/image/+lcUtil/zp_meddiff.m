@@ -77,8 +77,8 @@ function Result = zp_meddiff(MS, Args)
 
         DiffMagEpoch = Mag(Args.RefImInd,:) - Mag;
 
-        Result(Ims).FitZP    = median(DiffMagEpoch, 2);
-        Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2);
+        Result(Ims).FitZP    = median(DiffMagEpoch, 2, 'omitnan');
+        Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
         Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
         Result(Ims).Nsrc     = Nsrc;
     end

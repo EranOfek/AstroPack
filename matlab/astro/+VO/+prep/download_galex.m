@@ -1,4 +1,6 @@
 function download_galex
+% Downnload GALEX catalog
+% Author : Eran Ofek (Oct 2017)
 
 RAD = 180./pi;
 

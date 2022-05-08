@@ -19,6 +19,7 @@ function Flag=validate_coo(HA,Dec,varargin)
 %            'InterpMethod' - Table interpolation method.
 %                   Default is 'linear'.
 % Output : - A matrix of logicals indicating if target is in range (true).
+% Author : Eran Ofek (Jab 2020)
 % Example: Flag=celestial.scheduling.validate_coo(HA,Dec)
 
 

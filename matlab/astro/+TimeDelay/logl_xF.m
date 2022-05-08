@@ -37,6 +37,7 @@ function [LogL_xF,LogL_GF,LogL_F]=logl_xF(Pars,varargin)
 % Output : - -LogL_xF
 %          - -LogL_GF
 %          - -LogL_F
+% Author : Eran Ofek (Apr 2020)
 % Example: [LogL_xF,LogL_GF,LogL_F]=TimeDelay.logl_xF([1 0.5],...)
 
 

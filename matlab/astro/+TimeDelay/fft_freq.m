@@ -4,6 +4,7 @@ function Freq=fft_freq(N, D)
 % Input  : - Number of data points
 %          - Delta time. Default is 1.
 % Output : - Vector of frequencies.
+% Author : Eran Ofek (Apr 2020)
 % Example: Freq=TimeDelay.fft_freq(5, 1);
 
 if nargin<2

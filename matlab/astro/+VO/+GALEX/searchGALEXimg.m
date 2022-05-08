@@ -17,6 +17,7 @@ function [Links,GALEX]=searchGALEXimg(RA,Dec,varargin)
 %                         to read coordinates.
 % Output : - A structure of links to the various products.
 %          - An AstCat object containing the selected images.
+% Author : Eran Ofek (Oct 2018)
 % Example: [Links,GALEX]=VO.GALEX.searchGALEXimg(RA,Dec)
 % Reliable: 2
 

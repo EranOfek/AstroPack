@@ -2,7 +2,7 @@ function W=weights_fun(Fun,t,Pars)
 %
 %   'exp' - A + B*exp(-t/C)
 %   'fermi' - A + B/(1+ exp(-(t-C)/D))
-
+% Author : Eran Ofek (Oct 2020)
 % Example: W=celestial.scheduling.weights_fun('fermiexp',(0:0.01:10).',[1,0,1.5,1,0.1,1,0.5,1])
 
 

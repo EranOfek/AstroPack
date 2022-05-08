@@ -24,7 +24,7 @@ function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
     %                   'findlocalmex' - use
     %                           findLocalMaxAboveThreshold_mex_single/double.
     %                   'imregionalmax' - use imregionalmax.
-    %                   Default is 'findlocal'.
+    %                   Default is 'findlocalmex'.
     % Output : - A five column matrix of [X,Y,SN,ImageIndex,LinaerIndexIn2D].
     %          - A matrix of logical indicating if a pixel in the input image
     %            is a local maximum above the threshold.
@@ -46,7 +46,7 @@ function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
         Args.Variance         = [];   % if empty, calc from image
         Args.Threshold        = 5;
         Args.Conn             = 8;
-        Args.Algo             = 'findlocal';  % 'findlocal' | 'findlocalmex' | 'imregionalmax'
+        Args.Algo             = 'findlocalmex';  % 'findlocal' | 'findlocalmex' | 'imregionalmax'
     end
     
     

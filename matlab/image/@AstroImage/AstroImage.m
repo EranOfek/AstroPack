@@ -56,7 +56,8 @@
 %       readImages2AstroImage - Create AstroImage object and read images into a specific property.
 %       help - show mlx manual
 %       unitTest - unitTest for AstroImage
-
+%
+%
 % #functions (autogen)
 % AstroImage - Constructor and image reader for AstroImage class
 % astroImage2AstroCatalog - Convert the CataData in AstroImage object into an AstroCatalog object array.
@@ -215,6 +216,10 @@ classdef AstroImage < Component
                 Args.MaskHDU                  = [];
                 Args.MaskScale                = [];
                 
+                Args.PSF                      = [];
+                Args.PSFHDU                   = [];
+                Args.PSFScale                 = [];
+                
                 Args.FileType                 = [];
                 Args.UseRegExp(1,1) logical   = false;
                 
@@ -268,10 +273,10 @@ classdef AstroImage < Component
                                                                         'FileNames',FN);
                                                                         
                         % Other data properties
-                        ListProp  = {'Back','Var','Mask'};
-                        ListData  = {'BackData','VarData','MaskData'};
-                        ListHDU   = {'BackHDU','VarHDU','MaskHDU'};
-                        ListScale = {'BackScale','VarScale','MaskScale'};
+                        ListProp  = {'Back','Var','Mask', 'PSF'};
+                        ListData  = {'BackData','VarData','MaskData', 'PSFData'};
+                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU'};
+                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale'};
                         
                         Nlist = numel(ListProp);
                         for Ilist=1:1:Nlist
@@ -438,7 +443,7 @@ classdef AstroImage < Component
             
                 
             switch lower(Args.DataProp)
-                case {'imagedata','backdata','vardata','maskdata'}
+                case {'imagedata','backdata','vardata','maskdata','psfdata'}
                     ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
                                              'FileType',Args.FileType,...
                                              'CCDSEC',Args.CCDSEC,...
@@ -559,6 +564,12 @@ classdef AstroImage < Component
                 
         end
 
+        function Data = get.PSF(Obj)
+            % getter for PSF
+           
+            Data = Obj.PSFData.DataPSF;
+            
+        end
     end
     
     methods (Static)  % static methods
@@ -1185,6 +1196,32 @@ classdef AstroImage < Component
                 end
             end
            
+            
+        end
+        
+        function Obj = populateWCS(Obj, Args)
+            % Populate the WCS of an AstroImage based on the header.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            %            'header2wcsArgs' - A cell array of additional
+            %                   arguments to pass to AstroWCS.header2wcs
+            %                   Default is {}.
+            % Output : - An AstroImage object in which the WCS property is
+            %            populated with a AstroWCS object.
+            %            The AstroWCS object is built using the AstroWCS.header2wcs
+            %            static function.
+            % Author : Eran Ofek (May 2022)
+            % Example: AI.populateWCS
+            
+            arguments
+                Obj
+                Args.header2wcsArgs cell      = {};
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).WCS = AstroWCS.header2wcs(Obj(Iobj).HeaderData, Args.header2wcsArgs{:});
+            end
             
         end
         
@@ -2291,8 +2328,7 @@ classdef AstroImage < Component
             end
         
         end
-        
-        
+               
         function varargout = object2array(Obj,DataProp)
             % Convert an AstroImage object that contains scalars into an array
             % Input  : - An AstroImage object.
@@ -2361,7 +2397,6 @@ classdef AstroImage < Component
         end
     end
     
-
     methods % specific functionality and overloads
         function varargout = plus(Obj1, Obj2, varargin)
             % Apply the plus operator between AstroImage objects.
@@ -2569,12 +2604,7 @@ classdef AstroImage < Component
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
-            %                   If empty (default), then this argument will
-            %                   be set by the number of output args.
-            %                   If 0, then false, otherwise true.
-            %                   This means that IC.fun, will modify IC,
-            %                   while IB=IC.fun will generate a new copy in
-            %                   IB.
+            %                   Default is true.
             % Output : - An AstroImage object in which the operator applied
             %            to the images.
             % Author : Eran Ofek (May 2021)
@@ -2592,16 +2622,9 @@ classdef AstroImage < Component
                 Args.PadMethod                   = '';
                 Args.DataProp cell               = {'ImageData'}
                 Args.DataPropIn                  = 'Image';
-                Args.CreateNewObj(1,1) logical   = true;
+                Args.CreateNewObj logical        = true;
             end
             
-            if isempty(Args.CreateNewObj)
-                if nargout==0
-                    Args.CreateNewObj = false;
-                else
-                    Args.CreateNewObj = true;
-                end
-            end
             if Args.CreateNewObj
                 Result = Obj.copy();
             else
@@ -2619,7 +2642,7 @@ classdef AstroImage < Component
                 Ikernel = min(Iobj, Nkernel);
                 if isempty(PSF)
                     % take PSF from PSFData
-                    PSF = Obj(Iobj).getPSF(Args.ArgsPSF);
+                    PSF = Obj(Iobj).PSFData.getPSF(Args.ArgsPSF);
                 end
                 if isa(PSF,'AstroPSF')
                     Kernel = PSF(Ikernel).getPSF(Args.ArgsPSF{:});

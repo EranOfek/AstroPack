@@ -4,6 +4,7 @@ function Server=image_server
 % Description: Get the SDSS image server URL
 % Input  : null
 % Output : SDSS image server URL
+% Author : Eran Ofek (Oct 2017)
 % Example: VO.SDSS.image_server
 % Reilable: 2
             

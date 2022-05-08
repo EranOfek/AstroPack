@@ -35,7 +35,7 @@ function [RA,Dec]=sdss_coo_radec(FrameRow,FrameCol,Matrix,Filter,Color,Margin,Co
 % Output : - RA of corners [rad].
 %            Dec of corners [rad].
 % Tested : Matlab 7.0                     
-%     By : Eran O. Ofek / Dovi Poznanski   Jan 2006
+% Author : Eran O. Ofek & Dovi Poznanski (Jan 2006)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % See also: TargetFields_SDSS_DR4.head
 % Reference: http://www.sdss.org/dr5/products/general/astrometry.html

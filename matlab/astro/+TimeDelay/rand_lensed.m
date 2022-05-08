@@ -27,7 +27,7 @@ function [Res,G]=rand_lensed(varargin)
 %          - sigma_x_hat
 %          - w - The angular frequency of the fft.
 %          - F_w - The fft of the combined light curve.
-%     By : Eran O. Ofek               Oct 2020
+% Author : Eran Ofek (Oct 2020)
 % Example: [Res]=TimeDelay.rand_lensed;
 
 CyclicFactor = 2;

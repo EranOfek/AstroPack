@@ -6,6 +6,7 @@ function ZP=zp(Band)
 % Input  : - Band: 'NUV'|'n' | 'FUV'|'f'. Default is 'NUV'.
 % Output : - Photometric zero point: AB mag which produce 1
 %            count per second.
+% Author : Eran Ofek (Oct 2018)
 % Example: VO.GALEX.zp
 % Reliable: 1
 

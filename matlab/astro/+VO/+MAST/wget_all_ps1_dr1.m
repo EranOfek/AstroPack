@@ -1,6 +1,7 @@
 function wget_all_ps1_dr1(CreateTile,LastDigit,MinNeededTiles)
 % Prepare a local copy of the PS1-DR1 catalog
 % Package: VO.MAST
+% Author : Eran Ofek (Oct 2018)
 % Example: VO.MAST.wget_all_ps1_dr1(false,0,300000)
 
 DataDir = '/raid/eran/Catalogue/PS1/';

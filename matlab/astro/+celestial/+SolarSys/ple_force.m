@@ -3,7 +3,7 @@ function Force = ple_force(TargetXYZ, JD, CooFrame, IncludeSun)
     % Input  : - Target body positiopn vector.
     %            This is a 3 X Ntimes matrix, where 3 is the numbr of
     %            coordinates, and Ntimes the number of times.
-    %          - Vector of JD.
+    %          - Vector of JD. Number of elements is Ntimes or 1. 
     %          - Output type (always cartesian): 
     %               'Ecdate' - Ecliptic of date.
     %               'Eqdate' - Equatorial mean equinox of date.
@@ -36,7 +36,8 @@ function Force = ple_force(TargetXYZ, JD, CooFrame, IncludeSun)
     % return: 3 X Nplanets X Ntimes
     PlXYZ = celestial.SolarSys.ple_xyzAll(JD, CooFrame);
     Npl   = size(PlXYZ, 2);
-    Njd   = numel(JD);
+%     Njd   = numel(JD); 
+    Njd   = size(TargetXYZ,2); % to support 1 date for multiple targets
     
     % transform planets coordinates to target reference frame
     PlXYZ = PlXYZ - reshape(TargetXYZ, [3, 1, Njd]);

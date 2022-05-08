@@ -19,7 +19,7 @@ function [Sigma_phi,Sigma_F]=sigma_phi(w,Tau,Alpha,Gamma,Epsilon_F_hat)
 % Output : - A vector of \Sigma_\phi
 %          - A vector of \Sigma_F
 % Reference: Springer & Ofek 2021
-%       By : Eran O. Ofek                 Oct 2020
+% Author : Eran O. Ofek (Oct 2020)
 % Example: [Sigma_phi,Sigma_F]=TimeDelay.sigma_phi((1:1:100)',30,[1 0.6],3,0)
 
 if nargin<5

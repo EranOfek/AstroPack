@@ -1,5 +1,6 @@
 function SCat=astcat_search(CatName,RA,Dec,Radius,varargin)
 % Search an astronomical catalog formatted in HDF5/HTM/zones format
+% Author : Eran Ofek (Mar 2015)
 % Example: VO.search.astcat_search('FIRST',1,1,0.01)
 
 

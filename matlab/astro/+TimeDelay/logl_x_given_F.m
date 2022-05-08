@@ -35,6 +35,7 @@ function [LogL_xF,LogL_GF,LogL_F]=logl_x_given_F(Pars, FitPar, Limits, w, G_w, t
 % Output : - -LogL_xF
 %          - -LogL_GF
 %          - -LogL_F
+% Author : Eran Ofek (Apr 2020)
 % Example: [LogL_xF,LogL_GF,LogL_F]=TimeDelay.logl_x_given_F
 
 if nargin==0
