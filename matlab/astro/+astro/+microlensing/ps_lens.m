@@ -26,7 +26,6 @@ function [Res,Fun]=ps_lens(Args)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-
 arguments
     Args.Mass                 = 1;
     Args.MassUnits            = 'SunM';
