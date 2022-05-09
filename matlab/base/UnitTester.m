@@ -299,8 +299,6 @@ classdef UnitTester < handle
             Obj.msgLog(LogLevel.Test, 'UnitTester.testImage started\n');
             Result = false;
 
-            Obj.runTest('VirtImage');
-            Obj.runTest('VirtImageManager');
             Obj.runTest('ImageComponent');
             Obj.runTest('Dictionary');
             Obj.runTest('BitDictionary');
@@ -314,7 +312,6 @@ classdef UnitTester < handle
             Obj.runTest('Tran2D');
             Obj.runTest('VarImage');
             Obj.runTest('BackImage');
-            %Obj.runTest('DbInfo');			% Chen: There is no such file @Eran - Do we need it?
             Obj.runTest('ds9');
             Obj.runTest('FITS');
             Obj.runTest('ImageComponent');
@@ -325,12 +322,6 @@ classdef UnitTester < handle
             Obj.runTest('PhotonsList');
             Obj.runTest('Rect');
             Obj.runTest('SciImage');
-
-            TestDb = false;
-            if TestDb
-                Obj.runTest('AstroCatalogDb');
-                Obj.runTest('AstroImageDb');
-            end
 
             Obj.msgLog(LogLevel.Test, '\nUnitTester.testImage done');
             Result = true;
