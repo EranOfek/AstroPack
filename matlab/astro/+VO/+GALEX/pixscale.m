@@ -4,6 +4,7 @@ function PixScale=pixscale
 % Description: Return GALEX pixel scale.
 % Input  : null
 % Output : - Pixel scale [arcsec/pix].
+% AUthor : Eran Ofek (Oct 2018)
 % Example: VO.GALEX.pixscale
 % Reliable: 1
 

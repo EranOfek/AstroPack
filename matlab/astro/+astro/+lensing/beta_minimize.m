@@ -1,6 +1,5 @@
 function [BestBeta,RMS,Dist,ImPos]=beta_minimize(BetaStart,ModelPars,ModelType,ObsImagesPos,DlsDs,MinimizeMethod);
-%-----------------------------------------------------------------------------
-% beta_minimize function                                                glens
+% Minimize residuals in the image plane.
 % Description: Given a model and approximate source position,
 %                          find the best source position that minimize the
 %                          residuals in the image plane.

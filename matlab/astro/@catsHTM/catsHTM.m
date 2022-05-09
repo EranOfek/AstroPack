@@ -1,14 +1,12 @@
 % catsHTM static class. Read / write HDF5/HTM catalogs
 % Package: @catsHTM
 % Description: A static class for catsHTM related functions.
-% Input  : null
-% Output : null
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jan 2018
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reliable: 2
 %--------------------------------------------------------------------------
-
+%
 % #functions (autogen)
 % catalogs - List of catsHTM catalogs Example: Data = catsHTM.catalogs
 % catalogs_html - generate an html table of catalogs Example: catsHTM.catalogs_html
@@ -865,7 +863,7 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=18:1:18,
+            for Id=14:1:14,
                 %1:1:Nd
                 if Data(Id).Status
                     Data(Id)

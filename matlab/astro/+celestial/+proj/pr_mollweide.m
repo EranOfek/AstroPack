@@ -1,5 +1,5 @@
-function [X,Y]=pr_mollweide(Long,Lat,R);
-%------------------------------------------------------------------------------
+function [X,Y]=pr_mollweide(Long,Lat,R)
+% Project coordinates (longitude and latitude) using the equal area Mollweide projection.
 % pr_mollweide function                                               AstroMap
 % Description: Project coordinates (longitude and latitude) using the
 %              equal area Mollweide projection.
@@ -13,9 +13,9 @@ function [X,Y]=pr_mollweide(Long,Lat,R);
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reliable: 1
 %------------------------------------------------------------------------------
-if (nargin==3),
+if (nargin==3)
    % no default
-elseif (nargin==2),
+elseif (nargin==2)
    R = 1;
 else
    error('Illigal number of argument');

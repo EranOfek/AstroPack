@@ -1,7 +1,5 @@
 function [Res]=fit_proper_motion(T,RA,Dec,ErrRA,ErrDec,Epoch)
-% SHORT DESCRIPTION HERE
-% Package: celestial
-% Description: 
+% Fit proper motion to observations
 % Input  : - Time (days)
 %          - RA [rad]
 %          - Dec [rad];

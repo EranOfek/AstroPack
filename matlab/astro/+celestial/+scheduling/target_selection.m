@@ -2,6 +2,7 @@ function ResS=target_selection(varargin)
 % Select a single target for one telescope 
 % 
 % Package: +celestial.scheduling
+% Author : Eran Ofek (Jan 2020)
 % Example: Res=celestial.scheduling.target_selection
 
 RAD = 180./pi;

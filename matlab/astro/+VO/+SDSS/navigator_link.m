@@ -5,6 +5,7 @@ function Link=navigator_link(RA,Dec)
 % Input  : - J2000.0 R.A. [rad, [H M S], sexagesimal string]
 %          - J2000.0 Dec. [rad, [Sign D M S], sexagesimal string]
 % Output : - Cell array of links.
+% Author : Eran Ofek (Oct 2018)
 % Example: Link=VO.SDSS.navigator_link(pi,0.4)
 % Reliable: 2
 

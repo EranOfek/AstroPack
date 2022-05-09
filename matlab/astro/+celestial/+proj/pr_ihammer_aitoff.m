@@ -1,6 +1,5 @@
 function [Long,Lat]=pr_ihammer_aitoff(X,Y,R)
-%------------------------------------------------------------------------------
-% pr_ihammer_aitoff function                                          AstroMap
+% Project coordinates (longitude and latitude) using the inverse of the equal area Hammer-Aitoff projection
 % Description: Project coordinates (longitude and latitude) using the inverse
 %              of the equal area Hammer-Aitoff projection used in the
 %              FITS/WCS standard.
@@ -15,9 +14,9 @@ function [Long,Lat]=pr_ihammer_aitoff(X,Y,R)
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reliable: 1
 %------------------------------------------------------------------------------
-if (nargin==3),
+if (nargin==3)
    % no default
-elseif (nargin==2),
+elseif (nargin==2)
    R = 1;
 else
    error('Illigal number of argument');

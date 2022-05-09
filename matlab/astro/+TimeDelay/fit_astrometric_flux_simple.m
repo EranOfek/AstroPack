@@ -1,5 +1,6 @@
 function Res=fit_astrometric_flux_simple(varargin)
 % Fit 2-D lensed images using the simple flux/astrometry method (no red noise)
+% Author : Eran Ofek (Apr 2020)
 % Example: Res=TimeDelay.fit_astrometric_flux_simple(...)
 
 

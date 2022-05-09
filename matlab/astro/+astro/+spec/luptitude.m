@@ -1,6 +1,5 @@
 function Lup=luptitude(Flux,Flux0,B)
-%--------------------------------------------------------------------------
-% luptitude function                                             AstroSpec
+% Convert flux to luptitude (sinh-magnitude) (OBSOLETE)
 % Description: Convert flux to luptitudes (asinh magnitudes).
 %              OBSOLETE: Use convert.luptitude instead.
 % Input  : - Flux.

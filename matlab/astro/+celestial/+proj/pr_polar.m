@@ -1,6 +1,5 @@
-function [X,Y]=pr_polar(Long,Lat,R);
-%------------------------------------------------------------------------------
-% pr_polar function                                                   AstroMap
+function [X,Y]=pr_polar(Long,Lat,R)
+% Project coordinates (longitude and latitude) using the polar projection (from north pole).
 % Description: Project coordinates (longitude and latitude) using the
 %              polar projection (from north pole).
 % Input  : - Vector of Longitude, in radians.
@@ -14,9 +13,9 @@ function [X,Y]=pr_polar(Long,Lat,R);
 % Reliable: 2
 %------------------------------------------------------------------------------
 
-if (nargin==3),
+if (nargin==3)
    % no default
-elseif (nargin==2),
+elseif (nargin==2)
    % no default
    R = 1;
 else

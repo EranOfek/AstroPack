@@ -32,7 +32,7 @@ function [W,ResW]=weight_cadence(JD,LastObs,NightCounter,varargin)
 %          - A structure with additional information.
 %            The following fields are available:
 %            .TimeSinceLastObs
-%      By: Eran Ofek                      Oct 2020
+% Author: Eran Ofek (Oct 2020)
 % Example : 
 
 

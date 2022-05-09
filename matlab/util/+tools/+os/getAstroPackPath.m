@@ -1,28 +1,9 @@
-function Result = getAstroPackPath()
-
-    MatlabDir    = 'matlab';
-    AstroPackDir = 'AstroPack';
-
-    if (ismac || isunix)
-        % Linux / Mac
-        HomeDir = getenv('HOME');
-        AstroPackPath = getenv('ASTROPACK_PATH');
-        if isempty(AstroPackPath)    
-            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
-        end
-    else
-        % Windows
-        HomeDir = getenv('HOMEPATH');
-        AstroPackPath = getenv('ASTROPACK_PATH');    
-        if isempty(AstroPackPath)
-            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
-        end
-    end
-
-    if (isempty(HomeDir))
-        %error('Can not find home directory environment variable - edit the startup.m file accordingly');
-    end
-
-    Result = AstroPackPath;
+function Result = getAstroPackPath
+    % Return the AstroPack toolbox path
+    % Author : Eran Ofek (May 2022)
+    % Example: Result = tools.os.getAstroPackPath
     
+    ThisFunPath = mfilename('fullpath');
+    
+    Result = strrep(ThisFunPath, '/matlab/util/+tools/+os/getAstroPackPath','');
 end

@@ -1,6 +1,5 @@
 function NutMatrix=nutation2rotmat(Nut,JD,MatType)
-%--------------------------------------------------------------------------
-% nutation2rotmat function                                           ephem
+% Return the nutation rotation matrix
 % Description: Given nutation in longitude and obliquity (in radians)
 %              and JD, return the Nutation rotation matrix.
 % Input  : - A two column matrix of nutation in [Long, Obliq].
@@ -18,7 +17,7 @@ function NutMatrix=nutation2rotmat(Nut,JD,MatType)
 %--------------------------------------------------------------------------
 
 MatType = 'f';
-if (nargin==2),
+if (nargin==2)
     MatType = Def.MatType;
 end
 

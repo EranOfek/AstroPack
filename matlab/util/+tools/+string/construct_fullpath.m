@@ -1,6 +1,5 @@
 function ProgFullPath=construct_fullpath(ProgName,ProgPath,CurFunDirName,CurFunName)
-%--------------------------------------------------------------------------
-% construct_fullpath function                                      General
+% Construct a full path string to a program name, given its name
 % Description: Construct a full path string to a program name, given
 %              its name, path or relative path and base path.
 % Input  : - Program name.

@@ -237,7 +237,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.DeleteBackBeforeCoadd logical    = true;
         Args.DeleteVarBeforeCoadd logical     = true;
         
-        
+        Args.AddProjName2Header logical       = true;
                 
         
         % save products
@@ -323,6 +323,19 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 %tic;
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:});
 %toc
+
+
+        % add ProjName to header
+        if Args.AddProjName2Header
+            Nfile = numel(AI);
+            for Ifile=1:1:Nfile
+                [~,FileNameStr] = fileparts(FilesList{Ifile});
+                SplitStr = split(FileNameStr,'_');
+                AI(Ifile).HeaderData.replaceVal('PROJNAME',SplitStr{1});
+            end
+        end
+                
+            
 
     end
         

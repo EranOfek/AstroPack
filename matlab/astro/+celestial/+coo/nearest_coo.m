@@ -1,6 +1,5 @@
 function [NearCoo,NearInd,DistAll]=nearest_coo(CooList,Coo,Type)
-%------------------------------------------------------------------------------
-% nearest_coo function                                                   ephem
+% Search for nearest coordinates in a list.
 % Description: Given a list of coordinates (with arbitrary number of
 %              dimensions), search for the coordinate in list which is
 %              the nearest to a given (single) coordinate.
@@ -19,9 +18,9 @@ function [NearCoo,NearInd,DistAll]=nearest_coo(CooList,Coo,Type)
 %          [NearCoo,NearInd,DistAll]=nearest_coo([1 1;2 2;3 1],[1 1.1],'sphere');
 % Reliable: 2
 %------------------------------------------------------------------------------
-if (nargin==2),
+if (nargin==2)
    Type = 'plane';
-elseif (nargin==3),
+elseif (nargin==3)
    % do nothing
 else
    error('Illegal number of input arguments');

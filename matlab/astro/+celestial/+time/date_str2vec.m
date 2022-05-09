@@ -1,11 +1,9 @@
 function DateVec=date_str2vec(String)
-%--------------------------------------------------------------------------
-% date_str2vec function                                            General
-% Description: Convert a string or a cell array of string containing date
-%              and time in the format 'YYYY-MM-DD HH:MM:SS.frac'
-%              or 'YYYY-MM-DD', to a matrix of dates with the following
-%              columns [Y M D H M S].
-%              OBSOLETE: Use convert.str2date instead.
+% Convert a string or a cell array of string containing date and time (OBSOLETE)
+%      in the format 'YYYY-MM-DD HH:MM:SS.frac'
+%      or 'YYYY-MM-DD', to a matrix of dates with the following
+%      columns [Y M D H M S].
+%      OBSOLETE: Use convert.str2date instead.
 % Input  : - A string or a cell array of string containing date
 %            and time in the format 'YYYY-MM-DD HH:MM:SS.frac'
 %            or 'YYYY-MM-DD'

@@ -1,5 +1,5 @@
-function [X,Y]=pr_parabolic(Long,Lat,R);
-%------------------------------------------------------------------------------
+function [X,Y]=pr_parabolic(Long,Lat,R)
+% Project coordinates (longitude and latitude) using the Parabolic projection.
 % pr_parabolic function                                               AstroMap
 % Description: Project coordinates (longitude and latitude) using the
 %              Parabolic projection.
@@ -13,9 +13,9 @@ function [X,Y]=pr_parabolic(Long,Lat,R);
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reliable: 2
 %------------------------------------------------------------------------------
-if (nargin==3),
+if (nargin==3)
    % no default
-elseif (nargin==2),
+elseif (nargin==2)
    R = 1;
 else
    error('Illigal number of argument');

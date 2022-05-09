@@ -10,6 +10,7 @@ function Ft=combined_Ft(t,ft,A0,Alpha,Tau,InterpMethod)
 %          - vector of \tau (not including the first (zero) time delay.
 %          - Interpolation method. Default is 'pchip'.
 % Output : - The commbined flux ligt curve (raw vector).
+% Author : Eran Ofek (Apr 2020)
 % Example: Ft=TimeDelay.combined_Ft(t,ft,A0,Alpha,Tau);
 
 if nargin<6

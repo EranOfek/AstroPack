@@ -7,6 +7,7 @@ function ID=htm_search_cone(HTM,Long,Lat,Radius,Ind)
 %          - Longitude [radians] to search.
 %          - Latitude [radians] to search.
 %          - Search radius [radians].
+% Author : Eran Ofek (Feb 2015)
 % Example:  [HTM,LevList]=celestial.htm.htm_build(4);
 %           ID=celestial.htm.htm_search_cone(HTM,1,1,0.0001)
 % Reliable : 2

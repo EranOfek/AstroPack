@@ -1,6 +1,5 @@
-function Area=spherical_tri_area(Coo1,Coo2,Coo3);
-%------------------------------------------------------------------------------
-% spherical_tri_area function                                         AstroMap
+function Area=spherical_tri_area(Coo1,Coo2,Coo3)
+% Calculate the area of a spherical triangle
 % Description: Given three coordinates on a sphere, calculate the area
 %              of a spherical triangle defined by these three points.
 % Input  : - [Long, Lat] in radians of first point on a sphere.

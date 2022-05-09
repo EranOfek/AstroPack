@@ -1,6 +1,5 @@
-function predict_images(ModelPars,ModelType,StartMethod,ImPos,ThetaX,ThetaY,Dls_Ds,Threshold,Color);
-%----------------------------------------------------------------------
-% predict_images function                                        glens
+function predict_images(ModelPars,ModelType,StartMethod,ImPos,ThetaX,ThetaY,Dls_Ds,Threshold,Color)
+% UNDER CONSTRUCTION
 % Description:
 % Input  : - Model parameters or AlphaX
 %          - Model Type       or AlphaY
@@ -19,7 +18,7 @@ function predict_images(ModelPars,ModelType,StartMethod,ImPos,ThetaX,ThetaY,Dls_
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 %----------------------------------------------------------------------
 PlotSource = 'yes';
-if (nargin==7),
+if (nargin==7)
    Color = [];
 end
 InterpMethod = 'linear';
@@ -75,7 +74,7 @@ ColorMap = colormap('jet');
 colormap('gray');
 SizeCM   = size(ColorMap,1);
 ColorInd = floor([1:SizeCM./Nd:SizeCM].');
-for Id=1:1:Nd,
+for Id=1:1:Nd
 
    switch StartMethod
     case 'I'

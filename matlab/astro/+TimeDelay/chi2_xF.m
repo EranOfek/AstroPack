@@ -25,7 +25,7 @@ function [Chi2,Nobs,CalcF_t,f_t]=chi2_xF(Pars,FitPar,varargin)
 %          - Number of observations
 %          - Reconstructed F(t)
 %          - Reconstructed f(t)
-% 
+% Author : Eran Ofek (May 2020)
 % Reference: Springer & Ofek 2021b
 
 

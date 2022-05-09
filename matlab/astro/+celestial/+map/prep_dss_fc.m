@@ -1,6 +1,5 @@
 function prep_dss_fc(varargin)
-%-----------------------------------------------------------------------------
-% prep_dss_fc function                                               AstroMap
+% Prepare DSS finding charts, with labels
 % Description: Prepare DSS finding charts, with labels, compass, and slits.
 % Input  : * Arbitrary number of pairs of parameters (...,keyword,value,...):
 %            Possible keywords:
@@ -65,7 +64,7 @@ function prep_dss_fc(varargin)
 
 
 N = length(varargin);
-if (0.5.*N~=floor(0.5.*N)),
+if (0.5.*N~=floor(0.5.*N))
    error('Illegal number of input arguments');
 end
 
@@ -212,23 +211,23 @@ FitsName{:}
 
 
 Nim = length(Images);
-if (length(Equinox)==1),
+if (length(Equinox)==1)
    Equinox = Equinox.*ones(Nim,1);
 end
-if (length(CircRad)==1),
+if (length(CircRad)==1)
    CircRad = CircRad.*ones(Nim,1);
 end
-if (length(SlitLength)==1),
+if (length(SlitLength)==1)
    SlitLength = SlitLength.*ones(Nim,1);
 end
-if (length(SlitWidth)==1),
+if (length(SlitWidth)==1)
    SlitWidth = SlitWidth.*ones(Nim,1);
 end
-if (length(PlotScale)==1),
+if (length(PlotScale)==1)
    PlotScale = PlotScale.*ones(Nim,1);
 end
 
-for Iim=1:1:Nim,
+for Iim=1:1:Nim
    ImSize = size(Images{Iim});
    ImCL   = err_cl(Images{Iim}(:),[Z1_Per;Z2_Per]);
    Z1     = ImCL(1,1);
@@ -260,7 +259,7 @@ for Iim=1:1:Nim,
        set(Hobj,'MarkerSize',PlotSize);
    end
 
-   if (isstr(PlotCirc)==1),
+   if (isstr(PlotCirc)==1)
       switch PlotCirc
        case 'n'
           % do nothing
@@ -275,7 +274,7 @@ for Iim=1:1:Nim,
     case 'n'
        % do nothing
     case 'y'
-       if (isempty(SlitPA)),
+       if (isempty(SlitPA))
           % do nothing
        else
           SlitPos   = [0.5.*ImSize(2),0.5.*ImSize(1)];
@@ -326,7 +325,7 @@ for Iim=1:1:Nim,
        error('Unknown PlotCompass Option');
    end
 
-   if (isnan(PlotScale)),
+   if (isnan(PlotScale))
       % do nothing
    else
       Pos         = [ScalePos(1).*ImSize(1), ScalePos(2).*ImSize(2)];

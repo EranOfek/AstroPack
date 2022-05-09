@@ -69,7 +69,12 @@ switch lower(Method)
         Mat2 = padarray(  (Mat2),Size1-Size2,'post');
         Mat2 = circshift(Mat2,-floor(Size2.*0.5));
         
+        % not clear to me why this line is not correct:
+        %Res  = ifftshift(ifftshift(ifft2(fft2(Mat1).* conj(fft2(Mat2))),2),1);
+        
+        % not clear why ifftshift doens't swap the 3rd dim??
         Res  = ifftshift(ifft2(fft2(Mat1).* conj(fft2(Mat2))));
+        Res  = abs(Res);
         %Res  = circshift(Res,[-1 -1]);
         
         %Res  = circshift(Res,floor(size(Mat2)));

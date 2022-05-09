@@ -30,6 +30,7 @@ function Res=fit_flux(t,F_t,sigma_F,varargin)
 %            'RelTol' - Rel. tolerance for integral solution.
 %                   Default is 1e-6.
 % Output : A structure with the best fit solution data.
+% Author : Eran Ofek (Apr 2020)
 % Dependency: requires MAAT
 % Reference: Springer & Ofek 2021a
 % Example: Res=TimeDelay.fit_flux(ResLC.T,ResLC.F_t,ResLC.sigma_F_hat)

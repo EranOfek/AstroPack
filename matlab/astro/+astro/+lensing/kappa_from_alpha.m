@@ -1,6 +1,5 @@
-function Kappa=kappa_from_alpha(AlphaX,AlphaY,PixelSize);
-%-----------------------------------------------------------------------------
-% kappa_from_alpha function                                             glens
+function Kappa=kappa_from_alpha(AlphaX,AlphaY,PixelSize)
+% Calculate the surface density of a lens numerically from the deflection field.
 % Description:   Calculate the surface density of a lens
 %                               numerically from the deflection field.
 % Input  : - Matrix of deflection in X (AlphaX) - the deflection is in pixels,

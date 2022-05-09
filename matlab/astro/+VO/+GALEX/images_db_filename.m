@@ -9,6 +9,7 @@ function [FileName,FilePathNUV,FilePathFUV]=images_db_filename(DR)
 %          - mat file containing the path for the NUV images.
 %          - mat file containing the path for the FUV images.
 % Example: F=VO.GALEX.images_db_filename;
+% Author : Eran Ofek (Oct 2018)
 % Reliable: 2
 
 

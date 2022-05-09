@@ -1,10 +1,8 @@
 function [Info]=planet_obj_conj(StartDate,EndDate,DistThresh,ObserverPlanet,Planet,ObjCoo)
-%------------------------------------------------------------------------------------------
-% planets_obj_conj function                                            ephem
-% Description:   Calculate planet-object conjunctions/occultations,
-%                                 In which two planets are occult or found within
-%                                 DistThresh from each other as observed from
-%                                 ObserverPlanet.
+% Calculate planet-object conjunctions/occultations,
+%     In which two planets are occult or found within
+%     DistThresh from each other as observed from
+%     ObserverPlanet.
 % Input  : - Start of search date or JD.
 %            If one column vector is given then one JD.
 %            If 4 columns matrix is given then [D M Y frac_day] per line.

@@ -1,6 +1,5 @@
 function M=pm_vector(RA,Dec,MuRA,MuDec,V,Par)
-%--------------------------------------------------------------------------
-% pm_vector function                                                 ephem
+% Return the space motion vector (OBSOLETE)
 % Description: Return the space motion vector given proper motion, parallax
 %              and radial velocity.  
 %              Obsolete: use pm2space_motion instead.

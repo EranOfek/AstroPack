@@ -1,6 +1,5 @@
-% OrbitalEl
+% celestial.OrbitalEl - A class for storing and manipulating orbital elements, and two body motion calculations.
 %
-
 % #functions (autogen)
 % OrbitalEl - Constractor for OrbitalEl class
 % eccAnom2radius - Eccentric anomaly to radius vector
@@ -232,7 +231,7 @@ classdef OrbitalEl < Base
             end
             
         end
-        
+                
     end
 
     methods % Keplerian orbit functions
@@ -589,10 +588,11 @@ classdef OrbitalEl < Base
         function [V,X] = trueAnom2rectVel(Obj, Nu, R, E, AngUnits)
             % Return rectangular velocity and position vectors in Ecliptic system
             %   calculated from the orbital elements and the true anomaly.
-            % Input  : - Vector of true anomaly.
-            %          - Vector of Eccentric anomaly. If empty, then calc.
-            %            Default is [].
+            % Input  : - An OrbitalEl object.
+            %          - Vector of true anomaly.
             %          - Vector of radius vector. If empty, then calc.
+            %            Default is [].
+            %          - Vector of Eccentric anomaly. If empty, then calc.
             %            Default is [].
             %          - Units of true and eccentric anomaly.
             %            Default is 'rad'.
@@ -751,7 +751,7 @@ classdef OrbitalEl < Base
         end
             
         function Result = ephem(Obj, Time, Args)
-            % Calculate epjemerides for OrbitalEl object.
+            % Calculate ephemerides for OrbitalEl object.
             %   For each orbital-element or time, return the Geocentric or
             %   topocentric ephemerides of the target.
             %
@@ -767,7 +767,7 @@ classdef OrbitalEl < Base
             %            elements. In this case, different times corresponds
             %            to different orbital elements.
             %            Alternatively, if the input OrbitalEl object
-            %            contains a sungle orbital element, then it will be
+            %            contains a single orbital element, then it will be
             %            calculated at the different times.
             %          * ...,key,val,...
             %            'Tol' - Tolerance [rad] for solving the Kepler
@@ -805,6 +805,11 @@ classdef OrbitalEl < Base
             %                   If true, then the output will be in a
             %                   format of table instead of a matrix.
             %                   Default is true.
+            %            'Integration' - A logical indicating if to use
+            %                   integration to calculate the positions.
+            %                   Default is false.
+            %            'TolInt' - Tolerance of the integration ODE's.
+            %                   Default is 1e-10.
             % Output : - Output ephemerides with the following columns:
             %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
             %            and units:
@@ -846,6 +851,8 @@ classdef OrbitalEl < Base
                 Args.MaxIterLT                   = 5;  % use 0 for quick and dirty
                 Args.IncludeMag(1,1) logical     = true;  % use false to speed up
                 Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
+                Args.Integration(1,1) logical    = false; 
+                Args.TolInt                      = 1e-10; 
             end
             RAD  = 180./pi;
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
@@ -864,17 +871,33 @@ classdef OrbitalEl < Base
                 ColUnits      = {'day','rad','rad', 'au','au','deg','deg','mag'};
             end
             Cat           = nan(Ncat, numel(ColNames));
+            
+            if Args.Integration
+                [Nu0]  = keplerSolve(Obj, Obj.Epoch, 'Tol',Args.Tol);
+                [V0,X0] = trueAnom2rectVel(Obj,Nu0,[],[]);
+            end
 
             for It=1:1:Nt
                 LightTimeNotConverged = true;
                 LightTime             = 0;
-                Iter                  = 0;
+                Iter                  = 0;              
                 while LightTimeNotConverged
                     Iter = Iter + 1;
-                    [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime, 'Tol',Args.Tol);
-                    % target ecliptic Heliocentric rect. position
-                    [U_B] = trueAnom2rectPos(Obj, Nu, R, 'rad');
-                    U_B   = U_B.';  % a 3 X N matrix
+                    if Args.Integration
+                        if Ntarget > 1 && any(Obj.Epoch~=Obj.Epoch(1)) % if targets start with different epochs integrate one by one
+                            U_B = zeros(3,Ntarget);
+                            for Itarget = 1:Ntarget
+                                [U_B(:,Itarget),~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(Itarget),Time(It)-LightTime],X0(:,Itarget),V0(:,Itarget), 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                            end
+                        else    %  otherwise integrate all at once
+                            [U_B,~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(1),Time(It)-LightTime],X0,V0, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                        end
+                    else
+                        [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
+                        % target ecliptic Heliocentric rect. position
+                        [U_B] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+                        U_B   = U_B.';  % a 3 X N matrix
+                    end
 
                     % verified
                     %RAD = 180./pi;
@@ -979,6 +1002,9 @@ classdef OrbitalEl < Base
             % geocentric  05 39 59.38 +11 02 53.3
             % topocentric 05 39 59.53 +11 02 51.9
             
+        end
+
+        function Result = ephemIntegrate(Obj, Time, Args)
         end
         
         function [Result, Names] = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
@@ -1192,7 +1218,7 @@ classdef OrbitalEl < Base
     methods (Static)   % upload orbital elenments
         function Result = loadSolarSystem(Type, Desig)
             % Load the JPL Solar System orbital elements from local disk
-            %   To install the orbotal elements use the Installer class.
+            %   To install the orbital elements use the Installer class.
             % Input  : - Type: [] - read all | 'num' | 'unnum' | 'comet'
             %            Default is [].
             %          - Minor planets designation (string) or number.
@@ -1310,6 +1336,38 @@ classdef OrbitalEl < Base
                 end
             end
                 
+        end
+        
+        function Result = randomElements(N, Args)
+            % Generate random orbital elements
+            % Input  : - Number of random elements to generate.
+            %          * ...,key,val,...
+            %            'RangeE' - Eccntricity range.
+            %                   Default is [0, 0.9].
+            %            'Epoch' - Epoch of observations.
+            %                   Default is 0.
+            % Output : - An OrbitalEl object with random elements.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: R = celestial.OrbitalEl.randomElements;
+            
+            arguments
+                N             = 1e6;
+                Args.A        = 1;
+                Args.RangeE   = [0, 0.9];
+                Args.Epoch    = 0;
+            end
+            
+            Result = celestial.OrbitalEl;
+            Result.Number    = (1:1:N).';
+            Result.A         = ones(N,1).*Args.A;
+            Result.Node      = rand(N,1).*360;
+            Result.W         = rand(N,1).*360;
+            Result.Incl      = rand(N,1).*180 - 90;
+            Result.Eccen     = rand(N,1).*range(Args.RangeE) + min(Args.RangeE);
+            Result.Epoch     = ones(N,1).*Args.Epoch;
+            Result.Mepoch    = rand(N,1).*360;
+            
+            
         end
     end
 

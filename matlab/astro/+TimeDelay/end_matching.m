@@ -6,6 +6,7 @@ function [F_t,Slope,Diff]=end_matching(T,F_t)
 % Output : - Vector of fluxes after the end-matching operation.
 %          - Removed slope.
 %          - Removed values from F_t to get the end matched F_t
+% Author : Eran Ofek (Apr 2020)
 % Example: [F_t,Slope,Diff]=TimeDelay.end_matching(T,F_t)
 
 

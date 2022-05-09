@@ -1,6 +1,5 @@
 function [PA]=parallactic_angle(varargin)
-%------------------------------------------------------------------------------
-% parallactic_angle function                                             ephem
+% Calculate the parallactic angle
 % Description: Calculate the parallactic angle of an object.
 %              The parallactic is defined as the angle between the local
 %              zenith, the object and the celestial north pole measured

@@ -1,6 +1,5 @@
 function P2=light_abberation(P1,Et)
-%--------------------------------------------------------------------------
-% light_abberation function                                          ephem
+% Given an object observer-centric direction, corrected for light deflection
 % Description: Given an object observer-centric direction, corrected
 %              for light deflection in the natural frame (P1),
 %              calculate the proper direction of the object (P2) in

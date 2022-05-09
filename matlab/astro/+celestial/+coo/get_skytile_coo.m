@@ -1,6 +1,5 @@
 function ListAllTiles=get_skytile_coo(Coo,HalfSize,N_RA,N_Dec,SubTile)
-%-----------------------------------------------------------------------
-% get_skytile_coo function                                    Catalogue
+% Search for coordinates in tiles
 % Description: Assuming some sky tileing (see tile_the_sky.m) and
 %              optional sub tileing for each tile, search for all the
 %              tiles which their centers found within some distance

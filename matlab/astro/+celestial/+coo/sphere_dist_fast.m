@@ -1,6 +1,5 @@
 function [Dist,Ang,PA]=sphere_dist_fast(RA_1,Dec_1,RA_2,Dec_2)
-%--------------------------------------------------------------------------
-% sphere_dist_fast function                                          ephem
+% Calculate the angular distance between two points on the celestial sphere.
 % Description: Calculate the angular distance between two points on the
 %              celestial sphere. See sphere_dist.m (and built in distance.m)
 %                for a more general function. This function is ~10 time

@@ -1,6 +1,5 @@
 function [NewCat]=star_apparent_place(Catalog,Equinox,Epoch,ObsEpoch,GeodCoo)
-%------------------------------------------------------------------------------
-% star_apparent_place function                                           ephem
+% Compute the apparent place of stars at a given epoch
 % Description: Compute the apparent place of stars at a given epoch,
 %              given the star mean place, proper motion, parallax,
 %              radial velocity, at a reference epoch T0.

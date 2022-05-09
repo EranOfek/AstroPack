@@ -7,6 +7,7 @@ function TD=witt_timedelay_formula(zl,zs,ri,rj)
 %          - image 2 position relative to lens [arcsec]
 % Output : - Time delay [days]
 % Reference: Witt et al. 2000 ApJ 544, 98
+% Author : Eran Ofek (Oct 2020)
 % Example: TD=TimeDelay.witt_timedelay_formula(0.5,2,0.5,0.1)
 
 RAD = 180./pi;

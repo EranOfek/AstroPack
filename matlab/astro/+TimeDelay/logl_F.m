@@ -34,6 +34,7 @@ function [LogLikeF,Sigma_F,Sigma_phi]=logl_F(Pars, varargin)
 %            Tau,Alpha1,Alpha2,gamma
 %          - Sigma_F, column per parameter Tau/Alpha/gamma
 %          - Sigma_phi, column per parameter Tau/Alpha/gamma
+% Author : Eran Ofek (Apr 2020)
 % Example: 
 % [LogLikeF,Sigma_F,Sigma_phi]=TimeDelay.logl_BPL([1 2],[NaN NaN 0 0],[],[],ResLC.w, ResLC.F_w, ResLC.sigma_F_hat)
 

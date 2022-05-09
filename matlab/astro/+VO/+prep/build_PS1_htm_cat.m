@@ -1,5 +1,6 @@
 function build_PS1_htm_cat
 % build PS1 HDF5/HTM catalog
+% AUthor : Eran Ofek (Oct 2018)
 
 RAD = 180./pi;
 

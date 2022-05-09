@@ -1,6 +1,5 @@
 function [SpaceMotion,SpaceVec]=pm2space_motion(RA,Dec,PM_RA,PM_Dec,Parallax,RadVel)
-%--------------------------------------------------------------------------
-% pm2space_motion function                                           ephem
+% Space motion vector from PM, Plx and RV
 % Description: Convert proper motion, radial velocity and parralax to
 %              space motion vector in the equatorial system.
 % Input  : - [RA] in radians.

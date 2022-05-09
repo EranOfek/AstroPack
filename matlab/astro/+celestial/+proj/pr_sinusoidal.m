@@ -1,6 +1,5 @@
 function [X,Y]=pr_sinusoidal(Long,Lat,R)
-%------------------------------------------------------------------------------
-% pr_sinusoidal function                                              AstroMap
+% Project coordinates (longitude and latitude) using the Sinusoidal projection.
 % Description: Project coordinates (longitude and latitude) using the
 %              Sinusoidal projection.
 % Input  : - Vector of Longitude, in radians.
