@@ -27,7 +27,6 @@
 %    celestial.SolarSys.mooncool - Low-accuracy topocentric equatorial coordinates of the Moon
 %   celestial.SolarSys.moonecool - Low-accuracy geocentric ecliptical coordinate of the Moon
 %   celestial.SolarSys.moonlight - Calculate the Moon illumination in Lux on horizontal surface
-% celestial.SolarSys.orbEl2ephem - 
 % celestial.SolarSys.orbelem2ephem - SHORT DESCRIPTION HERE
 % celestial.SolarSys.orbitIntegration - Calculate the position and velocity evolution for a list of asteroids
 % celestial.SolarSys.pl_rotation - Calculate planetary rotation parameters
