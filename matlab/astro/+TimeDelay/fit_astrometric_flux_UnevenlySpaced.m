@@ -1,4 +1,4 @@
-function fit_astrometric_flux_UnevenlySpaced(t,F_t,x_t,y_t,sigma_F,sigma_x,Args)
+function [ResLC, ResG, ResSIm] = fit_astrometric_flux_UnevenlySpaced(t,F_t,x_t,y_t,sigma_F,sigma_x,Args)
     %
     %
     % Input  : - t : vector of times.
@@ -53,9 +53,9 @@ function fit_astrometric_flux_UnevenlySpaced(t,F_t,x_t,y_t,sigma_F,sigma_x,Args)
     t = t - min(t);
     
     % interpolate into an equally spaced time series
-    [F_t, t] = timeseries.interpGP(t, F_t, Args.Step_t);
-    [x_t, t] = timeseries.interpGP(t, x_t, t);
-    [y_t, t] = timeseries.interpGP(t, y_t, t);
+    [F_t, Newt] = timeseries.interpGP(t, F_t, Args.Step_t);
+    [x_t, ~] = timeseries.interpGP(t, x_t, Newt);
+    [y_t, ~] = timeseries.interpGP(t, y_t, Newt);
     
     Nrot = numel(Args.VecRot);
     TotTime = range(t);
@@ -65,7 +65,7 @@ function fit_astrometric_flux_UnevenlySpaced(t,F_t,x_t,y_t,sigma_F,sigma_x,Args)
         RotMat = [cosd(Args.VecRot(Irot)), -sind(Args.VecRot(Irot)); sind(Args.VecRot(Irot)), cosd(Args.VecRot(Irot))];
         XY = RotMat*[x_t(:).'; y_t(:).'];
     
-        [Res(Irot)]=TimeDelay.fit_astrometric_flux(t,F_t,XY(1,:).',XY(2,:).',sigma_F,sigma_x, 'Solver',Args.Solver,...
+        [Res(Irot)]=TimeDelay.fit_astrometric_flux(Newt,F_t,XY(1,:).',XY(2,:).',sigma_F,sigma_x, 'Solver',Args.Solver,...
                                                               'FitPar',Args.FitPar,...
                                                               'DefPar',Args.DefPar,...
                                                               'Limits',Args.Limits,...
@@ -119,11 +119,11 @@ function fit_astrometric_flux_UnevenlySpaced(t,F_t,x_t,y_t,sigma_F,sigma_x,Args)
                                 
        
         % interpolate
-        Sim_F_t = interp1(ResLC.T, ResLC.F_t, t);
-        Sim_x_t = interp1(ResLC.T, ResLC.x_t, t);
+        Sim_F_t = interp1(ResLC.T, ResLC.F_t, Newt);
+        Sim_x_t = interp1(ResLC.T, ResLC.x_t, Newt);
         Sim_y_t = zeros(size(Sim_x_t));
         
-        [ResSim(Isim)]=TimeDelay.fit_astrometric_flux(t,Sim_F_t,Sim_x_t,Sim_y_t,sigma_F,sigma_x, 'Solver',Args.Solver,...
+        [ResSim(Isim)]=TimeDelay.fit_astrometric_flux(Newt,Sim_F_t,Sim_x_t,Sim_y_t,sigma_F,sigma_x, 'Solver',Args.Solver,...
                                                               'FitPar',Args.FitPar,...
                                                               'DefPar',Args.DefPar,...
                                                               'Limits',Args.Limits,...
