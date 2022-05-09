@@ -43,7 +43,7 @@ classdef PhotonsList < Component
     end
     
     methods % constructor
-        function Obj = TimeTagImage(varargin)
+        function Obj = PhotonsList(varargin)
             % what to read?
             
             Obj.ImageData   = ImageComponent;
