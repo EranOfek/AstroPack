@@ -120,7 +120,6 @@
 % celestial.coo.convert2equatorial - Convert coordinates/name to apparent equatorial coordinates.
 %      celestial.coo.convert_coo - Convert between different coordinates
 %       celestial.coo.convertdms - Convert between various representations of coordinates and time
-%      celestial.coo.convertdms1 - --------------------------------------------------------------------------
 %          celestial.coo.coo2box - Calculate box vertices around coordinates (OBSOLETE: use coo2box)
 %      celestial.coo.coo2cosined - Coordinates to cosine directions
 %     celestial.coo.coo_resolver - Resolve coordinates or target name into RA/Dec
@@ -151,11 +150,11 @@
 %  celestial.coo.nutation_lowacc - Low accuracy (~1") calculation of the nutation.
 %        celestial.coo.obliquity - Calculate the obliquity of the Earth ecliptic.
 %   celestial.coo.parallactic2ha - Convert parallactic angle and declinatio to hour angle
-% celestial.coo.parallactic_angle - ------------------------------------------------------------------------------
+% celestial.coo.parallactic_angle - Calculate the parallactic angle
 %    celestial.coo.parseCooInput - Parse RA/Dec coordinates
 %  celestial.coo.pm2space_motion - --------------------------------------------------------------------------
 %        celestial.coo.pm_eq2gal - SHORT DESCRIPTION HERE
-%        celestial.coo.pm_vector - --------------------------------------------------------------------------
+%        celestial.coo.pm_vector - Return the space motion vector (OBSOLETE)
 %        celestial.coo.points2gc - Convert two points on a sphere to great circle representation (Lon, Lat, Az)
 %  celestial.coo.polar_alignment - Calculate the RA/Dec drift due to equatorial polar alignemnt error.
 % celestial.coo.polar_alignment_drift - Calculate the RA/Dec drift due to equatorial polar alignemnt error.
@@ -267,7 +266,7 @@
 % celestial.stars.nearest_bright_star - Select N bright stars near a given coordinate
 % celestial.stars.star_apparent_place - Compute the apparent place of stars at a given epoch
 %       celestial.stars.unitTest - Package Unit-Test
-%       celestial.stars.vb_ephem - ------------------------------------------------------------------------------
+%       celestial.stars.vb_ephem - Ephemeris of a binary star
 %      celestial.time.allFunList - Functions and Classes list for the celestial.time package
 %         celestial.time.date2jd - Convert Julian/Gregorian date to Julian Day
 %    celestial.time.date_str2vec - Convert a string or a cell array of string containing date and time (OBSOLETE)
@@ -293,7 +292,7 @@
 %    celestial.time.wget_tai_utc - Get TAI-UTC from file or IERS website
 %         celestial.time.year2jd - Convert year to JD
 %                celestial.INPOP - INPOP - A container and calculator class for INPOP ephemeris data
-%            celestial.OrbitalEl - celestial.OrbitalEl - A class for storing and manipulating orbital
+%            celestial.OrbitalEl - celestial.OrbitalEl - A class for storing and manipulating orbital elements, and two body motion calculations.
 %             celestial.unitTest - OrbitalEl.unitTest
 %              celestial.Targets - celestial.Targets class
 %             celestial.unitTest - unitTest for celestial.Targets

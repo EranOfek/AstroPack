@@ -19,7 +19,6 @@
 % celestial.coo.convert2equatorial - Convert coordinates/name to apparent equatorial coordinates.
 %      celestial.coo.convert_coo - Convert between different coordinates
 %       celestial.coo.convertdms - Convert between various representations of coordinates and time
-%      celestial.coo.convertdms1 - --------------------------------------------------------------------------
 %          celestial.coo.coo2box - Calculate box vertices around coordinates (OBSOLETE: use coo2box)
 %      celestial.coo.coo2cosined - Coordinates to cosine directions
 %     celestial.coo.coo_resolver - Resolve coordinates or target name into RA/Dec
@@ -50,11 +49,11 @@
 %  celestial.coo.nutation_lowacc - Low accuracy (~1") calculation of the nutation.
 %        celestial.coo.obliquity - Calculate the obliquity of the Earth ecliptic.
 %   celestial.coo.parallactic2ha - Convert parallactic angle and declinatio to hour angle
-% celestial.coo.parallactic_angle - ------------------------------------------------------------------------------
+% celestial.coo.parallactic_angle - Calculate the parallactic angle
 %    celestial.coo.parseCooInput - Parse RA/Dec coordinates
 %  celestial.coo.pm2space_motion - --------------------------------------------------------------------------
 %        celestial.coo.pm_eq2gal - SHORT DESCRIPTION HERE
-%        celestial.coo.pm_vector - --------------------------------------------------------------------------
+%        celestial.coo.pm_vector - Return the space motion vector (OBSOLETE)
 %        celestial.coo.points2gc - Convert two points on a sphere to great circle representation (Lon, Lat, Az)
 %  celestial.coo.polar_alignment - Calculate the RA/Dec drift due to equatorial polar alignemnt error.
 % celestial.coo.polar_alignment_drift - Calculate the RA/Dec drift due to equatorial polar alignemnt error.

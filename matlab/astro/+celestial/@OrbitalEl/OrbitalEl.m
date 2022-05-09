@@ -1,5 +1,4 @@
-% celestial.OrbitalEl - A class for storing and manipulating orbital
-% elements, and two body motion calculations.
+% celestial.OrbitalEl - A class for storing and manipulating orbital elements, and two body motion calculations.
 %
 % #functions (autogen)
 % OrbitalEl - Constractor for OrbitalEl class

@@ -1,6 +1,5 @@
 function [D,PA,RV]=vb_ephem(Time,OrbElem)
-%------------------------------------------------------------------------------
-% vb_ephem function                                                      ephem
+% Ephemeris of a binary star
 % Description: Given orbital elements of a visual binary, calculate its
 %              ephemeris in a give dates.
 % Input  : - Vector of JD.
@@ -27,7 +26,7 @@ JulianYear = 365.25;
 DAY_SEC    = 86400;
 AU_KM      = 149597870;    % km
 
-if (isstruct(OrbElem)==1),
+if (isstruct(OrbElem)==1)
    % do nothing - use structure as is
    El = OrbElem;
 else
@@ -35,9 +34,10 @@ else
    El.T = OrbElem(1);
    El.a = OrbElem(2);
    El.e = OrbElem(3);
-   El.w = OrbElem(4);
-   El.i = OrbElem(5);
-   El.P = OrbElem(6);
+   El.Om= OrbElem(4);
+   El.w = OrbElem(5);
+   El.i = OrbElem(6);
+   El.P = OrbElem(7);
 end
 % convert period from years to days (assuming period is in Julian years).
 El.P = El.P.*JulianYear;
@@ -50,7 +50,7 @@ El.Om  = El.Om./RAD;
 El.q   = El.a.*(1 - El.e);
 N      = 2.*pi./El.P;    % mean motion [rad/day]
 % call kepler_elliptic with the mean anomaly option:
-[Nu,R] = kepler_elliptic(N.*(Time-El.T), El.q, El.e, NaN);   
+[Nu,R] = celestial.Kepler.kepler_elliptic(N.*(Time-El.T), El.q, El.e, NaN);   
 
 PA = El.Om + atan2( sin(Nu + El.w).*cos(El.i), cos(Nu + El.w) );
 PA = (PA./(2.*pi) - floor(PA./(2.*pi))).*2.*pi;   % range [0-2*pi]

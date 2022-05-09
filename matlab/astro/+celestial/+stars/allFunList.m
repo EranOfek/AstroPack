@@ -5,5 +5,5 @@
 % celestial.stars.nearest_bright_star - Select N bright stars near a given coordinate
 % celestial.stars.star_apparent_place - Compute the apparent place of stars at a given epoch
 %       celestial.stars.unitTest - Package Unit-Test
-%       celestial.stars.vb_ephem - ------------------------------------------------------------------------------
+%       celestial.stars.vb_ephem - Ephemeris of a binary star
  help celestial.stars.allFunList
