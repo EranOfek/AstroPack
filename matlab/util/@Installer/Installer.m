@@ -13,7 +13,7 @@
 % I.install({'Time','MinorPlanets'});   % install specific datasets
 % I.install({'GAIA_SpecTemplate'});     % install specific datasets
 % I.install({'cats'});                  % install specific datasets (and open tar file)
-
+%
 % #functions (autogen)
 % Installer - constructor for the Installre class (a utility class for AstroPack installation
 % getDataDir - Get data directory name DataName of data directory as appear in Insataller/seeAvailableData
