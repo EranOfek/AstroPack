@@ -1,4 +1,4 @@
-function [Res,Fun]=ps_lens(varargin)
+function [Res,Fun]=ps_lens(Args)
 % Calculate deflection, magnification and time delay for point mass lens
 % Package: astro
 % Description: Calculate deflection, magnification and time delay for point
@@ -27,33 +27,36 @@ function [Res,Fun]=ps_lens(varargin)
 %--------------------------------------------------------------------------
 
 
-DefV.Mass                 = 1;
-DefV.MassUnits            = 'SunM';
-DefV.Dl                   = 5000;
-DefV.Ds                   = 1e4;
-DefV.DistUnits            = 'pc'; % 'z' | 'pc' | 'cm'
-DefV.Beta                 = logspace(-3,3,7)';
-DefV.BetaUnits            = 'ThetaE'; % 'rad' | 'arcsec' | 'mas' | 'ThetaE'  
-DefV.BetaMin              = 0;
-DefV.OutUnits             = 'arcsec'; % 'rad' | 'arcsec' | ...
-InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+arguments
+    Args.Mass                 = 1;
+    Args.MassUnits            = 'SunM';
+    Args.Dl                   = 5000;
+    Args.Ds                   = 1e4;
+    Args.DistUnits            = 'pc'; % 'z' | 'pc' | 'cm'
+    Args.Beta                 = logspace(-3,3,7)';
+    Args.BetaUnits            = 'ThetaE'; % 'rad' | 'arcsec' | 'mas' | 'ThetaE'  
+    Args.BetaMin              = 0;
+    Args.OutUnits             = 'arcsec'; % 'rad' | 'arcsec' | ...
+end
+
+%Args = InArg.populate_keyval(DefV,varargin,mfilename);
 
 % unit conversion
 G  = constant.G;
 c  = constant.c;
 pc = constant.pc; 
-switch lower(InPar.DistUnits)
+switch lower(Args.DistUnits)
     case 'z'
-        Dl  = astro.cosmo.ad_dist(InPar.Dl);
-        Ds  = astro.cosmo.ad_dist(InPar.Ds);
-        Dls = astro.cosmo.ad_dist([InPar.Dl,InPar.Ds]);
+        Dl  = astro.cosmo.ad_dist(Args.Dl);
+        Ds  = astro.cosmo.ad_dist(Args.Ds);
+        Dls = astro.cosmo.ad_dist([Args.Dl,Args.Ds]);
         
         % output is pc
     otherwise
-        Dl  = InPar.Dl;
-        Ds  = InPar.Ds;
-        Dls = InPar.Ds - InPar.Dl;
-        switch lower(InPar.DistUnits)
+        Dl  = Args.Dl;
+        Ds  = Args.Ds;
+        Dls = Args.Ds - Args.Dl;
+        switch lower(Args.DistUnits)
             case 'pc'
                 % already in pc
             case 'cm'
@@ -76,20 +79,20 @@ switch lower(InPar.DistUnits)
         end
 end
 
-M  = convert.mass(InPar.MassUnits,'gr',InPar.Mass);
+M  = convert.mass(Args.MassUnits,'gr',Args.Mass);
 
 FunThetaE = @(M,Dl,Ds,Dls) sqrt( (4.*G.*M./(c.^2)) .* Dls./(Dl.*Ds.*pc) );
 TE = FunThetaE(M,Dl,Ds,Dls);  % Einstein radius in radians
 
-switch lower(InPar.BetaUnits)
+switch lower(Args.BetaUnits)
     case 'thetae'
         % convert beta from ThetaE to radians
-        Beta    = InPar.Beta.*TE;
-        BetaMin = InPar.BetaMin.*TE;
+        Beta    = Args.Beta.*TE;
+        BetaMin = Args.BetaMin.*TE;
     otherwise
         % convert beta from angular units to radians
-        Beta    = convert.angular(InPar.BetaUnits,'rad',InPar.Beta);
-        BetaMin = convert.angular(InPar.BetaUnits,'rad',InPar.BetaMin);
+        Beta    = convert.angular(Args.BetaUnits,'rad',Args.Beta);
+        BetaMin = convert.angular(Args.BetaUnits,'rad',Args.BetaMin);
 end
 
 % add BetaMin
@@ -110,7 +113,7 @@ ShiftReLens   = (abs(MuP).*ThetaP + abs(MuM).*ThetaM)./(abs(MuP) + abs(MuM));
 ShiftReSource = ShiftReLens - Beta;
 
 % convert angular values to output units
-ConvAng = convert.angular('rad',InPar.OutUnits);
+ConvAng = convert.angular('rad',Args.OutUnits);
 
 Res.ER      = TE.*ConvAng;
 Res.ThetaP  = ThetaP.*ConvAng;
@@ -128,11 +131,11 @@ Phi2    = TE.^2.*log(abs(ThetaM));
 
 % time delay
 D   = Dls./(Dl.*Ds.*pc);
-switch lower(InPar.DistUnits)
+switch lower(Args.DistUnits)
     case 'z'
-        % note: InPar.Dl contains redshift
-        Res.Delay1 = (1 + InPar.Dl).*(0.5.*(ThetaP - Beta).^2 - Phi1)./(c.*D);
-        Res.Delay2 = (1 + InPar.Dl).*(0.5.*(ThetaM - Beta).^2 - Phi2)./(c.*D);
+        % note: Args.Dl contains redshift
+        Res.Delay1 = (1 + Args.Dl).*(0.5.*(ThetaP - Beta).^2 - Phi1)./(c.*D);
+        Res.Delay2 = (1 + Args.Dl).*(0.5.*(ThetaM - Beta).^2 - Phi2)./(c.*D);
     otherwise
         % assume not cosmological time dilation
         %Res.Delay1 = (0.5.*(ThetaP - Beta).^2 - Phi1)./(c.*D);
