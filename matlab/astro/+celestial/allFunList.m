@@ -31,9 +31,6 @@
 %  celestial.Kepler.trueanom2pos - True anomaly, radius vector and orbital elements to cartezian position
 %  celestial.Kepler.trueanom2vel - True anomaly, radius vector and orbital elements to position and velocity
 %      celestial.Kepler.unitTest - Package Unit-Test
-%     celestial.Kepler.orbit_pos - --------------------------------------------------------------------------
-%     celestial.Kepler.pos_orbit - --------------------------------------------------------------------------
-% celestial.Kepler.struct2orbitalel - --------------------------------------------------------------------------
 % celestial.SolarSys.aberrationSolarSystem - 
 %  celestial.SolarSys.allFunList - Functions and Classes list for the celestial.SolarSys package
 % celestial.SolarSys.asteroid_magnitude - Calculate the magnitude of minor planets in the HG system
@@ -67,6 +64,7 @@
 % celestial.SolarSys.pl_rotation - Calculate planetary rotation parameters
 % celestial.SolarSys.planar_sundial - Calculate and plot a planar sundial
 % celestial.SolarSys.planet_ephem - ----------------------------------------------------------------------------
+% celestial.SolarSys.planet_ephem_table - 
 % celestial.SolarSys.planet_lowephem - Low-accuracy ephemeris of the planets (~1 arcmin)
 % celestial.SolarSys.planet_obj_conj - Calculate planet-object conjunctions/occultations,
 % celestial.SolarSys.planet_radius - Planet radius and flattening factor and angular diameter.
@@ -99,8 +97,6 @@
 %     celestial.SolarSys.suncoo1 - Low-accuracy coordinates of the Sun (1950-2050 range)
 %    celestial.SolarSys.sunlight - Calculate the Sun illumination in Lux on horizontal surface
 %    celestial.SolarSys.unitTest - Package Unit-Test
-% celestial.SolarSys.moon_sky_brightness_h - ------------------------------------------------------------------------------
-% celestial.SolarSys.planet_ephem_table - 
 %       celestial.coo.aberration - Apply aberration of light to source position
 %       celestial.coo.add_offset - Offset a position by angular distance and position angle
 %          celestial.coo.airmass - Airmass from time and object and observer position
@@ -127,7 +123,7 @@
 %      celestial.coo.cosined2coo - Cosine direction to coordinates
 %          celestial.coo.dome_az - UNDER CONSTRUCTION
 % celestial.coo.ecliptic2helioecliptic - Ecliptic longitude to Helio-ecliptic longitude
-% celestial.coo.fit_proper_motion - SHORT DESCRIPTION HERE
+% celestial.coo.fit_proper_motion - Fit proper motion to observations
 %      celestial.coo.fit_scircle - 
 %   celestial.coo.geocentric2lsr - Geocentric or heliocentric velocity to velocity relative to the LSR
 %  celestial.coo.get_skytile_coo - Search for coordinates in tiles
@@ -152,7 +148,7 @@
 %   celestial.coo.parallactic2ha - Convert parallactic angle and declinatio to hour angle
 % celestial.coo.parallactic_angle - Calculate the parallactic angle
 %    celestial.coo.parseCooInput - Parse RA/Dec coordinates
-%  celestial.coo.pm2space_motion - --------------------------------------------------------------------------
+%  celestial.coo.pm2space_motion - Space motion vector from PM, Plx and RV
 %        celestial.coo.pm_eq2gal - SHORT DESCRIPTION HERE
 %        celestial.coo.pm_vector - Return the space motion vector (OBSOLETE)
 %        celestial.coo.points2gc - Convert two points on a sphere to great circle representation (Lon, Lat, Az)

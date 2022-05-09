@@ -26,7 +26,7 @@
 %      celestial.coo.cosined2coo - Cosine direction to coordinates
 %          celestial.coo.dome_az - UNDER CONSTRUCTION
 % celestial.coo.ecliptic2helioecliptic - Ecliptic longitude to Helio-ecliptic longitude
-% celestial.coo.fit_proper_motion - SHORT DESCRIPTION HERE
+% celestial.coo.fit_proper_motion - Fit proper motion to observations
 %      celestial.coo.fit_scircle - 
 %   celestial.coo.geocentric2lsr - Geocentric or heliocentric velocity to velocity relative to the LSR
 %  celestial.coo.get_skytile_coo - Search for coordinates in tiles
@@ -51,7 +51,7 @@
 %   celestial.coo.parallactic2ha - Convert parallactic angle and declinatio to hour angle
 % celestial.coo.parallactic_angle - Calculate the parallactic angle
 %    celestial.coo.parseCooInput - Parse RA/Dec coordinates
-%  celestial.coo.pm2space_motion - --------------------------------------------------------------------------
+%  celestial.coo.pm2space_motion - Space motion vector from PM, Plx and RV
 %        celestial.coo.pm_eq2gal - SHORT DESCRIPTION HERE
 %        celestial.coo.pm_vector - Return the space motion vector (OBSOLETE)
 %        celestial.coo.points2gc - Convert two points on a sphere to great circle representation (Lon, Lat, Az)

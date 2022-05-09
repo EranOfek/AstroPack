@@ -33,6 +33,7 @@
 % celestial.SolarSys.pl_rotation - Calculate planetary rotation parameters
 % celestial.SolarSys.planar_sundial - Calculate and plot a planar sundial
 % celestial.SolarSys.planet_ephem - ----------------------------------------------------------------------------
+% celestial.SolarSys.planet_ephem_table - 
 % celestial.SolarSys.planet_lowephem - Low-accuracy ephemeris of the planets (~1 arcmin)
 % celestial.SolarSys.planet_obj_conj - Calculate planet-object conjunctions/occultations,
 % celestial.SolarSys.planet_radius - Planet radius and flattening factor and angular diameter.
@@ -65,6 +66,4 @@
 %     celestial.SolarSys.suncoo1 - Low-accuracy coordinates of the Sun (1950-2050 range)
 %    celestial.SolarSys.sunlight - Calculate the Sun illumination in Lux on horizontal surface
 %    celestial.SolarSys.unitTest - Package Unit-Test
-% celestial.SolarSys.moon_sky_brightness_h - ------------------------------------------------------------------------------
-% celestial.SolarSys.planet_ephem_table - 
  help celestial.SolarSys.allFunList

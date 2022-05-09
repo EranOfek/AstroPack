@@ -21,7 +21,4 @@
 %  celestial.Kepler.trueanom2pos - True anomaly, radius vector and orbital elements to cartezian position
 %  celestial.Kepler.trueanom2vel - True anomaly, radius vector and orbital elements to position and velocity
 %      celestial.Kepler.unitTest - Package Unit-Test
-%     celestial.Kepler.orbit_pos - --------------------------------------------------------------------------
-%     celestial.Kepler.pos_orbit - --------------------------------------------------------------------------
-% celestial.Kepler.struct2orbitalel - --------------------------------------------------------------------------
  help celestial.Kepler.allFunList
