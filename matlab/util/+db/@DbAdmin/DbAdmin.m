@@ -1,17 +1,11 @@
 %--------------------------------------------------------------------------
-% File:    DbAdmin.m.
-% Class:   DbAdmin.
-% Title:   Database administrator utils for PostgreSQL, based on DbQuery.
-% Author:  Chen Tishler.
-% Created: December 2021.
+% File:    DbAdmin.m
+% Class:   DbAdmin
+% Title:   Database administrator utils for PostgreSQL, based on DbQuery
+% Author:  Chen Tishler
+% Created: December 2021
 %--------------------------------------------------------------------------
-% PostgreSQL V14 - Installation instructions for Linux:
-%
-%     https://techviewleo.com/how-to-install-postgresql-database-on-ubuntu/
-%
-% Create database on remote server (password: 'Passw0rd'):
-%
-%     psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
+% For documentation see files in +db/doc/
 %
 %--------------------------------------------------------------------------
 
@@ -50,13 +44,12 @@ classdef DbAdmin < Component
         % Connection details
         Conn            = []        % DbConnection
         Query           = []        % DbQuery, required to execute statements
-        Host            = ''        %
-        Port            = 5432      %
-        DatabaseName    = ''        % Use 'postgres' to when creating databases or for general
-        UserName        = ''        %
-        Password        = ''        %
-        TableName       = ''        %
-        Shell           = ''        % 'tcsh', 'bash', empty for auto detect by $SHELL
+        Host            = ''        % Host name or IP address
+        Port            = 5432      % Port number, default if 5432
+        DatabaseName    = ''        % Use 'postgres' when creating databases or for general functionality
+        UserName        = ''        % User name for connection
+        Password        = ''        % Password for connection
+        Shell           = ''        % Linux shell, 'tcsh' or 'bash', empty for auto detect by $SHELL env
     end
 
     %----------------------------------------------------------------------
@@ -65,28 +58,34 @@ classdef DbAdmin < Component
         % Constructor
         function Obj = DbAdmin(Args)
             % Create new DbAdmin obeject
+            %
             % Input:
-            %    'DbCon'     -
-            %    'Host'      -
-            %    'Database'  -
-            %    'UserName'  -
-            %    'Password'  -
-            %    'Port'      -
-            %    'TableName' -
+            %    'DbQuery'   - DbQuery object used for connection to database
+            %    'DbCon'     - DbConnection  object used for connection to database 
+            %
+            % These arguments are used when DbQuery and DbCon are not set:
+            %    'Host'      - Host name
+            %    'Database'  - Database name
+            %    'UserName'  - User name
+            %    'Password'  - Password
+            %    'Port'      - Port number
+            %
+            % Output: New DbAdmin object
             %
             % Examples:
             %   % Create query object for 'UnitTest' database alias 'UnitTest'
             %   Q = DbAdmin('UnitTest')
             %
             arguments
-                Args.DbQuery       = []        %
+                Args.DbQuery       = []        % DbQuery object
                 Args.DbCon         = []        % DbConnection object
-                Args.Host          = ''        %
-                Args.Port          = 5432      %
+                
+                % These arguments are used when DbQuery and DbCon are not set:
+                Args.Host          = ''        % Host name or IP address
+                Args.Port          = 5432      % Port number
                 Args.DatabaseName  = ''        % Use 'postgres' to when creating databases or for general
-                Args.UserName      = ''        %
-                Args.Password      = ''        %
-                Args.TableName     = ''        %
+                Args.UserName      = ''        % User name
+                Args.Password      = ''        % Password
             end
 
             % Setup component
@@ -95,47 +94,31 @@ classdef DbAdmin < Component
             Obj.DebugMode = true;
             %Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
 
-            % Set connection
+            % Set connection from DbQuery or DbCon
             if ~isempty(Args.DbQuery)
                 Obj.setConn(Args.DbQuery.Conn);
             elseif ~isempty(Args.DbCon)
                 Obj.setConn(Args.DbCon);
-            else
                 
+            % Create new connection from other arguments
+            else                
                 NewCon = db.DbConnection('Host', Args.Host, 'Port', Args.Port, ...
                     'DatabaseName', Args.DatabaseName, 'UserName', Args.UserName, 'Password', Args.Password);
                 
                 Obj.setConn(NewCon);
             end
                        
-            % Override TableName and set other properties
-            %Obj.setProps(Args);
-            
+            % Create DbQuery instance connected to the database, as set above
             Obj.Query = db.DbQuery(Obj.Conn);
-
         end
 
 
-        % Destructor
         function delete(Obj)
+            % Destructor            
             Obj.clear();
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end
-        
-        
-        function Result = setConn(Obj, Conn)
-            % Input:   Conn -
-            % Output:  true on success
-            % Example: Obj.setConn(DbCon);
-            
-            Obj.Conn = Conn;
-            Obj.Host = Conn.Host;
-            Obj.Port = Conn.Port;
-            Obj.DatabaseName = Conn.DatabaseName;
-            Obj.UserName = Conn.UserName;
-            Obj.Password = Conn.Password;
-            Result = true;
-        end
+
     end
 
     %----------------------------------------------------------------------
@@ -538,6 +521,22 @@ classdef DbAdmin < Component
     
     methods(Hidden)
         
+        function Result = setConn(Obj, Conn)
+            % Set connection data from the specified DbConnection object
+            % Input:   Conn - DbConnection object
+            % Output:  true on success
+            % Example: Obj.setConn(DbCon);
+            
+            Obj.Conn = Conn;
+            Obj.Host = Conn.Host;
+            Obj.Port = Conn.Port;
+            Obj.DatabaseName = Conn.DatabaseName;
+            Obj.UserName = Conn.UserName;
+            Obj.Password = Conn.Password;
+            Result = true;
+        end
+        
+        
         function Result = exec(Obj, SqlText)
             % Execute SQL statement, by calling Obj.Query.exec()
             % Input:   SqlText - Statement text
@@ -620,13 +619,14 @@ classdef DbAdmin < Component
         
         
         function Result = runPsql(Obj, Args)
-            % Run 'psql' external utility with command line parameters.
-            % Input:   XlsFileName
-            % Output:
-            % Example: db.DbAdmin.runPsql(
-            % psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
-            % Note: psql (psql.exe on Windows) must be on PATH
-            %       i.e. Add C:\Program Files\PostgreSQL\14\bin to SYSTEM PATH
+            % Run the 'psql' external utility with command line parameters.
+            % Input   : 
+            % Output  :
+            % Example : db.DbAdmin.runPsql(
+            %               'psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql')
+            % Note    : psql (psql.exe on Windows) must be on the system PATH
+            %           i.e. Add C:\Program Files\PostgreSQL\14\bin to SYSTEM PATH
+            %
             arguments
                 Obj
                 Args.Host          = ''        %
@@ -724,9 +724,9 @@ classdef DbAdmin < Component
     methods(Static)
         
         function Result = startGui()
-            % Run gui utility - @TODO - Currently DO NOT USE
+            % Run gui utility process - @TODO - Currently DO NOT USE
             % Input:   -
-            % Output:  -
+            % Output:  true on success
             % Example: db.DbAdmin.startGui
 
             Result = false;
@@ -739,21 +739,26 @@ classdef DbAdmin < Component
                     return;
                 end
                 
+                % Set utility name
                 if tools.os.islinux
                     Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui');
                 else
                     Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui.exe');
                 end
  
+                % Found - run it
                 if isfile(Cmd)
                     io.msgLog(LogLevel.Info, 'DbAdmin.startGui: system( %s )', Cmd);
                     [Status, Output] = system(Cmd);
                     %io.msgLog(LogLevel.Info, 'startGui: %d', Status);
                     %io.msgLog(LogLevel.Info, 'startGui: %s', Output);
                     Result = true;
+                    
+                % File not found
                 else
                     io.msgLog(LogLevel.Error, 'DbAdmin.startGui: File not found, use Lazarus to compile the project: %s', Cmd);
                 end
+                
             catch Ex
                 io.msgLogEx(LogLevel.Info, Ex, 'DbAdmin.startGui');
             end
@@ -762,7 +767,7 @@ classdef DbAdmin < Component
     end
     
     
-    methods(Static) % Unit-Tests
+    methods(Static) % Static
 
         function help
             % Show MLX manual

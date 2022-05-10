@@ -1,16 +1,19 @@
 
 function Result = examples()
-    % DbAdmin examples
-    % Install Postgres v14 - See detailed instructions in files:
+    % DbAdmin examples (see also DbAdmin.unitTest)
+    %
+    % Requirements:
+    %
+    % 1. Install Postgres v14 - See detailed instructions in files:
     %
     %       postgres_installation_ubuntu18.md
     %       postgres_shared_folder.md
     %
-    % Install pgAdmin4 (version 6.3) as administration tool    
-    % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
-    % On Linux, use DataGrip by JetBrains (License is required)
+    % 2. Install pgAdmin4 (version 6.3) as administration tool    
+    %    On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+    %    On Linux, use DataGrip by JetBrains (License is required)
     %
-    % You need to have configuration file with database user and password, as:
+    % 3. You need to have configuration file with database user and password, as:
     %
     %       config/local/Database.DbConnections.UnitTest.yml
     %
