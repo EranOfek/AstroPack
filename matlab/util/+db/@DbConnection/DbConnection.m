@@ -262,7 +262,9 @@ classdef DbConnection < Component
         
         function Result = isSharedPathAvail(Obj)
             % Check if shared folder is available between server and client
-            %
+            % Input   :
+            % Output  :
+            % Examlpe :
             Result = false;
             if ~isempty(Obj.ServerSharePath) && ~isempty(Obj.MountSharePath)
                 if isfolder(Obj.MountSharePath)
@@ -279,14 +281,19 @@ classdef DbConnection < Component
         
         function Result = getConnectionKey()
             % Create connection key f - @TBD
+            % Input   :
+            % Output  :
+            % Examlpe :            
             %Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
             Result = '';
         end
         
         
         function Result = getDbConnection(Alias, Args)
-            % Search global (singleton) map of DbConnection for the
-            % specified connection key
+            % Search global (singleton) map of DbConnection for the specified connection key
+            % Input   :
+            % Output  :
+            % Examlpe :
             %
             % Since persistent data is visible only inside this function,
             % we call the function with different option for find and to

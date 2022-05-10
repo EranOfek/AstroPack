@@ -626,12 +626,12 @@ classdef DbQuery < Component
 
         function Result = update(Obj, SetColumns, Args)
             % Update record
-            % Intput:  SetColumns   - Note that string values must be enclosed by single '
+            % Input   : SetColumns   - Note that string values must be enclosed by single '
             %                         for example: 'MyField=''MyValue'''
-            %          'TableName'  -
-            %          'Where'      -
-            % Output:  true on success
-            % Example: Obj.update('TableName', 'MyTable', 'MyField=1', 'Where', 'TheFlag = 1')
+            %           'TableName'  -
+            %           'Where'      -
+            % Output  : true on success
+            % Example : Obj.update('TableName', 'MyTable', 'MyField=1', 'Where', 'TheFlag = 1')
             
             arguments
                 Obj
@@ -701,12 +701,12 @@ classdef DbQuery < Component
             % Delete record by fields specified in Rec
             % Note that we cannot use 'delete' as function name because it
             % is a reserved keyword.
-            % Intput:  'TableName' - Table name to delete from
-            %          Args.Where  - The WHERE clause 
+            % Input   : 'TableName' - Table name to delete from
+            %           Args.Where  - The WHERE clause 
             %
-            % Output:  true on success
+            % Output  : true on success
             %
-            % Example: Obj.deleteRecord('TableName', 'MyTable', 'Where', 'TheFlag = 1')
+            % Example : Obj.deleteRecord('TableName', 'MyTable', 'Where', 'TheFlag = 1')
             %
             arguments
                 Obj
@@ -1335,9 +1335,9 @@ classdef DbQuery < Component
 
         function Result = setConnection(Obj, DbTableOrConn)
             % [Internal Use] Set connection
-            % Input:   DbTableOrConn -
-            % Output:  true on sucess
-            % Example: Obj.setConnection('unittest')
+            % Input   : DbTableOrConn -
+            % Output  : true on sucess
+            % Example : Obj.setConnection('unittest')
             
             % Connection argument may be either:
             %   - Empty string: use default connetion()
@@ -1370,9 +1370,9 @@ classdef DbQuery < Component
 
         function Result = openConn(Obj)
             % [Internal Use] Open connection, throw exception on failure
-            % Input:   -
-            % Output:  true on sucess
-            % Example: Obj.openConn()
+            % Input   :   -
+            % Output  :  true on sucess
+            % Example : Obj.openConn()
             
             Result = false;
             if isempty(Obj.Conn)
@@ -1390,9 +1390,9 @@ classdef DbQuery < Component
 
         function Result = close(Obj)
             % [Internal Use] Close current query
-            % Intput:  -
-            % Output:  true on sucess
-            % Example: -
+            % Intput  : -
+            % Output  : true on sucess
+            % Example : -
             
             Result = Obj.clear();
         end
@@ -1400,10 +1400,10 @@ classdef DbQuery < Component
 
         function [ServerFileName, ClientFileName] = getSharedFileName(Obj, FileName)
             % Prepare file names for server and client
-            % Input:  FileName -
-            % Output: ServerFileName -
-            %         ClientFileName -
-            % Exampe: -
+            % Input  : FileName -
+            % Output : ServerFileName -
+            %          ClientFileName -
+            % Exampe : -
 
             % Prepare path, use ServerShareFileName in the COPY statement
             % so the file name will be local on the server, we will be able
@@ -1419,9 +1419,9 @@ classdef DbQuery < Component
         
         function Result = clear(Obj)
             % Clear current statement and ResultSet
-            % Input:   -
-            % Output:  true on sucess
-            % Example: Obj.clear()
+            % Input   : -
+            % Output  : true on sucess
+            % Example : Obj.clear()
             
             Obj.clearResultSet();
             if ~isempty(Obj.JavaResultSet)
@@ -1442,9 +1442,9 @@ classdef DbQuery < Component
 
         function Result = clearResultSet(Obj)
             % Clear current ResultSet and related data
-            % Input:   -
-            % Output:  -
-            % Example: Obj.clearResultSet()
+            % Input   : -
+            % Output  : -
+            % Example : Obj.clearResultSet()
             
             Obj.JavaResultSet = [];
             Obj.JavaMetadata = [];
@@ -1457,10 +1457,10 @@ classdef DbQuery < Component
 
         function Result = getMetadata(Obj, Args)
             % Get metadata of the specified table or the current result-set
-            % Input:   -
-            %          'TableName' -
-            % Output:  true on success
-            % Example: -
+            % Input   : -
+            %           'TableName' -
+            % Output  : true on success
+            % Example : -
             
             arguments
                 Obj
@@ -1510,11 +1510,11 @@ classdef DbQuery < Component
 
 
         function [SqlColumns, SqlValues] = makeInsertColumnsText(Obj, ColumnNames, Args)
-            % Input:   FieldNames -
-            %          'TableColumnList'
-            % Output:  SqlFields  -
-            %          SqlValues  -
-            % Example: [SqlFields, SqlValues] = Obj.makeInsertColumnsText('fint,fdouble')
+            % Input   : FieldNames -
+            %           'TableColumnList'
+            % Output  : SqlFields  -
+            %           SqlValues  -
+            % Example : [SqlFields, SqlValues] = Obj.makeInsertColumnsText('fint,fdouble')
             
             arguments
                 Obj
@@ -1564,9 +1564,9 @@ classdef DbQuery < Component
 
         function SqlColumns = makeUpdateColumnsText(Obj, ColumnNames)
             % Prepare SQL text from cell array
-            % Input:   ColumnNames -
-            % Output:  char-array
-            % Example: -
+            % Input   : ColumnNames -
+            % Output  : char-array
+            % Example : -
             
             % "UPDATE master_table set RecID=?,FInt=? WHERE..."
             arguments
@@ -1759,6 +1759,8 @@ classdef DbQuery < Component
             if Obj.ColCount == 1
                 Result = Obj.getColumn('version');
             end
+            
+            % Check that the output is valid
             Valid = contains(Result, 'PostgreSQL');
             if ~Valid
                 Obj.msgLog(LogLevel.Warning, 'getDbVersion: Invalid result: %s', Result);
@@ -1767,9 +1769,10 @@ classdef DbQuery < Component
         
         
         function Result = writeBinaryFile(Obj, Rec, FileName)
-            % Write DbRecord object to binary file for COPY FROM opeation
-            % For internal use only.
             % @Todo - Still not complete!
+            % Write DbRecord object to binary file for COPY FROM opeation 
+            % For internal use only.
+            % 
             % Input   : Rec - DbRecord filled with struct array (Rec.Data)
             %           FileName - Output file name
             % Output  : true on sucess
@@ -1857,7 +1860,7 @@ classdef DbQuery < Component
     end
     
     
-    methods(Static) % Unit-Tests
+    methods(Static) % Static
 
         Result = unitTest()
             % Unit-Test

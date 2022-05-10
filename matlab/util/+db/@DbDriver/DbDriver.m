@@ -70,6 +70,9 @@ classdef DbDriver < Component
     methods % Constructor
         function Obj = DbDriver(Args)
             % Constructor, currently only 'postgres' is supported
+            % Input   :
+            % Output  :
+            % Example :
             arguments
                 Args.DatabaseType = 'postgres'
             end
@@ -97,8 +100,9 @@ classdef DbDriver < Component
         function Result = loadDriver(Obj)
             % Load database driver library
             % Calls copyDriverFile() to copy the library file to target folder
-            % Output: true if loaded successfully
-            
+            % Input   :
+            % Output  : true if loaded successfully
+            % Example :
             % See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
             Obj.msgLog(LogLevel.Info, 'loadDriver');
             
@@ -134,7 +138,9 @@ classdef DbDriver < Component
         
         function Result = unloadDriver(Obj)
             % Unload database driver
-            % Output: true if unloaded successfully
+            % Input   :
+            % Output  : true if unloaded successfully
+            % Example :
             Obj.msgLog(LogLevel.Info, 'unloadDriver');
             if Obj.IsLoaded
                 try
@@ -168,7 +174,9 @@ classdef DbDriver < Component
         
         function Result = getDbDriver(varargin)
             % Get singleton Map object that maps database type to DbDriver object
-            % Example: Driver = db.DbDriver.getDbDriver('postgres')
+            % Input   : Optional - database type as string, currently only 'postgres' is supported
+            % Output  : Instance of DbDriver object
+            % Example : Driver = db.DbDriver.getDbDriver('postgres')
             persistent Map
             if isempty(Map)
                 Map = ComponentMap('Name', 'DbDriver');

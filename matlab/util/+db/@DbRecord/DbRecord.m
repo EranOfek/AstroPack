@@ -52,13 +52,14 @@ classdef DbRecord < Base
     methods % Constructor
         function Obj = DbRecord(Data, Args)
             % Constructor
-            % Input:   Data          - struct array, table, cell array, matrix,
+            % Input   : Data          - struct array, table, cell array, matrix,
             %                          AstroTable, AstroCatalog, AstroHeader
             %                          If type is char, load data from CSV file, header
             %                          line with field names is required
-            %          Args.ColNames - char comma separated, or cell array
-            % Example: MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
-            %          MyRec = db.DbRecord('csvfile.csv');
+            %           Args.ColNames - char comma separated, or cell array
+            % Output  : New instance of DbRecord object
+            % Example : MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
+            %           MyRec = db.DbRecord('csvfile.csv');
             arguments
                 Data = [];
                 Args.ColNames = [];  % Required when Data is Cell or Matrix
@@ -130,9 +131,9 @@ classdef DbRecord < Base
         
         function Result = getFieldNames(Obj)
             % Get list of field names, properties ending with '_' are excluded
-            % Input:   -
-            % Output:  cell-array of field-names
-            % Example: FieldNames = Obj.getFieldNames()
+            % Input   : -
+            % Output  : cell-array of field-names
+            % Example : FieldNames = Obj.getFieldNames()
             Result = fieldnames(Obj.Data);
         end
         
@@ -140,9 +141,9 @@ classdef DbRecord < Base
         function merge(Obj, Stru)
             % Merge input struct array with current data
             % Usefull for example when we constructed from matrix and need key fields
-            % Input:   Stru - Struct array to merge into Obj.Data
-            % Output:  -
-            % Example: Obj.merge(MyStructArray)
+            % Input   : Stru - Struct array to merge into Obj.Data
+            % Output  : -
+            % Example : Obj.merge(MyStructArray)
             FieldList = fieldnames(Stru);
             StruRows = numel(Stru);
             for Row=1:numel(Obj.Data)
@@ -160,9 +161,9 @@ classdef DbRecord < Base
         
         function Result = newKey(Obj)
             % Generate unique id, as Uuid or SerialStr (more compact and fast)
-            % Input:   -
-            % Output:  New Uuid or SerialStr
-            % Example: Key = Obj.newKey()
+            % Input   : -
+            % Output  : New Uuid or SerialStr
+            % Example : Key = Obj.newKey()
             if Obj.UseUuid
                 Result = Component.newUuid();
             else
@@ -177,9 +178,9 @@ classdef DbRecord < Base
                                   
         function Result = convert2table(Obj)
             % Convert record(s) to table
-            % Input:   -
-            % Output:  Table
-            % Example: Tab = Obj.convert2table()
+            % Input   : -
+            % Output  : Table
+            % Example : Tab = Obj.convert2table()
             if ~isempty(Obj.Data)
                 Result = struct2table(Obj.Data);
                 Size = size(Result);
@@ -193,9 +194,9 @@ classdef DbRecord < Base
         function Result = convert2cell(Obj)
             % Convert record(s) to cell
             % Note that we need to transpose it
-            % Input:   -
-            % Output:  Cell-array
-            % Example: Cell = Obj.convert2cell()
+            % Input   : -
+            % Output  : Cell-array
+            % Example : Cell = Obj.convert2cell()
             if ~isempty(Obj.Data)
                 Result = squeeze(struct2cell(Obj.Data))';
                 Size = size(Result);
@@ -209,9 +210,9 @@ classdef DbRecord < Base
         function Result = convert2mat(Obj)
             % Convert record(s) to matrix, non-numeric fields are
             % Note that we need to transpose it
-            % Input:   -
-            % Output:  Matrix
-            % Example: Mat = Obj.convert2mat()
+            % Input   : -
+            % Output  : Matrix
+            % Example : Mat = Obj.convert2mat()
             if ~isempty(Obj.Data)
                 Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Size = size(Result);
@@ -224,9 +225,9 @@ classdef DbRecord < Base
         
         function Result = convert2AstroTable(Obj)
             % Convert record(s) to AstroTable
-            % Input:   -
-            % Output:  AstroTable object
-            % Example: AT = Obj.convert2AstroTable()
+            % Input   : -
+            % Output  : AstroTable object
+            % Example : AT = Obj.convert2AstroTable()
             if ~isempty(Obj.Data)
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroTable({Mat}, 'ColNames', Obj.ColNames);
@@ -240,9 +241,9 @@ classdef DbRecord < Base
         
         function Result = convert2AstroCatalog(Obj)
             % Convert record(s) to AstroCatalog
-            % Input:   -
-            % Output:  AstroCatalog object
-            % Example: AC = Obj.convert2AstroCatalog()
+            % Input   : -
+            % Output  : AstroCatalog object
+            % Example : AC = Obj.convert2AstroCatalog()
             if ~isempty(Obj.Data)
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
                 Result = AstroCatalog({Mat}, 'ColNames', Obj.ColNames);
@@ -256,9 +257,9 @@ classdef DbRecord < Base
         
         function Result = convert2AstroHeader(Obj)
             % Convert record(s) to AstroCatalog
-            % Input:   -
-            % Output:  AstroCatalog object
-            % Example: AC = Obj.convert2AstroCatalog()
+            % Input   : -
+            % Output  : AstroCatalog object
+            % Example : AC = Obj.convert2AstroCatalog()
             if ~isempty(Obj.Data)
                 for n=1:numel(Obj.Data)
                     Result(n) = AstroHeader();
@@ -275,10 +276,10 @@ classdef DbRecord < Base
         
         function Result = convert2(Obj, OutType)
             % Convert Obj.Data struct array to given OutType
-            % Input:   OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog',
+            % Input   : OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog',
             %           'astroheader'
-            % Output:  Table/Cell-array/Matrix/AstroTable/AstroCatalog
-            % Example: Mat = Obj.conevrt2('mat')
+            % Output  : Table/Cell-array/Matrix/AstroTable/AstroCatalog
+            % Example : Mat = Obj.conevrt2('mat')
             OutType = lower(OutType);
             if strcmp(OutType, 'table')
                 Result = Obj.convert2table();
@@ -301,9 +302,9 @@ classdef DbRecord < Base
         function Result = writeCsv(Obj, FileName)
             % Write Obj.Data struct array to CSV file
             % @Todo - Use MEX optimized version, (to be complted)
-            % Input:   FileName     - CSV output fle name
-            % Output:  true on sucess
-            % Example: Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)
+            % Input   : FileName - CSV output fle name
+            % Output  : true on sucess
+            % Example : Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)
             if ~isempty(Obj.Data)
                 Table = struct2table(Obj.Data);
             else
@@ -320,9 +321,9 @@ classdef DbRecord < Base
         function Result = readCsv(Obj, FileName)
             % Read from CSV file to Obj.Data struct-array
             % @Todo - Use MEX optimized version? (need to develop)
-            % Input:   - FileName - CSV input file name
-            % Output:  - true on success, data will be loaded to Obj.Data
-            % Example: - Rec.readCsv('/tmp/data1.csv')
+            % Input   : FileName - CSV input file name
+            % Output  : true on success, data will be loaded to Obj.Data
+            % Example : Rec.readCsv('/tmp/data1.csv')
             Table = readtable(FileName);
             Obj.Data = table2struct(Table);
             Result = true;
