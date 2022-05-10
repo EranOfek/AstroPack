@@ -1,5 +1,36 @@
+# Postgres Indexing
 
-### UUID
+Updated: 02/2022
+
+## IDENTITY COLUMN (Auto-Increment)
+
+After experiments and performance tests, we concluded to use integer 
+as IDENTITY, which is the faster and easiest way to generate primary key for 
+tables.
+
+The syntax to define such field
+
+    pk BIGINT GENERATED ALWAYS AS IDENTITY
+
+
+### Example
+
+    CREATE TABLE public.gcs_telemetry (
+    pk BIGINT GENERATED ALWAYS AS IDENTITY,
+    rcv_time DOUBLE PRECISION DEFAULT 0,
+    param_name VARCHAR,
+    param_index INTEGER DEFAULT 0,
+    );
+
+    CREATE INDEX gcs_telemetry_idx_rcv_time ON public.gcs_telemetry
+      USING btree (rcv_time);
+
+    CREATE INDEX gcs_telemetry_idx_param_name ON public.gcs_telemetry
+      USING btree (param_name);
+
+
+
+### UUID (128-bit / String)
 
 https://www.postgresql.org/docs/current/datatype-uuid.html
 
@@ -19,7 +50,7 @@ followed by three groups of 4 digits followed by a group of 12 digits,
 for a total of 32 digits representing the 128 bits. An example of a UUID 
 in this standard form is:
 
-a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+    a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 
 
 https://www.javatpoint.com/postgresql-uuid
@@ -33,7 +64,6 @@ https://www.postgresql.org/docs/current/uuid-ossp.html
 
 https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)
 
-Version 4 (random)
 A version 4 UUID is randomly generated. As in other UUIDs, 4 bits are used to 
 indicate version 4, and 2 or 3 bits to indicate the variant 
 (102 or 1102 for variants 1 and 2 respectively). Thus, for variant 1 
@@ -64,9 +94,7 @@ These functions are supported, for v1 and v4:
 	SELECT uuid_generate_v4();
 
 
-
-
-### Creating a table with UUID column
+### Creating a table with UUID column (example)
 
 We will create a table whose primary key is UUID data type. 
 In addition, the values of the primary key column will be generated 
@@ -107,7 +135,7 @@ https://stackoverflow.com/questions/12505158/generating-a-uuid-in-postgres-for-i
 	INSERT INTO items VALUES( gen_random_uuid(), 54.321, 31, 'desc 1', 31.94 ) ;
 	
 	
-### Postgres - Manually insert Uuid
+### Postgres - Manually insert UUID
 
 https://stackoverflow.com/questions/64914884/syntax-to-manually-insert-a-uuid-value-in-postgres
 
@@ -149,7 +177,8 @@ But it's probably a good practice to be explicit about it and perform the cast y
 		47
 	);	
 	
-### UUID - MATLAB
+
+### UUID - MATLAB - Implemented in AstroPack Component class
 
 	function Result = newUuid()
 		% Generate Uuid using java package, such as '3ac140ba-19b5-4945-9d75-ff9e45d00e91'
@@ -177,7 +206,7 @@ But it's probably a good practice to be explicit about it and perform the cast y
 		'java.util.UUID'
 	
 	
-### UUID - MATLAB - 
+### UUID - MATLAB - Using Java
 	
 	https://www.mathworks.com/matlabcentral/answers/391490-how-can-i-represent-a-hexadecimal-string-in-a-128-bit-format-in-matlab
 
@@ -205,7 +234,6 @@ But it's probably a good practice to be explicit about it and perform the cast y
 ### UUID - Python
 
 https://docs.python.org/3/library/uuid.htm
-
 
 
 	uuid.uuid1(node=None, clock_seq=None)
@@ -240,7 +268,8 @@ https://docs.python.org/3/library/uuid.htm
 	Out[7]: UUID('8523447d-9e1e-11ec-b5d5-005056c00008')
 
 
----------------------------------------------------------------------------
+## Data Types
+
 
 ### Numeric Types
 
@@ -266,7 +295,7 @@ where x and y are the respective coordinates, as floating-point numbers.
 Points are output using the first syntax.
 
 
-### Create table with point data type :
+### Create table with point data type
 
 http://www.java2s.com/Code/PostgreSQL/Data-Type/Createtablewithpointdatatype.htm
 
@@ -315,7 +344,7 @@ https://tapoueh.org/blog/2018/05/postgresql-data-types-point/
 
 https://habr.com/en/company/postgrespro/blog/446624/
 
-SP-GiST
+#### SP-GiST
 
 First, a few words about this name. 
 The «GiST» part alludes to some similarity with the same-name access method. 
@@ -330,7 +359,7 @@ SP-GiST is suitable for structures where the space can be recursively
 split into non-intersecting areas. This class comprises quadtrees, k-dimensional 
 trees (k-D trees), and radix trees.
 
-Structure
+#### Structure
 
 So, the idea of SP-GiST access method is to split the value domain into 
 non-overlapping subdomains each of which, in turn, can also be split. 
@@ -346,7 +375,7 @@ Partitioning like this induces non-balanced trees (unlike B-trees and regular Gi
 	postgres=# create index points_quad_idx on points using spgist(p);
 
 
-### BRIN
+### BRIN Index Type
 
 https://www.cybertec-postgresql.com/en/brin-indexes-correlation-correlation-correlation/?gclid=Cj0KCQiAmpyRBhC-ARIsABs2EAoQdxayenamUtgXj7IC8ODxGw794_1mnAK_03SofsXOZfnpz2vVZasaAjS2EALw_wcB
 

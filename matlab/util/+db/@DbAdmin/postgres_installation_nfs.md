@@ -1,10 +1,11 @@
-## NFS Setup - @TODO
+## Ubuntu NFS Setup - @TODO
 
 NOTE: This section is not completed yet, still need some experiments and testing.
 	
+Currently we use SAMBA which might be little bit slower? (according to some web sites).
 
 
-NFS vs SAMBA
+### NFS vs SAMBA
 
     NFS offers better performance and is unbeatable if the files are medium-sized or small.
     For larger files, the timings of both methods are almost the same.
@@ -12,12 +13,9 @@ NFS vs SAMBA
     the same when using plain text.
 
 
+## NFS Installation
 
 https://www.tecmint.com/install-nfs-server-on-ubuntu/
-
-
-
-
 
 https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-18-04
 
@@ -37,7 +35,6 @@ On the Host
     /var/nfs/pgshare *(rw,sync,no_subtree_check)
 
     sudo systemctl restart nfs-kernel-server
-
 
 
 Creating Mount Points and Mounting Directories on the Client
@@ -64,7 +61,7 @@ On server:
 
 
 
-On client:
+### On Client
 
 
 1. Create a directory to serve as the mount point for the remote filesystem:

@@ -1,5 +1,11 @@
+# Top 10 Databases to Use in 2021
 
-### Top 10 Databases to Use in 2021
+This research is related to storing our Sources table which is expected to
+be 10^11 rows (50 double columns).
+
+As we faced performance issues related to indexing, here are some
+alternatives to Postgres for such big table with indexing.
+
 
 https://towardsdatascience.com/top-10-databases-to-use-in-2021-d7e6a85402ba
 
@@ -25,8 +31,7 @@ questions based on my experience:
     I store the majority of data list-wise (DATE,TIME,DATAPOINT_ID,VALUE) but that is not how people will want to interpret the data. Be prepared for some horrendous queries against the data and vast amounts of pivoting. Don't be afraid to create a de-normalized table for result sets that are just too large to compute on the fly.
 
 
-
-### Binary files
+### Binary Files
 
 Check solution for large tables (10^12) - use binary data file + on-disk b-tree indexing
 

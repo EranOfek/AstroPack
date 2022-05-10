@@ -1,4 +1,4 @@
-# PostgreSQL V14 - Installation Instructions
+# PostgreSQL v14 - Installation Instructions for Ubuntu 22.04
 
 STILL UNDER TESTING - CURRENTLY INSTALL Posgres only with Ubuntu 18.04
 

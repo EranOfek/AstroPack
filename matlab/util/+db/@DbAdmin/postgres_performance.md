@@ -1,19 +1,21 @@
+# Postgres v14 Performance Testing
+
+This file contains information related to performance optimizations.
+
+Updated: 02/2022
 
 
 ### Insert Performance
-
 
 https://stackoverflow.com/questions/12206600/how-to-speed-up-insertion-performance-in-postgresql
 
 
 ### Disable indexing
 
-
 https://fle.github.io/temporarily-disable-all-indexes-of-a-postgresql-table.html
 
 
 Disable all table indexes
-
 
 	UPDATE pg_index
 	SET indisready=false
@@ -22,6 +24,7 @@ Disable all table indexes
 		FROM pg_class
 		WHERE relname='<TABLE_NAME>'
 	);
+
 
 Reenable all table indexes
 
@@ -45,23 +48,24 @@ Reindex table
 https://dba.stackexchange.com/questions/190436/postgresql-how-to-disable-all-indexes-of-a-table
 
 
-### Tools
+### Optimizations and Tunning Tools
 
 https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server
 
 https://www.enterprisedb.com/postgres-tutorials/how-tune-postgresql-memory
 
 
----------------------------------------------------------------------------
-
 ### Configuration
+
+Edit Postgres configuration file
 
 	sudo nano /etc/postgresql/14/main/postgresql.conf
 
 
-### Parameters
+### Tunning Performance - Improtant Parameters
 
 https://www.enterprisedb.com/postgres-tutorials/how-tune-postgresql-memory
+
 
 #### shared_buffers (integer)
 
@@ -99,7 +103,7 @@ less disk-swapping, and therefore far quicker queries.
 We can use the formula below to calculate the optimal work_mem 
 value for the database server:
 
-Total RAM * 0.25 / max_connections
+    Total RAM * 0.25 / max_connections
 
  
 
@@ -107,11 +111,11 @@ The max_connections parameter is one of the GUC parameters to
 specify the maximum number of concurrent connections to the database server. 
 By default it is set to 100 connections. 
 
-We can also directly assign work_mem to a role: 
+We can also directly assign work_mem to a role from psql: 
 
-postgres=# alter user test set work_mem='4GB';
+    alter user test set work_mem='4GB';
 
-ALTER ROLE
+    ALTER ROLE
 
  
 #### maintenance_work_mem (integer)
@@ -124,13 +128,12 @@ The default value for this parameter, which is set in postgresql.conf, is:
 
 	#maintenance_work_mem = 64MB
 
- 
 
 It’s recommended to set this value higher than work_mem; 
 this can improve performance for vacuuming. 
 In general it should be: 
 
-Total RAM * 0.05
+    Total RAM * 0.05
 
  
 #### effective_cache_size (integer)
@@ -156,9 +159,10 @@ https://www.postgresql.org/docs/12/runtime-config-resource.html
 https://severalnines.com/database-blog/architecture-and-tuning-memory-postgresql-databases
 
 
-### Reload configuration
+### Reload Configuration
 
 https://www.heatware.net/databases/postgresql-reload-config-without-restarting/
+
 
 Option 1: From the command-line shell
 
@@ -166,7 +170,7 @@ Option 1: From the command-line shell
 	/usr/bin/pg_ctl reload
 
 
-Option 2: Using SQL
+Option 2: Using SQL statement
 
 	SELECT pg_reload_conf();
 	
@@ -182,7 +186,7 @@ Restart and enable PostgreSQL for the changes to take effect
     sudo systemctl enable postgresql
 
 	
-### Select count(*)
+### Fast Alternative to SELECT COUNT(*)
 
 https://wiki.postgresql.org/wiki/Count_estimate
 
@@ -190,32 +194,28 @@ If you don't need an exact count, the current statistic from the catalog
 table pg_class might be good enough and is much faster to retrieve for 
 big tables.
 
-SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_f_radec0';
+    SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_f_radec0';
 
 
-### Partitioning
+## Partitioning
 
 https://www.postgresql.org/docs/current/ddl-partitioning.html
 
-
 https://hevodata.com/learn/postgresql-partitions/
 
-### Partitioning - Example 1
+#### Partitioning - Example 1
 
 https://hevodata.com/learn/postgresql-partitions/
-
 
 
 	CREATE TABLE sales (id int, p_name text, amount int, sale_date date)
 	PARTITION BY RANGE (sale_date);
 
-
 	CREATE TABLE sales_2019_Q4 PARTITION OF sales FOR VALUES FROM ('2019-10-01') TO ('2020-01-01');
 
 
-### Sub-Partitioning
+#### Sub-Partitioning
 
 https://blog.dbi-services.com/postgresql-partitioning-8-sub-partitioning/
-
 
 

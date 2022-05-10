@@ -1,5 +1,11 @@
 # PostgreSQL V14 - Installation Instructions
 
+NOTE: This is was splitted into thress: Windows, Ubuntu 18, Ubuntu 22.
+
+Keep it until these files are fully updated and tests.
+
+-----------------------------------------------------------------------------
+
 This documents contains installation instructions of PostgreSQL
 database engine in Windows and Linux, along with utilities such as
 JetBrains DataGrip.
@@ -529,6 +535,4 @@ Add
 
 
 https://linuxize.com/post/how-to-mount-and-unmount-file-systems-in-linux/
-
-
 
