@@ -41,6 +41,30 @@ function Report = analyzeMfile(FileName, Args)
     Report.StartPosFunctions = find(~cellfun(@isempty, Matched));
     Report.NumFunctions      = sum(~cellfun(@isempty, Matched));
     
+    if isempty(SpStr)
+        % empty file?
+        Report.MainFunName = '';
+    else
+        if Report.IsClass
+            % look for classdef name
+            MatchedName  = regexp(SpStr, '^\s*classdef\s*(?<FunName>\w+)', 'names');
+            MatchedName  = MatchedName(~cellfun(@isempty, MatchedName));
+            if isempty(MatchedName)
+                Report.MainFunName = '';
+            else
+                Report.MainFunName = MatchedName{1}.FunName;
+            end
+        else
+            % look for fun name in the first line (including get/set)
+            MatchedName  = regexp(SpStr{1}, '^\s*function\s*\[?.*\]?\s*=\s*(?<FunName>\w+\.?\w*)', 'names');
+            if isempty(MatchedName)
+                Report.MainFunName = '';
+            else
+                Report.MainFunName = MatchedName.FunName;
+            end
+        end
+    end
+    
     % count number of lines
     if Args.CountLines
         Report.Lines.Total    = numel(SpStr);

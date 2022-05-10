@@ -1,4 +1,5 @@
 % celestial.OrbitalEl - A class for storing and manipulating orbital elements, and two body motion calculations.
+% Author : Eran Ofek (Jan 2022)
 %
 % #functions (autogen)
 % OrbitalEl - Constractor for OrbitalEl class
@@ -1342,6 +1343,7 @@ classdef OrbitalEl < Base
             % Generate random orbital elements
             % Input  : - Number of random elements to generate.
             %          * ...,key,val,...
+            %            'A' - Semi major axis. Default is 1.
             %            'RangeE' - Eccntricity range.
             %                   Default is [0, 0.9].
             %            'Epoch' - Epoch of observations.

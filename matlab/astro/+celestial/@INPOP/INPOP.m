@@ -60,7 +60,12 @@ classdef INPOP < Base
     
     methods % constructor
         function Obj = INPOP(Args)
-            %
+            % INPOP class constructor - Create an empty celestial.INPOP object
+            % Input  : * ...,key,val,...
+            %            'PopOrder' - Populate Chebyshev polynomials of the
+            %                   following orders. Default is [6:1:15].
+            % Output : - A celestial.INPOP object
+            % Author : Eran Ofek (May 2022) 
             
             arguments
                 Args.PopOrder = [6:1:15];

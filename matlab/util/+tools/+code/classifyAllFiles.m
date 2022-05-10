@@ -71,6 +71,7 @@ function AllFiles = classifyAllFiles(Args)
     [AllFiles(1:1:Nf).Extension]           = deal('');
     [AllFiles(1:1:Nf).IsClass]             = deal(false);
     [AllFiles(1:1:Nf).StartPosFunctions]   = deal('');
+    [AllFiles(1:1:Nf).MainFunName]         = deal('');
     [AllFiles(1:1:Nf).NumFunctions]        = deal('');
     [AllFiles(1:1:Nf).Lines]               = deal('');
     [AllFiles(1:1:Nf).DescriptionLine]     = deal('');
