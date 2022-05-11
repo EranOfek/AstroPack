@@ -125,11 +125,10 @@ classdef DbAdmin < Component
     methods % Database creating & modification
         
         function Result = createDatabase(Obj, Args)
-            % Create database
-            % Input : 'XlsxFileName'  - When specified,
-            %         'DatabaseName'  -
-            %         'Script'        - 
-            %         'SqlFileName'   -
+            % Create database, from .XLSX or .SQL file
+            %
+            % Input : 'XlsxFileName'  - .xlsx file from Google Sheets - Specify XLSX file
+            %         'SqlFileName'   - .sql file name - Specify SQL script to run
             %
             % Output  :  true on success
             % Example : -
@@ -141,10 +140,7 @@ classdef DbAdmin < Component
             arguments
                 Obj
                 Args.XlsxFileName   = ''        %
-                Args.DatabaseName   = ''        %
-                Args.Script         = ''        % Script text
-                Args.SqlFileName    = ''        %
-                
+                Args.SqlFileName    = ''        %                
             end
             
             Result = false;
@@ -169,9 +165,7 @@ classdef DbAdmin < Component
                     end
                 else
                     Obj.msgLog(LogLevel.Error, 'createDatabase: Input XLSX file not found: %s', Args.XlsxFileName);
-                end
-            else
-                
+                end               
             end
 
         end

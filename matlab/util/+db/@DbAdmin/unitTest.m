@@ -70,8 +70,9 @@ function Result = unitTest()
     assert(Admin.isDatabaseExist('unittest'));
     
     % Create DB from xlsx file (Google Sheets)
-    Admin.createDatabase('XlsxFileName', fullfile(MyPath, 'unittest2.xlsx'));
-    assert(Admin.isDatabaseExist('unittest2'));
+    exist = Admin.isDatabaseExist('unittest3');
+    Admin.createDatabase('XlsxFileName', fullfile(MyPath, 'unittest3.xlsx'));
+    assert(Admin.isDatabaseExist('unittest3'));
     
     % Create DB with args - no support yet    
     % @Todo    
