@@ -69,11 +69,12 @@ function Result = unitTest()
     Admin.createDatabase('SqlFileName', fullfile(MyPath, 'unitTest_createDatabase.sql'));
     assert(Admin.isDatabaseExist('unittest'));
     
-    % Create DB from xls
-    %Admin.createDatabase('XlsFileName', 'unitTest_createDatabase.xlsx');
+    % Create DB from xlsx file (Google Sheets)
+    Admin.createDatabase('XlsxFileName', fullfile(MyPath, 'unittest2.xlsx'));
+    assert(Admin.isDatabaseExist('unittest2'));
     
     % Create DB with args - no support yet    
-    
+    % @Todo    
     
     % Create table with specified SQL text
     SqlText = [...

@@ -32,7 +32,7 @@
 % Methods: Hidden
 %    exec - Execute SQL statement, by calling Obj.Query.exec() Input: SqlText - Statement text Output: true on success Example: Obj.exec('DROP USER IF EXISTS user1')
 %    runPsql - Run 'psql' external utility with command line parameters. Input: XlsFileName Output: Example: db.DbAdmin.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
-%    xls2sql - Convert XLSX file downloaded from Google Drive to SQL file Note: Requires ULTRASAT repository and ULTRASAT_PATH environment var to be set correctly. Note: python3 (python3.exe on Windows) should be on system PATH Input: XlsFileName
+%    xlsx2sql - Convert XLSX file downloaded from Google Drive to SQL file Note: Requires ULTRASAT repository and ULTRASAT_PATH environment var to be set correctly. Note: python3 (python3.exe on Windows) should be on system PATH Input: XlsFileName
 %
 %#/docgen
 
@@ -126,11 +126,10 @@ classdef DbAdmin < Component
         
         function Result = createDatabase(Obj, Args)
             % Create database
-            % Input :
-            %    'XlsFileName' - When specified,
-            %
-            % 'DatabaseName'  -
-            %          'SqlFileName'   -
+            % Input : 'XlsxFileName'  - When specified,
+            %         'DatabaseName'  -
+            %         'Script'        - 
+            %         'SqlFileName'   -
             %
             % Output  :  true on success
             % Example : -
@@ -141,7 +140,7 @@ classdef DbAdmin < Component
             
             arguments
                 Obj
-                Args.XlsFileName    = ''        %
+                Args.XlsxFileName   = ''        %
                 Args.DatabaseName   = ''        %
                 Args.Script         = ''        % Script text
                 Args.SqlFileName    = ''        %
@@ -161,15 +160,15 @@ classdef DbAdmin < Component
                 
             % Extract database definition from XLS file and execute the
             % resulting SQL file using psql
-            elseif ~isempty(Args.XlsFileName)
-                if isfile(Args.XlsFileName)
-                    SqlFileName = Obj.xls2sql(Args.XlsFileName);
+            elseif ~isempty(Args.XlsxFileName)
+                if isfile(Args.XlsxFileName)
+                    SqlFileName = Obj.xlsx2sql(Args.XlsxFileName);
                     if ~isempty(SqlFileName) && isfile(SqlFileName)
                         Obj.runPsql('SqlFileName', SqlFileName);
                         Result = true;
                     end
                 else
-                    Obj.msgLog(LogLevel.Error, 'createDatabase: Input XLSX file not found: %s', ArgsXlsFileName);
+                    Obj.msgLog(LogLevel.Error, 'createDatabase: Input XLSX file not found: %s', Args.XlsxFileName);
                 end
             else
                 
@@ -241,8 +240,11 @@ classdef DbAdmin < Component
         
         function Result = createTable(Obj, Args)
             % Create database table, @Todo
-            % Input   :
-            % Output  :
+            % Input   : 'SqlText'       - 
+            %           'SqlFileName'   -
+            %           'TableName'     -
+            %           'PrimaryKeyDef' - 
+            % Output  : true on success
             % Example : db.DbAdmin.createTable('unittest', )
             % Refs    : https://www.postgresql.org/docs/8.0/sql-createuser.html
             % SQL     : [DROP TABLE IF EXISTS customers CASCADE;]
@@ -284,12 +286,13 @@ classdef DbAdmin < Component
         
         function Result = addColumn(Obj, TableName, ColumnName, DataType, ColumnDef)
             % Add single or multiple columns to table
-            % Input   : TableName  -
-            %           ColumnName -
-            %           DataType   -
-            %           ColumnDef  -
+            % Input   : TableName  - Table name
+            %           ColumnName - Column name
+            %           DataType   - Data field type, INTEGER, etc. see
+            %                        https://www.postgresql.org/docs/current/datatype.html
+            %           ColumnDef  - Additional text for column definition, i.e. DEFAULT ...
             %
-            % Output  :
+            % Output  : true on success
             % Example : Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0')
             % Refs    : https://www.postgresqltutorial.com/postgresql-add-column/
             % SQL     : ALTER TABLE table_name
@@ -305,12 +308,14 @@ classdef DbAdmin < Component
                 ColumnDef               %
             end
 
-            % Validate input
+            % Validate input, size of arrays must match
             assert(numel(ColumnName) == numel(DataType));
             assert(numel(ColumnName) == numel(ColumnDef));
             
+            % Prepare statement text
             SqlText = sprintf('ALTER TABLE %s ', TableName);
 
+            % Add definitions of all specified columns
             for i=1:numel(ColumnName)
                 SqlText = sprintf('%s ADD COLUMN %s %s %s', SqlText, ColumnName{i}, DataType{i}, ColumnDef{i});
                 if i == numel(ColumnName)
@@ -329,7 +334,7 @@ classdef DbAdmin < Component
             % Add single index to table, may include one or multiple fields
             % Input   : TableName - Table name to be altered
             %           IndexName - Unique index name, usually composed as
-            %                      TableName_idx_FieldNames, for example 'master_table_idx_FDouble2'
+            %                       TableName_idx_FieldNames, for example 'master_table_idx_FDouble2'
             %           IndexDef  - Index definition text with list of fields, for example: 'USING btree (FDouble2)'
             %
             % Output  : true on sucess
@@ -476,7 +481,8 @@ classdef DbAdmin < Component
         
         function Result = removeUser(Obj, UserName)
             % Remove specified user from database users list
-            % Note that this function may fail if there are dependecies between
+            %
+            % NOTE: This function may fail if there are dependecies between
             % the user and other objects such as tables. Use pgAdmin to remove users
             % and dependecies.
             %
@@ -551,34 +557,52 @@ classdef DbAdmin < Component
         end
         
         
-        function Result = xls2sql(Obj, XlsFileName)
+        function Result = xlsx2sql(Obj, XlsxFileName)
             % Convert XLSX file downloaded from Google Drive to SQL file, using xlsx2sql.py
             % Note: Requires ULTRASAT repository and ULTRASAT_PATH environment
             %       var to be set correctly.
             % Note: python3 (python3.exe on Windows) should be on system PATH
             % Input:   XlsFileName
             % Output:  true on success
-            % Example: db.DbQuery.xls2sql('c:\temp\_xls\unittest.xlsx')
+            % Example: db.DbQuery.xlsx2sql('c:\temp\_xls\unittest.xlsx')
             arguments
-                Obj
-                XlsFileName
+                Obj             % 
+                XlsxFileName    %
             end
             
             Result = '';
-            SqlFileName = '';
-            if ~isfile(XlsFileName)
+            if ~isfile(XlsxFileName)
                 return;
             end
                 
             PWD = pwd;
             try
+               
+                % Search xlsx2sql.py in Ultrasat folder
+                Path = tools.os.getUltrasatPath();
+                flist = [];
+                if ~isempty(Path) && isfolder(Path)
+                    flist = dir(fullfile(Path, '**\xlsx2sql.py'));
+                    if numel(flist) == 0
+                        Path = tools.os.getAstroPackPath();
+                        if ~isempty(Path) && isfolder(Path)
+                            flist = dir(fullfile(Path, '**\xlsx2sql.py'));                        
+                        end
+                    end
+                end
+                if numel(flist) > 0
+                    PyScript = fullfile(flist(1).folder, flist(1).name);
+                else
+                    io.msgLog(LogLevel.Error, 'xlsx2sql.py: xlsx2sql.py not found in source code folders');
+                    return;
+                end
+                    
                 
-                [Path, FName] = fileparts(XlsFileName);
+                % Prepare path to Python script
+                [Path, FName] = fileparts(XlsxFileName);
                 cd(Path);
-                PyScript = fullfile('python', 'utils', 'matlab_utils', 'xlsx2sql.py');
-                Py = fullfile(tools.os.getUltrasatPath(), PyScript);
-                if ~isfile(Py)
-                    io.msgLog(LogLevel.Info, 'xlsx2sql.py: File not found: %s', Py);
+                if ~isfile(PyScript)
+                    io.msgLog(LogLevel.Info, 'xlsx2sql.py: File not found: %s', 'xlsx2sql.py');
                     return;
                 end
                 
@@ -587,17 +611,15 @@ classdef DbAdmin < Component
                 % SYSTEM PATH (not USER PATH).
                 % See: https://stackoverflow.com/questions/47539201/python-is-not-recognized-windows-10
                 % For example: Add both C:\Python38 and C:\Python38\Scripts
-                Cmd = sprintf('python3 %s -x %s', Py, XlsFileName);
-                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: %s', Cmd);
+                Args = sprintf('-x %s', XlsxFileName);
+                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: %s', Args);
                 
                 % Execute python3 xlsx2sql.py, this may take a while...
-                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: Executing %s', Cmd);
+                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: Executing %s', PyScript);
                 
-                [Status, Output] = system(Cmd);
-                io.msgLog(LogLevel.Info, 'Status: %d', Status);
-                io.msgLog(LogLevel.Info, '%s', Output);
+                [Status, Output] = tools.os.runPython(PyScript, 'ArgsStr', Args);
                 if Status ~= 0
-                    Obj.msgLog(LogLevel.Error, 'xlsx2sql.py: FAILED to execute, make sure that python3 is found on your PATH: %s', Cmd);
+                    Obj.msgLog(LogLevel.Error, 'xlsx2sql.py: FAILED to execute, make sure that python3 is found on your PATH: %s', PyScript);
                 end
                 
                 % Prepare file name of generated SQL

@@ -5,5 +5,9 @@ function Result = getAstroPackPath
     
     ThisFunPath = mfilename('fullpath');
     
-    Result = strrep(ThisFunPath, '/matlab/util/+tools/+os/getAstroPackPath','');
+    if isunix || ismac
+        Result = strrep(ThisFunPath, '/matlab/util/+tools/+os/getAstroPackPath', '');
+    else    
+        Result = strrep(ThisFunPath, '\matlab\util\+tools\+os\getAstroPackPath', '');
+    end
 end

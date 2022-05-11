@@ -70,9 +70,9 @@ classdef DbDriver < Component
     methods % Constructor
         function Obj = DbDriver(Args)
             % Constructor, currently only 'postgres' is supported
-            % Input   :
-            % Output  :
-            % Example :
+            % Input   : 'DatabaseType' - currently only 'postgres' is supported
+            % Output  : New instance to DbDriver
+            % Example : drv = DbDriver()
             arguments
                 Args.DatabaseType = 'postgres'
             end
@@ -100,10 +100,10 @@ classdef DbDriver < Component
         function Result = loadDriver(Obj)
             % Load database driver library
             % Calls copyDriverFile() to copy the library file to target folder
-            % Input   :
+            % Input   : -
             % Output  : true if loaded successfully
-            % Example :
-            % See https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
+            % Example : drv.loadDriver()
+            % Ref     : https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
             Obj.msgLog(LogLevel.Info, 'loadDriver');
             
             % Already open?
@@ -138,9 +138,9 @@ classdef DbDriver < Component
         
         function Result = unloadDriver(Obj)
             % Unload database driver
-            % Input   :
+            % Input   : -
             % Output  : true if unloaded successfully
-            % Example :
+            % Example : drv.unloadDriver()
             Obj.msgLog(LogLevel.Info, 'unloadDriver');
             if Obj.IsLoaded
                 try

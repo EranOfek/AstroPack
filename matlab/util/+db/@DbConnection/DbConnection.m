@@ -9,8 +9,9 @@
 %
 % This class is intenally used by DbQuery.
 % Use the static function getDbConnection() to get or create DbConnection
-% object, settings will be loaded from configuration. See detailed
-% documentation in DbQuery documentation.
+% object, settings will be loaded from YAML configuration file, in 
+% config/ or config/local/ folder.
+% See more details in DbQuery documentation.
 %
 % Example:
 %   DbConn = db.DbConnection.getDbConnection('unittest');
@@ -20,6 +21,7 @@
 %--------------------------------------------------------------------------
 % Todo: 
 %
+% 1. Need to implement reconnection support in case of server disconnect.
 %
 
 %#docgen
@@ -34,7 +36,6 @@
 %
 % Methods: Static
 %    findFieldIC - Search struct field name, ignore case Intput:  - Output:  - Example: -
-%    getConnectionKey - Create connection key f - @TBD Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
 %    getDbConnection - Search global (singleton) map of DbConnection for the specified connection key Since persistent data is visible only inside this function, we call the function with different option for find and to
 %
 %#/docgen
@@ -55,10 +56,10 @@ classdef DbConnection < Component
         UserName        = '' %postgres'    % Login user
         Password        = '' %pass'        % Login password
         Host            = '' %localhost'   % Host name or IP address
-        Port            = 0  %v13=5432, v14=5433    % Port number, 5432 is PostgresV13 default
-        DriverUrl       = ''               % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
+        Port            = 0  %5432         % Port number, 5432 is Postgres default
+        DriverUrl       = '' %             % Connection URL: 'jdbc:postgresql://localhost:5432/pipeline'
         ServerSharePath = '' %             % Path to shared folder on the server, for COPY statements
-        MountSharePath  = ''
+        MountSharePath  = '' %             % Path to shared folder from client
         
         % Internal data and flags
         IsOpen = false                  % True if connection is open
@@ -84,7 +85,7 @@ classdef DbConnection < Component
             %       'UserName'        - Database user name
             %       'Password'        - Database user password
             %       'Port             - Port number, default is 5432
-            %       'DriverUrl'       - Composed connection string
+            %       'DriverUrl'       - Connection string
             %       'ServerSharePath' - Path to shared server folder (use NFS)
             %
             % Example:
@@ -99,11 +100,11 @@ classdef DbConnection < Component
                 % Allow user to set value explicitly, when not empty they
                 % override the values loaded from configuration
                 Args.DriverName         = 'postgres' %
-                Args.Host               %
-                Args.DatabaseName       %
-                Args.UserName           %
-                Args.Password           %
-                Args.Port               %
+                Args.Host               % Network host name or IP address
+                Args.DatabaseName       % Database name, i.e. 'unittest'
+                Args.UserName           % Database user name
+                Args.Password           % Database user password
+                Args.Port               % Port number, default is 5432
                 Args.DriverUrl          %
                 Args.ServerSharePath    %
             end
@@ -121,12 +122,6 @@ classdef DbConnection < Component
 
             Obj.setName('DbConnection');
             Obj.needUuid();
-            
-            % Set default values from config
-            %if ~isempty(Obj.Config.Data.Database)
-            %    Conf = Obj.Config.Data.Database.DbConnection.Default;
-            %    Obj.setProps(Conf);
-            %end
 
             % Alias specified, set values from config
             if ~isempty(Args.Db) && Args.UseConfig
@@ -146,7 +141,7 @@ classdef DbConnection < Component
                     Obj.msgLog(LogLevel.Warning, 'Db alias not found in config, make sure this is on purpose: %s', Obj.Db);
                 end
                 
-            % Alias not speified, use explict values
+            % Alias not specified, use explict values
             else
                 Obj.setProps(Args);
             end
@@ -232,7 +227,7 @@ classdef DbConnection < Component
                 
         
         function Result = close(Obj)
-            % Disconnect from database, % @Todo
+            % Disconnect from database
             % Input   : -
             % Output  : true on success
             % Example : Obj.close()
@@ -278,31 +273,23 @@ classdef DbConnection < Component
     
     %----------------------------------------------------------------------
     methods(Static) % getDbConnection
-        
-        function Result = getConnectionKey()
-            % Create connection key f - @TBD
-            % Input   :
-            % Output  :
-            % Examlpe :            
-            %Key = ['jdbc:postgresql://', Obj.Host, ':', string(Obj.Port).char, '/', Obj.DatabaseName];
-            Result = '';
-        end
-        
-        
+               
         function Result = getDbConnection(Alias, Args)
             % Search global (singleton) map of DbConnection for the specified connection key
-            % Input   :
-            % Output  :
-            % Examlpe :
-            %
-            % Since persistent data is visible only inside this function,
-            % we call the function with different option for find and to
-            % register
+            % Input   : Alias - Database alias (i.e. name of configuration file, like 'unittest')
+            %           'create'   - true to create new DbConnection object
+            %           'register' - true to register the object specified in 'DbConn' argument  
+            %           'DbConn'   -
+            % Output  : DbConection object handle
+            % Examlpe : Conn = DbConnection.getDbConnection('unittest')
+            % Note    : Since persistent data is visible only inside this function,
+            %           we call the function with different option for find and to
+            %           register
             arguments
                 Alias                       %
-                Args.Create     = true      %
-                Args.Register   = false     %
-                Args.DbConn     = []        %
+                Args.Create     = true      % True to create new object
+                Args.Register   = false     % True to register the specified object in DbConn
+                Args.DbConn     = []        % With Args.Register
             end
 
             if isempty(Alias) && isempty(Args.DbConn)
@@ -341,16 +328,19 @@ classdef DbConnection < Component
     
 
     methods(Static)
-        function Result = findFieldIC(Struct, Field)
-            % Search struct field name, ignore case
-            % Intput:  -
-            % Output:  -
-            % Example: -
+        function Result = findFieldIC(Struct, FieldName)
+            % Search struct field name, ignore case.
+            % Used to search configuration files that may not have the exact
+            % case as the specified alias (i.e. 'UnitTest' and 'unittest')
+            % Input:   - Struct - data of type 'struct'
+            %            FieldName - field name to look for
+            % Output:  - Actual field name that exists in class
+            % Example: - Alias = db.DbConnection.findFieldIC(Obj.Config.Data.Database.DbConnections, Obj.Db);
             
             Result = '';
             List = fieldnames(Struct);
             for i=1:numel(List)
-                if strcmpi(List{i}, Field)
+                if strcmpi(List{i}, FieldName)
                     Result = List{i};
                     break;
                 end

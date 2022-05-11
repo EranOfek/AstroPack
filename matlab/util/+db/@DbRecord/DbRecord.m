@@ -9,7 +9,7 @@
 %
 % DbRecord - Data container that holds struct array of database table data.
 % Used with DbQuery.insert(), select(), etc.
-% Construct DbRecord before calling DbQuery.insert(),
+% Construct DbRecord before calling DbQuery.insert().
 %
 %--------------------------------------------------------------------------
 
@@ -52,10 +52,10 @@ classdef DbRecord < Base
     methods % Constructor
         function Obj = DbRecord(Data, Args)
             % Constructor
-            % Input   : Data          - struct array, table, cell array, matrix,
-            %                          AstroTable, AstroCatalog, AstroHeader
-            %                          If type is char, load data from CSV file, header
-            %                          line with field names is required
+            % Input   : Data - struct array, table, cell array, matrix,
+            %                  AstroTable, AstroCatalog, AstroHeader.
+            %                  CSV: If type is char, load data from CSV file, header
+            %                  line with field names is required.
             %           Args.ColNames - char comma separated, or cell array
             % Output  : New instance of DbRecord object
             % Example : MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
