@@ -34,7 +34,3 @@ Classes:
 - SciImage - 
 - Tran2D - 
 - VarImage - 
-- VirtImage - 
-- VirtImageManager - 
-
-

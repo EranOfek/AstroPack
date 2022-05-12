@@ -54,7 +54,6 @@ classdef ImageComponent < Component
         
         %DataProp cell = {'Data'};              % a cell of properties on which the fun_* methods will be applied
         FileName                     = '';      % @FFU
-        Virt VirtImage                          % Actual image data
         
         % Storage
     end
