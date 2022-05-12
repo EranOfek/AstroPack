@@ -4,7 +4,7 @@ function Result = unitTest()
     
     HaveLASTimages = false;
     if HaveLASTimages
-        cd /data/euler/archive/AstroPack/data/LAST/TestImages
+        cd /data/euler/archive/AstroPack/data/TestImages/LAST
 
         tic;
         CI = CalibImages;
