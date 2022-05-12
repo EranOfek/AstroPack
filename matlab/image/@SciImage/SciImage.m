@@ -26,7 +26,7 @@ classdef SciImage < ImageComponent
     
     properties
         % Time-tag / X-ray related properties
-        Photons(1,1) PhotonsList
+        %Photons(1,1) PhotonsList
     end
     
     

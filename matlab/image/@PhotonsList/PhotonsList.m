@@ -46,8 +46,8 @@ classdef PhotonsList < Component
         function Obj = PhotonsList(varargin)
             % what to read?
             
-            Obj.ImageData   = ImageComponent;
-            Obj.EventsTable = AstroCatalog;
+            Obj.Image       = ImageComponent;
+            Obj.Events      = AstroCatalog;
             
         end
         
