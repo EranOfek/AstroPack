@@ -626,12 +626,14 @@ classdef DbQuery < Component
 
         function Result = update(Obj, SetColumns, Args)
             % Update record
-            % Input   : SetColumns   - Note that string values must be enclosed by single '
-            %                         for example: 'MyField=''MyValue'''
-            %           'TableName'  -
-            %           'Where'      -
+            % Input   : SetColumns   - The part of UPDATE statement that includes
+            %                          field values, as FieldName=Value,...
+            %                          Note that string values must be enclosed by single '
+            %                          for example: 'MyField=''MyValue'''
+            %           'TableName'  - Table name to update
+            %           'Where'      - Where condition expression, i.e. (FlagField=1')
             % Output  : true on success
-            % Example : Obj.update('TableName', 'MyTable', 'MyField=1', 'Where', 'TheFlag = 1')
+            % Example : Obj.update('MyField=1', 'TableName', 'MyTable', 'Where', 'TheFlag = 1')
             
             arguments
                 Obj
@@ -702,7 +704,7 @@ classdef DbQuery < Component
             % Note that we cannot use 'delete' as function name because it
             % is a reserved keyword.
             % Input   : 'TableName' - Table name to delete from
-            %           Args.Where  - The WHERE clause 
+            %           Args.Where  - The WHERE clause with conditional expression 
             %
             % Output  : true on success
             %
