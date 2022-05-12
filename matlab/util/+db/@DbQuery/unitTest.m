@@ -16,6 +16,9 @@ function Result = unitTest()
     assert(contains(pgver, 'PostgreSQL'));
 
     % Select into CSV file (CsvFileName)
+    % Shared folder must be accessible
+    % When working on Windows, make sure that the shared folder in visible
+    % in the File Explorer
     CsvFileName = Q.select('*', 'TableName', 'master_table', 'Limit', 10000, 'UseCopy', true, 'Load', false);
     assert(~isempty(CsvFileName));
     assert(isfile(CsvFileName));    

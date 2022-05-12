@@ -126,8 +126,8 @@ classdef DbQuery < Component
         % Constructor
         function Obj = DbQuery(DbTableOrConn, Args)
             % Create new DbQuery obeject
-            % Input : DbTableOrConn - DbConnection object, or database alias from Database.yml, with
-            %         optional table name, for example: 'UnitTest'
+            % Input : DbTableOrConn - DbConnection object, or database alias from Database.yml, 
+            %         with optional table name, for example: 'UnitTest'
             %         'TableName' - Set current table name, when not set, it must be
             %                       specified by each function (insert/select/etc.)
             %         'InsertRecFunc' - Default function used with insert(). See help of insert()
@@ -164,7 +164,6 @@ classdef DbQuery < Component
 
             % Override TableName and set other properties
             Obj.setProps(Args);
-
         end
 
 
@@ -460,6 +459,7 @@ classdef DbQuery < Component
             %   https://stackoverflow.com/questions/758945/whats-the-fastest-way-to-do-a-bulk-insert-into-postgres?rq=1
             %   https://www.bytefish.de/blog/pgbulkinsert_bulkprocessor.html
             %   https://github.com/PgBulkInsert/PgBulkInsert
+            %
             if ~isempty(Args.BinaryFileName)
                 Obj.msgLog(LogLevel.Error, 'insert: BinaryFileName option is not supported yet!!!');
 
@@ -489,8 +489,7 @@ classdef DbQuery < Component
                 
             end
             
-            %---------------------------------------------------------
-            
+            %---------------------------------------------------------           
             % Get batch size
             if isempty(Args.BatchSize)
                 Args.BatchSize = Obj.InsertBatchSize;
@@ -625,7 +624,7 @@ classdef DbQuery < Component
         %------------------------------------------------------------------
 
         function Result = update(Obj, SetColumns, Args)
-            % Update record
+            % Update table record(s)
             % Input   : SetColumns   - The part of UPDATE statement that includes
             %                          field values, as FieldName=Value,...
             %                          Note that string values must be enclosed by single '
@@ -694,8 +693,6 @@ classdef DbQuery < Component
 
             Obj.Toc = toc();
             Obj.msgLog(LogLevel.Perf, 'update time: %.6f', Obj.Toc);
-
-            Result = true;
         end
 
 
@@ -704,7 +701,7 @@ classdef DbQuery < Component
             % Note that we cannot use 'delete' as function name because it
             % is a reserved keyword.
             % Input   : 'TableName' - Table name to delete from
-            %           Args.Where  - The WHERE clause with conditional expression 
+            %           'Where'     - The WHERE clause with conditional expression 
             %
             % Output  : true on success
             %
@@ -771,9 +768,10 @@ classdef DbQuery < Component
         function Result = query(Obj, ASqlText, Args)
             % Run any SELECT query, do NOT load any data. 
             % For non-SELECT statements, use exec(), see below
-            % Input  : char-array - SQL text. If not specified, Obj.SqlText is used
-            % Output : true on success, use loadResultSet() to load the data
-            % Example: Obj.query('SELECT COUNT(*) FROM master_table');
+            %
+            % Input   : char-array - SQL text. If not specified, Obj.SqlText is used
+            % Output  : true on success, use loadResultSet() to load the data
+            % Example : Obj.query('SELECT COUNT(*) FROM master_table');
             arguments
                 Obj
                 ASqlText = ''
@@ -831,12 +829,12 @@ classdef DbQuery < Component
 
 
         function Result = exec(Obj, ASqlText)
-            % Execute any non-select SQL statement (that does not return data), for
-            % SELECT, use query() above
+            % Execute any non-select SQL statement (that does not return data), 
+            % for SELECT, use query() above
             %
-            % Input  : char-array - SQL text. If not specified, Obj.SqlText is used
-            % Output : true on success
-            % Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
+            % Input   : char-array - SQL text. If not specified, Obj.SqlText is used
+            % Output  : true on success
+            % Example : Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
             arguments
                 Obj
                 ASqlText = ''
@@ -880,15 +878,17 @@ classdef DbQuery < Component
         end        
     end
     
+    %----------------------------------------------------------------------
     
     methods % High-level: Utilities
         
         function Result = selectCount(Obj, Args)
-            % Select number of records with optionally WHERE clause
+            % Select number of records in table, with optional WHERE clause.
             % Input   : 'TableName' - Table name, if empty, use Obj.TableName
             %           'Where'     - Optoinal WHERE cluse, example: 'Flag == 1'
             %           'Fast'      - When true, get ESTIMATED number of records which is
-            %                         much faster, to be used with large tables
+            %                         much faster, to be used with large tables.
+            %                         See https://wiki.postgresql.org/wiki/Count_estimate
             % Output  : integer     - COUNT returned by query
             % Example : Count = Obj.selectCount()
             % Example : Count = Obj.selectCount('TableName', 'MyTable')
@@ -1126,10 +1126,10 @@ classdef DbQuery < Component
 
 
         function Result = isColumn(Obj, ColumnName)
-            % Check if field exists by name
+            % Check if column exists by name
             % Input   : ColumnName
             % Output  : true if current result set
-            % Example : IsColumn = Obj.isColumn('MyFieldName')
+            % Example : IsColumn = Obj.isColumn('my_column_name')
             
             if isempty(Obj.JavaResultSet)
                 Obj.msgLog(LogLevel.Error, 'Query is not open (ResultSet is empty)');
@@ -1154,7 +1154,7 @@ classdef DbQuery < Component
             % Get column index by column name, search in Obj.ColNames{}
             % Input   : ColumnName - name of culumn to be search for
             % Output  : Integer - index of column
-            % Example : Index = Obj.getColumnIndex('MyColumnName')            
+            % Example : Index = Obj.getColumnIndex('my_column_name')            
             Result = find(strcmp(Obj.ColNames, ColumnName));
         end
 
@@ -1163,7 +1163,7 @@ classdef DbQuery < Component
             % Get column type from column name or column index
             % Input   : ColumnName - column name or column index
             % Output  : char - Data type name
-            % Example : getColumnType('MyColumnName')            
+            % Example : getColumnType('my_column_name')            
             
             if isnumeric(ColumnName)
                 Index = ColumnName;
@@ -1182,7 +1182,7 @@ classdef DbQuery < Component
         function Result = getColumnList(Obj)
             % Get columns list of current ResultSet, as celarray
             % Input   : -
-            % Output  : Cellarray with list of columns
+            % Output  : Cell-array with list of columns
             % Example : ColNames = Obj.getColumnList()          
             Result = Obj.ColNames;
         end
@@ -1337,7 +1337,7 @@ classdef DbQuery < Component
 
         function Result = setConnection(Obj, DbTableOrConn)
             % [Internal Use] Set connection
-            % Input   : DbTableOrConn -
+            % Input   : DbTableOrConn - See below
             % Output  : true on sucess
             % Example : Obj.setConnection('unittest')
             
@@ -1376,7 +1376,6 @@ classdef DbQuery < Component
             % Output  :  true on sucess
             % Example : Obj.openConn()
             
-            Result = false;
             if isempty(Obj.Conn)
                 error('DbQuery.query: No connection');
             end
@@ -1401,21 +1400,21 @@ classdef DbQuery < Component
         
 
         function [ServerFileName, ClientFileName] = getSharedFileName(Obj, FileName)
-            % Prepare file names for server and client
-            % Input  : FileName -
-            % Output : ServerFileName -
-            %          ClientFileName -
-            % Exampe : -
+            % Prepare file names for server and client, based on folder sharing in 
+            % configuration file.
+            %
+            % Input  : FileName - File name on client computer
+            % Output : ServerFileName - File name to be accessed from server computer
+            %          ClientFileName - File name to be accessed from client computer
+            % Exampe : [ServerFileName, ClientFileName] = Obj.getSharedFileName(Args.CsvFileName);
 
             % Prepare path, use ServerShareFileName in the COPY statement
             % so the file name will be local on the server, we will be able
             % to access over the network using ClientShareFileName
-            % Note that our server should be Linux
-            
+            % Note that our server should be Linux            
             [~, FName, Ext] = fileparts(FileName);
             ServerFileName = sprintf('%s%s%s%s', Obj.Conn.ServerSharePath, '/', FName, Ext);
             ClientFileName = fullfile(Obj.Conn.MountSharePath, strcat(FName, Ext));
-            %ClientFileName = sprintf('%s%s%s%s', Obj.Conn.MountSharePath, filesep, FName, Ext);
         end
         
         
@@ -1445,7 +1444,7 @@ classdef DbQuery < Component
         function Result = clearResultSet(Obj)
             % Clear current ResultSet and related data
             % Input   : -
-            % Output  : -
+            % Output  : true on sucess
             % Example : Obj.clearResultSet()
             
             Obj.JavaResultSet = [];
@@ -1458,11 +1457,10 @@ classdef DbQuery < Component
 
 
         function Result = getMetadata(Obj, Args)
-            % Get metadata of the specified table or the current result-set
-            % Input   : -
-            %           'TableName' -
+            % query the metadata of the specified table or the current result-set
+            % Input   : 'TableName' - table name
             % Output  : true on success
-            % Example : -
+            % Example : Obj.getMetadata();
             
             arguments
                 Obj
@@ -1512,11 +1510,12 @@ classdef DbQuery < Component
 
 
         function [SqlColumns, SqlValues] = makeInsertColumnsText(Obj, ColumnNames, Args)
-            % Input   : FieldNames -
-            %           'TableColumnList'
-            % Output  : SqlFields  -
-            %           SqlValues  -
-            % Example : [SqlFields, SqlValues] = Obj.makeInsertColumnsText('fint,fdouble')
+            % Input   : ColumnNames - cell array with list of column names
+            %           'TableColumnList' - When non-empty, ignore values from ColumnNames
+            %           which are not in this list
+            % Output  : SqlColumns - Part of the INSERT statement for names, for example, 'ColName1,ColName2' 
+            %           SqlValues  - Part of the INSERT statement for values, for example, '?,?'
+            % Example : [SqlColumns, SqlValues] = Obj.makeInsertColumnsText('fint,fdouble')
             
             arguments
                 Obj
@@ -1565,6 +1564,7 @@ classdef DbQuery < Component
 
 
         function SqlColumns = makeUpdateColumnsText(Obj, ColumnNames)
+            % *** CURRENTLY UNUSED ***
             % Prepare SQL text from cell array
             % Input   : ColumnNames -
             % Output  : char-array
@@ -1597,6 +1597,7 @@ classdef DbQuery < Component
 
 
         function SqlColumns = makeWhereColumnsText(Obj, ColumnNames, Operand)
+            % *** CURRENTLY UNUSED ***
             % Prepare SQL text from cell array, for example "WHERE RecID=? AND FInt=?..."
             % % Used internally by DbQuery.
             % Input   : ColumnNames -
@@ -1633,12 +1634,12 @@ classdef DbQuery < Component
         function Result = setStatementValues(Obj, Rec, FirstRecord, RecordCount, Args)
             % Set statement values from specified DbRecord or struct.
             % Used internally by DbQuery.
-            % Input   : Rec               - 
-            %           FirstRecord       -
-            %           RecordCount       -
-            %           'ColumnNames'     -
-            %           'StartIndex'      -
-            %           'TableColumnList' -
+            % Input   : Rec               - DbRecord object with data
+            %           FirstRecord       - Index of first row to process
+            %           RecordCount       - Number of rows to process
+            %           'ColumnNames'     - List of column names
+            %           'StartIndex'      - Index of first column in current JavaStatement
+            %           'TableColumnList' - When not empty, ignore columns not in this list
             % Output  : true on success
             % Example : setStatementValues(Rec, 1, 1)
             arguments
@@ -1647,7 +1648,7 @@ classdef DbQuery < Component
                 FirstRecord             %
                 RecordCount             %
                 Args.ColumnNames = [];  % cell
-                Args.StartIndex = 1     % Index of field in current JavaStatement
+                Args.StartIndex = 1     % Index of first column in current JavaStatement
                 Args.TableColumnList = [];
             end
 
@@ -1771,7 +1772,7 @@ classdef DbQuery < Component
         
         
         function Result = writeBinaryFile(Obj, Rec, FileName)
-            % @Todo - Still not complete!
+            % @Todo *** CURRENTLY UNUSED - NOT COMPLETED YET ***
             % Write DbRecord object to binary file for COPY FROM opeation 
             % For internal use only.
             % 
