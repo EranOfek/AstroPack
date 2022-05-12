@@ -106,10 +106,10 @@ function Result = imwarp(Obj, Trans, Args)
     % number of data properties to transform
     Nprop = numel(Args.DataProp);
     
-    if ~isempty(Args.Tran2D)
-        % transform 2D to dsiplacment map
-        error('Tran2D option is not yet supported');
-    end
+%     if ~isempty(Args.Tran2D)
+%         % transform 2D to dsiplacment map
+%         error('Tran2D option is not yet supported');
+%     end
     
     IsDisplacment   = false;
     if isnumeric(Trans)
@@ -123,13 +123,13 @@ function Result = imwarp(Obj, Trans, Args)
             % use ShiftXY
             % convert shifts to affine2d
             
-            [NrowSh, NcolSh] = size(Args.ShiftXY);
+            [NrowSh, NcolSh] = size(Trans);
             if NcolSh~=2
                 error('Number of columns in ShiftXY must be 2');
             end
             
             for Itran=1:1:NrowSh
-                ImWarpTransformation(Itran) = affine2d([1 0 0; 0 1 0; Args.ShiftXY(Itran,1) Args.ShiftXY(Itran,2) 1]);
+                ImWarpTransformation(Itran) = affine2d([1 0 0; 0 1 0; Trans(Itran,1) Trans(Itran,2) 1]);
             end
         elseif all(size(Trans)==[3 3])
             % A 3x3 matrix
