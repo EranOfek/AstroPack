@@ -1042,7 +1042,7 @@ classdef AstroWCS < Component
     methods  % Functions related to xy2refxy
         function [D,refPX,refPY,PX,PY]  = xy2refxy(Obj,XY,RefWCS,Args)
             % Calculate the displacement field D between current image to refernce image,
-            % by using WCS info of both images to tranlstae XY to refXY.
+            %   by using WCS info of both images to tranlstae XY to refXY.
             % Input  : - A single element AstroWCS object.
             %          - Either a four element region (i.e., CCDSEC)
             %            [xmin,xmax,ymin,ymax].
