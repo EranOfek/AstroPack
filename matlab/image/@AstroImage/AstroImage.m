@@ -668,6 +668,20 @@ classdef AstroImage < Component
             
         end
         
+        function Result = sizeCatalog(Obj)
+            % Return the number of sources in the CatData.Catalog property.
+            % Input  : - An AstroImage object.
+            % Output : - The number of sources in the catalog
+            % Author : Eran Ofek (May 2022)
+            % Example: AI = AstroImage; sizeCatalog(AI)
+            
+            Nobj = numel(Obj);
+            Result = nan(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = size(Obj(Iobj).CatData.Catalog,1);
+            end
+                
+        end
     end
     
     methods (Access=private)  % private functions
