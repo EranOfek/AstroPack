@@ -4,6 +4,15 @@ function Result = imwarp(Obj, Trans, Args)
     % Input  : - An AstroImage object
     %          - A transformation information, or reference.
     %            This can be one of the following:
+    %            1. A two column [X Y] shift matrix
+    %            2. An 3x3 affine transformation
+    %            3. A cube containing a displacment field - 3rd dim
+    %               for X,Y displacments.
+    %            4. AstroImage with AstroWCS
+    %            5. AstroWCS
+    %            6. Tran2D object
+    %            7. An affine transformation object
+    %               struct array with displacement fields in DF field.
     %            
     %          * ...,key,val,...
     %            'DataProp' - A cell array of data properies in the input
@@ -59,12 +68,6 @@ function Result = imwarp(Obj, Trans, Args)
         Trans                          = [0 0];
         Args.Sampling                  = 10;
         
-%         Args.ShiftXY                   = [0 0];
-%         Args.AffineMat                 = [];     % matrix or affine2d object
-%         Args.DisplacmentField          = [];
-%         Args.RefWCS                    = [];
-%         Args.Tran2D                    = [];
-        
         Args.DataProp                  = {'Image', 'Back', 'Var'};
         Args.DataPropMask              = 'Mask'
         Args.InterpMethod              = 'cubic';
@@ -105,11 +108,6 @@ function Result = imwarp(Obj, Trans, Args)
     
     % number of data properties to transform
     Nprop = numel(Args.DataProp);
-    
-%     if ~isempty(Args.Tran2D)
-%         % transform 2D to dsiplacment map
-%         error('Tran2D option is not yet supported');
-%     end
     
     IsDisplacment   = false;
     if isnumeric(Trans)
