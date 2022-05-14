@@ -1,5 +1,4 @@
-%--------------------------------------------------------------------------
-% convert class                                                      class
+% Static class for units conversion
 % Description: A static class for conversion functions.
 %              This class include many static function for units
 %              conversion.

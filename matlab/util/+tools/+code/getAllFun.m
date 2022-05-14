@@ -78,7 +78,7 @@ function List=getAllFun(Args)
                 List(I).ClassName = Tmp.ClassName(2:end);
             end
 
-            List(I).FunFullName     = tools.cell.sprintf_concatCell('.',AllFiles(Iclass).PackNames, '@', List(I).ClassName, AllClasses(Iclass).name);
+            List(I).FunFullName     = tools.cell.sprintf_concatCell('.',AllClasses(Iclass).PackNames, '@', List(I).ClassName, AllClasses(Iclass).name);
             % remove .m
             List(I).FunFullName = regexprep(List(I).FunFullName, '.m$','');
         
