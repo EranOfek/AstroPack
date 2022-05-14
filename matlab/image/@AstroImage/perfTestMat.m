@@ -1,4 +1,3 @@
-
 function Result = perfTestMat
     % Low level perfTest for the Matlab matrix
     io.msgStyle(LogLevel.Test, '@sart', 'AstroImage perfTestMat started')

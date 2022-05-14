@@ -158,6 +158,7 @@ function AllFiles = classifyAllFiles(Args)
                         AllFun = tools.code.breakClassToFunctions(FileName);
                         Nfun = numel(AllFun);
                         for Ifun=1:1:Nfun
+                     
                             AllFiles(If).ClassFuns(Ifun) = tools.code.analyzeMfile(AllFun(Ifun).Text);
                         end
                     end

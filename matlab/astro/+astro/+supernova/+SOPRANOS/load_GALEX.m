@@ -1,5 +1,4 @@
-function [jd, mjd, cps, cpserr, flux, fluxerr, prevRef, percRef ,RA, Dec, DiscMJD, z ,...
-    mInd, mAB, mERR, lInd, limitmAB] = load_GALEX(sn_name)
+function [jd, mjd, cps, cpserr, flux, fluxerr, prevRef, percRef ,RA, Dec, DiscMJD, z , mInd, mAB, mERR, lInd, limitmAB] = load_GALEX(sn_name)
 % load GALEX data from the GALEX/PTF experiment
 % Package: AstroUtil.supernove.SOPRANOS
 % Description: load GALEX data from the GALEX/PTF experiment

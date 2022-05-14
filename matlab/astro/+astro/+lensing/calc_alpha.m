@@ -1,4 +1,4 @@
-1;2cfunction [AlphaX,AlphaY,A_11,A_22,A_12,Phi,Kappa]=calc_alpha(ThetaX,ThetaY,Pars,ModelType);
+function [AlphaX,AlphaY,A_11,A_22,A_12,Phi,Kappa]=calc_alpha(ThetaX,ThetaY,Pars,ModelType);
 %-----------------------------------------------------------------------
 % calc_alpha function                                             glens
 % Description: Call programs for calculating deflection

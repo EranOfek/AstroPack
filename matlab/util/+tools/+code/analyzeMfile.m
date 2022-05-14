@@ -58,7 +58,12 @@ function Report = analyzeMfile(FileName, Args)
             % look for fun name in the first line (including get/set)
             MatchedName  = regexp(SpStr{1}, '^\s*function\s*\[?.*\]?\s*=\s*(?<FunName>\w+\.?\w*)', 'names');
             if isempty(MatchedName)
-                Report.MainFunName = '';
+                MatchedName  = regexp(SpStr{1}, '^\s*function\s*(?<FunName>\w+\.?\w*)', 'names');
+                if isempty(MatchedName)
+                    Report.MainFunName = '';
+                else
+                    Report.MainFunName = MatchedName.FunName;
+                end
             else
                 Report.MainFunName = MatchedName.FunName;
             end

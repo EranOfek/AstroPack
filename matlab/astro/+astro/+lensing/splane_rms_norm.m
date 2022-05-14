@@ -1,6 +1,4 @@
-
-function [RMS_S,Dist_S,AllBetaMean]=splane_rms_norm(Norm,CellAlpha,ImagesCell,Dls_Ds);
-%--------------------------------------------------------------------------
+function [RMS_S,Dist_S,AllBetaMean]=splane_rms_norm(Norm,CellAlpha,ImagesCell,Dls_Ds)
 % splane_rms_norm function   Given a deflection field of a lens, and the
 %                          images position, calculate the sources position.
 %                          The program calculates the rms of the sources

@@ -1,8 +1,9 @@
-% Use FV to view FITS files:
-% https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/
-
 function Result = unitTest(Obj)
 	% unitTest for the FITS class
+    % Use FV to view FITS files:
+    % https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/
+
+
 	io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
 	
 	DataSampleDir = tools.os.getTestDataDir;

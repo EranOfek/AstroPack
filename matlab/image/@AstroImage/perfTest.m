@@ -1,4 +1,3 @@
-
 function Result = perfTest
     % perfTest for the AstroImage class
     io.msgStyle(LogLevel.Test, '@sart', 'AstroImage perfTest started')

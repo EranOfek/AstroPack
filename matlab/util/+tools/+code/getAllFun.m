@@ -2,6 +2,11 @@ function List=getAllFun(Args)
     % Generate a list of all functions and methods
     % Input  : * ...,key,val,...
     %            'RemoveObsolete' - Remove functions in an 'obsolete' dir.
+    %                   Default is true.
+    %            'RemoveUnitTest' - Remove unitTest files.
+    %                   Default is true.
+    %            'RemoveTesting' - Remove 'testing' directory.
+    %                   Default is true.
     % Output : - A structure array with a list of all functions and methods
     %            in the AstroPack directory.
     % Author : Eran Ofek (May 2022)
@@ -9,6 +14,8 @@ function List=getAllFun(Args)
     
     arguments
         Args.RemoveObsolete logical    = true;
+        Args.RemoveUnitTest logical    = true;
+        Args.RemoveTesting logical     = true;
     end
     
     % get all files
@@ -18,6 +25,18 @@ function List=getAllFun(Args)
     if Args.RemoveObsolete
         IsO = contains({AllFiles.folder}, 'obsolete');
         AllFiles = AllFiles(~IsO);
+    end
+    
+    % remove unitTest
+    if Args.RemoveUnitTest
+        IsU = contains({AllFiles.name}, 'unitTest');
+        AllFiles = AllFiles(~IsU);
+    end
+    
+    % remove obsolete
+    if Args.RemoveTesting
+        IsT = contains({AllFiles.folder}, 'testing');
+        AllFiles = AllFiles(~IsT);
     end
     
     % select mat files
@@ -65,10 +84,10 @@ function List=getAllFun(Args)
     Nclass = numel(AllClasses);
     for Iclass=1:1:Nclass
         for Ifun=1:1:numel(AllClasses(Iclass).ClassFuns)
+            I = I + 1;
             Report = AllClasses(Iclass).ClassFuns(Ifun);
             
-            
-            List(I).FunName         = AllClasses(Iclass).name;
+            List(I).FunName         = Report.MainFunName;
             
             if isempty(strfind(AllClasses(Iclass).folder, '@'))
                 List(I).ClassName       = '';
@@ -78,7 +97,7 @@ function List=getAllFun(Args)
                 List(I).ClassName = Tmp.ClassName(2:end);
             end
 
-            List(I).FunFullName     = tools.cell.sprintf_concatCell('.',AllClasses(Iclass).PackNames, '@', List(I).ClassName, AllClasses(Iclass).name);
+            List(I).FunFullName     = tools.cell.sprintf_concatCell('.',AllClasses(Iclass).PackNames, ['@', List(I).ClassName], List(I).FunName);
             % remove .m
             List(I).FunFullName = regexprep(List(I).FunFullName, '.m$','');
         

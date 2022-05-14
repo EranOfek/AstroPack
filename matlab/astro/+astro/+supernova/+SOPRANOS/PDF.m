@@ -1,5 +1,4 @@
-function [PDF, chi2, dof, chi2bands, pntsbands, transbands] = ...
-    PDF(data, redshift, Vect0, Rs, Vs, VecMs, VecFrho, VecEbv, model, n_params, ProgType, priors, bg, transient, mintpoints, c)
+function [PDF, chi2, dof, chi2bands, pntsbands, transbands] = PDF(data, redshift, Vect0, Rs, Vs, VecMs, VecFrho, VecEbv, model, n_params, ProgType, priors, bg, transient, mintpoints, c)
 % calculate Probabiliy Distribution Function (PDF) for a given SW17 shock cooling model
 % Package: AstroUtil.supernove.SOPRANOS
 % Description: calculate Probabiliy Distribution Function (PDF) for a given SW17 shock cooling model
