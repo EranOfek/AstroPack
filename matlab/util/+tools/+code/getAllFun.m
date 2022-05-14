@@ -1,12 +1,24 @@
-function List=getAllFun
+function List=getAllFun(Args)
     % Generate a list of all functions and methods
+    % Input  : * ...,key,val,...
+    %            'RemoveObsolete' - Remove functions in an 'obsolete' dir.
     % Output : - A structure array with a list of all functions and methods
     %            in the AstroPack directory.
     % Author : Eran Ofek (May 2022)
     % Example: List = tools.code.getAllFun
     
+    arguments
+        Args.RemoveObsolete logical    = true;
+    end
+    
     % get all files
     AllFiles = tools.code.classifyAllFiles;
+    
+    % remove obsolete
+    if Args.RemoveObsolete
+        IsO = contains({AllFiles.folder}, 'obsolete');
+        AllFiles = AllFiles(~IsO);
+    end
     
     % select mat files
     IsM = strcmp({AllFiles.Extension},'.m');
