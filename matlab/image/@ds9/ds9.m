@@ -1,5 +1,4 @@
-%--------------------------------------------------------------------------
-% ds9 class                                                          class
+% A static class to control and manipulate ds9
 % Description: A static class for intearction with the ds9 display.
 %              This include functions to load images, change their
 %              properties, create and plot region files, printing, image
