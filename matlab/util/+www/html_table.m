@@ -158,8 +158,8 @@ if (isnan(TableMat)==0 || iscell(TableCell)==1)
 
             %--- write link header ---
             if (isempty(TableLink{I,J})==0)
-               %--- creat link ---
-	       fprintf(FID,'      <a target="_top" href="%s">\n',TableLink{I,J});
+                %--- creat link ---
+                fprintf(FID,'      <a target="_top" href="%s">\n',TableLink{I,J});
             end
 
             %--- write table cell content ---
@@ -176,9 +176,9 @@ if (isnan(TableMat)==0 || iscell(TableCell)==1)
             end
 
             %--- write link footer ---
- 	    if (isempty(TableLink{I,J})==0)
-               %--- creat link ---
-	       fprintf(FID,'      </a>\n');
+            if (isempty(TableLink{I,J})==0)
+                %--- creat link ---
+                fprintf(FID,'      </a>\n');
             end
          end
       end
@@ -196,17 +196,17 @@ if (isnan(TableMat)==0 || iscell(TableCell)==1)
 
             %--- write link header ---
             if (isempty(TableLink{I,J})==0)
-               %--- creat link ---
-	       fprintf(FID,'      <a target="_top" href="%s">\n',TableLink{I,J});
+                %--- creat link ---
+                fprintf(FID,'      <a target="_top" href="%s">\n',TableLink{I,J});
             end
 
             %--- write table cell content ---
             fprintf(FID,'      %f \n',TableMat(I,J));
 
             %--- write link footer ---
- 	    if (isempty(TableLink{I,J})==0)
-               %--- creat link ---
-	       fprintf(FID,'      </a>\n');
+            if (isempty(TableLink{I,J})==0)
+                %--- creat link ---
+                fprintf(FID,'      </a>\n');
             end
          end
       end
