@@ -89,9 +89,11 @@ function Report = analyzeMfile(FileName, Args)
     
         
         % search for author name
-        Author = regexp(Report.Help,'Author : (?<Author>\w+\s?\w+\.? \w+)\s+\((?<Month>\w+)\s(?<Year>\d+)\)', 'names');
+        %Author = regexp(Report.Help,'Author : (?<Author>\w+\s?\w+\.? \w+)\s+\((?<Month>\w+)\s(?<Year>\d+)\)', 'names');
+        Author = regexp(Report.Help,'Author : (?<Author>[\w\s\&\.]+)\s+\((?<Month>\w+)\s(?<Year>\d+)\)', 'names');
         Flag   = ~cellfun(@isempty,Author);
         if ~any(Flag)
+            %Author = regexp(Report.Help,'By : (?<Author>\w+\s?\w+\.? \w+)\s{2,100}(?<Month>\w+)\s(?<Year>\d+)', 'names');
             Author = regexp(Report.Help,'By : (?<Author>\w+\s?\w+\.? \w+)\s{2,100}(?<Month>\w+)\s(?<Year>\d+)', 'names');
             Flag   = ~cellfun(@isempty,Author);
         end
