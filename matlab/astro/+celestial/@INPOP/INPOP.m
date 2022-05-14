@@ -4,6 +4,19 @@
 % This class can be use to calculate the positions and velocities
 % of the main Solar System objects.
 %
+% Examples: 
+%       % Two methods to download the INPOP data files:
+%       I=Installer;      I.install('INPOP');
+%       % or
+%       celestial.INPOP.download
+%       % Generate MAT files for faster first access
+%       IP.convertAscii2mat
+%       IP=celestial.INPOP   % create an INPOP object
+%       I.populateTables('all');  % load all planets / 100 years
+%       IP.Constant   % get all INPOP constants
+%       JD=[2414106.00,2451545]';
+%       Pos = IP.getPos('Ear',JD);   % Get Eath Barycentric position, Equatorial J2000
+%
 %
 % NOTES [Answers from IMCCE]
 %
