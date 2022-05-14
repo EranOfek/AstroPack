@@ -1,6 +1,5 @@
 function [OutJD,ObjVel]=hjd(JD,ObjCoo,Type)
-%--------------------------------------------------------------------------
-% hjd function                                                  timeseries
+% JD to heliocentric JD
 % Description: Convert Julian Day (UTC) to Helicentric/Barycentric Julian
 %              Day for geocentric observer.
 % Input  : - Column vector of julian days (UTC time system).
@@ -24,9 +23,9 @@ function [OutJD,ObjVel]=hjd(JD,ObjCoo,Type)
 %--------------------------------------------------------------------------
 
 SEC_IN_DAY = 86400.0;
-if (nargin==2),
+if (nargin==2)
    Type = 'hb';
-elseif (nargin==3),
+elseif (nargin==3)
    % do nothing
 else
    error('Illegal number of input arguments');
@@ -71,7 +70,7 @@ ObjPos = cosined(ObjCoo).';
 
 DelJD = zeros(N,1);
 ObjVel = zeros(N,1);
-for I=1:1:N,
+for I=1:1:N
    EarthCoo = Coo(:,I);
    EarthVel = Vel(:,I);
 

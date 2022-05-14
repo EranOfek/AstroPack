@@ -29,8 +29,11 @@ function List=getAllFun
         I = I + 1;
         Report = AllFuns(I);
         
-        List(I).FunName         = Report.name;
+        List(I).FunName         = Report.name;        
         List(I).FunFullName     = tools.cell.sprintf_concatCell('.',Report.PackNames, Report.name);
+        % remove .m
+        List(I).FunFullName = regexprep(List(I).FunFullName, '.m$','');
+        
         if isempty(strfind(Report.folder, '@'))
             List(I).ClassName       = '';
         else
@@ -64,7 +67,9 @@ function List=getAllFun
             end
 
             List(I).FunFullName     = tools.cell.sprintf_concatCell('.',AllFiles(Iclass).PackNames, '@', List(I).ClassName, AllClasses(Iclass).name);
-            
+            % remove .m
+            List(I).FunFullName = regexprep(List(I).FunFullName, '.m$','');
+        
             List(I).DescriptionLine = Report.DescriptionLine;
             List(I).Help            = Report.Help;
             List(I).Author          = Report.Author;

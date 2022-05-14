@@ -1,6 +1,5 @@
 function [Cat,Msg,FirstLine,Col,ColCell]=run_sdss_sql(Query,varargin) 
-%--------------------------------------------------------------------------
-% run_sdss_sql function                                               sdss
+% Run SQL query on SDSS database and retrieve the results into an array.
 % Description: Run SQL query on SDSS database and retrieve the results
 %              into an array.
 % Input  : - File name containing the SQL query, or alternatively,

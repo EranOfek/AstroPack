@@ -1,6 +1,5 @@
 function Val=integrand_jn_ellkappa(U,N,X2,Y2,Q2,Alpha,S2,Norm)
-%-----------------------------------------------------------------------------
-% integrand_jn_ellkappa function                                        glens
+% Calculate the integrand of J_n(x,y), for gravitational lensing softened elliptical mass distribution
 % Description: Calculate the integrand of J_n(x,y), for gravitational
 %              lensing softened elliptical mass distribution
 %              (See Keeton 2001, Eq. 15).

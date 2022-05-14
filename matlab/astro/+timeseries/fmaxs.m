@@ -1,6 +1,5 @@
-function [Res,Ind,WMeanPos]=fmaxs(Mat,ColX,ColY,MeanWindowSize);
-%------------------------------------------------------------------------------
-% fmaxs function                                                    timeseries
+function [Res,Ind,WMeanPos]=fmaxs(Mat,ColX,ColY,MeanWindowSize)
+% Find local maxima by diffrentiation
 % Description: Given a matrix, find local maxima (in one of the columns) 
 %              and return the maxima position and height.
 % Input  : - Matrix of at least two columns.

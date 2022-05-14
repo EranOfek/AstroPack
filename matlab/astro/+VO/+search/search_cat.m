@@ -1,6 +1,5 @@
 function [Res,CatUM,Cat]=search_cat(Cat,X,Y,varargin)
-%--------------------------------------------------------------------------
-% search_cat function                                            Catalogue
+% Given a catalog with Long,Lat coordinates position, search for lines near a list of reference positions.
 % Description: Given a catalog with Long,Lat coordinates position,
 %              search for lines near a list of reference positions.
 %              This function can be used to search for a near(est) position

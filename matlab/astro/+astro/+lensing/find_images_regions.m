@@ -1,6 +1,5 @@
 function [RMS,Dist,ImPos,ConvInfo]=find_images_regions(BetaPos,ModelPars,ModelType,StartImPos,Dls_Ds,MaxDist,SearchMethod,ConvThreshold);
-%-----------------------------------------------------------------------------
-% find_images_regions function                                          glens
+% Search for images of the source in a predefined regions.
 % Description:  Given a mass model, its parameters and a
 %                               source position, search for images of
 %                               the source only in a predefind given regions
