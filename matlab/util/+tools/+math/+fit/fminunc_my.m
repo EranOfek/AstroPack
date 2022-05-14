@@ -1,6 +1,5 @@
 function [varargout]=fminunc_my(Fun,varargin)
-%------------------------------------------------------------------------------
-% fminsearch_my function                                                FitFun
+% fminunc.m version in which it is possible to pass additional parameters to the function
 % Description: A version of the built in fminunc.m function in which it
 %              is possible to pass additional parameters to the function,
 %              with no need for nested functions.
