@@ -12,7 +12,7 @@
 %       % Generate MAT files for faster first access
 %       IP.convertAscii2mat
 %       IP=celestial.INPOP   % create an INPOP object
-%       I.populateTables('all');  % load all planets / 100 years
+%       IP.populateTables('all');  % load all planets / 100 years
 %       IP.Constant   % get all INPOP constants
 %       JD=[2414106.00,2451545]';
 %       Pos = IP.getPos('Ear',JD);   % Get Eath Barycentric position, Equatorial J2000
@@ -319,6 +319,33 @@ classdef INPOP < Base
     end
     
     methods  % aux/util functions
+        function Result = isPopulated(Obj, Object, FileData)
+            % Check if table for an object is populated with Chebyshev polynomials
+            % Input  : - A celestial.INPOP object.
+            %          - An object. Default is 'Ear'.
+            %          - FileData {'pos' | 'vel'}. Default is 'pos'.
+            % Output : - A logical indicating if the specific table is
+            %            populated.
+            % Author : Eran Ofek (May 2022)
+            % Example: IP.isPopulated
+            
+            arguments
+                Obj
+                Object   = 'Ear';
+                FileData = 'pos';
+            end
+            
+            switch FileData
+                case 'pos'
+                    Result = ~isempty(Obj.PosTables.(Object));
+                case 'vel'
+                    Result = ~isempty(Obj.VelTables.(Object));
+                otherwise
+                    error('Unknown FileData option - should be pos or vel');
+            end
+            
+        end
+        
         function Obj = populateTables(Obj, Object, Args)
             % Populate pos/vel INPOP tables in the INPOP object.
             %   In the INPOP object, the PosTables and VelTables contains
@@ -344,6 +371,9 @@ classdef INPOP < Base
             %            'FileType' - 'asc' | ['mat'].
             %                   Use celestial.INPOP.convertAscii2mat to
             %                   create the mat files.
+            %            'PopForce' - A logical indicating if to repopulate
+            %                   the table even if not empty.
+            %                   Default is false.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -361,6 +391,7 @@ classdef INPOP < Base
                 Args.Version     = Obj.LatestVersion;
                 Args.FileData    = 'pos';
                 Args.FileType    = 'mat';
+                Args.PopForce logical = false;
             end
             
             if ischar(Object)
@@ -391,29 +422,35 @@ classdef INPOP < Base
                 % read data
                 switch lower(Args.OriginType)
                     case 'ascii'
-                        Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+                        if ~Obj.isPopulated(Object{Iobject}, Args.FileData) || Args.PopForce
+                            Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
                                                           'Object',Object{Iobject},...
                                                           'Version',Args.Version,...
                                                           'TimePeriod',TimePeriod,...
                                                           'FileData',Args.FileData,...
                                                           'FileType',Args.FileType);
+                        else
+                            Table = [];
+                        end
 
                     otherwise
                         error('Unknown OriginType option');
                 end
 
-                % select data in some time range
-                Flag  = Table(:,Obj.ColTstart)>=MinJD & Table(:,Obj.ColTend)<=MaxJD;
-                Table = Table(Flag,:);
-                
-                % store data
-                switch lower(Args.FileData)
-                    case 'pos'
-                        Obj.PosTables.(Object{Iobject}) = Table;
-                    case 'vel'
-                        Obj.VelTables.(Object{Iobject}) = Table;
-                    otherwise
-                        error('Unknown FileData option');
+                if ~isempty(Table)
+                    % select data in some time range
+                    Flag  = Table(:,Obj.ColTstart)>=MinJD & Table(:,Obj.ColTend)<=MaxJD;
+                    Table = Table(Flag,:);
+
+                    % store data
+                    switch lower(Args.FileData)
+                        case 'pos'
+                            Obj.PosTables.(Object{Iobject}) = Table;
+                        case 'vel'
+                            Obj.VelTables.(Object{Iobject}) = Table;
+                        otherwise
+                            error('Unknown FileData option');
+                    end
                 end
                 
             end

@@ -783,6 +783,9 @@ classdef OrbitalEl < Base
             %                   Note that for the default (false) the
             %                   output is in an "astrometric" reference
             %                   frame (i.e., relative to the stars).
+            %            'EarthEphem' - Earth ephemeris to use:
+            %                   'vsop87' - VSOP87
+            %                   'inpop' - INPOP (default).
             %            'GeoPos' - Geodetic position of the observer (on
             %                   Earth). [Lon (rad), Lat (rad), Height (m)].
             %                   If empty, then calculate geocentric
@@ -846,6 +849,7 @@ classdef OrbitalEl < Base
                 Args.TolLT                       = 1e-6;   % [day]
                 Args.OutUnitsDeg(1,1) logical    = true;
                 Args.Aberration(1,1) logical     = false;
+                Args.EarthEphem                  = 'vsop87';  % 'vsop87' | 'inpop'
                 Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
                 Args.RefEllipsoid                = 'WGS84';
                 Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
@@ -906,7 +910,23 @@ classdef OrbitalEl < Base
                     %atan(Ztarget./sqrt(Xtarget.^2 + Ytarget.^2)).*RAD
 
                     % rectangular ecliptic coordinates of Earth with equinox of J2000
-                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time(It), 'Earth', 'a', 'd');
+                    switch lower(Args.EarthEphem)
+                        case 'vsop87'
+                            [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time(It), 'Earth', 'a', 'd');
+                        case 'inpop'
+                            error('INPOP is not implemented yet - use vsop87');
+                            IN = celestial.INPOP;  % need to make it singelton
+                            IN.populateTables({'Ear','Sun'});
+                            %
+                            XXX = IN.getPos('Ear',Time(It)) - IN.getPos('Sun',Time(It));
+                            VVV = IN.getVel('Ear',Time(It)) - IN.getVel('Sun',Time(It));
+                            
+                            % convert to eclipic coordinates
+                            
+                            
+                        otherwise
+                            error('Unknown EarthEphem option');
+                    end
 
                     Gau = celestial.coo.topocentricVector(Time(It), Args.GeoPos, 'OutUnits','au',...
                                                                              'RefEllipsoid',Args.RefEllipsoid,...
