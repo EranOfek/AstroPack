@@ -37,6 +37,7 @@ switch Type
         % For an alternative (better) representation see Capitaine et al. 2003
         % https://www.aanda.org/articles/aa/pdf/2003/48/aa4068.pdf
         
+        % Expressions in arcseconds:
         ZetaA   = 2.5976176 + 2306.0809506.*T + 0.3019015.*T.^2 + ...
                   0.0179663.*T.^3 - 0.0000327.*T.^4 - 0.0000002.*T.^5;
         ZA      = -2.5976176 + 2306.0803226.*T + 1.0947790.*T.^2 + ...
