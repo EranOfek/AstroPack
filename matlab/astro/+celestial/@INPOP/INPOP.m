@@ -60,6 +60,8 @@ classdef INPOP < Base
                                    % i.e., element 3 contains cheby polys 0,1,2
         PosTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
         VelTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
+        
+        Constant          = celestial.INPOP.readConstants;
     end
     
     properties (Constant)
@@ -68,7 +70,7 @@ classdef INPOP < Base
         RangeShort        = [2414105.00, 2488985.00];
         ColTstart         = 1;
         ColTend           = 2;
-        Constant          = celestial.INPOP.readConstants;
+        
     end
     
     methods % constructor
