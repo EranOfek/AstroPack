@@ -489,6 +489,8 @@ classdef INPOP < Base
             %                   the Constant.AU property.
             %            'Algo' - Algorithm. Currently a single option
             %                   exist.
+            %           There are additional undocumented arguments - see
+            %           code for details.
             % Output : - A 3 by number of epochs matrix of [X; Y; Z]
             %            positions or velocities.
             %            Units are given by OutUnits, or OutUnits per day.
@@ -586,6 +588,58 @@ classdef INPOP < Base
                 otherwise
                     error('Unknown OutUnits option');
             end
+        end
+        
+        function Vel = getVel(Obj, Object, JD, Args)
+            % Get INPOP planetary velocities by evaluation of the chebyshev polynomials.
+            %   This function can get the [X,Y,Z] Barycentric velocities [km]
+            %   with respect to the ICRS equatorial J2000.0 coordinate
+            %   system.
+            %   The function gets the positions for a single object and
+            %   multiple times.
+            %   The function can be used also to evaluate the TT time
+            %   table (see getTT for details).
+            % Input  : - A single-element celestial.INPOP object.
+            %          - A planet/object name:
+            %            'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar',
+            %            'Jup', 'Sat', 'Ura', 'Nep', 'Plu'.
+            %            Default is 'Ear'.
+            %          - A vector of JD at which to evaulate the
+            %            positions/velocities.
+            %            Alternatively this can be a 4/6 columns matrix of
+            %            [day month year [Frac | H M S]].
+            %            Default is 2451545.
+            %          * ...,key,val,...
+            %            'TimeScale' - The JD time scale. Default is 'TDB'.
+            %            'OutUnits'  - 'km','cm','au',... for velocity this
+            %                   is always, the same per day.
+            %                   Default is 'au'.
+            %                   Note that the value of he AU is taken from
+            %                   the Constant.AU property.
+            %            'Algo' - Algorithm. Currently a single option
+            %                   exist.
+            %           There are additional undocumented arguments - see
+            %           code for details.
+            % Output : - A 3 by number of epochs matrix of [X; Y; Z]
+            %            velocities.
+            %            Units are given by OutUnits, or OutUnits per day.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: I = celestial.INPOP;
+            %          I.populateTables('Ear','FileData','vel')
+            %          Vel = I.getVel
+            
+            arguments
+                Obj(1,1)
+                Object               = 'Ear';
+                JD                   = 2451545;
+                Args.TimeScale       = 'TDB';
+                Args.OutUnits        = 'au';
+                Args.Algo            = 1;
+               
+            end
+            
+            Vel = Obj.getPos(Object, JD, 'IsPos',false, 'OutUnits',Args.OutUnits, 'Algo', Args.Algo, 'TimeScale',Args.TimeScale);
+
         end
         
         function TT = getTT(Obj, JD, Args)
