@@ -1,8 +1,7 @@
 function [ZetaA,ZA,ThetaA]=precession(JD, Type)
 % Calculate the Earth precession parameters
 % Package: celestial.coo
-% Description: Calculate the Earth precssion parameters as a function of
-%              JD.
+% Description: Calculate the Earth precssion parameters as a function of JD.
 % Input  : - JD
 %          - Type of precession:
 %               '1976' - IAU 1976
