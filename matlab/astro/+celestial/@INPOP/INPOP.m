@@ -320,6 +320,23 @@ classdef INPOP < Base
         
     end
     
+    methods (Static)  % transformations
+        function CooEcl = eqJ2000_2ecliptic(CooJ2000)
+            % Rotate [X;Y;Z] Equatorial J2000 coordinates to ecliptic [X;Y;Z]
+            % Input  : - A 3xN matrix of positions [X;Y;Z] in equatorial J2000.
+            % Output : - A matrix of [X;Y;Z] ecliptic positions.
+            % Author : Eran Ofek (May 2022)
+            % Example: CooEcl = celestial.INPOP.eqJ2000_2ecliptic(rand(3,6))
+            
+            arguments
+                CooJ2000(3,:)
+            end
+            
+            RotM   = celestial.coo.rotm_coo('e');
+            CooEcl = RotM * CooJ2000;
+        end
+    end
+    
     methods  % aux/util functions
         function Result = isPopulated(Obj, Object, FileData)
             % Check if table for an object is populated with Chebyshev polynomials
