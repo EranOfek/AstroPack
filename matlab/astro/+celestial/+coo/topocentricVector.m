@@ -26,7 +26,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
         JD_UT1
         GeoPos                              = [];  % [] - geocentric ; [rad, rad, m] - topocentric
         Args.RefEllipsoid                   = 'WGS84';
-        Args.Convert2ecliptic(1,1) logical  = false; 
+        Args.Convert2ecliptic logical       = false; 
         Args.Equinox                        = 'date';  % 'date' | 'J2000'
         Args.OutUnits                       = 'm';
         Args.Xp                             = [];
