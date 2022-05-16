@@ -525,8 +525,9 @@ classdef INPOP < Base
             %          
             %          % test accuracy relative to VSOP87
             %          JD=(2451545:0.01:(2451545+100)).';
-            %          [Coo]=celestial.SolarSys.calc_vsop87(JD,'Earth','e','E');     
-            %          Pos = I.getPos('Ear',JD);                                 
+            %          [Coo,CVel]=celestial.SolarSys.calc_vsop87(JD,'Earth','e','E');     
+            %          Pos = I.getPos('Ear',JD);     
+            %          Vel = I.getVel('Ear',JD);
             %          max(abs(Coo(2,:).*constant.au./1e5 - Pos(2,:)))
 
             arguments
