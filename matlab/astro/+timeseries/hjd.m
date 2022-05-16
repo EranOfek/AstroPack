@@ -31,8 +31,8 @@ else
    error('Illegal number of input arguments');
 end
 
-AU = get_constant('au','cgs');
-C   = get_constant('c','cgs');
+AU = constant.au;
+C  = constant.c;
 % C in AU/day
 C  = C.*86400./AU;
 AU = AU./100000;  % km
@@ -52,20 +52,20 @@ switch Type
 DUT=0;
 DeltaT=0;
     JD_TT        = JD + (DUT + DeltaT)./SEC_IN_DAY; 
-    [Coo,Vel]    = calc_vsop87(JD_TT, 'Earth', 'a', 'E');
+    [Coo,Vel]    = celestial.SolarSys.calc_vsop87(JD_TT, 'Earth', 'a', 'E');
 
  case 'hb'
 %    [DeltaT,DUT] = delta_t(JD);
 DUT=0;
 DeltaT=0;
     JD_TT        = JD + (DUT + DeltaT)./SEC_IN_DAY; 
-    [Coo,Vel]    = calc_vsop87(JD_TT, 'Earth', 'e', 'E');
+    [Coo,Vel]    = celestial.SolarSys.calc_vsop87(JD_TT, 'Earth', 'e', 'E');
 
  otherwise
     error('Unknown Type option');
 end
 
-ObjPos = cosined(ObjCoo).';
+ObjPos = celestial.coo.cosined(ObjCoo).';
 
 
 DelJD = zeros(N,1);

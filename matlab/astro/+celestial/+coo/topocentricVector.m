@@ -3,7 +3,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
     % Input  : - JD in UT1 time system.
     %          - Geodetic position. If [], then assume geocentric position
     %            and return zeros. Otherwise should be [Long, Lat, Height]
-    %            in [rad, rad, m].
+    %            in [rad, rad, m]. Default is [].
     %          * ...,key,val,...
     %            'RefEllipsoid' - Reference ellipsoid. Default is 'WGS84'.
     %            'Convert2ecliptic' - A logical indicating if to convert
@@ -34,8 +34,8 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
     end
    
     if isempty(GeoPos)
-        G  = zeros(3,1);
-        Gt = zeros(3,1);
+        G    = zeros(3,1);
+        Gdot = zeros(3,1);
     else
     
         N    = numel(JD_UT1);
