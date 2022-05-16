@@ -504,6 +504,9 @@ classdef INPOP < Base
             %                   Default is 'au'.
             %                   Note that the value of he AU is taken from
             %                   the Constant.AU property.
+            %            'IsEclipticOut' - A logical indicating if output
+            %                   is in ecliptic coordinates (if false then output
+            %                   is in equatorial J2000). Default is false.
             %            'Algo' - Algorithm. Currently a single option
             %                   exist.
             %           There are additional undocumented arguments - see
@@ -533,6 +536,7 @@ classdef INPOP < Base
                 Args.IsPos logical   = true;
                 Args.TimeScale       = 'TDB';
                 Args.OutUnits        = 'au';
+                Args.IsEclipticOut logical = false;
                 Args.Algo            = 1;
                 Args.Ncoo            = 3;  % internal argument used to evaluate pos/vel (=3) or time (=1)
             end
@@ -605,6 +609,10 @@ classdef INPOP < Base
                 otherwise
                     error('Unknown OutUnits option');
             end
+            
+            if Args.IsEclipticOut
+                Pos = celestial.INPOP.eqJ2000_2ecliptic(Pos);
+            end
         end
         
         function Vel = getVel(Obj, Object, JD, Args)
@@ -633,6 +641,9 @@ classdef INPOP < Base
             %                   Default is 'au'.
             %                   Note that the value of he AU is taken from
             %                   the Constant.AU property.
+            %            'IsEclipticOut' - A logical indicating if output
+            %                   is in ecliptic coordinates (if false then output
+            %                   is in equatorial J2000). Default is false.
             %            'Algo' - Algorithm. Currently a single option
             %                   exist.
             %           There are additional undocumented arguments - see
@@ -651,11 +662,12 @@ classdef INPOP < Base
                 JD                   = 2451545;
                 Args.TimeScale       = 'TDB';
                 Args.OutUnits        = 'au';
+                Args.IsEclipticOut logical = false;
                 Args.Algo            = 1;
                
             end
             
-            Vel = Obj.getPos(Object, JD, 'IsPos',false, 'OutUnits',Args.OutUnits, 'Algo', Args.Algo, 'TimeScale',Args.TimeScale);
+            Vel = Obj.getPos(Object, JD, 'IsPos',false, 'OutUnits',Args.OutUnits, 'Algo', Args.Algo, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
 
         end
         
