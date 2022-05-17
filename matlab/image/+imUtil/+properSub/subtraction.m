@@ -86,7 +86,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Args.SigmaAstN                = []; %[0.02, 0.02];
         Args.SigmaAstR                = []; %[0.02, 0.02];
         
-        Args.IsImFFT(1,1) logical     = fakse;
+        Args.IsImFFT(1,1) logical     = false;
         Args.IsPsfFFT(1,1) logical    = false;
         Args.ShiftIm(1,1) logical     = false;
         Args.ShiftPsf(1,1) logical    = false;
@@ -129,7 +129,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Pr_hat = fftshift(Pr_hat);
     end
     
-    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn, 'AbsFun',AbsFun, 'Eps',Args.Eps);
+    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn, 'AbsFun',AbsFun, 'Eps',Args.Eps);
     
     % denominator of D
 %     D_den     = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;

@@ -20,12 +20,12 @@ function Result = unitTest()
     assert(isfile([I.Location,Filename]))
 
     % Populate tables from ascii files
-    I = I.populateTables({'Sun','Earth'},'FileType','asc');
-    assert(~isempty(I.PosTables.Sun) && ~isempty(I.PosTables.Earth))
+    I = I.populateTables({'Sun','Ear'},'FileType','asc');
+    assert(~isempty(I.PosTables.Sun) && ~isempty(I.PosTables.Ear))
 
     % calculate position and compare with VSOP87
     JD = mean(I.RangeShort);
-    PosINPOP = getPos(I, 'Earth',JD);
+    PosINPOP = getPos(I, 'Ear',JD);
  
     PosVSOP87 = celestial.SolarSys.calc_vsop87(JD,'Earth','e','E');
 
@@ -42,6 +42,28 @@ function Result = unitTest()
     VelINPOP = getPos(I,'Jup',JD,'IsPos',false);
     [~,VelVSOP87] = celestial.SolarSys.calc_vsop87(JD,'Jupiter','e','E');
     assert(mean(abs(VelINPOP-VelVSOP87))<1e-3,'INPOP and VSOP87 do not agree')
+
+    I = celestial.INPOP();
+    Objects = {'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar', 'Jup', 'Sat', 'Ura', 'Nep', 'Plu', 'Lib'};
+    Nobj = numel(Objects);
+    Passed = true;
+    for i=1:Nobj
+        try
+            I.populateTables(Objects{i});   
+            try
+                PosINPOP = getPos(I, Objects{i},JD);
+            catch
+                disp(['Did not calculate position of ',Objects{i}]);
+                Passed = false;
+            end
+        catch
+            disp(['Did not populate ',Objects{i}]);
+            Passed = false;
+        end
+    end
+    assert(Passed,'Failed in populating and calculating objects')
+    % Moon ('Moo') is not initialized and gives an error in isPopulated
+    % 
 
     io.msgLog(LogLevel.Test, 'INPOP test passed');
     Result = true;

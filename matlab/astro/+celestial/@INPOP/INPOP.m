@@ -58,8 +58,8 @@ classdef INPOP < Base
     properties
         ChebyFun cell       = {};  % Chebyshev anonymous functions indexd by thir order-1
                                    % i.e., element 3 contains cheby polys 0,1,2
-        PosTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
-        VelTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
+        PosTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Moo',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
+        VelTables struct    = struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Moo',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]);
         
         Constant          = celestial.INPOP.readConstants;
     end
@@ -83,7 +83,7 @@ classdef INPOP < Base
             % Author : Eran Ofek (May 2022) 
             
             arguments
-                Args.PopOrder = [6:1:15];
+                Args.PopOrder = [1:1:15];
             end
             
             Norder = numel(Args.PopOrder);
